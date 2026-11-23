@@ -1187,6 +1187,14 @@ robustness, **LOW** = cosmetic / QoL.
   preparation's command-column zeroing and its probe are now the canonical
   warm start's (`policy_loading.neutralize_command_columns` and
   `assert_command_blind`); the rest stays until PR-11 .. PR-13.
+  **Update (2026-11-23, decision D-D60):** the tracking reward, its metrics,
+  `info` keys and dwell now live in `BaseDinoEnv`, active only under a live
+  command (the behavior env inherits them; the nine pilot captures re-run
+  exactly), and a stage TOML can declare the command task in a `[commands]`
+  table, so a manifest node can train what a pilot trains. No committed stage
+  declares one yet; the second trainer, the recipe dialect and the second gate
+  stay. `prepare_behavior_checkpoint` refuses a walker trained on live
+  commands.
 - **HIGH (terrain blocker)** — **every certified walker survives the plane and
   falls on a flat heightfield (measured 2026-09-25).** An eval-only run (seed
   1, nothing trained or written under `logs/`) of the `robust_best_model` pair

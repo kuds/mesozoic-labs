@@ -1429,7 +1429,10 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         species_cfg, stage_configs, entry.reference, 1, 1000, algorithm=algorithm, plant_identity=current
     )
     try:
-        assert load_vecnorm_stats(str(result.vecnorm_pkl), train_env, eval_env, current_plant=current) is True
+        assert (
+            load_vecnorm_stats(str(result.vecnorm_pkl), train_env, eval_env, current_plant=current, command_mode="none")
+            is True
+        )
         assert np.array_equal(train_env.obs_rms.mean, widened_mean)
         assert np.array_equal(train_env.obs_rms.var, widened_var)
         assert np.array_equal(eval_env.obs_rms.mean, widened_mean)
@@ -1439,7 +1442,9 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         # VecNormalize.load cannot even bind the narrower statistics to these envs, and
         # policy_loading.load_vecnormalize then names the plant instead of the shape.
         with pytest.raises(PlantCompatibilityError, match="observation_dim: checkpoint="):
-            load_vecnorm_stats(str(parent["vecnorm_pkl"]), train_env, eval_env, current_plant=current)
+            load_vecnorm_stats(
+                str(parent["vecnorm_pkl"]), train_env, eval_env, current_plant=current, command_mode="none"
+            )
     finally:
         train_env.close()
         eval_env.close()

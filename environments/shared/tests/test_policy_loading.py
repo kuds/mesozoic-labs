@@ -980,7 +980,7 @@ def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]
             verbose=0,
         ),
         "_post_training_eval_panels": lambda: train_base._post_training_eval_panels(
-            species_cfg, None, None, tmp_path, "ppo", None, quality_episodes=1, velocity_episodes=1
+            species_cfg, None, None, tmp_path, "ppo", None, quality_episodes=1, velocity_episodes=1, command_mode="none"
         ),
         "train_curriculum": lambda: train_base.train_curriculum(species_cfg, {}),
         "record_stage_video": lambda: evaluation.record_stage_video(None, object, {}, 1, tmp_path),
@@ -1051,7 +1051,7 @@ def test_one_patch_of_the_resolver_reaches_every_caller(caller, monkeypatch, tmp
             SimpleNamespace(model_id=TYRANNOSAURUS_REX), {1: {"env_kwargs": {}}}, model_path, stage=1
         ),
         "_load_vecnorm_into_envs": lambda: train_base._load_vecnorm_into_envs(
-            model_path, None, None, task_load_mode="resume_same_stage"
+            model_path, None, None, task_load_mode="resume_same_stage", command_mode="none"
         ),
     }
     with pytest.raises(_Reached) as excinfo:

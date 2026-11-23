@@ -45,9 +45,9 @@ never re-trained:
   stage's task fingerprint are re-stamped, and ``mesozoic_widen_lineage``
   records the parent hashes and the revision gap crossed; the parent's
   ``mesozoic_task_lineage`` stays.
-* **Sidecar rewrite**: ``obs_rms`` gains the reseeded command slice (mean 0
-  / var 1 at the carried count — ``command_frame.pad_running_stats``, the
-  reseed rule applied at birth), the observation space is widened, the
+* **Sidecar rewrite**: ``obs_rms`` gains the command slice at identity (mean
+  0 / var 1 at the carried count — ``command_frame.pad_running_stats``, the
+  identity every stage holds the slice at, decision D-D60), the observation space is widened, the
   identity re-stamped, and the wrapper is re-bound once to the real widened
   environment before it is saved frozen (``training = False``).
 * **Output layout** (D-C9): ``models/<handoff>.zip`` + ``<handoff>_vecnorm

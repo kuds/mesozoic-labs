@@ -1007,13 +1007,14 @@ class TestPostEvalEpisodes:
 
     def test_none_keeps_the_historical_50_and_30_episode_panels(self, tmp_path, monkeypatch):
         captured, metrics = self._report(tmp_path, monkeypatch, None)
-        assert captured == {"quality_episodes": 50, "velocity_episodes": 30}
+        # command_mode: the stage's, for the handoff sidecar's identity rule (decision D-D60); no stage config here.
+        assert captured == {"quality_episodes": 50, "velocity_episodes": 30, "command_mode": "none"}
         assert "post_eval_skipped" not in metrics
         assert metrics["mean_forward_vel"] == 1.5
 
     def test_a_positive_value_sizes_both_panels(self, tmp_path, monkeypatch):
         captured, _ = self._report(tmp_path, monkeypatch, 3)
-        assert captured == {"quality_episodes": 3, "velocity_episodes": 3}
+        assert captured == {"quality_episodes": 3, "velocity_episodes": 3, "command_mode": "none"}
 
     def test_the_counts_reach_the_rollout_loops(self, tmp_path, monkeypatch):
         pytest.importorskip("stable_baselines3")  # _post_training_eval_panels loads the checkpoint via SB3
@@ -1038,6 +1039,7 @@ class TestPostEvalEpisodes:
             None,
             quality_episodes=4,
             velocity_episodes=2,
+            command_mode="none",
         )
         assert seen == {"quality": 4, "velocity": 2}
         assert panel["quality_eval_checkpoint"] == "final_model"
@@ -1084,6 +1086,7 @@ class TestPostEvalEpisodes:
             None,
             quality_episodes=4,
             velocity_episodes=10,
+            command_mode="none",
         )
         assert seen["n_episodes"] == 10
         assert panel["quality_eval_checkpoint"] == "robust_best_model"
@@ -1125,6 +1128,7 @@ class TestPostEvalEpisodes:
             None,
             quality_episodes=4,
             velocity_episodes=3,
+            command_mode="none",
         )
         assert panel["quality_eval_checkpoint"] == "final_model"
         assert (panel["success_count"], panel["n_success_episodes"]) == (1, 3)

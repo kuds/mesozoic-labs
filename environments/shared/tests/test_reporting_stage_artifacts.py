@@ -1131,6 +1131,80 @@ def test_collected_results_carry_the_v2_bar_on_a_v2_row_only():
 
 
 @pytest.mark.parametrize(
+    ("env_kwargs", "mode"),
+    [({}, "none"), ({"command_mode": "heading_and_speed"}, "heading_and_speed")],
+    ids=["none", "live"],
+)
+def test_evaluate_stage_checkpoints_loads_the_statistics_under_the_stage_command_mode(
+    tmp_path, monkeypatch, env_kwargs, mode
+):
+    """The notebook's evaluation loads the final sidecar through decision D-D60's load rule under the stage's own
+    command mode (``load_vecnorm_stats(command_mode=)``): refused off identity for a live stage, re-imposed for a
+    "none" one, never judged under another stage's mode."""
+    from types import SimpleNamespace
+
+    from environments.shared import curriculum, evaluation, train_base
+    from environments.shared.reporting import stage_artifacts
+
+    stage_dir = tmp_path / "stage2"
+    (stage_dir / "models").mkdir(parents=True)
+    final_path = stage_dir / "models" / "stage2_final"
+    final_path.with_suffix(".zip").write_bytes(b"weights")
+    final_vecnorm = stage_dir / "models" / "stage2_final_vecnorm.pkl"
+    final_vecnorm.write_bytes(b"stats")
+    loads: list[tuple[str, str]] = []
+
+    def load_vecnorm_stats(path, *_envs, command_mode, **_kwargs):
+        loads.append((str(path), command_mode))
+        return True
+
+    class Env:
+        dt = 0.01
+
+        def __init__(self, **_kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(train_base, "create_vec_env", lambda *a, **k: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(curriculum, "load_vecnorm_stats", load_vecnorm_stats)
+    monkeypatch.setattr(
+        evaluation,
+        "eval_policy",
+        lambda model, env, keys, *, n_episodes: (
+            [1.0] * n_episodes,
+            [10] * n_episodes,
+            [0.1] * n_episodes,
+            [],
+            [0.5] * n_episodes,
+        ),
+    )
+    monkeypatch.setattr(stage_artifacts, "select_handoff_checkpoint", lambda _model_dir: None)
+    monkeypatch.setattr(
+        stage_artifacts,
+        "build_stage_results_from_eval_data",
+        lambda *a, **k: {"best_eval_reward": "", "best_eval_std": "", "best_eval_timestep": ""},
+    )
+    species_cfg = SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=Env, success_keys=[])
+    stage_artifacts.evaluate_stage_checkpoints(
+        species_cfg,
+        {"env_kwargs": env_kwargs},
+        2,
+        "ppo",
+        stage_dir,
+        final_path=final_path,
+        final_vecnorm_path=final_vecnorm,
+        timesteps=1,
+        duration_seconds=1.0,
+        plant_identity=None,
+        evaluation_seed=101,
+        model=object(),
+    )
+    assert loads == [(str(final_vecnorm), mode)]
+
+
+@pytest.mark.parametrize(
     ("success_keys", "successes", "expected"),
     [([], [], None), (["course_complete"], [1.0] * 6 + [0.0] * 24, 0.2)],
     ids=["no-success-keys", "course-complete"],

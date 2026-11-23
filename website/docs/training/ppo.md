@@ -94,6 +94,12 @@ by decision D-D59, so every chain ends at walk. `--trunk-from RUN_DIR`,
 certified trunk, retrain from a chosen node, and tag its nodes. See
 [Behavior Recipes](recipes.md).
 
+Every stage holds the statistics of the observation's last three inputs, the
+command, at mean 0 / variance 1 while it trains, so the policy reads the raw
+command and every VecNormalize sidecar carries that identity (decision D-D60;
+[Hyperparameters](hyperparameters.md#commands)). A stance, whose command is
+always zero, trains exactly as it would without the hold.
+
 Within the curriculum, advancement between the numbered stages is judged in
 training by the `CurriculumManager` using the thresholds in each stage's TOML
 config; its verdict is what the node's `gate_verdict.json` records. Current

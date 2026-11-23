@@ -522,6 +522,69 @@ def test_a_behavior_checkpoint_is_not_a_walker_parent(parent, tmp_path):
         )
 
 
+@pytest.mark.parametrize("command_mode", ["heading", "heading_and_speed"])
+def test_a_command_trained_walker_is_refused_before_anything_loads(parent, tmp_path, monkeypatch, command_mode):
+    """Decision D-D60: a walker whose task fingerprint has a ``command`` section learned its command columns, and
+    its sidecar holds the command slice at identity (mean 0), so the constant-zero mean check would pass it and the
+    preparation would zero what it learned, unseen.  It is refused by its task, before the sidecar or the policy
+    is read."""
+    from environments.shared import behavior_checkpoint
+
+    model_path, vecnorm_path, *_ = parent
+    walker = {
+        "schema": "mesozoic.task-fingerprint/v2",
+        "species": "tyrannosaurus_rex",
+        "embodiment": "anatomical",
+        "stage": "locomotion",
+        "env": {"command_mode": command_mode},
+        "command": {"mode": command_mode, "config": {"cruise_speed": 0.5}},
+        "task_sha256": "sha256:live-walker",
+    }
+    live_walker = tmp_path / "live_walker.zip"
+    _metadata_copy(model_path, live_walker, MODEL_TASK_ATTRIBUTE, walker)
+
+    def unreached(*args, **kwargs):
+        raise AssertionError("refused by its task before the sidecar loads")
+
+    monkeypatch.setattr(behavior_checkpoint, "_normalizer", unreached)
+    with pytest.raises(
+        BehaviorCheckpointError,
+        match=rf"trained on live commands \(its task fingerprint has a 'command' section, command_mode "
+        rf"'{command_mode}'\).*command-free locomotion checkpoint.*D-D60",
+    ):
+        prepare_behavior_checkpoint(
+            live_walker, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
+
+
+def test_a_command_free_walker_saved_at_identity_prepares_as_one_saved_before(parent, tmp_path):
+    """The pilot pipeline keeps its command-free parents: a walker whose sidecar already holds the command slice at
+    identity (every training save since decision D-D60) prepares to the same policy and statistics as the same
+    walker saved before the rule (its slice at a dead command's variance)."""
+    model_path, vecnorm_path, original, stats, _ = parent
+    held = tmp_path / "walker_vecnorm.pkl"
+    saved = VecNormalize.load(str(vecnorm_path), DummyVecEnv([CommandEnv]))
+    assert np.all(saved.obs_rms.var[-3:] == 1e-11)
+    saved.obs_rms.var[-3:] = 1.0
+    saved.save(str(held))
+    saved.close()
+    prepared = {}
+    for label, sidecar in (("before", vecnorm_path), ("identity", held)):
+        model, normalizer, report = prepare_behavior_checkpoint(
+            model_path, sidecar, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
+        prepared[label] = (model.policy.state_dict(), normalizer.obs_rms, report)
+        normalizer.close()
+    (before_weights, before_stats, before_report), (held_weights, held_stats, held_report) = prepared.values()
+    for name, value in before_weights.items():
+        torch.testing.assert_close(held_weights[name], value, rtol=0, atol=0)
+    np.testing.assert_array_equal(held_stats.mean, before_stats.mean)
+    np.testing.assert_array_equal(held_stats.var, before_stats.var)
+    np.testing.assert_array_equal(held_stats.var[-3:], 1.0)
+    for key in ("zeroed_command_parameters", "max_action_delta", "max_value_delta", "command_normalization"):
+        assert held_report[key] == before_report[key], key
+
+
 def test_preparation_refuses_another_embodiment_and_a_task_naming_half_its_model(parent, tmp_path):
     """Decision D-D33 (review H3): both the requested task and the walker's recorded task must name the model
     whole.  A record of the same species in another embodiment is refused, and one without its embodiment is

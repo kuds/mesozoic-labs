@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -44,6 +44,10 @@ def wrap_angle(angle: float) -> float:
     return (_finite(angle, "angle") + math.pi) % (2.0 * math.pi) - math.pi
 
 
+#: Speeds the tracking defaults scale with: a ``speed_scale`` of 1.5 m/s keeps them as stated.
+TRACKING_REFERENCE_SPEED_SCALE = 1.5
+
+
 @dataclass(frozen=True)
 class DirectionCommandConfig:
     """A fixed task contract; sampled ranges do not redefine policy scaling.
@@ -52,6 +56,29 @@ class DirectionCommandConfig:
     at most 30 degrees every four seconds.  Stops and variable speeds are
     opt-in.  ``straight_probability`` holds the previous requested heading
     at a switch; it does not look at the actual heading.
+
+    ``initial_heading_offset_max`` (radians) turns the episode's first
+    requested heading away from the spawn heading by U(-max, +max), drawn
+    from the controller's own stream at reset; 0 draws nothing.  With
+    ``turn_increment_max = 0`` and a switch interval longer than the
+    episode, ``stop_probability`` acts only at reset, which gives
+    whole-episode stand commands.
+
+    The ``tracking_*`` fields parameterize the command-tracking reward and
+    metrics ``BaseDinoEnv`` scores while the command is live:
+    ``tracking_weight`` times :func:`gaussian_tracking_reward` with the two
+    sigmas, and the :func:`tracking_metrics` tolerances.  A ``None`` speed
+    sigma or tolerance scales with ``speed_scale``
+    (:meth:`tracking_parameters`), so a small animal cannot pass a walk
+    command while standing.
+
+    The fields after ``minimum_turn_speed_fraction`` came after the command
+    manifest's first schema.  Each is recorded (:meth:`task_record`, which
+    the command manifest and the task fingerprint read) only while it
+    differs from :attr:`UNRECORDED_VALUES`, the value every task before it
+    ran with, so adding one moved no recorded task.  The values are
+    declared there, not read off the field defaults: a changed default
+    moves the record.
     """
 
     cruise_speed: float = 1.05
@@ -68,6 +95,27 @@ class DirectionCommandConfig:
     yaw_rate_max: float = 0.3
     turn_slowdown: bool = True
     minimum_turn_speed_fraction: float = 0.25
+    initial_heading_offset_max: float = 0.0
+    tracking_weight: float = 2.5
+    tracking_velocity_sigma: float | None = None
+    tracking_yaw_rate_sigma: float = 0.15
+    tracking_velocity_tolerance: float | None = None
+    tracking_yaw_rate_tolerance: float = 0.15
+    tracking_heading_tolerance: float = math.pi / 12.0
+    tracking_stop_speed_tolerance: float | None = None
+    tracking_stop_yaw_rate_tolerance: float = 0.15
+
+    UNRECORDED_VALUES: ClassVar[dict[str, Any]] = {
+        "initial_heading_offset_max": 0.0,
+        "tracking_weight": 2.5,
+        "tracking_velocity_sigma": None,
+        "tracking_yaw_rate_sigma": 0.15,
+        "tracking_velocity_tolerance": None,
+        "tracking_yaw_rate_tolerance": 0.15,
+        "tracking_heading_tolerance": math.pi / 12.0,
+        "tracking_stop_speed_tolerance": None,
+        "tracking_stop_yaw_rate_tolerance": 0.15,
+    }
 
     def __post_init__(self) -> None:
         for name in (
@@ -77,6 +125,7 @@ class DirectionCommandConfig:
             "straight_probability",
             "switch_jitter_s",
             "minimum_turn_speed_fraction",
+            "initial_heading_offset_max",
         ):
             object.__setattr__(self, name, _finite(getattr(self, name), name))
         for name in (
@@ -86,8 +135,18 @@ class DirectionCommandConfig:
             "yaw_rate_scale",
             "yaw_gain",
             "yaw_rate_max",
+            "tracking_weight",
+            "tracking_yaw_rate_sigma",
+            "tracking_yaw_rate_tolerance",
+            "tracking_heading_tolerance",
+            "tracking_stop_yaw_rate_tolerance",
         ):
             object.__setattr__(self, name, _positive(getattr(self, name), name))
+        for name in ("tracking_velocity_sigma", "tracking_velocity_tolerance", "tracking_stop_speed_tolerance"):
+            if getattr(self, name) is not None:
+                object.__setattr__(self, name, _positive(getattr(self, name), name))
+        if not 0.0 <= self.initial_heading_offset_max <= math.pi:
+            raise ValueError("initial_heading_offset_max must lie in [0, pi]")
         for name in ("stop_probability", "straight_probability", "minimum_turn_speed_fraction"):
             if not 0.0 <= getattr(self, name) <= 1.0:
                 raise ValueError(f"{name} must lie in [0, 1]")
@@ -111,6 +170,55 @@ class DirectionCommandConfig:
             if not 0.0 <= bounds[0] <= bounds[1] <= self.speed_scale:
                 raise ValueError("speed_range must satisfy 0 <= low <= high <= speed_scale")
             object.__setattr__(self, "speed_range", bounds)
+
+    def task_record(self) -> dict[str, Any]:
+        """Every field, except one that holds its :attr:`UNRECORDED_VALUES` value (see the class docstring)."""
+        record = asdict(self)
+        for name, value in self.UNRECORDED_VALUES.items():
+            if record[name] == value:
+                del record[name]
+        return record
+
+    def tracking_parameters(self) -> dict[str, Any]:
+        """The tracking reward's weight and sigmas and the metrics' tolerances, each ``None`` resolved.
+
+        The speed defaults are fractions of ``speed_scale /``
+        :data:`TRACKING_REFERENCE_SPEED_SCALE`: a velocity sigma of 0.25, a
+        velocity tolerance of 0.2 and a stop-speed tolerance of 0.1 of it.
+        ``tolerances`` is the keyword set :func:`tracking_metrics` takes.
+        """
+        ratio = self.speed_scale / TRACKING_REFERENCE_SPEED_SCALE
+
+        def scaled(value: float | None, fraction: float) -> float:
+            return fraction * ratio if value is None else value
+
+        return {
+            "weight": self.tracking_weight,
+            "velocity_sigma": scaled(self.tracking_velocity_sigma, 0.25),
+            "yaw_rate_sigma": self.tracking_yaw_rate_sigma,
+            "tolerances": {
+                "velocity_tolerance": scaled(self.tracking_velocity_tolerance, 0.2),
+                "yaw_rate_tolerance": self.tracking_yaw_rate_tolerance,
+                "heading_tolerance": self.tracking_heading_tolerance,
+                "stop_speed_tolerance": scaled(self.tracking_stop_speed_tolerance, 0.1),
+                "stop_yaw_rate_tolerance": self.tracking_stop_yaw_rate_tolerance,
+            },
+        }
+
+
+def validate_command_task(mode: str, config: Any) -> None:
+    """Refuse a live command task an environment could not run: raise ``ValueError`` or ``TypeError``.
+
+    *mode* must be a live mode (``"heading"`` or ``"heading_and_speed"``)
+    and *config* a :class:`DirectionCommandConfig`; ``"heading"`` holds
+    ``cruise_speed``, so a speed range or stops need ``"heading_and_speed"``.
+    """
+    if mode not in ("heading", "heading_and_speed"):
+        raise ValueError(f"command mode {mode!r} is not a live mode ('heading' or 'heading_and_speed')")
+    if not isinstance(config, DirectionCommandConfig):
+        raise TypeError(f"command_mode={mode!r} needs a command_config (a DirectionCommandConfig)")
+    if mode == "heading" and (config.speed_range is not None or config.stop_probability > 0.0):
+        raise ValueError("command_mode='heading' holds cruise_speed: speed_range and stops need 'heading_and_speed'")
 
 
 @dataclass(frozen=True)
@@ -198,7 +306,7 @@ class DirectionCommandController:
         """Stable task description; episode-specific data lives in ``events``."""
         return {
             "schema": "mesozoic.direction-commands/v1",
-            "config": asdict(self.config),
+            "config": self.config.task_record(),
             "request_frame": "world_heading_radians_and_speed_metres_per_second",
             "policy_frame": "gravity_aligned_body_heading_vx_vy_yaw_rate",
             "policy_components": list(COMMAND_COMPONENTS),
@@ -212,7 +320,11 @@ class DirectionCommandController:
         }
 
     def reset(self, rng: np.random.Generator, initial_heading: float) -> DirectionCommandState:
-        """Start an episode with a straight request and a dedicated RNG seed."""
+        """Start an episode with a dedicated RNG seed.
+
+        The first request holds *initial_heading*, turned by the
+        ``initial_heading_offset_max`` draw when that is positive.
+        """
         heading = wrap_angle(initial_heading)
         if not isinstance(rng, np.random.Generator):
             raise TypeError("rng must be a numpy.random.Generator")
@@ -221,6 +333,9 @@ class DirectionCommandController:
         self._events = []
         self._last_time_s = 0.0
         self._desired_heading = heading
+        if self.config.initial_heading_offset_max > 0.0:
+            offset_max = self.config.initial_heading_offset_max
+            self._desired_heading = wrap_angle(heading + float(self._rng.uniform(-offset_max, offset_max)))
         self._desired_speed = self._sample_speed()
         self._external_override = False
         self._append_event(0.0, "schedule")

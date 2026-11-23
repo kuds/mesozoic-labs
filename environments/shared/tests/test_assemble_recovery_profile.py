@@ -10,6 +10,7 @@ measurement, so adding or editing it cannot invalidate one.
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -24,6 +25,16 @@ ANATOMICAL = ModelId("compsognathus_longipes", "anatomical")
 ROBOT = ModelId("compsognathus_longipes", "robot")
 PROFILED = (ANATOMICAL, ROBOT)
 ASSEMBLER = "environments/shared/scripts/assemble_recovery_profile.py"
+#: Recorded sources of the committed measurements edited since they were taken, each pinned to the sha256 of
+#: the explained edit, and why the edit leaves the measured task as it was (the assembler reports such a source
+#: and does not refuse it).  Any other drift fails, and so does any later edit of a listed source: re-explain it
+#: here with its new hash, or re-measure.
+EDITED_SINCE_MEASUREMENT = {
+    # Decision D-D60 added the live-command code (the tracking reward, metrics and dwell, set_direction and the
+    # independent command stream) to BaseDinoEnv; none of it runs under the recovery stage's command_mode "none",
+    # whose task fingerprint, reset stream and digests are unchanged.
+    "environments/shared/base_env.py": "110708a4bd87eadd80c5f06774770fc4b93c60030b6c532e9c53d764ebbaf5ee",
+}
 
 
 def _committed(model_id: ModelId) -> tuple[str, dict, bytes]:
@@ -98,7 +109,12 @@ def test_assembling_writes_the_artifact_and_the_profile(tmp_path):
     assert written == repository / profile["provenance"]["measurement_artifact"]
     compressed = written.read_bytes()
     assert gzip.decompress(compressed) == raw and compressed[4:8] == b"\0\0\0\0"  # gzip mtime 0
-    assert drifted == []  # the committed measurement's recorded sources are this tree's
+    # The committed measurement's recorded sources are this tree's, but for the explained edits.
+    assert set(drifted) <= set(EDITED_SINCE_MEASUREMENT), drifted
+    for source in drifted:
+        assert (
+            hashlib.sha256((REPOSITORY_ROOT / source).read_bytes()).hexdigest() == EDITED_SINCE_MEASUREMENT[source]
+        ), f"{source} changed since its edit was explained; re-explain it in EDITED_SINCE_MEASUREMENT or re-measure"
     # The same measurement again is a no-op on the artifact; another measurement under its name is refused.
     tool.write_recovery_profile(
         ROBOT, measurement, artifact=artifact, calibration_id="x", configs_root=configs, repository_root=repository

@@ -449,7 +449,7 @@ class TestLoadVecnormIntoEnvs:
     def test_no_load_path_disables_eval_training(self):
         train_env = MagicMock()
         eval_env = MagicMock()
-        _load_vecnorm_into_envs(None, train_env, eval_env, task_load_mode="resume_same_stage")
+        _load_vecnorm_into_envs(None, train_env, eval_env, task_load_mode="resume_same_stage", command_mode="none")
         assert eval_env.training is False
         assert eval_env.norm_reward is False
 
@@ -458,11 +458,14 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/to/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage")
+            _load_vecnorm_into_envs(
+                "/path/to/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage", command_mode="none"
+            )
         mock_load.assert_called_once_with(
             "/path/to/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
         )
 
@@ -471,11 +474,14 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage")
+            _load_vecnorm_into_envs(
+                "/path/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage", command_mode="none"
+            )
         mock_load.assert_called_once_with(
             "/path/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
         )
 
@@ -486,11 +492,14 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env, task_load_mode="resume_same_stage")
+            _load_vecnorm_into_envs(
+                "/path/model.zip", train_env, eval_env, task_load_mode="resume_same_stage", command_mode="none"
+            )
         mock_load.assert_called_once_with(
             "/path/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
             carry_ret_rms=True,
         )
@@ -502,7 +511,9 @@ class TestLoadVecnormIntoEnvs:
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=False):
             with pytest.raises(FileNotFoundError, match="allow-fresh-vecnorm"):
-                _load_vecnorm_into_envs("/path/model", train_env, eval_env, task_load_mode="resume_same_stage")
+                _load_vecnorm_into_envs(
+                    "/path/model", train_env, eval_env, task_load_mode="resume_same_stage", command_mode="none"
+                )
 
     @patch("environments.shared.train_base.logger")
     def test_missing_sidecar_escape_hatch_warns_and_resets_eval_env(self, mock_logger):
@@ -515,6 +526,7 @@ class TestLoadVecnormIntoEnvs:
                 eval_env,
                 task_load_mode="resume_same_stage",
                 allow_fresh_vecnorm=True,
+                command_mode="none",
             )
         assert eval_env.training is False
         assert eval_env.norm_reward is False
@@ -535,12 +547,14 @@ class TestLoadVecnormIntoEnvs:
                 plant_identity=identity,
                 allow_legacy_plant=True,
                 task_load_mode="initialize_next_stage",
+                command_mode="none",
             )
 
         mock_load.assert_called_once_with(
             "/path/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             current_plant=identity,
             allow_legacy_plant=True,
         )
@@ -556,9 +570,10 @@ class TestLoadVecnormIntoEnvs:
                 eval_env,
                 task_load_mode="initialize_next_stage",
                 vecnorm_path="/elsewhere/stats.pkl",
+                command_mode="none",
             )
         mock_load.assert_called_once_with(
-            "/elsewhere/stats.pkl", train_env, eval_env, unsafe_skip_plant_validation=True
+            "/elsewhere/stats.pkl", train_env, eval_env, command_mode="none", unsafe_skip_plant_validation=True
         )
 
 
@@ -3254,7 +3269,9 @@ class TestOneStageBody:
 # columns come from command_slice, not a literal) trained 64 steps under "none": its command columns hold
 # their random initial weights. Non-zero moments are injected into every first
 # layer's command columns (a real walker's are exactly zero: zero inputs give zero
-# gradients) and the sidecar's command variance is a real walker's 1e-11. Each
+# gradients) and the sidecar holds the command slice at identity, as every
+# training save does since decision D-D60 (``test_phase_d_identity_slice`` pins
+# the load rule for one that does not). Each
 # load runs as ``_train_stage_body`` runs it: ``_load_vecnorm_into_envs`` with
 # the child's command mode, then ``_create_or_load_model`` with its fingerprint.
 
@@ -3311,6 +3328,7 @@ def never_live_walkers(tmp_path_factory):
     from stable_baselines3 import PPO, SAC
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
+    from environments.shared.command_frame import hold_command_identity
     from environments.shared.config import load_stage_config
     from environments.shared.direction_commands import DirectionCommandConfig
     from environments.shared.species_registry import get_species_config
@@ -3360,7 +3378,8 @@ def never_live_walkers(tmp_path_factory):
                         if torch.is_tensor(value) and value.ndim == 2:
                             assert torch.count_nonzero(value[:, _command_columns()]) == 0, "zero inputs, zero gradients"
                             value[:, _command_columns()] = 0.123
-        venv.obs_rms.var[-3:] = 1e-11
+        # As train_base saves it (decision D-D60); the update above decayed the zero command's variance.
+        assert hold_command_identity(venv.obs_rms)
         for artifact in (model, venv):
             attach_plant_identity(artifact, identity)
         setattr(model, MODEL_TASK_ATTRIBUTE, fingerprints["stance"])

@@ -365,15 +365,24 @@ def _stage_lines(
     prefix = f"stage.{_label(model_id)}.{entry.id}"
     out.emit("stage", label, "config_file", entry.config_file)
     if identity is not None:
-        # The call train_base makes before it writes stage_config.json.
+        # The derivation train_base makes before it writes stage_config.json,
+        # called here directly with the literal backend so the line stays an
+        # oracle of stage_task_fingerprint (CU-8a).  The command section is the
+        # manifest the stage's env reports, the one training checks the
+        # fingerprint against, not the helper's derivation from the config: a
+        # stage with a [commands] table hashes its controller manifest
+        # (decision D-D60), and a "none" stage's env reports none.
+        env_kwargs = config.get("env_kwargs", {})
         fingerprint = out.guard(
             f"{prefix}.task",
-            derive_stage_task_fingerprint,
-            model_id=model_id,
-            stage=ref,
-            backend="stable-baselines3",
-            env_kwargs=config.get("env_kwargs", {}),
-            plant_identity=identity.to_dict(),
+            lambda: derive_stage_task_fingerprint(
+                model_id=model_id,
+                stage=ref,
+                backend="stable-baselines3",
+                env_kwargs=env_kwargs,
+                plant_identity=identity.to_dict(),
+                command_manifest=_env_command_manifest(model_id, env_kwargs),
+            ),
         )
         if fingerprint is not None:
             out.emit("stage", label, "task_sha256", fingerprint["task_sha256"])
@@ -390,6 +399,21 @@ def _stage_lines(
         digest = out.guard(f"{prefix}.view", _stage_config_view_sha256, model_id, ref, config, algorithm, stage_dir)
         if digest is not None:
             out.emit("stage", label, f"stage_config_view_sha256.{algorithm}", digest)
+
+
+def _env_command_manifest(model_id: ModelId, env_kwargs: dict[str, Any]) -> Any:
+    """The command manifest the stage's env reports (``command_manifest()``; ``None`` under ``command_mode = "none"``).
+
+    Built with the env class and ``[env]`` block train_base passes; ``_train_stage_body`` refuses a stage whose
+    built env reports another manifest than its fingerprint's ``command`` section (``check_env_command_manifest``).
+    """
+    from environments.shared.species_registry import get_species_config
+
+    env = get_species_config(model_id).env_class(**env_kwargs)
+    try:
+        return env.command_manifest()
+    finally:
+        env.close()
 
 
 def _stage_config_view_sha256(

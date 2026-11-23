@@ -165,7 +165,7 @@ def assert_checkpoint_round_trip(model_id, algorithm, configs, stage, checkpoint
         plant_identity=identity,
     )
     try:
-        assert load_vecnorm_stats(stats, eval_env, current_plant=identity)
+        assert load_vecnorm_stats(stats, eval_env, current_plant=identity, command_mode="none")
         eval_env.training = False
         eval_env.norm_reward = False
         obs = eval_env.reset()

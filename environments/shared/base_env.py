@@ -22,11 +22,19 @@ import numpy as np
 
 from .action_filter import apply_low_pass as _apply_low_pass
 from .action_filter import low_pass_alpha as _low_pass_alpha
-from .command_frame import COMMAND_MODE_NONE
+from .command_frame import COMMAND_MODE_NONE, COMMAND_STREAM_DOMAIN
 from .command_frame import validate_command_mode as _validate_command_mode
 from .command_frame import zero_command as _zero_command
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
-from .direction_commands import DirectionCommandConfig, DirectionCommandController, DirectionCommandState
+from .direction_commands import (
+    DirectionCommandConfig,
+    DirectionCommandController,
+    DirectionCommandState,
+    gaussian_tracking_reward,
+    tracking_metrics,
+    validate_command_task,
+    wrap_angle,
+)
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
 from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
@@ -195,7 +203,10 @@ class BaseDinoEnv(gym.Env, ABC):
     # zeros and draws no RNG, so the command adds nothing to the seeded reset
     # draw stream, and step() never updates.  Phase D replaced the HOOK BODY
     # and never reset() itself, whose source is fingerprinted as the
-    # home_reset policy interface.
+    # home_reset policy interface.  A live mode seeds each episode's schedule
+    # from its own stream (``_command_rng``), never from np_random, and step()
+    # adds the command-tracking reward, metrics and dwell
+    # (``_reward_with_command_tracking``).
     _command: "np.ndarray"
 
     # Optional zero-argument callable invoked after EVERY physics substep in
@@ -349,15 +360,28 @@ class BaseDinoEnv(gym.Env, ABC):
                     f"command_mode={self.command_mode!r} needs a command_config (a DirectionCommandConfig)"
                 )
             self.direction_controller = DirectionCommandController(command_config)
-            if self.command_mode == "heading" and (
-                command_config.speed_range is not None or command_config.stop_probability > 0.0
-            ):
-                raise ValueError(
-                    "command_mode='heading' holds cruise_speed: speed_range and stops need 'heading_and_speed'"
-                )
+            validate_command_task(self.command_mode, command_config)
         elif command_config is not None:
             raise ValueError("command_config needs a live command_mode ('heading' or 'heading_and_speed'), not 'none'")
         self._command_state: DirectionCommandState | None = None
+        # Command tracking (live modes only; decision D-D60): the reward
+        # weight, the sigmas and the metric tolerances come from the command
+        # config, so they ride in the command manifest and no "none" stage's
+        # task fingerprint carries them.  The metrics and the dwell (seconds
+        # in tolerance since the event began) are per step and per episode.
+        self._command_metrics: dict[str, Any] = {}
+        self._tracking_dwell_s = 0.0
+        self._heading_before = 0.0
+        if command_config is not None:
+            tracking = command_config.tracking_parameters()
+            self.tracking_weight = float(tracking["weight"])
+            self.tracking_velocity_sigma = float(tracking["velocity_sigma"])
+            self.tracking_yaw_rate_sigma = float(tracking["yaw_rate_sigma"])
+            self.tracking_tolerances: dict[str, float] = dict(tracking["tolerances"])
+        # The command stream's bookkeeping (_command_rng): the reset generator
+        # the episode index counts from, and that index.
+        self._command_stream_source: np.random.Generator | None = None
+        self._command_stream_episode = 0
         free_joints = np.flatnonzero(self.model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
         self._root_body_id = int(self.model.jnt_bodyid[free_joints[0]])
         self._command = _zero_command()
@@ -1168,21 +1192,49 @@ class BaseDinoEnv(gym.Env, ABC):
 
         Under command_mode "none": zeros, no RNG draw, so the command adds
         nothing to the seeded reset draw stream.  Under a live mode: the
-        controller's episode start, seeded from :meth:`_command_rng` AFTER every
-        existing draw, at the root's heading; the full state is kept for the
-        reward.  Phase D replaced THIS body -- never reset(), whose source is
+        controller's episode start, seeded from :meth:`_command_rng` (the
+        command stream, which draws nothing from ``np_random``), at the root's
+        heading; the full state is kept for the reward.  Phase D replaced THIS body -- never reset(), whose source is
         fingerprinted as the home_reset policy interface
         (plant_contract/policy_layer.py).
         """
         if self.direction_controller is None:
             command: np.ndarray = _zero_command()
             return command
+        self._tracking_dwell_s = 0.0
+        self._command_metrics = {}
         self._command_state = self.direction_controller.reset(self._command_rng(), self._heading())
         return self._command_state.normalized.copy()
 
     def _command_rng(self) -> np.random.Generator:
-        """The generator a live mode seeds each episode's schedule from: one draw on the reset stream."""
-        return self.np_random
+        """The generator a live mode seeds each episode's schedule from: the command stream.
+
+        Independent of the reset draw stream, so a live mode leaves every
+        joint, velocity and push-schedule draw -- this episode's and every
+        later one's -- exactly as "none" draws them (decision D-D60).  The
+        stream is a ``SeedSequence`` of the reset stream's seed (gymnasium's
+        ``np_random_seed``), the episode's index since that seed was applied,
+        and :data:`~environments.shared.command_frame.COMMAND_STREAM_DOMAIN`.
+        A seeded reset gives ``np_random`` a new generator, which restarts the
+        index at 0; each unseeded reset advances it.  Called once per reset,
+        from :meth:`_draw_episode_command`, so the bookkeeping lives here and
+        reset() stays untouched.  A generator assigned to ``np_random``
+        directly has no seed (``np_random_seed`` is -1) and is refused.
+        """
+        source = self.np_random
+        if source is self._command_stream_source:
+            self._command_stream_episode += 1
+        else:
+            self._command_stream_source, self._command_stream_episode = source, 0
+        seed = self.np_random_seed
+        if seed < 0:
+            raise RuntimeError(
+                "a live command stream derives from the reset seed, and np_random was assigned without one; "
+                "seed the environment through reset(seed=...)"
+            )
+        return np.random.default_rng(
+            np.random.SeedSequence([seed, self._command_stream_episode, COMMAND_STREAM_DOMAIN])
+        )
 
     def _update_command(self) -> np.ndarray:
         """Advance a live mode's controller to this step's time and heading; return the new command."""
@@ -1194,6 +1246,58 @@ class BaseDinoEnv(gym.Env, ABC):
         """World yaw of the free-floating root body, in radians."""
         rotation = self.data.xmat[self._root_body_id].reshape(3, 3)
         return float(np.arctan2(rotation[1, 0], rotation[0, 0]))
+
+    def set_direction(self, heading: float, speed: float) -> np.ndarray:
+        """Set a persistent world heading (radians) and speed (m/s) under a live command mode.
+
+        Overrides the schedule until reset and restarts the tracking dwell.
+        Returns the updated observation to use for the next policy action.
+        """
+        if self.direction_controller is None:
+            raise RuntimeError('set_direction needs a live command_mode, not "none"')
+        self.direction_controller.set_target(heading, speed, time_s=self._step_count * self.dt)
+        self._command = self._update_command()
+        self._tracking_dwell_s = 0.0
+        return self._get_obs()
+
+    def _reward_with_command_tracking(self, action: np.ndarray) -> tuple[float, dict[str, Any]]:
+        """The species reward and, while a command is live, its tracking term, metrics and dwell.
+
+        Under command_mode "none" this is :meth:`_get_reward_info` unchanged.
+        Under a live mode the step adds ``tracking_weight`` times
+        :func:`~environments.shared.direction_commands.gaussian_tracking_reward`
+        of the velocity and yaw-rate errors (``reward_tracking``, also in
+        ``reward_total``), scored against the command the action was chosen
+        under and measured at the heading the step ends on; the yaw rate is the
+        heading change over the step.  The per-sample metrics
+        (:func:`~environments.shared.direction_commands.tracking_metrics`, the
+        command state's ``as_info`` and ``heading_error_rad``) are kept for the
+        step's info, and the dwell grows by ``dt`` while in tolerance.
+        """
+        reward, info = self._get_reward_info(action)
+        state = self._command_state
+        if state is None:
+            return reward, info
+        heading = self._heading()
+        yaw_rate = float(wrap_angle(heading - self._heading_before) / self.dt)
+        metrics = tracking_metrics(
+            state, self.data.qvel[:2], yaw_rate, current_heading=heading, **self.tracking_tolerances
+        )
+        self._command_metrics = {**state.as_info(), **metrics}
+        self._command_metrics["heading_error_rad"] = (
+            float(wrap_angle(state.desired_heading - heading)) if state.heading_active else 0.0
+        )
+        tracking = gaussian_tracking_reward(
+            metrics["tracking_error_v"],
+            metrics["tracking_error_yaw"],
+            velocity_sigma=self.tracking_velocity_sigma,
+            yaw_rate_sigma=self.tracking_yaw_rate_sigma,
+        )
+        reward += self.tracking_weight * tracking
+        info["reward_tracking"] = self.tracking_weight * tracking
+        self._tracking_dwell_s = self._tracking_dwell_s + self.dt if metrics["tracking_in_tolerance"] else 0.0
+        info["reward_total"] = reward
+        return reward, info
 
     def command_manifest(self) -> "dict[str, Any] | None":
         """The command controller's provenance; ``None`` while command_mode is "none".
@@ -1225,6 +1329,11 @@ class BaseDinoEnv(gym.Env, ABC):
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         """Execute one environment step."""
+        if self.direction_controller is not None:
+            if self._command_state is None:
+                raise RuntimeError("reset must be called before step")
+            # The heading the tracking yaw rate is measured from.
+            self._heading_before = self._heading()
         if self.action_filter_cutoff_hz > 0.0:
             # Both the dynamics and the action-derived reward terms below
             # consume the filtered command, on the reasoning that raw policy
@@ -1330,8 +1439,8 @@ class BaseDinoEnv(gym.Env, ABC):
         # Get observation
         obs = self._get_obs()
 
-        # Compute reward
-        reward, reward_info = self._get_reward_info(action)
+        # Compute reward (with the command-tracking term while a command is live)
+        reward, reward_info = self._reward_with_command_tracking(action)
 
         # Check termination
         terminated, term_info = self._is_terminated()
@@ -1354,9 +1463,17 @@ class BaseDinoEnv(gym.Env, ABC):
             info["is_success"] = bool(term_info.get("success", False))
 
         if self.direction_controller is not None:
-            # The reward scored the command the action was chosen under; the
-            # returned observation carries the next one.
+            # The reward, the tracking metrics and the dwell scored the command
+            # the action was chosen under; the returned observation carries the
+            # next one, and a new event restarts the dwell after it is reported.
+            executed = self._command_state
+            assert executed is not None
+            info.update(self._command_metrics)
+            info["tracking_dwell_s"] = self._tracking_dwell_s
             self._command = self._update_command()
+            current = self._command_state
+            if current is not None and current.event_id != executed.event_id:
+                self._tracking_dwell_s = 0.0
             obs = self._get_obs()
 
         # Render if needed

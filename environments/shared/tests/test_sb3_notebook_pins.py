@@ -3734,13 +3734,14 @@ class TestArchiveLoadPreflightCell:
         assert free <= {"MODEL_ID", "CHAIN", "TRUNK_DIR"}, sorted(free)
 
 
-class TestCommandSliceReseed:
-    """Amendment A12 / invariant 8 (BEHAVIOR_RECIPES_PLAN §4.6): the loaded statistics' command slice is reseeded
-    whenever the node's command_mode is not "none" — EXCEPT on a same-stage resume, whose sidecar already holds the
-    statistics the policy trained under. ``train_base._load_vecnorm_into_envs`` applies the rule
-    (test_command_frame.py) and ``train_base.train``, which ``train_stage`` trains through (consolidation PR-14c),
-    feeds it the stage config's mode and the notebook's sidecar — always False in Phase C.  Since cleanup CU-10b
-    train() does so through the stage body it hands its load, sidecar, load mode and plant identity."""
+class TestCommandSliceIdentity:
+    """Decision D-D60 (amending A12 / invariant 8's reseed, BEHAVIOR_RECIPES_PLAN §4.6): the loaded statistics'
+    command slice must be at identity for a live stage and is re-imposed at identity for a "none" one, on every load
+    mode.  ``curriculum.load_vecnorm_stats`` applies the rule (test_command_frame.py), which
+    ``train_base._load_vecnorm_into_envs`` hands the stage's command mode, and ``train_base.train``, which
+    ``train_stage`` trains through (consolidation PR-14c), feeds it the stage config's mode and the notebook's
+    sidecar.  Since cleanup CU-10b train() does so through the stage body it hands its load, sidecar, load mode
+    and plant identity."""
 
     def test_train_feeds_the_rule_the_stage_config_and_the_sidecar(self):
         import inspect
@@ -3776,13 +3777,64 @@ class TestCommandSliceReseed:
         # Without it a sidecar loads with plant validation skipped (the notebook's manual cell names any sidecar).
         assert _keyword_source(src, load, "plant_identity") == "plant_identity"
         assert [ast.unparse(arg) for arg in load.args] == ["vecnorm_load_path", "train_env", "eval_env"], (
-            "both destinations are passed, so the reseed reaches the train AND the eval wrapper"
+            "both destinations are passed, so the rule reaches the train AND the eval wrapper"
         )
-        rule = ast.get_source_segment(src, _top_level_def(src, "_load_vecnorm_into_envs")) or ""
-        assert 'if command_mode != "none" and task_load_mode != "resume_same_stage":' in rule
+        rule = _top_level_def(src, "_load_vecnorm_into_envs")
+        (stats_call,) = _calls(rule, "load_vecnorm_stats")
+        assert _keyword_source(src, stats_call, "command_mode") == "command_mode"
         parameters = inspect.signature(load_vecnorm_stats).parameters
-        assert parameters["reseed_command_slice"].kind is inspect.Parameter.KEYWORD_ONLY
-        assert parameters["reseed_command_slice"].default is False, "reseeding stays opt-in in the library"
+        assert "reseed_command_slice" not in parameters
+        assert parameters["command_mode"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameters["command_mode"].default is inspect.Parameter.empty, "every caller states the stage's mode"
+
+    def test_every_stage_training_path_learns_with_the_hold_first(self):
+        """The notebook trains a stage only through ``train_base.train`` (``train_stage``, whose arguments
+        TestTrainStageRecordKeeping pins), and ``train`` and ``train_curriculum`` (the CLI ``train`` and
+        ``curriculum``) only through ``_train_stage_body``, whose one ``learn()`` takes the list
+        ``_build_core_callbacks`` starts with ``CommandIdentityCallback`` (decision D-D60): no path trains a stage
+        without the hold, and nothing is put in front of it (test_phase_d_identity_slice.py runs the list)."""
+        for index, cell in enumerate(_code_cells()):
+            assert not _calls(ast.parse(cell), "learn"), f"cell {index} calls learn() itself"
+        assert ast.unparse(_call(_top_level_def(_cell(INFRA_CELL_MARKER), "train_stage"), "train").func) == (
+            "train_base.train"
+        )
+        src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
+        learners = [
+            node.name for node in ast.parse(src).body if isinstance(node, ast.FunctionDef) and _calls(node, "learn")
+        ]
+        assert learners == ["_train_stage_body"]
+        for entry in ("train", "train_curriculum"):
+            assert len(_calls(_top_level_def(src, entry), "_train_stage_body")) == 1, entry
+
+        def assignments(function: ast.FunctionDef, name: str) -> list[ast.stmt]:
+            return [
+                node
+                for node in ast.walk(function)
+                if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign))
+                and any(
+                    isinstance(leaf, ast.Name) and leaf.id == name
+                    for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+                    for leaf in ast.walk(target)
+                )
+            ]
+
+        body = _top_level_def(src, "_train_stage_body")
+        assert _keyword_source(src, _call(body, "learn"), "callback") == "callback_list"
+        (callback_list,) = assignments(body, "callback_list")
+        assert ast.unparse(callback_list.value) == "sb3['CallbackList'](callbacks)"
+        (built,) = assignments(body, "callbacks")
+        assert isinstance(built, ast.Assign) and ast.unparse(built.value).startswith("_build_core_callbacks(")
+        builder = _top_level_def(src, "_build_core_callbacks")
+        (first,) = assignments(builder, "callbacks")
+        assert ast.unparse(first.value) == "[CommandIdentityCallback(eval_env=eval_env)]"
+        for function in (body, builder):
+            assert not _calls(function, "insert"), "nothing goes in front of the hold"
+            assert not any(
+                isinstance(node, ast.Subscript)
+                and ast.unparse(node.value) == "callbacks"
+                and isinstance(node.ctx, ast.Store)
+                for node in ast.walk(function)
+            )
 
     def test_every_committed_stage_is_command_mode_none_in_phase_c(self):
         """The flag is False on every committed config today; Phase D flips it per stage, not the notebook."""

@@ -622,7 +622,7 @@ def _load_vecnorm_into_envs(
     allow_legacy_plant: bool = False,
     task_load_mode: str,
     allow_fresh_vecnorm: bool = False,
-    command_mode: str = "none",
+    command_mode: str,
     vecnorm_path: str | None = None,
 ) -> None:
     """Carry forward VecNormalize stats from a prior stage or reset eval env.
@@ -645,23 +645,19 @@ def _load_vecnorm_into_envs(
     distribution is unchanged, so resetting ``ret_rms`` only distorts the
     first post-resume updates (review TC6).
 
-    ``command_mode`` is the target stage's ``[env]`` command mode: a live
-    mode reseeds the trailing command slice of the carried ``obs_rms`` on
-    both envs (BEHAVIOR_RECIPES_PLAN §4.6, invariant 8) through
-    ``load_vecnorm_stats(reseed_command_slice=True)`` — EXCEPT on a
-    same-stage resume.  The reseed exists for a parent whose command slice
-    was constant zero (var ≈ 1e-11 would clip a live command); a
-    ``resume_same_stage`` parent is the same task, so its sidecar already
-    holds the statistics the policy trained under and reseeding them would
-    restart the run under a normaliser it never saw (the ``carry_ret_rms``
-    reasoning above, applied to the command slice).  Every committed stage
-    is ``"none"``, so no load reseeds today.  The rule follows the node, not
-    the parent: a cross-stage load from a parent whose own command slice was
-    live (its recorded task fingerprint has a ``command`` section) is
-    reseeded too, while :func:`_create_or_load_model` neutralizes the
-    policy's command columns only for a parent that never saw a command; no
-    such live parent exists until a live manifest node does, and that edge
-    is settled with it.
+    ``command_mode`` is the target stage's command mode (its ``[commands]``
+    table's ``mode``; ``"none"`` without one; required, as for
+    ``load_vecnorm_stats``, so no caller loads a live stage's statistics
+    under the "none" branch), which ``load_vecnorm_stats`` applies the
+    identity rule with (decision D-D60), on every load mode:
+    training holds the command slice of ``obs_rms`` at mean 0 / var 1, so a
+    sidecar saved under the rule loads unchanged, for a resume, a warm start
+    from a command-free parent and a warm start from a live one alike.  A
+    slice off identity is refused for a live stage and re-imposed, with a
+    warning, for a ``"none"`` one.  A live parent's statistics and command
+    columns are then carried unchanged into a live child (walk into follow
+    is an exact continuation), while :func:`_create_or_load_model` zeroes the
+    command columns of a parent that never saw a command.
     """
     from .curriculum import load_vecnorm_stats
     from .policy_loading import _resolve_vecnorm_sidecar
@@ -678,9 +674,7 @@ def _load_vecnorm_into_envs(
             load_kwargs = {"unsafe_skip_plant_validation": True}
         if task_load_mode == "resume_same_stage":
             load_kwargs["carry_ret_rms"] = True
-        if command_mode != "none" and task_load_mode != "resume_same_stage":
-            load_kwargs["reseed_command_slice"] = True
-        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env, **load_kwargs):
+        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env, command_mode=command_mode, **load_kwargs):
             if not allow_fresh_vecnorm:
                 raise FileNotFoundError(
                     f"VecNormalize sidecar not found for {load_path!r} (probed {_vecnorm_path!r}). "
@@ -873,8 +867,11 @@ def _create_or_load_model(
                 # that read its command inputs never received a gradient.
                 # Zero them and their optimizer moments, proving the policy
                 # unchanged on zero commands and blind to live ones before the
-                # first update (BEHAVIOR_RECIPES_PLAN §4.6, "Exact transfer");
-                # a live parent keeps what it learned.
+                # first update (BEHAVIOR_RECIPES_PLAN §4.6, "Exact transfer").
+                # A live parent keeps what it learned: its statistics hold the
+                # command slice at identity, as the child's do (decision
+                # D-D60), so the child acts exactly as the parent on every
+                # command (walk into follow is an exact continuation).
                 from .policy_loading import assert_command_blind, neutralize_command_columns
                 from .task_fingerprint import MODEL_TASK_ATTRIBUTE
 
@@ -963,7 +960,10 @@ def _build_core_callbacks(
     """Build the standard callback set shared by train() and train_curriculum().
 
     Returns ``(callbacks, eval_callback, save_vecnorm_cb)`` so callers can
-    append additional stage-specific callbacks.
+    append additional stage-specific callbacks.  The first callback is the
+    :class:`~environments.shared.curriculum.CommandIdentityCallback`, which
+    holds the command observation slice at identity normalization before
+    any later callback copies or saves the statistics (decision D-D60).
 
     ``total_timesteps`` is the cumulative step count this session actually
     trains to (the stage body's resume-aware ``target_timesteps``).  The
@@ -983,6 +983,7 @@ def _build_core_callbacks(
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
         CheckpointRetentionCallback,
+        CommandIdentityCallback,
         PublishEvalArtifactsCallback,
         RobustBestModelCallback,
         SaveVecNormalizeCallback,
@@ -1001,7 +1002,12 @@ def _build_core_callbacks(
     from .rollout_ledger import build_training_ledger_callback
     from .tb_sync import PeriodicTbSyncCallback
 
-    callbacks: list[Any] = []
+    # FIRST: the command observation slice held at identity normalization
+    # (decision D-D60).  It re-imposes the slice after the reset update and
+    # after every step's update, before any callback below reads or saves the
+    # statistics in the same step: the EvalCallback's copy into the eval env
+    # and its best-model pair, the robust pair and the periodic checkpoints.
+    callbacks: list[Any] = [CommandIdentityCallback(eval_env=eval_env)]
 
     # EvalCallback rewrites evaluations.npz in place on every eval; on a
     # Drive/GCS FUSE mount that streaming rewrite can be observed — or
@@ -1381,8 +1387,16 @@ def _save_final_and_sync_tb(
     zip they accept and never no final zip at all. (Removing the sidecar
     first would briefly leave no final zip when there was none before.)
 
+    The command slice of the training statistics is held at identity
+    (decision D-D60) before the sidecar is written: a ``KeyboardInterrupt``
+    can end ``learn()`` between a step's statistics update and the
+    ``CommandIdentityCallback`` that re-imposes it.
+
     Returns the final model path (without ``.zip`` extension).
     """
+    from .curriculum import hold_vec_normalize_command_identity
+
+    hold_vec_normalize_command_identity(train_env)
     final_path = model_dir / f"{stage_label(stage)}_final"
     if _is_remote_mount_path(model_dir):
         import shutil as _shutil
@@ -1548,6 +1562,15 @@ def _train_stage_body(
         plant_identity=plant_identity,
         critic_phase_gamma=(0.99 if alg_gamma is None else alg_gamma) if critic_phase_on else None,
     )
+    # The task fingerprint's command section was derived from the stage's
+    # [commands] before any environment existed (stage_task_fingerprint); the
+    # environments must report that same controller manifest (decision D-D60).
+    from .task_fingerprint import check_env_command_manifest
+
+    for manifest in train_env.env_method("command_manifest"):
+        check_env_command_manifest(
+            manifest, task_fingerprint, artifact=f"{species_cfg.model_id} stage {stage} training environment"
+        )
 
     if announce:
         logger.info("Creating evaluation environment...")
@@ -2002,6 +2025,8 @@ def train(
     config = stage_configs[stage]
     model_id = species_cfg.model_id
     plant_identity = current_plant_identity(model_id)
+    # A live stage's command section is its [commands] controller manifest, derived from the config the env
+    # is built from (and checked against the built env in _train_stage_body); a "none" stage has none.
     task_fingerprint = stage_task_fingerprint(model_id, stage, stage_config=config, plant_identity=plant_identity)
     # The node and its declared edge, resolved once: the edge keys the
     # declared-parent refusal below and the stage-entry shaping further down.
@@ -2296,6 +2321,7 @@ def _report_hpt_metrics(
                 plant_identity,
                 quality_episodes=quality_episodes,
                 velocity_episodes=velocity_episodes,
+                command_mode=str((stage_config or {}).get("env_kwargs", {}).get("command_mode", "none")),
             )
         )
 
@@ -2371,8 +2397,13 @@ def _post_training_eval_panels(
     *,
     quality_episodes: int,
     velocity_episodes: int,
+    command_mode: str,
 ) -> dict[str, Any]:
     """Run the post-training quality and velocity/success panels.
+
+    ``command_mode`` is the stage's (required, as for
+    ``load_vecnorm_stats``): the handoff's sidecar loads under the identity
+    rule of decision D-D60.
 
     Returns the ``metrics.json`` entries they produce, including
     ``quality_eval_checkpoint`` — the checkpoint the panels describe.  Each
@@ -2417,7 +2448,7 @@ def _post_training_eval_panels(
             load_kwargs = {"current_plant": plant_identity}
         else:
             load_kwargs = {"unsafe_skip_plant_validation": True}
-        load_vecnorm_stats(ckpt_vecnorm, eval_env, **load_kwargs)
+        load_vecnorm_stats(ckpt_vecnorm, eval_env, command_mode=command_mode, **load_kwargs)
         eval_env.training = False
         eval_env.norm_reward = False
         panel["quality_eval_checkpoint"] = ckpt_name
@@ -2998,6 +3029,7 @@ def train_curriculum(
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
 
+        # With the command section of a live stage's [commands], as train() derives it.
         task_fingerprint = stage_task_fingerprint(model_id, stage, stage_config=config, plant_identity=plant_identity)
 
         # The parent resolves first, for a reused node as much as a trained

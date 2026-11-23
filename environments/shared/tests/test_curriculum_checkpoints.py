@@ -1,8 +1,10 @@
 """Tests for environments.shared.curriculum.checkpoints."""
 
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 from environments.shared.curriculum import (
@@ -10,6 +12,14 @@ from environments.shared.curriculum import (
     load_vecnorm_stats,
 )
 from environments.shared.plant_contract import PlantCompatibilityError
+
+
+def _identity_stats(width: int = 8) -> SimpleNamespace:
+    """Observation statistics as training saves them since decision D-D60 (the command slice at identity)."""
+    stats = SimpleNamespace(mean=np.linspace(-0.5, 0.5, width), var=np.full(width, 2.0), count=1e6)
+    stats.mean[-3:], stats.var[-3:] = 0.0, 1.0
+    stats.copy = lambda: SimpleNamespace(mean=stats.mean.copy(), var=stats.var.copy(), count=stats.count)
+    return stats
 
 
 class TestLoadVecnormStats:
@@ -72,14 +82,19 @@ class TestLoadVecnormStats:
         assert not np.allclose(new_train.obs_rms.mean, saved_obs_mean)
 
         # Load stats from the "previous stage"
-        loaded = load_vecnorm_stats(save_path, new_train, new_eval, unsafe_skip_plant_validation=True)
+        loaded = load_vecnorm_stats(
+            save_path, new_train, new_eval, unsafe_skip_plant_validation=True, command_mode="none"
+        )
         assert loaded is True
 
-        # Stats should now match the saved values
-        np.testing.assert_array_equal(new_train.obs_rms.mean, saved_obs_mean)
-        np.testing.assert_array_equal(new_train.obs_rms.var, saved_obs_var)
-        np.testing.assert_array_equal(new_eval.obs_rms.mean, saved_obs_mean)
-        np.testing.assert_array_equal(new_eval.obs_rms.var, saved_obs_var)
+        # Stats should now match the saved values, except the command slice: these statistics were updated
+        # without the identity hold, so its variance decayed, and a "none" load re-imposes mean 0 / var 1
+        # (decision D-D60).
+        assert not np.all(saved_obs_var[-3:] == 1.0)
+        for destination in (new_train, new_eval):
+            np.testing.assert_array_equal(destination.obs_rms.mean, saved_obs_mean)
+            np.testing.assert_array_equal(destination.obs_rms.var[:-3], saved_obs_var[:-3])
+            np.testing.assert_array_equal(destination.obs_rms.var[-3:], 1.0)
 
         # Train env should still be in training mode
         assert new_train.training is True
@@ -102,6 +117,7 @@ class TestLoadVecnormStats:
             train_env,
             eval_env,
             unsafe_skip_plant_validation=True,
+            command_mode="none",
         )
         assert result is False
 
@@ -165,16 +181,17 @@ class TestLoadVecnormStatsMocked:
 
     def test_requires_current_plant_before_file_or_backend_access(self):
         with pytest.raises(PlantCompatibilityError, match="without current_plant"):
-            load_vecnorm_stats("/nonexistent/path.pkl", MagicMock())
+            load_vecnorm_stats("/nonexistent/path.pkl", MagicMock(), command_mode="none")
 
         with pytest.raises(PlantCompatibilityError, match="without current_plant"):
-            load_vecnorm_stats("/nonexistent/path.pkl", MagicMock(), allow_legacy_plant=True)
+            load_vecnorm_stats("/nonexistent/path.pkl", MagicMock(), allow_legacy_plant=True, command_mode="none")
 
     def test_unsafe_skip_is_explicit_and_cannot_mix_with_validation(self, caplog):
         result = load_vecnorm_stats(
             "/nonexistent/path.pkl",
             MagicMock(),
             unsafe_skip_plant_validation=True,
+            command_mode="none",
         )
         assert result is False
         assert "UNSAFE" in caplog.text
@@ -185,6 +202,7 @@ class TestLoadVecnormStatsMocked:
                 MagicMock(),
                 current_plant=MagicMock(),
                 unsafe_skip_plant_validation=True,
+                command_mode="none",
             )
 
     def test_missing_file_returns_false_with_sb3(self):
@@ -194,6 +212,7 @@ class TestLoadVecnormStatsMocked:
                 "/nonexistent/path.pkl",
                 MagicMock(),
                 unsafe_skip_plant_validation=True,
+                command_mode="none",
             )
         assert result is False
 
@@ -203,6 +222,7 @@ class TestLoadVecnormStatsMocked:
 
         mods, mock_vec_env_mod = self._sb3_mock_modules()
         mock_prev = MagicMock()
+        mock_prev.obs_rms = _identity_stats()
         mock_vec_env_mod.VecNormalize.load.return_value = mock_prev
 
         # Caller-configured flags (e.g. SAC sets norm_reward=False in
@@ -218,6 +238,7 @@ class TestLoadVecnormStatsMocked:
                 mock_train,
                 mock_eval,
                 unsafe_skip_plant_validation=True,
+                command_mode="none",
             )
 
         assert result is True
@@ -233,6 +254,7 @@ class TestLoadVecnormStatsMocked:
 
         mods, mock_vec_env_mod = self._sb3_mock_modules()
         mock_prev = MagicMock()
+        mock_prev.obs_rms = _identity_stats()
         mock_vec_env_mod.VecNormalize.load.return_value = mock_prev
 
         mock_train = MagicMock()
@@ -243,6 +265,7 @@ class TestLoadVecnormStatsMocked:
                 mock_train,
                 eval_env=None,
                 unsafe_skip_plant_validation=True,
+                command_mode="none",
             )
 
         assert result is True
@@ -274,6 +297,7 @@ class TestLoadVecnormStatsMocked:
                 mock_train,
                 current_plant=current_plant,
                 allow_legacy_plant=True,
+                command_mode="none",
             )
 
         mock_validate.assert_called_once_with(

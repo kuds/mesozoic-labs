@@ -213,7 +213,7 @@ def test_interrupted_run_resumes_on_the_new_env(trained):
     eval_env = VecNormalize(DummyVecEnv([_factory(model_id)]), norm_reward=False)
     try:
         train_base._load_vecnorm_into_envs(
-            stem, train_env, eval_env, plant_identity=identity, task_load_mode="resume_same_stage"
+            stem, train_env, eval_env, plant_identity=identity, task_load_mode="resume_same_stage", command_mode="none"
         )
         np.testing.assert_array_equal(train_env.obs_rms.mean, trained["venv"].obs_rms.mean)
         np.testing.assert_array_equal(train_env.ret_rms.var, trained["venv"].ret_rms.var)
@@ -240,7 +240,7 @@ def test_pre_migration_pair_is_refused_by_the_trainer(model_id, pre_migration):
         for mode in ("resume_same_stage", "initialize_next_stage"):
             with pytest.raises(PlantCompatibilityError) as excinfo:
                 train_base._load_vecnorm_into_envs(
-                    stem, train_env, eval_env, plant_identity=current, task_load_mode=mode
+                    stem, train_env, eval_env, plant_identity=current, task_load_mode=mode, command_mode="none"
                 )
             _refused(excinfo, model_id)
             # Warm start and resume alike refuse the model before SB3 rebuilds it around the new env.

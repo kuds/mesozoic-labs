@@ -1455,7 +1455,12 @@ def evaluate_stage_checkpoints(
             plant_identity=plant_identity,
         )
         if vecnorm_path and Path(vecnorm_path).exists():
-            load_vecnorm_stats(vecnorm_path, eval_env, current_plant=plant_identity)
+            load_vecnorm_stats(
+                vecnorm_path,
+                eval_env,
+                current_plant=plant_identity,
+                command_mode=str(stage_config.get("env_kwargs", {}).get("command_mode", "none")),
+            )
         eval_env.training = False
         eval_env.norm_reward = False
         try:

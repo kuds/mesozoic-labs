@@ -1,13 +1,16 @@
 """Prepare a canonical PPO walker for direction and terrain behavior training.
 
-This module requires the SB3 training extra. Preparation preserves the walker's
-function on zero commands, clears only the reserved command connections and their
-optimizer moments, and carries the observation statistics with the command slice
-reseeded to mean 0 / variance 1 (invariant 8, decision D-D3). Behavior artifacts carry
-the canonical stamps: the plant identity, the recipe env's task fingerprint and, as its
-task lineage, the preparation report. That fingerprint's stage is never a stage id
-(preparation refuses one), so no canonical node resumes or warm-starts from a behavior
-artifact (decision D-D9).
+This module requires the SB3 training extra. Preparation takes a walker that never
+saw a command (its task fingerprint has no ``command`` section; a command-trained
+walker is refused, decision D-D60), preserves its function on zero commands, clears
+only the reserved command connections and their optimizer moments, and carries the
+observation statistics with the command slice set to mean 0 / variance 1 (invariant 8,
+decision D-D3; a no-op on a sidecar saved since D-D60, which holds it there). The
+recipe's own training keeps D-D3's rule: every statistic, the commands' included,
+updates. Behavior artifacts carry the canonical stamps: the plant identity, the recipe
+env's task fingerprint and, as its task lineage, the preparation report. That
+fingerprint's stage is never a stage id (preparation refuses one), so no canonical node
+resumes or warm-starts from a behavior artifact (decision D-D9).
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ from stable_baselines3.common.running_mean_std import RunningMeanStd
 from stable_baselines3.common.utils import ConstantSchedule
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, VecNormalize, unwrap_vec_normalize
 
-from environments.shared.command_frame import COMMAND_WIDTH, reseed_command_slice
+from environments.shared.command_frame import COMMAND_WIDTH, hold_command_identity
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     MODEL_IDENTITY_ATTRIBUTE,
@@ -199,6 +202,14 @@ def prepare_behavior_checkpoint(
     ``VecNormalize`` carries the walker's statistics with the three command inputs
     reseeded to mean 0 / variance 1 (count kept), so commands enter the policy at
     O(1); every statistic, the commands' included, updates during training.
+
+    The walker must never have seen a command: a parent whose task fingerprint
+    has a ``command`` section is refused (decision D-D60). Its command columns
+    learned from live commands, and its statistics hold the command slice at
+    identity, so the constant-zero mean this preparation also checks would not
+    tell it apart: zeroing its columns would erase what it learned, unseen. A
+    command-trained walker continues as a manifest node, whose warm start keeps
+    its command columns.
     """
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
     behavior = _identity(task_fingerprint)
@@ -228,6 +239,15 @@ def prepare_behavior_checkpoint(
         raise BehaviorCheckpointError(f"The source's task fingerprint does not name its model: {exc}") from exc
     if not same_model or task.get("stage") not in (2, "locomotion"):
         raise BehaviorCheckpointError(f"The source must record the {model_id} locomotion task")
+    if "command" in task:
+        command_mode = task.get("env", {}).get("command_mode") if isinstance(task.get("env"), Mapping) else None
+        raise BehaviorCheckpointError(
+            f"The source walker trained on live commands (its task fingerprint has a 'command' section, "
+            f"command_mode {command_mode!r}): preparation zeroes the command columns of a walker that never saw a "
+            "command, which would erase what this one learned. Prepare a behavior from a command-free locomotion "
+            "checkpoint; a command-trained walker continues as a manifest node, whose warm start keeps its command "
+            "columns (decision D-D60)"
+        )
     venv = _venv(env, current.observation_dim, current.action_dim)
     normalizer = _normalizer(vecnorm_path, venv, plant_identity=current)
     assert isinstance(normalizer.obs_rms, RunningMeanStd)
@@ -245,7 +265,7 @@ def prepare_behavior_checkpoint(
     # afterwards.
     def prepare() -> list[str]:
         changed = neutralize_command_columns(model, observation_dim=current.observation_dim)
-        reseed_command_slice(normalizer.obs_rms)
+        hold_command_identity(normalizer.obs_rms)
         return changed
 
     try:
@@ -345,6 +365,16 @@ _TRANSITION_COMMAND_SETTINGS = frozenset(
         "straight_probability",
         "switch_interval_s",
         "switch_jitter_s",
+        "initial_heading_offset_max",
+        # The tracking reward's sigmas and the metrics' tolerances (decision D-D60); a behavior env's
+        # tracking weight is its own env kwarg, a reward setting there.
+        "tracking_velocity_sigma",
+        "tracking_yaw_rate_sigma",
+        "tracking_velocity_tolerance",
+        "tracking_yaw_rate_tolerance",
+        "tracking_heading_tolerance",
+        "tracking_stop_speed_tolerance",
+        "tracking_stop_yaw_rate_tolerance",
     }
 )
 _TRANSITION_REWARD_SETTINGS = frozenset(

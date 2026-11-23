@@ -246,6 +246,11 @@ def sb3_archive_load_preflight(model_id, root_reference, *, trunk_dir) -> SB3Arc
 def resolve_vecnorm_path(model_path, vecnorm_arg, allow_unnormalized) -> str | None            # :245
 ```
 
+*Decision D-D60 (5) (2026-11-23) renamed `load_sb3_checkpoint`'s `reseed_command_slice=` to
+`hold_command_identity=` (the same mean 0 / variance 1 on the loaded statistics' command slice) and replaced
+`load_vecnorm_stats(reseed_command_slice=)` with `load_vecnorm_stats(command_mode=)`; the listing above keeps the
+signatures as they were at `167dce4`.*
+
 `load_sb3_model` behaviour (:529-562):
 
 1. `algorithm` is `"ppo"`/`"sac"`, an SB3 class, or `None` to sniff: `_checkpoint_algorithm` reads the archive's `data`

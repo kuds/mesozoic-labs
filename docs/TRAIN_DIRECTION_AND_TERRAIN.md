@@ -237,7 +237,12 @@ Preparation zeros only newly activated command columns and their optimizer
 moments, preserving other weights and statistics and checking initial
 policy-action/value equivalence. The three command inputs' statistics restart
 at mean 0 / variance 1, so commands enter the policy at their own scale from
-the first step, and then update like every other input (decision D-D3). The
+the first step, and then update like every other input (decision D-D3; the
+manifest stages hold them at identity instead, decision D-D60). Preparation
+refuses a walker that trained on live commands, one whose task fingerprint has
+a `command` section, before it reads the walker's files: zeroing its command
+columns would erase what it learned, and a command-trained walker continues as
+a manifest node instead (decision D-D60). The
 normalization file is a plain SB3 `VecNormalize`. A bundle trained before
 consolidation PR-8 neither resumes nor adapts: `--resume` and `--adapt`
 refuse it, and its normalization file, which names

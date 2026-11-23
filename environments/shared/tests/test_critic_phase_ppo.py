@@ -504,7 +504,7 @@ def _create(sb3, plant, venv, load_path=None, *, mode="resume_same_stage", spec=
 
 
 def test_save_load_and_resume_keep_the_phase_and_continue_identically(plant, mirror_map, tmp_path):
-    from environments.shared.curriculum import load_vecnorm_stats
+    from environments.shared.curriculum import hold_vec_normalize_command_identity, load_vecnorm_stats
     from environments.shared.policy_loading import _ensure_sb3
 
     sb3 = _ensure_sb3()
@@ -515,6 +515,8 @@ def test_save_load_and_resume_keep_the_phase_and_continue_identically(plant, mir
     model.learn(total_timesteps=64)
     stem = tmp_path / "stage1_64_steps"
     model.save(f"{stem}.zip")
+    # As train_base's periodic checkpoint saves it: the command slice held at identity first (decision D-D60).
+    hold_vec_normalize_command_identity(model.get_vec_normalize_env())
     model.get_vec_normalize_env().save(f"{stem}_vecnorm.pkl")
     saved, saved_adam = _parameters(model), _adam(model)
     saved_rms = model.get_vec_normalize_env().obs_rms
@@ -523,7 +525,12 @@ def test_save_load_and_resume_keep_the_phase_and_continue_identically(plant, mir
     for _ in range(2):
         venv = _venv(21)
         assert load_vecnorm_stats(
-            f"{stem}_vecnorm.pkl", venv, current_plant=None, unsafe_skip_plant_validation=True, carry_ret_rms=True
+            f"{stem}_vecnorm.pkl",
+            venv,
+            current_plant=None,
+            unsafe_skip_plant_validation=True,
+            carry_ret_rms=True,
+            command_mode="none",
         )
         resumed = _create(sb3, plant, venv, f"{stem}.zip", symmetry=config, seed=21)
         assert type(resumed) is MK.MirrorKLPPO and type(resumed.policy) is CPP.CriticPhaseActorCriticPolicy

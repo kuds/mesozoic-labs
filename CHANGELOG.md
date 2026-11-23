@@ -8,6 +8,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Live commands for manifest stages: the `[commands]` table, tracking in the
+  base env and an independent command stream** (decision D-D60; no committed
+  stage turns its command on, so no stage's task, gate or plant digest moves).
+  - A stage TOML may declare `[commands]`: `mode` (`"heading"` or
+    `"heading_and_speed"`) and any `DirectionCommandConfig` field.
+    `load_stage_config` turns it into the stage's `command_mode` and
+    `command_config` env kwargs, so every construction path builds the live
+    command. Refused, naming the file: an unknown key, a missing or `"none"`
+    mode, a value the config refuses, `[env] command_mode` or
+    `[env] command_config`, and any `[commands]` on the stance (its own or
+    inherited). `extends` inherits the table key by key, like `[env]`.
+    `save_stage_config` records every config field, and
+    `config.env_kwargs_record` is the JSON form it and the zero-action
+    baseline write.
+  - `stage_task_fingerprint` derives a live stage's `command` section from its
+    config (`task_fingerprint.stage_command_manifest`), so `train`, the
+    curriculum, the trunk selection and the widen tool all fingerprint a live
+    stage; a manifest passed in must equal the derived one. The digest
+    snapshot keeps its own low-level call, the helper's oracle, and hashes the
+    command manifest the stage's env reports, so a live stage's `task_sha256`
+    line is a digest, not an ERROR line `--write` refuses. Training checks
+    the built environments' `command_manifest()` against it
+    (`check_env_command_manifest`). A recorded command config (a JSON object)
+    hashes as the dataclass.
+  - The command-tracking reward (`reward_tracking`, in `reward_total`), the
+    tracking metrics, the command info keys, the tracking dwell
+    (`tracking_dwell_s`) and `set_direction` move from the recipe env into
+    `BaseDinoEnv`, active only under a live mode. Their parameters are new
+    `DirectionCommandConfig` fields (`tracking_weight`, the velocity and
+    yaw-rate sigmas and five tolerances; the speed ones scale with
+    `speed_scale` when unset, as before), read through `tracking_parameters()`.
+    The recipe env keeps its `tracking_weight` kwarg and refuses a command
+    config that sets the field. The nine pilot captures re-run exactly (every
+    reward, info value and type, observation and reset state;
+    `tests/pilot_rollout_golden.py`, `fixtures/phase_d_pilot_rollout_golden.json`,
+    captured before the move) in the numerics environment they were captured
+    in. On any other machine with the pinned MuJoCo and numpy 2, each
+    episode's first five steps re-run their reward, flags and info key order
+    exactly and the tracking reward and total, dwell, command state and
+    tracking metrics within a relative 1e-9 (a one-ulp nudge of the reset
+    state moves them by at most 7e-12), so CI guards the tracking code too.
+  - `DirectionCommandConfig.initial_heading_offset_max` (radians, default 0,
+    at most π) turns the first requested heading by a uniform draw from the
+    controller's own stream; at 0 nothing is drawn. Fields added to the config
+    are recorded (`task_record()`, which the command manifest and the task
+    fingerprint read) only while they differ from `UNRECORDED_VALUES`, so all
+    77 recipe task digests are unchanged.
+- **The command observation slice is held at identity normalization in every
+  stage** (decision D-D60 (5), amending D-D3's "statistics keep updating"; no
+  digest moves). `curriculum.CommandIdentityCallback` is the first callback of
+  every stage `train_base` trains (the command-line `train` and `curriculum`
+  and the notebook, PPO and SAC): it re-imposes mean 0 / variance 1 on the
+  last three dims of the training `VecNormalize`'s `obs_rms` after the reset
+  update `learn()` makes before any callback and after every step's update,
+  so every callback after it in the same step, the `EvalCallback`'s copy into
+  the evaluation env and every sidecar save, sees the slice at identity.
+  `SaveVecNormalizeCallback`, `RobustBestModelCallback` and the final save
+  (`_save_final_and_sync_tb`, which a `KeyboardInterrupt` can reach between an
+  update and the callback) also hold it themselves before writing, and
+  `CriticPhaseVecNormalize.save` writes the held statistics. Each step's
+  terminal observations, which `step_wait` normalised with that step's update
+  and the algorithm reads after the callbacks, get their command slice
+  re-expressed under the held statistics
+  (`curriculum.command_identity.reexpress_terminal_commands`), so SAC's
+  replay buffer stores the raw terminal command, as without the hold
+  (un-normalised under the held statistics alone it would be one update away,
+  0.03 in a toy run), and PPO bootstraps a truncated episode on it at
+  identity. No `VecNormalize` subclass is pickled; the sidecar stays a stock
+  one. A normalised command is then the raw, pre-scaled command, bit for bit in
+  float32, and means the same to the stance, the walk and every follow node;
+  on a live slice the observation of a step is normalised before the
+  callback runs, so it can differ from identity by about
+  `n_envs / count` (0.6 on a fresh normaliser's first step, below 1e-6 once a
+  stance's count is carried). A stance computes exactly what it computed
+  before: its zero command normalises to zero under either statistics, and a
+  seeded stance run gives bitwise the same observations, rewards and weights
+  with and without the hold (`test_phase_d_identity_slice.py`, which also
+  resumes a live stage and warm-starts one through the stage body the command
+  line and the notebook train with, and checks the hold is first in the list
+  `learn()` gets). The helpers
+  are `command_frame.hold_command_identity`, `command_identity_gap` and
+  `require_command_identity` (numpy only) and
+  `curriculum.hold_vec_normalize_command_identity`. The recipe pipeline
+  (`train_behaviors`) keeps D-D3's rule; D-D9 keeps its artifacts out of
+  every stage.
+- **`prepare_behavior_checkpoint` refuses a walker that trained on live
+  commands** (decision D-D60 (5)): a parent whose task fingerprint has a
+  `command` section is refused by its task, before its sidecar or policy is
+  read, with a message naming the section, its `command_mode` and what to do
+  instead (prepare from a command-free locomotion checkpoint; a
+  command-trained walker continues as a manifest node, whose warm start keeps
+  its command columns). With the slice held at identity its mean is 0, so the
+  constant-zero-mean check alone would pass it and the preparation would zero
+  what it learned. Command-free locomotion parents prepare as before, whether
+  their sidecar was saved before the rule or at identity.
 - **A `LICENSE` file at the repository root** with the MIT text the project
   already declared in `pyproject.toml`; it ships in the wheel and sdist. The
   README's License section links it and points to the Apache-2.0 notice for
@@ -2338,6 +2433,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **A sidecar saved before the command slice was held at identity (decision
+  D-D60) loads with identity re-imposed into a command-free stage, and is
+  refused by a live one.** `curriculum.load_vecnorm_stats` (every stage load:
+  a resume, a warm start, the post-training panels and the notebook's
+  evaluation) judges the loaded statistics' command slice. At identity (every
+  save since this change) they load unchanged. Off identity (a `"none"`
+  stage's slice decayed toward variance 0 as `1e-4 / count` before), a
+  `"none"` stage re-imposes mean 0 / variance 1 on both destinations and logs
+  a warning naming the file, which changes nothing the policy computes, while
+  a live stage raises `command_frame.CommandNormalizationError` before either
+  destination changes. A live stage (none is committed yet) therefore needs a
+  parent saved under the rule. A Python caller of `load_vecnorm_stats` must
+  now pass `command_mode=`, the reading stage's mode (no default), as must a
+  caller of `train_base._load_vecnorm_into_envs` or
+  `train_base._post_training_eval_panels`, so no load of a live stage's
+  statistics can fall into the command-free branch.
 - **A run that targets the hunt is refused; target walk** (decision D-D59).
   `BEHAVIOR = "hunt"`, `--target hunt`, `--target behavior` and `--target 3`
   no longer resolve on any model; `"auto"` and a bare `curriculum` train
@@ -2835,6 +2946,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **A live command no longer draws from the reset stream** (decision D-D60,
+  replacing D-C5's one draw). `BaseDinoEnv._command_rng` seeds each episode's
+  schedule from a `SeedSequence` of the reset seed (`np_random_seed`), the
+  episode index since that seed was applied and
+  `command_frame.COMMAND_STREAM_DOMAIN`, kept outside the fingerprinted
+  `reset()`. A live stage's joint, velocity and push-schedule draws therefore
+  equal its `"none"` twin's on a seeded reset and every unseeded one after it,
+  and the Phase C reset golden holds under a live command. An env whose
+  `np_random` was assigned without a seed is refused under a live mode. The
+  recipe env keeps its run-seed stream, so every recipe's schedules are
+  unchanged. Before, a live mode's draw moved every later unseeded episode.
+- **The command-slice reseed became the identity rule** (decision D-D60 (5)).
+  `command_frame.reseed_command_slice` is replaced by `hold_command_identity`
+  (the same mean 0 / variance 1 in place, count kept, now returning whether a
+  value changed); `load_vecnorm_stats(reseed_command_slice=)` by
+  `load_vecnorm_stats(command_mode=)`, which applies one rule on every load
+  mode, a same-stage resume included, instead of reseeding a live stage's
+  cross-stage loads only (see Migration); `train_base._load_vecnorm_into_envs`
+  passes the stage's mode on every load; and
+  `policy_loading.load_sb3_checkpoint(reseed_command_slice=)` is now
+  `hold_command_identity=` (no caller passes it). A live parent's statistics
+  and command columns are carried unchanged into a live child, so a walk into
+  follow warm start acts exactly as its parent on every command, while a
+  command-free parent's columns are still zeroed and proven blind.
+  `prepare_behavior_checkpoint` holds the slice with the new helper, a no-op
+  on a parent saved at identity.
 
 - **`hunt` is a retired recipe label, and every chain ends at walk** (decision
   D-D59). `stage_manifest.RETIRED_RECIPE_LABELS` gains a removed form beside

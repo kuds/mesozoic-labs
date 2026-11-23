@@ -54,7 +54,7 @@ configs/
 Each model directory also holds its behavior recipes under `behaviors/`, and the
 Compsognathus models their `recovery_calibration.json`.
 
-Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover` or `walk`; a label equals a stage id only when it resolves to that stage, as `stance` does, `stand`, the stance label until decision D-D38, is refused naming `stance`, and `hunt`, removed with the hunt nodes by decision D-D59, is refused naming `walk`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
+Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage may also declare a `[commands]` table, its live command task (see [Commands](#commands)); no committed stage declares one yet. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover` or `walk`; a label equals a stage id only when it resolves to that stage, as `stance` does, `stand`, the stance label until decision D-D38, is refused naming `stance`, and `hunt`, removed with the hunt nodes by decision D-D59, is refused naming `walk`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
@@ -79,6 +79,72 @@ species-specific simulator task third. Reward weights shift with that intent;
 do not infer current values from a copied range in this guide. The generated
 [model pages](/docs/models/velociraptor_mongoliensis/anatomical) show the current stage names, budgets,
 and advancement gates read from the same configs.
+
+## Commands
+
+Every observation ends with a 3-wide body-relative command (forward speed,
+lateral speed and yaw rate, each pre-scaled to [-1, 1]). A stage without a
+`[commands]` table runs `command_mode = "none"`: the command is constant zero,
+nothing is drawn for it and nothing scores it. Every committed stage runs this
+way today. A stage turns its command on with a `[commands]` table (decision
+D-D60), for example:
+
+```toml
+[commands]
+mode = "heading_and_speed"       # or "heading", which holds cruise_speed
+cruise_speed = 0.5
+speed_range = [0.25, 0.5]
+stop_probability = 0.15          # drawn at reset: with no turns and a long switch interval, a whole-episode stand
+turn_increment_max = 0.0
+switch_interval_s = 100.0
+initial_heading_offset_max = 0.26
+tracking_weight = 2.0
+```
+
+- **Keys.** `mode` is required and must be a live mode; every other key is a
+  field of `DirectionCommandConfig` (`environments/shared/direction_commands.py`).
+  An unknown key, a value the config refuses and `"heading"` with a speed range
+  or stops are refused, naming the file. `[env]` never names `command_mode` or
+  `command_config`. The stance never declares the table, its own or inherited:
+  its six-heading certificate and the mirror refuse a live command. `extends`
+  inherits `[commands]` key by key, like `[env]`, so a node that widens its
+  parent's command distribution states only the keys it changes.
+- **Task.** The table becomes the stage's `command_mode` and `command_config`
+  env kwargs. `stage_config.json` records every field, and the task
+  fingerprint gains a `command` section (the command controller's manifest),
+  which training checks against the env it builds. A `"none"` stage's
+  fingerprint has no `command` section, so adding the table to a stage is a
+  new task.
+- **Reward.** While the command is live, the environment adds
+  `tracking_weight` times a Gaussian of the body-frame velocity error and the
+  yaw-rate error (`reward_tracking`, included in `reward_total`), with the
+  sigmas `tracking_velocity_sigma` and `tracking_yaw_rate_sigma`. The step's
+  `info` carries the command state, the tracking metrics judged against the
+  five `tracking_*_tolerance` fields, `heading_error_rad` and
+  `tracking_dwell_s` (consecutive seconds in tolerance, restarted by each new
+  command). An unset speed sigma or tolerance scales with `speed_scale`.
+- **Randomness.** Each episode's command schedule is seeded from its own
+  stream (the reset seed, the episode index since that seed and a fixed
+  domain word), never from the environment's reset stream, so a live stage's
+  joint, velocity and push draws equal those of the same stage without
+  commands. `initial_heading_offset_max` (radians, at most π) turns the first
+  requested heading by a uniform draw from that stream; 0 draws nothing.
+- **Normalization.** The trainer (PPO and SAC, the command line and the
+  notebook) holds the command slice of the `VecNormalize` statistics at mean 0
+  and variance 1 in every stage, so a normalised command is the raw command
+  (while a live stage trains, each step's observation is normalised just
+  before the hold, so it can be about `n_envs / count` away), and every
+  sidecar it saves carries that identity. SAC's replay buffer stores the raw
+  observations, terminal ones included. A sidecar whose slice is not at
+  identity (one saved before this rule) is refused by a live stage and
+  re-imposed, with a warning, by a stage without commands, whose zero command
+  normalises to zero either way.
+- **Warm starts.** A live stage warm-started from a parent that trained
+  without commands (a stance) starts with its policy's command input weights
+  zeroed, and the policy is proven unchanged on zero commands and blind to
+  live ones before the first update. A live parent keeps its command weights
+  and statistics, so a node that widens its parent's command distribution
+  continues it exactly.
 
 ## PPO Parameters
 
@@ -159,6 +225,8 @@ Supported key prefixes:
 | `sac.X` | `sac_kwargs[X]` |
 | `env.X` | `env_kwargs[X]` (reward weights, episode settings) |
 
+A `[commands]` key has no override prefix (`commands.X` is refused as an unknown section): a stage's command task is edited in its TOML.
+
 For stage-scoped overrides, prefix with the stage's legacy number or its id: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`, or `recovery.ppo.learning_rate=1e-4` on a `train --stage recovery` run. Plain `section.key=value` still applies to all stages.
 
 ### Experimenting on a node that already passes
@@ -166,8 +234,8 @@ For stage-scoped overrides, prefix with the stage's legacy number or its id: `1.
 When a run is trunked (`curriculum --trunk-from`, or the notebook's
 `TRUNK_FROM`), whether an edited node is reused or retrained depends on which
 block you edited. The task digest a verdict is bound to covers the effective
-`[env]` block, the plant and the push schedule — not `[ppo]` / `[sac]`, the
-`timesteps` budget, or the gate thresholds.
+`[env]` block, the `[commands]` table, the plant and the push schedule — not
+`[ppo]` / `[sac]`, the `timesteps` budget, or the gate thresholds.
 
 1. **An algorithm-block edit** (`[ppo]`, `[sac]`, or a `warmup_` / `ramp_`
    shaping key) leaves the digest unchanged, so a trunked run reuses the old
@@ -176,8 +244,8 @@ block you edited. The task digest a verdict is bound to covers the effective
    naming the differing dotted keys (`ppo.learning_rate`,
    `shaping.warmup_timesteps`) and pointing at the retrain knob; it is never a
    refusal.
-2. **An `[env]` edit** changes the digest: the old checkpoint is refused by the
-   reuse rule and the node and everything below it retrain.
+2. **An `[env]` or `[commands]` edit** changes the digest: the old checkpoint is
+   refused by the reuse rule and the node and everything below it retrain.
 3. **A gate-threshold edit** leaves the digest unchanged but changes the
    gate digest the verdict records (`gate_sha256`, decision D-A22): reuse
    rule 7 refuses the old verdict naming the thresholds that differ, and a

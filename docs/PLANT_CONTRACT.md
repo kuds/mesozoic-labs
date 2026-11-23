@@ -165,10 +165,10 @@ python -m environments.shared.scripts.widen_checkpoint --species tyrannosaurus_r
   `metrics.json` or periodic checkpoints: a widened checkpoint carries no certificate and is re-paneled under the
   current gate before it certifies. It is refused into an occupied or non-empty target, and a parent whose
   `gate_verdict.json` did not pass is refused.
-- **The reseed rule.** The sidecar's `obs_rms` gains the three dims at mean 0 / variance 1 with the count carried
-  (`command_frame.pad_running_stats`) — the values `load_vecnorm_stats(reseed_command_slice=True)` applies to the
-  trailing slice on any load into a node whose `command_mode != "none"`. Under `"none"` the command is zero, so the
-  widened statistics normalise it to exactly zero and the zero columns see exactly zero input.
+- **The identity rule.** The sidecar's `obs_rms` gains the three dims at mean 0 / variance 1 with the count carried
+  (`command_frame.pad_running_stats`) — the identity every stage holds the command slice at while it trains, which
+  `load_vecnorm_stats(command_mode=)` requires of a live node's load (decision D-D60). Under `"none"` the command is
+  zero, so the widened statistics normalise it to exactly zero and the zero columns see exactly zero input.
 - **Self-verification.** Before returning, the tool checks that every padded column is exactly zero, that both
   widened artifacts validate against the current identity through the ordinary loaders, and that over a seeded
   200-step rollout of the real environment the widened policy's deterministic actions match the parent's within

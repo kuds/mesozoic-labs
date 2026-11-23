@@ -49,8 +49,11 @@ contract code:
 * ``command_mode = "none"`` is inert and deterministic.  Since Phase D
   (consolidation PR-9) the SB3 backend builds the direction controller for
   both live modes from ONE ``command_config`` (decision D-D2): seeded in the
-  hook with one draw after every reset draw, advanced at the end of
-  ``step()``; a setting a mode would ignore is refused at construction.
+  hook, advanced at the end of ``step()``; a setting a mode would ignore is
+  refused at construction.  Since decision D-D60 the hook seeds it from the
+  command stream (the reset seed, an episode index and
+  ``COMMAND_STREAM_DOMAIN``), never from ``np_random``, so a live mode leaves
+  every reset draw of this and every later episode as "none" draws it.
 * The two command kwargs are carved out of the task fingerprint while the
   effective ``command_mode`` is ``"none"`` (amendment A1), and the
   ``command`` payload section is a live mode's controller manifest, passed
@@ -99,6 +102,7 @@ from environments.shared.command_frame import (
     COMMAND_ENV_KEYS,
     COMMAND_MODES,
     COMMAND_SEGMENT_NAME,
+    COMMAND_STREAM_DOMAIN,
     COMMAND_WIDTH,
     RETIRED_COMMAND_ENV_KEYS,
 )
@@ -549,9 +553,15 @@ def test_live_modes_build_the_controller_and_refuse_settings_they_would_ignore()
             TyrannosaurusRexAnatomicalEnv(**{removed: 0.0})
 
 
-def test_a_live_mode_draws_after_the_push_schedule():
-    """Decision D-C5 on a pushed stage: the schedule seed is the reset stream's draw after the push schedule's, so
-    the pushes, the pose and every other reset draw equal the "none" twin's."""
+def _command_stream_schedule_seed(seed: int, episode: int) -> int:
+    """The schedule seed BaseDinoEnv's command stream gives episode *episode* after reset(seed=*seed*) (D-D60)."""
+    stream = np.random.default_rng(np.random.SeedSequence([seed, episode, COMMAND_STREAM_DOMAIN]))
+    return int(stream.integers(0, 2**32, dtype=np.uint64))
+
+
+def test_a_live_mode_draws_nothing_from_the_reset_stream_of_a_pushed_stage():
+    """Decision D-D60 on a pushed stage (it replaced D-C5's one draw on the reset stream): the schedule seed comes
+    from the command stream, so the pushes, the pose and the generator state equal the "none" twin's."""
     kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "recovery")["env_kwargs"])
     config = DirectionCommandConfig(switch_interval_s=0.05, straight_probability=0.0, turn_increment_max=0.6)
     live = TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config=config, **kwargs)
@@ -564,9 +574,8 @@ def test_a_live_mode_draws_after_the_push_schedule():
             np.testing.assert_array_equal(live._push_schedule_starts, none._push_schedule_starts)
             np.testing.assert_array_equal(live._push_schedule_directions, none._push_schedule_directions)
             np.testing.assert_array_equal(live.data.qpos, none.data.qpos)
-            expected = copy.deepcopy(none.np_random)
-            assert live.direction_controller.schedule_seed == int(expected.integers(0, 2**32, dtype=np.uint64))
-            assert live.np_random.bit_generator.state == expected.bit_generator.state
+            assert live.direction_controller.schedule_seed == _command_stream_schedule_seed(seed, 0)
+            assert live.np_random.bit_generator.state == none.np_random.bit_generator.state
     finally:
         live.close()
         none.close()
@@ -574,9 +583,10 @@ def test_a_live_mode_draws_after_the_push_schedule():
 
 @pytest.mark.parametrize(("env_class", "model_id"), MODEL_ENVS)
 def test_a_live_mode_seeds_at_reset_and_changes_only_the_command_segment(env_class, model_id):
-    """The controller is seeded once per reset from ONE draw appended to the reset stream, the observation
-    carries its normalised command, step() rewards before it advances and returns the next command; physics,
-    reward and termination match the same seeds under "none"."""
+    """The controller is seeded once per reset from the command stream (decision D-D60: nothing is drawn from the
+    reset stream), the observation carries its normalised command, step() rewards before it advances and returns
+    the next command; physics and termination match the same seeds under "none", and the reward and info differ
+    exactly by the base env's tracking term, metrics and dwell."""
     config = DirectionCommandConfig(switch_interval_s=0.05, straight_probability=0.0, turn_increment_max=0.6)
     live = env_class(command_mode="heading_and_speed", command_config=config)
     none = env_class()
@@ -587,10 +597,9 @@ def test_a_live_mode_seeds_at_reset_and_changes_only_the_command_segment(env_cla
         for seed in (11, 11, 12):
             obs, info = live.reset(seed=seed)
             plain_obs, plain_info = none.reset(seed=seed)
-            expected = copy.deepcopy(none.np_random)
-            schedule_seed = int(expected.integers(0, 2**32, dtype=np.uint64))
+            schedule_seed = _command_stream_schedule_seed(seed, 0)
             assert live.direction_controller.schedule_seed == schedule_seed
-            assert live.np_random.bit_generator.state == expected.bit_generator.state
+            assert live.np_random.bit_generator.state == none.np_random.bit_generator.state
             assert info == plain_info
             np.testing.assert_array_equal(live.data.qpos, none.data.qpos)
             np.testing.assert_array_equal(obs[:-COMMAND_WIDTH], plain_obs[:-COMMAND_WIDTH])
@@ -602,8 +611,17 @@ def test_a_live_mode_seeds_at_reset_and_changes_only_the_command_segment(env_cla
                 executed = live._command_state
                 stepped, reward, terminated, truncated, step_info = live.step(action)
                 plain, plain_reward, plain_terminated, plain_truncated, plain_step_info = none.step(action)
-                assert (reward, terminated, truncated) == (plain_reward, plain_terminated, plain_truncated)
-                assert step_info == plain_step_info
+                assert (terminated, truncated) == (plain_terminated, plain_truncated)
+                tracking = step_info["reward_tracking"]
+                assert 0.0 <= tracking <= live.tracking_weight
+                assert reward == pytest.approx(plain_reward + tracking, rel=0, abs=1e-12)
+                assert step_info["reward_total"] == pytest.approx(plain_step_info["reward_total"] + tracking, abs=1e-12)
+                command_keys = {"reward_tracking", "tracking_dwell_s", *live._command_metrics}
+                assert set(step_info) == set(plain_step_info) | command_keys
+                excluded = command_keys | {"reward_total"}
+                assert {k: v for k, v in step_info.items() if k not in excluded} == {
+                    k: v for k, v in plain_step_info.items() if k not in excluded
+                }
                 np.testing.assert_array_equal(stepped[:-COMMAND_WIDTH], plain[:-COMMAND_WIDTH])
                 assert live._command_state.time_s == pytest.approx(live._step_count * live.dt)
                 assert live._command_state.event_id >= executed.event_id
@@ -675,7 +693,9 @@ def test_command_kwargs_enter_the_task_fingerprint_and_a_live_mode_has_a_command
     live = _fingerprint(env_kwargs=live_env, command_manifest=manifest)
     assert COMMAND_ENV_KEYS_SET <= set(live["env"])
     assert live["env"]["command_mode"] == "heading_and_speed"
-    assert live["env"]["command_config"] == {**asdict(config), "speed_range": [0.25, 0.75]}
+    # Field by field as its task record: the fields added since (decision D-D60) only while set.
+    assert live["env"]["command_config"] == {**config.task_record(), "speed_range": [0.25, 0.75]}
+    assert set(asdict(config)) - set(config.task_record()) == set(DirectionCommandConfig.UNRECORDED_VALUES)
     assert live["command"] == json.loads(json.dumps(manifest))
     assert live["task_sha256"] != base["task_sha256"]
     retuned = replace(config, cruise_speed=0.6)

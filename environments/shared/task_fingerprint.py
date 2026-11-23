@@ -160,8 +160,12 @@ def _canonical(value: Any) -> Any:
         # repr round-trips exactly; float() collapses numpy scalars first.
         return float(value)
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        # A command_config or a terrain kwarg of the opt-in subclass (PR-9).
-        return _canonical(dataclasses.asdict(value))
+        # A command_config or a terrain kwarg of the opt-in subclass (PR-9).  A
+        # dataclass with a task_record (DirectionCommandConfig) records the fields
+        # it declares task-defining, so a field added at the value every earlier
+        # task ran with moves no recorded fingerprint.
+        task_record = getattr(value, "task_record", None)
+        return _canonical(task_record() if callable(task_record) else dataclasses.asdict(value))
     return str(value)
 
 
@@ -212,10 +216,59 @@ def _effective_env_kwargs(model_id: ModelId, env_kwargs: Mapping[str, Any]) -> d
     if effective.get("command_mode", COMMAND_MODE_NONE) == COMMAND_MODE_NONE:
         for name in COMMAND_ENV_KEYS:
             effective.pop(name, None)
+    elif isinstance(effective.get("command_config"), Mapping):
+        # A recorded live config (stage_config.json's reward_weights holds every
+        # field, decision D-D60) hashes as the dataclass it was saved from.
+        from .direction_commands import DirectionCommandConfig
+
+        effective["command_config"] = DirectionCommandConfig(**effective["command_config"])
     # The same carve-out for a class's declared opt-in task options while off.
     for name in inert_opt_in_env_kwargs(env_class, effective):
         effective.pop(name, None)
     return effective
+
+
+def stage_command_manifest(model_id: ModelId, env_kwargs: Mapping[str, Any]) -> dict[str, Any] | None:
+    """The command manifest a stage's ``[env]`` kwargs declare, or ``None`` under ``command_mode = "none"``.
+
+    A live stage's ``command_mode`` and ``command_config`` come from its
+    ``[commands]`` table (``config.load_stage_config``, decision D-D60).  The
+    manifest is ``DirectionCommandController(command_config).manifest()``,
+    exactly what the env built from those kwargs returns from
+    ``command_manifest()``, so a stage's fingerprint is derived before any
+    environment exists (:func:`check_env_command_manifest` compares the two
+    once one does).  A live mode without a ``DirectionCommandConfig`` is
+    refused.
+    """
+    from .direction_commands import DirectionCommandConfig, DirectionCommandController
+
+    effective = _effective_env_kwargs(model_id, env_kwargs)
+    if "command_mode" not in effective:
+        return None
+    config = effective.get("command_config")
+    if not isinstance(config, DirectionCommandConfig):
+        raise TaskFingerprintError(
+            f"command_mode={effective['command_mode']!r} needs a command_config (a DirectionCommandConfig, from the "
+            f"stage's [commands] table), got {type(config).__name__}"
+        )
+    return DirectionCommandController(config).manifest()
+
+
+def check_env_command_manifest(
+    manifest: Mapping[str, Any] | None, fingerprint: Mapping[str, Any], *, artifact: str
+) -> None:
+    """Refuse an environment whose ``command_manifest()`` is not the *fingerprint*'s ``command`` section.
+
+    Both sides are compared in the fingerprint's canonical form; a "none"
+    env (``None``) matches exactly a fingerprint without the section.
+    """
+    expected = fingerprint.get("command")
+    actual = None if manifest is None else _canonical(dict(manifest))
+    if actual != expected:
+        raise TaskFingerprintError(
+            f"{artifact} reports command manifest {actual!r}, but the task fingerprint it trains under records "
+            f"{expected!r}: the environment does not run the command task the stage declares"
+        )
 
 
 def compute_task_fingerprint(
@@ -608,9 +661,12 @@ def stage_task_fingerprint(
     committed stage config's; passing both is refused.  *plant_identity*
     defaults to the model's current plant; a :class:`PlantIdentity` or its
     ``to_dict()`` mapping gives the same digest.  The backend is always
-    :data:`FINGERPRINT_BACKEND`.  *command_manifest* (a live command mode's
-    controller manifest) is forwarded only when given, so every
-    ``command_mode = "none"`` stage derives from the same five inputs.
+    :data:`FINGERPRINT_BACKEND`.  The command section is derived from the
+    ``[env]`` block (:func:`stage_command_manifest`: a live stage's
+    ``[commands]`` controller manifest, nothing under ``command_mode =
+    "none"``, so every "none" stage derives from the same five inputs as
+    before decision D-D60).  A *command_manifest* passed in must equal the
+    derived one, or :class:`TaskFingerprintError` is raised.
 
     Delegates to :func:`derive_stage_task_fingerprint`, looked up when
     called, so a test that replaces it sees every derivation.
@@ -633,7 +689,15 @@ def stage_task_fingerprint(
 
         plant_identity = current_plant_identity(model_id)
     identity = dict(plant_identity) if isinstance(plant_identity, Mapping) else plant_identity.to_dict()
-    command = {} if command_manifest is None else {"command_manifest": command_manifest}
+    derived = stage_command_manifest(model_id, env_kwargs)
+    if command_manifest is not None and (
+        derived is None or _canonical(dict(command_manifest)) != _canonical(dict(derived))
+    ):
+        declared = "none: its command_mode is 'none'" if derived is None else "its [commands] controller manifest"
+        raise TaskFingerprintError(
+            f"the command_manifest passed is not the one the stage's [env] block declares ({declared})"
+        )
+    command = {} if derived is None else {"command_manifest": derived}
     return derive_stage_task_fingerprint(
         model_id=model_id,
         stage=reference,

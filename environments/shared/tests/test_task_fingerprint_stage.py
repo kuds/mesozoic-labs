@@ -219,9 +219,12 @@ def test_the_helper_hands_the_derivation_exactly_its_five_inputs(monkeypatch):
     assert derived[0]["plant_identity"] is not identity, "the identity mapping is copied, never aliased"
 
 
-def test_the_helper_forwards_a_command_manifest_only_when_given(monkeypatch):
-    """Consolidation PR-9 (the CU-8a amendment): a live command mode's manifest goes through the helper; without
-    one the derivation still receives exactly its five inputs."""
+def test_the_helper_derives_the_command_section_from_the_env_block(monkeypatch):
+    """Consolidation PR-9 (the CU-8a amendment) and decision D-D60: the helper derives a live stage's command
+    manifest from its [env] block (its [commands] table) and forwards it; a "none" stage's derivation still
+    receives exactly its five inputs, and a manifest passed in must be the derived one."""
+    from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController
+
     derived: list[dict[str, Any]] = []
 
     def derive(**kwargs):
@@ -229,49 +232,62 @@ def test_the_helper_forwards_a_command_manifest_only_when_given(monkeypatch):
         return {"task_sha256": "sha256:derived"}
 
     monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
+    model_id = ModelId("tyrannosaurus_rex", "anatomical")
     identity = {"physics_sha256": "sha256:plant"}
-    manifest = {"schema": "mesozoic.direction-commands/v1"}
+    config = DirectionCommandConfig(cruise_speed=0.5)
+    manifest = DirectionCommandController(config).manifest()
+    live = {"command_mode": "heading_and_speed", "command_config": config}
+    task_fingerprint.stage_task_fingerprint(model_id, "stance", env_kwargs={}, plant_identity=identity)
+    task_fingerprint.stage_task_fingerprint(model_id, "locomotion", env_kwargs=live, plant_identity=identity)
     task_fingerprint.stage_task_fingerprint(
-        ModelId("tyrannosaurus_rex", "anatomical"), "stance", env_kwargs={}, plant_identity=identity
-    )
-    task_fingerprint.stage_task_fingerprint(
-        ModelId("tyrannosaurus_rex", "anatomical"),
-        "stance",
-        env_kwargs={},
-        plant_identity=identity,
-        command_manifest=manifest,
+        model_id, "locomotion", env_kwargs=live, plant_identity=identity, command_manifest=manifest
     )
     assert "command_manifest" not in derived[0] and len(derived[0]) == 5
-    assert derived[1] == {**derived[0], "command_manifest": manifest}
+    assert derived[1]["command_manifest"] == manifest and derived[2] == derived[1]
+    with pytest.raises(task_fingerprint.TaskFingerprintError, match="command_mode is 'none'"):
+        task_fingerprint.stage_task_fingerprint(
+            model_id, "stance", env_kwargs={}, plant_identity=identity, command_manifest=manifest
+        )
+    other = DirectionCommandController(DirectionCommandConfig(cruise_speed=0.75)).manifest()
+    with pytest.raises(task_fingerprint.TaskFingerprintError, match="controller manifest"):
+        task_fingerprint.stage_task_fingerprint(
+            model_id, "locomotion", env_kwargs=live, plant_identity=identity, command_manifest=other
+        )
+    assert len(derived) == 3
 
 
-def test_a_live_stage_is_derived_with_its_manifest_and_refused_without_it():
-    """The helper's real derivation (no monkeypatch): a live [env] gets its command section through the forwarded
-    manifest, and a live [env] without one is refused rather than hashed without its section."""
+def test_a_live_stage_is_derived_with_its_manifest_and_refused_without_a_config():
+    """The helper's real derivation (no monkeypatch): a live [env] gets its command section from its own command
+    config, with or without the manifest passed in, and a live mode without a DirectionCommandConfig is refused
+    rather than hashed without its section.  The core stays strict: compute_task_fingerprint refuses a live [env]
+    without the manifest."""
     from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController
 
+    model_id = ModelId("tyrannosaurus_rex", "anatomical")
     config = DirectionCommandConfig(cruise_speed=0.5, speed_range=(0.25, 0.5), stop_probability=0.2)
     manifest = DirectionCommandController(config).manifest()
-    env = {
-        **load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "locomotion")["env_kwargs"],
-        "command_mode": "heading_and_speed",
-    }
+    env = {**load_stage_config(model_id, "locomotion")["env_kwargs"], "command_mode": "heading_and_speed"}
     live = task_fingerprint.stage_task_fingerprint(
-        ModelId("tyrannosaurus_rex", "anatomical"),
-        "locomotion",
-        env_kwargs={**env, "command_config": config},
-        command_manifest=manifest,
+        model_id, "locomotion", env_kwargs={**env, "command_config": config}, command_manifest=manifest
     )
     assert live["command"] == json.loads(json.dumps(manifest)) and live["env"]["command_mode"] == "heading_and_speed"
-    assert (
-        live["task_sha256"]
-        != task_fingerprint.stage_task_fingerprint(ModelId("tyrannosaurus_rex", "anatomical"), "locomotion")[
-            "task_sha256"
-        ]
+    assert live == task_fingerprint.stage_task_fingerprint(
+        model_id, "locomotion", env_kwargs={**env, "command_config": config}
     )
+    assert live["task_sha256"] != task_fingerprint.stage_task_fingerprint(model_id, "locomotion")["task_sha256"]
+    for missing in (None, "cruise_speed = 0.5"):
+        with pytest.raises(task_fingerprint.TaskFingerprintError, match="needs a command_config"):
+            task_fingerprint.stage_task_fingerprint(
+                model_id, "locomotion", env_kwargs={**env, "command_config": missing}
+            )
     with pytest.raises(task_fingerprint.TaskFingerprintError, match="exactly when command_mode is not 'none'"):
-        task_fingerprint.stage_task_fingerprint(
-            ModelId("tyrannosaurus_rex", "anatomical"), "locomotion", env_kwargs={**env, "command_config": config}
+        task_fingerprint.compute_task_fingerprint(
+            model_id=model_id,
+            stage="locomotion",
+            backend=task_fingerprint.FINGERPRINT_BACKEND,
+            env_kwargs={**env, "command_config": config},
+            plant_identity=None,
+            perturbation_manifest=None,
         )
 
 

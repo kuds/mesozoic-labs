@@ -44,7 +44,13 @@ are planned as manifest nodes under `locomotion` — `follow_direction` and
 `follow_direction_difficult_terrain`, with their own gate kind — so the leaf
 set on this page will grow; nothing on this page changes until then.
 Follow-direction, driven by a commanded heading and speed, is the path after
-walk (decision D-D59).
+walk (decision D-D59). The machinery those nodes need exists since decision
+D-D60: a stage TOML may declare a `[commands]` table; every environment scores
+a live command with a tracking reward and draws its schedule from a random
+stream of its own; and every stage holds the command inputs' normalization at
+identity, so a node that widens its parent's commands continues it exactly
+([Hyperparameters](hyperparameters.md#commands)). No committed stage declares
+the table yet.
 
 ## The stage manifest
 

@@ -7,12 +7,23 @@ named by its stage with no number, as the model's stage manifest
 (``stages.toml`` in the same directory) declares (tyrannosaurus_rex/anatomical:
 stance.toml, recovery.toml, locomotion.toml).
 
-Each TOML file has up to five tables: [stage], [env], [ppo], [sac] and
-[curriculum].  A top-level ``extends`` key, before the first table header,
-inherits the listed tables from another stage of the same model, one
+Each TOML file has up to six tables: [stage], [env], [commands], [ppo],
+[sac] and [curriculum].  A top-level ``extends`` key, before the first table
+header, inherits the listed tables from another stage of the same model, one
 level deep and never [curriculum]:
 
     extends = { stage = "stance", tables = ["stage", "env", "ppo"] }
+
+The [commands] table makes the stage's body-relative command live (decision
+D-D60).  ``mode`` names the live command mode ("heading" or
+"heading_and_speed") and every other key is a
+``direction_commands.DirectionCommandConfig`` field.  A stage without the
+table runs command_mode "none", and the stance never declares one:
+
+    [commands]
+    mode = "heading_and_speed"
+    cruise_speed = 2.1
+    turn_increment_max = 0.0
 
 The [curriculum] table contains per-stage training and advancement settings:
     timesteps           - number of timesteps to train this stage
@@ -29,6 +40,7 @@ import logging
 import math
 import tomllib
 from collections.abc import Mapping
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -175,12 +187,89 @@ _CONFIGS_DIR = _REPO_ROOT / "configs"
 #: else is rejected rather than ignored: a misspelled ``[environment]`` used
 #: to load as an empty ``[env]`` and the stage silently trained on
 #: constructor defaults (review CF4).  ``[jax]`` has been rejected too since
-#: D-D17 retired the JAX/MJX trainer that read it.
-_STAGE_CONFIG_TABLES = frozenset({"stage", "env", "ppo", "sac", "curriculum"})
+#: D-D17 retired the JAX/MJX trainer that read it.  ``[commands]`` (decision
+#: D-D60) is read by :func:`_stage_command_kwargs`.
+_STAGE_CONFIG_TABLES = frozenset({"stage", "env", "commands", "ppo", "sac", "curriculum"})
 _ALGORITHM_TABLES = ("ppo", "sac")
 #: The tables ``extends`` may inherit.  ``[curriculum]`` is never inherited:
-#: a stage's budget and advancement gate are its own.
-_INHERITABLE_TABLES = ("stage", "env", "ppo", "sac")
+#: a stage's budget and advancement gate are its own.  ``[commands]`` is
+#: inherited key by key like ``[env]``, so a stage that widens its parent's
+#: command distribution states only the keys it changes.
+_INHERITABLE_TABLES = ("stage", "env", "commands", "ppo", "sac")
+#: The [commands] key naming the live command mode; every other key is a
+#: ``DirectionCommandConfig`` field.
+COMMANDS_MODE_KEY = "mode"
+#: The stage that never declares [commands] (decision D-D60): stance runs
+#: command_mode "none", which its six-heading certificate
+#: (``stance_report.heading_protocol_refusals``) and the mirror
+#: (``symmetry.mirror_env_state``) require, and which keeps the walk warm
+#: start's command-free-parent rule (it zeroes the command columns of a
+#: parent whose fingerprint has no command section).
+COMMAND_FREE_STAGE_ID = "stance"
+
+
+def _stage_command_kwargs(path: Path, stage_id: "str | None", table: Any) -> dict[str, Any]:
+    """The ``command_mode`` and ``command_config`` env kwargs a stage's ``[commands]`` table declares.
+
+    Refused, naming *path*: a table on the stance (:data:`COMMAND_FREE_STAGE_ID`);
+    a missing or non-live ``mode`` (a "none" stage declares no table); an
+    unknown key; a value ``DirectionCommandConfig`` refuses; and the
+    ``heading`` mode with a speed range or stops, which the env refuses too.
+    TOML arrays become tuples, as in ``[env]``.
+    """
+    from dataclasses import fields
+
+    from .command_frame import COMMAND_MODE_NONE, COMMAND_MODES
+    from .direction_commands import DirectionCommandConfig, validate_command_task
+
+    if stage_id == COMMAND_FREE_STAGE_ID:
+        raise ValueError(
+            f"{path}: the {COMMAND_FREE_STAGE_ID} declares no [commands] table: it runs command_mode "
+            '"none", which its six-heading certificate and the mirror require and which the walk warm '
+            "start's command-free-parent rule reads (decision D-D60)"
+        )
+    if not isinstance(table, dict):
+        raise ValueError(f"{path}: [commands] must be a table")
+    allowed = {COMMANDS_MODE_KEY} | {field.name for field in fields(DirectionCommandConfig)}
+    if unknown := sorted(set(table) - allowed):
+        raise ValueError(
+            f"{path}: unknown [commands] key(s) {unknown}; the table takes {COMMANDS_MODE_KEY!r} and the "
+            "DirectionCommandConfig fields"
+        )
+    mode = table.get(COMMANDS_MODE_KEY)
+    live_modes = [name for name in COMMAND_MODES if name != COMMAND_MODE_NONE]
+    if mode not in live_modes:
+        raise ValueError(
+            f"{path}: [commands] {COMMANDS_MODE_KEY} must be one of {live_modes}, got {mode!r}; a stage that runs "
+            f'command_mode "none" declares no [commands] table'
+        )
+    values: dict[str, Any] = {
+        key: tuple(value) if isinstance(value, list) else value
+        for key, value in table.items()
+        if key != COMMANDS_MODE_KEY
+    }
+    try:
+        config = DirectionCommandConfig(**values)
+        validate_command_task(mode, config)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{path}: [commands]: {exc}") from exc
+    return {"command_mode": mode, "command_config": config}
+
+
+def _resolved_stage_id(model_id: Any, stage: "int | str") -> "str | None":
+    """*stage*'s id in *model_id*'s manifest; else the legacy id of an integer *stage*, a string *stage* itself.
+
+    The fallback serves a ``config_path`` load whose model or stage the
+    manifest does not resolve: the stance (legacy stage 1) is still named.
+    """
+    from .stage_manifest import LEGACY_STAGE_IDS, StageManifestError, load_stage_manifest
+
+    try:
+        return load_stage_manifest(model_id).resolve(stage).id
+    except (StageManifestError, AttributeError, TypeError, ValueError):
+        if isinstance(stage, bool):
+            return None
+        return LEGACY_STAGE_IDS.get(stage) if isinstance(stage, int) else str(stage)
 
 
 def _tables_holding_extends(body: Any, dotted: str) -> list[str]:
@@ -321,8 +410,13 @@ def load_stage_config(
         "ppo_kwargs", "sac_kwargs" and "curriculum_kwargs", read from the
         tables as resolved through ``extends``.  Values in [env] that are
         lists are converted to tuples so they can be passed directly to the
-        environment constructors.
+        environment constructors.  A [commands] table adds its
+        ``command_mode`` and ``command_config`` (a ``DirectionCommandConfig``)
+        to "env_kwargs" (:func:`_stage_command_kwargs`), so every
+        construction path builds the live command and the task fingerprint
+        hashes it; [env] itself may not name either.
     """
+    stage_id: "str | None" = None
     if config_path is not None:
         path = Path(config_path)
     else:
@@ -333,6 +427,7 @@ def load_stage_config(
 
         entry = load_stage_manifest(model_id).resolve(stage)
         path = model_id.path(_CONFIGS_DIR) / entry.config_file
+        stage_id = entry.id
 
     raw = _read_stage_toml(path)
 
@@ -369,6 +464,21 @@ def load_stage_config(
             env_kwargs[key] = tuple(value)
         else:
             env_kwargs[key] = value
+
+    # The command task lives in [commands] (decision D-D60), as a behavior
+    # recipe's does; [env] never states it.
+    from .command_frame import COMMAND_ENV_KEYS
+
+    if in_env := sorted(set(env_kwargs) & set(COMMAND_ENV_KEYS)):
+        raise ValueError(
+            f"{path}: [env] {in_env}: a stage states its command task in a [commands] table "
+            f"({COMMANDS_MODE_KEY!r} and the DirectionCommandConfig fields), and a stage without one runs "
+            'command_mode "none"'
+        )
+    if "commands" in raw:
+        if stage_id is None:
+            stage_id = _resolved_stage_id(model_id, stage)
+        env_kwargs.update(_stage_command_kwargs(path, stage_id, raw["commands"]))
 
     return {
         "name": stage_meta.get("name", f"stage{stage}"),
@@ -641,6 +751,25 @@ SHAPING_KEY_PREFIXES = ("warmup_", "ramp_", "warm_start_")
 
 def _algorithm_kwargs_key(algorithm: str) -> str:
     return _ALGORITHM_KWARGS_KEYS.get(algorithm.upper(), f"{algorithm.lower()}_kwargs")
+
+
+def env_kwargs_record(env_kwargs: Mapping[str, Any]) -> dict[str, Any]:
+    """*env_kwargs* as a JSON record holds them: a tuple as a list, a live command config as an object.
+
+    The command config (decision D-D60) is recorded field by field, every
+    field, so ``DirectionCommandConfig(**record["command_config"])`` rebuilds
+    it exactly, and a recorded block re-derives the stage's task fingerprint
+    (``task_fingerprint._effective_env_kwargs`` reads the object back as the
+    dataclass).  Every other value is kept as given.
+    """
+    from .direction_commands import DirectionCommandConfig
+
+    record: dict[str, Any] = {}
+    for key, value in env_kwargs.items():
+        if isinstance(value, DirectionCommandConfig):
+            value = {name: list(item) if isinstance(item, tuple) else item for name, item in asdict(value).items()}
+        record[key] = list(value) if isinstance(value, tuple) else value
+    return record
 
 
 def _json_ready(value: Any) -> Any:
@@ -925,9 +1054,8 @@ def save_stage_config(
         except (ValueError, TypeError):
             pass
 
-    # Overlay TOML-derived values and convert tuples to lists for JSON
-    for key, value in stage_config.get("env_kwargs", {}).items():
-        env_kwargs[key] = list(value) if isinstance(value, tuple) else value
+    # Overlay TOML-derived values, as JSON records them (env_kwargs_record).
+    env_kwargs.update(env_kwargs_record(stage_config.get("env_kwargs", {})))
 
     # Also convert any defaults that were tuples
     for key, value in env_kwargs.items():

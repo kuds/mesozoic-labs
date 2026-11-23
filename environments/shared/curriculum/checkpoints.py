@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from . import sb3_compat
+from .command_identity import hold_vec_normalize_command_identity
 from .hop_watch import HopRegimeWatchCallback
 from .posture_watch import PostureDriftWatchCallback, PostureTrendWatchCallback
 from .sb3_compat import BaseCallback
@@ -91,6 +92,8 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         self.model.save(str(path))
         vec_env = self.model.get_vec_normalize_env()
         if vec_env is not None:
+            # The command slice at identity in every sidecar (decision D-D60).
+            hold_vec_normalize_command_identity(vec_env)
             vec_env.save(str(path) + "_vecnorm.pkl")
         if staging_dir is not None:
             publish_staged_pair(path, self.model_dir / "robust_best_model", zip_last=True)
@@ -606,6 +609,8 @@ class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]
     def _on_step(self) -> bool:
         vec_env = self.model.get_vec_normalize_env()
         if vec_env is not None:
+            # The command slice at identity in every sidecar (decision D-D60).
+            hold_vec_normalize_command_identity(vec_env)
             vec_env.save(self.save_path)
             logger.info("VecNormalize saved to: %s", self.save_path)
         # getattr: tests build this callback without __init__.
@@ -625,7 +630,7 @@ def load_vecnorm_stats(
     allow_legacy_plant: bool = False,
     unsafe_skip_plant_validation: bool = False,
     carry_ret_rms: bool = False,
-    reseed_command_slice: bool = False,
+    command_mode: str,
 ) -> bool:
     """Load VecNormalize running statistics from a previous stage into new envs.
 
@@ -658,20 +663,38 @@ def load_vecnorm_stats(
         unsafe_skip_plant_validation: Deliberately load without checking the
             plant. This is for low-level inspection/tests only and cannot be
             combined with either validation option.
-        reseed_command_slice: The target node runs ``command_mode != "none"``
-            (BEHAVIOR_RECIPES_PLAN §4.6): the trailing command slice of
-            ``obs_rms`` is reset to mean 0 / var 1 at the carried count on
-            BOTH destinations, because a slice that was constant zero during
-            the parent run has var ≈ 1e-11 and would clip a live command at
-            ``clip_obs`` (invariant 8; ``command_frame.reseed_command_slice``).
+        command_mode: The ``command_mode`` of the stage that will read
+            these statistics (required: every caller states it).  The
+            identity rule (decision D-D60): training holds the command slice
+            of ``obs_rms`` at mean 0 / var 1, so statistics saved since then
+            load as they are.  Statistics whose slice is not at identity --
+            saved before the rule (a ``"none"`` stage's slice decayed toward
+            variance 0 as ``1e-4 / count``), or edited -- are refused with
+            :class:`~environments.shared.command_frame.CommandNormalizationError`
+            for a live mode, before either destination changes, since a live
+            command read through them would not mean what it means to every
+            other stage's policy; for ``"none"`` identity is re-imposed on
+            BOTH destinations (count kept) and a warning names the file, as
+            a ``"none"`` stage's zero command normalises to zero under either.
+            A same-stage resume follows the same rule: its own saves were
+            held at identity.
 
     Returns:
         ``True`` if stats were loaded, ``False`` if the file was not found.
     """
     from pathlib import Path as _Path
 
-    from environments.shared.command_frame import reseed_command_slice as _reseed_command_slice
+    from environments.shared.command_frame import (
+        COMMAND_MODE_NONE,
+        COMMAND_MODES,
+        command_identity_gap,
+        hold_command_identity,
+        require_command_identity,
+    )
     from environments.shared.plant_contract import PlantCompatibilityError
+
+    if command_mode not in COMMAND_MODES:
+        raise ValueError(f"command_mode={command_mode!r} is not one of {COMMAND_MODES}")
 
     if unsafe_skip_plant_validation:
         if current_plant is not None or allow_legacy_plant:
@@ -724,22 +747,32 @@ def load_vecnorm_stats(
             allow_legacy=allow_legacy_plant,
         )
 
+    # The identity rule (decision D-D60), judged before either destination
+    # changes: a live stage refuses a slice off identity; a "none" stage
+    # re-imposes it on the loaded object, which both destinations then carry.
+    gap = command_identity_gap(prev_norm.obs_rms)
+    if gap != 0.0:
+        if command_mode != COMMAND_MODE_NONE:
+            require_command_identity(prev_norm.obs_rms, artifact=str(path), command_mode=command_mode)
+        hold_command_identity(prev_norm.obs_rms)
+        logger.warning(
+            "%s: the command slice of its observation statistics was off identity (largest deviation %.3g; saved "
+            "before decision D-D60 held it at mean 0 / variance 1); identity re-imposed for this command-free "
+            "stage, whose zero command normalises to zero under either",
+            vecnorm_path,
+            gap,
+        )
+
     # Carry forward observation statistics — the observation WIDTH is
     # identical across stages (the plant identity check above guarantees
-    # it), so the running mean/var remain valid; only the trailing command
-    # slice's statistics may be reseeded (reseed_command_slice=True, for a
-    # node whose command channel goes live).  ret_rms is copied only for
-    # same-stage resumes (carry_ret_rms=True): across stage boundaries the
-    # reward distribution changes, so stale return statistics would produce
-    # incorrectly scaled normalised rewards for PPO.  train_env.training /
-    # norm_reward are left as configured by create_vec_env (algorithm-aware).
+    # it), so the running mean/var remain valid, the command slice at
+    # identity.  ret_rms is copied only for same-stage resumes
+    # (carry_ret_rms=True): across stage boundaries the reward distribution
+    # changes, so stale return statistics would produce incorrectly scaled
+    # normalised rewards for PPO.  train_env.training / norm_reward are left
+    # as configured by create_vec_env (algorithm-aware).
     train_env.obs_rms = prev_norm.obs_rms
-    # The eval copy is taken BEFORE the train reseed so each destination is
-    # reseeded on its own line below (an in-place reseed of the shared
-    # object would otherwise reach eval through the copy, unobserved).
     eval_obs_rms = prev_norm.obs_rms.copy() if eval_env is not None else None
-    if reseed_command_slice:
-        _reseed_command_slice(train_env.obs_rms)
     if carry_ret_rms:
         # Only the running statistics: the per-env `returns` accumulators were
         # re-zeroed by VecNormalize.set_venv and correctly start at zero (the
@@ -751,8 +784,6 @@ def load_vecnorm_stats(
 
     if eval_env is not None:
         eval_env.obs_rms = eval_obs_rms
-        if reseed_command_slice:
-            _reseed_command_slice(eval_env.obs_rms)
         eval_env.training = False
         eval_env.norm_reward = False
 

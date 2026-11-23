@@ -5,7 +5,10 @@ python -m environments.compsognathus_longipes.scripts.probe_ppo_updates --output
 Uses the current implementation for both arms. Only the original stance TOMLs
 come from the pinned baseline commit. Each arm preserves the production rollout,
 network, episode horizon, normalization, and complete learning-rate/entropy
-schedules, then stops on a rollout boundary. No checkpoints are written.
+schedules, then stops on a rollout boundary. No checkpoints are written. The one
+departure: it runs without production's CommandIdentityCallback (decision
+D-D60), so the command slice's statistics are not held at mean 0 / variance 1.
+That is inert on the stance files it probes, whose command is always zero.
 
 Both arms read each model's stance file at its decision D-D33 path,
 ``configs/<species>/<embodiment>/stance.toml``, so the baseline ref must hold
