@@ -140,12 +140,7 @@ def run3_as_a_d22_run(monkeypatch):
     if not have:
         pytest.skip("run 3's commit is not in this clone")
     monkeypatch.setattr(jd, "model_of", lambda n: "trike60_C_closed_capsule.xml")
-    ref = json.loads(jd.REFERENCE.read_text())["settings"]
-    args = {k: ref[k] for k in jd.PPO_KEYS} | {"seed": 0, "model": "trike60_C_closed_capsule", "allow_changes": False}
-    record = {"settings": copy.deepcopy(ref), "sessions": [{"git": {"commit": RUN3_COMMIT, "dirty": False},
-                                                            "status": "completed", "args": args,
-                                                            "changed_settings": None,
-                                                            "saves": ["trike60_10002432_steps.zip"]}]}
+    record = copy.deepcopy(json.loads(jd.REFERENCE.read_text())["record"])  # run 3 seed 0's real record, unchanged
     gait = jd.j3._load(str(RL_DIR / "analytics" / "results" / "run3-s0" / "gait_report.json"))
     sweep = jd.j3._load(str(RL_DIR / "robustness" / "results" / "run3-s0" / "sweep_run3-s0.json.gz"))
     pol = gait["policy"]
@@ -164,6 +159,8 @@ def test_a_correct_run_passes_every_check(run3_as_a_d22_run):
     (lambda r, g, w, f: g["settings"].update(episode_s=10.0), "gait report"),  # --quick
     (lambda r, g, w, f: g["cases"]["cmd_0.15"]["summary"].update(episodes=2), "gait report"),
     (lambda r, g, w, f: r["settings"].update(n_steps=512), "training settings"),
+    (lambda r, g, w, f: r["sessions"][0]["args"].update(n_steps=512), "arguments differ"),
+    (lambda r, g, w, f: r["sessions"][0]["args"].update(net="128,128"), "arguments differ"),
     (lambda r, g, w, f: r["settings"]["env_config"].update(w_heat=0.0), "environment differs"),
     (lambda r, g, w, f: r["settings"]["env_config"].update(command_mode="heading"), "steering is on"),
     (lambda r, g, w, f: r["sessions"].insert(0, {**r["sessions"][0], "args": {**r["sessions"][0]["args"],

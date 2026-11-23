@@ -64,8 +64,10 @@ bit-identical to run 3's for this setup): L 143.5 and 110.6 N (front; hind 135.2
 
 - The run record: every session at the run commit with a clean tree, none allowed to change settings, the last one
   completed; the seed and the model; every other setting (PPO, schedules, 8 envs, 10,000,000 steps, the whole
-  environment config) equal to run 3's (`analysis/results/run3_reference_settings.json`, from run 3 seed 0's record;
-  run 3's two seeds differ in the seed only), with steering off; its last checkpoint is the one measured.
+  environment config), and every session's arguments as train.py records them (all but the output folder, seed,
+  model and the notebook's process id), equal to run 3's (`analysis/results/run3_reference_settings.json`: run 3
+  seed 0's whole record; run 3's two seeds differ in the seed only), with steering off; its last checkpoint is the
+  one measured.
 - The tools: the model's and `trike_env.py`'s sha256 as each recorded them, against the run commit's files; the run
   commit; the final pair; the same pair in all three tools; the gait report's settings (seeds 100000-100004, 20 s,
   10 ms, deterministic, from 2 s) and 5 episodes in each judged case, so a `--quick` report cannot pass; the

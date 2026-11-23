@@ -58,6 +58,7 @@ ELBOWS = ("left_fore_flexion", "right_fore_flexion")
 GAIT_SETTINGS = {"seeds": list(range(100000, 100005)), "delay_ms": 10, "deterministic": True, "episode_s": 20.0,
                  "window_from_s": 2.0}
 REFERENCE = Path(__file__).resolve().parent / "results" / "run3_reference_settings.json"
+ARG_SKIP = ("out", "seed", "model", "exit_with_parent")  # per run or per machine; compared separately or not at all
 PPO_KEYS = ("n_envs", "total_steps", "checkpoint_every", "n_steps", "batch_size", "n_epochs", "lr_start", "lr_end",
             "gamma", "gae_lambda", "clip_range", "ent_coef", "log_std_init", "net", "penalty_ramp_steps",
             "penalty_ramp_start", "late_ramp_from", "late_ramp_to", "terrain_ramp_from", "terrain_ramp_to",
@@ -89,7 +90,8 @@ def checks(length: int, seed: int, run_commit: str, record: dict, gait: dict, sw
     if not sessions or sessions[-1].get("status") != "completed":
         bad.append("run record: the last session did not complete")
     st = record.get("settings", {})
-    ref = json.loads(REFERENCE.read_text())["settings"]
+    ref_record = json.loads(REFERENCE.read_text())["record"]
+    ref, ref_args = ref_record["settings"], ref_record["sessions"][0]["args"]
     if st.get("seed") != seed or any(s["args"].get("seed") != seed for s in sessions):
         bad.append("run record: another seed")
     if Path(st.get("model", "")).name != model or any(f"{s['args'].get('model')}.xml" != model for s in sessions):
@@ -98,7 +100,7 @@ def checks(length: int, seed: int, run_commit: str, record: dict, gait: dict, sw
         bad.append("run record: training settings differ from run 3's")
     if any(s["args"].get("allow_changes") or s.get("changed_settings") for s in sessions):
         bad.append("run record: a session changed its settings")
-    if any(s["args"].get(k) != ref[k] for s in sessions for k in PPO_KEYS if k in s["args"]):
+    if any(s["args"].get(k) != v for s in sessions for k, v in ref_args.items() if k not in ARG_SKIP):
         bad.append("run record: a session's arguments differ from run 3's")
     ec, rec3 = st.get("env_config", {}), ref["env_config"]
     if any(ec.get(k) != v for k, v in rec3.items() if k != "model_path") or ec.get("command_mode", "none") != "none":
