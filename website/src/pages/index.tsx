@@ -10,6 +10,9 @@ import styles from './index.module.css';
 const study = 'https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build';
 const walkingReport = study + '/walk/results/walk60_2026-11-19/RESULTS.md';
 const rampResults = study + '/walk/results/sweep_walk60/summary_walk60.md';
+const plateSizes = '(max-width: 460px) calc(100vw - 2rem), (max-width: 80rem) calc(50vw - clamp(1rem, 3.2vw, 2.5rem)), 37.5rem';
+// React 18 forwards this image hint using its lowercase HTML spelling.
+const heroPriority = {fetchpriority: 'high'};
 const targetSpeed = 0.25;
 const slopeResults = [
   {terrain: 'Level ground', speed: 0.246},
@@ -45,7 +48,9 @@ function SectionHeading({id, children}: {id: string; children: string}) {
 
 function TriceratopsStudy() {
   const robot = useBaseUrl(capsuleSideImage);
+  const robotSmall = useBaseUrl('/img/animals/triceratops-60cm-capsule-side-2026-11-22-800.jpg');
   const adult = useBaseUrl('/img/animals/triceratops-adult-profile.webp');
+  const adultSmall = useBaseUrl('/img/animals/triceratops-adult-profile-800.webp');
   return (
     <figure>
       <div className={styles.plates}>
@@ -53,6 +58,9 @@ function TriceratopsStudy() {
           <img
             className={styles.robotStill}
             src={robot}
+            srcSet={`${robotSmall} 800w, ${robot} 1600w`}
+            sizes={plateSizes}
+            {...heroPriority}
             width={1600}
             height={900}
             alt="Side view of the simulated Triceratops robot standing on rounded capsule soles, with a horned head and open chassis"
@@ -64,6 +72,8 @@ function TriceratopsStudy() {
         <figure>
           <img
             src={adult}
+            srcSet={`${adultSmall} 800w, ${adult} 1600w`}
+            sizes={plateSizes}
             width={1600}
             height={706}
             alt="Side view of the adult anatomical model with a broad frill, three horns and four weight-bearing legs"
