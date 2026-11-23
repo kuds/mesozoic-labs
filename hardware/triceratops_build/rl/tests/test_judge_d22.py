@@ -18,7 +18,7 @@ import judge_d22 as jd  # noqa: E402
 def run(L, N=20, h_all=0.80, h_front=0.75, f1=True, f2=True):
     rules = {k: True for k in ("F1", "F2", "T1", "T2", "T3", "T4", "T5")}
     rules.update(F1=f1, F2=f2)
-    return {"rules": rules, "L": L, "N": N, "H_all": h_all, "H_front": h_front}
+    return {"rules": rules, "L": L, "N": N, "H_all": h_all, "H_front": h_front, "H_elbow": 0.6}
 
 
 def runs(l128=(140, 120, 130, 110), l160=(100, 105, 110, 100), **kw160):
@@ -124,3 +124,62 @@ def test_the_ten_millisecond_window_of_the_load_recorder():
     assert s["window_s"] == pytest.approx(0.010) and s["foot_samples"] == 1000
     assert s["feet"]["f"]["normal_n"]["max"] == 100.0
     assert s["feet"]["f"]["normal_window_n"]["max"] == pytest.approx(50.0)  # 5 of 10 samples
+
+
+RUN3_COMMIT = "efd1e1c7d391062c96880b539f76bbc99d30b48c"
+
+
+@pytest.fixture()
+def run3_as_a_d22_run(monkeypatch):
+    """Run 3 seed 0's real record settings and tool output, shaped as a D22 run on run 3's own model and commit:
+    the checks must pass it, and catch each slip."""
+    import copy
+
+    have = __import__("subprocess").run(["git", "-C", str(jd.j3.REPO), "cat-file", "-e", RUN3_COMMIT],
+                                        capture_output=True).returncode == 0
+    if not have:
+        pytest.skip("run 3's commit is not in this clone")
+    monkeypatch.setattr(jd, "model_of", lambda n: "trike60_C_closed_capsule.xml")
+    ref = json.loads(jd.REFERENCE.read_text())["settings"]
+    args = {k: ref[k] for k in jd.PPO_KEYS} | {"seed": 0, "model": "trike60_C_closed_capsule", "allow_changes": False}
+    record = {"settings": copy.deepcopy(ref), "sessions": [{"git": {"commit": RUN3_COMMIT, "dirty": False},
+                                                            "status": "completed", "args": args,
+                                                            "changed_settings": None,
+                                                            "saves": ["trike60_10002432_steps.zip"]}]}
+    gait = jd.j3._load(str(RL_DIR / "analytics" / "results" / "run3-s0" / "gait_report.json"))
+    sweep = jd.j3._load(str(RL_DIR / "robustness" / "results" / "run3-s0" / "sweep_run3-s0.json.gz"))
+    pol = gait["policy"]
+    foot = {"settings": dict(jd.FOOT_SETTINGS), "provenance": {
+        "model": "trike60_C_closed_capsule.xml", "model_sha256": gait["environment"]["model_sha256"][
+            "trike60_C_closed_capsule.xml"], "trike_env_sha256": gait["environment"]["trike_env_sha256"],
+        "run_commit": RUN3_COMMIT, "zip_sha256": pol["zip_sha256"], "vecnormalize_sha256": pol["vecnormalize_sha256"]}}
+    return record, gait, sweep, foot
+
+
+def test_a_correct_run_passes_every_check(run3_as_a_d22_run):
+    assert jd.checks(128, 0, RUN3_COMMIT, *run3_as_a_d22_run) == []
+
+
+@pytest.mark.parametrize("slip,expect", [
+    (lambda r, g, w, f: g["settings"].update(episode_s=10.0), "gait report"),  # --quick
+    (lambda r, g, w, f: g["cases"]["cmd_0.15"]["summary"].update(episodes=2), "gait report"),
+    (lambda r, g, w, f: r["settings"].update(n_steps=512), "training settings"),
+    (lambda r, g, w, f: r["settings"]["env_config"].update(w_heat=0.0), "environment differs"),
+    (lambda r, g, w, f: r["settings"]["env_config"].update(command_mode="heading"), "steering is on"),
+    (lambda r, g, w, f: r["sessions"].insert(0, {**r["sessions"][0], "args": {**r["sessions"][0]["args"],
+                                                                              "n_envs": 4}}), "arguments differ"),
+    (lambda r, g, w, f: r["settings"].update(seed=1), "another seed"),
+    (lambda r, g, w, f: f["settings"].update(seconds=10.0), "foot loads: settings"),
+    (lambda r, g, w, f: w.update(seeds_per_point=1), "sweep: not 8"),
+])
+def test_each_slip_makes_the_run_not_judged(run3_as_a_d22_run, slip, expect):
+    record, gait, sweep, foot = run3_as_a_d22_run
+    slip(record, gait, sweep, foot)
+    problems = jd.checks(128, 0, RUN3_COMMIT, record, gait, sweep, foot)
+    assert any(expect in p for p in problems), problems
+
+
+def test_a_not_finite_load_decides_nothing():
+    r = runs()
+    r[(128, 1)]["L"] = float("nan")
+    assert jd.choose(r)["choice"] is None

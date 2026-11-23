@@ -91,14 +91,31 @@ def provenance(ckpt_dir: Path) -> dict:
     rec = json.loads((ckpt_dir / "run_record.json").read_text())
     model = Path(rec["settings"]["env_config"]["model_path"]).name
     return {"checkpoint": zp.name, "steps": steps, "zip_sha256": _sha(zp), "vecnormalize_sha256": _sha(pk),
-            "model": model, "model_sha256": _sha(te.MODEL_DIR / model), "trike_env_sha256": _sha(Path(te.__file__)),
+            "model": model, "model_sha256": _sha(GEN / model), "trike_env_sha256": _sha(Path(te.__file__)),
             "run_commit": rec["sessions"][-1]["git"]["commit"]}
 
 
-def run(ckpt_dir: Path) -> dict:
-    import demo_course
+GEN = RL.parent / "sim" / "generated"  # the tree's models, as the gait report and the sweep read them
 
-    make, label = demo_course.policy_factory(ckpt_dir)
+
+def policy_factory(ckpt_dir: Path):
+    """demo_course.policy_factory's setting, with the model read from the tree's sim/generated (the env code may come
+    from a TRIKE_ENV_DIR export of rl/ alone, which has no sim/)."""
+    import steer_eval
+    import trike_env as te
+
+    ec = json.loads((ckpt_dir / "run_record.json").read_text())["settings"]["env_config"]
+    cfg = te.flat_floor(te.TrikeEnvConfig.from_dict({**ec, "model_path": str(GEN / Path(ec["model_path"]).name)}))
+    cfg = cfg.replace(domain_randomization=False, observation_noise=True, delay_steps_fixed=10)
+    act, name = steer_eval.load_policy(ckpt_dir, te.TrikeEnv(cfg))
+
+    def make(command):
+        return te.TrikeEnv(cfg), act
+    return make, f"policy {name} ({ckpt_dir.name})"
+
+
+def run(ckpt_dir: Path) -> dict:
+    make, label = policy_factory(ckpt_dir)
     eps = [measure(make, s) for s in SEEDS]
     def mean_of(key):  # undefined if any episode fell or lacks the figure
         v = [e[key] for e in eps if not e["fell"] and e[key] is not None]

@@ -34,7 +34,8 @@ them.
 ## How it is measured
 
 On each run's final pair, with the run commit's tools: in the tree if `rl/` has not changed since the run commit,
-otherwise through a `TRIKE_ENV_DIR` export of the run commit's `rl/` (all three tools honour it):
+otherwise through a `TRIKE_ENV_DIR` export of the run commit's `rl/` (all three tools honour it, and all three read
+the model from the tree's `sim/generated`, whose sha256 is checked against the run commit's file):
 - the gait report and the sweep, exactly as for run 3 (`PREREG_RUN3.md`, "How it is measured");
 - the foot loads (`analysis/foot_loads.py`): 5 episodes of 20 s at 0.25 m/s (seeds 300000-300004), flat floor,
   randomisation off, observation noise on, 10 ms delay, deterministic; each foot's total normal contact force (the
@@ -48,22 +49,27 @@ otherwise through a `TRIKE_ENV_DIR` export of the run commit's `rl/` (all three 
 - **L, front-foot load (D24):** the mean over the 5 episodes of the worst front foot's 99th percentile of the 10 ms
   mean normal force (N). A foot-load episode that falls leaves L undefined. The hind feet's figure is reported.
 - **H_all and H_front, heat:** the worst joint's RMS torque over its continuous rating in the gait report's target
-  case (F2's figure), and the same over the front pitch and elbow drives only.
+  case (F2's figure), and the same over the six front drives only (roll, pitch, elbow). The elbows' own figure is
+  reported, not judged: the owner chose not to give them a separate test (D24, after the review noted that the
+  front pitch drives, not the elbows, set H_front in run 3), since F2 already keeps every drive under its rating.
 - **N, falls:** falls at run 3's judged sweep points (2 and 3 cm steps, 5 and 8 deg ramps, friction 0.3, pushes of
   -1.25, -1.0, +1.0 and +1.25 m/s; 8 episodes each) plus falls in the gait report's target, 0.15 m/s and nominal
   cases (5 each). Not its "other foot" case, which for these runs swaps in the 188 mm leg as well as the foot.
 
 For scale, run 3's two seeds (188 mm, measured with this tree's `trike_env.py`, which the run-3 digest test shows is
 bit-identical to run 3's for this setup): L 143.5 and 110.6 N (front; hind 135.2 and 122.9 N), H_all 0.836 and
-0.801, H_front 0.823 and 0.722, N 25 and 18.
+0.801, H_front 0.823 and 0.722 (both the right front pitch drive; the elbows 0.53-0.66), N 25 and 18.
 
 ## Checks before judging (`judge_d22.py`; any failure makes the run NOT JUDGED)
 
-- The run record: every session at the run commit with a clean tree, the last one completed; the seed, the model,
-  10,000,000 steps, 8 envs and run3_terrain's settings; its last checkpoint is the one measured.
+- The run record: every session at the run commit with a clean tree, none allowed to change settings, the last one
+  completed; the seed and the model; every other setting (PPO, schedules, 8 envs, 10,000,000 steps, the whole
+  environment config) equal to run 3's (`analysis/results/run3_reference_settings.json`, from run 3 seed 0's record;
+  run 3's two seeds differ in the seed only), with steering off; its last checkpoint is the one measured.
 - The tools: the model's and `trike_env.py`'s sha256 as each recorded them, against the run commit's files; the run
-  commit; the final pair; the same pair in all three tools; the sweep's 8 episodes per point on seeds
-  200000-200007; the foot-load tool's settings as above.
+  commit; the final pair; the same pair in all three tools; the gait report's settings (seeds 100000-100004, 20 s,
+  10 ms, deterministic, from 2 s) and 5 episodes in each judged case, so a `--quick` report cannot pass; the
+  sweep's 8 episodes per point on seeds 200000-200007; the foot-load tool's settings as above.
 - Across runs: each length and seed given once; eight different checkpoints.
 
 ## The choice (D23, D24)
@@ -88,6 +94,11 @@ The choice is a simulation result about this setup: an input to the owner's deci
   15 %, about half the time; if the two are truly equal, it wrongly passes about 10 % of the time. The falls and
   heat tests add their own chances of keeping 128 mm. These are rough: the scatter comes from one pair of seeds on
   another leg.
+- **What the falls and heat tolerances allow.** They are run 3's single-seed differences, applied to four-seed means,
+  so they are generous: an equal 160 mm passes the falls test about 98 % of the time and the heat tests about 95 %;
+  a 160 mm truly worse by the full tolerance (7 more falls per seed, about a third more than run 3's 21.5; 0.035
+  more of rating overall; 0.10 more on a front drive) still passes about half the time. That is D24's "not clearly
+  worse", chosen by the owner; the loads test is where 160 mm has to prove itself.
 - "128 mm chosen" means 160 mm did not clearly beat it, not that 128 mm is better.
 - Straight walking only: these policies walk straight, as run 3's do. PR #697's load advantage for 160 mm came from
   turns and pivots under scripted controllers; a straight-walking L may not show it. The RL policy's turning loads

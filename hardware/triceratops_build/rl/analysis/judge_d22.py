@@ -2,24 +2,25 @@
 the tools' JSON: two lengths, four seeds each. Simulation only.
 
 Per run (length x seed), first the checks (any failure makes the run NOT JUDGED, and then no choice is made):
-- the run record: every session at the run commit with a clean tree, the last one completed; the seed, the model,
-  10,000,000 steps, 8 envs and run 3's environment settings (configs/run3_terrain.json at the run commit); its last
-  checkpoint is the one the tools measured;
+- the run record: every session at the run commit with a clean tree, none allowed to change settings, the last one
+  completed; the seed and the model; every other setting (PPO, schedules, envs, steps, the environment) equal to run
+  3's (`results/run3_reference_settings.json`), steering off; its last checkpoint is the one the tools measured;
 - the tools: the model's and trike_env.py's sha256 as each recorded them against the run commit's files; the run
-  commit; the final pair (10,000,000-10,008,191 steps); the same pair in all three tools; the sweep's 8 episodes per
-  point on seeds 200000-200007; the foot-load tool's settings;
+  commit; the final pair (10,000,000-10,008,191 steps); the same pair in all three tools; the gait report's settings
+  (seeds 100000-100004, 20 s, 10 ms, deterministic, measured from 2 s) and 5 episodes in each judged case; the
+  sweep's 8 episodes per point on seeds 200000-200007; the foot-load tool's settings;
 - across runs: each (length, seed) once, eight different checkpoint pairs.
 Then run 3's rules F1, F2 and T1-T5 (`judge_run3.judge_seed`, unchanged) and the measures:
 - L: the worst front foot's 99th percentile of the 10 ms mean normal force, mean of 5 episodes (`foot_loads.py`);
 - H_all: F2's figure, the worst joint's RMS torque over its continuous rating in the gait report's target case;
-- H_front: the same for the front pitch and elbow drives only;
+- H_front: the same for the six front drives only (roll, pitch, elbow); the elbows alone are reported (D24);
 - N: falls at run 3's judged sweep points plus the gait report's target, 0.15 m/s and nominal cases (not its
   "other foot" case, which swaps in another leg).
 
 The choice (D23, D24), in this order:
 1. A length "walks" when F1 and F2 pass on all four of its seeds. If exactly one walks, it is chosen. If neither,
    no choice.
-2. If any run's L is undefined (a foot-load episode fell), no choice.
+2. If any run's L or H_front is undefined or not finite (a foot-load episode fell), no choice.
 3. Otherwise 128 mm, unless 160 mm meets all of, on the four-seed means:
    - loads: mean L(160) <= 0.85 x mean L(128);
    - falls: mean N(160) <= mean N(128) + 7;
@@ -36,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -51,7 +53,15 @@ GAIT_CASES = ("target_0.25", "cmd_0.15", "nominal_0.25")
 SWEEP_SEEDS = list(range(200000, 200008))
 FOOT_SETTINGS = {"seeds": list(range(300000, 300005)), "seconds": 20.0, "from_s": 2.0, "command_mps": 0.25,
                  "delay_ms": 10, "floor": "flat", "randomisation": False, "observation_noise": True}
-FRONT_DRIVES = ("left_fore_pitch", "left_fore_flexion", "right_fore_pitch", "right_fore_flexion")
+FRONT_DRIVES = tuple(f"{s}_fore_{j}" for s in ("left", "right") for j in ("roll", "pitch", "flexion"))
+ELBOWS = ("left_fore_flexion", "right_fore_flexion")
+GAIT_SETTINGS = {"seeds": list(range(100000, 100005)), "delay_ms": 10, "deterministic": True, "episode_s": 20.0,
+                 "window_from_s": 2.0}
+REFERENCE = Path(__file__).resolve().parent / "results" / "run3_reference_settings.json"
+PPO_KEYS = ("n_envs", "total_steps", "checkpoint_every", "n_steps", "batch_size", "n_epochs", "lr_start", "lr_end",
+            "gamma", "gae_lambda", "clip_range", "ent_coef", "log_std_init", "net", "penalty_ramp_steps",
+            "penalty_ramp_start", "late_ramp_from", "late_ramp_to", "terrain_ramp_from", "terrain_ramp_to",
+            "eval_every", "eval_commands", "eval_seconds")
 
 
 def model_of(length: int) -> str:
@@ -79,12 +89,20 @@ def checks(length: int, seed: int, run_commit: str, record: dict, gait: dict, sw
     if not sessions or sessions[-1].get("status") != "completed":
         bad.append("run record: the last session did not complete")
     st = record.get("settings", {})
-    a = sessions[-1]["args"] if sessions else {}
-    if a.get("seed") != seed or a.get("total_steps") != j3.TOTAL_STEPS or a.get("n_envs") != 8:
-        bad.append("run record: seed, total steps or envs differ from the pre-registration")
-    if Path(st.get("model", "")).name != model:
+    ref = json.loads(REFERENCE.read_text())["settings"]
+    if st.get("seed") != seed or any(s["args"].get("seed") != seed for s in sessions):
+        bad.append("run record: another seed")
+    if Path(st.get("model", "")).name != model or any(f"{s['args'].get('model')}.xml" != model for s in sessions):
         bad.append("run record: another model")
-    ec = st.get("env_config", {})
+    if any(st.get(k) != ref[k] for k in PPO_KEYS) or st.get("total_steps") != j3.TOTAL_STEPS or st.get("n_envs") != 8:
+        bad.append("run record: training settings differ from run 3's")
+    if any(s["args"].get("allow_changes") or s.get("changed_settings") for s in sessions):
+        bad.append("run record: a session changed its settings")
+    if any(s["args"].get(k) != ref[k] for s in sessions for k in PPO_KEYS if k in s["args"]):
+        bad.append("run record: a session's arguments differ from run 3's")
+    ec, rec3 = st.get("env_config", {}), ref["env_config"]
+    if any(ec.get(k) != v for k, v in rec3.items() if k != "model_path") or ec.get("command_mode", "none") != "none":
+        bad.append("run record: the environment differs from run 3's (or steering is on)")
     if any(ec.get(k) != v for k, v in preset.items()):
         bad.append("run record: the environment is not run3_terrain's")
     last = (sessions[-1].get("saves") or [None])[-1] if sessions else None
@@ -108,6 +126,10 @@ def checks(length: int, seed: int, run_commit: str, record: dict, gait: dict, sw
     if (sweep["checkpoint"]["zip_sha256"], sweep["checkpoint"]["vecnormalize_sha256"]) != pair or \
             (fp["zip_sha256"], fp["vecnormalize_sha256"]) != pair:
         bad.append("the tools measured different checkpoints")
+    gs = gait.get("settings", {})
+    if any(gs.get(k) != v for k, v in GAIT_SETTINGS.items()) or any(
+            gait["cases"][c]["summary"].get("episodes") != 5 for c in GAIT_CASES):
+        bad.append("gait report: settings or episode counts differ from run 3's (e.g. --quick)")
     if sweep.get("seeds_per_point") != 8 or list(sweep.get("seeds", [])) != SWEEP_SEEDS:
         bad.append("sweep: not 8 episodes per point on seeds 200000-200007")
     if foot.get("settings") != FOOT_SETTINGS:
@@ -117,13 +139,15 @@ def checks(length: int, seed: int, run_commit: str, record: dict, gait: dict, sw
 
 def measure(gait: dict, sweep: dict, foot: dict) -> dict:
     rules = j3.judge_seed(gait, sweep)
-    per = gait["cases"]["target_0.25"]["summary"].get("drives", {}).get("per_joint", {})
+    per = (gait["cases"]["target_0.25"]["summary"].get("drives") or {}).get("per_joint") or {}
     front = [per[j]["rms_over_continuous"]["mean"] for j in FRONT_DRIVES if j in per]
+    elbows = [per[j]["rms_over_continuous"]["mean"] for j in ELBOWS if j in per]
     falls = sum(sweep["points"][k]["summary"]["falls"] for k in JUDGED_POINTS) + sum(
         gait["cases"][c]["summary"]["falls"] for c in GAIT_CASES)  # KeyError if a count is missing: not judged
     return {"rules": {k: rules[k]["pass"] for k in j3.RULES}, "rule_values": rules,
             "L": foot.get("front_p99_window_n"), "L_hind": foot.get("hind_p99_window_n"),
-            "H_all": rules["F2"]["worst"], "H_front": max(front) if len(front) == 4 else None, "N": falls,
+            "H_all": rules["F2"]["worst"], "H_front": max(front) if len(front) == 6 else None,
+            "H_elbow": max(elbows) if len(elbows) == 2 else None, "N": falls,
             "foot_falls": foot.get("falls"), "checkpoint_sha256": gait["policy"]["zip_sha256"]}
 
 
@@ -141,9 +165,15 @@ def choose(runs: dict) -> dict:
         return {"choice": n, "why": f"only {n} mm passes F1 and F2 on all four seeds", "walks": walks}
     if not any(walks.values()):
         return {"choice": None, "why": "neither length passes F1 and F2 on all four seeds", "walks": walks}
-    if any(runs[(n, s)]["L"] is None or runs[(n, s)]["H_front"] is None for n in LENGTHS for s in SEEDS):
+    def ok(x):
+        return x is not None and math.isfinite(x)
+
+    if any(not ok(runs[(n, s)]["L"]) or not ok(runs[(n, s)]["H_front"]) for n in LENGTHS for s in SEEDS):
         return {"choice": None, "why": "a foot load or front-drive figure is undefined", "walks": walks}
     m = {n: {k: _mean([runs[(n, s)][k] for s in SEEDS]) for k in ("L", "N", "H_all", "H_front")} for n in LENGTHS}
+    for n in LENGTHS:  # reported, not judged (D24)
+        el = [runs[(n, s)].get("H_elbow") for s in SEEDS]
+        m[n]["H_elbow_reported"] = _mean(el) if all(ok(x) for x in el) else None
     tests = {"loads": m[160]["L"] <= LOAD_FACTOR * m[128]["L"],
              "falls": m[160]["N"] <= m[128]["N"] + FALLS_TOL,
              "heat": m[160]["H_all"] <= m[128]["H_all"] + HEAT_ALL_TOL
@@ -168,7 +198,11 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     runs, problems = {}, {}
     for length, seed, r, g, w, f in a.run:
-        key = (int(length), int(seed))
+        try:
+            key = (int(length), int(seed))
+        except ValueError:
+            print(f"NOT JUDGED: length {length!r} or seed {seed!r} is not a number")
+            continue
         if key in problems:
             problems[key] = ["given twice"]
             runs[key] = None
@@ -178,7 +212,7 @@ def main(argv=None) -> int:
             foot = json.loads(Path(f).read_text())
             problems[key] = checks(key[0], key[1], a.run_commit, record, gait, sweep, foot)
             runs[key] = None if problems[key] else measure(gait, sweep, foot)
-        except (OSError, KeyError, TypeError, ValueError, subprocess.CalledProcessError) as e:
+        except (OSError, KeyError, TypeError, ValueError, AttributeError, subprocess.CalledProcessError) as e:
             problems[key] = [f"could not be read or checked: {type(e).__name__}: {e}"]
             runs[key] = None
     shas = [v["checkpoint_sha256"] for v in runs.values() if v]
