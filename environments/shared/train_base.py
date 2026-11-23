@@ -1043,7 +1043,8 @@ def _build_core_callbacks(
         model_id=model_id,
         best_model_save_path=str(handoff_staging_dir or model_dir),
         log_path=local_eval_dir,
-        eval_freq=eval_freq // n_envs,
+        # At least 1: an eval_freq below n_envs would floor to 0, which EvalCallback never reaches.
+        eval_freq=max(1, eval_freq // n_envs),
         n_eval_episodes=_eval_episodes_for_stage(stage_config),
         deterministic=True,
         render=False,
@@ -3349,6 +3350,7 @@ def train_curriculum(
                 # The horizon eval_env runs: this run's (possibly overridden)
                 # stage config, not the TOML the manager re-reads.
                 eval_horizon=int(config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
+                success_keys=species_cfg.success_keys,
             ),
             # A Ctrl-C ends the node: it is saved, records no verdict, and stops the curriculum.
             save_on_interrupt=True,

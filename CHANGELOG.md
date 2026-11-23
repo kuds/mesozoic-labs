@@ -5113,6 +5113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **`LocomotionMetrics`' gait symmetry, stride frequency and cost of
+  transport**, together with `quad_gait_symmetry`, `total_energy`,
+  `compute()`'s `body_mass` argument, and the `eval` and curriculum log lines
+  that printed them. They measured the wrong thing: in-phase hopping scored
+  symmetry 1.0, a double-support walk read 0 Hz, and the transport cost
+  divided the action penalty by distance. No gate, result schema or bundle
+  read them. The website's metric tables and its list of `eval` output
+  sections no longer include them.
 - **The retired `[curriculum.jax]` override table and the JAX array
   dispatch.** Where the gate schema runs (CLI curriculum training, through
   `thresholds_from_configs`), it now refuses a `[curriculum.jax]` sub-table by
@@ -5224,6 +5232,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **An `--eval-freq` below `--n-envs` no longer turns evaluation off.** The
+  `EvalCallback` cadence was `eval_freq // n_envs` with no floor. Below
+  `--n-envs` that came to 0, which `EvalCallback` never reaches, so the stage
+  trained with no evaluation, no best model and no gate. The cadence is now at
+  least 1, as the checkpoint stride already was. `train` and `curriculum` also
+  reject a non-positive `--eval-freq` with a usage error.
+- **`--override` values get the type the stage TOML gives the same text.** A
+  value is parsed as a TOML value. `1.0` stays a float (it used to become the
+  int `1`, which gave the stage a different `hyperparameters_sha256` from the
+  TOML's own `1.0`), `true`/`false` are booleans, and quoted strings, arrays
+  and inline tables parse. A bare word such as `MlpPolicy` stays a string,
+  `True`/`FALSE` stay booleans and `.5` stays a number. A value TOML types as
+  a float is now a float, so write integers without a decimal point or
+  exponent (`curriculum.timesteps=1000000`, not `1e6`).
+- **`--override` can set nested keys** (`ppo.policy_kwargs.log_std_init=-1.5`,
+  in both the all-stages and the `STAGE.section` forms). `env.a.b=v` used to
+  write the flat key `'a.b'` into `env_kwargs`, which failed only at env
+  construction. Each step must be a table the stage config declares. The one
+  exception is an algorithm block's `policy_kwargs`, which is created when
+  absent. Any other step is refused, with an error naming the override, before
+  any stage is written.
+- **Success counts read each species' own success keys.** The curriculum's
+  supplementary and standalone evaluations and `LocomotionMetrics` checked
+  hard-coded key tuples. These missed Dibothrosuchus `snap_success` and
+  Allosaurus `course_complete`, and the curriculum's tuple also missed
+  Compsognathus `target_success`. As a result, the curriculum's evaluations
+  read those successes as 0, and `eval` reported no success rate at all for
+  Dibothrosuchus or Allosaurus. They now read `SpeciesConfig.success_keys`
+  (`train_curriculum`, `evaluate()` and `eval_policy_quality` pass them in),
+  and fall back to every species' keys when none is given.
 - **T. rex stance training no longer fails on a fresh `pip install -e ".[train]"`**
   (`environments/shared/mirror_kl_ppo.py`, `pyproject.toml`). The mirror-symmetric PPO
   guard refused any stable-baselines3 but 2.9.0, though pip resolves 2.9.2, whose sources

@@ -7,11 +7,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 import numpy as np
 
-from environments.shared.metrics import LocomotionMetrics, env_dt
+from environments.shared.metrics import FALLBACK_SUCCESS_KEYS, LocomotionMetrics, env_dt
 from environments.shared.stance_diagnostics import derive_stance_info
 
 from . import sb3_compat
@@ -65,11 +66,16 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             stage config *eval_env* was built from.  ``None`` (the default)
             reads it from the manager's ``current_config()``, the stage TOML,
             which an overridden ``env.max_episode_steps`` does not reach.
+        success_keys: The info keys that signal task success in the
+            supplementary and standalone evaluations: the species'
+            ``SpeciesConfig.success_keys``.  ``None`` (the default) reads
+            :data:`~environments.shared.metrics.FALLBACK_SUCCESS_KEYS`.
     """
 
-    #: The class default, so an instance built without ``__init__`` falls
-    #: back to the manager's horizon.
+    #: The class defaults, so an instance built without ``__init__`` falls
+    #: back to the manager's horizon and the fallback success keys.
     eval_horizon: int | None = None
+    success_keys: Sequence[str] | None = None
 
     def __init__(
         self,
@@ -81,6 +87,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         supplementary_episodes: int = 10,
         verbose: int = 0,
         eval_horizon: int | None = None,
+        success_keys: Sequence[str] | None = None,
     ):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError(
@@ -94,6 +101,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self.eval_callback = eval_callback
         self.supplementary_episodes = supplementary_episodes
         self.eval_horizon = eval_horizon
+        self.success_keys = success_keys
         self.ready_to_advance = False
         self._last_eval_step = 0
         self._last_seen_n_evals = 0
@@ -176,6 +184,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             episode_rewards=rewards,
             horizon=self._eval_horizon(),
         )
+
+    def _episode_success_keys(self) -> Sequence[str]:
+        """The info keys an evaluation episode's success is read from."""
+        return FALLBACK_SUCCESS_KEYS if self.success_keys is None else self.success_keys
 
     def _eval_horizon(self) -> int:
         """Episode-step count that counts as reaching the horizon.
@@ -263,9 +275,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         try:
             eval_dt = env_dt(self.eval_env)
+            success_keys = self._episode_success_keys()
             for _ in range(self.supplementary_episodes):
                 obs = self.eval_env.reset()
-                metrics = LocomotionMetrics(dt=eval_dt)
+                metrics = LocomotionMetrics(dt=eval_dt, success_keys=success_keys)
                 ep_forward_vels: list[float] = []
                 ep_success = 0.0
                 done = False
@@ -276,10 +289,8 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                     metrics.record_step(infos[0], step_reward)
                     if "forward_vel" in infos[0]:
                         ep_forward_vels.append(float(infos[0]["forward_vel"]))
-                    for key in ("bite_success", "strike_success", "food_reached"):
-                        if infos[0].get(key):
-                            ep_success = 1.0
-                            break
+                    if any(infos[0].get(key) for key in success_keys):
+                        ep_success = 1.0
                     done = bool(dones[0])
                 if ep_forward_vels:
                     forward_vels.append(float(np.mean(ep_forward_vels)))
@@ -304,9 +315,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         metric_keys = [
             "mean_forward_velocity",
             "mean_total_distance",
-            "mean_cost_of_transport",
-            "mean_gait_symmetry",
-            "mean_stride_frequency",
             "mean_pelvis_height",
             "mean_mean_tilt_angle",
             "mean_velocity_consistency",
@@ -390,9 +398,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         try:
             eval_dt = env_dt(self.eval_env)
+            success_keys = self._episode_success_keys()
             for _ in range(self.n_eval_episodes):
                 obs = self.eval_env.reset()
-                metrics = LocomotionMetrics(dt=eval_dt)
+                metrics = LocomotionMetrics(dt=eval_dt, success_keys=success_keys)
                 episode_reward = 0.0
                 episode_length = 0
                 ep_forward_vels: list[float] = []
@@ -414,10 +423,8 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                             measured_steps += 1
                             unsupported_steps += int(stance["unsupported_duty"])
                     episode_length += 1
-                    for key in ("bite_success", "strike_success", "food_reached"):
-                        if infos[0].get(key):
-                            ep_success = 1.0
-                            break
+                    if any(infos[0].get(key) for key in success_keys):
+                        ep_success = 1.0
                     done = bool(dones[0])
                 rewards.append(episode_reward)
                 lengths.append(float(episode_length))

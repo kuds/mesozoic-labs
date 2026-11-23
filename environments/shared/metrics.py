@@ -2,9 +2,6 @@
 Locomotion evaluation metrics for dinosaur environments.
 
 Provides standardized metrics beyond average reward:
-  - Gait symmetry (left-right phase difference)
-  - Cost of transport (energy / distance / weight)
-  - Stride frequency and regularity
   - Forward velocity consistency
   - Time-to-target
 
@@ -20,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -30,6 +28,19 @@ from environments.shared.stance_diagnostics import (
     STANCE_INFO_KEYS,
     derive_stance_info,
     has_stance_diagnostics,
+)
+
+#: The info keys read as task success when no species is named: every key a
+#: species env class lists in ``SUCCESS_KEYS`` (``test_metrics.py`` pins the
+#: union against the species manifest).  A caller that knows the species
+#: passes its ``SpeciesConfig.success_keys`` as ``success_keys`` instead.
+FALLBACK_SUCCESS_KEYS = (
+    "bite_success",
+    "strike_success",
+    "food_reached",
+    "target_success",
+    "snap_success",
+    "course_complete",
 )
 
 
@@ -62,11 +73,6 @@ class LocomotionMetrics:
 
     # Accumulated per-step data
     _forward_velocities: list[float] = field(default_factory=list)
-    _energies: list[float] = field(default_factory=list)
-    _left_contacts: list[float] = field(default_factory=list)
-    _right_contacts: list[float] = field(default_factory=list)
-    _rear_left_contacts: list[float] = field(default_factory=list)
-    _rear_right_contacts: list[float] = field(default_factory=list)
     _pelvis_heights: list[float] = field(default_factory=list)
     _prey_distances: list[float] = field(default_factory=list)
     _tilt_angles: list[float] = field(default_factory=list)
@@ -81,19 +87,17 @@ class LocomotionMetrics:
     _stance_metrics: dict[str, list[float]] = field(default_factory=dict)
     # Control timestep in seconds (model timestep x frame_skip).  All current
     # species use 0.002 x 5 = 0.01.  Pass the env's actual ``dt`` (see
-    # :func:`env_dt`) so distance / stride-frequency / time-to-target stay
-    # correct if a model changes its timestep or frame_skip.
+    # :func:`env_dt`) so distance and time-to-target stay correct if a model
+    # changes its timestep or frame_skip.
     dt: float = 0.01
+    # The info keys that signal task success: the species' ``success_keys``
+    # (``SpeciesConfig.success_keys``), or FALLBACK_SUCCESS_KEYS when None.
+    success_keys: Sequence[str] | None = None
     _termination_reason: str | None = None
 
     def reset(self):
         """Clear all accumulated data."""
         self._forward_velocities.clear()
-        self._energies.clear()
-        self._left_contacts.clear()
-        self._right_contacts.clear()
-        self._rear_left_contacts.clear()
-        self._rear_right_contacts.clear()
         self._pelvis_heights.clear()
         self._prey_distances.clear()
         self._tilt_angles.clear()
@@ -114,21 +118,19 @@ class LocomotionMetrics:
         Args:
             info: The info dict from env.step(). Expected keys:
                 - ``forward_vel``: scalar forward velocity
-                - ``reward_energy``: energy penalty (negative)
                 - ``pelvis_height``: pelvis height above the ground under it
                   (world z on the plane)
                 - ``prey_distance``: distance to target (optional)
-                - ``r_foot_contact`` / ``l_foot_contact``: binary (optional)
-                - ``rr_foot_contact`` / ``rl_foot_contact``: rear feet for
-                  quadrupeds (optional, enables diagonal pair symmetry)
+                - ``r_foot_contact`` / ``l_foot_contact``: foot contact
+                  signals the stance metrics read (optional)
                 - ``heading_alignment``: cos θ alignment to prey (optional)
-                - ``bite_success`` / ``strike_success`` / ``food_reached``:
-                  binary success signal — the first present key is used (optional)
+                - the success keys (:attr:`success_keys`, else
+                  :data:`FALLBACK_SUCCESS_KEYS`): binary success signals; a
+                  step's success is the largest of those present (optional)
                 - ``contact_asymmetry``: left/right contact imbalance (optional)
             reward: Total reward for this step.
         """
         self._forward_velocities.append(info.get("forward_vel", 0.0))
-        self._energies.append(abs(info.get("reward_energy", 0.0)))
         self._pelvis_heights.append(info.get("pelvis_height", 0.0))
         self._rewards.append(reward)
 
@@ -138,23 +140,13 @@ class LocomotionMetrics:
         if "tilt_angle" in info:
             self._tilt_angles.append(info["tilt_angle"])
 
-        self._left_contacts.append(info.get("l_foot_contact", 0.0))
-        self._right_contacts.append(info.get("r_foot_contact", 0.0))
-        # Quadrupedal rear feet (only present for 4-legged species)
-        if "rl_foot_contact" in info:
-            self._rear_left_contacts.append(info["rl_foot_contact"])
-        if "rr_foot_contact" in info:
-            self._rear_right_contacts.append(info["rr_foot_contact"])
-
         if "heading_alignment" in info:
             self._heading_alignments.append(float(info["heading_alignment"]))
 
-        # Accept bite_success (T-Rex), strike_success (Velociraptor), or
-        # food_reached (Brachiosaurus) as equivalent "success" signals.
-        for _success_key in ("bite_success", "strike_success", "food_reached", "target_success"):
-            if _success_key in info:
-                self._success_events.append(float(info[_success_key]))
-                break
+        success_keys = FALLBACK_SUCCESS_KEYS if self.success_keys is None else self.success_keys
+        successes = [float(info[key]) for key in success_keys if key in info]
+        if successes:
+            self._success_events.append(max(successes))
 
         if "contact_asymmetry" in info:
             self._contact_asymmetries.append(float(info["contact_asymmetry"]))
@@ -186,11 +178,8 @@ class LocomotionMetrics:
         if "termination_reason" in info:
             self._termination_reason = info["termination_reason"]
 
-    def compute(self, body_mass: float = 1.0) -> dict[str, float]:
+    def compute(self) -> dict[str, float]:
         """Compute all locomotion metrics from accumulated data.
-
-        Args:
-            body_mass: Dinosaur body mass in kg for cost of transport.
 
         Returns:
             Dictionary of metric name to value.
@@ -203,15 +192,12 @@ class LocomotionMetrics:
                 "max_forward_velocity": float("nan"),
                 "velocity_consistency": float("nan"),
                 "total_distance": float("nan"),
-                "cost_of_transport": float("nan"),
-                "total_energy": float("nan"),
                 "total_reward": float("nan"),
                 "mean_step_reward": float("nan"),
                 "episode_length": 0,
             }
 
         fwd = np.array(self._forward_velocities)
-        energies = np.array(self._energies)
 
         result: dict[str, Any] = {}
 
@@ -224,41 +210,6 @@ class LocomotionMetrics:
         # --- Distance traveled ---
         distance = float(np.sum(fwd * self.dt))
         result["total_distance"] = distance
-
-        # --- Cost of transport ---
-        #   CoT = total energy / (mass * gravity * distance)
-        total_energy = float(np.sum(energies))
-        gravity = 9.81
-        if abs(distance) > 0.01:
-            result["cost_of_transport"] = total_energy / (body_mass * gravity * abs(distance))
-        else:
-            # Inf signals "dino didn't move" and is filtered out by
-            # aggregate_episodes (np.isfinite check).  This never reaches
-            # TensorBoard — CoT is only computed in offline evaluation.
-            result["cost_of_transport"] = float("inf")
-        result["total_energy"] = total_energy
-
-        # --- Gait symmetry ---
-        if self._left_contacts and self._right_contacts:
-            left = np.array(self._left_contacts)
-            right = np.array(self._right_contacts)
-            result["gait_symmetry"] = self._compute_gait_symmetry(left, right)
-
-        # Quadrupedal diagonal pair symmetry (when rear foot data available)
-        if self._rear_left_contacts and self._rear_right_contacts:
-            fr = np.array(self._right_contacts)  # r_foot_contact = FR for brachio
-            fl = np.array(self._left_contacts)  # l_foot_contact = FL for brachio
-            rr = np.array(self._rear_right_contacts)
-            rl = np.array(self._rear_left_contacts)
-            # Diagonal-A = FR + RL, Diagonal-B = FL + RR
-            diag_a = np.maximum(fr, rl)
-            diag_b = np.maximum(fl, rr)
-            result["quad_gait_symmetry"] = self._compute_gait_symmetry(diag_a, diag_b)
-
-        # --- Stride frequency ---
-        if self._left_contacts or self._right_contacts:
-            contacts = np.array(self._left_contacts) + np.array(self._right_contacts)
-            result["stride_frequency"] = self._compute_stride_frequency(contacts)
 
         # --- Pelvis height stability ---
         if self._pelvis_heights:
@@ -350,54 +301,6 @@ class LocomotionMetrics:
             result["termination_reason"] = self._termination_reason
 
         return result
-
-    @staticmethod
-    def _compute_gait_symmetry(left_contacts: np.ndarray, right_contacts: np.ndarray) -> float:
-        """Compute gait symmetry from foot contact sequences.
-
-        Returns a value in [0, 1] where 1 is perfectly symmetric
-        (alternating contacts) and 0 is completely asymmetric.
-        """
-        if len(left_contacts) < 2:
-            return 0.0
-
-        # Detect contact onset events (0 -> positive)
-        left_onsets = np.where(np.diff(left_contacts > 0.1, prepend=False))[0]
-        right_onsets = np.where(np.diff(right_contacts > 0.1, prepend=False))[0]
-
-        if len(left_onsets) < 2 or len(right_onsets) < 2:
-            return 0.0
-
-        # Mean stride period for each foot
-        left_periods = np.diff(left_onsets).astype(float)
-        right_periods = np.diff(right_onsets).astype(float)
-
-        mean_left = np.mean(left_periods)
-        mean_right = np.mean(right_periods)
-
-        if mean_left + mean_right < 1e-8:
-            return 0.0
-
-        # Symmetry = 1 - |difference| / average
-        symmetry = 1.0 - abs(mean_left - mean_right) / ((mean_left + mean_right) / 2.0)
-        return float(np.clip(symmetry, 0.0, 1.0))
-
-    def _compute_stride_frequency(self, combined_contacts: np.ndarray) -> float:
-        """Compute stride frequency in Hz from combined contact signal."""
-        if len(combined_contacts) < 2:
-            return 0.0
-
-        onsets = np.where(np.diff(combined_contacts > 0.1, prepend=False))[0]
-        if len(onsets) < 2:
-            return 0.0
-
-        mean_period_steps = np.mean(np.diff(onsets))
-        mean_period_seconds = mean_period_steps * self.dt
-
-        if mean_period_seconds < 1e-8:
-            return 0.0
-
-        return float(1.0 / mean_period_seconds)
 
     @staticmethod
     def aggregate_episodes(

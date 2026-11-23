@@ -1175,16 +1175,6 @@ robustness, **LOW** = cosmetic / QoL.
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §7). A typo'd weight
   still does nothing; a loud rejection of unknown env kwargs must keep these two
   names. (June §1.6)
-- **LOW** — `CurriculumCallback` / `LocomotionMetrics` hardcode success keys
-  (`bite_success`, `strike_success`, `food_reached`) instead of using
-  `SpeciesConfig.success_keys`. (June §6.4)
-  **Update (2026-09-28, gait audit):** the supplementary evaluation's flags
-  (`curriculum/advancement.py:262,402`) read 0.0 on an upright dibothrosuchus
-  or compsognathus success, as the tuple lacks `snap_success` and
-  `target_success`; the `evaluations.npz` sample is preferred where it exists
-  (:337), so in that check the manager's success rate still read 1.0.
-  `LocomotionMetrics` (`metrics.py:154`) now lists `target_success` but not
-  `snap_success`.
 - **LOW** — `curriculum/advancement.py` `_read_latest_eval`: the
   `successes.shape[0] == n_evals` guard permanently discards npz successes
   if SB3 starts recording them one eval late. (July §2)

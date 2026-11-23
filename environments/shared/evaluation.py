@@ -155,7 +155,7 @@ def eval_policy_quality(
 
     for _ in range(n_episodes):
         obs = eval_env.reset()
-        metrics = LocomotionMetrics(dt=dt)
+        metrics = LocomotionMetrics(dt=dt, success_keys=success_keys)
         done = False
         while not done:
             action, _ = model.predict(obs, deterministic=True)
@@ -711,7 +711,7 @@ def evaluate(
 
     for ep in range(n_episodes):
         obs = vec_env.reset()
-        metrics = LocomotionMetrics(dt=eval_dt)
+        metrics = LocomotionMetrics(dt=eval_dt, success_keys=species_cfg.success_keys)
         total_reward = 0.0
         step = 0
 
@@ -787,11 +787,6 @@ def _log_eval_results(
             agg.get("mean_distance_traveled", 0),
             agg.get("std_distance_traveled", 0),
         )
-
-    logger.info("--- Gait Quality ---")
-    logger.info("  Symmetry:     %.3f", agg.get("mean_gait_symmetry", 0))
-    logger.info("  Stride freq:  %.3f Hz", agg.get("mean_stride_frequency", 0))
-    logger.info("  Cost of transport: %.4f", agg.get("mean_cost_of_transport", 0))
 
     logger.info("--- Balance ---")
     logger.info(

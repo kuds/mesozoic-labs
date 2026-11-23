@@ -194,10 +194,7 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 | Metric key | Description | Species |
 |---|---|---|
 | `mean_forward_velocity` | Mean forward speed (m/s) | All |
-| `cost_of_transport` | Energy per unit distance per unit weight | All |
 | `mean_pelvis_height` | Mean pelvis z-position (m) | T-Rex, Velociraptor |
-| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] | All |
-| `stride_frequency` | Mean step frequency (Hz) | All |
 | `mean_tilt_angle` | Mean body tilt angle (rad) | All |
 | `termination_reason` | Reason episode ended | All |
 
@@ -225,5 +222,5 @@ The key names are stable API labels, not biomechanical claims. In particular,
 proximity to the target.
 
 The shared CLI's `eval` command prints all metrics above grouped
-into **Core Performance**, **Velocity**, **Gait Quality**, **Balance**, and a species-specific
+into **Core Performance**, **Velocity**, **Balance**, and a species-specific
 **Hunting / Food Reaching** section.
