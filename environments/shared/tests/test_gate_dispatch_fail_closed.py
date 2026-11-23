@@ -111,7 +111,7 @@ class TestManagerRefusesUnevaluatableKinds:
         mgr = _manager("task_success/v1")
         with caplog.at_level(logging.ERROR, logger="environments.shared.curriculum.manager"):
             for _ in range(3):
-                assert not mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL, success_rates=[1.0] * 30)
+                assert not mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL)
         assert mgr.summary()["consecutive_passes"][1] == 0
         assert "decision D-D59" in caplog.text
 

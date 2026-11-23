@@ -48,7 +48,6 @@ def run(args, seed):
 
     env = ProbeEnv(
         reset_noise_scale=args.noise,
-        strike_bonus=0.0,
         prey_distance_range=(1000.0, 1000.0),
         prey_lateral_range=(0.0, 0.0),
     )

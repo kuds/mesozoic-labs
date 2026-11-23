@@ -30,6 +30,8 @@ from .result_bundle_helpers import (
     _rewrite_csv_column,
 )
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+
 
 def test_save_evaluation_episodes_preserves_per_episode_evidence(tmp_path: Path) -> None:
     path = save_evaluation_episodes(
@@ -122,6 +124,119 @@ def test_legacy_success_header_still_audits(tmp_path: Path, stable_provenance: N
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-valid"
     assert not report["errors"]
+
+
+def test_save_evaluation_episodes_writes_no_success_column_without_success_flags(tmp_path: Path) -> None:
+    """A model with no success keys records no flag (decision D-D59's amendment): no column of False."""
+    path = save_evaluation_episodes(
+        tmp_path / "stage1",
+        rewards=[10.5, 20.5],
+        lengths=[100, 200],
+        forward_velocities=[0.1, 0.2],
+        distances=[1.0, 2.0],
+        successes=[],
+        evaluation_seed=123,
+        checkpoint_label="selected",
+    )
+
+    with path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        rows = list(reader)
+    assert reader.fieldnames == [
+        "episode",
+        "evaluation_seed",
+        "checkpoint",
+        "reward",
+        "length",
+        "mean_forward_velocity",
+        "distance_traveled",
+    ]
+    assert [row["reward"] for row in rows] == ["10.5", "20.5"]
+    with pytest.raises(ValueError, match="equal lengths"):
+        save_evaluation_episodes(
+            tmp_path / "stage1",
+            rewards=[10.5, 20.5],
+            lengths=[100, 200],
+            forward_velocities=[0.1, 0.2],
+            distances=[1.0, 2.0],
+            successes=[True],
+            evaluation_seed=123,
+            checkpoint_label="selected",
+        )
+
+
+def _bundle_without_success_keys(run_dir: Path) -> None:
+    """A complete bundle as a model with no success keys writes it: no rate recorded, no task_success column."""
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    for result in stage_results:
+        del result["mean_success_rate"]
+        result["best_model_success_rate"] = ""
+    for evidence in sorted(run_dir.glob("*/evaluation_*.csv")):
+        _rewrite_csv_column(evidence, field="task_success", value=None)
+    save_result_bundle(
+        stage_results,
+        stage_configs,
+        VELOCIRAPTOR_MONGOLIENSIS,
+        "PPO",
+        42,
+        run_dir,
+        backend="stable-baselines3",
+        backend_version="test-backend-1.0",
+        parallel_envs=4,
+        evaluation_episodes=3,
+        evaluation_seeds=[101, 102, 103],
+        plant_identity=_plant_identity(),
+        run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
+    )
+
+
+def test_a_model_without_success_keys_publishes_null_success_rates(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    _bundle_without_success_keys(run_dir)
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    for stage in summary["stages"].values():
+        assert stage["mean_success_rate"] is None and stage["selected_model_success_rate"] is None
+    with (run_dir / "collected_results.csv").open(newline="", encoding="utf-8") as source:
+        rows = list(csv.DictReader(source))
+    assert rows and all(row["mean_success_rate"] == row["selected_model_success_rate"] == "" for row in rows)
+    assert not {"success_count", "n_success_episodes"} & set(rows[0])
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid", report["errors"]
+    assert not report["errors"]
+
+
+def test_a_success_rate_without_its_evidence_column_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    """The summary's rate and the evidence's task_success column come together or not at all."""
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    _rewrite_csv_column(run_dir / "stage1" / "evaluation_selected.csv", field="task_success", value=None)
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert any("has no task_success column to derive it from" in error for error in report["errors"]), report
+
+
+def test_a_task_success_column_without_a_summary_rate_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    _bundle_without_success_keys(run_dir)
+    for evidence in sorted(run_dir.glob("*/evaluation_selected.csv")):
+        with evidence.open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            rows, fieldnames = list(reader), [*(reader.fieldnames or []), "task_success"]
+        for row in rows:
+            row["task_success"] = "False"
+        with evidence.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert any(
+        "summary is missing selected evaluation aggregate selected_model_success_rate" in error
+        for error in report["errors"]
+    ), report
 
 
 def test_save_evaluation_episodes_rejects_incomplete_rows(tmp_path: Path) -> None:

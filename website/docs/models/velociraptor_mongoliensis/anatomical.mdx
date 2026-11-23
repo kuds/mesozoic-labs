@@ -12,7 +12,7 @@ export const MODEL = requireModel('velociraptor_mongoliensis', 'anatomical');
 
 # Velociraptor Model
 
-This 15 kg reconstruction of *Velociraptor mongoliensis* has a long, narrow snout, feathered forelimbs and a raised sickle claw on each foot. It simulates bipedal stance and locomotion. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the strike hunt that followed walk was removed by decision D-D59. See [Behavior Recipes](/docs/training/recipes).
+This 15 kg reconstruction of *Velociraptor mongoliensis* has a long, narrow snout, feathered forelimbs and a raised sickle claw on each foot. It simulates bipedal stance and locomotion. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the strike hunt that followed walk was removed by decision D-D59, and its reward, termination and constructor arguments are gone from the environment; the prey sphere it targeted is still in the scene and the observation, and leaves with the next policy-interface revision. See [Behavior Recipes](/docs/training/recipes).
 
 The stance node certifies stance quality, not reward: since physics r3 its gate judges every episode of a 40-episode
 panel on the floor's force under each foot (no hop at reset, both feet planted, every support of each foot loaded, no

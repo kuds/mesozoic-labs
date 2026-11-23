@@ -1,9 +1,10 @@
 """
 Tyrannosaurus Rex Gymnasium Environment
 
-A large bipedal predator with a massive skull and vestigial forelimbs.
-The Stage 3 task uses contact between a fixed head geom and prey as a
-"bite" proxy; the model has no articulated jaw.
+A large bipedal predator with a massive skull and vestigial forelimbs.  The
+prey sphere is still in the scene and the observation (direction and
+distance) until the next policy-interface revision removes it; no reward or
+termination reads it since the hunt was removed (decision D-D59).
 
 Observation space (bipedal-target-heading-free/v1 since policy interface r14;
 the total dimension is generated in the public species catalog):
@@ -40,9 +41,6 @@ Reward components:
     - Fall penalty
     - Energy penalty
     - Tail stability
-    - Bite-proxy bonus (fixed head geom contacts prey)
-    - Approach shaping (distance to prey)
-    - Head proximity shaping (reward for positioning head near prey)
     - Posture (continuous tilt penalty)
     - Nosedive penalty
     - Height maintenance
@@ -110,7 +108,7 @@ from environments.shared.reward_functions import (
 
 
 class TyrannosaurusRexEnv(BaseDinoEnv):
-    """Tyrannosaurus Rex bipedal locomotion and bite-attack environment.
+    """Tyrannosaurus Rex bipedal locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,
@@ -124,8 +122,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     MODEL_PATH: Path
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Pelvis height"
-    BEHAVIOR_SECTION_LABEL = "Hunting"
-    SUCCESS_KEYS = ("bite_success", "strike_success")
+    #: No success event: the bite, its only one, was removed with the hunt
+    #: (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
 
     action_mapping = "home-keyframe-residual/v1"
     # SB3 only since policy interface r14 (configs/plant_versions.toml note
@@ -243,9 +242,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
         tail_stability_weight: float = 0.05,
-        bite_bonus: float = 10.0,
-        bite_approach_weight: float = 1.0,
-        bite_head_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
         natural_pitch: float = 0.017,
@@ -366,9 +362,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
 
         # T-Rex-specific reward weights
         self.tail_stability_weight = tail_stability_weight
-        self.bite_bonus = bite_bonus
-        self.bite_approach_weight = bite_approach_weight
-        self.bite_head_proximity_weight = bite_head_proximity_weight
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
         self.height_weight = height_weight
@@ -548,7 +541,10 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.prey_distance_range = prey_distance_range
         self.prey_lateral_range = prey_lateral_range
 
-        # State tracking for delta-based rewards
+        # State tracking for delta-based rewards.  _spawn_target still resets
+        # _prev_prey_distance, which no reward reads since the approach
+        # shaping was removed with the hunt (decision D-D59); it leaves with
+        # the prey at the next policy-interface revision.
         self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
         # The policy's own clipped command of the current step, kept by the
@@ -1034,7 +1030,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         pelvis_pos = self.data.xpos[self.pelvis_id]
-        prey_pos = self.data.mocap_pos[0]
         forward_ref_2d = self._initial_prey_dir_2d
         vel_2d = self.data.qvel[0:2]
 
@@ -1091,40 +1086,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
 
-        # 5. Bite bonus (check head_bite-prey contact)
-        bitten = self._contact_geom({self.head_bite_geom_id}, self.prey_geom_id) is not None
-        info["bite_success"] = 1.0 if bitten else 0.0
-        reward_bite = self.bite_bonus if bitten else 0.0
-        info["reward_bite"] = reward_bite
-
-        # 6. Approach shaping
-        prey_distance = float(np.linalg.norm(prey_pos - pelvis_pos))
-        reward_approach, approach_delta = self._compute_approach_shaping(
-            prey_distance, self._prev_prey_distance, self.bite_approach_weight, 8.0
-        )
-        self._prev_prey_distance = prey_distance
-        info["prey_distance"] = prey_distance
-        info["approach_delta"] = approach_delta
-        info["reward_approach"] = reward_approach
-
-        # 6b. Head-to-prey proximity shaping
-        # Uses the head tip position (not the pelvis) to give the agent a
-        # gradient for aiming its head toward the prey.  Analogous to the
-        # raptor's claw proximity reward.
-        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        head_prey_dist = float(np.linalg.norm(prey_pos - head_tip_pos))
-        head_proximity_max_dist = 3.0
-        head_proximity = max(0.0, 1.0 - head_prey_dist / head_proximity_max_dist)
-        reward_head_proximity = self.bite_head_proximity_weight * head_proximity
-        info["head_prey_distance"] = head_prey_dist
-        info["head_proximity"] = head_proximity
-        info["reward_head_proximity"] = reward_head_proximity
-
-        # 6c. Head clearance and neck posture.  Clearance is a smoothstep:
+        # 5. Head clearance and neck posture.  Clearance is a smoothstep:
         # zero one configured tolerance below the target and saturated at the
         # target so lifting the head ever higher cannot farm reward.  The neck
         # target is the authored home keyframe, or the statue's settled neck
         # under neck_posture_reference = "settled" (see _cache_ids).
+        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
         head_tip_z = self._clearance(head_tip_pos)
         head_clearance_quality = self._head_clearance_quality(head_tip_z)
         reward_head_clearance = self.head_clearance_weight * head_clearance_quality
@@ -1533,9 +1500,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             + reward_alive
             + reward_energy
             + reward_tail
-            + reward_bite
-            + reward_approach
-            + reward_head_proximity
             + reward_head_clearance
             + reward_neck_posture
             + reward_tail_home_pose
@@ -1595,12 +1559,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         skull_z = self._clearance(self.data.xpos[self.skull_body_id])
         if self._aggregated_min_height(1, skull_z) < 0.45:
             info["termination_reason"] = "skull_low"
-            return True, info
-
-        # Check contacts: head-prey (success)
-        if self.bite_bonus > 0 and self._contact_geom({self.head_bite_geom_id}, self.prey_geom_id) is not None:
-            info["termination_reason"] = "bite_success"
-            info["success"] = True
             return True, info
 
         # Floor contact termination (shared)

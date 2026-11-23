@@ -419,6 +419,25 @@ class TestBackfill:
         backfill_gate_verdict(stage_dir, model_id=anatomical, force=True)
         assert ModelId.from_record(read_gate_verdict(stage_dir)) == anatomical
 
+    def test_evidence_without_a_task_success_column_records_no_success_rate(self, tmp_path):
+        """A model with no success keys writes no task_success column (decision D-D59's amendment); the verdict then
+        records no best_model_success_rate rather than a zero."""
+        stage_dir = _stage_dir(tmp_path)
+        path = stage_dir / SELECTED_EVIDENCE_CSV
+        with path.open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            rows = list(reader)
+            fieldnames = [name for name in reader.fieldnames or [] if name != "task_success"]
+        with path.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["stage_result"]["best_model_reward"] == pytest.approx(200.0)
+        assert "best_model_success_rate" not in verdict["stage_result"]
+
     def test_missing_evidence_is_refused(self, tmp_path):
         stage_dir = _stage_dir(tmp_path, evidence=False)
         with pytest.raises(BackfillError, match="neither evaluation_selected.csv nor evaluations.npz"):

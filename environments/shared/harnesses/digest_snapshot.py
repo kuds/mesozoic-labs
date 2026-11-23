@@ -31,8 +31,8 @@ every behavior recipe's file and task fingerprint digests, and (CU-11) what
 each stage's reward, info and termination code computes: a fixed capture per
 stage (a noisy roll that ends in a held kick, an unseeded second reset, zero
 action through the pushes of a stage that has them, one-step probes: the
-target moved onto the effector, the root lifted, rolled, both, and a
-three-step horizon; and state probes, scored without a physics step: twelve
+target moved onto the effector (only for a model that declares success keys),
+the root lifted, rolled, both, and a three-step horizon; and state probes, scored without a physics step: twelve
 root and neck poses sized by the stage's own thresholds and a non-finite
 velocity), printed as a summary (steps, end and reward sum per stepped
 part), the end of each state probe, a digest of the discrete
@@ -154,8 +154,10 @@ WRITE_COMMAND = "python -m environments.shared.harnesses.digest_snapshot --block
 #: The reward captures (CU-11).  Every part starts from ``reset(seed=REWARD_SEED)`` unless it says otherwise.
 REWARD_SEED, REWARD_ACTION_SEED = 1042, 7
 #: The roll: uniform action noise at the model's amplitude, then a held-sign kick until the episode ends.  The
-#: amplitude (half the largest that kept every stage of the model up for 300 steps and past the first push) and
-#: the MJCF element the success probe moves the target (mocap body 0) onto are the env class's ``REWARD_PROBE``.
+#: amplitude (half the largest that kept every stage of the model up for 300 steps and past the first push) and,
+#: for a class that declares ``SUCCESS_KEYS``, the MJCF element the success probe moves the target (mocap body 0)
+#: onto are the env class's ``REWARD_PROBE``: ``(amplitude, kind, name)``, or ``(amplitude,)`` and no success probe
+#: for a class without success keys (decision D-D59 removed the hunt's).
 REWARD_NOISE_STEPS, REWARD_KICK_STEPS = 300, 200
 #: State probes: (name, root dz as a fraction of the healthy_z_range width, root pitch about world y as
 #: (sign, kind): zero, mid (half max_tilt_angle), in / out (max_tilt_angle -/+ REWARD_TILT_MARGIN), roll about
@@ -518,11 +520,20 @@ def _reward_envs(out: _Snapshot, behaviors: bool) -> Iterator[tuple[ModelId, str
 def _stage_parts(env: Any) -> list[_Part]:
     """(part, set-up, actions or zero-action steps): the roll, zero action if the stage pushes, the probes.
 
-    The roll's amplitude and the success probe's element are the env class's ``REWARD_PROBE``.
+    The roll's amplitude and the success probe's element are the env class's ``REWARD_PROBE``.  The success probe
+    runs only for a class that declares ``SUCCESS_KEYS``, and its element is required exactly then: an element
+    without success keys would probe a termination no code has, and success keys without one would go unprobed.
     """
     import numpy as np
 
-    shape, (amplitude, *effector) = env.action_space.shape, type(env).REWARD_PROBE
+    cls = type(env)
+    shape, (amplitude, *effector) = env.action_space.shape, cls.REWARD_PROBE
+    if bool(effector) != bool(cls.SUCCESS_KEYS):
+        raise ValueError(
+            f"{cls.__name__}.REWARD_PROBE {cls.REWARD_PROBE!r} must name a success-probe element (kind, name) "
+            f"exactly when the class declares SUCCESS_KEYS (it declares {tuple(cls.SUCCESS_KEYS)!r})"
+        )
+    success: list[_Part] = [("success", {"target": effector}, 1)] if effector else []
 
     def roll() -> Iterator[Any]:
         rng = np.random.default_rng(REWARD_ACTION_SEED)
@@ -538,7 +549,7 @@ def _stage_parts(env: Any) -> list[_Part]:
         ("roll", {}, roll()),
         ("second_reset", {"seed": None}, 0),
         *pushes,
-        ("success", {"target": effector}, 1),
+        *success,
         ("too_high", {"lift": True}, 1),
         ("tilt", {"roll": True}, 1),
         ("high_tilt", {"lift": True, "roll": True}, 1),

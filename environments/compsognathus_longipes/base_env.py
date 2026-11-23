@@ -43,7 +43,6 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
     nominal_pelvis_height: float
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Pelvis height"
-    BEHAVIOR_SECTION_LABEL = "Target Reaching"
     SUCCESS_KEYS = ("target_success",)
     supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"

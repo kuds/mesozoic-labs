@@ -37,21 +37,6 @@ class TestDibothrosuchusElaphrosSpecific:
         for key in ("r_foot_contact", "l_foot_contact", "rr_foot_contact", "rl_foot_contact"):
             assert key in info
 
-    def test_snout_prey_distance_reported(self, env):
-        """Approach shaping is measured from the snout, not the trunk."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["snout_prey_distance"] > 0  # prey spawns 1.5-4 m away
-        assert info["prey_distance"] == info["snout_prey_distance"]
-
-    def test_snap_not_successful_initially(self, env):
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["snap_success"] == 0.0
-        assert info["reward_snap"] == 0.0
-
     def test_gait_reward_non_positive(self, env):
         """The trunk angular-velocity term is a penalty."""
         env.reset(seed=42)
@@ -100,52 +85,40 @@ class TestHomeResidualActionMapping:
         assert env._reset_keyframe_id == env.home_keyframe_id
 
 
-class TestSnapGating:
-    """Success termination must be gated on snap_bonus > 0 (matching the
-    raptor/T-Rex strike/bite gating) so stages 1-2 don't end episodes on
-    incidental snout-prey contact."""
+class TestNoSnap:
+    """The snap was removed with the hunt (decision D-D59).
 
-    @staticmethod
-    def _teleport_prey_onto_snout(env):
-        env.data.mocap_pos[0] = env.data.site_xpos[env.snout_tip_site_id].copy()
-        # Recompute contacts so the snout snap geom actually overlaps the prey.
+    The prey sphere and the ``snout_snap`` geom stay in the scene until the
+    next policy-interface revision removes them; snout-prey contact pays,
+    records and ends nothing, and the species declares no success key.
+    """
+
+    def test_prey_on_the_snout_pays_nothing_and_ends_nothing(self, env):
         import mujoco
 
+        env.reset(seed=42)
+        env.data.mocap_pos[0] = env.data.site_xpos[env.snout_tip_site_id].copy()
         mujoco.mj_forward(env.model, env.data)
+        _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        hunt = {
+            "snap_success",
+            "reward_snap",
+            "snout_prey_distance",
+            "prey_distance",
+            "approach_delta",
+            "reward_approach",
+            "snout_proximity",
+            "reward_snout_proximity",
+        }
+        assert not hunt & set(info)
+        _, info = env._is_terminated()
+        assert info.get("termination_reason") != "snap_success"
+        assert not info.get("success", False)
 
-    def test_no_success_termination_when_bonus_zero(self):
-        env = DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=0.0)
-        try:
-            env.reset(seed=42)
-            self._teleport_prey_onto_snout(env)
-            _, info = env._is_terminated()
-            assert info.get("termination_reason") != "snap_success"
-            assert not info.get("success", False)
-        finally:
-            env.close()
-
-    def test_success_termination_when_bonus_positive(self):
-        env = DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=10.0)
-        try:
-            env.reset(seed=42)
-            self._teleport_prey_onto_snout(env)
-            terminated, info = env._is_terminated()
-            assert terminated
-            assert info["termination_reason"] == "snap_success"
-            assert info["success"] is True
-        finally:
-            env.close()
-
-    def test_snap_reward_paid_on_contact(self):
-        env = DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=25.0)
-        try:
-            env.reset(seed=42)
-            self._teleport_prey_onto_snout(env)
-            _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
-            assert info["snap_success"] == 1.0
-            assert info["reward_snap"] == 25.0
-        finally:
-            env.close()
+    def test_no_success_key_and_no_snap_kwarg(self):
+        assert DibothrosuchusElaphrosAnatomicalEnv.SUCCESS_KEYS == ()
+        with pytest.raises(TypeError, match="snap_bonus"):
+            DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=10.0)
 
 
 class TestSnoutTerminations:
@@ -204,24 +177,6 @@ class TestSnoutTerminations:
         env.reset(seed=1)
         terminated, info = env._is_terminated()
         assert not terminated, f"stale height aggregate survived reset: {info}"
-
-    def test_snap_target_clears_the_snout_prop_gate(self, env):
-        """A successful snap must never be reported as snout-propping.
-
-        ``_is_terminated`` checks the 0.04 m snout-height gate before the snap
-        contact, following the same ordering as the other species, so the prey
-        sphere's underside has to stay above that gate with margin.
-        """
-        import mujoco
-
-        env.reset(seed=0)
-        prey_geom = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")
-        prey_radius = float(env.model.geom_size[prey_geom, 0])
-        prey_underside = float(env.data.mocap_pos[0][2]) - prey_radius
-        assert prey_underside > 0.04 + 0.03, (
-            f"Prey underside at {prey_underside:.3f} m leaves too little margin over the "
-            "0.04 m snout-prop gate; a snap at the bottom of the sphere would terminate as head_contact."
-        )
 
 
 class TestResetStaysInsideTheHealthyEnvelope:

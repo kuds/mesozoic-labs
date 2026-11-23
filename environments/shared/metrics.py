@@ -6,7 +6,7 @@ Provides standardized metrics beyond average reward:
   - Cost of transport (energy / distance / weight)
   - Stride frequency and regularity
   - Forward velocity consistency
-  - Time-to-target
+  - Episode success, for a model that declares success keys
 
 Usage:
     from environments.shared.metrics import LocomotionMetrics
@@ -58,6 +58,12 @@ class LocomotionMetrics:
     Designed to work with the info dicts returned by BaseDinoEnv.step().
     Call :meth:`record_step` each timestep, then :meth:`compute` at
     episode end.
+
+    *success_keys* are the info keys of the model's success event (its
+    species' ``SUCCESS_KEYS``, ``SpeciesConfig.success_keys``): with any, every
+    step records whether one of them is set and :meth:`compute` reports the
+    episode's ``success_rate``; with none (the default, and every model
+    without a success event) it reports no success at all, never a zero.
     """
 
     # Accumulated per-step data
@@ -68,7 +74,6 @@ class LocomotionMetrics:
     _rear_left_contacts: list[float] = field(default_factory=list)
     _rear_right_contacts: list[float] = field(default_factory=list)
     _pelvis_heights: list[float] = field(default_factory=list)
-    _prey_distances: list[float] = field(default_factory=list)
     _tilt_angles: list[float] = field(default_factory=list)
     _rewards: list[float] = field(default_factory=list)
     _heading_alignments: list[float] = field(default_factory=list)
@@ -81,9 +86,10 @@ class LocomotionMetrics:
     _stance_metrics: dict[str, list[float]] = field(default_factory=dict)
     # Control timestep in seconds (model timestep x frame_skip).  All current
     # species use 0.002 x 5 = 0.01.  Pass the env's actual ``dt`` (see
-    # :func:`env_dt`) so distance / stride-frequency / time-to-target stay
+    # :func:`env_dt`) so distance and stride frequency stay
     # correct if a model changes its timestep or frame_skip.
     dt: float = 0.01
+    success_keys: tuple[str, ...] = ()
     _termination_reason: str | None = None
 
     def reset(self):
@@ -95,7 +101,6 @@ class LocomotionMetrics:
         self._rear_left_contacts.clear()
         self._rear_right_contacts.clear()
         self._pelvis_heights.clear()
-        self._prey_distances.clear()
         self._tilt_angles.clear()
         self._rewards.clear()
         self._heading_alignments.clear()
@@ -117,13 +122,13 @@ class LocomotionMetrics:
                 - ``reward_energy``: energy penalty (negative)
                 - ``pelvis_height``: pelvis height above the ground under it
                   (world z on the plane)
-                - ``prey_distance``: distance to target (optional)
                 - ``r_foot_contact`` / ``l_foot_contact``: binary (optional)
                 - ``rr_foot_contact`` / ``rl_foot_contact``: rear feet for
                   quadrupeds (optional, enables diagonal pair symmetry)
-                - ``heading_alignment``: cos θ alignment to prey (optional)
-                - ``bite_success`` / ``strike_success`` / ``food_reached``:
-                  binary success signal — the first present key is used (optional)
+                - ``heading_alignment``: cos θ alignment to the forward
+                  reference (optional)
+                - the :attr:`success_keys`: the success event, set on the
+                  step it happens (read only when the model declares any)
                 - ``contact_asymmetry``: left/right contact imbalance (optional)
             reward: Total reward for this step.
         """
@@ -131,9 +136,6 @@ class LocomotionMetrics:
         self._energies.append(abs(info.get("reward_energy", 0.0)))
         self._pelvis_heights.append(info.get("pelvis_height", 0.0))
         self._rewards.append(reward)
-
-        if "prey_distance" in info:
-            self._prey_distances.append(info["prey_distance"])
 
         if "tilt_angle" in info:
             self._tilt_angles.append(info["tilt_angle"])
@@ -149,12 +151,12 @@ class LocomotionMetrics:
         if "heading_alignment" in info:
             self._heading_alignments.append(float(info["heading_alignment"]))
 
-        # Accept bite_success (T-Rex), strike_success (Velociraptor), or
-        # food_reached (Brachiosaurus) as equivalent "success" signals.
-        for _success_key in ("bite_success", "strike_success", "food_reached", "target_success"):
-            if _success_key in info:
-                self._success_events.append(float(info[_success_key]))
-                break
+        # One event per step, set when any of the model's success keys is set,
+        # whether or not the keys are present in this step's info, so an
+        # episode in which the event never fires scores 0. (The Allosaurus
+        # emits course_complete = 0.0 every step and 1.0 on the ending step.)
+        if self.success_keys:
+            self._success_events.append(1.0 if any(info.get(key) for key in self.success_keys) else 0.0)
 
         if "contact_asymmetry" in info:
             self._contact_asymmetries.append(float(info["contact_asymmetry"]))
@@ -273,24 +275,6 @@ class LocomotionMetrics:
             result["max_tilt_angle"] = float(np.max(tilts))
             result["std_tilt_angle"] = float(np.std(tilts))
 
-        # --- Time to target ---
-        if self._prey_distances:
-            distances = np.array(self._prey_distances)
-            result["initial_prey_distance"] = float(distances[0])
-            result["final_prey_distance"] = float(distances[-1])
-            result["min_prey_distance"] = float(np.min(distances))
-
-            # Time to reach within 0.5m of target.  NaN when never reached:
-            # aggregate_episodes filters non-finite values, so the mean only
-            # covers episodes that actually reached the target (a -1 sentinel
-            # would be averaged in and corrupt mean_time_to_target).
-            close_steps = np.where(distances < 0.5)[0]
-            result["target_reached"] = 1.0 if len(close_steps) > 0 else 0.0
-            if len(close_steps) > 0:
-                result["time_to_target"] = float(close_steps[0] * self.dt)
-            else:
-                result["time_to_target"] = float("nan")
-
         # --- Reward statistics ---
         rewards = np.array(self._rewards)
         result["total_reward"] = float(np.sum(rewards))
@@ -302,7 +286,7 @@ class LocomotionMetrics:
             result["mean_heading_alignment"] = float(np.mean(self._heading_alignments))
             result["std_heading_alignment"] = float(np.std(self._heading_alignments))
 
-        # --- Success (bite / strike / food) ---
+        # --- Success (the model's success keys; none without them) ---
         # success_rate is EPISODE-level: 1.0 if the success signal fired on
         # any step of this episode, else 0.0.  Averaging across episodes in
         # aggregate_episodes then yields the fraction of successful episodes,

@@ -84,12 +84,16 @@ def eval_policy(
 ):
     """Evaluate a trained policy collecting per-episode metrics.
 
-    Runs *n_episodes* deterministic rollouts and returns five parallel lists:
+    Runs *n_episodes* deterministic rollouts and returns five lists, parallel
+    but for *successes*:
 
     * **rewards** -- total reward per episode
     * **lengths** -- step count per episode
     * **fwd_vels** -- mean forward velocity per episode
-    * **successes** -- 1.0 if any *success_keys* triggered, else 0.0
+    * **successes** -- 1.0 if any *success_keys* triggered, else 0.0; an
+      empty list when *success_keys* is empty (a model with no success event,
+      whose species declares ``SUCCESS_KEYS = ()``), so the panel records no
+      success rate rather than a zero no episode could have beaten
     * **distances** -- total distance traveled per episode (cumulative XY path)
     """
     import numpy as _np
@@ -122,7 +126,8 @@ def eval_policy(
         rewards.append(ep_reward)
         lengths.append(float(ep_len))
         fwd_vels.append(float(_np.mean(ep_fwd)) if ep_fwd else 0.0)
-        successes.append(ep_success)
+        if success_keys:
+            successes.append(ep_success)
         distances.append(ep_distance)
 
     return rewards, lengths, fwd_vels, successes, distances
@@ -131,7 +136,6 @@ def eval_policy(
 def eval_policy_quality(
     model,
     eval_env,
-    success_keys: list[str],
     n_episodes: int = 50,
 ) -> dict:
     """Evaluate a trained policy collecting quality metrics for post-training selection.
@@ -711,7 +715,7 @@ def evaluate(
 
     for ep in range(n_episodes):
         obs = vec_env.reset()
-        metrics = LocomotionMetrics(dt=eval_dt)
+        metrics = LocomotionMetrics(dt=eval_dt, success_keys=tuple(species_cfg.success_keys))
         total_reward = 0.0
         step = 0
 
@@ -807,26 +811,11 @@ def _log_eval_results(
     )
     logger.info("  Max tilt:      %.3f rad", agg.get("mean_max_tilt_angle", 0))
 
-    if "mean_initial_prey_distance" in agg:
-        logger.info("--- %s ---", species_cfg.behavior_section_label)
-        logger.info(
-            "  Initial dist:   %.3f m",
-            agg.get("mean_initial_prey_distance", 0),
-        )
-        logger.info("  Final dist:     %.3f m", agg.get("mean_final_prey_distance", 0))
-        logger.info("  Min dist:       %.3f m", agg.get("mean_min_prey_distance", 0))
-        if "mean_time_to_target" in agg:
-            # Mean over episodes that reached the target (never-reached
-            # episodes report NaN and are excluded by aggregate_episodes).
-            logger.info(
-                "  Time to target: %.3f s (reached in %.0f%% of episodes)",
-                agg["mean_time_to_target"],
-                100.0 * agg.get("mean_target_reached", 0.0),
-            )
-        else:
-            logger.info("  Time to target: never reached")
     if "mean_heading_alignment" in agg:
         logger.info("  Heading align:  %.3f", agg.get("mean_heading_alignment", 0))
+    # Only a model that declares success keys records a success rate (its
+    # SUCCESS_KEYS; LocomotionMetrics measures them), so a model without one
+    # prints no line rather than a 0.0%.
     if "mean_success_rate" in agg:
         logger.info(
             "  Success rate:   %.1f%%",

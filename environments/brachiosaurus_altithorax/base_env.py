@@ -1,7 +1,10 @@
 """
 Brachiosaurus Gymnasium Environment
 
-A quadrupedal sauropod locomotion environment with food-reaching behavior.
+A quadrupedal sauropod locomotion environment.  The food sphere is still in
+the scene and the observation (direction and distance) until the next
+policy-interface revision removes it; no reward or termination reads it since
+the food reach was removed with the hunt (decision D-D59).
 
 Observation space (total dimension is generated in the public species catalog):
     - Joint positions (qpos[7:]), excluding the root freejoint
@@ -37,9 +40,6 @@ Reward components:
     - Spin penalty (penalize torso angular velocity)
     - Speed penalty (penalise absolute speed above threshold)
     - Tail stability (penalize tail tip angular velocity)
-    - Food reach bonus (when head gets close to food)
-    - Approach shaping (distance to food)
-    - Head proximity shaping (continuous head-to-food distance reward)
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ from environments.shared.direction_commands import DirectionCommandConfig
 
 
 class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
-    """Brachiosaurus quadrupedal locomotion and food-reaching environment.
+    """Brachiosaurus quadrupedal locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,
@@ -69,8 +69,9 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
     MODEL_PATH: Path
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Torso height"
-    BEHAVIOR_SECTION_LABEL = "Food Reaching"
-    SUCCESS_KEYS = ("food_reached",)
+    #: No success event: the food reach, its only one, was removed with the
+    #: hunt (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
 
     # SB3 only since policy interface r11 (configs/plant_versions.toml note
     # 23): the frozen MJX interface core (D-D17) was removed with this
@@ -113,10 +114,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
         forward_vel_max: float = 1.0,
-        food_reach_bonus: float = 10.0,
-        food_reach_threshold: float = 0.5,
-        food_approach_weight: float = 1.0,
-        food_head_proximity_weight: float = 0.0,
         # Environment settings
         food_distance_range: tuple[float, float] = (3.0, 8.0),
         food_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -151,10 +148,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self.idle_penalty_weight = idle_penalty_weight
         self.idle_velocity_threshold = idle_velocity_threshold
         self.forward_vel_max = forward_vel_max
-        self.food_reach_bonus = food_reach_bonus
-        self.food_reach_threshold = food_reach_threshold
-        self.food_approach_weight = food_approach_weight
-        self.food_head_proximity_weight = food_head_proximity_weight
 
         # Natural forward pitch. The nosedive penalty is measured relative to
         # this angle so the Brachiosaurus isn't punished for its natural stance.
@@ -166,18 +159,10 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self.food_lateral_range = food_lateral_range
         self.food_height_range = food_height_range
 
-        # Replay camera: Brachiosaurus browses high, so when the food-reach task
-        # is active the food spawns 2-3.5 m up and 1.5-4 m ahead. The default
-        # locomotion camera (distance 5, elevation -20, tilted down) frames the
-        # walking animal at ground level and leaves the elevated food out of the
-        # rendered replay. Pull back and level the camera for the food task so
-        # the neck-reach and the food target are both in frame.
-        if self.food_reach_bonus > 0 or self.food_approach_weight > 0:
-            self._camera_distance = 9.0
-            self._camera_azimuth = 110
-            self._camera_elevation = -8
-
-        # State tracking for delta-based rewards
+        # State tracking for delta-based rewards.  _spawn_target still resets
+        # _prev_head_food_distance, which no reward reads since the approach
+        # shaping was removed with the food reach (decision D-D59); it leaves
+        # with the food at the next policy-interface revision.
         self._prev_head_food_distance: float | None = None
         self._prev_action: np.ndarray | None = None
 
@@ -371,7 +356,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         torso_pos = self.data.xpos[self.torso_id]
-        food_pos = self.data.mocap_pos[0]
         forward_ref_2d = self._initial_food_dir_2d
         vel_2d = self.data.qvel[0:2]
 
@@ -458,39 +442,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         # 14-14b. Speed penalty above its threshold, idle penalty below its own
         reward_speed, reward_idle = self._speed_terms(info, vel_2d)
 
-        # 15. Food reach bonus (head tip close to food)
-        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
-        info["head_food_distance"] = head_food_dist
-        info["prey_distance"] = float(head_food_dist)  # alias for LocomotionMetrics
-
-        food_reward = 0.0
-        if head_food_dist < self.food_reach_threshold:
-            food_reward = self.food_reach_bonus
-            info["food_reached"] = 1.0
-        else:
-            info["food_reached"] = 0.0
-
-        reward_food = food_reward
-        info["reward_food"] = reward_food
-
-        # 16. Approach shaping (delta-based)
-        head_food_dist_f = float(head_food_dist)
-        reward_approach, approach_delta = self._compute_approach_shaping(
-            head_food_dist_f, self._prev_head_food_distance, self.food_approach_weight, 3.0
-        )
-        self._prev_head_food_distance = head_food_dist_f
-        info["approach_delta"] = approach_delta
-        info["reward_approach"] = reward_approach
-
-        # 17. Head-to-food proximity shaping (continuous distance reward)
-        head_proximity_max_dist = 5.0  # Larger range than T-Rex due to long neck
-        head_proximity = max(0.0, 1.0 - head_food_dist_f / head_proximity_max_dist)
-        reward_head_proximity = self.food_head_proximity_weight * head_proximity
-        info["head_proximity"] = head_proximity
-        info["head_food_proximity_distance"] = head_food_dist_f
-        info["reward_head_proximity"] = reward_head_proximity
-
         # Total reward
         total_reward = (
             reward_forward
@@ -510,9 +461,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
             + reward_spin
             + reward_speed
             + reward_idle
-            + reward_food
-            + reward_approach
-            + reward_head_proximity
         )
         info["reward_total"] = total_reward
 
@@ -523,17 +471,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         # Height/tilt termination (shared)
         terminated, info = self._root_termination(self.torso_id, "torso_height")
         if terminated:
-            return True, info
-
-        # Success: head reached food (only terminate when reaching is rewarded,
-        # matching the raptor/trex strike/bite gating — otherwise stages 1-2
-        # end episodes early on accidental head-food proximity)
-        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        food_pos = self.data.mocap_pos[0]
-        head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
-        if self.food_reach_bonus > 0 and head_food_dist < self.food_reach_threshold:
-            info["termination_reason"] = "food_reached"
-            info["success"] = True
             return True, info
 
         # Floor contact termination (shared) — categorized by body part

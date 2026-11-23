@@ -886,6 +886,13 @@ next session pins `TRUNK_FROM` to the run the maintainer chooses. This
 records change keeps the stance-landing decision's date citation; its number
 is still to be assigned. The record is §31 of the stance record.*
 
+*Note 2026-11-23 (decision D-D59's amendment): the hunt reward code left the
+T. rex environment, which moved its stance task again, so
+`environments/shared/tests/test_ltsb_stance_recipe.py`, which checked the
+settings above against the notebook and the committed stance against the
+screen's recorded task, is retired; the settings stay as the record of the
+finished certification.*
+
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was
 typed then. The stance stage's recipe label is now `stance`, its own id:

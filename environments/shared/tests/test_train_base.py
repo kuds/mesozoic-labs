@@ -96,7 +96,6 @@ class TestSpeciesConfig:
             "env_class",
             "stage_descriptions",
             "height_label",
-            "behavior_section_label",
             "success_keys",
         }
         assert expected == fields
@@ -107,10 +106,9 @@ class TestSpeciesConfig:
         cfg = SpeciesConfig(
             model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=VelociraptorMongoliensisAnatomicalEnv,
-            stage_descriptions="1=balance, 2=locomotion, 3=strike",
+            stage_descriptions="1=stance, 2=locomotion",
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
-            success_keys=["strike_success"],
+            success_keys=[],
         )
         assert cfg.model_id == VELOCIRAPTOR_MONGOLIENSIS
         assert cfg.env_class is VelociraptorMongoliensisAnatomicalEnv
@@ -121,10 +119,9 @@ class TestSpeciesConfig:
         cfg = SpeciesConfig(
             model_id=TYRANNOSAURUS_REX,
             env_class=TyrannosaurusRexAnatomicalEnv,
-            stage_descriptions="1=balance, 2=locomotion, 3=bite",
+            stage_descriptions="1=stance, 2=locomotion",
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
-            success_keys=["bite_success"],
+            success_keys=[],
         )
         assert cfg.model_id == TYRANNOSAURUS_REX
 
@@ -134,10 +131,9 @@ class TestSpeciesConfig:
         cfg = SpeciesConfig(
             model_id=BRACHIOSAURUS_ALTITHORAX,
             env_class=BrachiosaurusAltithoraxAnatomicalEnv,
-            stage_descriptions="1=balance, 2=locomotion, 3=food_reach",
+            stage_descriptions="1=stance, 2=locomotion",
             height_label="Torso height",
-            behavior_section_label="Food Reaching",
-            success_keys=["food_reached"],
+            success_keys=[],
         )
         assert cfg.model_id == BRACHIOSAURUS_ALTITHORAX
 
@@ -181,7 +177,7 @@ class TestBuildCoreCallbacks:
         )
 
         assert isinstance(eval_callback, StageAwareEvalCallback)
-        assert eval_callback.success_applicable is False
+        assert not hasattr(eval_callback, "success_applicable")
         plateau_callback = next(callback for callback in callbacks if isinstance(callback, StageGatePlateauCallback))
         assert plateau_callback.plateau_window == 7
         assert plateau_callback.min_relative_variation == 0.02
@@ -1630,7 +1626,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert not hasattr(train_base, "_in_training_task_success_result")
 
         def eval_panel(manager):
-            manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
+            manager.should_advance([600.0] * 30, [1000.0] * 30)
 
         record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, eval_panel=eval_panel)
 

@@ -684,6 +684,30 @@ def test_the_retired_task_success_stage_keys_are_unvalidated(updates: dict[str, 
     validate_result_summary(summary, canonical_provenance=True)
 
 
+def test_a_canonical_stage_row_may_leave_the_success_rates_null() -> None:
+    """A model that declares no success keys records no rate (decision D-D59's amendment): null, not a zero.
+
+    The keys stay required, and every other selected or final metric must still be finite.
+    """
+    from environments.shared.result_schema import NULLABLE_SUCCESS_RATE_METRICS
+
+    assert NULLABLE_SUCCESS_RATE_METRICS == {"mean_success_rate", "selected_model_success_rate"}
+    summary = _canonical_summary_v5()
+    for stage in summary["stages"].values():
+        stage["mean_success_rate"] = None
+        stage["selected_model_success_rate"] = None
+    validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, canonical_provenance=True)
+
+    missing = deepcopy(summary)
+    del missing["stages"]["2"]["mean_success_rate"]
+    with pytest.raises(ResultSchemaError, match="mean_success_rate is required for canonical"):
+        validate_result_summary(missing, canonical_provenance=True)
+    other = deepcopy(summary)
+    other["stages"]["2"]["selected_model_distance"] = None
+    with pytest.raises(ResultSchemaError, match="selected_model_distance must be a finite number for canonical"):
+        validate_result_summary(other, canonical_provenance=True)
+
+
 def test_v4_canonical_best_eval_reward_is_null_only_for_a_widened_root() -> None:
     """A widened root (widen_checkpoint) never trained in its run, so its training curve — the best
     EvalCallback panel ``best_eval_reward`` summarizes — is the parent run's. The 2026-09-20 widen

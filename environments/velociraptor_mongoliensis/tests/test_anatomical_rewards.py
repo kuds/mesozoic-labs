@@ -1,7 +1,7 @@
 """Species-specific reward tests for Velociraptor.
 
-Common reward invariants (alive bonus, energy penalty, approach zero on first
-step, zero forward weight) are tested in
+Common reward invariants (alive bonus, energy penalty, zero forward weight)
+are tested in
 environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 """
 
@@ -31,13 +31,24 @@ def env():
 class TestVelociraptorMongoliensisRewardComponents:
     """Raptor-specific reward component tests."""
 
-    def test_strike_success_is_zero_initially(self, env):
-        """No strike success on the first step (prey is far away)."""
+    def test_no_hunt_term_is_emitted(self, env):
+        """The strike, approach and proximity terms left with the hunt (decision D-D59)."""
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        assert info["strike_success"] == 0.0
-        assert info["reward_strike"] == 0.0
+        hunt = {
+            "strike_success",
+            "reward_strike",
+            "prey_distance",
+            "approach_delta",
+            "reward_approach",
+            "proximity",
+            "reward_proximity",
+            "min_claw_prey_distance",
+            "claw_proximity",
+            "reward_claw_proximity",
+        }
+        assert not hunt & set(info)
 
     def test_total_reward_is_sum_of_components(self, env):
         """Total reward should equal sum of all components."""
@@ -52,10 +63,6 @@ class TestVelociraptorMongoliensisRewardComponents:
             + info["reward_bilateral_support"]
             + info["reward_energy"]
             + info["reward_tail"]
-            + info["reward_strike"]
-            + info["reward_approach"]
-            + info["reward_proximity"]
-            + info["reward_claw_proximity"]
             + info["reward_posture"]
             + info["reward_nosedive"]
             + info["reward_leg_home_pose"]
@@ -134,36 +141,17 @@ class TestVelociraptorMongoliensisRewardComponents:
     def test_drift_penalty_non_positive(self, env):
         assert_drift_penalty_non_positive(env)
 
-    def test_claw_proximity_zero_by_default(self, env):
-        """Claw proximity reward should be zero when weight is zero (default)."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_claw_proximity"] == 0.0
-        assert info["min_claw_prey_distance"] >= 0.0
-        assert 0.0 <= info["claw_proximity"] <= 1.0
-
 
 class TestVelociraptorMongoliensisRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
     def test_high_alive_bonus_dominates(self):
-        env = VelociraptorMongoliensisAnatomicalEnv(
-            alive_bonus=100.0, forward_vel_weight=0.0, strike_approach_weight=0.0, strike_bonus=0.0
-        )
+        env = VelociraptorMongoliensisAnatomicalEnv(alive_bonus=100.0, forward_vel_weight=0.0)
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, terminated, _, info = env.step(action)
         if not terminated:
             assert info["reward_alive"] == 100.0
-        env.close()
-
-    def test_zero_strike_bonus_gives_no_strike_reward(self):
-        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=0.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_strike"] == 0.0
         env.close()
 
     def test_zero_posture_weight_zeroes_posture_reward(self):
@@ -239,16 +227,6 @@ class TestVelociraptorMongoliensisRewardWeightEffects:
         assert info["reward_backward"] == 0.0
         env.close()
 
-    def test_nonzero_claw_proximity_weight_gives_positive_reward(self):
-        """Claw proximity reward should be positive when weight is set and prey is within range."""
-        env = VelociraptorMongoliensisAnatomicalEnv(strike_claw_proximity_weight=5.0, prey_distance_range=(1.0, 2.0))
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_claw_proximity"] >= 0.0
-        assert info["min_claw_prey_distance"] > 0.0
-        env.close()
-
     def test_nonzero_backward_vel_weight_penalizes_backward_motion(self):
         """Backward penalty should be negative when raptor moves backward."""
         env = VelociraptorMongoliensisAnatomicalEnv(backward_vel_penalty_weight=1.0, forward_vel_weight=0.0)
@@ -297,7 +275,8 @@ class TestStanceQualityRewards:
     """
 
     #: The reward components that predate the stance-quality terms, in the
-    #: order the legacy total summed them.
+    #: order the legacy total summed them (the strike, approach and proximity
+    #: terms between tail and posture left with the hunt, decision D-D59).
     LEGACY_TERMS = (
         "reward_forward",
         "reward_backward",
@@ -305,10 +284,6 @@ class TestStanceQualityRewards:
         "reward_alive",
         "reward_energy",
         "reward_tail",
-        "reward_strike",
-        "reward_approach",
-        "reward_proximity",
-        "reward_claw_proximity",
         "reward_posture",
         "reward_nosedive",
         "reward_spin",
@@ -437,7 +412,7 @@ class TestStanceQualityRewards:
             home = env.model.key_qpos[env.home_keyframe_id]
             np.testing.assert_array_equal(env._leg_home_qpos, home[env._leg_home_qpos_indices])
             # The eight servoed leg joints, hips to ankles (physics r5, as the T-Rex): the passive digits' angle
-            # is the ground's, and the claw is the strike's (r4 priced 12, its servoed digits III / IV too).
+            # is the ground's, and the claw is no support joint (r4 priced 12, its servoed digits III / IV too).
             names = [
                 mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_JOINT, env.model.jnt_qposadr.tolist().index(int(i)))
                 for i in env._leg_home_qpos_indices
@@ -517,28 +492,12 @@ class TestCurriculumStageRewards:
         env = VelociraptorMongoliensisAnatomicalEnv(
             forward_vel_weight=0.0,
             backward_vel_penalty_weight=0.5,
-            strike_bonus=0.0,
-            strike_approach_weight=0.0,
         )
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_forward"] == 0.0
-        assert info["reward_strike"] == 0.0
         assert info["reward_backward"] <= 0.0
-        env.close()
-
-    def test_stage3_strike_has_approach_shaping(self):
-        """Stage 3 config enables approach shaping (delta-based)."""
-        env = VelociraptorMongoliensisAnatomicalEnv(strike_approach_weight=10.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        env.step(action)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert "approach_delta" in info
-        assert "reward_approach" in info
-        assert info["approach_delta"] != 0.0
         env.close()
 
 

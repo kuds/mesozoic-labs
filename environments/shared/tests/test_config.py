@@ -233,11 +233,16 @@ class TestCurriculumInvariants:
         ],
         ids=lambda value: value if isinstance(value, str) else value.species,
     )
-    def test_no_stage_enables_a_hunt_bonus(self, model_id, bonus):
-        """Decision D-D59 removed every hunt stage; every remaining stage keeps the hunt's terminal bonus at zero
-        (the environment still has the argument until the change that removes it)."""
+    def test_no_stage_names_a_hunt_bonus(self, model_id, bonus):
+        """Decision D-D59 removed every hunt stage and then the hunt's arguments: no stage names the terminal bonus,
+        and the environment refuses it."""
+        import inspect
+
+        from environments.shared.species_registry import env_class
+
         stages = load_all_stages(model_id)
-        assert {key: stage["env_kwargs"][bonus] for key, stage in stages.items()} == {key: 0.0 for key in stages}
+        assert not [key for key, stage in stages.items() if bonus in stage["env_kwargs"]]
+        assert bonus not in inspect.signature(env_class(model_id)).parameters
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_consistent_episode_length(self, model_id):

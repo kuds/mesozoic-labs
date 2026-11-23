@@ -71,42 +71,12 @@ class TestTailFloorTermination:
         assert info["termination_reason"] == "tail_contact"
 
 
-class TestStrikeTerminationGating:
-    def test_strike_terminates_when_strike_bonus_positive(self):
-        """Claw-prey contact should terminate when strike_bonus > 0."""
-        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=10.0, prey_distance_range=(0.5, 0.5))
-        env.reset(seed=42)
+class TestNoStrike:
+    """The strike was removed with the hunt (decision D-D59): claw contact with the prey pays and ends nothing.
 
-        # Move raptor toward prey to force contact
-        prey_pos = env.data.body("prey").xpos.copy()
-        env.data.qpos[0] = prey_pos[0] - 0.1  # x just behind prey
-        env.data.qpos[1] = prey_pos[1]
-        mujoco.mj_forward(env.model, env.data)
-
-        # Step until contact or max iterations
-        terminated = False
-        info = {}
-        for _ in range(50):
-            action = np.zeros(env.action_space.shape, dtype=np.float32)
-            _, _, terminated, _, info = env.step(action)
-            if terminated:
-                break
-        env.close()
-
-        # With prey at 0.5m, should likely terminate (possibly by strike or other reason)
-        # This test mainly validates the gating logic doesn't block strike when bonus > 0
-
-    def test_strike_does_not_terminate_when_strike_bonus_zero(self):
-        """Claw-prey contact should NOT terminate when strike_bonus == 0 (e.g. stage 2)."""
-        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=0.0)
-        env.reset(seed=42)
-
-        # Manually check that _is_terminated skips the strike check
-        # by verifying the termination logic path
-        assert env.strike_bonus == 0.0
-        # The gating condition (self.strike_bonus > 0) should prevent
-        # strike_success termination even if contact occurs
-        env.close()
+    The claw geoms and the prey stay in the scene until the next policy-interface revision removes them; the
+    strike reward, its info keys and its termination are gone, and the species declares no success key.
+    """
 
     @staticmethod
     def _prey_on_one_claw(env, claw, other):
@@ -129,31 +99,18 @@ class TestStrikeTerminationGating:
         assert {geom1 if geom2 == prey else geom2 for geom1, geom2 in pairs if prey in (geom1, geom2)} == {claw_id}
         return claw_id
 
+    def test_the_species_declares_no_success_key_and_no_strike_kwarg(self):
+        assert VelociraptorMongoliensisAnatomicalEnv.SUCCESS_KEYS == ()
+        with pytest.raises(TypeError, match="strike_bonus"):
+            VelociraptorMongoliensisAnatomicalEnv(strike_bonus=10.0)
+
     @pytest.mark.parametrize("claw, other", [("r_claw_geom", "l_claw_geom"), ("l_claw_geom", "r_claw_geom")])
-    def test_either_claw_alone_scores_and_ends_the_strike(self, claw, other):
-        """Each sickle claw on its own pays the strike bonus and ends the episode as ``strike_success``."""
-        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=10.0, reset_noise_scale=0.0)
+    def test_either_claw_on_the_prey_pays_nothing_and_ends_nothing(self, claw, other):
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             self._prey_on_one_claw(env, claw, other)
             _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
-            assert info["strike_success"] == 1.0
-            assert info["reward_strike"] == 10.0
-
-            terminated, info = env._is_terminated()
-            assert terminated
-            assert info["termination_reason"] == "strike_success"
-        finally:
-            env.close()
-
-    @pytest.mark.parametrize("claw, other", [("r_claw_geom", "l_claw_geom"), ("l_claw_geom", "r_claw_geom")])
-    def test_either_claw_alone_does_not_end_the_episode_without_a_strike_bonus(self, claw, other):
-        """With ``strike_bonus == 0.0`` the same claw contact pays nothing and ends nothing."""
-        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=0.0, reset_noise_scale=0.0)
-        try:
-            self._prey_on_one_claw(env, claw, other)
-            _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
-            assert info["strike_success"] == 1.0
-            assert info["reward_strike"] == 0.0
+            assert not {"strike_success", "reward_strike", "reward_approach", "prey_distance"} & set(info)
 
             terminated, info = env._is_terminated()
             assert not terminated, info
@@ -861,8 +818,7 @@ class TestCacheIdsFailsClosed:
     """``_cache_ids`` resolves every name it reads and refuses a model that lacks one (physics r5).
 
     ``mj_name2id`` answers -1 for a missing name and nothing downstream notices: a renamed
-    claw geom silently disables the strike, a renamed head geom silently drops out of the
-    termination set, ``site_xpos[-1]`` reads the model's last site and ``sensor_adr[-1]`` the
+    head geom silently drops out of the termination set, ``site_xpos[-1]`` reads the model's last site and ``sensor_adr[-1]`` the
     last sensor (the r4 plant read its sensors by position).  Each edit below compiles; the env
     must refuse it, naming the element.
     """

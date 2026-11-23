@@ -130,11 +130,11 @@ Species notes:
 ## Task and rewards
 
 The trained tasks are the stance, recovery from pushes and the walk; the bite, the hunt that followed the walk, was
-removed by decision D-D59 and no stage trains it. Until the environment change that removes them, a prey sphere still
-spawns ahead of the animal at a random distance and side offset, the observation still carries its direction and
-distance, and the bite terms below are still in the code, set to zero by every stage config. The jaw is fixed, so the
-bite was a head-contact proxy: the environment reports `bite_success` when the fixed head-contact geom touches the
-prey while the bite reward is on, and the contact ends the episode.
+removed by decision D-D59. Its reward terms, its `bite_success` termination and its constructor arguments are gone from
+the code, and the model declares no success key. A prey sphere still spawns ahead of the animal at a random distance
+and side offset, and the observation still carries its direction and distance; the forward and heading terms measure
+along its initial direction. The prey, and with it the fixed head-contact geom the bite used, leave with the next
+policy-interface revision.
 
 The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
 and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one load
@@ -147,8 +147,6 @@ The main reward groups:
 - **Survival and posture:** an alive bonus, posture, nosedive and height terms, head clearance and neck posture, and a
   fall penalty.
 - **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
-- **Bite** (zero in every stage config since D-D59): approach shaping, head-proximity shaping, and a bonus when the
-  head-contact geom touches the prey.
 - **Stance quality** (stance and recovery): support and load balance between the feet, the home leg and tail poses,
   flat soles and a steady stance width, sideways lean, foot stagger, each foot's center of pressure, and penalties on
   floor impacts and airborne physics substeps.
@@ -157,8 +155,8 @@ The main reward groups:
 The weights are the `TyrannosaurusRexEnv` constructor defaults in `base_env.py`, where most stance terms are off,
 overridden by the `[env]` table of each stage TOML in
 [`configs/tyrannosaurus_rex/anatomical/`](../../configs/tyrannosaurus_rex/anatomical/); recovery inherits the stance's
-`[env]`. An episode ends on a fall or launch, excessive tilt or a nosedive, the snout tip or skull dropping too low, the
-head, torso or tail touching the floor, or a bite. The thresholds are in `base_env.py`.
+`[env]`. An episode ends on a fall or launch, excessive tilt or a nosedive, the snout tip or skull dropping too low, or the
+head, torso or tail touching the floor. The thresholds are in `base_env.py`.
 
 ## Files
 

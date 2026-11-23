@@ -6,9 +6,9 @@ determinism, observation validity, basic functionality, and common reward
 invariants.
 
 Per-species test files should only contain tests for species-unique behavior
-(e.g. tail termination for raptor, head termination for T-Rex, food-reach for
-brachiosaurus, snout snap for dibothrosuchus).  All shared behavior is tested
-here via parametrization.
+(e.g. tail termination for raptor, head termination for T-Rex, the snout-prop
+termination for dibothrosuchus).  All shared behavior is tested here via
+parametrization.
 """
 
 import numpy as np
@@ -76,8 +76,6 @@ SPECIES_REWARD_KEYS = {
         "reward_alive",
         "reward_energy",
         "reward_tail",
-        "reward_strike",
-        "reward_approach",
         "reward_posture",
         "reward_gait",
         "reward_smoothness",
@@ -89,8 +87,6 @@ SPECIES_REWARD_KEYS = {
         "reward_alive",
         "reward_energy",
         "reward_tail",
-        "reward_bite",
-        "reward_approach",
         "reward_posture",
         "reward_nosedive",
         "reward_height",
@@ -106,8 +102,6 @@ SPECIES_REWARD_KEYS = {
         "reward_alive",
         "reward_energy",
         "reward_gait",
-        "reward_food",
-        "reward_approach",
         "reward_idle",
         "reward_total",
     ],
@@ -118,8 +112,6 @@ SPECIES_REWARD_KEYS = {
         "reward_gait",
         "reward_gait_symmetry",
         "reward_tail",
-        "reward_snap",
-        "reward_approach",
         "reward_posture",
         "reward_nosedive",
         "reward_height",
@@ -393,15 +385,15 @@ class TestRewardConsistency:
         assert info["reward_energy"] < 0
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", [p for p in MODEL_ENVS if p.values[1] != ALLOSAURUS_FRAGILIS])
-    def test_approach_reward_zero_on_first_step(self, env_class, model_id):
-        """Approach reward should be zero on the first step (no prior distance)."""
+    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    def test_no_hunt_reward_or_success_key(self, env_class, model_id):
+        """The hunt's approach shaping and success keys left with it (decision D-D59)."""
         env = env_class()
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        assert info["reward_approach"] == 0.0
-        assert info["approach_delta"] == 0.0
+        assert not {"reward_approach", "approach_delta", "prey_distance"} & set(info)
+        assert env_class.SUCCESS_KEYS == (() if model_id != ALLOSAURUS_FRAGILIS else ("course_complete",))
         env.close()
 
     @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)

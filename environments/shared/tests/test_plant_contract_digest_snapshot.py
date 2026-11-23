@@ -22,6 +22,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -62,15 +63,16 @@ _STAGE_NAMES = [
 ]
 #: The lines of one stage's reward capture (CU-11), in order.
 _REWARD_NAMES = ["summary", "poses", "shape_sha256", "rounded_values_sha256"]
-#: Stages in which the model's success probe ends the episode, with its reason.
-_SUCCESS = {
+#: Stages in which the model's success probe ends the episode, with its reason; None for a model with no success
+#: probe, as it declares no SUCCESS_KEYS (decision D-D59 removed the strike, the bite, the food reach and the snap).
+_SUCCESS: dict[ModelId, dict[str, str] | None] = {
     ModelId("allosaurus_fragilis", "anatomical"): {"locomotion": "course_complete"},
-    ModelId("brachiosaurus_altithorax", "anatomical"): {"behavior": "food_reached"},
+    ModelId("brachiosaurus_altithorax", "anatomical"): None,
     ModelId("compsognathus_longipes", "anatomical"): {"behavior": "target_reached"},
     ModelId("compsognathus_longipes", "robot"): {"behavior": "target_reached"},
-    ModelId("dibothrosuchus_elaphros", "anatomical"): {"behavior": "snap_success"},
-    ModelId("tyrannosaurus_rex", "anatomical"): {"behavior": "bite_success"},
-    ModelId("velociraptor_mongoliensis", "anatomical"): {"behavior": "strike_success"},
+    ModelId("dibothrosuchus_elaphros", "anatomical"): None,
+    ModelId("tyrannosaurus_rex", "anatomical"): None,
+    ModelId("velociraptor_mongoliensis", "anatomical"): None,
 }
 #: The reasons each model's state probes reach (the union over its stages' poses line).
 _POSE_REASONS = {
@@ -129,6 +131,31 @@ _POSE_REASONS = {
 def test_the_per_model_tables_cover_every_model(name: str) -> None:
     """A new model fails here, naming the table, instead of going unpinned (review M4)."""
     assert set(globals()[name]) == set(model_ids()), f"{name} must pin every manifest model"
+
+
+@pytest.mark.parametrize("model_id", _MODELS, ids=str)
+def test_a_model_has_a_success_probe_exactly_when_it_declares_success_keys(model_id: ModelId) -> None:
+    """``REWARD_PROBE`` names a success-probe element exactly when the class declares ``SUCCESS_KEYS``.
+
+    The harness refuses a mismatch (``_stage_parts``); ``_SUCCESS`` pins which models probe one.
+    """
+    from environments.shared.species_registry import env_class
+
+    cls: Any = env_class(model_id)
+    _amplitude, *effector = cls.REWARD_PROBE
+    assert bool(effector) == bool(cls.SUCCESS_KEYS) == (_SUCCESS[model_id] is not None), (model_id, cls.REWARD_PROBE)
+
+
+def test_the_harness_refuses_a_success_probe_element_the_class_cannot_use() -> None:
+    class _Env:
+        REWARD_PROBE = (0.1, "geom", "head_bite")
+        SUCCESS_KEYS = ()
+
+        class action_space:  # noqa: N801 - a stand-in for the Gymnasium space attribute
+            shape = (3,)
+
+    with pytest.raises(ValueError, match="exactly when the class declares SUCCESS_KEYS"):
+        digest_snapshot._stage_parts(_Env())
 
 
 # -- the CI step --------------------------------------------------------------
@@ -260,11 +287,14 @@ def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
         ends = dict(part.split("=") for part in fields[5].split(" "))
         steps = {part: end.split(":")[:2] for part, end in ends.items()}
         pushes = ["zero"] if stage == "recovery" else []
+        probes, success_ends = ["success"], _SUCCESS[model_id]
+        if success_ends is None:
+            probes = []
         assert list(steps) == [
             "roll",
             "second_reset",
             *pushes,
-            "success",
+            *probes,
             "too_high",
             "tilt",
             "high_tilt",
@@ -273,8 +303,9 @@ def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
         assert steps["roll"][1] not in ("-", "truncated"), f"{model_id} {stage}: the roll must end the episode"
         if pushes:  # zero action to the episode's end (a termination, or truncation at the horizon), past the pushes
             assert steps["zero"][1] != "-", f"{model_id} {stage}: the zero part must run to the episode's end"
-        success = _SUCCESS[model_id].get(stage, "-")
-        assert steps["success"] == ["1", success], (model_id, stage, steps["success"])
+        if success_ends is not None:
+            success = success_ends.get(stage, "-")
+            assert steps["success"] == ["1", success], (model_id, stage, steps["success"])
         assert steps["too_high"] == ["1", "too_high"] and steps["high_tilt"] == ["1", "too_high"], steps
         assert steps["tilt"] == ["1", "excessive_tilt"] and steps["truncation"] == ["3", "truncated"], steps
 

@@ -1128,3 +1128,77 @@ def test_collected_results_carry_the_v2_bar_on_a_v2_row_only():
     assert rows[0]["clean_stance_lcb_threshold"] == 0.8 and rows[0]["stance_eval_episodes"] == 40
     assert rows[0]["stance_clean_count"] == 38 and rows[0]["stance_clean_lcb"] == 0.8508
     assert not {"clean_stance_lcb_threshold", "stance_clean_count"} & set(rows[1])
+
+
+@pytest.mark.parametrize(
+    ("success_keys", "successes", "expected"),
+    [([], [], None), (["course_complete"], [1.0] * 6 + [0.0] * 24, 0.2)],
+    ids=["no-success-keys", "course-complete"],
+)
+def test_evaluate_stage_checkpoints_records_a_success_rate_only_for_a_model_with_success_keys(
+    tmp_path, monkeypatch, success_keys, successes, expected
+):
+    """Decision D-D59's amendment: without success keys the panels record no flag, so no rate (never a zero) and no
+    task_success column; with them both rates come from the panel. The panel is EVALUATION_PANEL_EPISODES long."""
+    import csv
+    from types import SimpleNamespace
+
+    from environments.shared import curriculum, evaluation, train_base
+    from environments.shared.reporting import stage_artifacts
+
+    stage_dir = tmp_path / "stage1"
+    (stage_dir / "models").mkdir(parents=True)
+    final_path = stage_dir / "models" / "stage1_final"
+    final_path.with_suffix(".zip").write_bytes(b"weights")
+    final_vecnorm = stage_dir / "models" / "stage1_final_vecnorm.pkl"
+    final_vecnorm.write_bytes(b"stats")
+    panels: list[int] = []
+
+    def eval_policy(model, env, keys, *, n_episodes):
+        panels.append(n_episodes)
+        assert list(keys) == success_keys
+        return [1.0] * n_episodes, [10] * n_episodes, [0.1] * n_episodes, list(successes), [0.5] * n_episodes
+
+    class Env:
+        dt = 0.01
+
+        def __init__(self, **_kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(train_base, "create_vec_env", lambda *a, **k: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(curriculum, "load_vecnorm_stats", lambda *a, **k: True)
+    monkeypatch.setattr(evaluation, "eval_policy", eval_policy)
+    monkeypatch.setattr(stage_artifacts, "select_handoff_checkpoint", lambda _model_dir: None)
+    monkeypatch.setattr(
+        stage_artifacts,
+        "build_stage_results_from_eval_data",
+        lambda *a, **k: {"best_eval_reward": "", "best_eval_std": "", "best_eval_timestep": ""},
+    )
+    species_cfg = SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=Env, success_keys=success_keys)
+    *_, results = stage_artifacts.evaluate_stage_checkpoints(
+        species_cfg,
+        {"env_kwargs": {}},
+        1,
+        "ppo",
+        stage_dir,
+        final_path=final_path,
+        final_vecnorm_path=final_vecnorm,
+        timesteps=1,
+        duration_seconds=1.0,
+        plant_identity=None,
+        evaluation_seed=101,
+        model=object(),
+    )
+    assert panels == [stage_artifacts.EVALUATION_PANEL_EPISODES]
+    with (stage_dir / "evaluation_final.csv").open(newline="", encoding="utf-8") as source:
+        fieldnames = csv.DictReader(source).fieldnames or []
+    if expected is None:
+        assert "mean_success_rate" not in results and results["best_model_success_rate"] == ""
+        assert "task_success" not in fieldnames
+    else:
+        assert results["mean_success_rate"] == pytest.approx(expected)
+        assert results["best_model_success_rate"] == pytest.approx(expected)
+        assert "task_success" in fieldnames

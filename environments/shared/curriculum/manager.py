@@ -228,7 +228,6 @@ class CurriculumManager:
         rewards: list[float],
         episode_lengths: list[float],
         forward_velocities: list[float] | None = None,
-        success_rates: list[float] | None = None,
         stance_panel: StancePanel | None = None,
     ) -> dict[str, float]:
         """Record evaluation results for the current stage.
@@ -238,8 +237,6 @@ class CurriculumManager:
             episode_lengths: List of episode lengths from evaluation.
             forward_velocities: Optional list of mean forward velocities
                 per episode (m/s). Used for locomotion stage gating.
-            success_rates: Optional list of per-episode success flags
-                (1.0 if prey contact / food reached, 0.0 otherwise).
             stance_panel: Optional stance summary for ``stance_quality/v1``.
                 Build it with
                 :func:`~environments.shared.curriculum.stance_gate.stance_panel_from_episode_duties`
@@ -259,8 +256,6 @@ class CurriculumManager:
         }
         if forward_velocities is not None:
             summary["mean_forward_vel"] = float(np.mean(forward_velocities))
-        if success_rates is not None:
-            summary["mean_success_rate"] = float(np.mean(success_rates))
         if stance_panel is not None:
             # The bound is stored as a scalar rather than the raw duties: it is
             # a pure function of them, and the history is serialized into run
@@ -274,9 +269,6 @@ class CurriculumManager:
         vel_str = ""
         if "mean_forward_vel" in summary:
             vel_str = f", fwd_vel={summary['mean_forward_vel']:.2f} m/s"
-        success_str = ""
-        if "mean_success_rate" in summary:
-            success_str = f", success={summary['mean_success_rate']:.0%}"
         stance_str = ""
         if "full_horizon_fraction" in summary:
             stance_str = (
@@ -285,14 +277,13 @@ class CurriculumManager:
                 f" (ucb {summary['unsupported_duty_ucb']:.4f}, n={summary['n_duty_episodes']:.0f})"
             )
         logger.info(
-            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s%s%s (%d eps)",
+            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s%s (%d eps)",
             self._current_stage,
             summary["mean_reward"],
             summary["std_reward"],
             summary["mean_length"],
             summary["std_length"],
             vel_str,
-            success_str,
             stance_str,
             summary["n_episodes"],
         )
@@ -303,7 +294,6 @@ class CurriculumManager:
         rewards: list[float] | None = None,
         episode_lengths: list[float] | None = None,
         forward_velocities: list[float] | None = None,
-        success_rates: list[float] | None = None,
         stance_panel: StancePanel | None = None,
     ) -> bool:
         """Check whether performance thresholds are met for advancement.
@@ -315,8 +305,6 @@ class CurriculumManager:
             rewards: Per-episode total rewards.
             episode_lengths: Per-episode step counts.
             forward_velocities: Per-episode mean forward velocities (m/s).
-            success_rates: Per-episode success flags (1.0 if prey contact
-                / food reached, 0.0 otherwise).
             stance_panel: Stance summary, required by ``stance_quality/v1``.
                 A stage declaring that kind without one fails closed.
 
@@ -332,7 +320,7 @@ class CurriculumManager:
             :meth:`_stance_v2_gate_refuses`.
         """
         if rewards is not None and episode_lengths is not None:
-            self.record_eval(rewards, episode_lengths, forward_velocities, success_rates, stance_panel)
+            self.record_eval(rewards, episode_lengths, forward_velocities, stance_panel)
 
         threshold = self._thresholds[self._current_stage]
         history = self._eval_history[self._current_stage]

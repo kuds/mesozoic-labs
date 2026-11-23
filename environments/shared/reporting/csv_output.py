@@ -37,10 +37,6 @@ CSV_METRIC_COLUMNS: list[str] = [
     "reward_threshold",
     "ep_length_threshold",
     "forward_vel_threshold",
-    # The post-training panel's exact success count and size (D-B12), the
-    # k / n a rounded mean_success_rate cannot recover.
-    "success_count",
-    "n_success_episodes",
     "gate_kind",
     "gate_evaluable",
     "stage_passed",
@@ -393,6 +389,12 @@ def save_evaluation_episodes(
     bundle save would otherwise be hashed into provenance unbound.  Without
     a sidecar (the retired JAX path had none) it is left out, so the
     evidence carries no such column.
+
+    *successes* are the per-episode flags of the model's success event, one
+    per episode, or EMPTY for a model that declares no success keys
+    (``evaluation.eval_policy`` records none for it): the evidence then has
+    no ``task_success`` column, rather than one that reads False in every
+    row by construction.
     """
     if not isinstance(evaluation_seed, int) or isinstance(evaluation_seed, bool) or evaluation_seed < 0:
         raise ValueError("evaluation_seed must be a non-negative integer")
@@ -413,12 +415,13 @@ def save_evaluation_episodes(
         character not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for character in checkpoint_label
     ):
         raise ValueError("checkpoint_label must use lowercase letters, digits, '_' or '-'")
+    records_success = len(successes) > 0
     counts = {
         len(rewards),
         len(lengths),
         len(forward_velocities),
         len(distances),
-        len(successes),
+        *((len(successes),) if records_success else ()),
     }
     if len(counts) != 1:
         raise ValueError("evaluation metric sequences must have equal lengths")
@@ -429,11 +432,18 @@ def save_evaluation_episodes(
     output.parent.mkdir(parents=True, exist_ok=True)
     rows = []
     for index, (reward, length, forward_velocity, distance, success) in enumerate(
-        zip(rewards, lengths, forward_velocities, distances, successes, strict=True),
+        zip(
+            rewards,
+            lengths,
+            forward_velocities,
+            distances,
+            successes if records_success else [None] * len(rewards),
+            strict=True,
+        ),
         start=1,
     ):
-        parsed_success = parse_optional_bool(success)
-        if parsed_success is None:
+        parsed_success = parse_optional_bool(success) if records_success else None
+        if records_success and parsed_success is None:
             raise ValueError(f"evaluation success at episode {index} is not boolean")
         numeric_values = {
             "reward": float(reward),
@@ -446,25 +456,23 @@ def save_evaluation_episodes(
         parsed_length = int(length)
         if isinstance(length, bool) or parsed_length <= 0 or float(length) != parsed_length:
             raise ValueError(f"evaluation length at episode {index} must be a positive integer")
-        rows.append(
-            {
-                "episode": index,
-                "evaluation_seed": evaluation_seed,
-                "checkpoint": checkpoint_label,
-                "reward": numeric_values["reward"],
-                "length": parsed_length,
-                "mean_forward_velocity": numeric_values["forward velocity"],
-                "distance_traveled": numeric_values["distance"],
-                # "task_success", not "success": this is the stage's TASK event
-                # (bite/strike/food-reached), which a stance-gated stage can
-                # never emit, so it reads False in every stage-1 row by
-                # construction. Under the bare name it was repeatedly misread
-                # as the gate verdict — that lives in stance_gate_report.{txt,
-                # json} and stage_summary.txt, never here (gate-pass
-                # postmortem, follow-up 1).
-                "task_success": parsed_success,
-            }
-        )
+        row: dict[str, Any] = {
+            "episode": index,
+            "evaluation_seed": evaluation_seed,
+            "checkpoint": checkpoint_label,
+            "reward": numeric_values["reward"],
+            "length": parsed_length,
+            "mean_forward_velocity": numeric_values["forward velocity"],
+            "distance_traveled": numeric_values["distance"],
+        }
+        if records_success:
+            # "task_success", not "success": this is the model's TASK event
+            # (its SUCCESS_KEYS, the Allosaurus' course_complete), never the
+            # gate verdict. Under the bare name it was repeatedly misread as
+            # the verdict — that lives in stance_gate_report.{txt,json} and
+            # stage_summary.txt, never here (gate-pass postmortem, follow-up 1).
+            row["task_success"] = parsed_success
+        rows.append(row)
     fieldnames = [
         "episode",
         "evaluation_seed",
@@ -473,7 +481,7 @@ def save_evaluation_episodes(
         "length",
         "mean_forward_velocity",
         "distance_traveled",
-        "task_success",
+        *(("task_success",) if records_success else ()),
     ]
     for column, digest in evidence_hashes.items():
         for row in rows:

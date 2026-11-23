@@ -32,8 +32,17 @@ def write_stage_summary(
     results_dict: dict[str, Any],
     model_id: ModelId,
     algorithm: str,
+    *,
+    evaluation_episodes: int | None = None,
 ) -> Path:
     """Write a text summary for a single completed stage to its directory.
+
+    *evaluation_episodes* is the size of the panel the ``best_model_*``
+    results were rolled on (``stage_artifacts.EVALUATION_PANEL_EPISODES``
+    from :func:`~environments.shared.reporting.generate_stage_artifacts`);
+    without it the best-model section states no episode count.  The success
+    rate line appears only when the panel measured one (a model that declares
+    success keys).
 
     Returns the path to the written summary file.
     """
@@ -79,9 +88,9 @@ def write_stage_summary(
         bm_vel = results_dict.get("best_model_fwd_vel", "")
         bm_vel_s = results_dict.get("best_model_std_fwd_vel", "")
         bm_sr = results_dict.get("best_model_success_rate", "")
-        bm_n_episodes = results_dict.get("best_model_n_episodes", 30)
         lines.append("")
-        lines.append(f"Best Model Evaluation ({bm_n_episodes} episodes)")
+        panel = f" ({evaluation_episodes} episodes)" if evaluation_episodes is not None else ""
+        lines.append(f"Best Model Evaluation{panel}")
         lines.append("-" * 40)
         lines.append(f"  Reward:       {bm_r} +/- {bm_s}")
         if bm_len != "":

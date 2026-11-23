@@ -70,7 +70,7 @@ def run(
     owned = env is None
     if env is None:
         env = TyrannosaurusRexAnatomicalEnv(
-            reset_noise_scale=noise, prey_distance_range=(100.0, 100.0), prey_lateral_range=(0.0, 0.0), bite_bonus=0.0
+            reset_noise_scale=noise, prey_distance_range=(100.0, 100.0), prey_lateral_range=(0.0, 0.0)
         )
     previous_hook = env._substep_probe_hook
     previous_horizon = env.max_episode_steps

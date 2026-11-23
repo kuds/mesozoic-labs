@@ -1,7 +1,10 @@
 """
 Velociraptor Gymnasium Environment
 
-A bipedal dinosaur locomotion environment with predatory strike behavior.
+A bipedal dinosaur locomotion environment.  The prey sphere is still in the
+scene and the observation (direction and distance) until the next
+policy-interface revision removes it; no reward or termination reads it since
+the hunt was removed (decision D-D59).
 
 Observation space (bipedal-target-heading-free/v1 since policy interface r13, the
 maintainer's decision of 2026-11-06; the life-size plant of physics r5 and
@@ -52,10 +55,6 @@ Reward components:
     - Fall penalty
     - Energy penalty
     - Tail stability
-    - Strike bonus (when claw contacts prey)
-    - Approach shaping (distance to prey)
-    - Proximity bonus (continuous reward for being close to prey)
-    - Claw proximity shaping (reward for positioning claw tip near prey)
     - Posture (continuous deviation from the natural pitch, level since physics r5)
     - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
@@ -97,7 +96,7 @@ from environments.shared.reward_functions import (
 
 
 class VelociraptorMongoliensisEnv(BaseDinoEnv):
-    """Velociraptor locomotion and strike environment.
+    """Velociraptor locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,
@@ -111,10 +110,9 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     MODEL_PATH: Path
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Pelvis height"
-    BEHAVIOR_SECTION_LABEL = "Hunting"
-    # The raptor env only emits strike_success (bite_success was
-    # impossible and was removed).
-    SUCCESS_KEYS = ("strike_success",)
+    #: No success event: the strike, its only one, was removed with the hunt
+    #: (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
 
     # SB3-only since policy-interface revision 11 (plant_versions note 14).
     # The foot observation summed three touch sensors per foot, and the frozen
@@ -141,8 +139,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     #: the T-Rex's lateral-lean pattern).  The stance stage turns all four on:
     #: the first three by the maintainer's decision of 2026-11-06, the neck
     #: home pose with the life-size plant (physics r5, the maintainer's
-    #: decision of 2026-11-08); locomotion, strike and the behaviors leave all
-    #: four off.
+    #: decision of 2026-11-08); locomotion and the behaviors leave all four
+    #: off.
     OPT_IN_TASK_KWARGS = (
         ("tail_home_pose_weight", 0.0, ("tail_home_pose_weight", "tail_home_pose_tolerance")),
         ("floor_impact_weight", 0.0, ("floor_impact_weight", "floor_impact_threshold_bw")),
@@ -209,10 +207,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
         tail_stability_weight: float = 0.05,
-        strike_bonus: float = 10.0,
-        strike_approach_weight: float = 1.0,
-        strike_proximity_weight: float = 0.0,
-        strike_claw_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
         natural_pitch: float = 0.002,
@@ -274,10 +268,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # Raptor-specific reward weights
         self.forward_vel_max = forward_vel_max
         self.tail_stability_weight = tail_stability_weight
-        self.strike_bonus = strike_bonus
-        self.strike_approach_weight = strike_approach_weight
-        self.strike_proximity_weight = strike_proximity_weight
-        self.strike_claw_proximity_weight = strike_claw_proximity_weight
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
         self.gait_symmetry_weight = gait_symmetry_weight
@@ -355,7 +345,10 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         self.prey_distance_range = prey_distance_range
         self.prey_lateral_range = prey_lateral_range
 
-        # State tracking for delta-based rewards
+        # State tracking for delta-based rewards.  _spawn_target still resets
+        # _prev_prey_distance, which no reward reads since the approach
+        # shaping was removed with the hunt (decision D-D59); it leaves with
+        # the prey at the next policy-interface revision.
         self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
 
@@ -399,7 +392,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # servoed leg joints, hips to ankles, as on the T-Rex: since physics r5
         # digits II-IV are passive springs whose angle the ground sets (r4
         # priced its servoed digits III and IV here too), and the sickle claw
-        # is the strike's.  Resolved here rather than in _cache_ids, whose
+        # is not a support joint.  Resolved here rather than in _cache_ids, whose
         # tokens are part of this SB3-only species' policy-interface digest:
         # a reward target is not part of what a checkpoint observes.
         leg_home_joint_names = (
@@ -452,8 +445,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         """Resolve a named MuJoCo element, failing on model drift.
 
         ``mj_name2id`` returns -1 for a missing name and nothing downstream
-        notices: a renamed claw geom silently disables the strike, a renamed
-        head geom silently drops out of the termination set, and
+        notices: a renamed head geom silently drops out of the termination
+        set, and
         ``site_xpos[-1]`` silently reads the model's LAST site.  Every name
         ``_cache_ids`` reads goes through here.
         """
@@ -680,7 +673,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         pelvis_pos = self.data.xpos[self.pelvis_id]
-        prey_pos = self.data.mocap_pos[0]
         forward_ref_2d = self._initial_prey_dir_2d
         vel_2d = self.data.qvel[0:2]
 
@@ -731,53 +723,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         reward_tail, tail_instability = self._compute_tail_stability(self.tail_tip_site_id, self.tail_stability_weight)
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
-
-        # 5. Strike bonus (either claw contacts the prey)
-        struck = self._contact_geom({self.r_claw_geom_id, self.l_claw_geom_id}, self.prey_geom_id) is not None
-        info["strike_success"] = 1.0 if struck else 0.0
-        reward_strike = self.strike_bonus if struck else 0.0
-        info["reward_strike"] = reward_strike
-
-        # 6. Approach shaping
-        prey_distance = float(np.linalg.norm(prey_pos - pelvis_pos))
-        reward_approach, approach_delta = self._compute_approach_shaping(
-            prey_distance, self._prev_prey_distance, self.strike_approach_weight, 10.0
-        )
-        self._prev_prey_distance = prey_distance
-        info["prey_distance"] = prey_distance
-        info["approach_delta"] = approach_delta
-        info["reward_approach"] = reward_approach
-
-        # 6b. Proximity bonus (continuous reward for being close to prey)
-        # Provides a smooth basin of attraction that complements the noisy
-        # delta-based approach reward.  Linearly scales from 0 at max spawn
-        # distance to 1 at the prey location.
-        max_prey_dist = max(self.prey_distance_range[1], 1.0)
-        proximity = max(0.0, 1.0 - prey_distance / max_prey_dist)
-        reward_proximity = self.strike_proximity_weight * proximity
-        info["proximity"] = proximity
-        info["reward_proximity"] = reward_proximity
-
-        # 6c. Claw-to-prey proximity shaping
-        # Uses the actual claw tip positions (not the pelvis) to give the agent
-        # a gradient for positioning its weapon near the prey.  Takes the min
-        # distance of the two claw tips so the agent is rewarded for whichever
-        # claw is closest.  Activates only when the pelvis is already within
-        # max_prey_dist (outer approach is handled by the pelvis-based rewards).
-        r_claw_pos = self.data.site_xpos[self.r_claw_tip_site_id]
-        l_claw_pos = self.data.site_xpos[self.l_claw_tip_site_id]
-        r_claw_dist = float(np.linalg.norm(prey_pos - r_claw_pos))
-        l_claw_dist = float(np.linalg.norm(prey_pos - l_claw_pos))
-        min_claw_dist = min(r_claw_dist, l_claw_dist)
-        # Scale: 1.0 when claw touches prey, 0.0 at claw_proximity_max_dist away.
-        # Use a tighter range than the pelvis proximity since this reward is
-        # meant to guide the final strike positioning.
-        claw_proximity_max_dist = 2.0
-        claw_proximity = max(0.0, 1.0 - min_claw_dist / claw_proximity_max_dist)
-        reward_claw_proximity = self.strike_claw_proximity_weight * claw_proximity
-        info["min_claw_prey_distance"] = min_claw_dist
-        info["claw_proximity"] = claw_proximity
-        info["reward_claw_proximity"] = reward_claw_proximity
 
         # 7. Continuous posture reward centred on the natural pitch (the
         # statue's settled pelvis pitch; 0.115 deg nose-down since physics r5).
@@ -939,10 +884,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             + reward_bilateral_support
             + reward_energy
             + reward_tail
-            + reward_strike
-            + reward_approach
-            + reward_proximity
-            + reward_claw_proximity
             + reward_posture
             + reward_nosedive
             + reward_leg_home_pose
@@ -996,13 +937,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         skull_z = self._clearance(self.data.xpos[self.skull_body_id])
         if self._aggregated_min_height(1, skull_z) < 0.28:
             info["termination_reason"] = "skull_low"
-            return True, info
-
-        # Success: sickle claw contacted prey (only terminate when striking is rewarded)
-        claw_geoms = {self.r_claw_geom_id, self.l_claw_geom_id}
-        if self.strike_bonus > 0 and self._contact_geom(claw_geoms, self.prey_geom_id) is not None:
-            info["termination_reason"] = "strike_success"
-            info["success"] = True
             return True, info
 
         # Floor contact termination (shared): tail_contact, head_contact for

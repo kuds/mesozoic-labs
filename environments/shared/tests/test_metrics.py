@@ -62,34 +62,13 @@ class TestLocomotionMetrics:
         assert result["mean_pelvis_height"] == pytest.approx(0.55)
         assert result["pelvis_height_variance"] > 0
 
-    def test_prey_distance_tracking(self, metrics):
-        distances = [5.0, 4.0, 3.0, 2.0, 1.0, 0.3]
-        for d in distances:
+    def test_prey_distance_is_not_a_metric(self, metrics):
+        """The prey-distance and time-to-target metrics left with the hunt (decision D-D59)."""
+        for d in [5.0, 3.0, 1.0, 0.4]:
             metrics.record_step({"forward_vel": 1.0, "prey_distance": d})
         result = metrics.compute()
-        assert result["initial_prey_distance"] == 5.0
-        assert result["final_prey_distance"] == 0.3
-        assert result["min_prey_distance"] == 0.3
-
-    def test_time_to_target(self, metrics):
-        metrics.dt = 0.5
-        distances = [5.0, 3.0, 1.0, 0.4]  # reaches <0.5 at step 3
-        for d in distances:
-            metrics.record_step({"forward_vel": 1.0, "prey_distance": d})
-        result = metrics.compute()
-        assert result["time_to_target"] == pytest.approx(3 * 0.5)  # 1.5 seconds
-        assert result["target_reached"] == 1.0
-
-    def test_time_to_target_never_reached(self, metrics):
-        import math
-
-        for d in [5.0, 4.0, 3.0]:
-            metrics.record_step({"forward_vel": 1.0, "prey_distance": d})
-        result = metrics.compute()
-        # NaN (not a -1 sentinel) so aggregate_episodes excludes it from
-        # mean_time_to_target; target_reached carries the reach fraction.
-        assert math.isnan(result["time_to_target"])
-        assert result["target_reached"] == 0.0
+        hunt = {"initial_prey_distance", "final_prey_distance", "min_prey_distance", "target_reached"}
+        assert not hunt & set(result) and "time_to_target" not in result
 
     def test_reward_statistics(self, metrics):
         rewards = [1.0, 2.0, 3.0, 4.0]
@@ -143,7 +122,7 @@ class TestLocomotionMetrics:
         metrics.record_step(
             {
                 "forward_vel": 0.0,
-                "bite_success": 0.0,
+                "leg_home_pose_error": 0.0,
                 "r_foot_contact": 75.0,
                 "l_foot_contact": 25.0,
                 "head_tip_z": 0.65,
@@ -159,7 +138,7 @@ class TestLocomotionMetrics:
     def test_stance_metrics_reset(self, metrics):
         metrics.record_step(
             {
-                "bite_success": 0.0,
+                "leg_home_pose_error": 0.0,
                 "r_foot_contact": 1.0,
                 "l_foot_contact": 1.0,
             }
@@ -225,29 +204,45 @@ class TestAggregateEpisodes:
 
 
 class TestSuccessRate:
-    """Episode-level success semantics (success_rate is 0/1 per episode)."""
+    """Episode-level success semantics (success_rate is 0/1 per episode), from the model's success keys only."""
 
     def test_success_on_final_step_counts_as_full_success(self):
-        metrics = LocomotionMetrics()
+        metrics = LocomotionMetrics(success_keys=("course_complete",))
         for _ in range(99):
-            metrics.record_step({"forward_vel": 1.0, "strike_success": 0.0})
-        metrics.record_step({"forward_vel": 1.0, "strike_success": 1.0})
+            metrics.record_step({"forward_vel": 1.0})
+        metrics.record_step({"forward_vel": 1.0, "course_complete": 1.0})
         result = metrics.compute()
         assert result["success_rate"] == 1.0
         assert result["total_successes"] == 1.0
 
-    def test_no_success_is_zero(self):
-        metrics = LocomotionMetrics()
+    def test_an_episode_without_the_key_is_a_failure(self):
+        """An episode whose info never carries a declared success key scores 0."""
+        metrics = LocomotionMetrics(success_keys=("course_complete",))
         for _ in range(10):
-            metrics.record_step({"forward_vel": 1.0, "bite_success": 0.0})
+            metrics.record_step({"forward_vel": 1.0})
         result = metrics.compute()
         assert result["success_rate"] == 0.0
+
+    def test_any_declared_key_counts(self):
+        metrics = LocomotionMetrics(success_keys=("a_success", "b_success"))
+        metrics.record_step({"forward_vel": 1.0, "a_success": 0.0, "b_success": 1.0})
+        assert metrics.compute()["success_rate"] == 1.0
+
+    def test_no_success_keys_report_no_success(self):
+        """A model with no success event reports none, never a zero, even if an info key looks like one."""
+        metrics = LocomotionMetrics()
+        for _ in range(10):
+            metrics.record_step({"forward_vel": 1.0, "bite_success": 1.0, "target_success": 1.0})
+        result = metrics.compute()
+        assert "success_rate" not in result and "total_successes" not in result
+        agg = LocomotionMetrics.aggregate_episodes([result])
+        assert "mean_success_rate" not in agg
 
     def test_aggregated_success_rate_is_episode_fraction(self):
         reports = []
         for success in (1.0, 0.0, 1.0, 1.0):
-            m = LocomotionMetrics()
-            m.record_step({"forward_vel": 1.0, "food_reached": success})
+            m = LocomotionMetrics(success_keys=("target_success",))
+            m.record_step({"forward_vel": 1.0, "target_success": success})
             reports.append(m.compute())
         agg = LocomotionMetrics.aggregate_episodes(reports)
         assert agg["mean_success_rate"] == pytest.approx(0.75)

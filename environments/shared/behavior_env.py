@@ -110,6 +110,9 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         parameters = inspect.signature(self._canonical_env_class).parameters
         # Fixed target, straight-line and stationary objectives conflict with
         # requested turns/stops. Only pass parameters the species supports.
+        # The velociraptor, T. rex, brachiosaurus and dibothrosuchus hunt
+        # kwargs left with their hunt code (decision D-D59); the Compsognathus
+        # target terms remain until the Compsognathus hunt code goes.
         for name in (
             "forward_vel_weight",
             "heading_weight",
@@ -119,21 +122,8 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             "spin_penalty_weight",
             "speed_penalty_weight",
             "idle_penalty_weight",
-            "strike_bonus",
-            "strike_approach_weight",
-            "strike_proximity_weight",
-            "strike_claw_proximity_weight",
-            "food_reach_bonus",
-            "food_approach_weight",
-            "food_head_proximity_weight",
-            "snap_bonus",
-            "snap_approach_weight",
-            "snap_snout_proximity_weight",
             "target_reach_bonus",
             "target_approach_weight",
-            "bite_bonus",
-            "bite_approach_weight",
-            "bite_head_proximity_weight",
         ):
             if name in parameters:
                 env_kwargs[name] = 0.0

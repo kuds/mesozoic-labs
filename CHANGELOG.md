@@ -2390,6 +2390,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `best_model_success_lcb`, `success_count` and `n_success_samples` from its
   projected `stage_result` at write time; a verdict written before this
   change that carries them still reads.
+- **The velociraptor, T. rex, Brachiosaurus and Dibothrosuchus stage tasks
+  moved: no recorded node of those four models is reused, and none resumes**
+  (decision D-D59's amendment of 2026-11-23). The task fingerprint hashes the
+  constructor defaults, so every `task_sha256` of their stance, locomotion
+  and (T. rex) recovery stages and of their 44 behavior recipes moves; their
+  gate, hyperparameter and plant digests do not. A checkpoint of those models
+  still passes the plant check and loads, but `resume_same_stage` (the
+  notebook's RESUME, `--load-mode resume_same_stage`) refuses it naming the
+  differing `env` section, an `initialize_next_stage` warm start records the
+  move as lineage, and ancestor reuse (`TRUNK_FROM = "auto"`, `--trunk-from`)
+  refuses every node recorded before this change, whose verdict names the old
+  task. The rewards every remaining stage computes are unchanged (every hunt
+  weight was zero in those configs), so a retrained node trains the same
+  task; train each model's stance and walk again rather than resuming. No
+  training should start from this change for those four models: the next
+  policy-interface revision, which removes the prey and makes every
+  observation heading-free, moves every task again. The Allosaurus and both
+  Compsognathus models keep every digest, and the committed Compsognathus
+  recovery calibrations still load.
+- **A constructor call or `[env]` table that passes a deleted hunt argument
+  raises `TypeError`; drop the key.** The arguments are `strike_bonus`,
+  `strike_approach_weight`, `strike_proximity_weight`,
+  `strike_claw_proximity_weight` (velociraptor), `bite_bonus`,
+  `bite_approach_weight`, `bite_head_proximity_weight` (T. rex),
+  `food_reach_bonus`, `food_reach_threshold`, `food_approach_weight`,
+  `food_head_proximity_weight` (Brachiosaurus) and `snap_bonus`,
+  `snap_approach_weight`, `snap_snout_proximity_weight` (Dibothrosuchus). A
+  frozen `stage_config.json` of an earlier run of those models records them
+  in its effective config (`reward_weights`); passing that block to the env
+  class raises the same `TypeError`. Code that read the hunt info keys,
+  `SpeciesConfig.behavior_section_label`, the `success_rates` argument of `CurriculumManager.should_advance` /
+  `record_eval` (pass `stance_panel` fourth, or by name),
+  `StageAwareEvalCallback(success_applicable=...)`,
+  `eval_policy_quality(..., success_keys, ...)` or the
+  `collected_results.csv` columns `success_count` / `n_success_episodes`
+  drops them.
+- **The historical T. rex LTSB stance pin is retired**
+  (`environments/shared/tests/test_ltsb_stance_recipe.py`, deleted, not
+  regenerated). It compared this checkpoint's derivation of the committed T.
+  rex stance with what the r10 phase-critic screen `stance7_r10LTSBpc_s42`
+  recorded (task `1e5964b6`, and the r11 task `433d4add` derived from it with
+  the plant), and the T. rex stance task moves with this change. The LTSB
+  certification it guarded finished on 2026-11-08 (`docs/NEXT_STEPS.md`
+  §3); the recipe (`054ab483`, and `c64211e8` with the critic phase on) and
+  the gate (`d26c34e6`) are unchanged, pinned by the digest golden and
+  `test_critic_phase.py`.
 - **Every velociraptor checkpoint must be retrained; none can be widened**
   (velociraptor physics revision 4 → 5, policy interface revision 13 → 14,
   69 → 71 wide and 22 → 17 actions, visual revision 4 → 5; the maintainer's
@@ -2750,6 +2796,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the deleted summaries read `result_bundle_helpers.LADDER_SUMMARY`, a
     schema-2 ladder fixture built from the stance and walk rows of the deleted
     velociraptor PPO summary, and their leaf is the walk.
+
+- **The evaluation's success measurement is driven by each model's
+  `SUCCESS_KEYS`, and a model without one records no success rate rather
+  than a zero** (decision D-D59's amendment of 2026-11-23). After the hunt
+  code's removal the velociraptor, T. rex, Brachiosaurus and Dibothrosuchus
+  declare none; the Allosaurus keeps `course_complete` and the Compsognathus
+  pair `target_success` until its hunt code goes. Of the two ways to treat
+  the success numbers (produce them only for a model that declares success
+  keys, or remove them), the first is the repository's rule for an
+  unmeasured metric (left out, never zero: the velocity keys since review
+  ER4, `reporting.formatting._optional_metric`), and it keeps the
+  Allosaurus' course completion measured. For a model with no success keys:
+  - `evaluation.eval_policy` records no success flag (its `successes` list is
+    empty), so `train_base.run_success_panel` writes neither `success_count`
+    nor `n_success_episodes` and `_post_training_eval_panels` neither
+    `mean_success_rate` nor `best_mean_success_rate` to `metrics.json`;
+  - `reporting.evaluate_stage_checkpoints` records no `mean_success_rate`
+    and leaves `best_model_success_rate` `""`, so the summary's stage row
+    carries `mean_success_rate` and `selected_model_success_rate` as null,
+    `collected_results.csv` leaves both cells blank, and the stage summary
+    prints no success line;
+  - `reporting.save_evaluation_episodes` writes the evidence CSVs
+    (`evaluation_final.csv`, `evaluation_selected.csv`) without a
+    `task_success` column, where it read False in every row by
+    construction;
+  - `LocomotionMetrics(success_keys=...)` (the CLI `eval` passes the model's)
+    reports no `success_rate` and the `eval` log no success line. With keys,
+    it now records one event per step, set when any key is set and whether
+    or not the keys are present, so an episode in which the event never
+    fires counts as a failure (the Allosaurus emits `course_complete` = 0.0
+    every step and 1.0 on the step that ends the episode).
+  The readers follow: publication (`result_bundle.evidence`) accepts evidence
+  without a `task_success` column and then requires the summary's success
+  rates to be null, refusing either one without the other; the summary schema
+  lets a canonical stage row carry null for `mean_success_rate` and
+  `selected_model_success_rate` (`result_schema.NULLABLE_SUCCESS_RATE_METRICS`;
+  both keys stay required); and the backfill tool records no
+  `best_model_success_rate` from evidence without the column. The stage
+  summary's best-model header states the panel size from the panel itself
+  (`reporting.stage_artifacts.EVALUATION_PANEL_EPISODES`, 30, passed as
+  `write_stage_summary(..., evaluation_episodes=...)`); it read
+  `best_model_n_episodes` with a default of 30, a key nothing has written
+  since the task-success gate went. A bundle written before this change, with
+  a `task_success` column of False and a 0.0 rate, still audits as before.
+
+- **The digest snapshot runs its success probe only for a model that declares
+  success keys** (`environments/shared/harnesses/digest_snapshot.py`). The
+  velociraptor, T. rex, Brachiosaurus and Dibothrosuchus `REWARD_PROBE`s are
+  the roll amplitude alone (they named `r_claw_geom`, `head_bite`,
+  `snout_snap` and `head_tip`), and the harness refuses a `REWARD_PROBE` that
+  names an element exactly when its class declares no `SUCCESS_KEYS`, or the
+  reverse. `configs/digest_snapshot.generated.txt` was regenerated with
+  `--block-optional-backends --write` (659 lines, 0 errors): 98 lines move,
+  all of the four models, and no Allosaurus, Compsognathus, plant, policy,
+  gate, hyperparameter, recovery or recipe-file line moves.
+  - `stage … task_sha256` of all nine stages of the four models (velociraptor
+    and Brachiosaurus and Dibothrosuchus stance and locomotion, T. rex stance,
+    recovery and locomotion) and their `stage_config_view_sha256.PPO` / `.SAC`
+    (27 lines): the constructor defaults the fingerprint and
+    `stage_config.json` record lost the hunt arguments, and the stage TOMLs
+    their zero-valued hunt keys.
+  - `behavior … task_sha256` of the four models' 44 behavior recipes, for the
+    same constructor defaults.
+  - `reward … summary` of the nine stages: only the success probe's part
+    (`success=1:-:<sum>`) is gone; every other part's step count, end and
+    reward sum is unchanged.
+  - `reward … shape_sha256` and `rounded_values_sha256` of the nine stages
+    (18 lines): a per-stream comparison against the previous commit's capture
+    finds that every changed stream belongs to the removed success part, is
+    the info stream of a deleted hunt key, or is the flags stream (which
+    hashes the info key list); every reward stream and every other info
+    stream is unchanged. The `poses` lines do not move.
 
 - **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
   check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
@@ -5342,6 +5460,133 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   AST pin that the refusal runs before the dispatch), with refusal cases in
   the manager, backfill, publication, catalog, stage-artifact and walk
   tests; the success-gated plateau tests run on the velocity gate instead.
+- **The hunt reward, termination and arguments of the velociraptor, T. rex,
+  Brachiosaurus and Dibothrosuchus environments, and the success bookkeeping
+  that only the hunt fed** (decision D-D59 and its amendment of 2026-11-23;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). The third change carrying out the
+  hunt's removal. It changes no plant: the prey, food or target object, the
+  hunt-only body parts (the claw collision geoms, `head_bite`, `snout_snap`),
+  `_cache_ids`, `_get_obs`, `_spawn_target`, `BaseDinoEnv.reset`, the MJCF,
+  `configs/plant_versions.toml` and the plant contract are untouched, and
+  `python -m environments.shared.plant_contract --check` is clean, so every
+  checkpoint still passes the plant check. The object and the parts leave in
+  the next policy-interface revision; the Compsognathus pair's target code
+  stays until then too.
+  - Per species, the constructor arguments, the reward terms and their place
+    in the total, the success termination and the info keys:
+    the velociraptor's `strike_bonus`, `strike_approach_weight`,
+    `strike_proximity_weight` and `strike_claw_proximity_weight`
+    (`strike_success`, `reward_strike`, `prey_distance`, `approach_delta`,
+    `reward_approach`, `proximity`, `reward_proximity`,
+    `min_claw_prey_distance`, `claw_proximity`, `reward_claw_proximity`; the
+    `strike_success` termination); the T. rex's `bite_bonus`,
+    `bite_approach_weight` and `bite_head_proximity_weight` (`bite_success`,
+    `reward_bite`, `prey_distance`, `approach_delta`, `reward_approach`,
+    `head_prey_distance`, `head_proximity`, `reward_head_proximity`; the
+    `bite_success` termination); the Brachiosaurus' `food_reach_bonus`,
+    `food_reach_threshold`, `food_approach_weight` and
+    `food_head_proximity_weight` (`head_food_distance`, `prey_distance`,
+    `food_reached`, `reward_food`, `approach_delta`, `reward_approach`,
+    `head_proximity`, `head_food_proximity_distance`,
+    `reward_head_proximity`; the `food_reached` termination), with the
+    food-task replay camera those arguments switched on (9.0 m, azimuth
+    110, elevation -8; no stage config switched it on, so every replay keeps
+    its 5.0 / 135 / -20 framing); and the Dibothrosuchus' `snap_bonus`,
+    `snap_approach_weight` and `snap_snout_proximity_weight` (`snap_success`,
+    `reward_snap`, `snout_prey_distance`, `prey_distance`, `approach_delta`,
+    `reward_approach`, `snout_proximity`, `reward_snout_proximity`; the
+    `snap_success` termination). Each class now refuses those arguments with
+    a `TypeError` and declares `SUCCESS_KEYS = ()`. The `_prev_*` distance
+    attributes `_spawn_target` resets stay, read by nothing, until it is
+    rewritten in the next interface revision.
+  - `BaseDinoEnv._compute_approach_shaping` and
+    `reward_functions.reward_approach_shaping`, whose last callers were these
+    four terms, and `reward_functions.reward_proximity`, which nothing
+    called; their tests in `test_reward_functions.py`.
+  - The zero-valued hunt keys of the four models' stance and locomotion
+    TOMLs (20 lines: `strike_bonus`, `strike_approach_weight`, `bite_bonus`,
+    `bite_approach_weight`, `food_reach_bonus`, `food_approach_weight`,
+    `food_head_proximity_weight`, `snap_bonus`, `snap_approach_weight`,
+    `snap_snout_proximity_weight`); the prey and food ranges stay. The T. rex
+    recovery inherits the stance's `[env]`; no recovery TOML named a hunt
+    key, and no `OPT_IN_TASK_KWARGS` entry named one, so none was carved out.
+  - The four species' entries in `behavior_env.SpeciesBehaviorMixin`'s
+    zeroed-kwarg list (the Compsognathus `target_reach_bonus` and
+    `target_approach_weight` stay), and the callers of the deleted arguments
+    and keys: `environments/brachiosaurus_altithorax/scripts/reference_walk.py`
+    (`food_approach_weight=0`, `food_reach_bonus=0`),
+    `environments/tyrannosaurus_rex/scripts/audit_motion.py` (`bite_bonus`),
+    `environments/velociraptor_mongoliensis/scripts/audit_motion.py`
+    (`strike_bonus`), and the four `scripts/test_env.py` reward-key lists.
+  - `BEHAVIOR_SECTION_LABEL` on all seven species classes and
+    `SpeciesConfig.behavior_section_label`: it labelled only the
+    evaluation log's prey-distance section ("Hunting", "Food Reaching",
+    "Target Reaching"), which is gone with `LocomotionMetrics`' prey-distance
+    and time-to-target metrics (`initial_prey_distance`,
+    `final_prey_distance`, `min_prey_distance`, `target_reached`,
+    `time_to_target`). The Allosaurus' "Forward walking" labelled a section
+    it never printed. `CONTRIBUTING.md` lists the two attributes the registry
+    reads, `HEIGHT_LABEL` and `SUCCESS_KEYS`.
+  - The hunt's telemetry: `DiagnosticsCallback.REWARD_KEYS` loses
+    `reward_strike`, `reward_approach`, `reward_bite`, `reward_food`,
+    `reward_proximity`, `reward_claw_proximity` and `reward_head_proximity`,
+    and `INFO_KEYS` `prey_distance`, `approach_delta`, `strike_success`,
+    `bite_success`, `food_reached`, `head_food_distance` and `jaw_distance`
+    (which nothing emitted), so `diagnostics.npz` and TensorBoard record
+    none of them; the Compsognathus env still emits `reward_approach` and
+    `prey_distance` until its hunt code goes, unrecorded, and its own
+    `reward_target` and `target_success` stay listed until then. The
+    reward-decomposition weight map loses the seven hunt entries, and the
+    behavioral-metrics figure its third row (prey distance and the
+    strike / bite success panel), so it is always 2x2.
+    `stance_diagnostics.STANCE_MARKER_KEYS` loses `bite_success`; the T. rex
+    is still recognised by `leg_home_pose_error`, `head_pelvis_rel_z` and
+    `neck_posture_error`.
+  - The hard-coded success-key tuples (`("bite_success", "strike_success",
+    "food_reached")` twice in `curriculum/advancement.py`, and
+    `LocomotionMetrics`' four-key loop, which missed `snap_success`), the
+    in-training success collection nothing consumed
+    (`CurriculumCallback._read_latest_eval` now returns
+    `(rewards, lengths, n_evals)` and `_run_supplementary_eval`
+    `(forward_vels, episode_reports)`; `_on_step_standalone` collects no
+    flags), `CurriculumManager.should_advance` / `record_eval`'s
+    `success_rates` argument (no caller passed one since the task-success
+    gate went; `stance_panel` is now the fourth positional argument), and
+    `StageAwareEvalCallback`'s `success_applicable` switch with its
+    "Success rate: N/A" line (`build_stage_evaluation_callbacks` always
+    passed `False`; the callback never collects SB3's success buffer, as
+    before).
+  - `eval_policy_quality`'s unused `success_keys` argument.
+  - The `success_count` and `n_success_episodes` columns of
+    `collected_results.csv` (`CSV_METRIC_COLUMNS`): no row builder writes
+    them (they were added under D-B12 for the sweeps' trial rows, and D-D17
+    retired the sweeps), so every row left them blank. `metrics.json` keeps
+    both keys for a model with success keys (Changed).
+  - `environments/shared/tests/test_ltsb_stance_recipe.py`, retired, not
+    regenerated: it pinned the historical T. rex LTSB stance screen's
+    recorded task (`1e5964b6`, and the r11 stance task `433d4add` derived
+    from it), which any T. rex constructor-default change moves. Its
+    fixtures under `tests/fixtures/ltsb_stance/` stay: the critic-phase
+    scenario reads the screen record's plant identity and
+    `test_run_exclusions.py` the screen records. The notebook settings it
+    checked against `docs/NEXT_STEPS.md` §3 belong to the finished LTSB
+    certification (2026-11-08); `docs/NEXT_STEPS.md` carries a dated note.
+  - Two `docs/KNOWN_ISSUES.md` LOW items, closed: `CurriculumCallback` and
+    `LocomotionMetrics` hard-coding the success keys (June §6.4, with its
+    2026-09-28 update on the missing `snap_success` / `target_success`), and
+    `_read_latest_eval`'s `successes.shape[0] == n_evals` guard (July §2),
+    which went with the success read.
+  The success measurement left is driven by each model's `SUCCESS_KEYS`
+  (Changed). Tests: the four species' hunt tests become "pays nothing and
+  ends nothing" tests (a prey or food moved onto the claw, head tip or snout
+  emits no hunt key and terminates nothing; the deleted arguments raise
+  `TypeError`), the total-sum and legacy-order tests drop the hunt terms,
+  the digest snapshot's table pins which models have a success probe, the
+  balance-telemetry key sets lose the hunt keys, and the critic-off
+  scenario's two pre-landing stance task digests are re-pinned
+  (`test_critic_phase.py`: `533fff20` → `cab8c221` on the archived r10 plant,
+  `e9d349f8` → `df516f13` on the current one; its recipe digest does not
+  move).
 - **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
   the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
   `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing

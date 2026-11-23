@@ -184,7 +184,10 @@ def selected_evidence_metrics(
         lengths = [float(row["length"]) for row in rows]
         velocities = [float(row["mean_forward_velocity"]) for row in rows]
         distances = [float(row["distance_traveled"]) for row in rows]
-        successes = [parse_optional_bool(row["task_success"]) for row in rows]
+        # No task_success column: a model with no success keys records no
+        # success flag, so the verdict records no success rate.
+        records_success = "task_success" in rows[0]
+        successes = [parse_optional_bool(row["task_success"]) for row in rows] if records_success else []
     except (KeyError, TypeError, ValueError) as exc:
         raise BackfillError(f"{path} is malformed: {exc}") from exc
     if any(success is None for success in successes):
@@ -193,7 +196,7 @@ def selected_evidence_metrics(
     reward_mean, reward_std = _mean_std(rewards)
     length_mean, length_std = _mean_std(lengths)
     velocity_mean, velocity_std = _mean_std(velocities)
-    return {
+    evidence: dict[str, Any] = {
         "best_model_reward": reward_mean,
         "best_model_std_reward": reward_std,
         "best_model_length": length_mean,
@@ -201,8 +204,10 @@ def selected_evidence_metrics(
         "best_model_fwd_vel": velocity_mean,
         "best_model_std_fwd_vel": velocity_std,
         "best_model_distance": float(statistics.fmean(distances)),
-        "best_model_success_rate": float(statistics.fmean(1.0 if success else 0.0 for success in successes)),
     }
+    if records_success:
+        evidence["best_model_success_rate"] = float(statistics.fmean(1.0 if success else 0.0 for success in successes))
+    return evidence
 
 
 def backfill_gate_verdict(

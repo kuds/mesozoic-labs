@@ -34,7 +34,8 @@ them.
   arranged by comparison with *Terrestrisuchus*. The sole and each digital ray are separate floor contacts, and one
   touch sensor per foot feeds the observation.
 - **Head and surface.** A tapered trunk and tail, a distinct lower jaw, lateral eyes and nares, low frontal ridges and
-  paired dorsal osteoderms give the surface recognizable landmarks. The snap uses a fixed contact geom at the snout.
+  paired dorsal osteoderms give the surface recognizable landmarks. The fixed snout contact geom the snap used stays
+  until the next policy-interface revision.
 - **Known limits.** The incomplete hindlimb leaves the hindfoot's dimensions uncertain. The walk's footfall sequence,
   cadence, tail carriage and toe-off timing are assumptions; living crocodylians use several footfall patterns. The
   reference walk covers one slow, straight walk on level ground.
@@ -120,11 +121,11 @@ Species notes:
 ## Task and rewards
 
 The trained tasks are the stance and the walk; the snap, the hunt that followed the walk, was removed by decision
-D-D59 and no stage trains it. Until the environment change that removes them, a small prey sphere still spawns ahead
-of the animal at reset, just above the ground, the observation still carries its direction and distance, and the snap
-terms below are still in the code, set to zero by every stage config. The model has no articulated jaw: the
-environment reports `snap_success` when the fixed snout geom `snout_snap` touches the prey, and when the snap bonus is
-enabled that ends the episode.
+D-D59. Its reward terms, its `snap_success` termination and its constructor arguments are gone from the code, and the
+model declares no success key. A small prey sphere still spawns ahead of the animal at reset, just above the ground,
+and the observation still carries its direction and distance; the forward and heading terms measure along its initial
+direction. The prey, and with it the fixed snout geom `snout_snap` the snap used, leave with the next
+policy-interface revision.
 
 The observation holds the joint positions and velocities, the trunk orientation quaternion, gyro, linear velocity and
 accelerometer, one touch channel per foot, the prey direction and distance, and the command. Actions are offsets from
@@ -137,9 +138,6 @@ The main reward groups:
   term.
 - **Progress:** forward velocity and heading toward the prey, with penalties on backward, sideways and drifting
   motion, spin, speed above a threshold and standing idle.
-- **Snap** (zero in every stage config since D-D59): a large bonus on contact, shaping on the snout-to-prey distance
-  and a snout-proximity term for the last approach. The shaping is measured from the snout, not the trunk: the skull rides a mobile neck, so trunk-referenced
-  shaping would keep paying after the snout had overshot the prey.
 - **Gait quality:** penalties on trunk and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs (front right with rear left, front left with rear right).
 - **Effort:** an energy penalty on actuator use.
@@ -148,8 +146,8 @@ The weights are the `DibothrosuchusElaphrosEnv` constructor defaults in `base_en
 overridden by the `[env]` table of each stage TOML in
 [`configs/dibothrosuchus_elaphros/anatomical/`](../../configs/dibothrosuchus_elaphros/anatomical/). An episode ends
 when the trunk height leaves its healthy range (the lower bound catches a collapse into a sprawl), the trunk tilts or
-pitches nose-down too far, the snout tip drops to the floor, the skull, snout, trunk, belly or distal tail touches the
-floor, or the snap succeeds. The thresholds are in `base_env.py`, and the review lists them.
+pitches nose-down too far, the snout tip drops to the floor, or the skull, snout, trunk, belly or distal tail touches
+the floor. The thresholds are in `base_env.py`, and the review lists them.
 
 ## Files
 

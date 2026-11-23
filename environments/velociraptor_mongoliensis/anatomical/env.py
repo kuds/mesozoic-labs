@@ -49,9 +49,11 @@ class VelociraptorMongoliensisAnatomicalEnv(VelociraptorMongoliensisEnv):
         "foot_site": "{s}_foot",
     }
     #: The digest snapshot's reward probe: the roll's action-noise amplitude,
-    #: and the MJCF element (kind, name) the success probe moves the target onto.
+    #: and no success-probe element, as the species declares no SUCCESS_KEYS
+    #: since the strike was removed with the hunt (decision D-D59; the probe
+    #: moved the target onto ``r_claw_geom``).
     #: The amplitude is half the largest that keeps every stage up for the
     #: roll's 300 steps (reset seed 1042, action seed 7; no stage pushes):
     #: 0.26 on the physics-r5 plant, where 0.28 nosedives at step 154 on all
     #: three stages (amplitudes 0.02-0.60 by 0.02), so 0.13 (r4: 0.1).
-    REWARD_PROBE = (0.13, "geom", "r_claw_geom")
+    REWARD_PROBE = (0.13,)

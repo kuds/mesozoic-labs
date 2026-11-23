@@ -189,7 +189,8 @@ def test_target_success_requires_slow_upright_arrival(env):
 
 
 def test_target_event_reaches_locomotion_metrics():
-    metrics = LocomotionMetrics()
+    """The model's success keys drive LocomotionMetrics (decision D-D59's amendment), not a hard-coded tuple."""
+    metrics = LocomotionMetrics(success_keys=tuple(CompsognathusLongipesRobotEnv.SUCCESS_KEYS))
     metrics.record_step({"target_success": 1, "forward_vel": 0.0})
     assert metrics.compute()["success_rate"] == 1
 

@@ -765,50 +765,6 @@ def reward_idle_penalty(
 
 
 # ---------------------------------------------------------------------------
-# Approach / proximity
-# ---------------------------------------------------------------------------
-
-
-def reward_approach_shaping(
-    current_distance: Array,
-    prev_distance: Array | None,
-    weight: float,
-    max_speed: float,
-    dt: float,
-) -> tuple[Array, Array]:
-    """Approach shaping reward (reward closing distance).
-
-    Returns:
-        (reward, approach_delta) tuple.
-    """
-    if prev_distance is None:
-        return 0.0, 0.0
-    xp = _array_mod(current_distance)
-    approach_delta = prev_distance - current_distance
-    max_delta = max_speed * dt
-    approach_delta_norm = xp.clip(approach_delta / max_delta, -1.0, 1.0)
-    reward = weight * approach_delta_norm
-    return reward, approach_delta
-
-
-def reward_proximity(
-    distance: Array,
-    max_distance: float,
-    weight: float,
-) -> tuple[Array, Array]:
-    """Continuous proximity reward (1.0 at target, 0.0 at max distance).
-
-    Returns:
-        (reward, proximity) tuple.
-    """
-    xp = _array_mod(distance)
-    safe_max = max(max_distance, 1e-6)  # max_distance is always a plain float
-    proximity = xp.maximum(0.0, 1.0 - distance / safe_max)
-    reward = weight * proximity
-    return reward, proximity
-
-
-# ---------------------------------------------------------------------------
 # Termination checks
 # ---------------------------------------------------------------------------
 

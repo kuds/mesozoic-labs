@@ -179,7 +179,10 @@ def _evaluation_evidence_aggregates(
     Every value is a float except the :data:`_EVIDENCE_HASH_COLUMNS`: the
     digest of the checkpoint the episodes were rolled out from and of the
     VecNormalize statistics they ran under, each ``None`` for evidence written
-    without that column (before it existed, or by the retired sidecar-less JAX path).
+    without that column (before it existed, or by the retired sidecar-less JAX path),
+    and ``success_rate``, ``None`` for evidence with no ``task_success``
+    column: a model that declares no success keys records no success flag
+    (``reporting.save_evaluation_episodes``), never a column of False.
     """
     required_columns = {
         "episode",
@@ -200,10 +203,9 @@ def _evaluation_evidence_aggregates(
     # 2026-08-15 (the bare name was misread as the stage-gate verdict in
     # stance-gated stages). Accept the legacy header so bundles written
     # before the rename still audit; both names carry the same quantity.
+    # Neither is present for a model without success keys.
     success_column = next((name for name in ("task_success", "success") if name in fieldnames), None)
     missing_columns = sorted(required_columns - fieldnames)
-    if success_column is None:
-        missing_columns = sorted([*missing_columns, "task_success"])
     if missing_columns:
         raise ResultBundleError(
             f"{checkpoint_label} evaluation evidence for stage {stage} is missing columns: {missing_columns}"
@@ -261,14 +263,17 @@ def _evaluation_evidence_aggregates(
         reward = _optional_csv_number(row.get("reward"))
         forward_velocity = _optional_csv_number(row.get("mean_forward_velocity"))
         distance = _optional_csv_number(row.get("distance_traveled"))
-        success = _optional_csv_bool(row.get(success_column))
-        if reward is None or forward_velocity is None or distance is None or success is None:
+        success = _optional_csv_bool(row.get(success_column)) if success_column is not None else None
+        if reward is None or forward_velocity is None or distance is None:
+            raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} contains blank values")
+        if success_column is not None and success is None:
             raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} contains blank values")
         rewards.append(reward)
         lengths.append(float(length))
         forward_velocities.append(forward_velocity)
         distances.append(distance)
-        successes.append(float(success))
+        if success is not None:
+            successes.append(float(success))
 
     def _mean(values: Sequence[float]) -> float:
         return math.fsum(values) / len(values)
@@ -288,7 +293,7 @@ def _evaluation_evidence_aggregates(
         "forward_vel": _mean(forward_velocities),
         "forward_vel_std": _population_std(forward_velocities),
         "distance": _mean(distances),
-        "success_rate": _mean(successes),
+        "success_rate": _mean(successes) if success_column is not None else None,
     }
 
 
@@ -369,7 +374,7 @@ def _check_stage_training_record(
 
 def _compare_evaluation_aggregates(
     stage_summary: Mapping[str, Any],
-    aggregates: Mapping[str, float],
+    aggregates: Mapping[str, Any],
     *,
     stage: "int | str",
     label: str,
@@ -377,13 +382,23 @@ def _compare_evaluation_aggregates(
 ) -> None:
     for summary_metric, (aggregate_metric, tolerance) in metric_map.items():
         expected = stage_summary.get(summary_metric)
+        actual = aggregates[aggregate_metric]
+        if actual is None:
+            # Only success_rate can be absent: the evidence of a model with no
+            # success keys has no task_success column, and its summary then
+            # records no rate either (None, never a zero).
+            if expected is not None:
+                raise ResultBundleError(
+                    f"summary records {label} evaluation aggregate {summary_metric}={expected!r} for stage "
+                    f"{stage}, but its {label} evaluation evidence has no task_success column to derive it from"
+                )
+            continue
         if expected is None:
             raise ResultBundleError(
                 f"summary is missing {label} evaluation aggregate {summary_metric} for stage {stage}"
             )
         if not isinstance(expected, (int, float)) or isinstance(expected, bool):
             raise ResultBundleError(f"summary {summary_metric} for stage {stage} must be numeric")
-        actual = aggregates[aggregate_metric]
         if not math.isfinite(float(expected)) or abs(float(expected) - actual) > tolerance:
             raise ResultBundleError(
                 f"{label} evaluation aggregate for stage {stage} {summary_metric} differs: "

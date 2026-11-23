@@ -176,13 +176,15 @@ def test_the_off_path_scenario_restores_the_pre_landing_recipe_on_each_plant():
     assert hyperparameters_sha256(stance, "PPO") == (
         "sha256:9d1598a6b2a96a1f87412bb0398abb49d1f23430aa72462f03cbcd68ab5d7a2e"
     )
-    # The critic-off golden captured physics r10 / policy interface r15 at 4c9d5e9b.
+    # The critic-off golden captured physics r10 / policy interface r15 at 4c9d5e9b, where this task read
+    # 533fff20 (e9d349f8 on the current plant); both moved when the T. rex hunt arguments left its constructor
+    # defaults (decision D-D59's amendment), which changes no reward the stance computes.
     archived = stage_task_fingerprint(
         TYRANNOSAURUS_REX, 1, stage_config=stance, plant_identity=archived_plant_identity()
     )
-    assert archived["task_sha256"] == "sha256:533fff20288d02faea724721992c7d3efca65f7b2f3a6e06c4ad2e716b2bdfda"
+    assert archived["task_sha256"] == "sha256:cab8c2214b2d22050a39b56655d6987a35e843dbd5473fd72767facd792659c0"
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, 1, stage_config=stance)["task_sha256"] == (
-        "sha256:e9d349f82ea53e12ce43dbbb3bcf24aa91dfb466300be6d9d364147b5689ab2a"
+        "sha256:df516f1391423c72ff3ee3e0db939bf41f995fe67f7404cf8c105b19750b9f31"
     )
     assert stance["curriculum_kwargs"]["collapse_peak_floor_reference"] == 3766.6
     assert configs[2] == committed[2]

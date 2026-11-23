@@ -208,8 +208,7 @@ def _total_of_the_other_terms(info) -> float:
     """The total of every other term, in _get_reward_info's order."""
     names = (
         "reward_forward", "reward_backward", "reward_drift", "reward_alive", "reward_energy", "reward_tail",
-        "reward_bite", "reward_approach", "reward_head_proximity", "reward_head_clearance", "reward_neck_posture",
-        "reward_tail_home_pose", "reward_posture", "reward_nosedive", "reward_height", "reward_bilateral_support",
+        "reward_head_clearance", "reward_neck_posture", "reward_tail_home_pose", "reward_posture", "reward_nosedive", "reward_height", "reward_bilateral_support",
         "reward_foot_load_balance", "reward_leg_home_pose", "reward_foot_flatness", "reward_stance_width",
         "reward_gait", "reward_smoothness", "reward_action_jerk", "reward_action_saturation", "reward_heading",
         "reward_lateral", "reward_spin", "reward_speed", "reward_idle", "reward_floor_impact",

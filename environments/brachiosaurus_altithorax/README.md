@@ -117,11 +117,10 @@ Species notes:
 ## Task and rewards
 
 The trained tasks are the stance and the walk; the food reach, the hunt that followed the walk, was removed by
-decision D-D59 and no stage trains it. Until the environment change that removes them, a food target still spawns
-ahead of and above the animal at reset, the observation still carries its direction and distance, and the food-reach
-terms below are still in the code, set to zero by every stage config. The food reach was a distance test: the
-environment reports `food_reached` when the head-tip site comes within a configured distance of the target, and when
-the food-reach bonus is enabled it ends the episode.
+decision D-D59. Its reward terms, its `food_reached` termination and its constructor arguments (with the replay-camera
+widening they switched on) are gone from the code, and the model declares no success key. A food target still spawns
+ahead of and above the animal at reset, and the observation still carries its direction and distance; the forward and
+heading terms measure along its initial direction. The food leaves with the next policy-interface revision.
 
 The observation holds the joint positions and velocities, the torso orientation quaternion, gyro, linear velocity and
 accelerometer, one touch channel per foot, the food direction and distance, and the command. Actions are offsets from
@@ -134,8 +133,6 @@ The main reward groups:
   term.
 - **Progress:** forward velocity and heading toward the food, with penalties on backward, sideways and drifting
   motion, spin, speed above a threshold and standing idle.
-- **Food reach** (zero in every stage config since D-D59): a large bonus on success, shaping on the head-to-food
-  distance and a head-proximity term.
 - **Gait quality:** penalties on torso and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs.
 - **Effort:** an energy penalty on actuator use.
@@ -143,8 +140,8 @@ The main reward groups:
 The weights are the `BrachiosaurusAltithoraxEnv` constructor defaults in `base_env.py`, where most terms are off,
 overridden by the `[env]` table of each stage TOML in
 [`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/). An episode ends
-when the torso height leaves its healthy range or the torso tilts too far, when the torso, belly, head or distal tail
-touches the floor, or when the food is reached. The thresholds are in `base_env.py`.
+when the torso height leaves its healthy range or the torso tilts too far, or when the torso, belly, head or distal
+tail touches the floor. The thresholds are in `base_env.py`.
 
 ## Files
 

@@ -41,6 +41,9 @@ _IMPULSE_EPISODES = 8
 #: Episodes per row in the heading probe (``stance_probe_spawn_yaw_deg``): a
 #: fall or a full horizon again, over 1 + 2 x offsets rows, policy and statue.
 _HEADING_EPISODES = 8
+#: Episodes in each of :func:`evaluate_stage_checkpoints`' two panels, the
+#: final checkpoint's and the selected one's; the stage summary states it.
+EVALUATION_PANEL_EPISODES = 30
 
 
 def build_stage_results_from_eval_data(
@@ -1417,10 +1420,14 @@ def evaluate_stage_checkpoints(
     ``gate_verdict.json``). ``model`` is the in-memory final model right
     after training; ``None`` loads ``<final_path>.zip`` back, validates its
     plant and takes its cumulative step counter as ``timesteps``. Each
-    checkpoint is rolled for 30 episodes on ``evaluation_seed`` under the
-    VecNormalize sidecar it is paired with, and each panel is written as
-    evidence bound to that checkpoint and sidecar; the handoff is the shared
-    selector's (:func:`select_handoff_checkpoint`). Prints the report the
+    checkpoint is rolled for ``EVALUATION_PANEL_EPISODES`` episodes on
+    ``evaluation_seed`` under the VecNormalize sidecar it is paired with, and
+    each panel is written as evidence bound to that checkpoint and sidecar;
+    the handoff is the shared selector's (:func:`select_handoff_checkpoint`).
+    A success rate (``mean_success_rate``, ``best_model_success_rate``) is
+    recorded only for a model that declares success keys
+    (``species_cfg.success_keys``): without them the panels record no success
+    flag, and the rate is left out rather than written as a zero. Prints the report the
     notebook shows. Moved verbatim from the notebook's infrastructure cell
     with its globals as parameters, and unannotated like it (its ``""``
     placeholders become floats), so mypy leaves its body alone.
@@ -1471,7 +1478,7 @@ def evaluate_stage_checkpoints(
     episode_rewards, episode_lengths, episode_fwd_vels, episode_successes, episode_distances = _eval_forward_vel(
         model,
         final_vecnorm_path,
-        n_episodes=30,
+        n_episodes=EVALUATION_PANEL_EPISODES,
     )
     final_eval_path = csv_output.save_evaluation_episodes(
         stage_dir,
@@ -1498,12 +1505,15 @@ def evaluate_stage_checkpoints(
     _probe_env = species_cfg.env_class(**stage_config.get("env_kwargs", {}))
     sim_dt = float(_probe_env.dt)
     _probe_env.close()
-    mean_success_rate = float(np.mean(episode_successes))
     print(f"Eval (final model): mean_reward={mean_reward:.2f} +/- {std_reward:.2f}")
     print(f"Eval: mean_length={mean_length:.1f} +/- {std_length:.1f} steps ({mean_length * sim_dt:.2f}s sim time)")
     print(f"Eval: mean_forward_vel={mean_fwd_vel:.2f} +/- {std_fwd_vel:.2f} m/s")
     print(f"Eval: mean_distance_traveled={mean_distance:.2f} m")
-    print(f"Eval: success_rate={mean_success_rate:.0%}")
+    # Only a model with success keys records success flags (eval_policy).
+    live_success: dict[str, float] = {}
+    if episode_successes:
+        live_success["mean_success_rate"] = float(np.mean(episode_successes))
+        print(f"Eval: success_rate={live_success['mean_success_rate']:.0%}")
 
     # Build base results dict from on-disk eval data (evaluations.npz),
     # then enrich with the live 30-episode evaluation metrics above.
@@ -1531,7 +1541,7 @@ def evaluate_stage_checkpoints(
             "mean_forward_vel": mean_fwd_vel,
             "std_forward_vel": std_fwd_vel,
             "mean_distance_traveled": mean_distance,
-            "mean_success_rate": mean_success_rate,
+            **live_success,
             "sim_dt": sim_dt,
         }
     )
@@ -1583,12 +1593,11 @@ def evaluate_stage_checkpoints(
         vecnorm_save_path = best_vecnorm_candidate
         print(f"Using matched VecNormalize for selected checkpoint: {vecnorm_save_path}")
 
-        # Evaluate the best model over 30 episodes
-        print("Evaluating best model (30 episodes)...")
+        print(f"Evaluating best model ({EVALUATION_PANEL_EPISODES} episodes)...")
         bm_rewards, bm_lengths, bm_fwd_vels, bm_successes, bm_distances = _eval_forward_vel(
             model,
             vecnorm_save_path,
-            n_episodes=30,
+            n_episodes=EVALUATION_PANEL_EPISODES,
         )
         selected_eval_path = csv_output.save_evaluation_episodes(
             stage_dir,
@@ -1610,12 +1619,13 @@ def evaluate_stage_checkpoints(
         best_model_fwd_vel = round(float(np.mean(bm_fwd_vels)), 2)
         best_model_std_fwd_vel = round(float(np.std(bm_fwd_vels)), 2)
         best_model_distance = round(float(np.mean(bm_distances)), 2)
-        best_model_success_rate = round(float(np.mean(bm_successes)), 2)
         print(f"Best model eval:  mean_reward={best_model_reward} +/- {best_model_std_reward}")
         print(f"Best model eval:  mean_length={best_model_length} +/- {best_model_std_length}")
         print(f"Best model eval:  mean_fwd_vel={best_model_fwd_vel} +/- {best_model_std_fwd_vel} m/s")
         print(f"Best model eval:  mean_distance={best_model_distance} m")
-        print(f"Best model eval:  success_rate={best_model_success_rate:.0%}")
+        if bm_successes:
+            best_model_success_rate = round(float(np.mean(bm_successes)), 2)
+            print(f"Best model eval:  success_rate={best_model_success_rate:.0%}")
     else:
         output_path = str(final_path)
         selected_eval_path = csv_output.save_evaluation_episodes(
@@ -1638,7 +1648,8 @@ def evaluate_stage_checkpoints(
         best_model_fwd_vel = round(float(np.mean(episode_fwd_vels)), 3)
         best_model_std_fwd_vel = round(float(np.std(episode_fwd_vels)), 3)
         best_model_distance = round(float(np.mean(episode_distances)), 3)
-        best_model_success_rate = round(float(np.mean(episode_successes)), 4)
+        if episode_successes:
+            best_model_success_rate = round(float(np.mean(episode_successes)), 4)
 
     # The curriculum gate is NOT evaluated here: `generate_stage_artifacts`
     # judges it through the one shared `reporting.gates.evaluate_stage_gate`
@@ -1757,7 +1768,9 @@ def generate_stage_artifacts(
     # After the gate, not before it: the summary now states the verdict and
     # every criterion that failed, and writing it first would print a stage
     # summary that says nothing about the decision the stage turns on.
-    text_summaries.write_stage_summary(stage_dir, stage_results, model_id, algorithm)
+    text_summaries.write_stage_summary(
+        stage_dir, stage_results, model_id, algorithm, evaluation_episodes=EVALUATION_PANEL_EPISODES
+    )
     logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
 
     # Figures and replays render into local scratch and publish to the stage

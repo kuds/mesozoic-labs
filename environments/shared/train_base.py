@@ -107,17 +107,15 @@ class SpeciesConfig:
 
     stage_descriptions: str
     """Short stage legend for ``--stage`` argparse help
-    (e.g. ``"1=stance, 2=locomotion, 3=strike"``)."""
+    (e.g. ``"1=stance, 2=locomotion"``)."""
 
     height_label: str
     """Label used in evaluation log output (``"Pelvis height"`` or ``"Torso height"``)."""
 
-    behavior_section_label: str
-    """Section header for the behavior stage's eval results (``"Hunting"`` or ``"Food Reaching"``)."""
-
     success_keys: list
-    """Info-dict keys that signal a successful episode
-    (e.g. ``["strike_success", "bite_success"]``)."""
+    """Info-dict keys that signal a successful episode (``["course_complete"]``
+    on the Allosaurus); empty for a model with no success event, whose
+    evaluations then record no success rate rather than a zero."""
 
 
 # ── Utility helpers ──────────────────────────────────────────────────────
@@ -2332,8 +2330,9 @@ def _report_hpt_metrics(
 
 
 #: What :func:`run_success_panel` returns beside the ``metrics.json`` entries:
-#: the per-episode rewards, lengths, forward velocities, success flags and
-#: distances of the panel, in :func:`~environments.shared.evaluation.eval_policy` order.
+#: the per-episode rewards, lengths, forward velocities, success flags (none
+#: for a model without success keys) and distances of the panel, in
+#: :func:`~environments.shared.evaluation.eval_policy` order.
 PanelEpisodes = tuple[list[Any], list[Any], list[Any], list[Any], list[Any]]
 
 
@@ -2351,8 +2350,9 @@ def run_success_panel(
     amendment).  Returns the panel's per-episode sequences and the
     ``metrics.json`` entries they add: ``success_count`` /
     ``n_success_episodes``, the exact ``k`` / ``n`` a rounded
-    ``mean_success_rate`` cannot recover (none when the panel recorded no
-    success flag).
+    ``mean_success_rate`` cannot recover.  The panel measures the success
+    event of the model's ``SUCCESS_KEYS``; a model that declares none records
+    no success flag, so neither entry is written.
     """
     episodes: PanelEpisodes = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=n_episodes)
     successes = episodes[3]
@@ -2382,7 +2382,8 @@ def _post_training_eval_panels(
     The velocity/success panel is :func:`run_success_panel`: it records
     ``success_count`` / ``n_success_episodes`` beside ``mean_success_rate``
     — the exact ``k`` / ``n`` a rounded rate cannot recover (decision
-    D-B12).
+    D-B12) — for a model that declares success keys, and none of the three
+    for one that does not.
     """
     import numpy as _np
 
@@ -2446,9 +2447,7 @@ def _post_training_eval_panels(
     from .evaluation import eval_policy_quality
 
     try:
-        quality_metrics = eval_policy_quality(
-            eval_model, eval_env, species_cfg.success_keys, n_episodes=quality_episodes
-        )
+        quality_metrics = eval_policy_quality(eval_model, eval_env, n_episodes=quality_episodes)
         panel.update(quality_metrics)
         logger.info(
             "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",

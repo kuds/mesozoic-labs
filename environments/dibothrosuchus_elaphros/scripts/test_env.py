@@ -25,8 +25,6 @@ REWARD_KEYS = [
     "reward_alive",
     "reward_energy",
     "reward_gait",
-    "reward_snap",
-    "reward_approach",
     "reward_idle",
     "reward_total",
 ]

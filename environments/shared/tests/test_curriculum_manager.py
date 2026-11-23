@@ -245,8 +245,12 @@ class TestCurriculumManager:
         good_vels = [1.0, 1.2, 0.8]
         assert mgr.should_advance(rewards, lengths, good_vels)
 
-    def test_a_success_sample_is_measured_but_never_gates(self):
-        """No gate kind consumes task success since decision D-D59: an all-failure sample still advances."""
+    def test_no_success_sample_is_taken(self):
+        """No gate kind consumes task success since decision D-D59: the manager takes no success argument."""
+        import inspect
+
+        for method in (CurriculumManager.should_advance, CurriculumManager.record_eval):
+            assert "success_rates" not in inspect.signature(method).parameters
         mgr = CurriculumManager(
             model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
@@ -258,8 +262,8 @@ class TestCurriculumManager:
                 },
             },
         )
-        assert mgr.should_advance([100.0] * 3, [500.0] * 3, success_rates=[0.0, 0.0, 0.0])
-        assert mgr.summary()["eval_history"][1][-1]["mean_success_rate"] == 0.0
+        assert mgr.should_advance([100.0] * 3, [500.0] * 3)
+        assert "mean_success_rate" not in mgr.summary()["eval_history"][1][-1]
 
     def test_record_eval_with_forward_vel(self):
         """record_eval should include forward velocity in summary."""
@@ -269,17 +273,6 @@ class TestCurriculumManager:
         )
         summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], forward_velocities=[1.0, 2.0])
         assert summary["mean_forward_vel"] == 1.5
-
-    def test_record_eval_with_success_rate(self):
-        """record_eval should include success rate in summary."""
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
-            stage_thresholds={1: {"min_avg_reward": 0.0, "required_consecutive": 1}},
-        )
-        summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], success_rates=[1.0, 0.0])
-        assert summary["mean_success_rate"] == 0.5
-        # The count and sample size task_success/v1 formed its bound from left with it (decision D-D59).
-        assert not {"success_count", "n_success_samples"} & set(summary)
 
 
 class TestThresholdsFromConfigs:

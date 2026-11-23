@@ -17,6 +17,7 @@ from .reporting_helpers import make_plant_identity as _plant_identity
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 PILOT = ModelId("pilot_species", "anatomical")
 
 
@@ -38,7 +39,7 @@ class TestEvalPolicy:
                     "forward_vel": 1.0 + ep * 0.1,
                 }
                 if done:
-                    info["strike_success"] = float(ep % 2 == 0)
+                    info["course_complete"] = float(ep % 2 == 0)
                 step_returns.append((obs, np.array([1.0]), [done], [info]))
 
         env.step.side_effect = step_returns
@@ -50,7 +51,7 @@ class TestEvalPolicy:
         model.predict.return_value = (np.array([0.0]), None)
 
         rewards, lengths, fwd_vels, successes, distances = eval_policy(
-            model, env, success_keys=["strike_success"], n_episodes=2
+            model, env, success_keys=["course_complete"], n_episodes=2
         )
 
         assert len(rewards) == 2
@@ -64,7 +65,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, lengths, _, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, lengths, _, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert lengths[0] == 4.0
 
@@ -73,7 +74,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        rewards, _, _, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        rewards, _, _, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert rewards[0] == pytest.approx(3.0)  # 3 steps * 1.0 reward
 
@@ -82,7 +83,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert fwd_vels[0] > 0
 
@@ -92,17 +93,28 @@ class TestEvalPolicy:
         obs = np.zeros(10)
         env.reset.return_value = obs
 
-        # Episode 1: strike_success=1.0 in final step
+        # Episode 1: course_complete=1.0 in final step
         env.step.side_effect = [
             (obs, np.array([1.0]), [False], [{"forward_vel": 1.0}]),
-            (obs, np.array([1.0]), [True], [{"forward_vel": 1.0, "strike_success": 1.0}]),
+            (obs, np.array([1.0]), [True], [{"forward_vel": 1.0, "course_complete": 1.0}]),
         ]
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, _, successes, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, _, successes, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert successes[0] == 1.0
+
+    def test_no_success_keys_record_no_success_flags(self):
+        """A model that declares no success keys records no flag, so no success rate (never a zero)."""
+        env = self._make_mock_env(2, steps_per_ep=3)
+        model = MagicMock()
+        model.predict.return_value = (np.array([0.0]), None)
+
+        rewards, lengths, fwd_vels, successes, distances = eval_policy(model, env, success_keys=[], n_episodes=2)
+
+        assert len(rewards) == len(lengths) == len(fwd_vels) == len(distances) == 2
+        assert successes == []
 
     def test_no_forward_vel_defaults_to_zero(self):
         """When forward_vel is missing from info, fwd_vel should be 0.0."""
@@ -115,7 +127,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert fwd_vels[0] == 0.0
 
@@ -131,7 +143,7 @@ class TestEvalPolicyQuality:
                 [True],
                 [
                     {
-                        "bite_success": 0.0,
+                        "leg_home_pose_error": 0.0,
                         "r_foot_contact": 75.0,
                         "l_foot_contact": 25.0,
                     }
@@ -143,7 +155,7 @@ class TestEvalPolicyQuality:
                 [True],
                 [
                     {
-                        "bite_success": 0.0,
+                        "leg_home_pose_error": 0.0,
                         "r_foot_contact": 50.0,
                         "l_foot_contact": 50.0,
                     }
@@ -153,7 +165,7 @@ class TestEvalPolicyQuality:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        result = eval_policy_quality(model, env, success_keys=[], n_episodes=2)
+        result = eval_policy_quality(model, env, n_episodes=2)
 
         assert result["eval_mean_bilateral_support_duty"] == 1.0
         assert result["eval_mean_r_foot_load_share"] == pytest.approx(0.625)
@@ -171,7 +183,7 @@ class TestEvalPolicyQuality:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        result = eval_policy_quality(model, env, success_keys=[], n_episodes=1)
+        result = eval_policy_quality(model, env, n_episodes=1)
 
         assert "eval_mean_bilateral_support_duty" not in result
         assert "eval_mean_r_foot_load_share" not in result
@@ -579,7 +591,7 @@ class TestEvaluateFunction:
         mock_species_cfg = MagicMock()
         mock_species_cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
         mock_species_cfg.height_label = "Pelvis height"
-        mock_species_cfg.behavior_section_label = "Hunting"
+        mock_species_cfg.success_keys = []
 
         stage_configs = {
             1: {"name": "balance", "env_kwargs": {"forward_vel_weight": 0.0}},
@@ -616,7 +628,7 @@ class TestEvaluateFunction:
             model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=MagicMock(),
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
+            success_keys=[],
         )
 
         with (
@@ -651,7 +663,7 @@ class TestEvaluateFunction:
             model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=MagicMock(),
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
+            success_keys=[],
         )
 
         with (
@@ -687,7 +699,7 @@ def _species_cfg():
         model_id=VELOCIRAPTOR_MONGOLIENSIS,
         env_class=MagicMock(),
         height_label="Pelvis height",
-        behavior_section_label="Hunting",
+        success_keys=[],
     )
 
 
@@ -931,7 +943,9 @@ class TestEvaluateSeeding:
                 ),
             ):
                 evaluate(
-                    species_cfg=SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=NoisyEnv),
+                    species_cfg=SimpleNamespace(
+                        model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=NoisyEnv, success_keys=[]
+                    ),
                     stage_configs={1: {"name": "balance", "env_kwargs": {}}},
                     model_path=str(tmp_path / "stage1_model.zip"),
                     n_episodes=4,
@@ -969,7 +983,7 @@ class TestPostEvalEpisodes:
         monkeypatch.setattr(train_base, "_post_training_eval_panels", _panels)
         (tmp_path / "models").mkdir()
         train_base._report_hpt_metrics(
-            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=["strike_success"]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=[]),
             MagicMock(),
             MagicMock(),
             SimpleNamespace(best_mean_reward=12.5),
@@ -1062,7 +1076,7 @@ class TestPostEvalEpisodes:
 
         monkeypatch.setattr(train_base, "eval_policy", eval_policy)
         panel = train_base._post_training_eval_panels(
-            SimpleNamespace(model_id=TYRANNOSAURUS_REX, success_keys=["bite_success"]),
+            SimpleNamespace(model_id=ALLOSAURUS_FRAGILIS, success_keys=["course_complete"]),
             MagicMock(),
             eval_env,
             models,

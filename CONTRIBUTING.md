@@ -183,7 +183,9 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      later robot of the species does not move the anatomical model's
      policy-interface digest
    - Give the species base the class attributes the species registry reads:
-     `HEIGHT_LABEL`, `BEHAVIOR_SECTION_LABEL` and `SUCCESS_KEYS`
+     `HEIGHT_LABEL` and `SUCCESS_KEYS` (the info keys of the model's success
+     event; `()` when it has none, and its evaluations then record no success
+     rate)
    - In `anatomical/env.py`, subclass it as `<Species>AnatomicalEnv` with the
      embodiment's body data: `embodiment = "anatomical"`, `MODEL_PATH` built
      with `ModelId("<species>", "anatomical").asset_path(...)`, `FOOT_SUPPORT`
@@ -192,8 +194,9 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      `toe_line`, all three or none: the ankle, a hinge of the sole's own body
      about its lateral axis, and the support span the whole-foot centre of
      pressure is measured on) and `REWARD_PROBE` (the digest harness's
-     reward-roll amplitude and the MJCF element its success probe moves the
-     target onto)
+     reward-roll amplitude and, only when the species declares
+     `SUCCESS_KEYS`, the MJCF element its success probe moves the target
+     onto)
    - Do not call `gym.register`: `environments/__init__.py` registers every
      model of the species manifest as `MesozoicLabs/<Species>-Anatomical-v0`,
      and the species registry imports the manifest's `env_entrypoint`

@@ -129,11 +129,12 @@ class TestPlotDiagnosticsGraphs:
         )
 
         assert (tmp_path / "behavioral_metrics.png").exists()
-        # No hunting data → 2x2 grid (4 axes)
+        # Always a 2x2 grid (4 axes)
         assert fig2.axes[0] is not None
         assert len(fig2.axes) == 4
 
-    def test_expands_to_3x2_with_hunting_data(self, tmp_path):
+    def test_stays_2x2_with_prey_data(self, tmp_path):
+        """The hunt's third row (prey distance, strike / bite success) left with the hunt (decision D-D59)."""
         matplotlib.use("Agg")
 
         from environments.shared.visualization import plot_diagnostics_graphs
@@ -150,10 +151,10 @@ class TestPlotDiagnosticsGraphs:
             strike_success=np.array([0.0, 0.1]),
         )
 
-        stage_configs = {3: {"name": "Hunting"}}
+        stage_configs = {2: {"name": "Locomotion"}}
 
         fig1, fig2 = plot_diagnostics_graphs(
-            [(3, tmp_path)],
+            [(2, tmp_path)],
             stage_configs,
             model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
@@ -162,8 +163,7 @@ class TestPlotDiagnosticsGraphs:
         )
 
         assert (tmp_path / "behavioral_metrics.png").exists()
-        # Hunting data present → 3x2 grid (6 axes)
-        assert len(fig2.axes) == 6
+        assert len(fig2.axes) == 4
 
     def test_handles_empty_diagnostics(self, tmp_path):
         matplotlib.use("Agg")

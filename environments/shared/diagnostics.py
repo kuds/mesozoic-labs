@@ -72,7 +72,7 @@ class DiagnosticsCallback(_BaseCallback):
 
     Tracked metrics (under ``diagnostics/`` in TensorBoard):
       - Per-component rewards: reward_forward, reward_alive, reward_energy, etc.
-      - Environment state: forward_vel, prey_distance, pelvis_height, tilt_angle
+      - Environment state: forward_vel, pelvis_height, tilt_angle
       - Observation statistics: mean, std, max absolute value (PPO)
       - Action statistics: mean, std, abs_max, and saturation fraction
         (fraction of action components pinned at the control limit) — for
@@ -95,8 +95,8 @@ class DiagnosticsCallback(_BaseCallback):
     The counts behind the fractions are saved too, report-only:
     ``rollout_episodes`` (episodes that ended in the rollout) and
     ``rollout_falls`` (those that terminated, the sum of the per-reason
-    counts: on a task stage its success terminations, such as
-    ``bite_success``, count too), aligned with ``timesteps``; and ``rollout_term_count_<reason>``,
+    counts: a success termination, such as the Allosaurus'
+    ``course_complete``, counts too), aligned with ``timesteps``; and ``rollout_term_count_<reason>``,
     aligned with ``term_timesteps`` like the ``term_<reason>`` fractions and
     back-filled with 0 the same way.  A fraction alone cannot say whether a
     rollout ended two episodes or forty.  The counts are deliberately not
@@ -118,21 +118,15 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_posture",
         "reward_nosedive",
         "reward_smoothness",
-        "reward_strike",
-        "reward_approach",
         "reward_gait",
         "reward_heading",
         "reward_lateral",
         "reward_spin",
         "reward_speed",
         "reward_idle",
-        # Species-specific reward components
-        "reward_bite",  # T-Rex
-        "reward_food",  # Brachiosaurus
+        # Species-specific reward components.  The hunt's (strike, bite, food,
+        # snap, approach and proximity terms) left with it (decision D-D59).
         "reward_height",  # T-Rex, Brachiosaurus
-        "reward_proximity",  # Velociraptor
-        "reward_claw_proximity",  # Velociraptor
-        "reward_head_proximity",  # T-Rex, Brachiosaurus
         "reward_gait_symmetry",  # Brachiosaurus
         # T-Rex Stage 1 stance shaping
         "reward_bilateral_support",
@@ -160,13 +154,12 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_stance_cop_band",
         "reward_support_geom_coverage",  # Compsognathus stance shaping
         "reward_home_pose",  # Compsognathus
-        "reward_target",  # Compsognathus target reaching
+        "reward_target",  # Compsognathus target reaching, until its hunt code goes
         "reward_total",
     ]
     INFO_KEYS = [
         "forward_vel",
         "backward_vel",
-        "prey_distance",
         "pelvis_height",
         "tilt_angle",
         "tail_instability",
@@ -184,10 +177,7 @@ class DiagnosticsCallback(_BaseCallback):
         "heading_alignment",
         "lateral_vel",
         "forward_z",
-        "approach_delta",
-        "strike_success",
-        "bite_success",
-        "target_success",
+        "target_success",  # Compsognathus target reaching, until its hunt code goes
         "r_foot_contact",
         "l_foot_contact",
         "rr_foot_contact",
@@ -198,10 +188,7 @@ class DiagnosticsCallback(_BaseCallback):
         "spin_instability",
         "distance_traveled",
         "abs_speed",
-        "food_reached",
-        "head_food_distance",  # Brachiosaurus
-        "torso_height",  # Brachiosaurus
-        "jaw_distance",  # T-Rex
+        "torso_height",  # Brachiosaurus, Dibothrosuchus
         # Fraction of actuators parked past the saturation threshold — the
         # raw signal behind reward_action_saturation.
         "action_saturation",

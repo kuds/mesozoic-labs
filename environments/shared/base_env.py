@@ -35,7 +35,6 @@ from .reward_functions import reward_action_jerk as _reward_action_jerk_pure
 from .reward_functions import reward_action_smoothness as _reward_action_smoothness_pure
 from .reward_functions import reward_alive as _reward_alive_pure
 from .reward_functions import reward_angular_velocity_penalty as _reward_angular_velocity_penalty_pure
-from .reward_functions import reward_approach_shaping as _reward_approach_shaping_pure
 from .reward_functions import reward_backward_penalty as _reward_backward_penalty_pure
 from .reward_functions import reward_drift_penalty as _reward_drift_penalty_pure
 from .reward_functions import reward_energy as _reward_energy_pure
@@ -609,27 +608,6 @@ class BaseDinoEnv(gym.Env, ABC):
         instability_norm = min(instability / max_angvel, 1.0)
         reward = -weight * instability_norm
         return reward, instability
-
-    def _compute_approach_shaping(
-        self,
-        current_distance: float,
-        prev_distance: "float | None",
-        weight: float,
-        max_speed: float,
-    ) -> tuple[float, float]:
-        """Compute approach shaping reward (reward closing distance, penalise retreating).
-
-        Args:
-            current_distance: Current distance to target.
-            prev_distance: Previous step's distance (None on first step).
-            weight: Approach shaping weight.
-            max_speed: Maximum expected approach speed (m/s) for normalisation.
-
-        Returns:
-            (reward, approach_delta) tuple.
-        """
-        dt = self.frame_skip * self.model.opt.timestep
-        return _reward_approach_shaping_pure(current_distance, prev_distance, weight, max_speed, dt)
 
     # ------------------------------------------------------------------
     # Reward terms shared by T-Rex, velociraptor, brachiosaurus and

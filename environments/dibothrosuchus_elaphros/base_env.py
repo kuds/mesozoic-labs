@@ -2,9 +2,10 @@
 Dibothrosuchus elaphros Gymnasium Environment
 
 A small, gracile sphenosuchian crocodylomorph with erect (parasagittal) limbs
-and hindlimbs longer than its forelimbs.  The Stage 3 task uses contact between
-a fixed snout-tip geom and small prey as a "snap" proxy; the model has no
-articulated jaw.
+and hindlimbs longer than its forelimbs.  The prey sphere is still in the
+scene and the observation (direction and distance) until the next
+policy-interface revision removes it; no reward or termination reads it since
+the snap was removed with the hunt (decision D-D59).
 
 Observation space (total dimension is generated in the public species catalog):
     - Joint positions (qpos[7:]) — 28 hinge
@@ -43,9 +44,6 @@ Reward components:
     - Spin penalty (penalize trunk angular velocity)
     - Speed penalty (penalise absolute speed above threshold)
     - Idle penalty (penalise standing still)
-    - Snap-proxy bonus (fixed snout geom contacts prey)
-    - Approach shaping (snout-to-prey distance)
-    - Snout proximity shaping (reward aiming the snout at the prey)
 """
 
 from __future__ import annotations
@@ -61,7 +59,7 @@ from environments.shared.direction_commands import DirectionCommandConfig
 
 
 class DibothrosuchusElaphrosEnv(BaseDinoEnv):
-    """Dibothrosuchus quadrupedal locomotion and snout-snap environment.
+    """Dibothrosuchus quadrupedal locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,
@@ -75,8 +73,9 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
     MODEL_PATH: Path
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Trunk height"
-    BEHAVIOR_SECTION_LABEL = "Hunting"
-    SUCCESS_KEYS = ("snap_success",)
+    #: No success event: the snap, its only one, was removed with the hunt
+    #: (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
 
     # SB3 only since policy interface r10 (configs/plant_versions.toml note
     # 23): the frozen MJX interface core (D-D17) was removed with this
@@ -119,9 +118,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
         forward_vel_max: float = 3.0,
-        snap_bonus: float = 10.0,
-        snap_approach_weight: float = 1.0,
-        snap_snout_proximity_weight: float = 0.0,
         # Read only by the retired MJX reward, which gated its alive bonus on
         # foot contact and paid a per-step grounded bonus; this env gets the
         # same effect from snout-contact and body-contact termination.  They
@@ -172,9 +168,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         self.idle_penalty_weight = idle_penalty_weight
         self.idle_velocity_threshold = idle_velocity_threshold
         self.forward_vel_max = forward_vel_max
-        self.snap_bonus = snap_bonus
-        self.snap_approach_weight = snap_approach_weight
-        self.snap_snout_proximity_weight = snap_snout_proximity_weight
         self.foot_contact_weight = foot_contact_weight
         self.foot_contact_gate = foot_contact_gate
         self.nosedive_termination_threshold = nosedive_termination_threshold
@@ -190,7 +183,10 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         self.prey_distance_range = prey_distance_range
         self.prey_lateral_range = prey_lateral_range
 
-        # State tracking for delta-based rewards
+        # State tracking for delta-based rewards.  _spawn_target still resets
+        # _prev_snout_prey_distance, which no reward reads since the approach
+        # shaping was removed with the snap (decision D-D59); it leaves with
+        # the prey at the next policy-interface revision.
         self._prev_snout_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
 
@@ -381,7 +377,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         torso_pos = self.data.xpos[self.torso_id]
-        prey_pos = self.data.mocap_pos[0]
         forward_ref_2d = self._initial_prey_dir_2d
         vel_2d = self.data.qvel[0:2]
 
@@ -409,34 +404,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         reward_tail, tail_instability = self._compute_tail_stability(self.tail_tip_site_id, self.tail_stability_weight)
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
-
-        # 6. Snap bonus (check snout-prey contact)
-        snapped = self._contact_geom({self.snout_snap_geom_id}, self.prey_geom_id) is not None
-        info["snap_success"] = 1.0 if snapped else 0.0
-        reward_snap = self.snap_bonus if snapped else 0.0
-        info["reward_snap"] = reward_snap
-
-        # 7. Approach shaping.  Measured from the SNOUT rather than the trunk:
-        # the snout leads the strike on a 0.16m skull carried on a mobile neck,
-        # so trunk distance would keep rewarding approach after the snout has
-        # already overshot.
-        snout_tip_pos = self.data.site_xpos[self.snout_tip_site_id]
-        snout_prey_dist = float(np.linalg.norm(prey_pos - snout_tip_pos))
-        reward_approach, approach_delta = self._compute_approach_shaping(
-            snout_prey_dist, self._prev_snout_prey_distance, self.snap_approach_weight, 3.0
-        )
-        self._prev_snout_prey_distance = snout_prey_dist
-        info["snout_prey_distance"] = snout_prey_dist
-        info["prey_distance"] = snout_prey_dist  # alias for LocomotionMetrics
-        info["approach_delta"] = approach_delta
-        info["reward_approach"] = reward_approach
-
-        # 7b. Snout-to-prey proximity shaping (continuous aiming gradient)
-        snout_proximity_max_dist = 1.5
-        snout_proximity = max(0.0, 1.0 - snout_prey_dist / snout_proximity_max_dist)
-        reward_snout_proximity = self.snap_snout_proximity_weight * snout_proximity
-        info["snout_proximity"] = snout_proximity
-        info["reward_snout_proximity"] = reward_snout_proximity
 
         # 8. Continuous posture reward
         torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
@@ -508,9 +475,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
             + reward_energy
             + reward_gait_stability
             + reward_tail
-            + reward_snap
-            + reward_approach
-            + reward_snout_proximity
             + reward_posture
             + reward_nosedive
             + reward_height
@@ -544,13 +508,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         info["snout_tip_z"] = snout_tip_z
         if self._aggregated_min_height(0, snout_tip_z) < 0.04:
             info["termination_reason"] = "head_contact"
-            return True, info
-
-        # Success: snout snap geom contacted the prey.  Gated on snap_bonus so
-        # stages 1-2 don't end episodes on incidental contact.
-        if self.snap_bonus > 0 and self._contact_geom({self.snout_snap_geom_id}, self.prey_geom_id) is not None:
-            info["termination_reason"] = "snap_success"
-            info["success"] = True
             return True, info
 
         # Floor contact termination (shared) — categorized by body part

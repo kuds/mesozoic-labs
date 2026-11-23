@@ -49,8 +49,6 @@ def run_walk(seed: int = 0, reset_noise: float = 0.0) -> tuple[EpisodeTrace, np.
         reset_noise_scale=reset_noise,
         food_distance_range=(50, 50),
         food_lateral_range=(0, 0),
-        food_approach_weight=0,
-        food_reach_bonus=0,
     )
     try:
         env.max_episode_steps = round((START + 9 * PERIOD) / env.dt)

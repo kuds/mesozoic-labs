@@ -92,6 +92,12 @@ RESULT_SCHEMA_VERSION = 5
 #: summaries name retired species IDs and are refused.
 SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({2, RESULT_SCHEMA_VERSION})
 ALLOWED_BUNDLE_STATUSES = frozenset({"complete", "partial", "failed"})
+#: The stage-row success rates a canonical summary must carry but may leave
+#: null: a model that declares no success keys (the hunt's were removed by
+#: decision D-D59) records no success flag, so its rate is null rather than a
+#: zero.  Publication cross-checks the null against the evaluation evidence,
+#: which then has no ``task_success`` column.
+NULLABLE_SUCCESS_RATE_METRICS = frozenset({"mean_success_rate", "selected_model_success_rate"})
 #: Exactly the fields of one ``provenance.deliverables`` record (schema v4).
 #: ``replication`` is ``{count, runs: [{run_id, training_seed}]}``: this run
 #: first, then its replicates (decisions D-B10/D-B16; ``shared.replication``).
@@ -1507,7 +1513,7 @@ def validate_result_summary(
                     raise ResultSchemaError(f"{metric_key} is required for canonical {prefix}")
                 continue
             metric_value = _optional_number(raw_stage[metric_key], field=f"{metric_key} for {prefix}")
-            if canonical_provenance and metric_value is None:
+            if canonical_provenance and metric_value is None and metric_key not in NULLABLE_SUCCESS_RATE_METRICS:
                 raise ResultSchemaError(f"{metric_key} must be a finite number for canonical {prefix}")
         for metric_key in (
             "final_eval_std",
@@ -1521,7 +1527,7 @@ def validate_result_summary(
                     raise ResultSchemaError(f"{metric_key} is required for canonical {prefix}")
                 continue
             metric_value = _optional_number(raw_stage[metric_key], field=f"{metric_key} for {prefix}")
-            if canonical_provenance and metric_value is None:
+            if canonical_provenance and metric_value is None and metric_key not in NULLABLE_SUCCESS_RATE_METRICS:
                 raise ResultSchemaError(f"{metric_key} must be a finite number for canonical {prefix}")
         for metric_key in ("best_eval_std", "best_eval_step", "training_time_seconds"):
             if metric_key in raw_stage:

@@ -12,7 +12,7 @@ export const MODEL = requireModel('dibothrosuchus_elaphros', 'anatomical');
 
 # Dibothrosuchus Model
 
-A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs. Its manifest (`configs/dibothrosuchus_elaphros/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the snout-contact snap hunt that followed walk was removed by decision D-D59. See [Behavior Recipes](/docs/training/recipes).
+A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs. Its manifest (`configs/dibothrosuchus_elaphros/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the snout-contact snap hunt that followed walk was removed by decision D-D59, and its reward, termination and constructor arguments are gone from the environment; the prey sphere is still in the scene and the observation, and leaves with the next policy-interface revision. See [Behavior Recipes](/docs/training/recipes).
 
 <SpeciesCatalog species={MODEL} />
 

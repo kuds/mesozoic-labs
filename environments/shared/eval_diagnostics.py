@@ -311,17 +311,16 @@ except ImportError:
 
 
 class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
-    """SB3 ``EvalCallback`` with stage-aware success and velocity capture.
+    """SB3 ``EvalCallback`` with stage-aware velocity and duty capture.
 
     Stable-Baselines3 prints a success rate whenever an environment emits
-    terminal ``info["is_success"]``.  The dinosaur environments intentionally
-    keep emitting that standard field, but success is only an evaluation
-    metric when *success_applicable* is set, and no stage sets it: the
-    success gates (``min_success_rate`` and ``task_success/v1``) were
-    removed with the hunt nodes (decision D-D59), and
-    :func:`build_stage_evaluation_callbacks` passes ``False``.  Without it
-    this callback suppresses collection and prints an explicit ``N/A``
-    instead of a misleading ``0.00%``.
+    terminal ``info["is_success"]``.  The dinosaur environments keep emitting
+    that standard field, but this callback never collects it: no gate kind
+    reads an in-training success sample since decision D-D59 removed
+    ``min_success_rate`` and ``task_success/v1`` with the hunt nodes, so the
+    evaluation prints no success rate rather than a misleading ``0.00%``.  A
+    model's success event (its ``SUCCESS_KEYS``) is measured by the
+    post-training panels instead.
 
     Mean forward velocity is also captured for every evaluation episode so
     the plateau diagnostic can follow the Stage 2 locomotion gate without
@@ -456,7 +455,6 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         eval_env: Any,
         *,
         stage: "int | str",
-        success_applicable: bool,
         settle_steps: int = 0,
         model_id: "ModelId | None" = None,
         horizon: int = 1000,
@@ -471,7 +469,6 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             )
         super().__init__(eval_env, **kwargs)
         self.stage = stage
-        self.success_applicable = success_applicable
         self.settle_steps = int(settle_steps)
         self.model_id = model_id
         self.horizon = int(horizon)
@@ -1287,7 +1284,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         return str(reason) if reason else "terminated"
 
     def _log_success_callback(self, locals_: dict[str, Any], globals_: dict[str, Any]) -> None:
-        """Capture evaluation velocity and duty, conditionally delegate success."""
+        """Capture evaluation velocity and duty; never delegate SB3's success collection."""
 
         info = locals_["info"]
         env_index = int(locals_.get("i", 0))
@@ -1348,9 +1345,6 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
 
         if self.report_extensions:
             self._capture_term_split(terms, env_index, bool(locals_["done"]))
-
-        if self.success_applicable:
-            super()._log_success_callback(locals_, globals_)
 
     def _capture_term_split(self, terms: Mapping[str, float], env_index: int, done: bool) -> None:
         """Sum each episode's reward terms apart, and at its end add them to the full-horizon or the fallen sums.
@@ -1495,8 +1489,6 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 self._publish_reward_terms_split()
                 self._publish_screen()
                 self._publish_ledger()
-            if not self.success_applicable and self.verbose >= 1:
-                print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
         return bool(continue_training)
 
@@ -2726,9 +2718,6 @@ def build_stage_evaluation_callbacks(
     eval_callback = StageAwareEvalCallback(
         eval_env,
         stage=stage,
-        # No gate kind consumes task success since decision D-D59 removed
-        # min_success_rate and task_success/v1 with the hunt nodes.
-        success_applicable=False,
         # Taken from the stage's own gate declaration so the duty this
         # callback measures uses the same settling window the gate compares
         # it against. Absent (any non-stance gate) it is 0, which measures the

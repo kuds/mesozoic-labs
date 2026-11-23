@@ -153,7 +153,7 @@ class TestPublishedAtomically:
         (tmp_path / "models").mkdir()
         with pytest.raises(OSError, match="reclaimed"):
             train_base._report_hpt_metrics(
-                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=["strike_success"]),
+                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=[]),
                 MagicMock(),
                 MagicMock(),
                 SimpleNamespace(best_mean_reward=12.5),
@@ -268,7 +268,7 @@ class TestBytesUnchanged:
 
         (tmp_path / "models").mkdir()
         train_base._report_hpt_metrics(
-            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=["strike_success"]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=[]),
             MagicMock(),
             MagicMock(),
             SimpleNamespace(best_mean_reward=12.5),

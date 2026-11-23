@@ -28,5 +28,7 @@ class BrachiosaurusAltithoraxAnatomicalEnv(BrachiosaurusAltithoraxEnv):
         "foot_site": "{s}_foot_contact",
     }
     #: The digest snapshot's reward probe: the roll's action-noise amplitude,
-    #: and the MJCF element (kind, name) the success probe moves the target onto.
-    REWARD_PROBE = (0.2, "site", "head_tip")
+    #: and no success-probe element, as the species declares no SUCCESS_KEYS
+    #: since the food reach was removed with the hunt (decision D-D59; the
+    #: probe moved the food onto ``head_tip``).
+    REWARD_PROBE = (0.2,)

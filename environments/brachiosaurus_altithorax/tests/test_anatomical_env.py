@@ -36,22 +36,6 @@ class TestBrachiosaurusAltithoraxSpecific:
         assert "r_foot_contact" in info
         assert "l_foot_contact" in info
 
-    def test_head_food_distance_reported(self, env):
-        """Head-food distance should be tracked in info."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert "head_food_distance" in info
-        assert info["head_food_distance"] > 0  # Food starts far away
-
-    def test_food_not_reached_initially(self, env):
-        """Food is far away on first step."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["food_reached"] == 0.0
-        assert info["reward_food"] == 0.0
-
     def test_gait_reward_non_positive(self, env):
         """Gait stability reward is a penalty (non-positive) for angular velocity."""
         env.reset(seed=42)
@@ -61,60 +45,41 @@ class TestBrachiosaurusAltithoraxSpecific:
         assert info["gait_instability"] >= 0.0
 
 
-class TestFoodReachGating:
-    """Success termination must be gated on food_reach_bonus > 0 (matches
-    raptor/trex strike/bite gating) so stages 1-2 don't end episodes on
-    accidental head-food proximity."""
+class TestNoFoodReach:
+    """The food reach was removed with the hunt (decision D-D59).
 
-    def test_no_success_termination_when_bonus_zero(self):
-        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=0.0)
-        try:
-            env.reset(seed=42)
-            # Teleport food onto the head tip to force proximity
-            head_tip = env.data.site_xpos[env.head_tip_site_id].copy()
-            env.data.mocap_pos[0] = head_tip
-            terminated, info = env._is_terminated()
-            assert info.get("termination_reason") != "food_reached"
-            assert not info.get("success", False)
-        finally:
-            env.close()
+    The food sphere stays in the scene and the observation until the next
+    policy-interface revision removes it; nothing pays for, records or ends an
+    episode on reaching it, the species declares no success key, and the replay
+    camera keeps the locomotion framing it always used on the walk and stance
+    configs (the food-reach widening went with its kwargs).
+    """
 
-    def test_success_termination_when_bonus_positive(self):
-        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=10.0)
-        try:
-            env.reset(seed=42)
-            head_tip = env.data.site_xpos[env.head_tip_site_id].copy()
-            env.data.mocap_pos[0] = head_tip
-            terminated, info = env._is_terminated()
-            assert terminated
-            assert info["termination_reason"] == "food_reached"
-            assert info["success"] is True
-        finally:
-            env.close()
+    def test_food_on_the_head_tip_pays_nothing_and_ends_nothing(self, env):
+        env.reset(seed=42)
+        env.data.mocap_pos[0] = env.data.site_xpos[env.head_tip_site_id].copy()
+        _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        hunt = {
+            "food_reached",
+            "reward_food",
+            "head_food_distance",
+            "prey_distance",
+            "approach_delta",
+            "reward_approach",
+            "head_proximity",
+            "head_food_proximity_distance",
+            "reward_head_proximity",
+        }
+        assert not hunt & set(info)
+        terminated, info = env._is_terminated()
+        assert info.get("termination_reason") != "food_reached"
+        assert not info.get("success", False)
 
-
-class TestFoodReachCamera:
-    """The replay camera widens for the food-reach task so the elevated food
-    (2-3.5 m up, 1.5-4 m ahead) is in frame, instead of the ground-level
-    locomotion framing that leaves it out of view."""
-
-    def test_default_locomotion_camera_when_food_task_inactive(self):
-        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=0.0, food_approach_weight=0.0)
-        try:
-            assert env._camera_distance == 5.0
-            assert env._camera_azimuth == 135
-            assert env._camera_elevation == -20
-        finally:
-            env.close()
-
-    def test_camera_widens_when_food_task_active(self):
-        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=1000.0, food_approach_weight=3.0)
-        try:
-            assert env._camera_distance == 9.0
-            assert env._camera_azimuth == 110
-            assert env._camera_elevation == -8
-        finally:
-            env.close()
+    def test_no_success_key_no_food_kwarg_and_the_locomotion_camera(self, env):
+        assert BrachiosaurusAltithoraxAnatomicalEnv.SUCCESS_KEYS == ()
+        with pytest.raises(TypeError, match="food_reach_bonus"):
+            BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=10.0)
+        assert (env._camera_distance, env._camera_azimuth, env._camera_elevation) == (5.0, 135, -20)
 
 
 def test_neck_support_reach_and_recovery(env):

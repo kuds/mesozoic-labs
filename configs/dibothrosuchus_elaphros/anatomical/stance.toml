@@ -23,10 +23,7 @@ heading_weight = 0.1                           # Small heading reward to prevent
 gait_symmetry_weight = 0.0                     # Disable: diagonal-pair alternation is meaningless while standing still
 height_weight = 1.0                            # Hold the trunk near the 0.313 m settled stance
 fall_penalty = -100.0
-snap_bonus = 0.0
-snap_approach_weight = 0.0                     # Must be explicit — the species default would otherwise leak the approach gradient into stage 1
-snap_snout_proximity_weight = 0.0
-prey_distance_range = [4.0, 6.0]               # Far enough that approach is never incidentally rewarded
+prey_distance_range = [4.0, 6.0]               # The prey sets only the forward and heading reference since D-D59 removed the snap
 max_episode_steps = 1000
 reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT_VALIDATION §7/§12): joint-angle jitter
                                                # in RADIANS, and the same scalar bounds the uniform qvel kick. The old

@@ -75,13 +75,15 @@ class TestHeadFloorTermination:
 class TestTyrannosaurusRexSpecific:
     """T-Rex-specific reward component tests."""
 
-    def test_bite_not_triggered_initially(self, env):
-        """Prey is far away on first step."""
+    def test_no_bite_is_emitted_and_no_success_key_declared(self, env):
+        """The bite left with the hunt (decision D-D59): no bite key, no success key, no bite kwarg."""
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        assert info["bite_success"] == 0.0
-        assert info["reward_bite"] == 0.0
+        assert not {"bite_success", "reward_bite", "reward_approach", "reward_head_proximity"} & set(info)
+        assert TyrannosaurusRexAnatomicalEnv.SUCCESS_KEYS == ()
+        with pytest.raises(TypeError, match="bite_bonus"):
+            TyrannosaurusRexAnatomicalEnv(bite_bonus=10.0)
 
     def test_height_reward_non_negative(self, env):
         """Height reward should be non-negative (bonus for staying upright)."""

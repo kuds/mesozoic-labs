@@ -18,7 +18,6 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
 
     MODEL_PATH: Path
     HEIGHT_LABEL = "Pelvis height"
-    BEHAVIOR_SECTION_LABEL = "Forward walking"
     SUCCESS_KEYS = ("course_complete",)
     supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"

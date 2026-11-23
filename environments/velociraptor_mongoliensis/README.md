@@ -121,10 +121,10 @@ Species notes:
 ## Task and rewards
 
 The trained tasks are the stance and the walk; the strike, the hunt that followed the walk, was removed by decision
-D-D59 and no stage trains it. Until the environment change that removes them, a prey sphere still spawns ahead of the
-animal at a random distance and side offset, the observation still carries its direction and distance, and the strike
-terms below are still in the code, set to zero by every stage config. The environment reports `strike_success` when a
-sickle-claw geom contacts the prey while the strike reward is on; that contact ends the episode.
+D-D59. Its reward terms, its `strike_success` termination and its constructor arguments are gone from the code, and the
+model declares no success key. A prey sphere still spawns ahead of the animal at a random distance and side offset, and
+the observation still carries its direction and distance; the forward and heading terms measure along its initial
+direction. The prey, and with it the claw collision geoms, leave with the next policy-interface revision.
 
 The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
 and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one channel per
@@ -137,8 +137,6 @@ The main reward groups:
 - **Survival and posture:** an alive bonus, a posture term centered on the settled pitch, an optional nosedive
   penalty, and a fall penalty.
 - **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
-- **Strike** (zero in every stage config since D-D59): approach shaping, optional proximity terms, and a bonus on
-  claw contact.
 - **Stance quality** (stance stage only): support under both feet, the home leg, tail and neck poses, and penalties
   on floor impacts, airborne physics substeps, action jerk and commands held at their limits.
 - **Effort:** energy, action smoothness and tail stability.
@@ -146,8 +144,8 @@ The main reward groups:
 The weights are the `VelociraptorMongoliensisEnv` constructor defaults in `base_env.py`, overridden by the `[env]`
 table of each stage TOML in
 [`configs/velociraptor_mongoliensis/anatomical/`](../../configs/velociraptor_mongoliensis/anatomical/). An episode
-ends on a fall or launch, excessive tilt or a nosedive, the head tip or skull dropping too low, the trunk, skull or
-distal tail touching the floor, or a strike. The thresholds are in `base_env.py`.
+ends on a fall or launch, excessive tilt or a nosedive, the head tip or skull dropping too low, or the trunk, skull or
+distal tail touching the floor. The thresholds are in `base_env.py`.
 
 ## Files
 

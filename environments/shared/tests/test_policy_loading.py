@@ -962,7 +962,7 @@ def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]
     monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
     monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
     monkeypatch.setitem(sys.modules, "mediapy", SimpleNamespace())
-    species_cfg: Any = SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object, success_keys=["bite_success"])
+    species_cfg: Any = SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object, success_keys=[])
     models = tmp_path / "models"
     models.mkdir()
     (models / "robust_best_model.zip").write_bytes(b"weights")

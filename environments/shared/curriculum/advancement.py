@@ -40,9 +40,11 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
     When an ``eval_callback`` is provided, this callback piggybacks on
     its evaluation results (reward / episode length) instead of running
     a redundant full eval pass. ``StageAwareEvalCallback`` also supplies
-    per-episode forward velocity and task success from that same sample.
+    per-episode forward velocity from that same sample.
     A small supplementary eval remains for the richer locomotion report and
-    as a compatibility fallback for a plain SB3 ``EvalCallback``.
+    as a compatibility fallback for a plain SB3 ``EvalCallback``.  No
+    success sample is collected: no gate kind reads one since decision D-D59
+    removed ``task_success/v1`` and ``min_success_rate`` with the hunt nodes.
 
     Args:
         curriculum_manager: The manager tracking stage progress.
@@ -51,8 +53,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         n_eval_episodes: Number of episodes per evaluation (used only
             when no *eval_callback* is provided).
         eval_callback: Optional ``EvalCallback`` to read results from.
-            When set, the callback reads reward/length (and per-episode
-            successes, when the env reports ``info["is_success"]``) from
+            When set, the callback reads reward/length from
             evaluations.npz. A ``StageAwareEvalCallback`` additionally
             provides forward velocity in memory.
         supplementary_episodes: Number of episodes for the supplementary
@@ -180,16 +181,15 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         return self._on_step_standalone()
 
     def _read_latest_eval(self) -> tuple:
-        """Read the latest per-episode rewards/lengths/successes from EvalCallback's npz.
+        """Read the latest per-episode rewards/lengths from EvalCallback's npz.
 
-        Returns ``(rewards, lengths, successes, n_evals)`` where *successes*
-        is ``None`` when the npz has no ``successes`` array (envs that never
-        emit ``info["is_success"]``), or ``(None, None, None, 0)`` if no new
-        evaluation data is available.
+        Returns ``(rewards, lengths, n_evals)``, or ``(None, None, 0)`` if no
+        evaluation data is available (``(None, None, n_evals)`` when none is
+        new).
         """
         log_path = getattr(self.eval_callback, "log_path", None)
         if log_path is None:
-            return None, None, None, 0
+            return None, None, 0
 
         from pathlib import Path
 
@@ -197,7 +197,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         # file prefix (np.savez appends ".npz"), not the directory.
         npz_path = Path(str(log_path) + ".npz")
         if not npz_path.exists():
-            return None, None, None, 0
+            return None, None, 0
 
         data = np.load(str(npz_path))
         eval_rewards = data["results"]  # (n_evals, n_episodes)
@@ -205,24 +205,17 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         n_evals = eval_rewards.shape[0]
         if n_evals <= self._last_seen_n_evals:
-            return None, None, None, n_evals  # No new eval
+            return None, None, n_evals  # No new eval
 
         self._last_seen_n_evals = n_evals
         latest_rewards = eval_rewards[-1].tolist()
         latest_lengths = eval_lengths[-1].tolist()
-        # SB3 saves a "successes" array when the env reports
-        # info["is_success"] at episode end (BaseDinoEnv does).  Using it
-        # gives the success-rate gate the full n_eval_episodes sample
-        # instead of the small supplementary eval.
-        latest_successes = None
-        if "successes" in data.files and data["successes"].shape[0] == n_evals:
-            latest_successes = [float(s) for s in data["successes"][-1]]
-        return latest_rewards, latest_lengths, latest_successes, n_evals
+        return latest_rewards, latest_lengths, n_evals
 
     def _run_supplementary_eval(self) -> tuple:
-        """Run a small eval pass to collect forward velocity and success rate.
+        """Run a small eval pass to collect forward velocity and the locomotion report.
 
-        Returns ``(forward_vels, success_flags, episode_reports)``.
+        Returns ``(forward_vels, episode_reports)``.
 
         The eval env's ``VecNormalize`` flags are temporarily set to
         ``training=False`` and ``norm_reward=False`` so that running
@@ -238,7 +231,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             self.eval_env.norm_reward = False
 
         forward_vels: list[float] = []
-        success_flags: list[float] = []
         episode_reports: list[dict[str, Any]] = []
 
         try:
@@ -247,7 +239,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 obs = self.eval_env.reset()
                 metrics = LocomotionMetrics(dt=eval_dt)
                 ep_forward_vels: list[float] = []
-                ep_success = 0.0
                 done = False
                 while not done:
                     action, _ = self.model.predict(obs, deterministic=True)
@@ -256,14 +247,9 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                     metrics.record_step(infos[0], step_reward)
                     if "forward_vel" in infos[0]:
                         ep_forward_vels.append(float(infos[0]["forward_vel"]))
-                    for key in ("bite_success", "strike_success", "food_reached"):
-                        if infos[0].get(key):
-                            ep_success = 1.0
-                            break
                     done = bool(dones[0])
                 if ep_forward_vels:
                     forward_vels.append(float(np.mean(ep_forward_vels)))
-                success_flags.append(ep_success)
                 episode_reports.append(metrics.compute())
         finally:
             if old_training is not None:
@@ -271,7 +257,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             if old_norm_reward is not None:
                 self.eval_env.norm_reward = old_norm_reward
 
-        return forward_vels, success_flags, episode_reports
+        return forward_vels, episode_reports
 
     def _log_locomotion_metrics(self, episode_reports: list[dict[str, Any]]) -> None:
         """Log aggregated locomotion metrics from episode reports."""
@@ -316,21 +302,17 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
     def _on_step_with_eval_callback(self) -> bool:
         """Advancement check using EvalCallback results + supplementary eval."""
-        rewards, lengths, _successes, n_evals = self._read_latest_eval()
+        rewards, lengths, n_evals = self._read_latest_eval()
         if rewards is None:
             return True  # EvalCallback hasn't produced new results yet
 
         # Run supplementary eval for forward_vel / locomotion metrics
-        forward_vels, _success_flags, episode_reports = self._run_supplementary_eval()
+        forward_vels, episode_reports = self._run_supplementary_eval()
         self._log_locomotion_metrics(episode_reports)
 
         fwd_vel_arg = self._forward_velocities_for_eval(n_evals, forward_vels or None)
-        # No success sample reaches the manager: no gate kind consumes task
-        # success since decision D-D59 removed task_success/v1 and
-        # min_success_rate with the hunt nodes, and an incidental contact in
-        # balance or locomotion is not stage success.
         stance_panel = self._stance_panel_for_eval(n_evals, rewards, lengths)
-        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, None, stance_panel):
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, stance_panel):
             self.ready_to_advance = True
             logger.info(
                 "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",
@@ -359,7 +341,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         rewards: list[float] = []
         lengths: list[float] = []
         forward_vels: list[float] = []
-        success_flags: list[float] = []
         episode_reports: list[dict[str, Any]] = []
         # Per-episode unsupported duty, so this path can drive
         # stance_quality/v1 too. Without it a stage on that gate would fail
@@ -375,7 +356,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 episode_reward = 0.0
                 episode_length = 0
                 ep_forward_vels: list[float] = []
-                ep_success = 0.0
                 unsupported_steps = 0
                 measured_steps = 0
                 done = False
@@ -393,16 +373,11 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                             measured_steps += 1
                             unsupported_steps += int(stance["unsupported_duty"])
                     episode_length += 1
-                    for key in ("bite_success", "strike_success", "food_reached"):
-                        if infos[0].get(key):
-                            ep_success = 1.0
-                            break
                     done = bool(dones[0])
                 rewards.append(episode_reward)
                 lengths.append(float(episode_length))
                 if ep_forward_vels:
                     forward_vels.append(float(np.mean(ep_forward_vels)))
-                success_flags.append(ep_success)
                 episode_duties.append(unsupported_steps / measured_steps if measured_steps else float("nan"))
                 episode_reports.append(metrics.compute())
         finally:
@@ -422,8 +397,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 episode_rewards=rewards,
                 horizon=self._eval_horizon(),
             )
-        # No success sample, as in _on_step_with_eval_callback: no gate kind consumes it (decision D-D59).
-        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, None, stance_panel):
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, stance_panel):
             self.ready_to_advance = True
             logger.info(
                 "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",

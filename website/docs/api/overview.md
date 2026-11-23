@@ -39,10 +39,14 @@ a subclass of the species base class `<Species>Env` in `environments.<species>.b
 The main environment for velociraptor stance and locomotion training.
 
 The hunt tasks (the velociraptor strike, the T-Rex head-contact bite, the
-Brachiosaurus food reach) are no longer trained: decision D-D59 removed every
-hunt node, so no stage config enables them. Their constructor arguments, the
-prey or food target and their info keys stay in the environment API, as
-shown below, until the environment change that removes them.
+Brachiosaurus food reach, the Dibothrosuchus snap) are gone: decision D-D59
+removed every hunt node, and with it their reward terms, success terminations,
+info keys and constructor arguments (`strike_*`, `bite_*`, `food_reach_*`,
+`food_approach_weight`, `food_head_proximity_weight`, `snap_*`), which these
+classes now refuse with a `TypeError`. None of the four declares a success key,
+so its evaluations record no success rate. The prey or food target itself is
+still in the scene and the observation, and leaves with the next
+policy-interface revision.
 
 ```python
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
@@ -53,7 +57,6 @@ env = VelociraptorMongoliensisAnatomicalEnv(
     max_episode_steps=1000,
     forward_vel_weight=1.0,    # Reward for forward movement
     alive_bonus=0.1,           # Bonus for staying upright
-    strike_bonus=10.0,         # Reward for claw-prey contact
 )
 
 observation, info = env.reset(seed=42)
@@ -81,24 +84,19 @@ TOML configs.
 | `alive_bonus` | 0.1 | Per-step survival bonus |
 | `energy_penalty_weight` | 0.001 | Penalizes large actions |
 | `tail_stability_weight` | 0.05 | Penalizes tail angular velocity |
-| `strike_bonus` | 10.0 | Bonus when sickle claw contacts prey |
-| `strike_approach_weight` | 1.0 | Reward for closing distance to prey |
 | `fall_penalty` | -100.0 | Penalty on termination from falling |
 
 ## T-Rex Environment
 
 Large dinosaur-inspired bipedal model. Its former hunt, a fixed head-contact
-"bite" (the model has no articulated jaw: `bite_success` means the fixed
-`head_bite` geom contacted the prey), is no longer trained (decision D-D59).
+"bite" (the model has no articulated jaw), was removed by decision D-D59 with
+its `bite_*` arguments; the `head_bite` geom it used leaves with the prey at
+the next policy-interface revision.
 
 ```python
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-env = TyrannosaurusRexAnatomicalEnv(
-    render_mode="human",
-    bite_bonus=10.0,           # Reward for fixed head-geom/prey contact
-    bite_approach_weight=1.0,  # Reward for closing distance
-)
+env = TyrannosaurusRexAnatomicalEnv(render_mode="human")
 ```
 
 The generated [T-Rex model page](/docs/models/tyrannosaurus_rex/anatomical) is the authoritative public
@@ -107,8 +105,9 @@ source for its current observation and action dimensions.
 ## Brachiosaurus Environment
 
 Quadrupedal dinosaur-inspired model. Its former hunt, a distance-based food
-reach ("food reached" means the head tip moved within the configured threshold,
-with no contact with a food geom), is no longer trained (decision D-D59).
+reach (the head tip within a threshold of the food, with no contact), was
+removed by decision D-D59 with its `food_reach_*`, `food_approach_weight` and
+`food_head_proximity_weight` arguments.
 
 ```python
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
@@ -211,23 +210,22 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 |---|---|---|
 | `mean_heading_alignment` | cos θ alignment toward prey ∈ [-1, 1] | T-Rex, Velociraptor |
 | `mean_contact_asymmetry` | Left/right contact imbalance ∈ [0, 1] | All |
-| `success_rate` | Episode-level indicator: 1 if any success event fired, otherwise 0 | All |
-| `min_prey_distance` | Minimum distance reached to prey (m) | T-Rex, Velociraptor |
-| `min_prey_distance` | Minimum distance reached to food (m) | Brachiosaurus |
+| `success_rate` | Episode-level indicator: 1 if any of the model's success keys fired, otherwise 0; absent for a model that declares none | Allosaurus (`course_complete`) and the Compsognathus pair (`target_success`) |
 
 ### Species-Specific Key Mapping
 
 | Metric | T-Rex | Velociraptor | Brachiosaurus |
 |---|---|---|---|
 | Height key | `pelvis_height` | `pelvis_height` | `pelvis_height` (aliased from torso) |
-| Success key | `bite_success` | `strike_success` | `food_reached` |
-| Prey/food key | `prey_distance` | `prey_distance` | `prey_distance` (aliased from head_food_distance) |
+| Success keys (`SUCCESS_KEYS`) | none | none | none |
 | Heading | ✓ | ✓ | N/A |
 
-The key names are stable API labels, not biomechanical claims. In particular,
-`bite_success` is fixed head-geom contact and `food_reached` is head-tip
-proximity to the target.
+`LocomotionMetrics(success_keys=...)` takes a model's `SUCCESS_KEYS`
+(`SpeciesConfig.success_keys`); with none it records no `success_rate`. The
+hunt's success keys (`bite_success`, `strike_success`, `food_reached`,
+`snap_success`) and its `prey_distance` and time-to-target metrics were
+removed with the hunt (decision D-D59).
 
 The shared CLI's `eval` command prints all metrics above grouped
-into **Core Performance**, **Velocity**, **Gait Quality**, **Balance**, and a species-specific
-**Hunting / Food Reaching** section.
+into **Core Performance**, **Velocity**, **Gait Quality** and **Balance**, with
+a success rate only for a model that declares success keys.
