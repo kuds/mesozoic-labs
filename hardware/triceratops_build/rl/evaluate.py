@@ -11,7 +11,8 @@ Actions are the policy's mean (deterministic) unless --stochastic; the VecNormal
 
 Two kinds of blocks, all at a FIXED servo delay:
   * per delay in --delays (10 ms always, first): --episodes episodes with the command drawn per episode as in
-    training, or fixed with --command;
+    training, or fixed with --command (on a steering run, D20: a straight request at a speed drawn per episode as
+    the straight task draws it, so these stay straight-line evaluations; steer_eval.py evaluates the steering);
   * --sweep [SPEEDS]: at 10 ms, --sweep-episodes episodes at each fixed command (default 0, 0.1, 0.2, 0.25, 0.27 m/s).
     The museum target, 0.25 m/s, is reported on its own line and under "target" in the JSON.
 Episode seeds are ``--seed + i`` in every block, so blocks differ only in delay or command.
@@ -171,8 +172,15 @@ def make_policy(zip_path, vn_path, env, deterministic: bool):
 
 def run_episode(env: TrikeEnv, policy, seed: int, delay: int, command):
     """One episode, logged every physics step: speed figures plus the gait and drive measures (gait_metrics)."""
+    steering = getattr(env.cfg, "command_mode", "none") != "none"
+    if steering and command is None:
+        # a steering policy's straight-line evaluation (decision D20): hold the reset heading at a speed drawn per
+        # episode as the straight task draws it (seeded by the episode's seed), not the turning request schedule
+        r = np.random.default_rng(seed)
+        command = 0.0 if r.random() < env.cfg.command_zero_prob else float(r.uniform(*env.cfg.speed_range))
     log = gait_metrics.record_episode(env, policy, seed=seed, command=command, delay_steps=delay)
-    v_cmd, v = log["command"], log["episode_forward_speed"]
+    # the requested speed on a steering run (the env's own command_speed is the adapter's, slowed while turning)
+    v_cmd, v = (float(command) if steering else log["command"]), log["episode_forward_speed"]
     return {"seed": seed, "delay_steps": delay, "command_mps": v_cmd, "forward_speed_mps": v,
             "abs_speed_error_mps": float(np.mean(np.abs(log["step_forward_speed"] - v_cmd))),
             "abs_avg_speed_error_mps": abs(v - v_cmd), "fell": log["fell"], "termination": log["termination"],

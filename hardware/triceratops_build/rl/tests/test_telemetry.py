@@ -242,19 +242,26 @@ def test_train_records_health_and_checks_are_not_kept_settings(tmp_path, monkeyp
     assert not (out / "checks_during_training.jsonl").exists()
 
 
-def _steer_infos(segments, dt=0.02):
-    """Synthetic step infos: segments of (seconds, desired heading, desired speed, actual heading fn(t),
-    forward speed, yaw rate, command v_x, command yaw rate, turn_in_place)."""
-    infos, t, eid = [], 0.0, 0
+def _steer_infos(segments, dt=0.02, fall_at=None):
+    """Synthetic step infos: segments of (seconds, desired heading, desired speed, actual heading fn(t), forward
+    speed, yaw rate, command v_x, command yaw rate, turn_in_place); the base moves at the forward speed along the
+    actual heading; ``fall_at`` ends the episode there with a fall."""
+    import math
+
+    infos, t, eid, x, y = [], 0.0, 0, 0.0, 0.0
     for seconds, desired, speed, heading, v, yr, cv, cy, tip in segments:
         for k in range(int(round(seconds / dt))):
             t += dt
             h = heading(k * dt)
+            x, y = x + v * math.cos(h) * dt, y + v * math.sin(h) * dt
+            done = fall_at is not None and t >= fall_at
             infos.append({"time_s": t, "command_event_id": eid, "desired_heading": desired, "desired_speed": speed,
-                          "actual_heading": h, "heading_active": speed > 0 or tip, "turn_in_place": tip,
+                          "actual_heading": h, "heading_active": speed > 0, "turn_in_place": tip,
                           "forward_speed": v, "lateral_speed": 0.0, "yaw_rate": yr, "command_v_x": cv,
                           "command_yaw_rate": cy, "tracking_error_v": abs(v - cv), "tracking_error_yaw": abs(yr - cy),
-                          "termination": ""})
+                          "base_x": x, "base_y": y, "termination": "tilt" if done else ""})
+            if done:
+                return infos
         eid += 1
     return infos
 
@@ -264,24 +271,53 @@ def test_steering_measures_on_a_known_episode():
 
     from telemetry.steering import episode_measures, summarise
 
+    tol = dict(velocity_tolerance=0.05, yaw_rate_tolerance=0.1, heading_tolerance=math.radians(10))
     infos = _steer_infos([
         (4.0, 0.0, 0.25, lambda s: 0.0, 0.25, 0.0, 0.25, 0.0, False),                     # straight, perfect
         (5.0, math.pi / 2, 0.25, lambda s: min(math.pi / 2, 0.4 * s), 0.2, 0.4, 0.2, 0.4, False),  # 90 deg turn
-        (5.0, math.pi, 0.0, lambda s: min(math.pi, math.pi / 2 + 0.6 * s), 0.01, 0.6, 0.0, 0.6, True),  # on the spot
+        (5.0, math.pi, 0.0, lambda s: min(math.pi, math.pi / 2 + 0.6 * s), 0.0, 0.6, 0.0, 0.6, True),  # on the spot
         (3.0, math.pi, 0.0, lambda s: math.pi, 0.0, 0.0, 0.0, 0.0, False),                 # stand
     ])
-    m = episode_measures(infos, velocity_tolerance=0.05, yaw_rate_tolerance=0.1, heading_tolerance=math.radians(10))
-    assert m["tracking"]["share_in_tolerance"] == 1.0 and m["tracking"]["speed_error_mps"]["p95"] <= 0.011
+    m = episode_measures(infos, **tol)
     ev = {r["event_id"]: r for r in m["events"]}
-    assert ev[1]["requested_change_rad"] == pytest.approx(math.pi / 2)
+    assert ev[1]["is_turn"] and ev[1]["initial_error_rad"] == pytest.approx(math.pi / 2)
     assert ev[1]["settle_time_s"] == pytest.approx((math.pi / 2 - math.radians(10)) / 0.4, abs=0.03)
-    assert ev[2]["turn_in_place"] and ev[2]["heading_error_at_settle_rad"] < math.radians(10)
-    assert m["turning"]["radius_m"]["median"] == pytest.approx(0.2 / 0.4)
+    assert ev[2]["turn_in_place"] and ev[2]["is_turn"] and ev[2]["heading_error_at_settle_rad"] < math.radians(10)
+    assert m["turning"]["radius_m_median"] == pytest.approx(0.2 / 0.4)
     assert m["turn_in_place"]["achieved_over_commanded"]["median"] == pytest.approx(1.0)
-    assert m["turn_in_place"]["drift_speed_mps"]["median"] == pytest.approx(0.01)
+    assert m["turn_in_place"]["net_drift_mps"]["median"] == pytest.approx(0.0)
     assert m["stops"]["steps"] > 0 and m["stops"]["speed_mps"]["median"] == 0.0
     s = summarise([m, m])
-    assert s["episodes"] == 2 and s["falls"] == 0 and s["turns_settled_share"] == 1.0
+    assert s["episodes"] == 2 and s["falls"] == 0 and s["turns"] == 4 and s["turns_settled_share"] == 1.0
+
+
+def test_steering_measures_do_not_flatter():
+    """The review's cases: a robot that never turns settles no turn, even when a request returns to its heading;
+    a turn cut short by a fall counts as failed; the heading error wraps at +-pi; sway is not drift."""
+    import math
+
+    from telemetry.steering import episode_measures
+
+    tol = dict(velocity_tolerance=0.05, yaw_rate_tolerance=0.1, heading_tolerance=math.radians(10))
+    still = _steer_infos([(4.0, 0.0, 0.25, lambda s: 0.0, 0.0, 0.0, 0.25, 0.0, False),
+                          (4.0, math.pi / 2, 0.25, lambda s: 0.0, 0.0, 0.0, 0.06, 0.4, False),
+                          (4.0, 0.0, 0.25, lambda s: 0.0, 0.0, 0.0, 0.25, 0.0, False)])
+    m = episode_measures(still, **tol)
+    turns = [r for r in m["events"] if r["is_turn"]]
+    assert len(turns) == 1 and turns[0]["settle_time_s"] is None  # the return to 0 is not a turn, not a success
+    assert m["events_summary"]["settled_share_of_turns"] == 0.0
+    fall = _steer_infos([(4.0, 0.0, 0.25, lambda s: 0.0, 0.25, 0.0, 0.25, 0.0, False),
+                         (4.0, math.pi / 2, 0.25, lambda s: 0.3 * s, 0.2, 0.3, 0.2, 0.4, False)], fall_at=5.0)
+    m = episode_measures(fall, **tol)
+    t = [r for r in m["events"] if r["is_turn"]]
+    assert len(t) == 1 and t[0]["fell_during"] and t[0]["settle_time_s"] is None
+    assert m["events_summary"]["turns_failed_by_fall"] == 1 and m["events_summary"]["settled_share_of_turns"] == 0.0
+    wrap = _steer_infos([(4.0, math.pi - 0.02, 0.25, lambda s: -math.pi + 0.02, 0.25, 0.0, 0.25, 0.0, False)])
+    r = episode_measures(wrap, **tol)["events"][0]
+    assert r["initial_error_rad"] == pytest.approx(0.04, abs=1e-9) and not r["is_turn"]
+    sway = [dict(i, base_y=0.03 * math.sin(2 * math.pi * 1.4 * i["time_s"]))
+            for i in _steer_infos([(6.0, math.pi, 0.0, lambda s: 0.5 * s, 0.0, 0.5, 0.0, 0.5, True)])]
+    assert episode_measures(sway, **tol)["turn_in_place"]["net_drift_mps"]["median"] < 0.01
 
 
 # ---------------------------------------------------------------- heat, battery, loads (step 3)

@@ -33,7 +33,9 @@ them with `PPO.load` or `pickle.load`.
 
 **Environment version.** The environment comes through `gait_pipe1.py`: `rl/trike_env.py`, or the copy of `rl/` that
 the environment variable `TRIKE_ENV_DIR` points at (for example `git archive <run commit> hardware/triceratops_build/rl
-| tar -x -C DIR`). Before the sweep, `sweep.py` re-runs gait_pipe1's target case (randomisation on, delay 10 ms, seeds
+environments/shared | tar -x -C DIR`, then `TRIKE_ENV_DIR=DIR/hardware/triceratops_build/rl`; a steering run, D20,
+also needs the run commit's `environments/shared`, which the export brings along, and the gait report records the
+hash of the shared direction-command module it imported beside the run commit's). Before the sweep, `sweep.py` re-runs gait_pipe1's target case (randomisation on, delay 10 ms, seeds
 100000-100004, 0.25 m/s) and compares each episode's speed with `../analysis/results/gait_pipe1_2026-11-19.json`.
 The JSON records the file's hash and whether the speeds are identical. For pipe1 they were identical to the last
 digit with the current `rl/trike_env.py` (and with the export of the run's commit, 6aa3a679), so the current file was

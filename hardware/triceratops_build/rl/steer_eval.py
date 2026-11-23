@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-for p in (HERE, HERE / "analysis"):
+for p in (HERE, HERE / "analysis", HERE / "analytics"):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
@@ -37,7 +37,8 @@ COURSE_SEED = 600_000
 # until the next; the episode runs to the last row's time plus the hold.
 COURSES = {
     "turns_walking": {"rows": [(0.0, 0, 0.25), (5.0, 90, 0.25), (14.0, 0, 0.25), (23.0, -90, 0.25)], "hold_s": 9.0},
-    "turn_on_the_spot": {"rows": [(0.0, 0, 0.25), (5.0, 0, 0.0), (7.0, 180, 0.0), (16.0, 180, 0.25)],
+    # 179 deg, not 180: a half turn sits on the angle wrap, where noise would choose the direction
+    "turn_on_the_spot": {"rows": [(0.0, 0, 0.25), (5.0, 0, 0.0), (7.0, 179, 0.0), (16.0, 179, 0.25)],
                          "hold_s": 5.0},
     "stand": {"rows": [(0.0, 0, 0.0)], "hold_s": 10.0},
 }
@@ -74,14 +75,13 @@ def run_episode(env, act, seed: int, course: dict | None = None, track: bool = F
     while True:
         if rows and env._step_count * env.dt >= rows[0][0] - 1e-9:
             _, off, v = rows.pop(0)
-            env.set_command_target(h0 + math.radians(off), v)
-            obs = env._get_obs(noise=True)  # the new command in the observation the policy acts on
+            obs = env.set_command_target(h0 + math.radians(off), v)  # act on the observation carrying it
         obs, _, term, trunc, info = env.step(act(obs))
         infos.append(info)
         if track:
             x, y = env.data.xpos[env._chassis, :2]
             path.append((float(x), float(y), float(info["actual_heading"]), float(info["desired_heading"]),
-                         float(info["desired_speed"])))
+                         float(info["desired_speed"]), float(info["time_s"])))
         if term or trunc or (end is not None and info["time_s"] >= end - 1e-9):
             break
     out = episode_measures(infos, **TOLERANCES)
@@ -96,8 +96,9 @@ def load_policy(ckpt_dir: Path, env):
 
     import gait_pipe1 as gp
 
-    zp = next(iter(sorted(ckpt_dir.glob("*_steps.zip"))))
-    pk = next(iter(sorted(ckpt_dir.glob("*vecnormalize*_steps.pkl"))))
+    import gait_report
+
+    zp, pk, _ = gait_report.find_pair(ckpt_dir)  # the newest matched pair, as the gait report and the sweep take
     st = json.loads((ckpt_dir / "run_record.json").read_text())["settings"]
     mean, var, clip, eps = gp.load_obs_stats(pk)
     policy = gp.build_policy(env, zp, st["net"], st["log_std_init"])
@@ -112,18 +113,18 @@ def load_policy(ckpt_dir: Path, env):
 
 
 def course_chart(name: str, rec: dict, out: Path, label: str) -> str:
-    sys.path.insert(0, str(HERE / "analytics"))
+    """Two panels: the top view of the path with the requested and actual headings, and both headings against
+    time (where a turn on the spot shows)."""
     import chart_style as cs
 
     cs.setup()
     plt = cs.plt
     p = np.array(rec["path"])
-    fig, ax = plt.subplots(figsize=(8.5, 7.2))
-    fig.subplots_adjust(left=0.1, right=0.97, top=0.84, bottom=0.1)
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(14, 6.6), gridspec_kw={"width_ratios": [1, 1.2]})
+    fig.subplots_adjust(left=0.06, right=0.97, top=0.8, bottom=0.11, wspace=0.22)
     ax.plot(p[:, 0], p[:, 1], color=cs.SERIES[0], lw=cs.LW, label="chassis path")
-    k = np.arange(0, len(p), 50)  # one arrow per second: the requested heading (orange) and the actual (blue)
-    for i in k:
-        x, y, h, hd, v = p[i]
+    for i in np.arange(0, len(p), 50):  # one pair of arrows per second
+        x, y, h, hd = p[i, :4]
         ax.annotate("", xy=(x + 0.12 * math.cos(hd), y + 0.12 * math.sin(hd)), xytext=(x, y),
                     arrowprops=dict(arrowstyle="-|>", color=cs.SERIES[1], lw=1.2))
         ax.annotate("", xy=(x + 0.08 * math.cos(h), y + 0.08 * math.sin(h)), xytext=(x, y),
@@ -132,22 +133,30 @@ def course_chart(name: str, rec: dict, out: Path, label: str) -> str:
     ax.plot([], [], color=cs.SERIES[0], lw=1.0, label="actual heading")
     ax.scatter([p[0, 0]], [p[0, 1]], s=40, color=cs.INK2, zorder=5)
     ax.annotate("start", (p[0, 0], p[0, 1]), xytext=(6, -12), textcoords="offset points", fontsize=8, color=cs.INK2)
-    ax.set_aspect("equal", adjustable="datalim")
-    # at least 1.5 m across, so a path that barely moves is not magnified into noise, and the arrows show
+    # equal scale, at least 1.5 m across, so a path that barely moves is not magnified into noise
     cx, cy = (p[:, 0].min() + p[:, 0].max()) / 2, (p[:, 1].min() + p[:, 1].max()) / 2
-    half = max(0.75, np.ptp(p[:, 0]) / 2 + 0.2,
-               np.ptp(p[:, 1]) / 2 + 0.2)
+    half = max(0.75, np.ptp(p[:, 0]) / 2 + 0.2, np.ptp(p[:, 1]) / 2 + 0.2)
     ax.set_xlim(cx - half, cx + half)
     ax.set_ylim(cy - half, cy + half)
+    ax.set_aspect("equal", adjustable="box")
     ax.set_xlabel("x, m")
     ax.set_ylabel("y, m")
-    ax.legend(loc="best", fontsize=8)
-    es = rec["events_summary"]
-    tr = rec["tracking"]
+    ax.set_title("Top view")
+    ax.legend(loc="upper left", fontsize=8)
+    t = p[:, 5]
+    unwrap = lambda a: np.degrees(np.unwrap(a))  # noqa: E731
+    ax2.plot(t, unwrap(p[:, 3]), color=cs.SERIES[1], lw=cs.LW, label="requested heading")
+    ax2.plot(t, unwrap(p[:, 2]), color=cs.SERIES[0], lw=cs.LW, label="actual heading")
+    ax2.set_xlabel("time, s")
+    ax2.set_ylabel("heading, deg (unwrapped)")
+    ax2.set_title("Heading against time")
+    ax2.legend(loc="best", fontsize=8)
+    es, tr = rec["events_summary"], rec["tracking"]
+    med = es["heading_error_at_settle_deg"]["median"]
     sub = (f"{'fell (' + rec['termination'] + ')' if rec['fell'] else 'no fall'}; speed error mean "
            f"{(tr['speed_error_mps']['mean'] or 0):.3f} m/s, turn-rate error mean "
-           f"{(tr['yaw_rate_error_radps']['mean'] or 0):.3f} rad/s; heading error 3 s after each request, median "
-           f"{es['heading_error_at_settle_deg']['median'] if es['heading_error_at_settle_deg']['median'] is not None else float('nan'):.1f} deg")
+           f"{(tr['yaw_rate_error_radps']['mean'] or 0):.3f} rad/s (both over {tr.get('average_s', 0):.1f} s means); "
+           f"heading error 3 s after each request, median {med if med is not None else float('nan'):.1f} deg")
     cs.frame(fig, f"Steering course '{name}': {label}", sub,
              "SIMULATION. Deterministic policy, 10 ms delay, flat floor. Source: rl/steer_eval.py.")
     fname = f"steer_course_{name}.png"

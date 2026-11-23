@@ -117,7 +117,10 @@ def _labelled_lines(ax, x, series: dict, w: int):
         ok = np.isfinite(y)
         if not ok.any():
             continue
-        ax.plot(x[ok] / 1e6, y[ok], color=cs.SERIES[i], lw=cs.LW, label=name)
+        sparse = int(ok.sum()) <= 40  # checks come every few hundred thousand steps: show each one
+        ax.plot(x[ok] / 1e6, y[ok], color=cs.SERIES[i], lw=cs.LW, label=name,
+                marker="o" if sparse else None, ms=6, markeredgecolor=cs.SURFACE,
+                markeredgewidth=1.5)
         ends.append((name, x[ok][-1] / 1e6, y[ok][-1]))
     if not ends:
         return
@@ -188,7 +191,15 @@ def checks_series(rows: list[dict]) -> dict:
             falls.append(sum(bool(e.get("fell")) for e in eps) / len(eps) if eps else None)
             ok = [e["forward_speed_mps"] for e in eps if not e.get("fell") and e.get("forward_speed_mps") is not None]
             speed.append(float(np.mean(ok)) if ok else None)
-        s["points"][n].update(fall_share=falls, speed_mps=speed)
+        heading = []
+        for r in rows:
+            eps = [e for e in (r["points"].get(n) or []) if "error" not in e]
+            h = [e["heading_error_at_settle_deg_median"] for e in eps
+                 if e.get("heading_error_at_settle_deg_median") is not None]
+            heading.append(float(np.mean(h)) if h else None)
+        s["points"][n].update(fall_share=falls, speed_mps=speed, heading_error_deg=heading,
+                              course=any("heading_error_at_settle_deg_median" in e for r in rows
+                                         for e in (r["points"].get(n) or [])))
     return s
 
 
@@ -196,19 +207,28 @@ def checks_figure(rows: list[dict], label: str, out: Path) -> str:
     cs.setup()
     s = checks_series(rows)
     x = np.array(s["steps"], dtype=np.float64)
-    names = list(s["points"])[:4]
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6.2))
-    fig.subplots_adjust(left=0.06, right=0.9, top=0.8, bottom=0.12, wspace=0.3)
-    _labelled_lines(axes[0], x, {n: s["points"][n]["fall_share"] for n in names}, 1)
+    pts = [n for n in s["points"] if not s["points"][n]["course"]]
+    courses = [n for n in s["points"] if s["points"][n]["course"]]
+    names = pts[:4]
+    ncol = 3 if courses else 2
+    fig, axes = plt.subplots(1, ncol, figsize=(7 * ncol, 6.2))
+    fig.subplots_adjust(left=0.05, right=0.92, top=0.8, bottom=0.12, wspace=0.3)
+    fall_names = (names + courses)[:4]  # the courses' falls too, when there is room
+    _labelled_lines(axes[0], x, {n: s["points"][n]["fall_share"] for n in fall_names}, 1)
     axes[0].set_title("Falls at each check point")
     axes[0].set_ylabel("share of the check's episodes that fell")
     axes[0].set_ylim(-0.02, 1.02)
     _labelled_lines(axes[1], x, {n: s["points"][n]["speed_mps"] for n in names}, 1)
     axes[1].set_title("Speed at each check point (episodes that did not fall)")
     axes[1].set_ylabel("forward speed, m/s")
+    if courses:
+        _labelled_lines(axes[2], x, {n: s["points"][n]["heading_error_deg"] for n in courses[:4]}, 1)
+        axes[2].set_title("Steering courses: heading error 3 s after a request")
+        axes[2].set_ylabel("degrees, mean of the check's episodes")
     for ax in axes:
         ax.set_xlabel("training steps, millions")
-    extra = f" (first four of {len(s['points'])} shown; the JSON has all)" if len(s["points"]) > 4 else ""
+    extra = (f" (falls and speed: the first four non-course points of {len(pts)}; the JSON has all)"
+             if len(pts) > 4 else "")
     failed = {n: v["failed_episodes"] for n, v in s["points"].items() if v["failed_episodes"]}
     if failed:
         extra += (". Episodes that failed to run, left out: "

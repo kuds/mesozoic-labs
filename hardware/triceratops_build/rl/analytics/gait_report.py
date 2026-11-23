@@ -867,6 +867,21 @@ def cross_check(cases: dict) -> dict:
     return out
 
 
+def shared_command_provenance(ec: dict, commit: str) -> dict:
+    """For a steering run (D20): the shared direction-command module the env imported, its sha256 and the run
+    commit's, so a mix of an exported trike_env.py and today's shared module shows. Empty for the straight task."""
+    if ec.get("command_mode", "none") == "none":
+        return {}
+    try:
+        import environments.shared.direction_commands as dc
+    except ImportError:
+        return {"shared_direction_commands": "not importable"}
+    path = Path(dc.__file__).resolve()
+    return {"shared_direction_commands": {"path": str(path), "sha256": gp.sha256(path),
+                                          "run_commit_sha256": git_blob_sha256(
+                                              commit, REPO / "environments" / "shared" / "direction_commands.py")}}
+
+
 def git_blob_sha256(commit: str, path: Path) -> str | None:
     try:
         rel = path.resolve().relative_to(REPO)
@@ -1014,6 +1029,7 @@ def simulate(args) -> tuple[dict, dict]:
                                          else "TRIKE_ENV_DIR export: " + env_file.name),
                         "trike_env_sha256": gp.sha256(env_file),
                         "run_commit_trike_env_sha256": git_blob_sha256(commit, RL / "trike_env.py"),
+                        **shared_command_provenance(ec, commit),
                         "from_TRIKE_ENV_DIR": bool(os.environ.get("TRIKE_ENV_DIR")),
                         "env_config": "the run record's settings.env_config, model path re-pointed to sim/generated",
                         "model_sha256": {f: gp.sha256(GEN / f) for f in sorted({DEFAULT_MODEL, ANKLEROLL_MODEL, primary})}},

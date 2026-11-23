@@ -11,17 +11,21 @@ The tolerances are the caller's: the shared module's defaults (0.2 m/s, 0.15 rad
 0.25 m/s robot passes tighter ones. Nothing here judges: the measures are reported, and a pre-registration says
 which, if any, decide.
 
-Measures:
-- ``tracking``: mean and 95th percentile of the speed and turn-rate tracking errors over the steps after the first
-  ``skip_s`` (the start-up), and the share of those steps within both tolerances (the shared "command in
-  tolerance" test);
-- ``events``: one row per command event (a new request) lasting at least ``settle_s``: the heading change it asked
-  for, the heading error ``settle_s`` after it started, and the time until the heading came within tolerance and
-  stayed there for ``hold_s`` (None if it never did within the event);
-- ``turning``: while the robot was asked to turn at more than ``turn_threshold`` rad/s while walking, the median turn
-  radius (|forward speed| / |turn rate|) and the median ratio of achieved to commanded turn rate;
-- ``turn_in_place``: while turning on the spot, the median translational speed (drift) and the median ratio of
-  achieved to commanded turn rate;
+Measures (revised after the review of 23 Nov):
+- ``tracking``: speed and turn-rate tracking judged on means over ``average_s`` (default 0.5 s, about one stride of
+  a slow trot), after the first ``skip_s``: the per-step values mostly read the gait's own sway. The mean and 95th
+  percentile of those window errors, and the share of windows within both tolerances. The per-step errors are kept
+  under ``tracking_per_step``;
+- ``events``: one row per command event (a new request) with a heading to follow, while walking or turning on the
+  spot. A row is a TURN when the heading error at the request's start is at least ``turn_threshold_deg`` (default 20);
+  its settle time is the time until the error came within tolerance and stayed there for ``hold_s``. An event that
+  ends in a fall counts, as failed (``fell_during``), however short; other events shorter than ``settle_s`` are
+  skipped;
+- ``turning``: while the robot was asked to turn while walking, the median turn radius (|forward speed| / |turn
+  rate|, over steps turning the commanded way) and the median ratio of achieved to commanded turn rate;
+- ``turn_in_place``: per turn on the spot, the net displacement over its duration (m/s; the sway of the steps is
+  not drift), when the step info carries the base position (``position_keys``), and the median ratio of achieved to
+  commanded turn rate;
 - ``stops``: while asked to stand (no heading, no turn), the median speed and turn rate.
 """
 
@@ -45,9 +49,10 @@ def _stats(x) -> dict:
 
 def episode_measures(infos: list[dict], *, velocity_tolerance: float = 0.2, yaw_rate_tolerance: float = 0.15,
                      heading_tolerance: float = math.pi / 12.0, settle_s: float = 3.0, hold_s: float = 0.5,
-                     skip_s: float = 1.0, turn_threshold: float = 0.1, speed_key: str = "forward_speed",
-                     lateral_key: str = "lateral_speed", yaw_rate_key: str = "yaw_rate",
-                     time_key: str = "time_s") -> dict:
+                     skip_s: float = 1.0, average_s: float = 0.5, turn_threshold_deg: float = 20.0,
+                     turn_rate_threshold: float = 0.1, speed_key: str = "forward_speed",
+                     lateral_key: str = "lateral_speed", yaw_rate_key: str = "yaw_rate", time_key: str = "time_s",
+                     position_keys: tuple[str, str] = ("base_x", "base_y")) -> dict:
     if not infos:
         return {"steps": 0}
     g = lambda k, default=np.nan: np.array([i.get(k, default) for i in infos], dtype=np.float64)  # noqa: E731
@@ -56,18 +61,27 @@ def episode_measures(infos: list[dict], *, velocity_tolerance: float = 0.2, yaw_
     ev, ey = g("tracking_error_v"), g("tracking_error_yaw")
     active = np.array([bool(i.get("heading_active")) for i in infos])
     tip = np.array([bool(i.get("turn_in_place")) for i in infos])
+    follow = active | tip  # a heading to follow: walking with one, or turning on the spot
     desired, actual = g("desired_heading"), g("actual_heading")
+    px, py = g(position_keys[0]), g(position_keys[1])
     event = np.array([int(i.get("command_event_id", 0)) for i in infos])
     dt = float(np.median(np.diff(t))) if t.size > 1 else 0.0
-    w = t >= skip_s
-    ok = (ev <= velocity_tolerance) & (ey <= yaw_rate_tolerance)
-    out: dict = {"steps": len(infos), "dt_s": dt, "fell": bool(infos[-1].get("termination")),
-                 "termination": infos[-1].get("termination") or "",
+    fell = bool(infos[-1].get("termination"))
+    out: dict = {"steps": len(infos), "dt_s": dt, "fell": fell, "termination": infos[-1].get("termination") or "",
                  "tolerances": {"velocity_mps": velocity_tolerance, "yaw_rate_radps": yaw_rate_tolerance,
-                                "heading_rad": heading_tolerance},
-                 "tracking": {"speed_error_mps": _stats(ev[w]), "yaw_rate_error_radps": _stats(ey[w]),
-                              "share_in_tolerance": float(ok[w].mean()) if w.any() else None}}
-    # events: each new request
+                                "heading_rad": heading_tolerance}}
+    # tracking over windows of average_s
+    w = t >= skip_s
+    k = max(1, int(round(average_s / dt))) if dt else 1
+    idx = np.flatnonzero(w)
+    wins = [idx[i:i + k] for i in range(0, len(idx) - k + 1, k)]
+    e_v = [math.hypot(v[s].mean() - cv[s].mean(), vl[s].mean()) for s in wins]
+    e_y = [abs(yr[s].mean() - cy[s].mean()) for s in wins]
+    ok = [a <= velocity_tolerance and b <= yaw_rate_tolerance for a, b in zip(e_v, e_y)]
+    out["tracking"] = {"average_s": k * dt, "windows": len(wins), "speed_error_mps": _stats(e_v),
+                       "yaw_rate_error_radps": _stats(e_y), "share_in_tolerance": float(np.mean(ok)) if ok else None}
+    out["tracking_per_step"] = {"speed_error_mps": _stats(ev[w]), "yaw_rate_error_radps": _stats(ey[w])}
+    # events
     rows = []
     starts = np.flatnonzero(np.r_[True, event[1:] != event[:-1]])
     ends = np.r_[starts[1:], len(infos)]
@@ -76,66 +90,84 @@ def episode_measures(infos: list[dict], *, velocity_tolerance: float = 0.2, yaw_
         duration = (e - s) * dt
         change = None if prev_desired is None else float(_wrap(desired[s] - prev_desired))
         prev_desired = desired[s]
-        if duration < settle_s or not active[s:e].any():
+        last = e == len(infos)
+        fell_during = fell and last
+        if not follow[s:e].any() or (duration < settle_s and not fell_during):
             continue
         err = np.abs(_wrap(desired[s:e] - actual[s:e]))
-        k = s + int(round(settle_s / dt)) - 1 if dt else e - 1
         need = max(1, int(round(hold_s / dt))) if dt else 1
         inside = err <= heading_tolerance
         settle = None
-        for j in range(len(inside) - need + 1):
-            if inside[j:j + need].all():
-                settle = j * dt
-                break
+        if not fell_during:
+            for j in range(len(inside) - need + 1):
+                if inside[j:j + need].all():
+                    settle = j * dt
+                    break
+        at = min(int(round(settle_s / dt)) - 1 if dt else len(err) - 1, len(err) - 1)
         rows.append({"event_id": int(event[s]), "start_s": float(t[s]), "duration_s": duration,
-                     "requested_change_rad": change, "requested_speed_mps": float(infos[s].get("desired_speed", 0.0)),
-                     "turn_in_place": bool(tip[s:e].any()),
-                     "heading_error_at_settle_rad": float(err[min(k, e - 1) - s]), "settle_time_s": settle})
+                     "requested_change_rad": change, "initial_error_rad": float(err[0]),
+                     "is_turn": bool(err[0] >= math.radians(turn_threshold_deg)),
+                     "requested_speed_mps": float(infos[s].get("desired_speed", 0.0)),
+                     "turn_in_place": bool(tip[s:e].any()), "fell_during": fell_during,
+                     "heading_error_at_settle_rad": None if fell_during else float(err[at]),
+                     "settle_time_s": settle})
     out["events"] = rows
-    big = [r for r in rows if r["requested_change_rad"] is not None and abs(r["requested_change_rad"]) >= math.radians(20)]
+    turns = [r for r in rows if r["is_turn"]]
     out["events_summary"] = {
-        "n": len(rows), "n_turns_over_20deg": len(big),
-        "heading_error_at_settle_deg": _stats([math.degrees(r["heading_error_at_settle_rad"]) for r in rows]),
-        "settled_share_of_turns": (sum(r["settle_time_s"] is not None for r in big) / len(big)) if big else None,
-        "settle_time_s_of_turns": _stats([r["settle_time_s"] for r in big])}
-    # turning while walking; turning on the spot; stops
-    walk_turn = w & ~tip & (np.abs(cy) > turn_threshold) & (cv > 0.05)
+        "n": len(rows), "n_turns": len(turns), "turns_failed_by_fall": sum(r["fell_during"] for r in turns),
+        "heading_error_at_settle_deg": _stats([math.degrees(r["heading_error_at_settle_rad"]) for r in rows
+                                               if r["heading_error_at_settle_rad"] is not None]),
+        "settled_share_of_turns": (sum(r["settle_time_s"] is not None for r in turns) / len(turns)) if turns else None,
+        "settle_time_s_of_turns": _stats([r["settle_time_s"] for r in turns])}
+    # turning while walking: radius over steps turning the commanded way
+    walk_turn = w & ~tip & (np.abs(cy) > turn_rate_threshold) & (cv > 0.05)
+    same_way = np.sign(yr) == np.sign(cy)
     with np.errstate(invalid="ignore", divide="ignore"):
         radius = np.abs(v) / np.abs(yr)
         ratio = yr / cy
-    out["turning"] = {"steps": int(walk_turn.sum()), "radius_m": _stats(radius[walk_turn & (np.abs(yr) > 1e-3)]),
+    rad = radius[walk_turn & same_way & (np.abs(yr) > 1e-3)]
+    out["turning"] = {"steps": int(walk_turn.sum()),
+                      "radius_m_median": float(np.median(rad)) if rad.size else None,
                       "achieved_over_commanded": _stats(ratio[walk_turn])}
-    on_spot = w & tip & (np.abs(cy) > turn_threshold)
-    out["turn_in_place"] = {"steps": int(on_spot.sum()), "drift_speed_mps": _stats(np.hypot(v, vl)[on_spot]),
+    # turning on the spot: net displacement per turn
+    spins = []
+    tip_w = w & tip
+    edges = np.flatnonzero(np.diff(np.r_[0, tip_w.astype(int), 0]))
+    for a, b in zip(edges[::2], edges[1::2]):
+        if b - a >= 2 and np.isfinite(px[a]) and np.isfinite(px[b - 1]):
+            spins.append(math.hypot(px[b - 1] - px[a], py[b - 1] - py[a]) / ((b - a) * dt))
+    on_spot = tip_w & (np.abs(cy) > turn_rate_threshold)
+    out["turn_in_place"] = {"steps": int(on_spot.sum()), "turns": len(spins),
+                            "net_drift_mps": _stats(spins) if spins else None,
                             "achieved_over_commanded": _stats(ratio[on_spot])}
-    stand = w & ~active & (np.abs(cy) <= 1e-9) & (np.abs(cv) <= 1e-9)
+    stand = w & ~follow & (np.abs(cy) <= 1e-9) & (np.abs(cv) <= 1e-9)
     out["stops"] = {"steps": int(stand.sum()), "speed_mps": _stats(np.hypot(v, vl)[stand]),
                     "yaw_rate_radps": _stats(np.abs(yr)[stand])}
     return out
 
 
 def summarise(episodes: list[dict]) -> dict:
-    """Across episodes: falls, the mean of the per-episode means and shares, pooled event figures."""
+    """Across episodes: falls, the mean of the per-episode window tracking, pooled turn figures."""
     def mean_of(path):
         vals = []
         for e in episodes:
             x = e
             for p in path:
-                x = (x or {}).get(p)
-            if isinstance(x, (int, float)) and x is not None and math.isfinite(x):
+                x = (x or {}).get(p) if isinstance(x, dict) else None
+            if isinstance(x, (int, float)) and math.isfinite(x):
                 vals.append(float(x))
         return float(np.mean(vals)) if vals else None
 
     rows = [r for e in episodes for r in e.get("events", [])]
-    big = [r for r in rows if r["requested_change_rad"] is not None and abs(r["requested_change_rad"]) >= math.radians(20)]
+    turns = [r for r in rows if r["is_turn"]]
     return {"episodes": len(episodes), "falls": int(sum(bool(e.get("fell")) for e in episodes)),
             "speed_error_mps_mean": mean_of(("tracking", "speed_error_mps", "mean")),
             "yaw_rate_error_radps_mean": mean_of(("tracking", "yaw_rate_error_radps", "mean")),
             "share_in_tolerance_mean": mean_of(("tracking", "share_in_tolerance")),
-            "heading_error_at_settle_deg_median": _stats([math.degrees(r["heading_error_at_settle_rad"])
-                                                          for r in rows])["median"],
-            "turns_over_20deg": len(big),
-            "turns_settled_share": (sum(r["settle_time_s"] is not None for r in big) / len(big)) if big else None,
-            "turn_radius_m_median": mean_of(("turning", "radius_m", "median")),
-            "turn_in_place_drift_mps_median": mean_of(("turn_in_place", "drift_speed_mps", "median")),
+            "heading_error_at_settle_deg_median": _stats([math.degrees(r["heading_error_at_settle_rad"]) for r in rows
+                                                          if r["heading_error_at_settle_rad"] is not None])["median"],
+            "turns": len(turns), "turns_failed_by_fall": sum(r["fell_during"] for r in turns),
+            "turns_settled_share": (sum(r["settle_time_s"] is not None for r in turns) / len(turns)) if turns else None,
+            "turn_radius_m_median": mean_of(("turning", "radius_m_median")),
+            "turn_in_place_net_drift_mps_median": mean_of(("turn_in_place", "net_drift_mps", "median")),
             "turn_in_place_rate_ratio_median": mean_of(("turn_in_place", "achieved_over_commanded", "median"))}

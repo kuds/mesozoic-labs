@@ -1773,7 +1773,9 @@ def test_steer_eval_courses_apply_requests_on_time():
     path = m["path"]
     assert len(path) == round((course["rows"][-1][0] + course["hold_s"]) / env.dt)
     h0 = path[0][3]
-    want = {0.0: (0.0, 0.25), 5.0: (0.0, 0.0), 7.0: (math.pi, 0.0), 16.0: (math.pi, 0.25)}
+    half = math.radians(179.0)  # the course's half turn stays off the angle wrap
+    assert [r[1] for r in course["rows"]] == [0, 0, 179, 179]
+    want = {0.0: (0.0, 0.25), 5.0: (0.0, 0.0), 7.0: (half, 0.0), 16.0: (half, 0.25)}
     for t0, (off, v) in want.items():  # the request the first step at or after t0 ran under
         k = int(round(t0 / env.dt))
         assert path[k][4] == pytest.approx(v) and abs(math.remainder(path[k][3] - h0 - off, 2 * math.pi)) < 1e-6
