@@ -14,7 +14,7 @@ them.
 
 ## What is trained
 
-- **Code:** the reviewed commit that the eight step sheets (`runs/trike60-fore128-s0_STEPS.md` and the others) name.
+- **Code:** the reviewed commit that the step sheet (`runs/trike60-d22_STEPS.md`, one sheet for the eight runs) names.
   All eight runs use the same commit, and its `analysis/judge_d22.py`, `analysis/foot_loads.py`,
   `analysis/judge_run3.py` and `telemetry/loads.py` are the ones that judge them.
 - **Models:** `sim/generated/trike60_C_closed_capsule_fore128.xml` (12.751 kg) and `..._fore160.xml` (12.808 kg),
