@@ -78,8 +78,8 @@ export default function CookieConsent(): React.JSX.Element | null {
         <div className={styles.textContent}>
           <h3 className={styles.title}>Cookie Preferences</h3>
           <p className={styles.description}>
-            We use cookies and analytics to understand how visitors interact with our site.
-            This helps us improve the Mesozoic Labs experience. Your data is anonymized.
+            May we use analytics cookies to learn how people use the site?{' '}
+            <a href="/docs/privacy" className={styles.link}>Privacy policy</a>
           </p>
         </div>
 
@@ -99,12 +99,6 @@ export default function CookieConsent(): React.JSX.Element | null {
             Accept
           </button>
         </div>
-      </div>
-
-      <div className={styles.privacyLink}>
-        <a href="/docs/privacy" className={styles.link}>
-          Learn more about our privacy practices
-        </a>
       </div>
     </div>
   );

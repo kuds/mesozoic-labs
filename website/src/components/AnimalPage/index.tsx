@@ -3,9 +3,11 @@ import {useLocation} from '@docusaurus/router';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import SharePreview from '@site/src/components/SharePreview';
 import {ANIMALS, animalModelImage, type Animal} from '@site/src/data/animals';
 import {headlineFor, posterFor, type Species} from '@site/src/data/species';
 import {AnimalHeader} from './AnimalHeader';
+import BrachiosaurusEvidence from './BrachiosaurusEvidence';
 import MovementStudy from './MovementStudy';
 import {INTERPRETATIONS} from './interpretation';
 import styles from './styles.module.css';
@@ -41,8 +43,8 @@ function MovementStudies({animal, model}: {animal: Animal; model: Species}) {
                 label={stage.title}
                 title={label?.title ?? stage.title}
                 description={label?.description ?? stage.description}
-                href={REPO + '/blob/main/' + stage.configPath}
-                linkLabel="Study settings"
+                href={REPO + '/blob/main/' + (reference?.controllerPath ?? stage.configPath)}
+                linkLabel={reference ? 'Reference walk controller' : 'Current training settings'}
                 video={path && caption ? {
                   src: path,
                   poster: posterFor(path),
@@ -69,7 +71,12 @@ function MovementStudies({animal, model}: {animal: Animal; model: Species}) {
             <h2 id="run">Published run</h2>
             <p>{result.algorithm} · {result.date} · {result.provenance.modelRevisionStatus} model · {result.provenance.verificationStatus}</p>
           </div>
-          <p><strong>{headline.value}</strong> {headline.label}</p>
+          <p>
+            <strong>{headline.value}</strong> {headline.label}
+            {result.deliverables.length === 0 && (result.provenance.evaluationEpisodes === null
+              ? ' · Evaluation count unrecorded'
+              : ' · ' + result.provenance.evaluationEpisodes + ' evaluations')}
+          </p>
           <a href={REPO + '/blob/main/' + result.summaryPath}>Run record</a>
         </section>
       )}
@@ -89,6 +96,7 @@ function SpeciesSpread({animal}: {animal: Animal}) {
 
   return (
     <Layout title={animal.name} description={animal.summary}>
+      {animal.slug === 'brachiosaurus_altithorax' && <SharePreview page="brachiosaurus" />}
       <main className={styles.page}>
         <AnimalHeader
           name={animal.name}
@@ -113,6 +121,9 @@ function SpeciesSpread({animal}: {animal: Animal}) {
               </Link>
             ))}
           </nav>
+        )}
+        {animal.slug === 'brachiosaurus_altithorax' && (
+          <BrachiosaurusEvidence image={animalModelImage(model)} />
         )}
         <MovementStudies key={model.embodiment} animal={animal} model={model} />
       </main>

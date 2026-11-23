@@ -3,30 +3,34 @@ import type {RobotVersionList} from '@site/src/components/RobotVersions';
 const repo = 'https://github.com/kuds/mesozoic-labs';
 const build = `${repo}/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build`;
 const concept = `${repo}/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study`;
-export const anatomicalStudy = `${concept}/models/README.md`;
+const capsuleBuild = `${repo}/blob/0a4ce5e9c60ccfabbd7f77110082a73e4744b01d/hardware/triceratops_build`;
+export const capsuleRenderNotes = `${capsuleBuild}/renders/README.md`;
+export const capsuleSideImage = '/img/animals/triceratops-60cm-capsule-side-2026-11-22.jpg';
+export const sizeReport = `${build}/sim/REPORT_60CM.md`;
+export const anatomicalStudy = `${concept}/models/README.md#anatomical-reconstruction`;
 
 export const triceratopsVersions: RobotVersionList = [
   {
     slug: '60-cm',
     label: '60 cm',
     name: 'Current design',
-    studyLabel: 'Current design · Walking trials',
+    studyLabel: 'Current design · Capsule soles',
     title: 'The 60 cm Triceratops design',
-    description: 'The selected design stands 60 cm at the frill and measures 1.2 m from horn tip to tail tip. The Q3 2027 target is to assemble the four-legged robot and demonstrate a physical walk.',
-    image: '/img/triceratops-gait.jpg',
-    alt: 'A green-frilled Triceratops robot balancing on its legs over a checkerboard floor during a simulated gait trial',
-    caption: 'Simulation still · Learned controller, 6 seconds into a gait trial',
+    description: 'The selected design stands 60 cm at the frill and measures 1.2 m from horn tip to tail tip. On 22 November the lab selected rounded capsule soles. The walking and ramp results below used the preceding foot design. The Q3 2027 target is to assemble the four-legged robot and demonstrate a physical walk.',
+    image: capsuleSideImage,
+    alt: 'Side view of the standing 60 cm Triceratops robot on its rounded capsule soles in simulation',
+    caption: 'Simulation still · Standing on capsule soles, 22 November 2026',
     darkPlate: true,
     facts: [
-      {label: 'Target mass', value: 'About 12 kg.'},
+      {label: 'Target mass', value: 'About 12 kg. The model shown has a simulated mass of 12.7 kg.'},
       {label: 'Next physical test', value: 'One foreleg on the bench.'},
     ],
-    source: {label: 'Read the 60 cm model report', href: `${build}/sim/REPORT_60CM.md`},
+    source: {label: 'See the capsule-sole model and render notes', href: capsuleRenderNotes},
     studies: [
       {
         label: 'Locomotion · Learned controller',
         title: 'Learning to trot',
-        description: 'With the speed set to 0.25 m/s, the learned controller reached 0.238 m/s. The feet cycled in diagonal pairs about 2.4 times a second.',
+        description: 'With the speed set to 0.25 m/s, the learned controller reached 0.238 m/s. The feet cycled in diagonal pairs about 2.4 times a second. The left hind knee averaged 1.10 times its modeled continuous torque rating.',
         href: `${build}/rl/analytics/results/pipe1/gait_report.md`,
         linkLabel: 'Read the gait report',
       },
@@ -66,7 +70,7 @@ export const triceratopsVersions: RobotVersionList = [
         label: 'Stance',
         title: 'Stand on four feet',
         description: 'With its joints set to their neutral positions, the 75 cm robot stood on all four feet for three seconds in MuJoCo.',
-        href: anatomicalStudy,
+        href: `${concept}/models/README.md#what-has-been-exercised`,
         linkLabel: 'Read the stance study',
       },
     ],
