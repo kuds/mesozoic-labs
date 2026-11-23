@@ -296,23 +296,41 @@ edited.
 - **Turning on the spot** (this env's extension): the shared contract stops turning at zero speed. With
   `cmd_turn_in_place`, a stop whose requested heading differs from the estimate by more than 5° turns on the spot,
   at the same bounded rate.
-- **Reward:**
-  - speeds are taken along the robot's own heading;
+- **Reward** (revised after the review of 23 Nov 2026, before any steering run):
+  - speeds are taken along the robot's own heading, not the reset heading;
+  - `r_track` is the shared contract's `gaussian_tracking_reward` times `w_track`: one Gaussian of the planar speed
+    error (forward error and sideways speed, `track_sigma`) and the turn-rate error (`track_yaw_sigma`, 0.2 rad/s).
+    Being one Gaussian, standing still while asked to walk or turn earns about nothing (a separate turn bonus, the
+    first design, paid standing still);
   - `r_yaw_rate` penalises the error against the commanded turn rate;
   - `r_heading` is 0, because holding the heading is the adapter's job;
-  - `r_track_yaw` (in `STEERING_TERMS`) rewards turn-rate tracking.
-  Every other term is unchanged.
+  - the stepping terms (`r_air_time`, `r_diagonal`) count when the command asks to walk or to turn faster than
+    `air_time_min_turn_rate` (0.1 rad/s), so turning on the spot is a stepping task too.
+  Every other term is unchanged; `STEERING_TERMS` is empty.
+- **When a command applies:** the observation a step returns already shows the command the next step is judged by;
+  `set_command_target` returns a fresh observation with the new request, to act on in place of the last one.
+  Turning on the spot starts beyond 5° of heading error and stops within 2.5° (hysteresis), and the heading-error
+  input is zero at a stop with nothing to turn to.
 - **Evaluation options:**
   - `options={"command_speed": v}` holds the reset heading at v, so the straight-line tools (gait report, sweep,
     train.py's evaluations, evaluate.py) work on a steering policy;
   - `options={"command_target": (heading offset, speed)}` holds another request;
   - `set_command_target(heading, speed)` is an operator's request mid-episode.
 - **`steer_eval.py`:** a steering policy on its own request schedule, and on scripted courses (90° turns while
-  walking, a stop with a turn on the spot, standing). It reports the generic measures of `telemetry/steering.py`
-  (tracking errors, heading error 3 s after each request, settle times, turn radius, turning on the spot, stops)
-  with the 60 cm tolerances (0.05 m/s, 0.1 rad/s, 10°), and draws a top view of each course.
+  walking, a stop with a 179° turn on the spot, standing; 179°, because a half turn sits on the angle wrap where
+  noise picks the direction). It reports the generic measures of `telemetry/steering.py` with the 60 cm tolerances
+  (0.05 m/s, 0.1 rad/s, 10°):
+  - speed and turn-rate tracking judged on 0.5 s means (about one stride) after the first second, since the per-step
+    values mostly read the gait's own sway (the per-step errors are kept too);
+  - per request: the heading error 3 s after it and the settle time; a turn that ends in a fall counts as failed;
+  - turn radius over the steps turning the commanded way, net drift per turn on the spot, and speed while standing.
+  Each course gets a top view and a heading-against-time chart.
+- **`evaluate.py` on a steering run:** each episode walks one straight request (a seeded speed, or a stop), so its
+  numbers compare with the straight task's; the steering behaviour itself is `steer_eval.py`'s.
 - **Checks:** with `--checks-every`, a steering run's checks add the courses `turns_walking` and `turn_on_the_spot`,
-  about 10 s more per check.
+  about 10 s more per check; the checks chart gives them a third panel (heading error 3 s after a request).
+- **Provenance:** the gait report records the shared direction-command module's sha256 beside the run commit's, so a
+  run's exported `trike_env.py` used with a newer shared module shows.
 - **Not yet decided:** the settings above are starting points, set before any steering run. The steering run's
   rules, its preset and step sheets come after run 3's results (D20).
 

@@ -59,15 +59,19 @@ controller for 15-20 simulated minutes. It reports heat, battery and loads in on
   `"heading"` or `"heading_and_speed"`, with one `DirectionCommandConfig` scaled to 60 cm. The cruise speed is
   0.25 m/s. The turn rates and heading-change sizes are set from what the model-based trot and run 3 show.
 - **Observation:** the shared 3-input command segment, appended last. Under `"none"` the observation is unchanged.
-- **Reward:** tracking of forward speed and turn rate (the shared Gaussian tracking), plus the requested-heading
-  error. The heat, torque-limit, slip and drift costs stay.
+- **Reward** (as built, revised after the review of 23 Nov): one shared Gaussian of the speed error (sideways speed
+  included) and the turn-rate error, so standing still while asked to move earns about nothing. The
+  requested-heading term planned here was dropped before any run (`r_heading` is 0): the command adapter closes the
+  heading loop. The stepping terms also count when the command asks to turn. The heat, torque-limit, slip and drift
+  costs stay.
 - **Evaluation measures:**
   - speed and turn-rate tracking error;
   - heading error a set time after each change;
   - turning radius;
   - settle time after a change;
   - turning on the spot: rate and drift.
-  The gait report gains a turning case; the sweep gains turn points.
+  As built, these are `steer_eval.py`'s schedule and courses and the checks' course points; the gait report and the
+  sweep stay straight-line (a steering policy walks them on a straight request).
 - **Training:** a new preset, rules pre-registered after run 3's results, and step sheets. The notebook gains the
   preset in its list. It may also gain an option to start from an earlier run's policy (train.py has none today);
   that is decided with the pre-registration.

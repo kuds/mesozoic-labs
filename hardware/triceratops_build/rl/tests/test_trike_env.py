@@ -1760,6 +1760,157 @@ def test_steering_without_turn_in_place_stands_at_stops():
     assert not info["turn_in_place"] and info["command_yaw_rate"] == 0.0 and not info["heading_active"]
 
 
+def test_steering_observation_carries_the_command_its_step_is_judged_by():
+    """The observation a step returns shows the command the NEXT step's reward judges (and set_command_target's
+    returned observation shows the new request): the policy is never scored against a command it has not seen."""
+    from environments.shared.direction_commands import gaussian_tracking_reward
+
+    env = _steer_env("heading_and_speed", episode_seconds=20.0, observation_noise=False)
+    obs, _ = env.reset(seed=5)
+    scales = np.array([env.cfg.cmd_speed_scale, env.cfg.cmd_lateral_speed_scale, env.cfg.cmd_yaw_rate_scale])
+    for k in range(600):
+        if k == 300:  # an operator's request mid-episode: act on the observation it returns
+            obs = env.set_command_target(env._heading + 1.0, 0.15)
+        seen = env.obs_slots(obs)
+        obs, _, term, trunc, info = env.step(np.zeros(12))
+        cmd = np.array([info["command_v_x"], info["command_v_y"], info["command_yaw_rate"]])
+        assert np.allclose(seen["command"], np.clip(cmd / scales, -1, 1), atol=1e-6)
+        assert seen["command_speed_mps"][0] == pytest.approx(info["command_speed"], abs=1e-6)
+        assert info["command_speed"] == pytest.approx(info["command_v_x"])  # the executed speed, not the request
+        e_v = math.hypot(info["forward_speed"] - info["command_v_x"], info["lateral_speed"])
+        assert info["r_track"] == pytest.approx(env.cfg.w_track * gaussian_tracking_reward(
+            e_v, abs(info["yaw_rate"] - info["command_yaw_rate"]), velocity_sigma=env.cfg.track_sigma,
+            yaw_rate_sigma=env.cfg.track_yaw_sigma))
+        if k == 300:
+            assert info["desired_speed"] == pytest.approx(0.15)
+        if term or trunc:
+            break
+    assert k >= 300
+
+
+@pytest.mark.parametrize("steer", [False, True])
+def test_speeds_are_along_the_robots_own_heading_under_steering(steer):
+    """Turn the robot 90 deg left of its reset heading and slide it along its new nose: under steering that is
+    forward speed; in the straight task the speeds stay along the reset heading, so it is sideways."""
+    env = _steer_env(episode_seconds=5.0, observation_noise=False) if steer else TrikeEnv(
+        TrikeEnvConfig(observation_noise=False))
+    env.reset(seed=4)
+    d, m = env.data, env.model
+    qz = np.array([math.cos(math.pi / 4), 0.0, 0.0, math.sin(math.pi / 4)])  # +90 deg about world z
+    q = d.qpos[3:7].copy()
+    mujoco.mju_mulQuat(d.qpos[3:7], qz, q)
+    mujoco.mj_forward(m, d)
+    R = d.xmat[env._chassis].reshape(3, 3)
+    yaw = math.atan2(R[1, 0], R[0, 0])
+    d.qvel[:] = 0.0
+    d.qvel[0:2] = 0.3 * np.array([math.cos(yaw), math.sin(yaw)])
+    xy0 = d.xpos[env._chassis, :2].copy()
+    _, _, _, _, info = env.step(np.zeros(12))
+    disp = (d.xpos[env._chassis, :2] - xy0) / env.dt
+    h = yaw if steer else env._heading
+    along = disp @ np.array([math.cos(h), math.sin(h)])
+    assert info["forward_speed"] == pytest.approx(along, abs=1e-3)
+    if steer:
+        assert info["forward_speed"] > 0.1 and abs(info["lateral_speed"]) < 0.5 * info["forward_speed"]
+    else:
+        assert abs(info["forward_speed"]) < 0.5 * abs(info["lateral_speed"]) and abs(info["lateral_speed"]) > 0.1
+
+
+def test_steering_heading_slot_is_masked_unless_a_heading_is_followed():
+    """The heading-error slot shows the estimate against the request while walking with a heading or turning on the
+    spot; at a stop with nothing to turn to (or with turning on the spot off) it is (sin 0, cos 0) = (0, 1)."""
+    def first(env, options, offset_robot=0.0):
+        env.reset(seed=6, options=options)
+        obs, _, _, _, info = env.step(np.zeros(12))
+        return env.obs_slots(obs)["heading_error_sin_cos_ESTIMATE"], info, env._cmd_exec
+
+    env = _steer_env(episode_seconds=5.0, observation_noise=False)
+    slot, info, c = first(env, {"command_target": (0.0, 0.0)})  # a stop facing the request: stand
+    assert np.allclose(slot, [0.0, 1.0]) and not c["observe_heading"] and not info["turn_in_place"]
+    slot, info, c = first(env, {"command_target": (1.2, 0.0)})  # a stop, 69 deg off: turn on the spot
+    assert c["turn_in_place"] and c["observe_heading"] and not c["heading_active"] and abs(slot[0]) > 0.5
+    slot, info, c = first(env, {"command_target": (1.2, 0.2)})  # walking with a heading
+    assert c["heading_active"] and c["observe_heading"] and abs(slot[0]) > 0.5
+    env = _steer_env(episode_seconds=5.0, observation_noise=False, cmd_turn_in_place=False)
+    slot, info, c = first(env, {"command_target": (1.2, 0.0)})  # the same stop, turning on the spot off
+    assert np.allclose(slot, [0.0, 1.0]) and not c["observe_heading"]
+
+
+def test_straight_task_does_not_import_the_shared_command_modules():
+    """A run without steering (run 3) builds and steps without importing environments/ at all."""
+    code = ("import sys, numpy as np, trike_env as te; e = te.TrikeEnv(); e.reset(seed=0); e.step(np.zeros(12)); "
+            "print(sorted(m for m in sys.modules if m.startswith('environments')))")
+    p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=str(RL_DIR), timeout=300)
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.strip() == "[]"
+
+
+RUN3_DIGEST = "658346ad8abb42e262ae2c8faf43d2e72b647bad000aa30b45d1720122424874"
+
+
+def test_run3_env_regression_digest():
+    """Guards bit-identity of run 3's env (the capsule model with configs/run3_terrain.json) with the env at run 3's
+    commit (efd1e1c7): a digest of 2 x 160 steps' observations, rewards and terminations (random, then hard
+    alternating actions; episodes end and reset), recorded from that commit's trike_env.py with mujoco 3.10.0 on this
+    container (Linux x86-64). The steering work must leave it as it was. Skipped for another mujoco version; on
+    another platform re-record from efd1e1c7's trike_env.py before trusting a failure."""
+    import hashlib
+
+    from trike_env import CAPSULE_MODEL
+
+    if mujoco.__version__ != "3.10.0":
+        pytest.skip("digest recorded with mujoco 3.10.0")
+    cfg = json.loads((RL_DIR / "configs" / "run3_terrain.json").read_text())
+    h, ended = hashlib.sha256(), 0
+    for seed in (11, 21):
+        e = TrikeEnv(TrikeEnvConfig.from_dict({**cfg, "model_path": str(CAPSULE_MODEL)}))
+        obs, _ = e.reset(seed=seed)
+        h.update(obs.tobytes())
+        rng, n = np.random.default_rng(seed), 0
+        for k in range(160):
+            a = rng.uniform(-1, 1, 12) if k < 60 else np.full(12, 1.0 if (k // 10) % 2 else -1.0)
+            obs, r, term, trunc, _ = e.step(a)
+            h.update(obs.tobytes() + repr((r, term, trunc)).encode())
+            if term or trunc:
+                n += 1
+                obs, _ = e.reset(seed=seed + 1 + n)
+                h.update(obs.tobytes())
+        ended += n
+    assert ended >= 1
+    assert h.hexdigest() == RUN3_DIGEST
+
+
+@pytest.fixture(scope="module")
+def steering_run(tmp_path_factory):
+    out = tmp_path_factory.mktemp("steer") / "run"
+    cfg = out.parent / "steer.json"
+    cfg.write_text(json.dumps({"command_mode": "heading", "episode_seconds": 4.0}))
+    p = _run(RL_DIR / "train.py", "--out", out, *BASE_ARGS, "--eval-every", 0, "--total-steps", 1024,
+             "--checkpoint-every", 512, "--model", "trike60_C_closed_capsule", "--env-config", cfg)
+    assert p.returncode == 0, p.stdout + p.stderr
+    return out
+
+
+def test_steer_eval_main_loads_the_newest_pair_and_writes_its_record(steering_run, tmp_path):
+    import steer_eval  # puts analytics/ on the path
+
+    import gait_report
+
+    ckpt = steering_run / "checkpoints"
+    zp, _, _ = gait_report.find_pair(ckpt)
+    shutil.copy(steering_run / "run_record.json", ckpt / "run_record.json")  # as a downloaded checkpoint folder has it
+    out = tmp_path / "steer"
+    p = _run(RL_DIR / "steer_eval.py", "--ckpt-dir", ckpt, "--out", out, "--episodes", 1, timeout=900)
+    assert p.returncode == 0, p.stdout + p.stderr
+    rec = json.loads((out / "steer_eval.json").read_text())
+    assert rec["simulation_only"] and rec["checkpoint"] == zp.name
+    assert set(rec["courses"]) == set(steer_eval.COURSES) and all("path" not in c for c in rec["courses"].values())
+    assert rec["schedule"]["summary"]["episodes"] == 1
+    assert sorted(rec["charts"]) == sorted(f"steer_course_{n}.png" for n in steer_eval.COURSES)
+    assert all((out / c).stat().st_size > 10_000 for c in rec["charts"])
+    assert "course turn_on_the_spot" in p.stdout
+
+
 def test_steer_eval_courses_apply_requests_on_time():
     import steer_eval
 

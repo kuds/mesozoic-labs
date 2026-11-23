@@ -588,7 +588,7 @@ def make_checks(args, cfg, out: Path):
     steering = cfg.command_mode != "none"
 
     def run_point(name, spec, seed, act):
-        if "course" in spec:  # a steering course (steer_eval.py): its measures, the speed as the chart reads it
+        if "course" in spec:  # a steering course (steer_eval.py): the measures the checks chart's course panel reads
             import steer_eval
 
             course = steer_eval.COURSES[spec["course"]]
