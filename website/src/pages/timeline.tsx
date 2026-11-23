@@ -3,6 +3,7 @@ import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import useBrokenLinks from '@docusaurus/useBrokenLinks';
 import Layout from '@theme/Layout';
+import SharePreview from '@site/src/components/SharePreview';
 import styles from './timeline.module.css';
 
 const repository = 'https://github.com/kuds/mesozoic-labs/blob/';
@@ -94,6 +95,7 @@ export default function Timeline() {
   collectAnchor('planned');
   return (
     <Layout title="Project timeline" description="Follow Mesozoic Labs from its first simulations to the planned Triceratops bench tests and walking hardware.">
+      <SharePreview page="timeline" />
       <main className={styles.page}>
         <header className={styles.intro}>
           <div>

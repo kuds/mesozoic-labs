@@ -3,7 +3,7 @@ import type {RobotVersionList} from '@site/src/components/RobotVersions';
 const repo = 'https://github.com/kuds/mesozoic-labs';
 const build = `${repo}/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build`;
 const concept = `${repo}/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study`;
-export const anatomicalStudy = `${concept}/models/README.md`;
+export const anatomicalStudy = `${concept}/models/README.md#anatomical-reconstruction`;
 
 export const triceratopsVersions: RobotVersionList = [
   {
@@ -18,7 +18,7 @@ export const triceratopsVersions: RobotVersionList = [
     caption: 'Simulation still · Learned controller, 6 seconds into a gait trial',
     darkPlate: true,
     facts: [
-      {label: 'Target mass', value: 'About 12 kg.'},
+      {label: 'Target mass', value: 'About 12 kg. The simulation budget estimates 12.69 kg including contingency.'},
       {label: 'Next physical test', value: 'One foreleg on the bench.'},
     ],
     source: {label: 'Read the 60 cm model report', href: `${build}/sim/REPORT_60CM.md`},
@@ -26,7 +26,7 @@ export const triceratopsVersions: RobotVersionList = [
       {
         label: 'Locomotion · Learned controller',
         title: 'Learning to trot',
-        description: 'With the speed set to 0.25 m/s, the learned controller reached 0.238 m/s. The feet cycled in diagonal pairs about 2.4 times a second.',
+        description: 'With the speed set to 0.25 m/s, the learned controller reached 0.238 m/s. The feet cycled in diagonal pairs about 2.4 times a second. The left hind knee averaged 1.10 times its modeled continuous torque rating.',
         href: `${build}/rl/analytics/results/pipe1/gait_report.md`,
         linkLabel: 'Read the gait report',
       },

@@ -94,7 +94,7 @@ We may update this privacy policy from time to time. Changes will be posted on t
 
 ## Contact Us
 
-If you have questions about this privacy policy or our data practices, please open an issue on our [GitHub repository](https://github.com/mesozoic-labs).
+For questions about this privacy policy or our data practices, email [hello@findingtheta.com](mailto:hello@findingtheta.com).
 
 ---
 

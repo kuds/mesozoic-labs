@@ -1,12 +1,20 @@
 import React from 'react';
 import Link from '@docusaurus/Link';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import useBrokenLinks from '@docusaurus/useBrokenLinks';
 import Layout from '@theme/Layout';
+import SharePreview from '@site/src/components/SharePreview';
 import styles from './index.module.css';
 
 const study = 'https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build';
 const walkingReport = study + '/walk/results/walk60_2026-11-19/RESULTS.md';
 const rampResults = study + '/walk/results/sweep_walk60/summary_walk60.md';
+const targetSpeed = 0.25;
+const slopeResults = [
+  {terrain: 'Level ground', speed: 0.246},
+  {terrain: '5° uphill', speed: 0.179},
+  {terrain: '8° uphill', speed: 0.129},
+];
 
 const featured = [
   {
@@ -22,10 +30,10 @@ const featured = [
     link: 'Explore the robot model',
   },
   {
-    href: '/animals/brachiosaurus_altithorax',
+    href: '/animals/brachiosaurus_altithorax#fossil-evidence',
     name: 'Brachiosaurus',
-    description: 'How does a long-necked quadruped reach for food?',
-    link: 'Explore the anatomy',
+    description: 'What can the surviving bones tell us about this long-necked animal?',
+    link: 'Explore the fossil evidence',
   },
 ];
 
@@ -35,31 +43,33 @@ function SectionHeading({id, children}: {id: string; children: string}) {
 }
 
 function TriceratopsStudy() {
+  const robot = useBaseUrl('/img/animals/triceratops-60cm-profile.webp');
+  const adult = useBaseUrl('/img/animals/triceratops-adult-profile.webp');
   return (
     <figure>
       <div className={styles.plates}>
         <figure>
           <img
-            src="/img/animals/triceratops-anatomical.webp"
+            src={robot}
             width={800}
             height={400}
-            alt="Anatomical Triceratops with a broad frill, three horns and four weight-bearing legs"
+            alt="Side view of the robot with a horned head, open chassis and jointed legs"
           />
-          <figcaption>Anatomical model</figcaption>
+          <figcaption>Current robot design · 60 cm at the frill</figcaption>
         </figure>
         <figure>
           <img
-            src="/img/animals/triceratops-concept.webp"
-            width={800}
-            height={400}
-            alt="Earlier open-frame Triceratops robot design with jointed legs, a frill and horns"
+            src={adult}
+            width={1600}
+            height={706}
+            alt="Side view of the adult anatomical model with a broad frill, three horns and four weight-bearing legs"
           />
-          <figcaption>Robot model · 75 cm concept</figcaption>
+          <figcaption>Adult anatomical model · 7.3 m long</figcaption>
         </figure>
       </div>
       <figcaption className={styles.caption}>
         <strong>Triceratops</strong>
-        <span>MuJoCo design study · Views scaled independently</span>
+        <span>MuJoCo models · Views scaled independently</span>
         <Link className={styles.textLink} to="/animals/triceratops#scale-comparison">Compare the adult and the 60 cm robot to scale</Link>
       </figcaption>
     </figure>
@@ -72,12 +82,16 @@ export default function Home(): React.JSX.Element {
       title="Building robots inspired by Mesozoic animals"
       description="Explore Mesozoic animal models, follow a Triceratops robot from anatomy into simulation, and read the lab’s build journal."
     >
+      <SharePreview page="home" />
       <main className={styles.page} id="main-content">
         <header className={styles.intro}>
           <h1>Building robots inspired by Mesozoic animals.</h1>
           <div>
-            <p>We start with an animal’s anatomy. When there’s a path to a physical robot, we design one and test how it moves. Today, every trial takes place in simulation.</p>
-            <Link className={styles.primary} to="/animals/triceratops">Follow the Triceratops build</Link>
+            <p>We start with an animal’s anatomy. Our first planned build is a Triceratops robot that stands 60 cm at the frill. Today, every walking trial takes place in simulation.</p>
+            <div className={styles.introLinks}>
+              <Link className={styles.primary} to="/animals/triceratops">Follow the Triceratops build</Link>
+              <Link className={styles.textLink} to="/collaborate">Collaborate with us</Link>
+            </div>
           </div>
         </header>
 
@@ -103,12 +117,29 @@ export default function Home(): React.JSX.Element {
           <section aria-labelledby="journal">
             <SectionHeading id="journal">Build journal</SectionHeading>
             <div className={styles.metadata}><time dateTime="2026-11-19">19 November 2026</time> · Simulation</div>
-            <h3>Forty flat-floor trials</h3>
-            <p>The 60 cm Triceratops trotted through four simulated floor conditions without falling. On a 5° ramp, its speed dropped by 27%.</p>
+            <h3>From flat floors to ramps</h3>
+            <p>The 60 cm robot stayed upright in all 40 judged trials. Using a model-based controller, it trotted across four simulated floor conditions, ten trials per condition.</p>
+            <p>In a separate exploratory test, the same controller targeted {targetSpeed} m/s in eight simulations per slope. At 5°, it moved 27% slower than on level ground.</p>
+            <figure className={styles.slopeStudy}>
+              <figcaption>Mean forward speed by slope <span>(m/s)</span></figcaption>
+              <dl>
+                {slopeResults.map(({terrain, speed}) => (
+                  <div key={terrain} className={styles.slopeRow}>
+                    <dt>{terrain}</dt>
+                    <dd>
+                      <span className={styles.speedTrack} aria-hidden="true">
+                        <span style={{width: `${speed / targetSpeed * 100}%`}} />
+                      </span>
+                      <span>{speed.toFixed(3)}</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </figure>
             <span>
-              <a href={walkingReport} className={styles.textLink}>See the trial results</a>
+              <a href={walkingReport} className={styles.textLink}>Read the flat-floor trial results</a>
               {' · '}
-              <a href={rampResults} className={styles.textLink}>See the ramp test</a>
+              <a href={rampResults} className={styles.textLink}>Read the ramp results</a>
             </span>
           </section>
           <section aria-labelledby="roadmap">

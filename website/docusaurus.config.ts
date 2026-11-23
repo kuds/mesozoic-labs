@@ -130,13 +130,14 @@ const config: Config = {
             },
             {
               label: 'Training',
-              to: '/docs/training/sac',
+              to: '/docs/training/recipes',
             },
           ],
         },
         {
           title: 'Community',
           items: [
+            {label: 'Collaborate with the lab', to: '/collaborate'},
             {
               label: 'GitHub Discussions',
               href: 'https://github.com/kuds/mesozoic-labs/discussions',
@@ -146,6 +147,7 @@ const config: Config = {
         {
           title: 'More',
           items: [
+            {label: 'Privacy and cookie settings', to: '/docs/privacy#cookie-settings'},
             {
               label: 'Blog',
               to: '/blog',

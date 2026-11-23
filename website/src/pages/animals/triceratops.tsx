@@ -1,5 +1,6 @@
 import React from 'react';
 import Layout from '@theme/Layout';
+import SharePreview from '@site/src/components/SharePreview';
 import {AnimalHeader} from '@site/src/components/AnimalPage/AnimalHeader';
 import RobotVersions from '@site/src/components/RobotVersions';
 import TriceratopsScale from '@site/src/components/TriceratopsScale';
@@ -9,6 +10,7 @@ import styles from '@site/src/components/AnimalPage/styles.module.css';
 export default function TriceratopsPage() {
   return (
     <Layout title="Triceratops" description="Compare the adult Triceratops anatomical model, the 60 cm robot design and the earlier 75 cm concept through their simulation studies.">
+      <SharePreview page="triceratops" />
       <main className={styles.page}>
         <AnimalHeader
           compact

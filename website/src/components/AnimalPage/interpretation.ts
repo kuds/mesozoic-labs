@@ -2,7 +2,7 @@
 interface StudyLabel {
   title: string;
   description: string;
-  referenceRecording?: {path: string; caption: string};
+  referenceRecording?: {path: string; caption: string; controllerPath: string};
 }
 
 interface Interpretation {
@@ -31,6 +31,7 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
         referenceRecording: {
           path: '/videos/allosaurus_fragilis_anatomical_reference_walk.mp4',
           caption: 'Reference controller · Level ground · Real-time playback',
+          controllerPath: 'environments/allosaurus_fragilis/scripts/reference_walk.py',
         },
       },
     },
@@ -49,6 +50,7 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
         referenceRecording: {
           path: '/videos/brachiosaurus_altithorax_anatomical_reference_walk.mp4',
           caption: 'Scripted reference walk · Physics revision 6 · Measured speed 0.34 m/s',
+          controllerPath: 'environments/brachiosaurus_altithorax/scripts/reference_walk.py',
         },
       },
       behavior: {title: 'Guide the head', description: 'Food targets appear 2.0–3.5 m above the ground. A reach counts when the head tip comes within 0.8 m of the target.'},
@@ -68,6 +70,7 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
         referenceRecording: {
           path: '/videos/velociraptor_mongoliensis_anatomical_reference_walk.mp4',
           caption: 'Scripted reference walk · Level ground · Measured speed 0.258 m/s',
+          controllerPath: 'environments/velociraptor_mongoliensis/scripts/reference_walk.py',
         },
       },
       behavior: {title: 'Aim the sickle claw', description: 'Either raised claw can score a strike by touching the simulated prey.'},
@@ -82,7 +85,15 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
     studies: {
       stance: {title: 'Stand over the feet', description: 'The model balances its forward-leaning trunk and skull above two planted hind feet.'},
       recovery: {title: 'Recover from a push', description: 'Scheduled pushes disturb a standing model. The controller tries to recover its upright stance.'},
-      locomotion: {title: 'Carry the skull forward', description: 'The hind legs alternate support as the body advances and the tail balances the trunk.'},
+      locomotion: {
+        title: 'Follow the weight from foot to foot',
+        description: 'The two views show the same walk. The force readings under the feet track the transfer of weight through 23 alternating touchdowns in the final 12 seconds.',
+        referenceRecording: {
+          path: '/videos/tyrannosaurus_rex_anatomical_reference_walk.mp4',
+          caption: 'Scripted reference walk · Level ground · Mean speed 0.638 m/s in the final 12 seconds',
+          controllerPath: 'environments/tyrannosaurus_rex/scripts/reference_walk.py',
+        },
+      },
       behavior: {title: 'Make head contact', description: 'A contact surface on the head represents a bite. Touching simulated prey with that surface counts as success.'},
     },
   },
@@ -94,7 +105,15 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
     detailLabel: 'Hind limbs', detail: 'Longer than forelimbs',
     studies: {
       stance: {title: 'Stand tall', description: 'The foot pads hold the body above the ground as the animal maintains its erect stance.'},
-      locomotion: {title: 'Work in diagonal pairs', description: 'Each foreleg coordinates with the opposite hind leg as the model walks.'},
+      locomotion: {
+        title: 'Trace a four-beat walk',
+        description: 'The left hindfoot lands first, followed by the left forefoot, right hindfoot and right forefoot. The replay shows when each foot presses on the floor. The separate training task asks for coordination in diagonal pairs.',
+        referenceRecording: {
+          path: '/videos/dibothrosuchus_elaphros_anatomical_reference_walk.mp4',
+          caption: 'Scripted reference walk · Level ground · Measured foot contacts',
+          controllerPath: 'environments/dibothrosuchus_elaphros/scripts/reference_walk.py',
+        },
+      },
       behavior: {title: 'Place the snout', description: 'The MuJoCo task scores a touch of the snout on the prey.'},
     },
   },

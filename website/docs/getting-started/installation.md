@@ -53,10 +53,10 @@ For the easiest setup, use the pre-configured Google Colab notebooks in the `not
 
 The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/content/mesozoic-labs` as a sparse checkout: only `environments`, `configs`, `notebooks` and `results`, plus the files at the repository root, which keeps a fresh runtime's download to about 38 MB. It then runs that checkout's `notebooks/colab_install.py`, which installs the project with its `train` and `viz` extras under `constraints.txt`, keeps Colab's own torch, and stops with a list of any version that does not match.
 
-Available notebooks:
+Both notebooks open in Google Colab.
 
-- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
-- `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
+- [`notebooks/sb3_training.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb) - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
+- [`notebooks/google_drive_summary.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/google_drive_summary.ipynb) - Training-run summaries and comparisons
 
 ## Dependencies
 
