@@ -6,6 +6,10 @@ import json
 import mujoco
 import numpy as np
 
+from examples.shared.footfalls import swing_events
+from examples.shared.ground_contacts import support_margin
+
+from .courses import foot_contacts
 from .reference_walk import CONTROL_DT, FEET, MODEL_PATH, PERIOD, ReferenceWalk
 
 
@@ -23,79 +27,17 @@ def check_mesh_winding(model):
         )
 
 
-def support_margin(points, com):
-    """Signed distance (m) to closest edge of the planar convex support hull."""
-    points = sorted(set(map(tuple, points)))
-    if len(points) == 1:
-        return -float(np.linalg.norm(com - points[0]))
-    if not points:
-        raise AssertionError("No ground support")
-
-    def lower_chain(pts):
-        chain = []
-        for c in pts:
-            while len(chain) >= 2:
-                a, b = chain[-2:]
-                if (b[0] - a[0]) * (c[1] - a[1]) > (b[1] - a[1]) * (c[0] - a[0]):
-                    break
-                chain.pop()
-            chain.append(c)
-        return chain
-
-    hull = np.array(lower_chain(points)[:-1] + lower_chain(reversed(points))[:-1])
-    if len(hull) == 2:
-        delta = hull[1] - hull[0]
-        t = np.clip(np.dot(com - hull[0], delta) / np.dot(delta, delta), 0, 1)
-        return -float(np.linalg.norm(com - hull[0] - t * delta))
-    edges = np.roll(hull, -1, axis=0) - hull
-    delta = com - hull
-    return float(np.min((edges[:, 0] * delta[:, 1] - edges[:, 1] * delta[:, 0]) / np.linalg.norm(edges, axis=1)))
-
-
-class FloorContacts:
-    def __init__(self, model):
-        self.floor = model.geom("ground").id
-        self.pads = np.array([[model.geom(f"{foot}_pad_{n}").id for n in (1, 2, 3)] for foot in FEET])
-        self.owners = {geom: i for i, geoms in enumerate(self.pads) for geom in geoms}
-
-    def measure(self, m, d):
-        loads = np.zeros(4)
-        points = []
-        slip = 0.0
-        other = 0.0
-        wrench = np.empty(6)
-        jac = np.empty((3, m.nv))
-        for j, c in enumerate(d.contact):
-            if self.floor not in c.geom:
-                continue
-            geom = c.geom2 if c.geom1 == self.floor else c.geom1
-            mujoco.mj_contactForce(m, d, j, wrench)
-            force = wrench[0]
-            if geom not in self.owners:
-                other += force
-                continue
-            loads[self.owners[geom]] += force
-            if force > 1.0:
-                points.append(c.pos[:2].copy())
-            mujoco.mj_jac(m, d, jac, None, c.pos, m.geom_bodyid[geom])
-            slip += force * np.linalg.norm(jac[:2] @ d.qvel)
-        # Exact lowest world Z of each arbitrarily oriented ellipsoidal sole pad.
-        vertical_axes = d.geom_xmat[self.pads, 6:9] * m.geom_size[self.pads]
-        gap = (d.geom_xpos[self.pads, 2] - np.linalg.norm(vertical_axes, axis=2)).min(axis=1)
-        return loads, gap, points, slip / max(1.0, loads.sum()), other
-
-
 def inspect_scene(path, cycles=12, trace_path=None, friction=None):
     m = mujoco.MjModel.from_xml_path(str(path))
     check_mesh_winding(m)
     d = mujoco.MjData(m)
     walk = ReferenceWalk(m)
-    contacts = FloorContacts(m)
+    contacts = foot_contacts(m)
     touch_addr = [m.sensor(foot + "_sole_force").adr[0] for foot in FEET]
     if friction is not None:
         if not np.isfinite(friction) or friction <= 0:
             raise ValueError("Sliding friction must be positive and finite")
-        m.geom_friction[contacts.floor, 0] = friction
+        m.geom_friction[contacts.surfaces[0], 0] = friction
         m.geom_friction[contacts.pads, 0] = friction
     root = walk.trunk
     weight = walk.weight
@@ -106,7 +48,8 @@ def inspect_scene(path, cycles=12, trace_path=None, friction=None):
         mujoco.mj_step(m, d, nstep=round(0.1 / m.opt.timestep))
         assert d.xmat[root, 8] > 0.95 and np.isfinite(d.qpos).all(), "Passive stance lost balance"
     mujoco.mj_forward(m, d)
-    loads, _, points, _, other = contacts.measure(m, d)
+    sample = contacts.measure(m, d)
+    loads = sample.loads
     com = d.subtree_com[root].copy()
     stance = {
         "duration_s": d.time,
@@ -115,12 +58,12 @@ def inspect_scene(path, cycles=12, trace_path=None, friction=None):
         "root_height_m": d.xpos[root, 2],
         "foot_load_N": dict(zip(FEET, loads)),
         "fore_load_fraction": loads[:2].sum() / loads.sum(),
-        "support_margin_m": support_margin(points, com[:2]),
+        "support_margin_m": support_margin(sample.contact_xy, com[:2]),
     }
     assert stance["support_margin_m"] > 0.2 and np.all(loads > 0.05 * weight)
     np.testing.assert_allclose(loads.sum(), weight, rtol=0.02)
     np.testing.assert_allclose(d.sensordata[touch_addr], loads, rtol=1e-5, atol=1.0)
-    assert other < 1.0 and not np.any(d.warning.number)
+    assert sample.other_load < 1.0 and not np.any(d.warning.number)
     # Preserve the original study's independent articulation check.
     old_gape = d.joint("jaw_gape").qpos[0]
     d.ctrl[m.actuator("jaw_gape_torque").id] = 0.4
@@ -145,8 +88,9 @@ def inspect_scene(path, cycles=12, trace_path=None, friction=None):
         mujoco.mj_step(m, d, nstep=steps)
         mujoco.mj_forward(m, d)
         assert np.isfinite(d.qvel).all() and d.xmat[root, 8] > 0.94, "Lost upright balance"
-        loads, gaps, points, slip, other = contacts.measure(m, d)
-        assert other < 1.0, "A non-pad body part is bearing weight"
+        sample = contacts.measure(m, d)
+        loads = sample.loads
+        assert sample.other_load < 1.0, "A non-pad body part is bearing weight"
         np.testing.assert_allclose(d.sensordata[touch_addr], loads, rtol=1e-5, atol=1.0)
         if trace_path:
             poses.append(d.qpos.copy())
@@ -160,9 +104,9 @@ def inspect_scene(path, cycles=12, trace_path=None, friction=None):
                     d.site_xpos[walk.sites].copy(),
                     loads,
                     d.qpos[axial_qpos].copy(),
-                    gaps,
-                    slip,
-                    support_margin(points, d.subtree_com[root, :2]),
+                    sample.clearance,
+                    sample.slip,
+                    support_margin(sample.contact_xy, d.subtree_com[root, :2]),
                     np.mean(np.abs(d.ctrl[walk.motors]) > 0.999),
                 )
             )
@@ -180,21 +124,14 @@ def inspect_scene(path, cycles=12, trace_path=None, friction=None):
     per_foot = {}
     touchdowns = []
     for i, name in enumerate(FEET):
-        edges = np.flatnonzero(np.diff(loaded[:, i])) + 1
-        # A loaded foot can cross the force threshold while it is still touching.
-        # Require a genuine flight of its lowest pad to count a whole step.
-        swings = [(a, b) for a, b in zip(edges[:-1], edges[1:]) if not loaded[a, i]]
-        peaks = [(b, gaps[a:b, i].max()) for a, b in swings]
-        strides_in_air = [(b, peak) for b, peak in peaks if peak > 0.005]
-        footfalls = [b for b, _ in strides_in_air]
-        clearances = [z for _, z in strides_in_air]
+        footfalls, clearances, shallow = swing_events(loaded[:, i], gaps[:, i])
         assert len(footfalls) >= cycles - 1, f"{name} missed a swing"
         touchdowns.extend((int(frame), name) for frame in footfalls)
         strides = np.diff(soles[footfalls, i, 0])
         per_foot[name] = {
             "duty_factor": loaded[:, i].mean(),
             "complete_swings": len(footfalls),
-            "threshold_dips_without_5mm_clearance": len(swings) - len(footfalls),
+            "threshold_dips_without_5mm_clearance": shallow,
             "median_stride_m": np.median(strides),
             "median_peak_swing_clearance_m": np.median(clearances),
             "minimum_peak_swing_clearance_m": np.min(clearances),
@@ -228,7 +165,7 @@ def inspect_scene(path, cycles=12, trace_path=None, friction=None):
     }
     return {
         "mujoco_version": mujoco.__version__,
-        "floor_sliding_friction": m.geom_friction[contacts.floor, 0],
+        "floor_sliding_friction": m.geom_friction[contacts.surfaces[0], 0],
         "stance": stance,
         "walk": report,
     }

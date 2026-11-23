@@ -55,7 +55,37 @@ The checker counts a foot as loaded above 1% of body weight. A touchdown require
 
 Two further runs changed the sliding friction of the floor and all twelve pads from the default 0.90. At 0.65, the model walked at 0.257 m/s with three or four feet loaded at every sample. At 1.05, it walked at 0.259 m/s with three or four feet loaded at 99.7% of samples and two at the rest. Both runs preserved the four-beat sequence. Each had two brief unloadings without a new swing. The average pad slip was 1.38 and 1.59 cm/s, respectively. Repeat with `--friction 0.65` or `--friction 1.05`.
 
-The trial validates a slow straight walk for this model. The timing, ground friction, motor limits and passive stiffness are chosen inputs. Limb torque commands reached their modeled limits in 3.15% of limb-motor samples. The very small trunk excursions reflect those settings. Turning, uneven terrain, faster gaits and biological muscle capacity remain untested.
+The trial validates a slow straight walk for this model. The timing, ground friction, motor limits and passive stiffness are chosen inputs. Limb torque commands reached their modeled limits in 3.15% of limb-motor samples. The very small trunk excursions reflect those settings.
+
+## Turns, slopes and uneven ground
+
+**Turning.** The earlier level-walk controller continued straight through either turn request. Its heading changed just 1.3° in 31.2 s. The revised controller eases into a turn, directs each foot along its own arc, and transfers more weight sideways before lifting the inner foot. Each test has a 5.6 s straight entry, 13 strides at a requested 5 m radius and four straight strides along the exit tangent. The reference circle is fixed by the entry position and heading. [Turn controller](reference_walk.py) · [Turn checks](check_turns.py) · [Before-and-after measurements](course_validation.json)
+
+| Requested turn | Heading change | RMS radial error, original → revised | Inside / outside stride | Straight exit distance |
+| --- | ---: | ---: | ---: | ---: |
+| Left | +91.1° | 2.08 → 0.158 m | 0.558 / 0.699 m | 2.48 m |
+| Right | −90.1° | 2.34 → 0.156 m | 0.561 / 0.694 m | 2.51 m |
+
+Each foot completed 13 swings through either arc in the four-beat order. At least three feet bore weight at every sample from turn entry through exit. Each sole stayed at least 35 cm on its own side of the trunk. The smallest peak swing clearance was 2.87 cm, and mean slip was 1.89 cm/s in both directions. The center of mass briefly projected up to 3.53 cm beyond the loaded contact hull.
+
+**Slopes and uneven ground.** The original controller repeatedly unloaded planted feet on the slopes. On the seven-mound course it briefly had only one loaded foot, drifted 1.24 m sideways and finished with its hind feet 2.43 m short of the last mound's far edge. The terrain-aware controller samples the known ground height under the planned sole, toe and heel. It adjusts foot height and pitch, shifts weight across a bank, and uses each sole's measured load to extend a prematurely unloaded stance leg by up to 1.6 cm. Only the sixteen existing leg motors drive the walk. The model starts aligned with the slope and the root moves freely throughout each trial. [Terrain controller](terrain_walk.py) · [Course geometry](courses.py) · [Terrain checks](check_terrain.py)
+
+| Course | Progress | Samples with ≥3 loaded feet | Mean pad slip | Shallow reloads, original → revised | Worst center-of-mass margin |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 5° ascent | 7.04 m | 100% | 1.94 cm/s | 50 → 0 | −4.68 cm |
+| 5° descent | 7.73 m | 100% | 2.33 cm/s | 16 → 0 | −6.86 cm |
+| 3° bank, left side high | 7.43 m | 100% | 1.87 cm/s | 41 → 0 | −8.39 cm |
+| 3° bank, right side high | 7.42 m | 100% | 1.88 cm/s | 27 → 0 | −8.30 cm |
+| Seven staggered mounds | 9.41 m | 99.94% | 2.08 cm/s | 118 → 4 | −5.28 cm |
+| Same mounds mirrored left–right | 9.26 m | 99.92% | 2.14 cm/s | 121 → 5 | −7.64 cm |
+
+The slopes use 12 scored strides (28.8 s). The trunk rose 0.612 m uphill and dropped 0.674 m downhill. Each uneven route uses 15 scored strides (36 s) over rounded features 3.5–6.0 cm high. All seven bore weight on both routes. Both hind sole centers finished beyond the last mound, by at least 0.84 m on the original layout and 0.73 m on its mirror. Two feet supported the body during the remaining uneven-ground samples. The smallest peak swing clearance was 3.09 cm across both layouts. Every consecutive touchdown followed the intended sequence on all six courses, and no other body part contacted the ground under load.
+
+![Recorded trunk paths on two turns and actual forefoot and hindfoot touchdowns over the same seven mounds before and after the controller change](walking_courses.png)
+
+A shallow reload is a drop below 1% of body weight followed by reloading without a swing that clears the terrain by more than 5 mm. Clearance uses the nearest physical ground surface, and slip uses the contact's local tangent plane. A negative margin measures how far the center of mass projects outside the horizontal hull of pad contacts carrying more than 1 N. This instantaneous geometric measure can be negative during a step while the animal remains upright. [Shared measurements](../shared/README.md) · [MuJoCo geometry distance and contact force](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-geomdistance)
+
+Additional 12-stride trials passed at 8° uphill and downhill and on both 5° banks. The 8° descent approached the test limit most closely. Its center of mass moved 11.82 cm beyond the instantaneous support hull, against a 12 cm limit. These results apply to a slow walk with a known height map and fixed friction. Faster gaits, turns on slopes, terrain sensing and biological muscle capacity remain untested. [Full course results](course_validation.json)
 
 ## Reproduce from the repository root
 
@@ -63,7 +93,13 @@ The trial validates a slow straight walk for this model. The timing, ground fric
 python -m pip install mujoco==3.10.0 numpy
 python -m examples.triceratops_horridus.measure_proportions
 python -m examples.triceratops_horridus.check_anatomy
-python -m examples.triceratops_horridus.reference_walk
+python -m examples.triceratops_horridus.check_turns
+python -m examples.triceratops_horridus.check_terrain
+python -m examples.triceratops_horridus.reference_walk --course uneven
 ```
 
-The first two modules run headlessly. The last opens the live walk in a desktop viewer. On macOS, launch the viewer with `mjpython -m examples.triceratops_horridus.reference_walk`. To inspect the resting model, open `anatomical.xml` directly in MuJoCo. In the viewer’s geom groups, hide group 2 and show group 4 to inspect the skeletal landmarks. The validation command accepts `--trace walk.npz` to save timed poses and measured foot loads.
+All measurement commands run headlessly. Add `--baseline` to either course checker to reproduce the original controller comparison. Use `check_turns --case left --trace-dir /tmp/turns` or `check_terrain --course uneven --trace /tmp/uneven.npz` with the same module prefixes to save timed traces. For the extended slopes, run `check_terrain --course uphill_8deg --course downhill_8deg --course cross_left_5deg --course cross_right_5deg`.
+
+The last command opens a desktop viewer. Use `--course turn_left`, `--course downhill` or another course name to watch that trial. On macOS, start the viewer with `mjpython` in place of `python`. To inspect the resting model, open `anatomical.xml` directly in MuJoCo. In the viewer’s geom groups, hide group 2 and show group 4 to inspect the skeletal landmarks. The validation command accepts `--trace walk.npz` to save timed poses and measured foot loads.
+
+Other species can supply their own foot geoms, controller and acceptance limits to the same measurements. The shared regression runs the existing Stegosaurus controller over a raised mound. [Reuse the walking courses](../shared/README.md) · [Cross-species tests](../../environments/shared/tests/test_locomotion_courses.py) · [Triceratops regression matrix](../../environments/shared/tests/test_triceratops_reference.py)
