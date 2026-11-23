@@ -75,10 +75,10 @@ function TriceratopsStudy() {
             srcSet={`${adultSmall} 800w, ${adult} 1600w`}
             sizes={plateSizes}
             width={1600}
-            height={706}
+            height={715}
             alt="Side view of the adult anatomical model with a broad frill, three horns and four weight-bearing legs"
           />
-          <figcaption>Adult anatomical model · 7.3 m long</figcaption>
+          <figcaption>Adult anatomical model · 7.19 m from brow horn to tail tip</figcaption>
         </figure>
       </div>
       <figcaption className={styles.caption}>

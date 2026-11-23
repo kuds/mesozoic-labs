@@ -7,7 +7,7 @@ const capsuleBuild = `${repo}/blob/0a4ce5e9c60ccfabbd7f77110082a73e4744b01d/hard
 export const capsuleRenderNotes = `${capsuleBuild}/renders/README.md`;
 export const capsuleSideImage = '/img/animals/triceratops-60cm-capsule-side-2026-11-22.jpg';
 export const sizeReport = `${build}/sim/REPORT_60CM.md`;
-export const anatomicalStudy = `${concept}/models/README.md#anatomical-reconstruction`;
+export const anatomicalStudy = `${repo}/blob/main/examples/triceratops_horridus/README.md`;
 
 export const triceratopsVersions: RobotVersionList = [
   {

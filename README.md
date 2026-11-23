@@ -55,6 +55,9 @@ reconstruction built from specimen measurements. It stands and walks with a scri
 policy. To watch it on a machine with a display, run `python -m examples.stegosaurus_stenops` from the repository
 root.
 
+The [adult Triceratops anatomical study](examples/triceratops_horridus/README.md) compares the revised body and feet
+with the original design and reports measured balance, footfalls and slip during a free-standing reference walk.
+
 ## Getting started
 
 You need Python 3.11 or newer. Install from a clone and run the commands below from the repository root:
