@@ -1675,3 +1675,120 @@ def test_first_reset_of_a_session_uses_the_scheduled_scales(tmp_path, monkeypatc
         signal.signal(signal.SIGTERM, handlers[1])
     assert first_fresh == (0.2, 0.0, 0.0)
     assert first_resume == (0.4, 0.25, 0.25)  # resumed at 512 steps: 0.2 + 0.8 x 512 / 2048, 512 / 2048
+
+
+# ======================================================================================== steering (decision D20)
+def _steer_env(mode="heading", **kw):
+    from trike_env import CAPSULE_MODEL
+
+    return TrikeEnv(TrikeEnvConfig(model_path=str(CAPSULE_MODEL), command_mode=mode, **kw))
+
+
+def test_steering_is_off_by_default_and_unknown_modes_are_refused():
+    assert TrikeEnvConfig().command_mode == "none"
+    assert TrikeEnv()._obs_layout()[-1][0] != "command"
+    with pytest.raises(ValueError, match="command_mode"):
+        TrikeEnv(TrikeEnvConfig(command_mode="hunt"))
+
+
+@pytest.mark.parametrize("mode", ["heading", "heading_and_speed"])
+def test_steering_command_segment_reward_and_schedule(mode):
+    from trike_env import STEERING_TERMS
+
+    env = _steer_env(mode, episode_seconds=30.0)
+    assert env.obs_layout[-1] == ("command", 3)
+    assert env.observation_space.shape[0] == TrikeEnv().observation_space.shape[0] + 3
+    obs, _ = env.reset(seed=3)
+    events, turned_on_spot = set(), False
+    for _ in range(1500):
+        obs, r, term, trunc, info = env.step(np.zeros(12))
+        c = env._cmd_exec
+        assert np.allclose(obs[-3:], c["normalized"], atol=1e-6) and np.all(np.abs(obs[-3:]) <= 1.0)
+        assert r == pytest.approx(sum(info[k] for k in REWARD_TERMS + STEERING_TERMS)
+                                  - (env.cfg.termination_penalty if term else 0.0))
+        assert info["r_heading"] == 0.0
+        assert info["r_yaw_rate"] == pytest.approx(-env.cfg.w_yaw_rate * (info["yaw_rate"] - info["command_yaw_rate"]) ** 2)
+        assert info["tracking_error_yaw"] == pytest.approx(abs(info["yaw_rate"] - info["command_yaw_rate"]))
+        assert abs(info["command_yaw_rate"]) <= env.cfg.cmd_yaw_rate_max + 1e-6  # the shared state is float32
+        events.add(info["command_event_id"])
+        turned_on_spot |= info["turn_in_place"] and info["command_v_x"] == 0.0 and info["command_yaw_rate"] != 0.0
+        if term or trunc:
+            break
+    assert len(events) >= 6 and turned_on_spot  # requests switch every 3-5 s; a stop with a new heading turns
+
+
+def test_steering_schedule_is_seeded_and_independent_of_the_actions():
+    """Same reset seed, different actions: the same requests (the shared contract's rule)."""
+    def requests(action_scale):
+        env = _steer_env(episode_seconds=20.0, observation_noise=False)
+        env.reset(seed=11)
+        rng, seen = np.random.default_rng(0), []
+        for _ in range(500):
+            _, _, term, trunc, info = env.step(action_scale * rng.uniform(-1, 1, 12))
+            seen.append((info["command_event_id"], round(info["desired_heading"], 9), info["desired_speed"]))
+            if term or trunc:
+                break
+        return sorted(set(seen))
+    assert requests(0.0) == requests(0.3)[:len(requests(0.0))]
+
+
+def test_steering_evaluation_options_and_external_targets():
+    env = _steer_env()
+    # an evaluation's command_speed: hold the reset heading at that speed (straight)
+    _, info0 = env.reset(seed=2, options={"command_speed": 0.2})
+    for _ in range(300):  # past several schedule switches: the external request holds
+        _, _, _, _, info = env.step(np.zeros(12))
+        assert info["desired_speed"] == pytest.approx(0.2) and info["desired_heading"] == pytest.approx(env._heading)
+    # command_target: a heading offset and a speed; then an operator's request mid-episode
+    env.reset(seed=2, options={"command_target": (math.pi / 2, 0.0)})
+    _, _, _, _, info = env.step(np.zeros(12))
+    assert info["turn_in_place"] and info["command_v_x"] == 0.0
+    assert info["command_yaw_rate"] == pytest.approx(env.cfg.cmd_yaw_rate_max)  # 90 deg left: saturated
+    env.set_command_target(env._heading - math.pi / 2, 0.25)
+    _, _, _, _, info = env.step(np.zeros(12))
+    assert info["desired_speed"] == pytest.approx(0.25) and info["command_yaw_rate"] == pytest.approx(
+        -env.cfg.cmd_yaw_rate_max)
+    assert info["command_v_x"] == pytest.approx(0.25 * env.cfg.cmd_min_turn_speed_fraction)  # turn slowdown
+    with pytest.raises(RuntimeError):
+        TrikeEnv().set_command_target(0.0, 0.1)
+
+
+def test_steering_without_turn_in_place_stands_at_stops():
+    env = _steer_env(cmd_turn_in_place=False)
+    env.reset(seed=2, options={"command_target": (math.pi / 2, 0.0)})
+    _, _, _, _, info = env.step(np.zeros(12))
+    assert not info["turn_in_place"] and info["command_yaw_rate"] == 0.0 and not info["heading_active"]
+
+
+def test_steer_eval_courses_apply_requests_on_time():
+    import steer_eval
+
+    ec = json.loads(json.dumps(TrikeEnvConfig(model_path=str(RL_DIR.parent / "sim" / "generated" /
+                                                             "trike60_C_closed_capsule.xml"),
+                                              command_mode="heading").to_dict(), default=list))
+    course = steer_eval.COURSES["turn_on_the_spot"]
+    env = steer_eval.make_env(ec, seconds=course["rows"][-1][0] + course["hold_s"] + 1.0)
+    assert env.cfg.terrain_boxes == 0 and env.cfg.delay_steps_fixed == 10
+    m = steer_eval.run_episode(env, lambda obs: np.zeros(12), 600_000, course=course, track=True)
+    path = m["path"]
+    assert len(path) == round((course["rows"][-1][0] + course["hold_s"]) / env.dt)
+    h0 = path[0][3]
+    want = {0.0: (0.0, 0.25), 5.0: (0.0, 0.0), 7.0: (math.pi, 0.0), 16.0: (math.pi, 0.25)}
+    for t0, (off, v) in want.items():  # the request the first step at or after t0 ran under
+        k = int(round(t0 / env.dt))
+        assert path[k][4] == pytest.approx(v) and abs(math.remainder(path[k][3] - h0 - off, 2 * math.pi)) < 1e-6
+    assert m["turn_in_place"]["steps"] > 0 and not m["fell"]
+    with pytest.raises(SystemExit, match="steering"):
+        steer_eval.make_env({**ec, "command_mode": "none"})
+
+
+def test_checks_add_the_steering_courses_only_for_a_steering_run():
+    import train
+
+    assert set(train.check_points("")) == set(train.CHECK_POINTS)
+    assert set(train.check_points("", steering=True)) == set(train.CHECK_POINTS) | set(train.CHECK_COURSES)
+    with pytest.raises(SystemExit):
+        train.check_points("turns_walking")
+    args = train.parse_args(["--out", "x", "--total-steps", "1024", "--checks-every", "512", "--checks",
+                             "turns_walking"])
+    assert "turns_walking" in train.checks_problem(args, train.env_config(args))

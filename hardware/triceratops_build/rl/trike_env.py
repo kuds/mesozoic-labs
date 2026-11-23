@@ -49,6 +49,7 @@ MUSEUM_TARGET_SPEED_MPS = 0.25
 REWARD_TERMS = ("r_track", "r_track_linear", "r_alive", "r_upright", "r_height", "r_lateral", "r_yaw_rate",
                 "r_heading", "r_energy", "r_action_rate", "r_slip", "r_diagonal", "r_heat", "r_saturation",
                 "r_air_time", "r_lateral_drift")
+STEERING_TERMS = ("r_track_yaw",)  # added to REWARD_TERMS only under a steering command_mode (decision D20)
 REWARD_BONUSES = ("r_track", "r_alive")  # >= 0; r_diagonal and r_air_time may take either sign; every other is <= 0
 # Two schedules (train.py sets both in every env before each rollout):
 RAMPED_TERMS = ("r_energy", "r_slip")  # x penalty_scale: from the first steps (pipe1's schedule, 0.1 -> 1 over 2 M)
@@ -214,6 +215,42 @@ class TrikeEnvConfig:
     # less on slippery floors and terrain (D19, rl/analysis/PREREG_RUN3.md).
     slip_at_contact: bool = False
 
+    # --- steering (decision D20; rl/PLAN_STEERING_AND_TELEMETRY.md): follow a requested direction ---
+    # "none" (default): the task above, byte-identical (no draw, no extra observation). "heading" or
+    # "heading_and_speed": the repository's shared direction-command contract (environments/shared/
+    # direction_commands.py, command_frame.py), imported and never edited. A seeded schedule requests a world heading
+    # and a speed, changing every cmd_switch_interval_s +- cmd_switch_jitter_s by up to cmd_turn_increment_max; a
+    # bounded proportional adapter turns them into a body-frame command (forward speed, 0 lateral, turn rate), which
+    # the policy observes as the shared 3-wide segment, pre-scaled to [-1, 1], appended LAST. The heading the
+    # adapter uses is the robot's own estimate (true yaw plus the gyro drift), not the simulator's.
+    # Extension (this env only, the shared contract stops turning at zero speed): with cmd_turn_in_place, a stop
+    # request whose heading differs from the estimate by more than cmd_turn_in_place_deadband turns on the spot.
+    # The 60 cm values: 0.25 m/s cruise (the museum target), turns up to 0.4 rad/s (23 deg/s; a 0.6 m radius at
+    # cruise), heading steps up to 60 deg every 3-5 s; set before any steering run, to revisit with its results.
+    command_mode: str = "none"
+    cmd_cruise_speed: float = 0.25  # "heading": the requested speed (or a stop)
+    cmd_speed_range: tuple[float, float] = (0.1, 0.27)  # "heading_and_speed": drawn per request
+    cmd_stop_probability: float = 0.15
+    cmd_turn_increment_max: float = math.pi / 3.0
+    cmd_straight_probability: float = 0.25
+    cmd_switch_interval_s: float = 4.0
+    cmd_switch_jitter_s: float = 1.0
+    cmd_speed_scale: float = 0.3  # the command segment's scales (m/s, m/s, rad/s): physical / scale is in [-1, 1]
+    cmd_lateral_speed_scale: float = 0.3
+    cmd_yaw_rate_scale: float = 0.6
+    cmd_yaw_gain: float = 1.5  # rad/s of turn per rad of heading error, clipped to cmd_yaw_rate_max
+    cmd_yaw_rate_max: float = 0.4
+    cmd_turn_slowdown: bool = True  # forward speed x max(min fraction, cos(heading error)) while turning
+    cmd_min_turn_speed_fraction: float = 0.25
+    cmd_turn_in_place: bool = True
+    cmd_turn_in_place_deadband: float = math.radians(5.0)
+    # Steering reward: turn-rate tracking replaces the straight task's turn-rate and heading penalties (the heading is
+    # the adapter's job): r_yaw_rate becomes -w_yaw_rate x (turn rate - command)^2, r_heading 0, and
+    # r_track_yaw = w_track_yaw x exp(-((turn rate - command) / track_yaw_sigma)^2). Speeds are taken along the
+    # robot's own heading, not the reset heading.
+    w_track_yaw: float = 1.0
+    track_yaw_sigma: float = 0.15  # rad/s
+
     def replace(self, **changes: Any) -> "TrikeEnvConfig":
         return dataclasses.replace(self, **changes)
 
@@ -229,6 +266,17 @@ class TrikeEnvConfig:
                 raise ValueError(f"unknown TrikeEnvConfig field {k!r}")
             clean[k] = tuple(v) if isinstance(v, list) else v
         return cls(**clean)
+
+
+def _repository_on_path() -> None:
+    """Put the repository root on sys.path (last) for the shared command contract, when this file sits in the
+    repository (rl/ -> hardware/triceratops_build -> hardware -> root) and the root is not importable yet: tool
+    processes that import this env from rl/ alone (the sweep's workers) do not have it."""
+    import sys
+
+    root = HERE.parents[2]
+    if (root / "environments" / "shared").is_dir() and str(root) not in sys.path:
+        sys.path.append(str(root))
 
 
 def _wrap(angle: float) -> float:
@@ -368,7 +416,8 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
                  grav_b, z: float, z_nominal: float, mean_power: float, action, prev_action, slip: float, contact,
                  penalty_scale: float = 1.0, late_scale: float = 1.0, heat_index: float = 0.0,
                  saturated_fraction: float = 0.0, air_time_gain: float = 0.0,
-                 air_time_shortfall: float = 0.0, v_lat_slow: float = 0.0) -> dict[str, float]:
+                 air_time_shortfall: float = 0.0, v_lat_slow: float = 0.0,
+                 yaw_rate_cmd: float | None = None) -> dict[str, float]:
     """One control step's reward terms (``REWARD_TERMS``), a pure function of the measured quantities.
 
     ``penalty_scale`` (0-1) multiplies the energy and slip penalties (``RAMPED_TERMS``); ``late_scale`` (0-1) the heat
@@ -378,7 +427,9 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
     share of drive-physics-steps at or above ``saturation_frac`` of the episode's (randomised) force limit;
     ``air_time_gain`` (>= 0) and ``air_time_shortfall`` (<= 0): over this step's debounced touchdowns, the sums of the
     positive and of the negative parts of min(air time, ``air_time_cap_s``) - ``air_time_target_s``;
-    ``v_lat_slow``: the sideways speed low-passed with ``lateral_drift_tau_s`` (``r_lateral_drift``, 0 by default)."""
+    ``v_lat_slow``: the sideways speed low-passed with ``lateral_drift_tau_s`` (``r_lateral_drift``, 0 by default).
+    ``yaw_rate_cmd``: the steering command's turn rate (a steering ``command_mode``; None for the straight task): the
+    turn-rate terms track it, ``r_heading`` is 0 and ``r_track_yaw`` (``STEERING_TERMS``) is added."""
     err = v_fwd - v_cmd
     a, ap = np.asarray(action, dtype=np.float64), np.asarray(prev_action, dtype=np.float64)
     terms = {
@@ -400,6 +451,11 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
                        if v_cmd > cfg.air_time_min_command else 0.0),
         "r_lateral_drift": -cfg.w_lateral_drift * v_lat_slow ** 2,
     }
+    if yaw_rate_cmd is not None:
+        e_yaw = yaw_rate - yaw_rate_cmd
+        terms["r_yaw_rate"] = -cfg.w_yaw_rate * e_yaw ** 2
+        terms["r_heading"] = 0.0
+        terms["r_track_yaw"] = cfg.w_track_yaw * math.exp(-((e_yaw / cfg.track_yaw_sigma) ** 2))
     if cfg.w_diagonal and v_cmd > 0.05:
         terms["r_diagonal"] = cfg.w_diagonal * diagonal_score(contact)
     return terms
@@ -416,6 +472,25 @@ class TrikeEnv(gym.Env):
         if overrides:
             cfg = cfg.replace(**overrides)
         self.cfg = cfg
+        if cfg.command_mode not in ("none", "heading", "heading_and_speed"):
+            raise ValueError(f"command_mode must be none, heading or heading_and_speed, got {cfg.command_mode!r}")
+        self._steer = cfg.command_mode != "none"
+        if self._steer:  # imported only when steering, so the straight task's imports are as before
+            _repository_on_path()
+            from environments.shared.command_frame import COMMAND_MODES
+            from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController
+
+            assert cfg.command_mode in COMMAND_MODES
+            self._cmd = DirectionCommandController(DirectionCommandConfig(
+                cruise_speed=cfg.cmd_cruise_speed,
+                speed_range=tuple(cfg.cmd_speed_range) if cfg.command_mode == "heading_and_speed" else None,
+                stop_probability=cfg.cmd_stop_probability, turn_increment_max=cfg.cmd_turn_increment_max,
+                straight_probability=cfg.cmd_straight_probability, switch_interval_s=cfg.cmd_switch_interval_s,
+                switch_jitter_s=cfg.cmd_switch_jitter_s, speed_scale=cfg.cmd_speed_scale,
+                lateral_speed_scale=cfg.cmd_lateral_speed_scale, yaw_rate_scale=cfg.cmd_yaw_rate_scale,
+                yaw_gain=cfg.cmd_yaw_gain, yaw_rate_max=cfg.cmd_yaw_rate_max, turn_slowdown=cfg.cmd_turn_slowdown,
+                minimum_turn_speed_fraction=cfg.cmd_min_turn_speed_fraction))
+            self._cmd_scales = np.array([cfg.cmd_speed_scale, cfg.cmd_lateral_speed_scale, cfg.cmd_yaw_rate_scale])
         if cfg.terrain_boxes > 0 and cfg.terrain_prob_slopes > 0 and cfg.terrain_boxes < 3:
             raise ValueError("terrain_boxes must be at least 3 when slopes are on (ramp, plateau, ramp)")
         if not 0.0 <= cfg.terrain_prob_steps + cfg.terrain_prob_slopes <= 1.0:
@@ -541,6 +616,8 @@ class TrikeEnv(gym.Env):
                   ("command_speed_mps", 1)]
         if cfg.phase_clock_hz > 0:
             parts.append(("phase_sin_cos", 2))
+        if cfg.command_mode != "none":  # the shared command segment, LAST (environments/shared/command_frame.py)
+            parts.append(("command", 3))
         return tuple(parts)
 
     def obs_slots(self, obs) -> dict[str, np.ndarray]:
@@ -561,6 +638,9 @@ class TrikeEnv(gym.Env):
 
     def _reset_episode_state(self, command: float, delay: int) -> None:
         self.command_speed = float(command)
+        self._cmd_exec = {"physical": np.zeros(3), "normalized": np.zeros(3), "heading_error": 0.0,
+                          "heading_active": False, "turn_in_place": False, "desired_heading": 0.0,
+                          "desired_speed": 0.0, "event_id": 0}
         self.delay_steps = int(delay)
         self._step_count = 0
         self._prev_action = np.zeros(12)
@@ -691,6 +771,19 @@ class TrikeEnv(gym.Env):
                                                                            cfg.push_window_s[0])) / self.physics_dt))
                 self._push_end = self._push_start + max(1, int(round(cfg.push_duration_s / self.physics_dt)))
 
+        # 7. steering command (steering modes only: one draw, after every other, seeds the request schedule). An
+        # evaluation's "command_speed" holds the reset heading at that speed; "command_target" (heading offset rad,
+        # speed m/s) holds another request. Either holds until reset, as the shared controller's set_target does.
+        if self._steer:
+            st = self._cmd.reset(rng, self._heading)  # the estimate is the true yaw at reset (no drift yet)
+            target = opts.get("command_target")
+            if target is None and "command_speed" in opts:
+                target = (0.0, float(opts["command_speed"]))
+            if target is not None:
+                self._cmd.set_target(self._heading + float(target[0]), float(target[1]), time_s=0.0)
+                st = self._cmd.update(0.0, self._heading)
+            self._set_command(st)
+
         obs = self._get_obs(noise=True)
         info = {"command_speed": self.command_speed, "delay_steps": self.delay_steps,
                 "domain_randomization": bool(self.factors)}
@@ -761,11 +854,11 @@ class TrikeEnv(gym.Env):
         R = d.xmat[self._chassis].reshape(3, 3)
         xy1 = d.xpos[self._chassis, :2]
         disp = (xy1 - xy0) / self.dt
-        h = np.array([math.cos(self._heading), math.sin(self._heading)])
+        yaw = math.atan2(R[1, 0], R[0, 0])
+        h = np.array([math.cos(yaw if self._steer else self._heading), math.sin(yaw if self._steer else self._heading)])
         v_fwd = float(disp @ h)
         v_lat = float(disp @ np.array([-h[1], h[0]]))
         self._distance += v_fwd * self.dt
-        yaw = math.atan2(R[1, 0], R[0, 0])
         yaw_err = _wrap(yaw - self._heading)
         yaw_rate = float((R @ d.qvel[3:6])[2])
         grav_b = -R[2, :]
@@ -787,12 +880,14 @@ class TrikeEnv(gym.Env):
                     vel6[3:] += np.cross(vel6[:3], d.contact.pos[:d.ncon][hit].mean(axis=0) - d.geom_xpos[g])
             slip += float(vel6[3] ** 2 + vel6[4] ** 2)
 
+        executed = self._cmd_exec  # the command this step ran under (steering modes)
         terms = reward_terms(cfg, v_fwd=v_fwd, v_cmd=self.command_speed, v_lat=v_lat, yaw_rate=yaw_rate,
                              yaw_err=yaw_err, grav_b=grav_b, z=z, z_nominal=self.nominal_height,
                              mean_power=mean_power, action=a, prev_action=self._prev_action, slip=slip,
                              contact=contact, penalty_scale=self.penalty_scale, late_scale=self.late_scale,
                              heat_index=heat_index, saturated_fraction=saturated_fraction, air_time_gain=air_gain,
-                             air_time_shortfall=air_short, v_lat_slow=self._v_lat_slow)
+                             air_time_shortfall=air_short, v_lat_slow=self._v_lat_slow,
+                             yaw_rate_cmd=float(self._cmd_exec["physical"][2]) if self._steer else None)
 
         # --- termination ---
         reason = ""
@@ -816,8 +911,10 @@ class TrikeEnv(gym.Env):
         # heading estimate: a gyro-integrated yaw drifts (no magnetometer); a random walk on the observation
         if cfg.observation_noise and cfg.heading_drift_rw > 0:
             self._heading_drift += float(self.np_random.normal(0.0, cfg.heading_drift_rw * math.sqrt(self.dt)))
-        obs = self._get_obs(noise=True)
         t = self._step_count * self.dt
+        if self._steer:  # the next command, from the robot's heading estimate
+            self._set_command(self._cmd.update(t, _wrap(yaw + self._heading_drift)))
+        obs = self._get_obs(noise=True)
         info = dict(terms)
         info.update({
             "reward_total": reward, "forward_speed": v_fwd, "lateral_speed": v_lat, "command_speed": self.command_speed,
@@ -829,10 +926,50 @@ class TrikeEnv(gym.Env):
             "touchdowns": touchdowns, "air_time_gain": air_gain, "air_time_shortfall": air_short,
             "lateral_speed_slow": self._v_lat_slow,
         })
+        if self._steer:  # the executed command and its tracking (the shared contract's field names)
+            err_h = _wrap(executed["desired_heading"] - yaw) if executed["heading_active"] else 0.0
+            info.update({
+                "command_v_x": float(executed["physical"][0]), "command_v_y": float(executed["physical"][1]),
+                "command_yaw_rate": float(executed["physical"][2]), "desired_heading": executed["desired_heading"],
+                "desired_speed": executed["desired_speed"], "actual_heading": yaw, "heading_error_rad": err_h,
+                "heading_active": executed["heading_active"], "turn_in_place": executed["turn_in_place"],
+                "command_event_id": executed["event_id"],
+                "tracking_error_v": float(math.hypot(v_fwd - executed["physical"][0], v_lat - executed["physical"][1])),
+                "tracking_error_yaw": abs(yaw_rate - float(executed["physical"][2])),
+                "tracking_error_heading": abs(err_h)})
         if self._ground is not None or self._push_start >= 0:
             info["ground_height"] = float(d.xpos[self._chassis, 2]) - z
             info["push_active"] = bool(self._push_start <= self._phys_step - 1 < self._push_end)  # the last step
         return obs, reward, terminated, truncated, info
+
+    # ------------------------------------------------------------------ steering
+    def _set_command(self, st) -> None:
+        """The command the policy gets from a shared ``DirectionCommandState``: its body-frame command, or, for a stop
+        whose requested heading differs from the estimate by more than the deadband and with ``cmd_turn_in_place``,
+        a turn on the spot (forward 0, the same bounded proportional turn rate)."""
+        cfg = self.cfg
+        phys = np.array(st.physical, dtype=np.float64)
+        active, err, turning = bool(st.heading_active), float(st.heading_error), False
+        if not active and cfg.cmd_turn_in_place:
+            e = _wrap(st.desired_heading - st.current_heading)
+            if abs(e) > cfg.cmd_turn_in_place_deadband:
+                yaw_cmd = float(np.clip(cfg.cmd_yaw_gain * e, -cfg.cmd_yaw_rate_max, cfg.cmd_yaw_rate_max))
+                phys, err, turning = np.array([0.0, 0.0, yaw_cmd]), e, True
+        self._cmd_exec = {"physical": phys, "normalized": np.clip(phys / self._cmd_scales, -1.0, 1.0),
+                          "heading_error": err, "heading_active": active or turning, "turn_in_place": turning,
+                          "desired_heading": float(st.desired_heading), "desired_speed": float(st.desired_speed),
+                          "event_id": int(st.event_id)}
+        self.command_speed = float(phys[0])
+
+    def set_command_target(self, heading_world: float, speed: float) -> None:
+        """An operator's or a path follower's request (steering modes only): hold this world heading (rad) and speed
+        (m/s) until reset; it takes effect in the next observation."""
+        if not self._steer:
+            raise RuntimeError("set_command_target needs a steering command_mode")
+        t = self._step_count * self.dt
+        R = self.data.xmat[self._chassis].reshape(3, 3)
+        self._cmd.set_target(heading_world, speed, time_s=t)
+        self._set_command(self._cmd.update(t, _wrap(math.atan2(R[1, 0], R[0, 0]) + self._heading_drift)))
 
     # ------------------------------------------------------------------ pieces
     def _lowest_sole_z(self) -> float:
@@ -945,7 +1082,12 @@ class TrikeEnv(gym.Env):
         mujoco.mju_quat2Mat(Rm, quat)
         Rm = Rm.reshape(3, 3)
         grav_b = -Rm[2, :]
-        yaw_err_est = _wrap(math.atan2(Rm[1, 0], Rm[0, 0]) + self._heading_drift - self._heading)
+        if self._steer:  # the estimate against the requested heading; 0 while no heading is requested
+            c = self._cmd_exec
+            yaw_err_est = (_wrap(math.atan2(Rm[1, 0], Rm[0, 0]) + self._heading_drift - c["desired_heading"])
+                           if c["heading_active"] else 0.0)
+        else:
+            yaw_err_est = _wrap(math.atan2(Rm[1, 0], Rm[0, 0]) + self._heading_drift - self._heading)
         parts = [q, qd]
         if cfg.obs_ankle_angles:
             parts.append(ankle)
@@ -956,6 +1098,8 @@ class TrikeEnv(gym.Env):
         if cfg.phase_clock_hz > 0:
             ph = 2.0 * math.pi * cfg.phase_clock_hz * self._step_count * self.dt
             parts.append([math.sin(ph), math.cos(ph)])
+        if self._steer:
+            parts.append(self._cmd_exec["normalized"])
         return np.concatenate([np.asarray(p, dtype=np.float64).ravel() for p in parts]).astype(np.float32)
 
     # ------------------------------------------------------------------ helpers for tests and tools

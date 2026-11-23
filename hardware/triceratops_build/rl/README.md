@@ -17,7 +17,8 @@ points. Colab itself is untested; the first Colab run is a one-hour pipeline tes
 | `COLAB_STEPS.md` | The owner's step sheet for the pipeline test (draft; the commit to fill in). |
 | `trike_checkpoints.py` | Checkpoint pairs: the check that tells a broken file from an I/O error, the scan (newest intact pair, re-reads on I/O errors), atomic saves (non-finite parameters set aside), setting broken files aside, atomic JSON. |
 | `gait_metrics.py` | The gait and drive measures of an evaluation episode (logged every physics step): RMS torque / continuous rating per drive, time at the force limit (nominal and episode limit), stance slip ratio, debounced touchdowns, power, drift and heading change; the definitions of `analysis/gait_pipe1.py`. |
-| `telemetry/` | Generic training and hardware telemetry (decision D21; plan `PLAN_STEERING_AND_TELEMETRY.md`), robot-agnostic so a T. rex or larger Triceratops env can use it: `health.py` (training health, `train_health.jsonl`), `checks.py` (periodic checks at named points), `health_dashboard.py` (their charts). Tests: `tests/test_telemetry.py`, on a toy env. |
+| `steer_eval.py` | Steering evaluation (decision D20): a checkpoint on its request schedule and on scripted courses, with the measures of `telemetry/steering.py` and a top view per course. |
+| `telemetry/` | Generic training and hardware telemetry (decision D21; plan `PLAN_STEERING_AND_TELEMETRY.md`), robot-agnostic so a T. rex or larger Triceratops env can use it: `health.py` (training health, `train_health.jsonl`), `checks.py` (periodic checks at named points), `health_dashboard.py` (their charts), `steering.py` (direction-following measures from the shared contract's step fields). Tests: `tests/test_telemetry.py`, on a toy env. |
 | `tests/test_trike_env.py`, `tests/conftest.py` | 56 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
 
 ## How to run locally
@@ -277,6 +278,42 @@ train.py as `--env-config`.
   - The worst drive in the final flat evaluation was at 1.20 of its rating; run2b's evaluations peaked at 1.14 near
     1.5 M before their late penalties brought it under 1.0.
   - It shows that walking survives the terrain coming in; nothing about the final quality of a 10 M-step run.
+
+## Steering: follow a requested direction (decision D20; built 23 Nov 2026, not yet trained)
+
+`command_mode` in `TrikeEnvConfig`. `"none"` (the default) is the straight task, unchanged: the regression digest
+holds, and no draw or observation is added. `"heading"` and `"heading_and_speed"` use the repository's shared
+direction-command contract (`environments/shared/direction_commands.py`, `command_frame.py`), imported and never
+edited.
+- **Requests:** a seeded schedule, independent of the robot's actions, asks for a world heading and a speed. In
+  `"heading"` the speed is 0.25 m/s, or a stop; in `"heading_and_speed"` it is drawn from 0.1-0.27 m/s. Requests
+  change every 3-5 s, by up to 60°.
+- **The policy's command:** a bounded proportional adapter turns each request into a body-frame command: forward
+  speed (slowed while turning), 0 sideways, and a turn rate up to 0.4 rad/s. The adapter works from the robot's own
+  heading estimate, the true yaw plus the gyro drift. The policy sees the command as the shared three-value segment,
+  scaled to [-1, 1] and appended last (71 inputs instead of 68).
+- **Turning on the spot** (this env's extension): the shared contract stops turning at zero speed. With
+  `cmd_turn_in_place`, a stop whose requested heading differs from the estimate by more than 5° turns on the spot,
+  at the same bounded rate.
+- **Reward:**
+  - speeds are taken along the robot's own heading;
+  - `r_yaw_rate` penalises the error against the commanded turn rate;
+  - `r_heading` is 0, because holding the heading is the adapter's job;
+  - `r_track_yaw` (in `STEERING_TERMS`) rewards turn-rate tracking.
+  Every other term is unchanged.
+- **Evaluation options:**
+  - `options={"command_speed": v}` holds the reset heading at v, so the straight-line tools (gait report, sweep,
+    train.py's evaluations, evaluate.py) work on a steering policy;
+  - `options={"command_target": (heading offset, speed)}` holds another request;
+  - `set_command_target(heading, speed)` is an operator's request mid-episode.
+- **`steer_eval.py`:** a steering policy on its own request schedule, and on scripted courses (90° turns while
+  walking, a stop with a turn on the spot, standing). It reports the generic measures of `telemetry/steering.py`
+  (tracking errors, heading error 3 s after each request, settle times, turn radius, turning on the spot, stops)
+  with the 60 cm tolerances (0.05 m/s, 0.1 rad/s, 10°), and draws a top view of each course.
+- **Checks:** with `--checks-every`, a steering run's checks add the courses `turns_walking` and `turn_on_the_spot`,
+  about 10 s more per check.
+- **Not yet decided:** the settings above are starting points, set before any steering run. The steering run's
+  rules, its preset and step sheets come after run 3's results (D20).
 
 ## What training prints and writes
 

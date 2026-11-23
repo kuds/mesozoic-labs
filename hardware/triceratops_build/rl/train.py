@@ -139,8 +139,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--checks-every", type=int, default=0,
                     help="every this many steps, the periodic checks (telemetry/checks.py; 0: off): a few "
                          "deterministic episodes at each of --checks, one JSON line in checks_during_training.jsonl")
-    ap.add_argument("--checks", default=",".join(CHECK_POINTS),
-                    help=f"the checks' points, from {', '.join(CHECK_POINTS)}")
+    ap.add_argument("--checks", default="",
+                    help=f"the checks' points, from {', '.join(CHECK_POINTS)} and, for a steering command_mode, "
+                         f"{', '.join(CHECK_COURSES)} (default: all that apply)")
     # env
     ap.add_argument("--env-config", default=None, help="JSON file of TrikeEnvConfig fields to override")
     ap.add_argument("--log-every", type=int, default=100_000, help="env steps between one-line progress reports")
@@ -237,15 +238,20 @@ def comparable_config(d: dict) -> dict:
 # run 3 is judged on, a few seeds each, so terrain, push and slippery-floor skill can be watched while it appears.
 CHECK_POINTS = {"step_3cm": {"terrain": ("step", 0.03)}, "ramp_8deg": {"terrain": ("ramp", 8.0)},
                 "friction_0.3": {"friction": 0.3}, "push_1.0": {"push_dv": 1.0}}
+# and, for a steering command_mode (decision D20), two of steer_eval.py's scripted courses
+CHECK_COURSES = ("turns_walking", "turn_on_the_spot")
 CHECK_SEEDS = (300_000, 300_001)
 
 
-def check_points(text: str) -> dict:
-    names = [x.strip() for x in str(text).split(",") if x.strip()]
-    unknown = [n for n in names if n not in CHECK_POINTS]
+def check_points(text: str, steering: bool = False) -> dict:
+    """The named check points: robustness-sweep points, and the steering courses when ``steering``; empty text: all
+    that apply."""
+    known = {**CHECK_POINTS, **({n: {"course": n} for n in CHECK_COURSES} if steering else {})}
+    names = [x.strip() for x in str(text).split(",") if x.strip()] or list(known)
+    unknown = [n for n in names if n not in known]
     if unknown:
-        raise SystemExit(f"--checks: unknown point(s) {unknown}; known: {sorted(CHECK_POINTS)}")
-    return {n: CHECK_POINTS[n] for n in names}
+        raise SystemExit(f"--checks: unknown point(s) {unknown}; known for this run: {sorted(known)}")
+    return {n: known[n] for n in names}
 
 
 def eval_commands(text: str) -> list[float]:
@@ -555,10 +561,11 @@ def checks_problem(args, cfg) -> str | None:
     if Path(cfg.model_path).resolve() != (gen / Path(cfg.model_path).name).resolve():
         return (f"--checks-every needs the run's model in sim/generated (the sweep rebuilds it from there by name); "
                 f"{cfg.model_path} is not")
-    names = [x.strip() for x in str(args.checks).split(",") if x.strip()]
-    unknown = [n for n in names if n not in CHECK_POINTS]
-    if unknown or not names:
-        return f"--checks: unknown or no point(s) {unknown}; known: {sorted(CHECK_POINTS)}"
+    steering = cfg.command_mode != "none"
+    known = set(CHECK_POINTS) | (set(CHECK_COURSES) if steering else set())
+    unknown = [n for n in (x.strip() for x in str(args.checks).split(",")) if n and n not in known]
+    if unknown:
+        return f"--checks: unknown point(s) {unknown}; known for this run: {sorted(known)}"
     return None
 
 
@@ -578,19 +585,38 @@ def make_checks(args, cfg, out: Path):
 
     ec = json.loads(json.dumps(cfg.to_dict(), default=list))
     envs: dict = {}
+    steering = cfg.command_mode != "none"
 
     def run_point(name, spec, seed, act):
+        if "course" in spec:  # a steering course (steer_eval.py): its measures, the speed as the chart reads it
+            import steer_eval
+
+            course = steer_eval.COURSES[spec["course"]]
+            if name not in envs:
+                envs[name] = steer_eval.make_env(ec, seconds=course["rows"][-1][0] + course["hold_s"] + 1.0)
+            m = steer_eval.run_episode(envs[name], act, seed, course=course)
+            return {"fell": m["fell"], "termination": m["termination"],
+                    "heading_error_at_settle_deg_median": m["events_summary"]["heading_error_at_settle_deg"]["median"],
+                    "speed_error_mps_mean": m["tracking"]["speed_error_mps"]["mean"],
+                    "yaw_rate_error_radps_mean": m["tracking"]["yaw_rate_error_radps"]["mean"],
+                    "share_in_tolerance": m["tracking"]["share_in_tolerance"]}
         p = sweep.make_point(**spec)
         if name not in envs:
             envs[name] = sweep.build_env(ec, p["terrain"])
         return sweep.run_episode(envs[name], None, None, seed, p, controller=act)
 
     def summarise(name, eps):
+        if name in CHECK_COURSES:
+            h = [e["heading_error_at_settle_deg_median"] for e in eps if e.get("heading_error_at_settle_deg_median")
+                 is not None]
+            return (f"{name} falls {sum(e['fell'] for e in eps)}/{len(eps)}"
+                    + (f", heading error {sum(h) / len(h):.0f} deg" if h else ""))
         ok = [e["forward_speed_mps"] for e in eps if not e["fell"] and e.get("forward_speed_mps") is not None]
         sp = f", {sum(ok) / len(ok):.3f} m/s" if ok else ""
         return f"{name} falls {sum(e['fell'] for e in eps)}/{len(eps)}{sp}"
 
-    return PeriodicChecks(out / "checks_during_training.jsonl", args.checks_every, check_points(args.checks),
+    return PeriodicChecks(out / "checks_during_training.jsonl", args.checks_every,
+                          check_points(args.checks, steering),
                           run_point, seeds=CHECK_SEEDS, say=say, summarise=summarise)
 
 
