@@ -37,7 +37,10 @@ Writes into RUN_DIR (every JSON file written to a temporary name, then renamed):
   checkpoints/                   pairs every --checkpoint-every steps and at the end of every session
   run_record.json                settings, package versions, commit, one entry per session (status, steps, rate)
   eval_during_training.jsonl     one line per periodic deterministic evaluation (fixed commands, 10 ms delay)
+  train_health.jsonl             one line per rollout: SB3 diagnostics, reward terms, endings (telemetry/health.py)
+  checks_during_training.jsonl   with --checks-every: one line per periodic check (telemetry/checks.py)
   monitor/session<k>/            SB3 Monitor CSVs, one per env and session
+(the .jsonl files are appended line by line)
 """
 
 from __future__ import annotations
@@ -264,8 +267,6 @@ def run_settings(args, cfg) -> dict:
            if rough(cfg) else {}),
         "eval_every": args.eval_every, "eval_commands": eval_commands(args.eval_commands),
         "eval_seconds": args.eval_seconds,
-        **({"checks_every": args.checks_every, "checks": sorted(check_points(args.checks))}
-           if args.checks_every > 0 else {}),
     }, default=list))
 
 
@@ -533,7 +534,8 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
 
     from telemetry.health import TrainingHealth
 
-    cbs = [PairSaver(), PenaltyRamp(), Progress(), TrainingHealth(out / "train_health.jsonl", say=say)]
+    cbs = [PairSaver(), PenaltyRamp(), Progress(),
+           TrainingHealth(out / "train_health.jsonl", reward_prefixes=("r_", "reward_"), say=say)]
     if args.eval_every > 0:
         cbs.append(PeriodicEval())
     if args.checks_every > 0:
@@ -544,7 +546,15 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
 def make_checks(args, cfg, out: Path):
     """The periodic checks (telemetry/checks.py) at robustness-sweep points on the run's own config (the sweep
     builds a flat-floor env from it and adds its own step, ramp, push or friction): nominal model, noise as
-    configured, 10 ms delay, 0.25 m/s, deterministic actions."""
+    configured, 10 ms delay, 0.25 m/s, deterministic actions. Monitoring only: not among the settings a run keeps
+    (each session's arguments are recorded), so a resume may turn the checks on or off."""
+    if os.environ.get("TRIKE_ENV_DIR"):
+        raise SystemExit("--checks-every with TRIKE_ENV_DIR set: the checks' imports would load that export's measures "
+                         "into the training process. Unset it to train. Nothing was started.")
+    gen = HERE.parent / "sim" / "generated"
+    if Path(cfg.model_path).resolve() != (gen / Path(cfg.model_path).name).resolve():
+        raise SystemExit(f"--checks-every needs the run's model in sim/generated (the sweep rebuilds it from there by "
+                         f"name); {cfg.model_path} is not. Nothing was started.")
     for sub in ("robustness", "analysis"):
         if str(HERE / sub) not in sys.path:
             sys.path.insert(0, str(HERE / sub))

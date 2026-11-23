@@ -300,22 +300,29 @@ episode and compares), logged every physics step:
   per second (and the raw count at 2 N, as the analysis counted it);
 - mean leg power and cost of transport; sideways drift (m) and heading change (deg) over the window.
 
-**Training health** (`telemetry/health.py`, since 23 Nov 2026; always on, reading only: a test shows the same seed
-trains to the same parameters with and without it): one line per rollout in `train_health.jsonl` with the update
-that followed it. It records:
+**Training health** (`telemetry/health.py`, since 23 Nov 2026). It is always on and only reads: a test, and the
+review's bit-for-bit comparison with commit efd1e1c7, show training is the same with and without it. It writes one
+line per rollout in `train_health.jsonl`, with the update that followed it, and records:
 - SB3's own diagnostics: approx. KL, clip fraction, entropy, explained variance, value and policy losses, learning
   rate, action std;
 - the gradient norm after PPO's clipping;
-- the per-step mean of every `r_*` reward term and `reward_total`;
-- how many episodes ended, and why (`termination`, or `time_limit`);
+- the per-step mean of every `r_*` reward term and `reward_total` (train.py passes these prefixes; the module's
+  default is `reward_` only, because in the species envs `r_` also means "right");
+- how many episodes ended, and why: `termination`, or `time_limit` for a truncation, or `unlabelled`;
 - VecNormalize's observation and return variances.
 
 **Periodic checks** (`telemetry/checks.py`, off unless `--checks-every N`): every N steps, two deterministic episodes
 (seeds 300000-300001) at each robustness-sweep point named by `--checks`. The points are `step_3cm`, `ramp_8deg`,
 `friction_0.3` and `push_1.0`, on the run's own config at the nominal model, 0.25 m/s and 10 ms. Each check writes
-one line in `checks_during_training.jsonl` and prints one line. These are progress readings, not a verdict, and
-cost about 20 s per check on one process. With checks off, the run's settings carry no checks keys, so earlier
-records resume unchanged.
+one line in `checks_during_training.jsonl` and prints one line. These are progress readings, not a verdict.
+- **Cost:** training pauses while a check runs. A check took 16-19 s with a standing policy and 26 s with a walking
+  one on this machine's 4 slow cores. At Colab's ~690 env steps/s, a check every 1 M steps adds about 2 % to a run,
+  and every 250,000 steps about 7 %. Use 1,000,000 unless a run needs finer readings.
+- **Monitoring, not a setting:** the checks are not among the settings a run keeps (each session's arguments are
+  recorded), so a resume may turn them on or off.
+- **Failures:** a point whose episode fails is recorded as an error, with a warning; training goes on.
+- **Refused before start:** a model outside `sim/generated` (the sweep rebuilds the model from there by name), and
+  `TRIKE_ENV_DIR` being set.
 
 **Charts:** `python telemetry/health_dashboard.py --label NAME --health RUN/train_health.jsonl --checks
 RUN/checks_during_training.jsonl --out DIR` draws `training_health_NAME.png` and `training_checks_NAME.png`.

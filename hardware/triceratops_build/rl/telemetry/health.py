@@ -6,17 +6,21 @@ predicts returns), each reward term and the reasons episodes end say early why.
 
 Each line of ``train_health.jsonl`` covers one rollout and the update that followed it:
 
-- ``timesteps``: the model's step count at the end of that rollout; ``wall_s``: the wall time of the rollout and its
-  update;
+- ``timesteps``: the model's step count at the end of that rollout; ``wall_s``: the wall time since the previous
+  line (the rollout, its update, and any evaluations, checks or saves the other callbacks made in between);
 - ``algo``: SB3's ``train/*`` values of that update (PPO: approx_kl, clip_fraction, entropy_loss, explained_variance,
   value_loss, policy_gradient_loss, loss, learning_rate, clip_range, std, n_updates), as SB3 recorded them;
 - ``grad_norm``: the global L2 norm of the policy's gradients after the update's last minibatch (after PPO's
   clipping at ``max_grad_norm``, so it sits at that ceiling while clipping binds);
 - ``action_std``: the mean of the policy's action standard deviations (Gaussian policies), when it has ``log_std``;
 - ``rewards``: the per-step mean over the rollout and all envs of every numeric ``info`` value whose key starts with
-  one of ``reward_prefixes`` (default ``r_`` and ``reward_``), so any env's reward terms are found without a list;
-- ``episodes``: episodes that ended in the rollout; ``endings``: their count per reason, the ``termination_key``
-  value of the final ``info`` (an empty or missing value counts as ``time_limit``);
+  one of ``reward_prefixes``. The default, ``("reward_",)``, is the repository's convention for its species envs; an
+  env with another convention says so (the 60 cm build passes ``("r_", "reward_")``). Choose prefixes that only
+  reward terms carry: in the species envs ``r_`` means "right" (``r_foot_contact`` is a force);
+- ``episodes``: episodes that ended in the rollout; ``endings``: their count per reason. The reason is the first
+  non-empty value among ``termination_keys`` in the final ``info`` (default ``termination`` and
+  ``termination_reason``, the 60 cm build's and the species envs' names); without one, ``time_limit`` when SB3's
+  ``TimeLimit.truncated`` is set, else ``unlabelled``;
 - ``obs_var``: the min, median and max of the VecNormalize observation variances, and ``ret_var``, when the training
   env is wrapped in VecNormalize (a collapsing or exploding input scale shows here first).
 
@@ -56,12 +60,12 @@ def grad_norm(parameters) -> float | None:
 
 
 class TrainingHealth(BaseCallback):
-    def __init__(self, path, reward_prefixes=("r_", "reward_"), termination_key: str = "termination",
+    def __init__(self, path, reward_prefixes=("reward_",), termination_keys=("termination", "termination_reason"),
                  say=print, verbose: int = 0):
         super().__init__(verbose)
         self.path = Path(path)
         self.prefixes = tuple(reward_prefixes)
-        self.termination_key = termination_key
+        self.termination_keys = tuple(termination_keys)
         self.say = say
         self._reset_rollout()
         self._pending = False  # a rollout has been collected whose line is not yet written
@@ -77,6 +81,24 @@ class TrainingHealth(BaseCallback):
 
     def _on_training_start(self) -> None:
         self._reset_rollout()
+        # a session killed mid-write leaves a torn last line: end it, so this session's first line stands on its own
+        try:
+            if self.path.exists() and self.path.stat().st_size:
+                with open(self.path, "rb") as f:
+                    f.seek(-1, 2)
+                    torn = f.read(1) != b"\n"
+                if torn:
+                    with open(self.path, "a", encoding="utf-8") as f:
+                        f.write("\n")
+        except OSError:
+            pass
+
+    def _ending(self, info: dict) -> str:
+        for k in self.termination_keys:
+            v = info.get(k)
+            if v:
+                return str(v)
+        return "time_limit" if info.get("TimeLimit.truncated") else "unlabelled"
 
     # --- per step: reward terms and endings ---
     def _on_step(self) -> bool:
@@ -84,12 +106,13 @@ class TrainingHealth(BaseCallback):
         dones = self.locals.get("dones")
         for i, info in enumerate(infos):
             for k, v in info.items():
-                if k.startswith(self.prefixes) and isinstance(v, (int, float, np.floating, np.integer)):
+                if isinstance(k, str) and k.startswith(self.prefixes) and isinstance(
+                        v, (int, float, np.floating, np.integer)) and not isinstance(v, bool):
                     self._sums[k] += float(v)
                     self._counts[k] += 1
             if dones is not None and bool(dones[i]):
                 self._episodes += 1
-                self._endings[str(info.get(self.termination_key) or "time_limit")] += 1
+                self._endings[self._ending(info)] += 1
         return True
 
     def _on_rollout_end(self) -> None:
@@ -115,12 +138,12 @@ class TrainingHealth(BaseCallback):
             "algo": algo, "grad_norm": _finite(grad_norm(policy.parameters())),
             "action_std": _finite(float(np.exp(log_std.detach().cpu().numpy()).mean())) if log_std is not None
             else None,
-            "rewards": {k: self._sums[k] / self._counts[k] for k in sorted(self._sums) if self._counts[k]},
+            "rewards": {k: _finite(self._sums[k] / self._counts[k]) for k in sorted(self._sums) if self._counts[k]},
             "episodes": self._episodes, "endings": dict(sorted(self._endings.items()))}
         vn = m.get_vec_normalize_env()
         if vn is not None and getattr(vn, "obs_rms", None) is not None and hasattr(vn.obs_rms, "var"):
             var = np.asarray(vn.obs_rms.var, dtype=np.float64)
-            rec["obs_var"] = {"min": float(var.min()), "median": float(np.median(var)), "max": float(var.max())}
+            rec["obs_var"] = {"min": _finite(var.min()), "median": _finite(np.median(var)), "max": _finite(var.max())}
             if getattr(vn, "ret_rms", None) is not None:
                 rec["ret_var"] = _finite(np.asarray(vn.ret_rms.var).mean())
         try:
@@ -135,8 +158,23 @@ class TrainingHealth(BaseCallback):
         self._reset_rollout()
 
 
+def latest_branch(rows: list[dict], key: str) -> list[dict]:
+    """The rows of the run as it stands: a resumed session restarts at its checkpoint's step count, so rows the
+    killed session wrote past that point (its discarded branch) are dropped, and a later row replaces an earlier one
+    at the same count. Rows without ``key`` are skipped. In step order."""
+    kept: list[dict] = []
+    for r in rows:
+        n = r.get(key)
+        if not isinstance(n, (int, float)):
+            continue
+        while kept and kept[-1][key] >= n:
+            kept.pop()
+        kept.append(r)
+    return kept
+
+
 def read_health(path) -> list[dict]:
-    """The lines of a ``train_health.jsonl``; a torn last line (a run killed mid-write) is skipped."""
+    """The lines of a ``train_health.jsonl``; a torn line (a run killed mid-write) is skipped."""
     rows = []
     p = Path(path)
     if not p.exists():

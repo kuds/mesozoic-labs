@@ -26,8 +26,12 @@ species, the T. rex included, and the T. rex is out of bounds.
   `gaussian_tracking_reward`.
 - `command_frame.py`: the command segment. Three inputs (`v_x_cmd`, `v_y_cmd`, `yaw_rate_cmd`), pre-scaled to
   [-1, 1] and appended last to the observation. Mode `"none"` is byte-inert.
-- `diagnostics.py`: a per-component reward-breakdown callback. It will be checked for fit before any new code is
-  written for the same job.
+- `diagnostics.py`: a per-component reward-breakdown callback. *Checked for fit (23 Nov), not used:*
+  - it lists the species envs' reward names explicitly (`reward_*`), and the build env's terms are `r_*`;
+  - it writes TensorBoard and an `.npz` beside the stage, where this pipeline writes JSON lines to Drive;
+  - it imports the stance diagnostics of the species envs.
+  `telemetry/health.py` does the same job generically. It finds terms by prefix, reads either termination key, and
+  writes plain JSON lines.
 
 The build env stays standalone (not a `BaseDinoEnv`; `README.md` says why). It adopts the command contract with the
 same names, ranges and modes, so a policy interface built here matches the repository's.
@@ -41,7 +45,7 @@ not wired into any T. rex code.
 | Module | What it gives | Inputs |
 |---|---|---|
 | `health.py` | An SB3 callback writing `train_health.jsonl`: the learning algorithm's own diagnostics (approx. KL, clip fraction, entropy, action std, value loss, explained variance, learning rate, gradient norm), per-rollout means of every `r_*` reward term, and termination causes. A training-dashboard panel reads it. | SB3 logger, step `info` |
-| `checks.py` | Periodic checks during training, every N steps: named points, each a set of env-config changes (a step, a push, a slippery floor, a turn), a few deterministic episodes each, appended to `eval_during_training.jsonl`. Not judged: the final checkpoint is what is judged. | env factory, point list |
+| `checks.py` | Periodic checks during training, every N steps: named points (a step, a push, a slippery floor, a turn), a few deterministic episodes each, through a robot-supplied `run_point`, one line each in `checks_during_training.jsonl`. Not judged: the final checkpoint is what is judged. | `run_point`, point list |
 | `thermal.py` | A first-order winding-temperature model per drive, driven by the copper loss of its torque: the temperature over a long episode, the time to a limit, and cool-down. Calibrated from the maker's temperature-rise figure (`thermal_eq_nm`: 90 min to 100 °C, open air). The time constant is not published for these drives, so it is an assumption with a sensitivity range, labelled as such. | drive table, torque trace |
 | `power.py` | Per drive and pack: electrical power (mechanical plus copper loss, with regeneration shown separately), peak and RMS pack current at the pack voltage, energy per metre, and runtime for a demo duty mix. Generalises the gait report's power section. | drive table, pack (Wh, V, usable share), hotel load |
 | `loads.py` | Distributions of joint torque and joint reaction force (bearing loads), and foot impact forces, per joint and per foot, for the bench plan and part sizing. | MuJoCo model and data per step |

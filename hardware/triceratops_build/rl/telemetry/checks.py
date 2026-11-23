@@ -5,9 +5,14 @@ while it trains, so nobody sees when (or whether) those skills appear until the 
 current policy at a few named points every ``every`` steps and append one JSON line per check to a file.
 
 The robot supplies everything specific through one callable: ``run_point(name, spec, seed, act) -> dict`` runs one
-episode at point ``spec`` with the policy ``act(obs) -> action`` and returns that episode's record (JSON-safe: at
-least ``fell``; whatever measures the robot's tools give). Points are ``{name: spec}``; a spec is whatever the
-robot's ``run_point`` understands (for the 60 cm build, a robustness-sweep point).
+episode at point ``spec`` with the policy ``act(obs) -> action`` and returns that episode's record. The record is
+JSON-safe, with at least ``fell`` (bool); the charts also read ``forward_speed_mps`` when it is there. Points are
+``{name: spec}``; a spec is whatever the robot's ``run_point`` understands (for the 60 cm build, a robustness-sweep
+point). ``act`` takes one observation as the env returns it (a flat array; a dict observation needs its own
+``act``) and applies the training VecNormalize statistics.
+
+A point whose episode raises is recorded as ``{"error": ...}`` for that seed and reported once per check; training
+goes on.
 
 Not a verdict: these are progress readings on a few seeds. A pre-registered run is judged on its final checkpoint
 with its own tools. Nothing here draws from the training's random streams: the policy acts deterministically on
@@ -60,9 +65,16 @@ class PeriodicChecks(BaseCallback):
 
     def check(self, n: int) -> dict:
         t0 = time.time()
-        out = {}
+        out, errors = {}, []
         for name, spec in self.points.items():
-            out[name] = [self.run_point(name, spec, s, self._act) for s in self.seeds]
+            eps = []
+            for s in self.seeds:
+                try:
+                    eps.append(self.run_point(name, spec, s, self._act))
+                except Exception as exc:  # a check never stops training
+                    eps.append({"error": repr(exc), "seed": s})
+                    errors.append(f"{name} seed {s}: {exc!r}")
+            out[name] = eps
         rec = {"steps": int(n), "time_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                "wall_s": round(time.time() - t0, 2), "seeds": list(self.seeds), "points": out}
         try:
@@ -74,9 +86,16 @@ class PeriodicChecks(BaseCallback):
                 self._write_failed = True
         parts = []
         for name, eps in out.items():
-            parts.append(self.summarise(name, eps) if self.summarise else
-                         f"{name} falls {sum(bool(e.get('fell')) for e in eps)}/{len(eps)}")
+            ok = [e for e in eps if "error" not in e]
+            try:
+                parts.append(self.summarise(name, ok) if self.summarise else
+                             f"{name} falls {sum(bool(e.get('fell')) for e in ok)}/{len(ok)}")
+            except Exception as exc:
+                parts.append(f"{name}: summary failed ({exc!r})")
         self.say(f"checks at {n} steps ({rec['wall_s']:.0f} s): " + "; ".join(parts))
+        if errors:
+            self.say(f"WARNING: checks at {n} steps: {len(errors)} episode(s) failed, training goes on; first: "
+                     f"{errors[0]}")
         return rec
 
 
