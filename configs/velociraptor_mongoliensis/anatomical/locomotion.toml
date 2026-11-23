@@ -25,7 +25,6 @@ gait_symmetry_weight = 0.0              # Disabled for sweep: let forward_vel do
 smoothness_weight = 0.05
 heading_weight = 0.3
 lateral_penalty_weight = 0.1
-prey_distance_range = [8.0, 12.0]
 max_episode_steps = 1000
 reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
                                        # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
@@ -80,14 +79,19 @@ min_avg_reward = 100.0
 # Collapse backstop: the relative floor pair the T-Rex's locomotion, stance and
 # recovery use (2026-11-06; PLANT_VALIDATION §14 item 3), replacing the absolute
 # collapse_peak_floor = 100.0, which sat 8x BELOW the measured do-nothing reward
-# (796.6, below; 796.0 on r4) and encoded nothing about this stage. The absolute key is
+# (798.4, below; 796.6 on r5, 796.0 on r4) and encoded nothing about this stage. The absolute key is
 # REMOVED, not shadowed: collapse_settings_from_config lets an explicit
 # collapse_peak_floor win over the pair. Either floor sits below the standing
 # level a warm-started stance evaluates at from step 0 (evaluation scores the
 # full forward weight), so neither alone keeps the backstop from arming on that
 # plateau and reading the stand-then-lunge transition as a collapse;
 # collapse_peak_warmup_timesteps below does (the D-B5 bound).
-collapse_peak_floor_reference = 796.6   # The zero-action locomotion statue's reward at noise 0.05: 796.59 +/- 3.15
+collapse_peak_floor_reference = 798.4   # The zero-action locomotion statue's reward at noise 0.05: 798.35 +/- 1.88
+                                        # over 40 episodes, seeds 3042-3081, 40/40 full horizon, on physics r6
+                                        # (plant_versions note 24: the prey and the claw collision geoms removed,
+                                        # dynamics bit-identical), measured 2026-11-23 with the same command; the
+                                        # +1.76 is the reference axis: the forward, lateral and heading terms read
+                                        # the spawn heading where they read the prey bearing. Physics r5: 796.59 +/- 3.15
                                         # over 40 episodes, seeds 3042-3081, 40/40 full horizon, on physics r5 (the
                                         # life-size plant, the maintainer's decision of 2026-11-08), measured
                                         # 2026-11-09 with environments/shared/scripts/zero_action_baseline.py
@@ -97,10 +101,11 @@ collapse_peak_floor_reference = 796.6   # The zero-action locomotion statue's re
                                         # This [env] sets none of the stance's opt-in terms, and the heading-free
                                         # observation (policy interface r13) moves no reward. Re-measure with the
                                         # same script whenever a reward weight OR the plant changes.
-collapse_peak_floor_fraction = 0.45     # The T-Rex's fraction: floor = 0.45 x 796.6 = 358.5 (358.2 on r4's 796.0).
+collapse_peak_floor_fraction = 0.45     # The T-Rex's fraction: floor = 0.45 x 798.4 = 359.3 (358.5 on r5's 796.6,
+                                        # 358.2 on r4's 796.0).
                                         # The raptor's genuine r2 walker's evaluations (2683.6 final, 2687.6 best)
                                         # clear it by 7x, so the backstop arms as soon as collapse_min_evals is met.
-statue_constants_physics_revision = 5   # The velociraptor PHYSICS revision the 796.6 reference was measured on.
+statue_constants_physics_revision = 6   # The velociraptor PHYSICS revision the 798.4 reference was measured on.
                                         # test_statue_constant_freshness.py holds this pin against the plant
                                         # manifest, so a plant bump that forgets the re-measure fails CI.
 collapse_peak_warmup_timesteps = 2300000 # Evaluations before this step cannot SET the peak: the D-B5 bound,

@@ -122,9 +122,9 @@ BASE_DIAGNOSTICS_KEYS = frozenset(
     reward_gait reward_gait_symmetry reward_head_clearance reward_heading reward_height
     reward_home_pose reward_idle reward_lateral reward_leg_home_pose reward_neck_posture reward_nosedive
     reward_posture reward_smoothness reward_speed reward_spin reward_stance_width
-    reward_support_geom_coverage reward_tail reward_tail_home_pose reward_target reward_total
+    reward_support_geom_coverage reward_tail reward_tail_home_pose reward_total
     rl_foot_contact rr_foot_contact single_support_duty spin_instability tail_instability
-    target_success term_timesteps tilt_angle timesteps torso_height unsupported_duty
+    term_timesteps tilt_angle timesteps torso_height unsupported_duty
     """.split()
 )
 #: This change's ``gate_progress.npz`` keys on this run, the reward-term split and the screen's per-criterion
@@ -508,10 +508,12 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     plain_record = json.loads((_plain / "progress.json").read_text(encoding="utf-8"))
     assert not {"policy", "training_rollouts"} & set(plain_record)
     with np.load(full / "policy_probe.npz", allow_pickle=False) as probe:
-        # One row per PPO update, and the whole bank although the stage's horizon is 240 steps.
+        # One row per PPO update, and every bank row the T. rex holds although the stage's horizon is 240 steps:
+        # 9 of 10 since physics r12, whose statue falls from the +0.03 lean on seed 3043 at step 515
+        # (test_curriculum_policy_probe.TYRANNOSAURUS_REX_DROPPED_ROWS).
         assert probe["update_timesteps"].tolist() == [256, 512, 768]
-        assert len(probe["bank_labels"]) == 10 and int(probe["bank_horizon"]) == 601
-        assert probe["bank_action_now"].shape == (3, 10, 15)
+        assert len(probe["bank_labels"]) == 9 and int(probe["bank_horizon"]) == 601
+        assert probe["bank_action_now"].shape == (3, 9, 15)
         # The rollout clip shares: each update's whole buffer (256 steps of one env), per actuator.
         assert probe["rollout_rows"].tolist() == [256, 256, 256]
         for key in ("rollout_action_clip_high_share", "rollout_mu_beyond_low_share", "rollout_mu_q95"):

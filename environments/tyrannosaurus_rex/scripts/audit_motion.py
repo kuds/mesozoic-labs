@@ -69,9 +69,7 @@ def run(
         raise ValueError("require 0 <= warmup < seconds and noise >= 0")
     owned = env is None
     if env is None:
-        env = TyrannosaurusRexAnatomicalEnv(
-            reset_noise_scale=noise, prey_distance_range=(100.0, 100.0), prey_lateral_range=(0.0, 0.0)
-        )
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=noise)
     previous_hook = env._substep_probe_hook
     previous_horizon = env.max_episode_steps
     previous_noise = env.reset_noise_scale

@@ -244,6 +244,36 @@ class TestCurriculumInvariants:
         assert not [key for key, stage in stages.items() if bonus in stage["env_kwargs"]]
         assert bonus not in inspect.signature(env_class(model_id)).parameters
 
+    #: The scene-target arguments the target-free revision removed (no prey, food or course target is left in any
+    #: scene, and the Compsognathus target reward went with it), and the reset's height-jitter knob, whose draw
+    #: left in the same revision.
+    REMOVED_TARGET_KWARGS = (
+        "prey_distance_range",
+        "prey_lateral_range",
+        "food_distance_range",
+        "food_lateral_range",
+        "food_height_range",
+        "target_approach_weight",
+        "target_reach_bonus",
+        "target_radius",
+        "target_max_speed",
+        "reset_height_noise_scale",
+    )
+
+    @pytest.mark.parametrize("model_id", model_ids(), ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_no_stage_names_a_removed_target_argument_and_the_environment_refuses_it(self, model_id):
+        """Every model, every stage its manifest declares.  (A behavior recipe naming one is refused by
+        ``train_behaviors.read_recipe`` as an unknown env field, because the classes no longer accept it.)"""
+        from environments.shared.species_registry import env_class
+
+        stages = load_all_stages(model_id)
+        assert not [
+            (key, kw) for key, stage in stages.items() for kw in self.REMOVED_TARGET_KWARGS if kw in stage["env_kwargs"]
+        ]
+        for kwarg in self.REMOVED_TARGET_KWARGS:
+            with pytest.raises(TypeError, match=kwarg):
+                env_class(model_id)(**{kwarg: (1.0, 2.0)})
+
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_consistent_episode_length(self, model_id):
         """All stages should use the same max_episode_steps for consistent return horizons."""
@@ -337,7 +367,7 @@ class TestSaveStageConfig:
         stage_config = {
             "name": "balance",
             "description": "Stand upright",
-            "env_kwargs": {"alive_bonus": 2.0, "prey_distance_range": (5.0, 10.0)},
+            "env_kwargs": {"alive_bonus": 2.0, "healthy_z_range": (0.5, 1.0)},
             "ppo_kwargs": {"learning_rate": 3e-4, "batch_size": 64},
             "sac_kwargs": {"learning_rate": 1e-4},
             "curriculum_kwargs": {"min_avg_reward": 10.0},
@@ -351,7 +381,7 @@ class TestSaveStageConfig:
         assert data["algorithm"] == "PPO"
         assert data["hyperparameters"]["learning_rate"] == 3e-4
         # Tuples should be converted to lists for JSON
-        assert data["reward_weights"]["prey_distance_range"] == [5.0, 10.0]
+        assert data["reward_weights"]["healthy_z_range"] == [0.5, 1.0]
         assert data["curriculum"]["min_avg_reward"] == 10.0
 
     def test_saves_sac_config(self, tmp_path):
@@ -1154,7 +1184,7 @@ class TestHyperparameterDigestAndLabel:
 
     BASE = {
         "name": "t",
-        "env_kwargs": {"forward_vel_weight": 1.0, "prey_distance_range": (5.0, 10.0)},
+        "env_kwargs": {"forward_vel_weight": 1.0, "healthy_z_range": (0.5, 1.0)},
         "ppo_kwargs": {"learning_rate": 3e-4, "batch_size": 64, "policy_kwargs": {"net_arch": (256, 256)}},
         "sac_kwargs": {"learning_rate": 1e-4},
         "curriculum_kwargs": {

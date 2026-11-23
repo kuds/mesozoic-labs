@@ -125,7 +125,7 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_speed",
         "reward_idle",
         # Species-specific reward components.  The hunt's (strike, bite, food,
-        # snap, approach and proximity terms) left with it (decision D-D59).
+        # snap, approach, proximity and target terms) left with it (decision D-D59).
         "reward_height",  # T-Rex, Brachiosaurus
         "reward_gait_symmetry",  # Brachiosaurus
         # T-Rex Stage 1 stance shaping
@@ -154,7 +154,6 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_stance_cop_band",
         "reward_support_geom_coverage",  # Compsognathus stance shaping
         "reward_home_pose",  # Compsognathus
-        "reward_target",  # Compsognathus target reaching, until its hunt code goes
         "reward_total",
     ]
     INFO_KEYS = [
@@ -177,7 +176,6 @@ class DiagnosticsCallback(_BaseCallback):
         "heading_alignment",
         "lateral_vel",
         "forward_z",
-        "target_success",  # Compsognathus target reaching, until its hunt code goes
         "r_foot_contact",
         "l_foot_contact",
         "rr_foot_contact",

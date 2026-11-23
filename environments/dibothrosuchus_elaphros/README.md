@@ -34,8 +34,8 @@ them.
   arranged by comparison with *Terrestrisuchus*. The sole and each digital ray are separate floor contacts, and one
   touch sensor per foot feeds the observation.
 - **Head and surface.** A tapered trunk and tail, a distinct lower jaw, lateral eyes and nares, low frontal ridges and
-  paired dorsal osteoderms give the surface recognizable landmarks. The fixed snout contact geom the snap used stays
-  until the next policy-interface revision.
+  paired dorsal osteoderms give the surface recognizable landmarks. The fixed snout contact box the snap used was
+  removed with the prey in physics r4 (decision D-D59); the snout-tip site stays for the snout-prop termination.
 - **Known limits.** The incomplete hindlimb leaves the hindfoot's dimensions uncertain. The walk's footfall sequence,
   cadence, tail carriage and toe-off timing are assumptions; living crocodylians use several footfall patterns. The
   reference walk covers one slow, straight walk on level ground.
@@ -115,29 +115,30 @@ Species notes:
 
 - **Published results.** No trained policy has been published for this model yet. The motion on this page and on the
   model page comes from the scripted reference controller.
-- **Older checkpoints.** Checkpoints from policy interface r9 or earlier fail the plant check and cannot seed a warm
-  start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
+- **Older checkpoints.** Checkpoints from policy interface r10 or earlier fail the plant check and cannot seed a warm
+  start or `--trunk-from`: r10 declared the model SB3-only (note 23), and r11 removed the prey and made the observation
+  heading-free (`configs/plant_versions.toml`).
 
 ## Task and rewards
 
 The trained tasks are the stance and the walk; the snap, the hunt that followed the walk, was removed by decision
 D-D59. Its reward terms, its `snap_success` termination and its constructor arguments are gone from the code, and the
-model declares no success key. A small prey sphere still spawns ahead of the animal at reset, just above the ground,
-and the observation still carries its direction and distance; the forward and heading terms measure along its initial
-direction. The prey, and with it the fixed snout geom `snout_snap` the snap used, leave with the next
-policy-interface revision.
+model declares no success key. The prey sphere, its observation channels and the fixed snout box `snout_snap` the
+snap used went with it in policy interface r11 (physics r4), so the scene holds only the animal and the floor. The
+forward and heading terms measure along the heading the animal spawns with.
 
-The observation holds the joint positions and velocities, the trunk orientation quaternion, gyro, linear velocity and
-accelerometer, one touch channel per foot, the prey direction and distance, and the command. Actions are offsets from
-the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
-[`base_env.py`](base_env.py) gives both layouts.
+The observation reads no world heading: it uses the trunk's projected gravity and its velocity in a gravity-aligned
+heading frame, beside the joint positions and velocities, the trunk gyro and accelerometer, one touch channel per foot
+and the command. Before that revision it read the world-frame trunk quaternion and velocity and the prey direction and
+distance. Actions are offsets from the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each
+actuator's limits. The docstring of [`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
 
 - **Survival and posture:** an alive bonus, a fall penalty, and penalties on tilt and nosedive with a trunk-height
   term.
-- **Progress:** forward velocity and heading toward the prey, with penalties on backward, sideways and drifting
-  motion, spin, speed above a threshold and standing idle.
+- **Progress:** forward velocity and heading along the spawn heading, with penalties on backward, sideways and
+  drifting motion, spin, speed above a threshold and standing idle.
 - **Gait quality:** penalties on trunk and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs (front right with rear left, front left with rear right).
 - **Effort:** an energy penalty on actuator use.

@@ -7,8 +7,10 @@
 # through the `extends` key below (environments/shared/config.py), so
 # every inherited value's derivation record lives THERE. [env] adds one
 # task delta: the five perturbation_* keys, at the adopted §3.3 values. On
-# the r7 and r8 plants the multiple derives to 165.5 N over 0.20 s (capture-point
-# argument; pinned in test_perturbation.py). Since D-D27 it also moves one
+# the r7 through r11 plants the multiple derives to 165.5 N over 0.20 s (capture-point
+# argument; pinned in test_perturbation.py), and to 159.7 N on physics r12, whose
+# skull lost the 0.2 kg bite box (the home CoM 4.6 mm further back, the home contact
+# box's nearest side margin 77.2 -> 74.6 mm; plant_versions note 24). Since D-D27 it also moves one
 # reward setting, stance_width_settle_steps, ahead of the first push (its
 # note below). The same reward,
 # observations, and terminations are deliberate: the push changes the
@@ -230,7 +232,7 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # no rail has been derived for the pushed task and inventing one would gate on
 # an unmeasured number. The failure mode a rail catches — a policy that threw
 # away most of the available return — is already covered here by the collapse
-# backstop below, which is anchored to the pushed statue (1609.1). The frozen
+# backstop below, which is anchored to the pushed statue (1730.6). The frozen
 # capability spec records no rail either, so a declared one could only ever be
 # an extra refusal conjunct (reporting/gates.py::_recovery_reward_rail).
 
@@ -314,9 +316,16 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # zero, they also price the fore-aft foot stagger and the centre-of-pressure
 # excursions a recovery step makes (each up to 0.30 a step), which no
 # recovery run has trained with yet.
-# R11, seeds 3042-3081, 40 episodes. The zero-action animal completed 0/40 pushed horizons; this is the return over all trials.
-collapse_peak_floor_reference = 1613.2
-# Previous calibrations: Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+# R12 (plant_versions note 24: the 0.2 kg head_bite box removed, so the derived push is 159.7 N, not
+# 165.5, and the reset no longer draws the prey placement or the height jitter, so every seeded push
+# schedule moved), 2026-11-23, by the same
+# judge and command (recovery_offdist_panel --controller statue --schedule on --safe-set
+# provisional), seeds 3042-3081, 40 episodes: 1730.6 ± 675.4 (sample SD; the harness prints the
+# population SD, 666.9), mean length 500.25, 0/40 full horizon, ends fallen 26 / nosedive 14, 51 of
+# 80 shoves recovered. The reference moves to 1730.6. Floor = 0.45 x 1730.6 = 778.8.
+collapse_peak_floor_reference = 1730.6
+# Previous calibrations: R11, seeds 3042-3081, 40 episodes, 0/40 pushed horizons, the return over
+                                        # all trials: 1613.2. Pushed-task statue reward, noise 0.05, 40 episodes, seeds
                                         # 3042-3081, physics r10 under the r10 LTSB stance terms
                                         # (the stance-landing decision of 2026-11-06, above); 1429.1 on
                                         # physics r10 before them. 1329.1 through r9: physics r8
@@ -324,7 +333,7 @@ collapse_peak_floor_reference = 1613.2
                                         # 1337.5 under the r8 task; 974.7 on r7 (first-runs record
                                         # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 11  # Re-measured with the r11 proportioned hindlimb (1613.2).
+statue_constants_physics_revision = 12  # Re-measured without the head_bite box (1730.6; r11 1613.2).
 collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of this stage's 3M budget —
                                         # stale while the budget was 5M (commit 0836043), true again since
                                         # the reversal above — and inside the companion budget test's

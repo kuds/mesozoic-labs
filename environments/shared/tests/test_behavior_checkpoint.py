@@ -63,7 +63,7 @@ OLD_MARKER = {
 PRESETS = Path(__file__).parents[3] / "configs" / "tyrannosaurus_rex" / "anatomical" / "behaviors"
 
 
-#: The current T-Rex observation width (63 since its heading-free policy interface r14), read from the plant
+#: The current T-Rex observation width (59 since policy interface r17; 63 from its heading-free r14), read from the plant
 #: contract so the cheap env below keeps the canonical tensor shape across interface revisions.
 OBS_DIM = current_plant_identity(TYRANNOSAURUS_REX).observation_dim
 

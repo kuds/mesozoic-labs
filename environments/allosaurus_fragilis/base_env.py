@@ -14,11 +14,26 @@ from environments.shared.stance_diagnostics import derive_stance_info
 
 
 class AllosaurusFragilisEnv(BaseDinoEnv):
-    """Control hindlimb joint torques on a free-root, digitigrade biped."""
+    """Control hindlimb joint torques on a free-root, digitigrade biped.
+
+    The observation follows ``bipedal-heading-free/v1`` (41 values since
+    policy interface r2; r1 had 45, with a target direction and distance):
+    hinge positions (12) and velocities (12), pelvis projected gravity (3),
+    the pelvis gyro (3), the pelvis velocity in its heading frame (3), the
+    pelvis accelerometer (3), one touch reading per foot (2) and the command
+    (3, last).  Nothing in it reads the world heading.
+    """
 
     MODEL_PATH: Path
     HEIGHT_LABEL = "Pelvis height"
     SUCCESS_KEYS = ("course_complete",)
+    #: The walking course: the pelvis completes it once its displacement along
+    #: the spawn heading reaches this length less COURSE_TOLERANCE_M, with a
+    #: foot bearing weight.  Until policy interface r2 a massless mocap target
+    #: sat this far ahead of the spawn, and the course ended within the
+    #: tolerance of it.
+    COURSE_LENGTH_M = 8.0
+    COURSE_TOLERANCE_M = 0.35
     supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 10.2
@@ -47,7 +62,6 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         if max_episode_steps is None:
             max_episode_steps = 3000 if forward_vel_weight > 0 else 1000
         self.drift_penalty_weight = drift_penalty_weight
-        self._initial_pos_2d = np.zeros(2)
         super().__init__(
             model_path=str(self.MODEL_PATH),
             render_mode=render_mode,
@@ -69,7 +83,6 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         self._cache_home_keyframe("Allosaurus fragilis")
         self.pelvis_id = self.model.body("pelvis").id
         self.floor_geom_id = self.model.geom("floor").id
-        self._target_mocap_id = int(self.model.body_mocapid[self.model.body("target").id])
         self._sensor_gyro_start = int(self.model.sensor("pelvis_gyro").adr[0])
         self._sensor_accel_start = int(self.model.sensor("pelvis_accel").adr[0])
         self._sensor_quat_start = int(self.model.sensor("pelvis_orientation").adr[0])
@@ -93,11 +106,7 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         return cast(np.ndarray, self._home_ctrl + residual * span)
 
     def _get_obs(self) -> np.ndarray:
-        offset = self.data.mocap_pos[self._target_mocap_id] - self.data.xpos[self.pelvis_id]
-        distance = np.linalg.norm(offset)
-        gravity, velocity, direction = heading_free_root_segments(
-            self.data.qpos, self.data.qvel[:3], offset / (distance + 1e-8)
-        )
+        gravity, velocity = heading_free_root_segments(self.data.qpos, self.data.qvel[:3])
         sensors = self.data.sensordata
         return np.asarray(
             np.concatenate(
@@ -109,27 +118,24 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
                     velocity,
                     sensors[self._sensor_accel_start : self._sensor_accel_start + 3],
                     self._foot_contact_forces(),
-                    direction,
-                    [distance],
                     self._command,
                 )
             ),
             dtype=np.float32,
         )
 
-    def _spawn_target(self) -> None:
-        # The target is a straight, eight-metre course in the starting heading.
-        self._initial_pos_2d = self.data.qpos[:2].copy()
-        self._initial_prey_dir_2d = self._quat_to_forward_2d(self.data.qpos[3:7])
-        self.data.mocap_pos[self._target_mocap_id] = (
-            *(self._initial_pos_2d + 8 * self._initial_prey_dir_2d),
-            self.target_standing_z,
-        )
+    def _reset_episode_state(self) -> None:
+        """Nothing per-episode to clear.
+
+        The course is the spawn's drift anchor and reference heading, which
+        reset() sets before this hook, and no reward term keeps an action
+        history or gait state.
+        """
 
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         pelvis = self.data.xpos[self.pelvis_id]
         delta = pelvis[:2] - self._initial_pos_2d
-        forward = float(self.data.qvel[:2] @ self._initial_prey_dir_2d)
+        forward = float(self.data.qvel[:2] @ self._reference_heading_2d)
         drift = float(np.linalg.norm(delta))
         right, left = self._aggregated_foot_contact_forces()
         supported = max(right, left) > self._contact_threshold
@@ -168,9 +174,11 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         if contact:
             return True, {**info, "termination_reason": reason}
         if self.forward_vel_weight > 0:
-            remaining = self.data.mocap_pos[self._target_mocap_id, :2] - self.data.xpos[self.pelvis_id, :2]
+            # The course ends at a line across the spawn heading, not at a
+            # point: lateral offset neither prevents nor causes completion.
+            along = float((self.data.xpos[self.pelvis_id, :2] - self._initial_pos_2d) @ self._reference_heading_2d)
             if (
-                np.linalg.norm(remaining) <= 0.35
+                along >= self.COURSE_LENGTH_M - self.COURSE_TOLERANCE_M
                 and max(self._aggregated_foot_contact_forces()) > self._contact_threshold
             ):
                 return True, {**info, "termination_reason": "course_complete", "course_complete": 1.0, "success": True}

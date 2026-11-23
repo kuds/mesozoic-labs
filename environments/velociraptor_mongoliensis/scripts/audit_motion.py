@@ -46,11 +46,7 @@ def run(args, seed):
     class ProbeEnv(VelociraptorMongoliensisAnatomicalEnv):
         MODEL_PATH = args.xml or VelociraptorMongoliensisAnatomicalEnv.MODEL_PATH
 
-    env = ProbeEnv(
-        reset_noise_scale=args.noise,
-        prey_distance_range=(1000.0, 1000.0),
-        prey_lateral_range=(0.0, 0.0),
-    )
+    env = ProbeEnv(reset_noise_scale=args.noise)
     try:
         env.max_episode_steps = max(1, int(np.ceil(args.seconds / env.dt)))
         env.reset(seed=seed)

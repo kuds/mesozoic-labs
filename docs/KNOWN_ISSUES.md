@@ -1013,17 +1013,6 @@ robustness, **LOW** = cosmetic / QoL.
   head geom touches it. The T. rex's probe pattern is now the template for
   terrain.
 
-- **LOW** — **the reset's root-height jitter channel is state-inert but still
-  present.** The PR #479 ground settle overwrites the root height as a pure
-  function of the sampled joint pose, so `reset_height_noise_scale` and
-  `_bounded_reset_height_delta` no longer reach the post-reset state (verified
-  to one ULP; pinned by `TestHeightJitterIsInertSinceGroundSettling`). The RNG
-  draw is deliberately kept — removing it would shift every subsequent draw and
-  re-anchor all seeded baselines, including the PLANT_VALIDATION §6 tables.
-  Remove the whole channel (draw, knob, bound) at the next policy-interface
-  revision. Note this also retires PLANT_VALIDATION §16's reset-height-clip
-  hypothesis *going forward*: the clip cannot influence any future run.
-
 - **MEDIUM** — **the policy saturates its action bound, and the
   `diagnostics/action_*` family mixes pre-clip and post-clip quantities.**
   Measured on T-Rex stage-1 run `20260727_130726` (PPO, 6.0M steps), from its
@@ -1117,10 +1106,6 @@ robustness, **LOW** = cosmetic / QoL.
   jitter could spawn an episode already outside `healthy_z_range`. Worth
   separating if a species much smaller than Dibothrosuchus is ever added.
   (2026-07 Dibothrosuchus review)
-- **LOW** — `plant_contract._mocap_target_name` now requires *every* plant to
-  declare exactly one mocap body. All four comply and it fails loudly, but the
-  constraint was introduced to derive a segment label, not because the contract
-  needs uniqueness. (2026-07 Dibothrosuchus review)
 
 - **LOW** — the T-Rex and Dibothrosuchus SB3 envs accept
   `foot_contact_weight` / `foot_contact_gate` (`tyrannosaurus_rex/base_env.py:195-196`,
@@ -1277,13 +1262,24 @@ robustness, **LOW** = cosmetic / QoL.
   0.9988 is 0.62 on floor contact. The walker's feet touch on 96% of substeps,
   pushing 1.12 body weights into each touch sensor, so the support flag that
   scales its alive, posture and height rewards (touch sum above 4% of body
-  weight, `compsognathus_longipes/base_env.py:200,250`) is on 99.6% of steps by touch and
+  weight, `compsognathus_longipes/base_env.py:188,258`) is on 99.6% of steps by touch and
   34.3% by floor: about 838 of its about 2627 reward pays for support the
   floor never gives ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §5).
   Plan: the robot's `gait-r1` revisions, with floor-contact support and a
   foot-collision penalty ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G7;
-  GQ-14, open); the touch observation still counts that force until the
-  robot's next policy-interface revision.
+  GQ-14, open).
+  *Update (2026-11-23, decision D-D59, `configs/plant_versions.toml` note
+  24):* the observation half is fixed. Since the robot's policy interface r4
+  its two foot channels read each sole's normal force against the floor
+  (`BaseDinoEnv._foot_floor_contact_forces` over the robot class's
+  `FOOT_OBSERVATION_FLOOR_GEOMS`, `right_sole` and `left_sole`), so a sole
+  resting on the other foot reads 0 N; the soles still collide with each
+  other, as GQ-14 (a) keeps them. On the zero-action statue (seeds
+  3042–3061, 1000 steps) the floor and touch readings agree to 0.0 N on
+  every step; posed sole on sole, the upper foot's channel reads 0 N where
+  its touch sensor reads 7.8 N. The reward half stays open: the support flag
+  above still reads the touch sensors on both Compsognathus models until
+  PR-G7's floor support.
 
 - **HIGH** — **the stance gates admit stances that chatter, march, stand on
   one foot, stack their feet, prop a leg on a rolled pad or hop (replayed
@@ -1675,6 +1671,18 @@ robustness, **LOW** = cosmetic / QoL.
   declares the six-heading certificate in place of the report-only probe
   (its statue clean on 40/40 seeds at every heading on 3042–3081 and on
   7042–7081). The entry stays open for the compsognathus robot alone.
+  *Update (2026-11-23, decision D-D59, `configs/plant_versions.toml` note
+  24):* every model's observation is heading-free now, the robot's
+  included: the prey, food and course target left every scene, and the
+  robot (policy interface r4), the brachiosaurus (r12) and the
+  dibothrosuchus (r11) moved from the world frame to the same layout
+  (`bipedal-heading-free/v1`, and `quadrupedal-heading-free/v1` on the
+  quadrupeds' torso), so a whole-scene turn changes nothing any policy
+  observes, and the episode's forward reference is the spawn's own heading.
+  What stays open is the gate: the robot stance still declares only the
+  report-only probe, not the six-heading certificate, and the two
+  quadrupeds' stances roll no stance report, so no heading of those three
+  is certified.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured
@@ -1802,6 +1810,21 @@ robustness, **LOW** = cosmetic / QoL.
   Fix: require `min_eval_episodes` for `stance_quality/v1` in the gate schema,
   as the floor-truth kinds do (the three stance TOMLs already set it), or unify
   the two fallbacks. No cleanup PR owns it. (2026-08 gap review DU4)
+
+- **LOW** — **two hand-run T-Rex tools still assume the physics r11 plant or
+  older (found 2026-11-23).** `harnesses/recovery_offdist_panel.py` sizes its
+  `mag120` and `mag210` rows as `1.5 × target / 165.501`, the push that
+  capture multiple 1.5 derived on physics r7 through r11; on physics r12
+  (`configs/plant_versions.toml` note 24) the multiple derives 159.7 N, so
+  those rows push about 115.8 N and 203.0 N instead of 120 N and 210 N.
+  `environments/tyrannosaurus_rex/scripts/replay_walk.py` builds the current
+  environment from an archived Pilot4 stage's recorded config, which names
+  the bite arguments and prey range the environment now refuses (the
+  arguments since `e3cccca`, the range since note 24), and feeds a 63-wide policy
+  the current 59-wide observation, so it runs only in a checkout of
+  `3368abe` or earlier. Neither runs in CI or training. Fix: derive the
+  harness's multiples from the current plant's derived push, and pin the
+  replay to the commit its review measured.
 
 ## Infrastructure
 
@@ -2167,8 +2190,8 @@ Still open:
 - **LOW** — ~~raptor claw `motor gear="50"` on a 0.05 kg claw (huge
   torque-to-inertia; slams its limits)~~ (physics r5: a kp-5 position servo
   bounded at ±4 N·m on a 0.011 kg claw); contype-0 neck geoms can visually
-  clip the floor (the velociraptor's too since r5); no `<light>`/`<visual>` block for nicer renders; the brachiosaurus
-  food has no collision partner.
+  clip the floor (the velociraptor's too since r5); no `<light>`/`<visual>` block for nicer renders. (The
+  brachiosaurus food that had no collision partner left the scene with physics r7, decision D-D59.)
 - ~~HIGH — the brachiosaurus cannot hold its home stance.~~ **FIXED**
   (plant_versions notes 7–8): the collapse decomposed into the midpoint action
   mapping never commanding the home pose (knees dragged up to 0.35 rad off)

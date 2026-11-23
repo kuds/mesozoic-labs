@@ -64,12 +64,14 @@ _STAGE_NAMES = [
 #: The lines of one stage's reward capture (CU-11), in order.
 _REWARD_NAMES = ["summary", "poses", "shape_sha256", "rounded_values_sha256"]
 #: Stages in which the model's success probe ends the episode, with its reason; None for a model with no success
-#: probe, as it declares no SUCCESS_KEYS (decision D-D59 removed the strike, the bite, the food reach and the snap).
+#: probe, as it declares no SUCCESS_KEYS (decision D-D59 removed the strike, the bite, the food reach and the snap,
+#: and the target-free revision the Compsognathus target reach).  The Allosaurus' probe moves its root the course
+#: length along the spawn heading ("root_displacement"), which ends its locomotion stage alone.
 _SUCCESS: dict[ModelId, dict[str, str] | None] = {
     ModelId("allosaurus_fragilis", "anatomical"): {"locomotion": "course_complete"},
     ModelId("brachiosaurus_altithorax", "anatomical"): None,
-    ModelId("compsognathus_longipes", "anatomical"): {"behavior": "target_reached"},
-    ModelId("compsognathus_longipes", "robot"): {"behavior": "target_reached"},
+    ModelId("compsognathus_longipes", "anatomical"): None,
+    ModelId("compsognathus_longipes", "robot"): None,
     ModelId("dibothrosuchus_elaphros", "anatomical"): None,
     ModelId("tyrannosaurus_rex", "anatomical"): None,
     ModelId("velociraptor_mongoliensis", "anatomical"): None,
@@ -148,13 +150,27 @@ def test_a_model_has_a_success_probe_exactly_when_it_declares_success_keys(model
 
 def test_the_harness_refuses_a_success_probe_element_the_class_cannot_use() -> None:
     class _Env:
-        REWARD_PROBE = (0.1, "geom", "head_bite")
+        REWARD_PROBE = (0.1, "root_displacement", "COURSE_LENGTH_M")
         SUCCESS_KEYS = ()
 
         class action_space:  # noqa: N801 - a stand-in for the Gymnasium space attribute
             shape = (3,)
 
     with pytest.raises(ValueError, match="exactly when the class declares SUCCESS_KEYS"):
+        digest_snapshot._stage_parts(_Env())
+
+
+def test_the_harness_refuses_an_effector_kind_other_than_root_displacement() -> None:
+    """No scene has a mocap body left to move, so the old body effector is refused by kind."""
+
+    class _Env:
+        REWARD_PROBE = (0.1, "body", "pelvis")
+        SUCCESS_KEYS = ("course_complete",)
+
+        class action_space:  # noqa: N801 - a stand-in for the Gymnasium space attribute
+            shape = (3,)
+
+    with pytest.raises(ValueError, match=r"kind one of \('root_displacement',\)"):
         digest_snapshot._stage_parts(_Env())
 
 

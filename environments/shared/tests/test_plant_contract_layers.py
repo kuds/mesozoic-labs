@@ -166,7 +166,7 @@ def test_noncolliding_fluid_geom_changes_physics_fingerprint():
             physics_revision=1,
             policy_interface_revision=1,
             visual_revision=1,
-            observation_schema="quadrupedal-target/v1",
+            observation_schema="quadrupedal-heading-free/v1",
         )
         base = fingerprint_model_layers(mujoco.MjModel.from_xml_string(base_source), env, version)
         changed = fingerprint_model_layers(mujoco.MjModel.from_xml_string(changed_source), env, version)
@@ -225,15 +225,17 @@ def test_touch_site_shape_change_changes_interface_and_visual_layers(velocirapto
     assert changed["visual_sha256"] != original["visual_sha256"]
 
 
-def test_cached_observation_body_mapping_changes_interface_fingerprint(velociraptor_mongoliensis_layers):
+def test_cached_observation_sensor_mapping_changes_interface_fingerprint(velociraptor_mongoliensis_layers):
+    """A cached id the observation reads moves the policy digest.  Since the target-free revision the observation
+    reads no body id (the pelvis id fed only the target bearing; the root segments read the free joint), so the
+    mapping changed here is the per-site foot channels' sensor addresses: the left foot's read in the right's place."""
     _source, env, version, original = velociraptor_mongoliensis_layers
-    original_pelvis_id = env.pelvis_id
-    env.pelvis_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, "skull")
-    assert env.pelvis_id >= 0  # the physics-r5 skull body (r4's was "head")
+    original_groups = env._foot_observation_groups
+    env._foot_observation_groups = original_groups[3:] + original_groups[:3]
     try:
         changed = fingerprint_model_layers(env.model, env, version)
     finally:
-        env.pelvis_id = original_pelvis_id
+        env._foot_observation_groups = original_groups
 
     assert changed["policy_interface_sha256"] != original["policy_interface_sha256"]
     assert changed["physics_sha256"] == original["physics_sha256"]
@@ -445,7 +447,9 @@ SB3_INTERFACE_QUALNAMES: dict[ModelId, dict[str, str]] = {
         "sb3_sensor_cache": "DibothrosuchusElaphrosEnv._cache_ids",
     },
     COMPSOGNATHUS_LONGIPES: {
-        "sb3_observation": "CompsognathusLongipesAnatomicalEnv._get_obs",
+        # One heading-free observation for both embodiments since the target-free revision (anatomical policy
+        # interface r7, robot r4): the anatomical override moved into the species base.
+        "sb3_observation": "CompsognathusLongipesEnv._get_obs",
         "sb3_action_mapping": "CompsognathusLongipesAnatomicalEnv._scale_action",
         "sb3_sensor_cache": "CompsognathusLongipesEnv._cache_ids",
     },

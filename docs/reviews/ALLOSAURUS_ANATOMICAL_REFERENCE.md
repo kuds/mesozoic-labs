@@ -40,7 +40,7 @@ The measured track is wide relative to the 17.5 cm step, and the trunk rises and
 
 ## Training-environment checks
 
-Using the registered environment with its normal reset noise and actuator limits, the reference controller completed all 40 ten-second standing trials. Both feet stayed loaded throughout every scored interval after the two-second settling period. With reset seeds 0, 1 and 7, the walker entered the 8 m target's 35 cm success radius after 23.63 seconds in each trial. That gives 0.324 m/s including startup. Rotating the whole course by −90°, −45°, +45° or +90° produced the same completion time. The video and these results use the reference controller.
+Using the registered environment with its normal reset noise and actuator limits, the reference controller completed all 40 ten-second standing trials. Both feet stayed loaded throughout every scored interval after the two-second settling period. With reset seeds 0, 1 and 7, the walker crossed the course line, 7.65 m along its spawn heading (the 8 m course less the 0.35 m tolerance), after 23.62 seconds in each trial. That gives 0.324 m/s including startup. (Before policy interface r2 the course ended inside a 35 cm radius around a target 8 m ahead, which the same walk entered one control step later, at 23.63 seconds.) Rotating the whole course by −90°, −45°, +45° or +90° produced the same completion time. The video and these results use the reference controller.
 
 ## Reproduce the trials
 

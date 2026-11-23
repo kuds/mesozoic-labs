@@ -58,8 +58,9 @@ report: touchdowns, stance duty, stride, swing clearance and contact slip per fo
 and toes, and the motion of the pelvis, head and tail. The stand report also gives how far the center of mass lies
 inside the loaded contacts. `--noise` and `--seeds` repeat a trial from perturbed starts, `--actuators` adds force and
 joint-limit margins, and `--trace FILE.npz` saves the first seed's poses, foot forces and clearances. The review gives
-the exact runs behind its tables, and the command that replays archived PPO walking checkpoints on this model
-([`scripts/replay_walk.py`](scripts/replay_walk.py)). [`tests/test_reference_walk.py`](tests/test_reference_walk.py)
+the exact runs behind its tables, and the command that replays archived PPO walking checkpoints on the physics r11
+model ([`scripts/replay_walk.py`](scripts/replay_walk.py), which runs in a checkout of `3368abe` or earlier: the
+current environment refuses the archived configs' bite and prey arguments and observes 59 values, not their 63). [`tests/test_reference_walk.py`](tests/test_reference_walk.py)
 checks the walk, [`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and
 the [walking replay](../../website/static/videos/tyrannosaurus_rex_anatomical_reference_walk.mp4) shows a noisy
 walking trial with a close-up of the feet and their measured loads.
@@ -131,14 +132,14 @@ Species notes:
 
 The trained tasks are the stance, recovery from pushes and the walk; the bite, the hunt that followed the walk, was
 removed by decision D-D59. Its reward terms, its `bite_success` termination and its constructor arguments are gone from
-the code, and the model declares no success key. A prey sphere still spawns ahead of the animal at a random distance
-and side offset, and the observation still carries its direction and distance; the forward and heading terms measure
-along its initial direction. The prey, and with it the fixed head-contact geom the bite used, leave with the next
-policy-interface revision.
+the code, and the model declares no success key. The scene holds no prey: the prey sphere and the head-contact box the
+bite read were removed with it in physics r12 and policy interface r17, and checkpoints of policy interface r16 or
+earlier no longer load. The forward, drift and heading terms measure from the spawn: the pelvis's starting position
+and the unit forward of its starting orientation.
 
-The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
-and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one load
-channel per foot (pad and toes), the prey distance and the command. Actions are offsets from the MJCF `home`
+The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
+frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot (pad and toes) and the
+command, last. Actions are offsets from the MJCF `home`
 controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
 [`base_env.py`](base_env.py) gives both layouts.
 
@@ -146,7 +147,8 @@ The main reward groups:
 
 - **Survival and posture:** an alive bonus, posture, nosedive and height terms, head clearance and neck posture, and a
   fall penalty.
-- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
+- **Progress:** forward velocity along the spawn's forward direction, with optional backward, drift, sideways, spin
+  and speed penalties.
 - **Stance quality** (stance and recovery): support and load balance between the feet, the home leg and tail poses,
   flat soles and a steady stance width, sideways lean, foot stagger, each foot's center of pressure, and penalties on
   floor impacts and airborne physics substeps.

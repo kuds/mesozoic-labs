@@ -203,7 +203,12 @@ class TestHomeGeometry:
         length = float(snout_x - tail_x)
         assert length == pytest.approx(1.30, abs=0.015)
 
-    def test_skull_length_and_snap_contact_match_the_visible_snout(self, env):
+    def test_skull_length_and_snout_contact_match_the_visible_snout(self, env):
+        """The snout_tip site and the colliding snout capsule's front end sit at the skin's tip.
+
+        Physics r4 removed the snout_snap box (prey-only collision, decision D-D59) whose front face
+        this test also pinned there; the snout capsule, which meets the floor, ends at the same point.
+        """
         # The visible skin vertices are in world coordinates after a scene update.
         model = env.model
         scene = mujoco.MjvScene(model, maxgeom=2 * model.ngeom)
@@ -215,8 +220,12 @@ class TestHomeGeometry:
         x = scene.skinvert.reshape(-1, 3)[start : start + count, 0]
         assert np.ptp(x) == pytest.approx(0.164, abs=0.002)
         assert max(x) == pytest.approx(env.data.site("snout_tip").xpos[0], abs=0.001)
-        snap_front = env.data.geom("snout_snap").xpos[0] + env.model.geom("snout_snap").size[0]
-        assert snap_front == pytest.approx(max(x), abs=0.001)
+        snout = env.data.geom("snout_geom")
+        axis = snout.xmat.reshape(3, 3)[:, 2]
+        radius, half_length = model.geom("snout_geom").size[:2]
+        snout_front = snout.xpos[0] + abs(axis[0]) * half_length + radius
+        assert snout_front == pytest.approx(max(x), abs=0.001)
+        assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "snout_snap") == -1
 
     @pytest.mark.parametrize("side", ["r", "l"])
     def test_forelimb_proportions_and_opposed_joint_flexion(self, env, side):

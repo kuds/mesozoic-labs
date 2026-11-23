@@ -40,6 +40,5 @@ class TyrannosaurusRexAnatomicalEnv(TyrannosaurusRexEnv):
     }
     #: The digest snapshot's reward probe: the roll's action-noise amplitude,
     #: and no success-probe element, as the species declares no SUCCESS_KEYS
-    #: since the bite was removed with the hunt (decision D-D59; the probe
-    #: moved the target onto ``head_bite``).
+    #: since the bite was removed with the hunt (decision D-D59).
     REWARD_PROBE = (0.1,)

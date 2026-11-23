@@ -351,14 +351,16 @@ def test_the_committed_maps_are_current():
 
 
 def test_the_tyrannosaurus_rex_map(mirror_map, plant):
-    assert (mirror_map.obs.dim, mirror_map.action.dim) == (63, 15) == (plant.observation_dim, plant.action_dim)
+    # 59 wide since policy interface r17 (the target direction and distance left; r16: 63).
+    assert (mirror_map.obs.dim, mirror_map.action.dim) == (59, 15) == (plant.observation_dim, plant.action_dim)
     # Actuators: the leg pairs swap; neck yaw, tail_1 yaw and the hip-roll pair are negated.
     assert [int(mirror_map.action.perm[i]) for i in (3, 4, 5, 6)] == [7, 8, 9, 10]
     assert {i for i in range(15) if mirror_map.action.sign[i] < 0} == {1, 4, 8, 12}
     names = mirror_map.obs.names
-    flipped = {names[i] for i in range(63) if mirror_map.obs.sign[i] < 0}
-    assert {"projected_gravity.y", "heading_linear_velocity.left", "target_direction.y", "pelvis_gyro.x",
+    flipped = {names[i] for i in range(59) if mirror_map.obs.sign[i] < 0}
+    assert {"projected_gravity.y", "heading_linear_velocity.left", "pelvis_gyro.x",
             "pelvis_gyro.z", "pelvis_accel.y", "command.v_y_cmd", "command.yaw_rate_cmd"} <= flipped  # fmt: skip
+    assert not [name for name in names if name.startswith(("target_", "prey_"))]
     foot = [i for i, name in enumerate(names) if name.startswith("foot_contact.")]
     assert [int(mirror_map.obs.perm[i]) for i in foot] == foot[::-1]
     record = json.loads(Path(mirror_map.path).read_text())
@@ -402,7 +404,7 @@ def test_the_map_fails_closed(plant, tmp_path):
 
 # ---------------------------------------------------------------------------------------------------- equivariance
 def _env_mirror(env) -> SY.EnvMirror:
-    return SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+    return SY.build_env_mirror(env, SY.BIPEDAL_HEADING_FREE_SCHEMA)
 
 
 def _swap_sides(info: dict) -> dict:
@@ -566,15 +568,20 @@ def test_the_state_mirror_is_an_involution(stance_kwargs):
         env.reset(seed=3050)
         for action in _smooth_actions(20, 1, 0.1):
             env.step(action)
-        before = {
-            name: np.copy(getattr(env.data, name)) for name in ("qpos", "qvel", "ctrl", "mocap_pos", "mocap_quat")
-        }
+        # No scene carries a mocap body since the target-free revision: the state is qpos, qvel and ctrl, and the
+        # episode's reference heading, which the mirror reflects (y flips).
+        assert env.model.nmocap == 0
+        env._reference_heading_2d = np.array([np.cos(0.3), np.sin(0.3)])
+        before = {name: np.copy(getattr(env.data, name)) for name in ("qpos", "qvel", "ctrl")}
+        reference = env._reference_heading_2d.copy()
         filter_state = env._action_filter_state.copy()
         SY.mirror_env_state(env, env, em)
         assert not np.array_equal(env.data.qpos, before["qpos"])
+        np.testing.assert_array_equal(env._reference_heading_2d, reference * [1.0, -1.0])
         SY.mirror_env_state(env, env, em)
         for name, value in before.items():
             np.testing.assert_array_equal(getattr(env.data, name), value)
+        np.testing.assert_array_equal(env._reference_heading_2d, reference)
         np.testing.assert_array_equal(env._action_filter_state, filter_state)
     finally:
         env.close()

@@ -791,8 +791,9 @@ class TestStanceFollowupTerms:
     def test_body_weight_is_the_whole_animal(self):
         env = TyrannosaurusRexAnatomicalEnv()
         try:
-            # 85.72 kg x 9.81: stance.toml's foot_load_balance_min_support_force divides the same weight.
-            assert env._body_weight_n == pytest.approx(840.9, abs=0.1)
+            # 85.52 kg x 9.81 (85.72 kg until the 0.2 kg head_bite box left with the hunt, D-D59):
+            # stance.toml's foot_load_balance_min_support_force is 5% of the same weight.
+            assert env._body_weight_n == pytest.approx(839.0, abs=0.1)
         finally:
             env.close()
 

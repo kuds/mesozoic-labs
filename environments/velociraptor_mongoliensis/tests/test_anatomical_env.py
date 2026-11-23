@@ -71,52 +71,63 @@ class TestTailFloorTermination:
         assert info["termination_reason"] == "tail_contact"
 
 
-class TestNoStrike:
-    """The strike was removed with the hunt (decision D-D59): claw contact with the prey pays and ends nothing.
+class TestNoPreyNoStrike:
+    """The strike was removed with the hunt (decision D-D59), and the prey with it in physics r6.
 
-    The claw geoms and the prey stay in the scene until the next policy-interface revision removes them; the
-    strike reward, its info keys and its termination are gone, and the species declares no success key.
+    The scene holds the animal and the floor alone: no mocap body, no prey geom, and since the sickle
+    claws' 2/2 collision met only the prey, the claws are visual (contype / conaffinity 0) and their
+    claw-claw exclude is gone.  The forward reference is the spawn's own heading.
     """
 
-    @staticmethod
-    def _prey_on_one_claw(env, claw, other):
-        """Move the prey onto *claw* alone and return its geom id.
-
-        The claws sit 0.124 m apart (geom centres at the seed-0 reset of physics r5; r4 0.12)
-        and the prey sphere has radius 0.15, so a prey placed on one claw also touches the
-        other (measured: both claws); the other claw's collisions are switched off so each claw
-        is checked on its own.
-        """
-        env.reset(seed=0)
-        claw_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, claw)
-        other_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, other)
-        env.model.geom_contype[other_id] = 0
-        env.model.geom_conaffinity[other_id] = 0
-        env.data.mocap_pos[0] = env.data.geom_xpos[claw_id]
-        mujoco.mj_forward(env.model, env.data)
-        prey = env.prey_geom_id
-        pairs = [(int(env.data.contact[i].geom1), int(env.data.contact[i].geom2)) for i in range(env.data.ncon)]
-        assert {geom1 if geom2 == prey else geom2 for geom1, geom2 in pairs if prey in (geom1, geom2)} == {claw_id}
-        return claw_id
-
-    def test_the_species_declares_no_success_key_and_no_strike_kwarg(self):
+    def test_the_species_declares_no_success_key_and_no_strike_or_prey_kwarg(self):
         assert VelociraptorMongoliensisAnatomicalEnv.SUCCESS_KEYS == ()
         with pytest.raises(TypeError, match="strike_bonus"):
             VelociraptorMongoliensisAnatomicalEnv(strike_bonus=10.0)
+        for kwarg in ("prey_distance_range", "prey_lateral_range"):
+            with pytest.raises(TypeError, match=kwarg):
+                VelociraptorMongoliensisAnatomicalEnv(**{kwarg: (1.0, 2.0)})
 
-    @pytest.mark.parametrize("claw, other", [("r_claw_geom", "l_claw_geom"), ("l_claw_geom", "r_claw_geom")])
-    def test_either_claw_on_the_prey_pays_nothing_and_ends_nothing(self, claw, other):
-        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
-        try:
-            self._prey_on_one_claw(env, claw, other)
-            _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
-            assert not {"strike_success", "reward_strike", "reward_approach", "prey_distance"} & set(info)
+    def test_the_scene_has_no_prey_and_no_mocap_body(self, env):
+        model = env.model
+        assert model.nmocap == 0
+        for kind, name in ((mujoco.mjtObj.mjOBJ_BODY, "prey"), (mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")):
+            assert mujoco.mj_name2id(model, kind, name) == -1
+        assert not hasattr(env, "prey_geom_id") and not hasattr(env, "prey_mocap_id")
 
-            terminated, info = env._is_terminated()
-            assert not terminated, info
-            assert "termination_reason" not in info
-        finally:
-            env.close()
+    def test_every_colliding_geom_is_on_the_floor_channel(self, env):
+        """Only channel 1/1 remains: the floor's, which every colliding animal geom shares."""
+        model = env.model
+        colliding = (model.geom_contype != 0) | (model.geom_conaffinity != 0)
+        assert np.all(model.geom_contype[colliding] == 1) and np.all(model.geom_conaffinity[colliding] == 1)
+
+    @pytest.mark.parametrize("side", ["r", "l"])
+    def test_the_sickle_claw_keeps_its_mass_but_collides_with_nothing(self, env, side):
+        model = env.model
+        body = model.body(f"{side}_toe_claw").id
+        geoms = [geom for geom in range(model.ngeom) if model.geom_bodyid[geom] == body]
+        assert [model.geom(geom).name for geom in geoms] == [f"{side}_toe_d2_ungual"]
+        assert model.geom_contype[geoms[0]] == 0 and model.geom_conaffinity[geoms[0]] == 0
+        assert model.body_mass[body] == pytest.approx(0.011)
+        for kind, name in (
+            (mujoco.mjtObj.mjOBJ_GEOM, f"{side}_claw_geom"),
+            (mujoco.mjtObj.mjOBJ_SITE, f"{side}_claw_tip"),
+        ):
+            assert mujoco.mj_name2id(model, kind, name) == -1
+        excluded = {frozenset((int(signature) >> 16, int(signature) & 0xFFFF)) for signature in model.exclude_signature}
+        assert frozenset((model.body("r_toe_claw").id, model.body("l_toe_claw").id)) not in excluded
+
+    def test_the_forward_reference_is_the_spawn_heading(self, env):
+        """The progress term reads _reference_heading_2d: velocity along it pays, across it does not."""
+        env.reset(seed=3042)
+        np.testing.assert_array_equal(env._reference_heading_2d, env._quat_to_forward_2d(env.data.qpos[3:7]))
+        env.forward_vel_weight = 1.0
+        env._reference_heading_2d = np.array([0.0, 1.0])
+        env.data.qvel[0:2] = (0.0, 0.5)
+        _, along = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        env.data.qvel[0:2] = (0.5, 0.0)
+        _, across = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        assert along["reward_forward"] > 0.0
+        assert across["reward_forward"] == pytest.approx(0.0, abs=1e-12)
 
 
 class TestNosediveTermination:
@@ -458,8 +469,8 @@ class TestFootContactSensors:
             for _ in range(200):
                 obs, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
                 assert not terminated
-            # The six foot channels sit before prey direction (3) + distance (1) + command (3).
-            foot_dims = obs[-13:-7]
+            # The six foot channels sit just before the command (3), the last segment.
+            foot_dims = obs[-9:-3]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
             # Each channel is its own site's sensor (float32), and that sensor is its geom's floor force
             # (measured 2.0e-8 relative: the float32 rounding).
@@ -471,9 +482,10 @@ class TestFootContactSensors:
             right, left = env._foot_contact_forces()
             assert float(foot_dims[:3].astype(np.float64).sum()) == pytest.approx(right, rel=1e-6)
             assert float(foot_dims[3:].astype(np.float64).sum()) == pytest.approx(left, rel=1e-6)
-            # 71 since policy interface r14 (the maintainer's decision of 2026-11-08): 2 x 23 joints, 12 root,
-            # 6 per-site foot channels, 4 prey, 3 command (r13: 69, with 2 per-foot sums of 24 joints).
-            assert env.observation_space.shape == (71,)
+            # 67 since policy interface r15 (decision D-D59): 2 x 23 joints, 12 root, 6 per-site foot channels,
+            # 3 command (r14: 71, with the 4 prey channels before the command; r13: 69, with 2 per-foot sums
+            # of 24 joints).
+            assert env.observation_space.shape == (67,)
         finally:
             env.close()
 
@@ -512,7 +524,7 @@ class TestFootContactForceSummationOrder:
             assert len(group) == 1
             sensordata[group[0]] = value
         obs = env._get_obs()
-        np.testing.assert_array_equal(obs[-13:-7], np.asarray(values, dtype=np.float32))
+        np.testing.assert_array_equal(obs[-9:-3], np.asarray(values, dtype=np.float32))
 
 
 class TestNaturalPitchTracksStance:
@@ -841,7 +853,7 @@ class TestCacheIdsFailsClosed:
         ("edits", "message"),
         [
             ([('geom name="snout"', 'geom name="rostrum"')], "must define geom 'snout'"),
-            ([('geom name="r_claw_geom"', 'geom name="r_ungual_geom"')], "must define geom 'r_claw_geom'"),
+            ([('geom name="belly"', 'geom name="venter"')], "must define geom 'belly'"),
             (
                 # Rename the body and every contact exclusion and skin bone that refers to it.
                 [('"skull"', '"cranium"')],
@@ -873,10 +885,11 @@ class TestCacheIdsFailsClosed:
             ),
             (
                 [
-                    ('site name="r_claw_tip"', 'site name="r_ungual_tip"'),
-                    ('objname="r_claw_tip"', 'objname="r_ungual_tip"'),
+                    ('site name="tail_tip"', 'site name="tail_point"'),
+                    ('objname="tail_tip"', 'objname="tail_point"'),
+                    ('site="tail_tip"', 'site="tail_point"'),
                 ],
-                "must define site 'r_claw_tip'",
+                "must define site 'tail_tip'",
             ),
             (
                 [('joint name="neck_pitch"', 'joint name="neck_flex"'), ('joint="neck_pitch"', 'joint="neck_flex"')],
@@ -885,13 +898,13 @@ class TestCacheIdsFailsClosed:
         ],
         ids=[
             "head geom",
-            "claw geom",
+            "belly geom",
             "skull body",
             "touch sensor",
             "sensor type",
             "imu order",
             "head site",
-            "claw site",
+            "tail site",
             "neck joint",
         ],
     )
@@ -903,7 +916,7 @@ class TestCacheIdsFailsClosed:
     def test_the_unedited_copy_builds(self, tmp_path):
         env = self._edited_env(tmp_path, [])()
         try:
-            assert env.observation_space.shape == (71,) and env.action_space.shape == (17,)
+            assert env.observation_space.shape == (67,) and env.action_space.shape == (17,)
         finally:
             env.close()
 

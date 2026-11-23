@@ -617,25 +617,28 @@ def test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time():
 #: change: the 300-step test pins the env's values to the pure functions byte for byte.
 #: On r11, redistributing hindlimb length and widening the lateral digits alters the contact moments and
 #: measured limb loads. All band keys move. The same 60 steps cover 20 ramp foot-steps and 50 paid steps.
+#: Re-pinned for physics r12 (the 0.2 kg head_bite box removed from the skull with the hunt, decision D-D59), the
+#: band's code unchanged: the lighter head stands the statue further back, and every key but the two counted ones
+#: moves.  The same 60 steps still cover 20 ramp foot-steps (15 at guard 0) and 50 paid steps.
 GOLDEN_MUJOCO = "3.10.0"
 GOLDEN_STEPS = 60
 GOLDEN = {
     "l_cop_band_counted": "180b48735f6487974b9ada3609b1564309fc76d41bb20680c87832cac73fdf0f",
-    "l_cop_band_digit_share": "ac99d108e72c185ea3b0f8357d6ef069592e0dc16873304a7fe749625855cb25",
-    "l_cop_band_foot_cop": "4dca3bc7a2706d43b8ce2c6516d2dec7b68b9fc819bec9c3057989c443d91dfb",
-    "l_cop_band_guard": "45a0b365895a23b5a3565c18356246b37e2bcdb90b82f786ba4fe6dd10d8aea1",
-    "l_cop_band_load_share": "6078f2882c061e11c7d5a128ebdf8e363bb0ff25a653112c6c79a0d4a74ade2c",
-    "l_cop_band_pad_cop": "3d6ff25de91bd7486bafce04b15d4da5f63bb36d2016f1f77cccf8b35a161479",
-    "l_cop_band_quality": "ad83250c3043446bbb7def7c1988317f0f48adf0296bbe93966aa032176b8eab",
+    "l_cop_band_digit_share": "555928bc9f097d3ac06ae25d999aa38462f6c3e0ff088cdb3746bb17f37a5cfb",
+    "l_cop_band_foot_cop": "2e2ed8eaf50ea9a9b3a1d37a31d95f24d97522702f79a296c8ba4931a20c303f",
+    "l_cop_band_guard": "d4cc693f469c062ffabcb1c2bdf9aee7376227bb59c6e4d7da8fb7ab323f911e",
+    "l_cop_band_load_share": "c92ac4f20a5eef23d53fdfe9785ac0bc48755b79dbc1b45e3764870849606820",
+    "l_cop_band_pad_cop": "4b3e7dd601fb867da4785aa7fb85f1ac6e2d9792c9ba689ed2b94242cfce2acb",
+    "l_cop_band_quality": "fc18898ea7762b2325a8f937bef3ebd2f95e8a760dac0cb39463cbdd84fababe",
     "r_cop_band_counted": "a9c84afa603695a5aa9b72c9ded275d12015c80b174db528e96b8199daf8b583",
-    "r_cop_band_digit_share": "abaac9f7dba6ba8a1f1a65e1c63d928ed6a81870fd7dae29a8a7abb71941fec7",
-    "r_cop_band_foot_cop": "3500b580a794be9acab0a6e30fd5fbd8a24c6e97ddf6e9dabc8d8aabbad5ccf5",
-    "r_cop_band_guard": "db269b2ab5f794ca8a7dc611e7194b6a2c101edc30d3333319b7eb99a6f4c484",
-    "r_cop_band_load_share": "79aab64a12110f397ffe9eea4f0437d915052f2248a9f85eea027139a249549a",
-    "r_cop_band_pad_cop": "8dbdd7572ea63e3479521f54d3172c7854c277c0fe4bc34ddd8ff09df7e6e195",
-    "r_cop_band_quality": "3300670ee64d8c19f8d828fa66087a4786c79a84dde6eddac612433d03e6dda8",
-    "reward_stance_cop_band": "ab7584d969c96baa576ff2fea8575794795be3f66943ef22aa546e08f3a43668",
-    "stance_cop_band_quality": "c4bb0621fcc18e5a9887eeea3ac8ab8904aa177896bd69ef100a6c2fbfc21f14",
+    "r_cop_band_digit_share": "7739660ae796194f689161905411c4bdf1707643a13f6845dd37208a3097751a",
+    "r_cop_band_foot_cop": "b86bf1efe5a3727e0b44a3fc11794504bda83d9e0bc2c56ca0a460630b0e4551",
+    "r_cop_band_guard": "ec8771f8d812dcc385ef3bf622404a6da7cc5467df5fd950805ee7ec634aac2d",
+    "r_cop_band_load_share": "003601ac107a3aaeb8afffb7565d4be18cd9b69b8e02c6af1b5efe1e60b1123d",
+    "r_cop_band_pad_cop": "3dc04fe11a234bf0274f510e4f0316d1bd32239f1e6f2bd7db7bf469440dfb6d",
+    "r_cop_band_quality": "cfeb5b9bfd903eabe339e75c71c1b28fe6b6944a8e8e2d19a4d3e3e416e76267",
+    "reward_stance_cop_band": "9621d47ade8b59f679a3322892381eef3424488507df627a1e1f9e47615179b5",
+    "stance_cop_band_quality": "77da4ce5b5a6fffaf90ed7a20360f4d3d7b7d5c4b3759f882f7d0a107a71dc98",
 }
 
 
@@ -1071,7 +1074,7 @@ def test_guard_2_the_pad_band_prices_load_moved_onto_the_digits(off_kwargs):
 def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_kwargs, ramp):
     env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **ON, **ramp)
     try:
-        mirror = SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+        mirror = SY.build_env_mirror(env, SY.BIPEDAL_HEADING_FREE_SCHEMA)
         env.reset(seed=3052)
         for action in np.random.default_rng(2).uniform(-0.2, 0.2, (40, 15)):
             env.step(action)

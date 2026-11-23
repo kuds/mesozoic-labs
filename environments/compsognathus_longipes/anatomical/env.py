@@ -2,12 +2,13 @@
 
 The species base
 :class:`~environments.compsognathus_longipes.base_env.CompsognathusLongipesEnv`
-with the soft-cubic leg residual (policy interface r3, D-D26), the
-heading-free observation (``bipedal-target-heading-free/v1``, policy
-interface r4, D-D31) and the stance-quality reward terms.  The robot keeps
-the species base's linear residual and world-frame observation.
-``environments/__init__.py`` registers this class with Gymnasium from the
-species manifest.
+with the soft-cubic leg residual (policy interface r3, D-D26) and the
+stance-quality reward terms.  It reads the species base's heading-free
+observation (``bipedal-heading-free/v1``, 51 values since policy interface
+r7), which it introduced at policy interface r4 (D-D31) and which the robot
+shares since the target left both scenes.  The robot keeps the species
+base's linear residual.  ``environments/__init__.py`` registers this class
+with Gymnasium from the species manifest.
 """
 
 from __future__ import annotations
@@ -20,7 +21,6 @@ import numpy as np
 from environments.compsognathus_longipes.base_env import CompsognathusLongipesEnv
 from environments.shared import reward_functions
 from environments.shared.direction_commands import DirectionCommandConfig
-from environments.shared.heading_observation import heading_free_root_segments
 from environments.shared.model_id import ModelId
 from environments.shared.paths import ENVIRONMENTS_ROOT
 
@@ -55,8 +55,10 @@ class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
 
     The robot keeps CompsognathusLongipesEnv's linear residual and its digests: this
     is policy interface r3 of the anatomical species only (D-D26).  Policy
-    interface r4 (D-D31) adds the anatomical-only heading-free ``_get_obs``
-    below; the robot keeps the inherited world-frame observation.
+    interface r4 (D-D31) gave this class a heading-free ``_get_obs`` of its
+    own; since policy interface r7 it reads CompsognathusLongipesEnv's, the
+    same layout without the target direction and distance, which the robot
+    reads too.
 
     The constructor adds the stance-quality reward terms on top of the
     inherited reward, every one inert at its default (bilateral support and
@@ -86,9 +88,10 @@ class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
         "sole": "{s}_plantar_pad",
         "foot_site": "{s}_foot_touch_volume",
     }
-    #: The digest snapshot's reward probe: the roll's action-noise amplitude,
-    #: and the MJCF element (kind, name) the success probe moves the target onto.
-    REWARD_PROBE = (0.01, "body", "pelvis")
+    #: The digest snapshot's reward probe: the roll's action-noise amplitude.
+    #: Amplitude only: the species declares no success key, so no success
+    #: probe runs.
+    REWARD_PROBE = (0.01,)
     action_mapping = "home-keyframe-residual-softcubic/v1"
     #: Slope of the shaped leg residual at home, ``b'(0)``; 1.0 is the linear map.
     residual_linear_slope = 0.1
@@ -132,8 +135,6 @@ class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
         lateral_penalty_weight: float = 0.1,
         heading_weight: float = 0.0,
         gait_symmetry_weight: float = 0.0,
-        target_approach_weight: float = 0.0,
-        target_reach_bonus: float = 0.0,
         # Stance-quality terms.  Every default is inert: zero weights (and
         # alive fraction) reproduce CompsognathusLongipesEnv's reward bit for bit.
         # The weights, tolerances and saturation force are named as on
@@ -164,14 +165,9 @@ class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
         action_saturation_weight: float = 0.0,
         action_saturation_threshold: float = 0.9,
         action_jerk_weight: float = 0.0,
-        target_radius: float = 0.08,
-        target_max_speed: float = 0.10,
-        prey_distance_range: tuple[float, float] = (0.6, 1.0),
-        prey_lateral_range: tuple[float, float] = (-0.2, 0.2),
         healthy_z_range: tuple[float, float] | None = None,
         max_tilt_angle: float = 0.7,
         reset_noise_scale: float = 0.01,
-        reset_height_noise_scale: float = 0.0,
         perturbation_capture_velocity_multiple: float = 0.0,
         perturbation_interval: float = 2.0,
         perturbation_jitter: float = 0.5,
@@ -263,16 +259,9 @@ class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
             lateral_penalty_weight=lateral_penalty_weight,
             heading_weight=heading_weight,
             gait_symmetry_weight=gait_symmetry_weight,
-            target_approach_weight=target_approach_weight,
-            target_reach_bonus=target_reach_bonus,
-            target_radius=target_radius,
-            target_max_speed=target_max_speed,
-            prey_distance_range=prey_distance_range,
-            prey_lateral_range=prey_lateral_range,
             healthy_z_range=healthy_z_range,
             max_tilt_angle=max_tilt_angle,
             reset_noise_scale=reset_noise_scale,
-            reset_height_noise_scale=reset_height_noise_scale,
             perturbation_capture_velocity_multiple=perturbation_capture_velocity_multiple,
             perturbation_interval=perturbation_interval,
             perturbation_jitter=perturbation_jitter,
@@ -336,48 +325,12 @@ class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
             raise ValueError("support-geom coverage: a digit capsule is centred on its MTP joint")
         self._support_geom_tipward = tipward
         self._body_weight_n = self.body_mass * abs(float(model.opt.gravity[2]))
-        # Scratch data for the spawn width (_spawn_target); until the first
-        # reset the width target is the home keyframe's own.
+        # Scratch data for the spawn width (_reset_episode_state); until the
+        # first reset the width target is the home keyframe's own.
         self._width_data = mujoco.MjData(model)
         self._width_data.qpos[:] = self._home_qpos
         mujoco.mj_kinematics(model, self._width_data)
         self._spawn_stance_width = self._stance_width_target = self._stance_width(self._width_data)
-
-    def _get_obs(self) -> np.ndarray:
-        """The bipedal-target-heading-free/v1 observation (55 values; policy interface r4, D-D31).
-
-        CompsognathusLongipesEnv's layout with its three world-frame blocks replaced:
-        projected gravity for the pelvis quaternion, the root's world linear
-        velocity in the gravity-aligned heading frame, and the target
-        direction in pelvis coordinates, all from the free root's own
-        quaternion qpos[3:7] (environments/shared/heading_observation.py).
-        The gyro and accelerometer stay in their own site frame.  Overridden
-        here, not in CompsognathusLongipesEnv, so the robot keeps its observation and
-        its digests.
-        """
-        relative = self.data.mocap_pos[self._target_mocap_id] - self.data.xpos[self.pelvis_id]
-        distance = np.linalg.norm(relative)
-        sensors = self.data.sensordata
-        gravity, heading_velocity, target_direction_body = heading_free_root_segments(
-            self.data.qpos, self.data.qvel[:3], relative / (distance + 1e-8)
-        )
-        return np.asarray(
-            np.concatenate(
-                [
-                    self.data.qpos[7:],
-                    self.data.qvel[6:],
-                    gravity,
-                    sensors[self._sensor_gyro_start : self._sensor_gyro_start + 3],
-                    heading_velocity,
-                    sensors[self._sensor_accel_start : self._sensor_accel_start + 3],
-                    self._foot_contact_forces(),
-                    target_direction_body,
-                    [distance],
-                    self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
-                ]
-            ),
-            dtype=np.float32,
-        )
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         residual = np.clip(action, -1.0, 1.0)
@@ -390,8 +343,9 @@ class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
             + np.where(residual < 0, residual * (self._home_ctrl - minimum), residual * (maximum - self._home_ctrl)),
         )
 
-    def _spawn_target(self) -> None:
-        super()._spawn_target()
+    def _reset_episode_state(self) -> None:
+        """The species' per-episode state, then the spawn's own stance-width target."""
+        super()._reset_episode_state()
         # The spawn's own stance width: reset has applied the joint jitter
         # and leaves the root's planar pose alone, so forward kinematics of
         # this qpos on a scratch MjData gives the width the animal is born

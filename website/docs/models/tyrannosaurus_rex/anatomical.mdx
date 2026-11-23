@@ -12,9 +12,9 @@ export const MODEL = requireModel('tyrannosaurus_rex', 'anatomical');
 
 # T-Rex Model
 
-This 85.7 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stands 0.877 m above the floor at home. The tibia measures 91% of femur length. A broad posterior skull, two-fingered forelimbs and tapering tail follow the simulated skeleton. Each foot rests on a plantar pad and three independently hinged toes. The smaller first digit sits above the floor.
+This 85.5 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stands 0.877 m above the floor at home. The tibia measures 91% of femur length. A broad posterior skull, two-fingered forelimbs and tapering tail follow the simulated skeleton. Each foot rests on a plantar pad and three independently hinged toes. The smaller first digit sits above the floor.
 
-Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the prey's direction relative to its body, so turning the whole scene changes nothing it observes. T-Rex trains on Stable-Baselines3 only.
+Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes. Since policy interface r17 (decision D-D59) it reads no prey either, as the prey has left the scene. T-Rex trains on Stable-Baselines3 only.
 
 <SpeciesCatalog species={MODEL} />
 
@@ -45,7 +45,7 @@ recover and walk — every one of them a published deliverable:
    ([mirror symmetry](/docs/training/mirror-symmetry)).
 2. **`recovery`** (recipe `recover`; `warm_start_from = "stance"`; no legacy
    number, addressed by id) — the same task plus scheduled external pushes
-   (165.5 N for 0.20 s on the current plant, derived from the plant's own
+   (159.7 N for 0.20 s on the current plant, derived from the plant's own
    mass and stance geometry), warm-started from the certified stance
    checkpoint. Only a disturbance can certify *active* balance control; the
    `recovery_quality/v1` gate judges per-shove recovery against frozen null
@@ -61,9 +61,10 @@ recover and walk — every one of them a published deliverable:
 The head-contact "bite" hunt that followed locomotion (`behavior`, recipe
 `hunt`, historical stage 3) was removed by decision D-D59, so the chain ends
 at walk and `BEHAVIOR = "hunt"` is refused naming `"walk"`. Its reward,
-termination and constructor arguments are gone from the environment; the prey
-sphere is still in the scene and the observation, and leaves with the next
-policy-interface revision.
+termination and constructor arguments are gone from the environment, and since
+physics r12 and policy interface r17 (the same decision) so are the prey
+sphere, its observation channels and the 0.2 kg head-contact box the bite
+read.
 
 Each recipe label names one node: the notebook's `BEHAVIOR = "stance"` trains
 the stance node alone, and `BEHAVIOR = "recover"` trains stance and then
@@ -79,7 +80,7 @@ parent, and the video cards below are keyed by stage id. See
 
 ## Anatomy
 
-The 2.88 m surface follows the broad ribcage, neck and five tail bodies as the animal moves. The three proximal tail bodies articulate, while the distal pair moves together. The pelvis settles about one degree nose-down. The head and neck servos control carriage and the short arms carry two visible fingers apiece.
+The 2.88 m surface follows the broad ribcage, neck and five tail bodies as the animal moves. The three proximal tail bodies articulate, while the distal pair moves together. The pelvis settles about 0.7 degrees nose-down. The head and neck servos control carriage and the short arms carry two visible fingers apiece.
 
 The femur and tibia measure 0.368 m and 0.335 m. At home the knee has a 135° interior angle and the ankle stands about 0.228 m above the floor. Digit III projects farthest, digit IV turns slightly farther outward than digit II turns inward, and the small medial hallux sits above the weight-bearing toes. Each foot's load signal combines the plantar pad and three digital touch sensors.
 
@@ -96,7 +97,7 @@ After each training stage the `eval` command reports:
 | `stride_frequency` | Step frequency (Hz) |
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
-| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
+| `mean_heading_alignment` | cos θ between the body's heading and its spawn heading ∈ [-1, 1] |
 
 ## Reference walk
 

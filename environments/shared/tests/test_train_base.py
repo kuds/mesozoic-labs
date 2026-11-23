@@ -3607,8 +3607,8 @@ class TestCommandColumnWarmStart:
         self, never_live_walkers, monkeypatch, algorithm
     ):
         """The reference is the parent's policy, taken before the zeroing: a zeroing that also clears a non-command
-        column (the one just before the command slice, the prey distance) leaves a command-blind policy that is not
-        the parent's, and the warm start refuses it."""
+        column (the one just before the command slice, the T-Rex's left foot contact since the target-free revision)
+        leaves a command-blind policy that is not the parent's, and the warm start refuses it."""
         torch = pytest.importorskip("torch")
         from environments.shared import policy_loading
 

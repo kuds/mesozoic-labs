@@ -14,8 +14,8 @@ completes 0/8 episodes when the whole scene is turned -90 or -45 degrees
 This kind judges the same v2 episode classification on a fixed grid of
 whole-scene turns (protocol :data:`HEADING_PROTOCOL`, grid
 :data:`HEADING_GRID_DEG`): every reset seed of the certification panel is
-rolled at every heading, with the prey and the episode's reference
-direction turned about the root with the animal, so a heading-invariant
+rolled at every heading, with the episode's reference heading turned
+about the root with the animal, so a heading-invariant
 controller faces the same task at each one (every plant declares the
 elliptic friction cone since D-D29 and D-D30, so the physics is identical
 too).  The two stances that declare it observe no world heading either
@@ -110,8 +110,8 @@ from .stance_gate_v2 import (
 #: kind would invite reading a v3 report as a v3 certificate.
 STANCE_HEADING_GATE_KIND = "stance_quality_heading/v1"
 
-#: The protocol the grid is rolled under: the whole scene (the animal, every
-#: mocap body and the episode's reference direction) turned about vertical
+#: The protocol the grid is rolled under: the whole scene (the animal and the
+#: episode's reference heading; no plant has a mocap body) turned about vertical
 #: through the root right after reset, on a stage with no command, no push
 #: and no terrain -- the inputs ``reporting.stance_report._apply_spawn_yaw``
 #: does not turn.  Another grid or another turn is another protocol.

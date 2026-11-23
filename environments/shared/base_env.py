@@ -7,7 +7,7 @@ across all dinosaur species. Subclasses override species-specific methods:
   - _get_obs()
   - _get_reward_info()
   - _is_terminated()
-  - _spawn_target()
+  - _reset_episode_state()
 """
 
 from __future__ import annotations
@@ -46,13 +46,6 @@ from .reward_functions import reward_lean_aware_posture as _reward_lean_aware_po
 from .reward_functions import reward_nosedive as _reward_nosedive_pure
 from .reward_functions import reward_posture as _reward_posture_pure
 from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
-
-# Clearance in METRES kept between a reset spawn and the nearer end of
-# healthy_z_range.  Reset must never generate an already-terminal state: an
-# episode that ends on step 1 regardless of the action is not a policy failure,
-# and counting it as one puts an unreachable ceiling on any reliability gate.
-# See BaseDinoEnv._bounded_reset_height_delta.
-_RESET_HEIGHT_TERMINATION_MARGIN = 0.02
 
 # Fallback settle target in METRES, used only when a species has no keyframe to
 # read an authored contact depth from.  Reset normally settles to the home
@@ -134,6 +127,17 @@ class BaseDinoEnv(gym.Env, ABC):
     # foot_contact segment and the symmetry module's observation layout; the
     # rewards, the info keys and the substep aggregation above stay per foot.
     _foot_observation_groups: "tuple[tuple[int, ...], ...] | None" = None
+    # The observation's foot-contact channels as FLOOR-contact readings, for a
+    # species whose touch sensors also count force between its own geoms: per
+    # channel, the geom ids whose contacts with ``floor_geom_id`` it sums the
+    # normal force of (:meth:`_foot_floor_contact_forces`).  None means the
+    # channels are touch sensors (the two attributes above).  Only the
+    # Compsognathus robot declares them: its soles collide with each other,
+    # and its touch sensors count sole-on-sole force as support
+    # (docs/KNOWN_ISSUES.md).  Read by the plant contract's foot_contact
+    # segment and the symmetry module's observation layout; the rewards, the
+    # info keys and the substep aggregation stay on the touch sensors.
+    _foot_observation_floor_geoms: "tuple[tuple[int, ...], ...] | None" = None
 
     # Substep aggregation state, populated by step()'s frame-skip loop.
     # Tagged with the _step_count it was measured at rather than cleared in
@@ -188,10 +192,10 @@ class BaseDinoEnv(gym.Env, ABC):
     # episode through ``_draw_episode_command()``, called after the push
     # block and before _get_obs, and step() advances it last through
     # ``_update_command()``.  Under command_mode "none" the hook returns
-    # zeros and draws no RNG, so the seeded reset draw stream is unchanged
-    # (pinned by tests/fixtures/phase_c_reset_golden.json), and step() never
-    # updates.  Phase D replaced the HOOK BODY and never reset() itself, whose
-    # source is fingerprinted as the home_reset policy interface.
+    # zeros and draws no RNG, so the command adds nothing to the seeded reset
+    # draw stream, and step() never updates.  Phase D replaced the HOOK BODY
+    # and never reset() itself, whose source is fingerprinted as the
+    # home_reset policy interface.
     _command: "np.ndarray"
 
     # Optional zero-argument callable invoked after EVERY physics substep in
@@ -226,7 +230,6 @@ class BaseDinoEnv(gym.Env, ABC):
         healthy_z_range: tuple[float, float] = (0.25, 1.0),
         max_tilt_angle: float = 1.047,
         reset_noise_scale: float = 0.01,
-        reset_height_noise_scale: float | None = None,
         perturbation_capture_velocity_multiple: float = 0.0,
         perturbation_interval: float = 2.0,
         perturbation_jitter: float = 0.5,
@@ -260,6 +263,15 @@ class BaseDinoEnv(gym.Env, ABC):
         self._prev_pos_2d: np.ndarray = np.zeros(2)
         self._distance_traveled: float = 0.0
 
+        # The episode anchors the reward terms read: the drift anchor (the
+        # root's spawn position in the plane) and the reference heading (the
+        # unit horizontal forward of the spawn's root quaternion).  reset()
+        # re-takes both from every spawn, before _reset_episode_state; these
+        # defaults, from the model's qpos0, only keep a reward read before the
+        # first reset defined.
+        self._initial_pos_2d: np.ndarray = self.data.qpos[0:2].copy()
+        self._reference_heading_2d: np.ndarray = self._quat_to_forward_2d(self.data.qpos[3:7])
+
         # Common reward weights
         self.forward_vel_weight = forward_vel_weight
         self.alive_bonus = alive_bonus
@@ -270,14 +282,6 @@ class BaseDinoEnv(gym.Env, ABC):
         self.healthy_z_range = healthy_z_range
         self.max_tilt_angle = max_tilt_angle
         self.reset_noise_scale = reset_noise_scale
-        # Root-height jitter at reset, in METRES.  ``reset_noise_scale`` is a
-        # joint-angle scale in RADIANS, and reusing it for a length is only
-        # harmless while the species is roughly a metre tall: on a 0.31 m
-        # stance a 0.14 rad joint jitter becomes a 0.14 m height jitter, i.e.
-        # 45% of standing height, which spawns a quarter of episodes already
-        # outside healthy_z_range.  ``None`` keeps the historical coupled
-        # behaviour so existing species' reset distributions are unchanged.
-        self.reset_height_noise_scale = reset_height_noise_scale
 
         # Cache body/geom/site IDs (species-specific)
         self._cache_ids()
@@ -431,8 +435,20 @@ class BaseDinoEnv(gym.Env, ABC):
         """Check species-specific termination conditions."""
 
     @abstractmethod
-    def _spawn_target(self):
-        """Randomize the target (prey/food) position on reset."""
+    def _reset_episode_state(self) -> None:
+        """Clear the species' per-episode state; called once by every :meth:`reset`.
+
+        Runs after the joint jitter and after reset() has set
+        ``_initial_pos_2d`` and ``_reference_heading_2d`` from the spawn (both
+        readable here), before the ground settle, the push schedule and the
+        command draw.  It clears what an episode must not inherit from the
+        last one: the action history (``_prev_action``,
+        ``_prev_prev_action``), the gait state (:meth:`_reset_gait_state` or
+        :meth:`_reset_quadruped_gait_state`) and any species state such as a
+        stance-width target or a policy-action tag.  It draws no random
+        number: the reset draw stream is the joint and velocity jitter, then
+        the push-schedule seed, then the command.
+        """
 
     # ------------------------------------------------------------------
     # Common sensor layout (overridable by subclasses)
@@ -460,8 +476,9 @@ class BaseDinoEnv(gym.Env, ABC):
     action_jerk_weight: float = 0.0
     # Read by the reward-term helpers (_progress_terms, _nosedive_term,
     # _heading_terms, _speed_terms), _natural_forward_z also by _root_termination.
-    # Annotation only: the species that call them set these in ``__init__``
-    # (_initial_pos_2d when the target spawns on reset); compsognathus calls none.
+    # Annotation only: the species that call them set these in ``__init__``;
+    # compsognathus calls none.  The drift anchor _initial_pos_2d and the
+    # reference heading _reference_heading_2d are set by __init__ and reset().
     forward_vel_max: float
     backward_vel_penalty_weight: float
     drift_penalty_weight: float
@@ -474,6 +491,9 @@ class BaseDinoEnv(gym.Env, ABC):
     nosedive_weight: float
     _natural_forward_z: float
     _initial_pos_2d: np.ndarray
+    _reference_heading_2d: np.ndarray
+    # The floor geom, set by every species' _cache_ids; read by the floor-contact helpers.
+    floor_geom_id: int
 
     def _reward_energy(self, action: np.ndarray) -> float:
         """Compute normalised energy penalty. Identical across all species.
@@ -716,7 +736,7 @@ class BaseDinoEnv(gym.Env, ABC):
     def _reset_gait_state(self) -> None:
         """Reset gait symmetry tracking for a new episode.
 
-        Call this from the subclass ``_spawn_target`` / reset path.
+        Call this from the subclass ``_reset_episode_state``.
         """
         self._prev_r_in_contact = False
         self._prev_l_in_contact = False
@@ -809,7 +829,7 @@ class BaseDinoEnv(gym.Env, ABC):
     def _reset_quadruped_gait_state(self) -> None:
         """Reset quadrupedal gait symmetry tracking for a new episode.
 
-        Call this from the subclass ``_spawn_target`` / reset path.
+        Call this from the subclass ``_reset_episode_state``.
         """
         self._reset_gait_state()
         self._prev_diag_a_in_contact = False
@@ -961,6 +981,33 @@ class BaseDinoEnv(gym.Env, ABC):
             for group in self._foot_sensor_groups
         )
 
+    def _foot_floor_contact_forces(self) -> "tuple[float, ...]":
+        """Per channel of ``_foot_observation_floor_geoms``: its geoms' summed floor-contact normal force, in N.
+
+        Reads the current ``data.contact``: each contact between one of a
+        channel's geoms and ``floor_geom_id`` adds ``mj_contactForce``'s
+        normal component, in contact order; a contact between two of the
+        animal's own geoms adds nothing.  All zeros where no contact exists
+        (before any forward pass).  The plant contract hashes this method's
+        tokens into the policy interface of a model that declares the groups.
+        """
+        groups = self._foot_observation_floor_geoms
+        if groups is None:
+            raise ValueError("_foot_floor_contact_forces needs _foot_observation_floor_geoms")
+        floor = int(self.floor_geom_id)
+        channel_of = {int(geom): channel for channel, group in enumerate(groups) for geom in group}
+        totals = [0.0] * len(groups)
+        wrench = np.zeros(6)
+        for index in range(self.data.ncon):
+            contact = self.data.contact[index]
+            first, second = int(contact.geom1), int(contact.geom2)
+            other = second if first == floor else first if second == floor else -1
+            channel = channel_of.get(other)
+            if channel is not None:
+                mujoco.mj_contactForce(self.model, self.data, index, wrench)
+                totals[channel] += float(wrench[0])
+        return tuple(totals)
+
     def _aggregated_foot_contact_forces(self) -> "tuple[float, ...]":
         """Per-foot MIN force across the current control step's substeps.
 
@@ -1087,55 +1134,6 @@ class BaseDinoEnv(gym.Env, ABC):
         return None
 
     # ------------------------------------------------------------------
-    # Consolidated target spawning helpers
-    # ------------------------------------------------------------------
-
-    def _spawn_target_2d(
-        self,
-        distance_range: "tuple[float, float]",
-        lateral_range: "tuple[float, float]",
-        target_z: float,
-    ) -> np.ndarray:
-        """Spawn target (prey/food) at a random 2D location with fixed height.
-
-        Sets ``self.data.mocap_pos[0]`` and returns the target position.
-
-        Args:
-            distance_range: (min, max) forward distance.
-            lateral_range: (min, max) lateral offset.
-            target_z: Fixed Z height for target.
-
-        Returns:
-            Target position as (3,) numpy array.
-        """
-        if self.np_random is not None:
-            distance = self.np_random.uniform(*distance_range)
-            lateral = self.np_random.uniform(*lateral_range)
-        else:
-            distance = float(np.mean(distance_range))
-            lateral = 0.0
-
-        target_pos = np.array([distance, lateral, target_z])
-        self.data.mocap_pos[0] = target_pos
-        return target_pos
-
-    @staticmethod
-    def _compute_initial_direction_2d(target_pos: np.ndarray) -> np.ndarray:
-        """Compute normalised initial 2D direction from origin to target.
-
-        Args:
-            target_pos: Target position (3D).
-
-        Returns:
-            Normalised 2D direction vector.
-        """
-        dir_2d = np.array(target_pos[:2], dtype=np.float64)
-        dir_len = float(np.linalg.norm(dir_2d))
-        if dir_len > 1e-6:
-            dir_2d /= dir_len
-        return dir_2d
-
-    # ------------------------------------------------------------------
     # Shared methods
     # ------------------------------------------------------------------
 
@@ -1168,9 +1166,8 @@ class BaseDinoEnv(gym.Env, ABC):
     def _draw_episode_command(self) -> np.ndarray:
         """The per-episode body-relative command (BEHAVIOR_RECIPES_PLAN §4.6).
 
-        Under command_mode "none": zeros, no RNG draw, so the seeded reset draw
-        stream is byte-identical to the pre-Phase-C plant (pinned by
-        tests/fixtures/phase_c_reset_golden.json).  Under a live mode: the
+        Under command_mode "none": zeros, no RNG draw, so the command adds
+        nothing to the seeded reset draw stream.  Under a live mode: the
         controller's episode start, seeded from :meth:`_command_rng` AFTER every
         existing draw, at the root's heading; the full state is kept for the
         reward.  Phase D replaced THIS body -- never reset(), whose source is
@@ -1388,47 +1385,12 @@ class BaseDinoEnv(gym.Env, ABC):
         """Check if episode should be truncated (time limit)."""
         return self._step_count >= self.max_episode_steps
 
-    def _bounded_reset_height_delta(self, base_z: float, delta: float) -> float:
-        """Bound a reset height perturbation so the spawn is never terminal.
-
-        SUPERSEDED by ``_settle_root_on_ground``, which overwrites the root
-        height as a pure function of the sampled joint pose, so the bounded
-        delta this returns no longer reaches the post-reset state (verified to
-        one ULP).  The draw and this bound are retained only to keep the reset
-        deterministic in its seed: removing the draw would shift every
-        subsequent RNG draw and re-anchor all seeded baselines.  Remove both at
-        the next policy-interface revision.
-
-        The historical rationale, for the record: the root-height jitter is
-        the only UNBOUNDED term in the reset — every
-        other one is a bounded uniform — and an unbounded Gaussian will
-        eventually place the root outside ``healthy_z_range``.  On T-Rex it did
-        so often enough to matter: home pelvis 0.926 m against a 0.70 m floor
-        is a 0.226 m margin, and at sigma 0.10 m that is only 2.26 sigma, so
-        1.19% of spawns landed below the floor.  Measured over seeds 3042-5041,
-        18/2000 spawned sub-floor and 16 of those terminated on the first step
-        whatever the policy did — capping any reliability measurement at ~99%
-        for reasons that have nothing to do with the policy.
-
-        The bound is the distance to the nearer end of ``healthy_z_range``, less
-        a small margin, and is applied symmetrically so the mean spawn height is
-        unchanged.  Clipping rather than resampling keeps the number of RNG
-        draws per reset fixed and the reset deterministic; the cost is a small
-        point mass at each bound (~2% per side on T-Rex).  Species with ample
-        headroom are effectively unaffected, since the bound then sits far out
-        in the tail.
-        """
-        low, high = self.healthy_z_range
-        headroom = min(base_z - low, high - base_z) - _RESET_HEIGHT_TERMINATION_MARGIN
-        bound = max(headroom, 0.0)
-        return float(np.clip(delta, -bound, bound))
-
     def _root_subtree_geoms(self) -> "np.ndarray":
         """Geom IDs belonging to the animal, i.e. the free-joint root's subtree.
 
         Everything the reset translates vertically moves together, and nothing
-        else does: prey, food and other spawned props hang off the world or
-        their own joints, so they must not take part in ground settling.
+        else does: a body off the root's subtree is scenery and must not take
+        part in ground settling.
 
         NON-COLLIDING geoms are excluded.  A geom with ``contype == 0`` and
         ``conaffinity == 0`` generates no contacts, so it can never rest on the
@@ -1591,35 +1553,24 @@ class BaseDinoEnv(gym.Env, ABC):
         else:
             mujoco.mj_resetData(self.model, self.data)
 
-        # Add small random perturbation to initial pose
+        # Add small random perturbation to initial pose.  The root keeps the
+        # keyframe's planar pose and orientation; its height is the ground
+        # settle's below.
         if self.np_random is not None:
             noise_scale = self.reset_noise_scale
             self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
             self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
-            # STATE-INERT since _settle_root_on_ground below, which overwrites
-            # the root height as a pure function of the sampled joint pose
-            # (verified to one ULP across height scales).  The draw is kept so
-            # the reset stays deterministic in its seed: dropping it would
-            # shift every subsequent draw and re-anchor all seeded baselines.
-            # Remove the whole height channel — this draw, reset_height_noise_scale
-            # and _bounded_reset_height_delta — at the next policy-interface
-            # revision.
-            height_scale = 0.0
-            if noise_scale > 0.0:
-                height_scale = noise_scale if self.reset_height_noise_scale is None else self.reset_height_noise_scale
-            base_z = float(self.data.qpos[2])
-            height_delta = self.np_random.normal(0, height_scale)
-            self.data.qpos[2] = base_z + self._bounded_reset_height_delta(base_z, height_delta)
 
-        # Randomize target position (species-specific)
-        self._spawn_target()
+        # The episode's anchors: the drift anchor and the reference heading,
+        # the unit horizontal forward of the spawn's root quaternion.
+        self._initial_pos_2d = self.data.qpos[0:2].copy()
+        self._reference_heading_2d = self._quat_to_forward_2d(self.data.qpos[3:7])
+        # Per-episode species state (action history, gait state, ...).
+        self._reset_episode_state()
 
-        # Place the animal ON the ground.  This has to come after BOTH the joint
-        # jitter and the height jitter, since either one changes how far the
-        # lowest geom sits below the root.  _bounded_reset_height_delta above
-        # keeps the spawn inside healthy_z_range, but that is a termination
-        # predicate on the ROOT and says nothing about foot-to-floor geometry —
-        # a pelvis at 0.739 m is "healthy" with the toes 0.198 m underground.
+        # Place the animal ON the ground.  This has to come after the joint
+        # jitter, which changes how far the lowest geom sits below the root:
+        # the root height is a pure function of the sampled joint pose.
         self._settle_root_on_ground()
 
         # Forward pass to update derived quantities
@@ -1631,7 +1582,7 @@ class BaseDinoEnv(gym.Env, ABC):
 
         if self.perturbation_capture_velocity_multiple > 0.0:
             # New episode, new push schedule.  The seed draw is APPENDED to
-            # the reset's existing draw sequence, so the joint/height/target
+            # the reset's existing draw sequence, so the joint and velocity
             # draws above are bit-identical to a perturbation-free reset of
             # the same seed; and mj_resetData above already zeroed
             # xfrc_applied, so no pulse survives a reset — cleared again

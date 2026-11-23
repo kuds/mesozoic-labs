@@ -8,8 +8,8 @@ pin, without the stage TOML's weights:
    the observation, the termination and every legacy info key equal
    ``CompsognathusLongipesEnv._get_reward_info`` on the same dynamics, bit for bit,
    for the subclass and, on the linear interface, for ``CompsognathusLongipesEnv``
-   itself (which then reads the subclass's heading-free observation, policy
-   interface r4, in place of its own world-frame one); and the subclass's
+   itself (both read the species base's heading-free observation, since
+   policy interface r7 of the anatomical model); and the subclass's
    constructor repeats every inherited default.
 2. **Each term's arithmetic**, from the state the env read: the bilateral
    term and the alive conditioning on the chosen aggregate while the legacy
@@ -47,8 +47,6 @@ LEGACY_INFO_KEYS = (
     "reward_lateral",
     "reward_heading",
     "reward_gait",
-    "reward_approach",
-    "reward_target",
     "r_foot_contact",
     "l_foot_contact",
     "pelvis_height",
@@ -98,8 +96,8 @@ def test_default_kwargs_reproduce_the_legacy_reward_bit_for_bit(sigma):
     legacy = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
     legacy._get_reward_info = types.MethodType(CompsognathusLongipesEnv._get_reward_info, legacy)
     linear = _LinearAnatomicalEnv(**_legacy_kwargs())
-    # Policy interface r4 gave the subclass its own heading-free _get_obs; the reward under test reads none of it.
-    linear._get_obs = types.MethodType(CompsognathusLongipesAnatomicalEnv._get_obs, linear)
+    # Both classes read the species base's _get_obs (policy interface r7); the reward under test reads none of it.
+    assert CompsognathusLongipesAnatomicalEnv._get_obs is CompsognathusLongipesEnv._get_obs
     linear_new = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
     linear_new._scale_action = types.MethodType(CompsognathusLongipesEnv._scale_action, linear_new)
     for first, second in ((new, legacy), (linear_new, linear)):

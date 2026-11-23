@@ -840,8 +840,9 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
 
     Regression for run `20260923_020654` (dibothrosuchus, seed 42), which hit
     both shapes of the `TestPeakWarmup` failure and stopped each node at 1.45M.
-    Stance: the untrained policy is the statue (2598.3), above the absolute
-    0.75x-statue floor of 1950, so the backstop armed on initialisation and
+    Stance: the untrained policy is the statue (2598.3 then), above the absolute
+    0.75x-statue floor (1950 then; 1870 since physics r4, whose statue pays no
+    heading term), so the backstop armed on initialisation and
     the exploration dip read as a collapse. Locomotion: EvalCallback scores the
     full forward weight from step 0, so the warm-started policy, still
     standing, evaluated at ~22x the absolute floor of 100 until the clip
@@ -963,13 +964,13 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
 
     def test_the_velociraptor_mongoliensis_locomotion_warmup_keeps_the_scaled_standing_plateau_from_arming(self):
         """The velociraptor's walk warm-starts from a quiet stance (2026-11-06), so it evaluates at its standing level
-        from step 0, the shape of run 20260923_020654.  That run's locomotion series, scaled to this stage's 796.6
-        statue (physics r5; 796.0 on r4), stops at 1.45M under the relative floor alone (358.5, which the plateau
-        clears) and runs on behind the committed D-B5 warm-up."""
-        scale = 796.6 / 2246.9
+        from step 0, the shape of run 20260923_020654.  That run's locomotion series, scaled to this stage's 798.4
+        statue (physics r6; 796.6 on r5, 796.0 on r4), stops at 1.45M under the relative floor alone (359.3, which the
+        plateau clears) and runs on behind the committed D-B5 warm-up."""
+        scale = 798.4 / 2246.9
         trace = [value * scale for value in self.LOCOMOTION_20260923]
         settings = self._settings(VELOCIRAPTOR_MONGOLIENSIS, 2)
-        assert settings["peak_floor"] == pytest.approx(358.47)
+        assert settings["peak_floor"] == pytest.approx(359.28)
         stopped_at, _ = self._drive(trace, {**settings, "peak_warmup_timesteps": 0.0})
         assert stopped_at == 1_450_000
         stopped_at, cb = self._drive(trace, settings)

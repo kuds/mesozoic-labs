@@ -22,16 +22,16 @@ Swift Bipedal Predator. **Specialty:** Fast bipedal running.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 71 |
+| Observation dimension | 67 |
 | Action dimension / actuators | 17 |
 | Generalized coordinates / velocities | nq=30, nv=29 |
 | Compiled dynamic model mass | 15.0 kg |
-| Plant contract revisions | policy r14; physics r5; visual r6 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r15; physics r6; visual r7 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
-| 1 — Stance | stance (deliverable) | — | Learn to stand and balance without falling | 12M | seeds clean at all six headings (whole scene turned -90, -45, 0, 45, 90, 180°) LCB95 ≥ 0.8 over ≥ 40 seeds (settle 100 steps); at every heading, clean stance episodes LCB95 ≥ 0.8 over the same seeds; an episode is clean when it reaches the horizon with min_all_feet_support ≥ 0.98, max_touchdown_rate ≤ 0.25, max_window_displacement_m ≤ 0.1, min_foot_load_share ≥ 0.4, max_actuator_saturation_fraction ≤ 0.1, max_settle_airborne_substeps ≤ 0, max_settle_peak_floor_force_bw ≤ 2, min_foot_load_share_windowed ≥ 0.35, max_foot_contact_fraction ≤ 0.02, max_phantom_support_fraction ≤ 0.05, max_nonfoot_load_fraction ≤ 0.01, max_settle_stance_width_change_m ≤ 0.05, min_support_geom_duty ≥ 0.5, min_support_geom_coverage ≥ 0.8, max_episode_yaw_change_deg ≤ 25, max_settle_touchdowns ≤ 2, min_foot_load_share_statue_ratio ≥ 0.8; full-horizon episodes ≥ 95.0% at every heading; hop-or-fall episodes ≤ 1 at every heading; reward rail ≥ 2000 at every heading; reward rail ≥ 0.6 × the statue's at the same heading; verdict from the six-heading stance_heading_report.json on the handoff pair (post-stage; fail-closed when absent, never the yaw-zero panel) |
+| 1 — Stance | stance (deliverable) | — | Learn to stand and balance without falling | 12M | seeds clean at all six headings (whole scene turned -90, -45, 0, 45, 90, 180°) LCB95 ≥ 0.8 over ≥ 40 seeds (settle 100 steps); at every heading, clean stance episodes LCB95 ≥ 0.8 over the same seeds; an episode is clean when it reaches the horizon with min_all_feet_support ≥ 0.98, max_touchdown_rate ≤ 0.25, max_window_displacement_m ≤ 0.1, min_foot_load_share ≥ 0.4, max_actuator_saturation_fraction ≤ 0.1, max_settle_airborne_substeps ≤ 0, max_settle_peak_floor_force_bw ≤ 2, min_foot_load_share_windowed ≥ 0.35, max_foot_contact_fraction ≤ 0.02, max_phantom_support_fraction ≤ 0.05, max_nonfoot_load_fraction ≤ 0.01, max_settle_stance_width_change_m ≤ 0.05, min_support_geom_duty ≥ 0.5, min_support_geom_coverage ≥ 0.8, max_episode_yaw_change_deg ≤ 25, max_settle_touchdowns ≤ 2, min_foot_load_share_statue_ratio ≥ 0.8; full-horizon episodes ≥ 95.0% at every heading; hop-or-fall episodes ≤ 1 at every heading; reward rail ≥ 1950 at every heading; reward rail ≥ 0.6 × the statue's at the same heading; verdict from the six-heading stance_heading_report.json on the handoff pair (post-stage; fail-closed when absent, never the yaw-zero panel) |
 | 2 — Locomotion | walk (deliverable) | 1 — Stance | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2.1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
@@ -51,11 +51,11 @@ Apex Predator. **Specialty:** Heavy-bodied bipedal balance and walking.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 63 |
+| Observation dimension | 59 |
 | Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
-| Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r16; physics r11; visual r5 ([details](PLANT_CONTRACT.md)) |
+| Compiled dynamic model mass | 85.5 kg |
+| Plant contract revisions | policy r17; physics r12; visual r6 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -82,11 +82,11 @@ Gentle Giant Herbivore. **Specialty:** Long-necked quadrupedal walking.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 86 |
+| Observation dimension | 81 |
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r11; physics r6; visual r3 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r12; physics r7; visual r4 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -111,16 +111,16 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Erect-limbed quadrupedal wal
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 80 |
+| Observation dimension | 75 |
 | Action dimension / actuators | 27 |
 | Generalized coordinates / velocities | nq=35, nv=34 |
-| Compiled dynamic model mass | 8.7 kg |
-| Plant contract revisions | policy r10; physics r3; visual r2 ([details](PLANT_CONTRACT.md)) |
+| Compiled dynamic model mass | 8.6 kg |
+| Plant contract revisions | policy r11; physics r4; visual r3 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
-| 1 — Stance | stance (deliverable) | — | Hold the erect quadrupedal stance without collapsing into a sprawl | 6M | reward ≥ 1560; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 1 — Stance | stance (deliverable) | — | Hold the erect quadrupedal stance without collapsing into a sprawl | 6M | reward ≥ 1500; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | walk (deliverable) | 1 — Stance | Learn a coordinated erect-limbed diagonal-pair walk | 12M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.9 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
@@ -140,11 +140,11 @@ Small Bipedal Theropod. **Specialty:** Small-bodied bipedal walking.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 55 |
+| Observation dimension | 51 |
 | Action dimension / actuators | 14 |
 | Generalized coordinates / velocities | nq=24, nv=23 |
 | Compiled dynamic model mass | 1.0 kg |
-| Plant contract revisions | policy r6; physics r3; visual r3 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r7; physics r4; visual r4 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -171,11 +171,11 @@ Twelve-Servo Biped Prototype. **Specialty:** Servo-driven bipedal walking with f
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 46 |
+| Observation dimension | 41 |
 | Action dimension / actuators | 12 |
 | Generalized coordinates / velocities | nq=19, nv=18 |
 | Compiled dynamic model mass | 1.6 kg |
-| Plant contract revisions | policy r3; physics r1; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r4; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -198,15 +198,15 @@ Twelve-Servo Biped Prototype. **Specialty:** Servo-driven bipedal walking with f
 
 ### Allosaurus Fragilis (Anatomical)
 
-Jurassic Tridactyl Theropod. **Specialty:** Level-ground walk to a target.
+Jurassic Tridactyl Theropod. **Specialty:** Level-ground walk along an eight-metre course.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 45 |
+| Observation dimension | 41 |
 | Action dimension / actuators | 10 |
 | Generalized coordinates / velocities | nq=19, nv=18 |
 | Compiled dynamic model mass | 1482.2 kg |
-| Plant contract revisions | policy r1; physics r1; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r2; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -215,7 +215,7 @@ Jurassic Tridactyl Theropod. **Specialty:** Level-ground walk to a target.
 | 2 — Locomotion | walk (deliverable) | 1 — Stance | Walk forward on the feet along an eight-metre course. | 6M | reward ≥ 900; episode length ≥ 550; avg. velocity ≥ 0.25 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
-- **Stable-Baselines3 — Walking course completion:** During the forward walking task, the pelvis reaches within 0.35 m of a target eight metres ahead while supported by at least one foot.
+- **Stable-Baselines3 — Walking course completion:** During the forward walking task, the pelvis moves 7.65 m along its spawn heading (the eight-metre course less 0.35 m) while supported by at least one foot.
 
 **Per-deliverable success semantics:**
 - **stance (1 — Stance) · Stable-Baselines3 — Supported standing (stance_quality/v1):** At least 95% of standing trials last ten seconds. After a two-second settling period, the mean fraction of time on neither foot and its upper confidence bound each stay at or below 2%. Mean reward must reach 1,200 points.

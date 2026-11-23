@@ -6,6 +6,42 @@ and a physical recovery judge separately for the two plants. It does not
 establish that a trained policy has learned recovery, and it makes no hardware
 claim. The robot's head and tail remain fixed and unpowered.
 
+## Current profiles: anatomical physics r4, robot physics r2
+
+The prey removal (`configs/plant_versions.toml` note 24, decision D-D59) left both plants' dynamics
+bit-identical, but it took the prey placement draws and the state-inert height-jitter draw out of
+the reset. The push schedule is drawn after them, so every seeded push schedule moved, and the
+profiles recorded `recovery_env_kwargs` that named the removed target and height-jitter arguments.
+A restamp cannot cover that (the task and the draw stream changed), so both profiles were
+**re-measured** with the same script, rule and seed blocks:
+
+```bash
+python -m environments.shared.scripts.calibrate_recovery --species compsognathus_longipes \
+  --embodiment anatomical --output recovery_anatomical.json --screen-workers 2
+python -m environments.shared.scripts.calibrate_recovery --species compsognathus_longipes \
+  --embodiment robot --output recovery_robot.json --screen-workers 2
+```
+
+The quiet nulls and their safe sets are unchanged (the quiet episodes are unpushed, and their reset
+states are the same), and so is the selected multiple on both models: 1.2 times capture velocity,
+1.187 N for 0.20 s on the anatomical pelvis and 2.352 N on the robot's core.
+
+| Fixed-command panel | Anatomical r4 (r3) | Robot r2 (r1) |
+|---|---:|---:|
+| Selection at 1.2, zero-command successes / full horizon (of 32) | 6 / 15 (4 / 16) | 11 / 17 (12 / 21) |
+| Held-out zero-command successes / full horizon (of 40) | 4 / 12 (6 / 17) | 14 / 22 (7 / 20) |
+| Held-out fixed-brace successes / full horizon (of 40) | 4 / 12 (6 / 18) | 21 / 39 (15 / 40) |
+| Stress (1.25 x, 1.9 s) zero-command / fixed-brace successes (of 40) | 0 / 0 (0 / 0) | 3 / 4 (1 / 1) |
+
+The re-measured profiles carry no `restamp_history`: the robot's Phase C restamp and D-D33 identity
+migration (below) describe its earlier profile. Their `calibration_id`s end in `-2026-11-v4`
+(anatomical) and `-2026-11-v2` (robot), and their measurements are
+[data/recovery_calibration_anatomical_r4.json.gz](data/recovery_calibration_anatomical_r4.json.gz) and
+[data/recovery_calibration_robot_r2.json.gz](data/recovery_calibration_robot_r2.json.gz), each with its
+uncompressed digest in `provenance.measurement_uncompressed_sha256`; their recorded source hashes
+(`provenance.source_sha256`) match the committed files. The profile bytes changed, so every recovery
+freeze made before this revision is refused by the frozen identity check.
+
 ## Anatomical physics r3
 
 Changing the feet, body mass distribution and ankle stiffness changed the response to a horizontal push.
@@ -22,7 +58,7 @@ The historical calibration records below refer to the earlier anatomy and the Re
 ## What is implemented
 
 - Both environments expose the shared deterministic push scheduler. Pushes
-  remain disabled in stance, locomotion, and target reaching.
+  remain disabled in stance and locomotion.
 - Each manifest inserts semantic `recovery` after `stance`; legacy stages 1,
   2, and 3 retain their meanings. Recovery remains a non-advancing pilot.
 - Recovery mirrors the stance environment except for five disturbance
@@ -41,7 +77,8 @@ The historical calibration records below refer to the earlier anatomy and the Re
 ### Interface-only restamp (Phase C)
 
 One exception to "a changed plant requires recalibration" was recorded in
-both calibration files, and the robot's still carries it. The Phase C interface revision
+both calibration files, and the robot's carried it until its physics r2
+re-measurement (above). The Phase C interface revision
 (`BEHAVIOR_RECIPES_PLAN.md` §4.6, `plant_versions.toml` note 12) appended a
 3-dim body-relative command segment to every species observation and moved
 each plant's `policy_interface_sha256`, and with it every stage's
@@ -170,8 +207,10 @@ and holdout measurements are recorded with the executable calibration.
 
 ## Measured physical calibration
 
-The completed run contains **1,056 episodes, 625,106 control steps, and
-5,351 judged shoves** across quiet measurements, strength selection, and
+This section records the anatomical physics r2 and robot physics r1
+calibration; the current profiles are at the top. The completed run
+contains **1,056 episodes, 625,106 control steps, and 5,351 judged
+shoves** across quiet measurements, strength selection, and
 held-out nominal/stress panels (the anatomical column on physics r2; the r1
 run's values follow in parentheses). Each selected strength was screened on
 32 seeds before the separate 40-seed holdout was evaluated.
@@ -295,7 +334,10 @@ than changing the judge after seeing recovery results.
 
 The calibration script and measurements live in
 `environments/shared/scripts/calibrate_recovery.py` and
-`data/recovery_calibration_v1.json`.
+`data/recovery_calibration_anatomical_r4.json.gz` and
+`data/recovery_calibration_robot_r2.json.gz` (the earlier measurements,
+`data/recovery_calibration_anatomical_r3.json.gz` and
+`data/recovery_calibration_v1.json`, stay as recorded).
 The runtime profiles are in `configs/compsognathus_longipes/anatomical/recovery_calibration.json`
 and `configs/compsognathus_longipes/robot/recovery_calibration.json`.
 

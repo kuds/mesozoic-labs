@@ -13,4 +13,9 @@ class AllosaurusFragilisAnatomicalEnv(AllosaurusFragilisEnv):
         "sole": "{s}_pad",
         "foot_site": "{s}_foot",
     }
-    REWARD_PROBE = (0.02, "body", "pelvis")
+    #: The digest snapshot's reward probe: the roll's action-noise amplitude,
+    #: then the success probe's effector.  The success probe moves the free
+    #: root COURSE_LENGTH_M along the spawn heading and takes one zero-action
+    #: step, which completes the course on the locomotion stage only (until
+    #: policy interface r2 it moved the mocap target onto the pelvis).
+    REWARD_PROBE = (0.02, "root_displacement", "COURSE_LENGTH_M")

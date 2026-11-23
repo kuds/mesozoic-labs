@@ -109,8 +109,9 @@ Species notes:
 
 - **Published clips.** The published training clips predate physics revision 6, so a policy for the current model
   must be trained and evaluated again. The 2026-07-18 result summary they came with was deleted with the hunt nodes
-  (decision D-D59; `results/README.md`). Checkpoints from policy interface r10 or earlier fail the plant
-  check and cannot seed a warm start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
+  (decision D-D59; `results/README.md`). Checkpoints from policy interface r11 or earlier fail the plant
+  check and cannot seed a warm start or `--trunk-from`: r11 declared the model SB3-only (note 23), and r12 removed the
+  food and made the observation heading-free (`configs/plant_versions.toml`).
 - **Reference walk speed.** The reference walk is slower than the locomotion gate's minimum speed. It shows what the
   plant can do mechanically, not a gait that would pass the gate.
 
@@ -118,21 +119,23 @@ Species notes:
 
 The trained tasks are the stance and the walk; the food reach, the hunt that followed the walk, was removed by
 decision D-D59. Its reward terms, its `food_reached` termination and its constructor arguments (with the replay-camera
-widening they switched on) are gone from the code, and the model declares no success key. A food target still spawns
-ahead of and above the animal at reset, and the observation still carries its direction and distance; the forward and
-heading terms measure along its initial direction. The food leaves with the next policy-interface revision.
+widening they switched on) are gone from the code, and the model declares no success key. The food target and its
+observation channels went with it in policy interface r12 (physics r7), so the scene holds only the animal and the
+floor. The forward and heading terms measure along the heading the animal spawns with. The head-tip site and its
+position sensor stay.
 
-The observation holds the joint positions and velocities, the torso orientation quaternion, gyro, linear velocity and
-accelerometer, one touch channel per foot, the food direction and distance, and the command. Actions are offsets from
-the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
-[`base_env.py`](base_env.py) gives both layouts.
+The observation reads no world heading: it uses the torso's projected gravity and its velocity in a gravity-aligned
+heading frame, beside the joint positions and velocities, the torso gyro and accelerometer, one touch channel per foot
+and the command. Before that revision it read the world-frame torso quaternion and velocity and the food direction and
+distance. Actions are offsets from the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each
+actuator's limits. The docstring of [`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
 
 - **Survival and posture:** an alive bonus, a fall penalty, and penalties on tilt and nosedive with a torso-height
   term.
-- **Progress:** forward velocity and heading toward the food, with penalties on backward, sideways and drifting
-  motion, spin, speed above a threshold and standing idle.
+- **Progress:** forward velocity and heading along the spawn heading, with penalties on backward, sideways and
+  drifting motion, spin, speed above a threshold and standing idle.
 - **Gait quality:** penalties on torso and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs.
 - **Effort:** an energy penalty on actuator use.

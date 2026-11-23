@@ -352,7 +352,7 @@ display_name = "Allosaurus Fragilis"
 [species.allosaurus_fragilis.embodiments.anatomical]
 tagline = "Jurassic Tridactyl Theropod"
 gait = "Bipedal"
-specialty = "Level-ground walk to a target"
+specialty = "Level-ground walk along an eight-metre course"
 env_entrypoint = "environments.allosaurus_fragilis.anatomical.env:AllosaurusFragilisAnatomicalEnv"
 model_path = "environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml"
 training_backends = ["stable-baselines3"]
@@ -363,7 +363,7 @@ result_summary_paths = []
 backends = ["stable-baselines3"]
 key = "course_complete"
 label = "Walking course completion"
-definition = "During the forward walking task, the pelvis reaches within 0.35 m of a target eight metres ahead while supported by at least one foot."
+definition = "During the forward walking task, the pelvis moves 7.65 m along its spawn heading (the eight-metre course less 0.35 m) while supported by at least one foot."
 
 [[species.allosaurus_fragilis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"

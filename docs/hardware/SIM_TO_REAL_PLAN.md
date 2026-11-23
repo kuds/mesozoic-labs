@@ -134,6 +134,15 @@ must (a) re-specify the observation in an egocentric/body frame, (b) build a
 base-state estimator, and (c) build onboard target localization (or drop to a
 proprioception-only task formulation).
 
+*Update 2026-11-23 (decision D-D59, `configs/plant_versions.toml` note 24):* (a)
+is done for every model and (c) is moot. The mocap target is gone from every
+scene and its direction and distance from every observation; the observation
+reads projected gravity instead of the world quaternion and the base velocity in
+the gravity-aligned heading frame, so no channel depends on absolute yaw. (b)
+stands: that velocity is still the simulator's ground truth. The builder named
+above, `obs_functions.py`, was removed with the JAX/MJX backend (D-D17); each
+environment's `_get_obs` builds the observation.
+
 ### 3.2 Morphology & actuation
 
 | Species | Mass | Actuated DOF | Hip/knee torque caps (model) | Buildable as servo project? |
@@ -329,7 +338,16 @@ These need no hardware, live inside this repo, and directly de-risk transfer:
 6. **Egocentric observation reframe** — rotate base velocity + target into the
    root frame, express the target as a yaw-invariant bearing, drop absolute yaw;
    retrain. Removes the magnetometer/world-frame dependency that blocks any
-   onboard-estimator drop-in. *(L)*
+   onboard-estimator drop-in. *(L)* (*2026-11-23: the reframe is done, retraining
+   is not.* Every model's observation is heading-free since the policy-interface
+   revision of `configs/plant_versions.toml` note 24 (decision D-D59), the
+   Compsognathus robot's included: projected gravity replaces the root quaternion,
+   the base velocity is in the gravity-aligned heading frame, and no channel reads
+   absolute yaw. The target was deleted rather than reframed, because the prey,
+   food and course target left every scene; the trailing command is the operator's
+   input. The base velocity is still read from the simulator's `qvel[0:3]`, so the
+   Phase 3 estimator is still needed, and no policy has been trained on the new
+   observation yet.)
 7. **Prune to a buildable DOF variant** — drop toe servos, sickle-claw motors,
    forelimb stubs, tail-yaw → ~8–10 leg DOF; keep the high-DOF research variant
    separate. *(M)*

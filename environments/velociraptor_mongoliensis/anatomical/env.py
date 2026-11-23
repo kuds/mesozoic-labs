@@ -23,11 +23,11 @@ class VelociraptorMongoliensisAnatomicalEnv(VelociraptorMongoliensisEnv):
     #: as name templates.  Since physics r5 each foot stands on its MTP pad
     #: (on the metatarsus) and its passive digits III and IV, each with its
     #: own touch site, so the generic rule finds all three, and with them the
-    #: metatarsus shaft capsule and digit II's sickle claw, which hang off the
-    #: touch-site bodies and are dropped here.  The claw is contype/conaffinity
-    #: 2/2 against the floor's 1/1, so it never touches the floor (digit II's
-    #: phalanges are visual, contype 0).  The shaft ends 8 mm short of the MTP
-    #: condyle and sits 14.4 mm clear of the floor at home, and stays clear at
+    #: metatarsus shaft capsule, which hangs off the pad's body and is dropped
+    #: here.  Digit II's phalanges and its sickle claw are visual (contype /
+    #: conaffinity 0; the claw since physics r6, which removed its prey-only
+    #: 2/2 collision), so the rule never takes them.  The shaft ends 8 mm
+    #: short of the MTP condyle and sits 14.4 mm clear of the floor at home, and stays clear at
     #: and near the stance (every live step at action noise 0.3 on the stance
     #: config, 100 seeds); only in a collapse does it load the floor (at action
     #: noise 1.0, 2 of 18216 live steps of 300 seeds, at most 33 N), which this
@@ -49,11 +49,12 @@ class VelociraptorMongoliensisAnatomicalEnv(VelociraptorMongoliensisEnv):
         "foot_site": "{s}_foot",
     }
     #: The digest snapshot's reward probe: the roll's action-noise amplitude,
-    #: and no success-probe element, as the species declares no SUCCESS_KEYS
-    #: since the strike was removed with the hunt (decision D-D59; the probe
-    #: moved the target onto ``r_claw_geom``).
+    #: and no success-probe effector, as the species declares no SUCCESS_KEYS
+    #: since the strike was removed with the hunt (decision D-D59).
     #: The amplitude is half the largest that keeps every stage up for the
     #: roll's 300 steps (reset seed 1042, action seed 7; no stage pushes):
     #: 0.26 on the physics-r5 plant, where 0.28 nosedives at step 154 on all
     #: three stages (amplitudes 0.02-0.60 by 0.02), so 0.13 (r4: 0.1).
+    #: Re-measured on physics r6 (no prey, visual claws) on its two stages,
+    #: stance and locomotion: the same 0.26, and 0.28 nosedives at step 154.
     REWARD_PROBE = (0.13,)

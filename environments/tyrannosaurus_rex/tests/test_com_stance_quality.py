@@ -10,9 +10,11 @@ The noise-free statue rocks fore-aft at 0.5 Hz after the reset, the motion falli
 9 s settle.
 
 On physics r11 (2026-11-21, MuJoCo 3.10.0), every one of the 80 noisy spawns stands for the full 20 s.
-The neutral statue's settled minimum CoM margin is 63.1 mm. The worst spawn turns 4.77 deg from its
-initial heading. Four strict expected failures track remaining targets for turn, rocking, settling
-and foot slip after landing.
+The neutral statue's settled minimum CoM margin was 63.1 mm. Physics r12 removes the 0.2 kg head_bite
+box from the snout with the hunt (decision D-D59): the lighter head stands the statue 4.6 mm further
+back and 0.26 deg less nose-down, and its settled minimum CoM margin, to the edge behind, is 58.5 mm
+(2026-11-23). The worst spawn turns 4.77 deg from its initial heading. Four strict expected failures
+track remaining targets for turn, rocking, settling and foot slip after landing.
 """
 
 import pytest
@@ -26,40 +28,47 @@ class TestComStanceQuality(ComStanceQualityBase):
     # The static-balance tests' constructor.
     env_kwargs = {"reset_noise_scale": 0.0, "nosedive_termination_threshold": 0.35}
     species_label = "T. rex"
-    physics_revision = 11
+    physics_revision = 12
     # The settle (9 s) leaves under 5 s of the env's 1,000 steps: twice that, so the window is
     # the stance it settles into.
     horizon_steps = 2000
     window_start_s = 9.0
-    # The noise-free statue's window values, physics r11, MuJoCo 3.10.0, read on 2026-11-21 with
+    # The noise-free statue's window values, physics r12, MuJoCo 3.10.0, read on 2026-11-23 with
     # com_stance_calibration and rounded to 0.01 mm and 1e-4 deg and of the load (under 1 % of a width).
-    # Keep the stricter r10 ceilings for CoM speed RMS and pitch SD (r11: 0.00028 m/s and 0.0114 deg).
+    # r11 kept the stricter r10 ceilings for CoM speed RMS and pitch SD (r11: 0.00028 m/s and 0.0114 deg);
+    # r12 reads under both (0.00021 m/s and 0.0084 deg), so they tighten. The head_bite removal moves the
+    # fore-aft keys: CoM margin 63.07 -> 58.51 mm, CoM fore-aft -26.68 -> -31.30 mm, pitch -0.9615 ->
+    # -0.6967 deg, CoM height +0.72 mm.
     reference = {
-        "com_margin_min_m": 0.06307,
-        "xcom_margin_min_m": 0.06298,
-        "com_margin_lateral_min_m": 0.19058,
-        "xcom_margin_lateral_min_m": 0.19057,
-        "com_margin_fore_aft_min_m": 0.06307,
-        "xcom_margin_fore_aft_min_m": 0.06298,
-        "com_fore_aft_mean_m": -0.02668,
-        "com_fore_aft_drift_m": -6e-05,
-        "root_pitch_mean_deg": -0.9615,
-        "com_height_mean_m": 0.86512,
-        "com_height_drift_m": 1e-05,
+        "com_margin_min_m": 0.05851,
+        "xcom_margin_min_m": 0.05844,
+        "com_margin_lateral_min_m": 0.19018,
+        "xcom_margin_lateral_min_m": 0.19017,
+        "com_margin_fore_aft_min_m": 0.05851,
+        "xcom_margin_fore_aft_min_m": 0.05844,
+        "com_fore_aft_mean_m": -0.0313,
+        "com_fore_aft_drift_m": -4e-05,
+        "root_pitch_mean_deg": -0.6967,
+        "com_height_mean_m": 0.86584,
+        "com_height_drift_m": 0.0,
         "foot_turn_max_deg": 0.0001,
         "foot_turn_from_spawn_max_deg": 0.0002,
         "foot_splay_change_max_deg": 0.0002,
         "foot_travel_max_m": 0.0,
         "foot_travel_from_spawn_max_m": 3e-05,
-        "com_speed_rms_mps": 0.00027,
+        "com_speed_rms_mps": 0.00021,
         "com_speed_end_rms_mps": 2e-05,
-        "com_fore_aft_sd_m": 0.0001,
+        "com_fore_aft_sd_m": 7e-05,
         "com_height_sd_m": 1e-05,
-        "root_pitch_sd_deg": 0.011,
+        "root_pitch_sd_deg": 0.0084,
     }
     # Keep r10's widths on r11: all 30 calibration and 50 held-out spawns continue to meet them.
     # The new digital spread increases the reference lateral support margin by 5.6 mm, and the
     # redistributed hindlimb mass lowers the CoM by 1.8 mm. The tolerances on both remain fixed.
+    # Kept on r12 too, where all 80 spawns still meet them: the calibration's rule would widen the six
+    # margins (to 1.2 / 1.1 mm and 49 mm lateral), root_turn_deg (0.29) and foot_travel_max_m (9.3 mm),
+    # each by at most 26 %, so no spawn uses more than about 0.74 of a kept width; the two from-spawn turn
+    # widths tighten to the rule's 9.6 and 9.7 deg.
     spread_width = {
         "com_margin_min_m": 0.001,
         "xcom_margin_min_m": 0.001,
@@ -80,10 +89,10 @@ class TestComStanceQuality(ComStanceQualityBase):
         "com_height_drift_m": 0.001,
         "root_turn_deg": 0.28,
         "root_turn_end_deg": 0.1,
-        "root_turn_from_spawn_deg": 9.8,
+        "root_turn_from_spawn_deg": 9.6,
         "root_minus_feet_yaw_from_spawn_deg": 0.56,
         "foot_turn_max_deg": 0.34,
-        "foot_turn_from_spawn_max_deg": 9.8,
+        "foot_turn_from_spawn_max_deg": 9.7,
         "foot_splay_change_max_deg": 0.45,
         "foot_travel_max_m": 0.0092,
         "foot_travel_from_spawn_max_m": 0.034,
@@ -102,7 +111,7 @@ class TestComStanceQuality(ComStanceQualityBase):
     @pytest.mark.xfail(
         strict=True,
         raises=TargetMissed,
-        reason="r11, 2026-11-21: 49 of 80 noisy spawns exceed the 1 deg turn target. Worst 4.77 deg, median 1.57 deg.",
+        reason="r12, 2026-11-23: 49 of 80 noisy spawns exceed the 1 deg turn target. Worst 4.77 deg, median 1.57 deg.",
     )
     def test_target_turn_from_spawn(self, statue):
         """Absolute target: the body ends the episode turned under 1 deg from its spawn."""
@@ -111,7 +120,7 @@ class TestComStanceQuality(ComStanceQualityBase):
     @pytest.mark.xfail(
         strict=True,
         raises=TargetMissed,
-        reason="r11, 2026-11-21: all 80 noisy spawns exceed the 1 mm/s worst-second RMS target from 3 s. The statue reaches 6.43 mm/s and the worst noisy spawn 9.48 mm/s.",
+        reason="r12, 2026-11-23: 79 of 80 noisy spawns exceed the 1 mm/s worst-second RMS target from 3 s. The statue reaches 4.82 mm/s and the worst noisy spawn 8.13 mm/s.",
     )
     def test_target_still_from_3s(self, statue):
         """Absolute target: no rocking after 3 s (every second under 1 mm/s RMS, under 1 mm fore-aft)."""
@@ -120,7 +129,7 @@ class TestComStanceQuality(ComStanceQualityBase):
     @pytest.mark.xfail(
         strict=True,
         raises=TargetMissed,
-        reason="r11, 2026-11-21: all 80 noisy spawns take longer than 2 s to settle. Median 8 s, worst 9 s.",
+        reason="r12, 2026-11-23: all 80 noisy spawns take longer than 2 s to settle. Median 7 s, worst 9 s.",
     )
     def test_target_settled_by_2s(self, statue):
         """Absolute target: the stance has settled by 2 s."""
@@ -129,7 +138,7 @@ class TestComStanceQuality(ComStanceQualityBase):
     @pytest.mark.xfail(
         strict=True,
         raises=TargetMissed,
-        reason="r11, 2026-11-21: 61 of 80 noisy spawns exceed the 2.44 mm foot-slip target after landing. Worst 10.85 mm, median 3.79 mm.",
+        reason="r12, 2026-11-23: 61 of 80 noisy spawns exceed the 2.44 mm foot-slip target after landing. Worst 10.84 mm, median 3.78 mm.",
     )
     def test_target_foot_slip_after_landing(self, statue):
         """Absolute target: from 1 s no foot slips farther than a 1 deg turn about the feet's centre slides it."""

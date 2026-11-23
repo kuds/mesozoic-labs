@@ -906,7 +906,11 @@ states. On a stage with scheduled pushes (a recovery stage's
 pushes off (`policy_probe.bank_env_kwargs`): a push topples the statue and
 the leans before their kept steps, and with the pushes on the T. rex
 recovery stage kept 4 of the 10 states (no `statue` row) and the anatomical
-Compsognathus recovery stage 6. With the multiple at 0 the env's reset
+Compsognathus recovery stage 6 (measured on the T. rex's physics r11 and the
+push schedules of that date; `configs/plant_versions.toml` note 24 moved
+both). Since T. rex physics r12 the bank of the T. rex stance holds nine
+states: the +0.03 lean falls on seed 3043 at step 515, and its row is
+dropped as below. With the multiple at 0 the env's reset
 draws exactly what a push-free reset of the same seed draws, and the
 observation does not depend on it. A row whose episode still ends at or
 before its kept step is dropped, with one warning naming every dropped row, and
@@ -973,7 +977,7 @@ space reads NaN, with one warning, and a pass that fails costs the row's
 
 The per-update arrays are float32, but the step counts and `rollout_rows`
 (int64) and `obs_rms_count` (float64): about 2.4 KB per update on the
-T. rex (15 actuators, 63 observations, 10 states; 0.5 KB of it the
+T. rex of policy interface r16 (15 actuators, 63 observations, 10 states; 0.5 KB of it the
 `rollout_*` arrays), about 3.5 MB over the 1,465 updates of a 12M run. A
 same-stage resume from a file written before the `rollout_*` arrays keeps
 its rows, with 0 rows and NaN there. TensorBoard gets, at every update and

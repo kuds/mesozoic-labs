@@ -108,11 +108,10 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         }
         self.tracking_velocity_sigma = 0.25 * speed_ratio
         parameters = inspect.signature(self._canonical_env_class).parameters
-        # Fixed target, straight-line and stationary objectives conflict with
-        # requested turns/stops. Only pass parameters the species supports.
-        # The velociraptor, T. rex, brachiosaurus and dibothrosuchus hunt
-        # kwargs left with their hunt code (decision D-D59); the Compsognathus
-        # target terms remain until the Compsognathus hunt code goes.
+        # Straight-line and stationary objectives (along the spawn's reference
+        # heading, or holding the spawn) conflict with requested turns/stops.
+        # Only pass parameters the species supports.  The hunt and target
+        # kwargs left with their code (decision D-D59).
         for name in (
             "forward_vel_weight",
             "heading_weight",
@@ -122,8 +121,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             "spin_penalty_weight",
             "speed_penalty_weight",
             "idle_penalty_weight",
-            "target_reach_bonus",
-            "target_approach_weight",
         ):
             if name in parameters:
                 env_kwargs[name] = 0.0
@@ -145,17 +142,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             self._assert_same_animal(self._plane_model, self._terrain_model)
             self._assert_matching_ids(self._plane_model, self._terrain_model)
             self._terrain_data = mujoco.MjData(self._terrain_model)
-        # Preserve target observation channels, while making target props
-        # unable to obstruct a route. Includes descendants of mocap props.
-        prop_bodies: set[int] = set()
-        for body in range(1, self.model.nbody):
-            if self.model.body_mocapid[body] >= 0 or int(self.model.body_parentid[body]) in prop_bodies:
-                prop_bodies.add(body)
-        prop_geoms = np.isin(self.model.geom_bodyid, list(prop_bodies))
-        for model in (self._plane_model, self._terrain_model):
-            if model is not None:
-                model.geom_contype[prop_geoms] = 0
-                model.geom_conaffinity[prop_geoms] = 0
         if self._terrain_contact_probe_geoms:
             # A separate collision-only model detects probe-geom/surface
             # intersections without letting the non-colliding geom support the
@@ -303,8 +289,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     def _probe_terrain_contacts(self) -> None:
         """Substep hook: latch the first probe geom that penetrates the floor."""
         self._probe_data.qpos[:] = self.data.qpos
-        self._probe_data.mocap_pos[:] = self.data.mocap_pos
-        self._probe_data.mocap_quat[:] = self.data.mocap_quat
         mujoco.mj_kinematics(self._probe_model, self._probe_data)
         mujoco.mj_collision(self._probe_model, self._probe_data)
         pairs = self._probe_data.contact.geom

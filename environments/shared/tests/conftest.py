@@ -82,7 +82,7 @@ def velociraptor_mongoliensis_layers():
             physics_revision=1,
             policy_interface_revision=1,
             visual_revision=1,
-            observation_schema="bipedal-target/v1",
+            observation_schema="bipedal-heading-free/v1",
         )
         layers = fingerprint_model_layers(env.model, interface, version)
         yield source, interface, version, layers

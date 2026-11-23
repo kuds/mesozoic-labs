@@ -207,7 +207,15 @@ record the plan before that day; the four historical ladder summaries under
 `results/` (three from March 2026 and the Brachiosaurus run of 2026-07-18),
 whose last stage was a hunt, are deleted (`results/README.md` names the last commit
 that holds them). Walk becomes command-driven and follow-direction is the
-path after it, in later changes.* Section 2 labels each
+path after it, in later changes.* *2026-11-23, later (the same decision,
+`configs/plant_versions.toml` note 24): the prey, food and course target left
+every scene and every model's observation became heading-free in one
+revision of all seven plants (physics, policy interface and visual), so every
+checkpoint named below, certified or not, fails the plant check, cannot be
+widened and cannot seed a warm start or a trunk reuse; every session below
+starts from a fresh stance on the new revisions, whose statue-derived rails
+were re-measured (the velociraptor stance rail 2000 → 1950, the
+dibothrosuchus 1560 → 1500).* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.

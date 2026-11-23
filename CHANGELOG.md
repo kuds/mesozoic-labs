@@ -2436,6 +2436,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   §3); the recipe (`054ab483`, and `c64211e8` with the critic phase on) and
   the gate (`d26c34e6`) are unchanged, pinned by the digest golden and
   `test_critic_phase.py`.
+- **Every checkpoint of every model must be retrained; none can be widened**
+  (decision D-D59's amendment of 2026-11-23; `configs/plant_versions.toml`
+  note 24). The prey's removal and the heading-free observation are one
+  revision of all seven plants, whose physics, policy-interface and visual
+  revisions all move (velociraptor 6 / 15 / 7, T. rex 12 / 17 / 6,
+  Brachiosaurus 7 / 12 / 4, Dibothrosuchus 4 / 11 / 3, Compsognathus
+  anatomical 4 / 7 / 4 and robot 2 / 4 / 2, Allosaurus 2 / 2 / 2), and every
+  observation narrows:
+
+  | Model | Observation width | Observation schema |
+  |---|---|---|
+  | `velociraptor_mongoliensis/anatomical` | 71 → 67 | `bipedal-target-heading-free/v1` → `bipedal-heading-free/v1` |
+  | `tyrannosaurus_rex/anatomical` | 63 → 59 | `bipedal-target-heading-free/v1` → `bipedal-heading-free/v1` |
+  | `brachiosaurus_altithorax/anatomical` | 86 → 81 | `quadrupedal-target/v1` → `quadrupedal-heading-free/v1` |
+  | `dibothrosuchus_elaphros/anatomical` | 80 → 75 | `quadrupedal-target/v1` → `quadrupedal-heading-free/v1` |
+  | `compsognathus_longipes/anatomical` | 55 → 51 | `bipedal-target-heading-free/v1` → `bipedal-heading-free/v1` |
+  | `compsognathus_longipes/robot` | 46 → 41 | `bipedal-target/v1` → `bipedal-heading-free/v1` |
+  | `allosaurus_fragilis/anatomical` | 45 → 41 | `bipedal-target-heading-free/v1` → `bipedal-heading-free/v1` |
+
+  Each load path compares the checkpoint's recorded plant identity with the
+  plant's and refuses the mismatch (`PlantCompatibilityError` on the
+  revisions, the digests and `observation_dim`); `widen_checkpoint.py` only
+  appends a command segment on an unchanged physics digest, so it cannot
+  carry a narrower observation; and ancestor reuse refuses every recorded
+  node, since every stage and behavior-recipe `task_sha256` moved, so
+  `TRUNK_FROM = "auto"` and `--trunk-from` find no trunk on any model and
+  `resume_same_stage` refuses. A recovery resolution frozen on either
+  Compsognathus model before this change is refused too: its
+  `evaluation_spec` names the calibration profile, which was re-measured
+  (Changed). Train every model's stance afresh on the new revisions, then
+  its walk (and its recovery). Breaking every checkpoint is the decision's
+  accepted cost, taken once in this revision; no command plumbing comes with
+  it, and every stance keeps `command_mode = "none"`.
+- **The reset draws fewer random numbers: a seeded reset's state is
+  unchanged, but every unseeded episode after it and every seeded push
+  schedule differ from before.** `BaseDinoEnv.reset` draws the joint and
+  velocity jitter and nothing else before the recovery push schedule and the
+  command hook (which draws nothing under `command_mode = "none"`): the
+  target placement draws (distance and lateral on the velociraptor, T. rex,
+  Dibothrosuchus and both Compsognathus models; distance, lateral and height
+  on the Brachiosaurus; none on the Allosaurus) and the state-inert
+  root-height jitter draw are gone. The jitter was always drawn first and
+  the ground settle removed the height draw's effect, so `reset(seed)`
+  returns the state it returned before on every model (the reset golden's
+  reset halves re-took equal at 6 decimals; the Allosaurus root height
+  differs by one ulp on 16 of 40 seeds); only the generator state it leaves
+  moves. A baseline that rolls several episodes from one seeded reset, or
+  schedules pushes from it, is not comparable with one taken before; the
+  recovery statue panels and both Compsognathus calibrations were
+  re-measured (Changed). A panel that seeds each episode is unaffected.
+- **A constructor call or `[env]` table that passes a target placement
+  range, a Compsognathus target argument or `reset_height_noise_scale`
+  raises `TypeError`; drop the key.** The arguments are
+  `prey_distance_range` and `prey_lateral_range` (velociraptor, T. rex,
+  Dibothrosuchus, both Compsognathus models), `food_distance_range`,
+  `food_lateral_range` and `food_height_range` (Brachiosaurus),
+  `target_approach_weight`, `target_reach_bonus`, `target_radius` and
+  `target_max_speed` (both Compsognathus models) and
+  `reset_height_noise_scale` (every model; `BaseDinoEnv` no longer takes it).
+  A frozen `stage_config.json` of an earlier run records them in its
+  effective config (`reward_weights`) and raises the same error when passed
+  back. Code written against the removed interfaces moves too: a species
+  subclass implements `_reset_episode_state` in place of `_spawn_target` (it
+  may read `_initial_pos_2d` and `_reference_heading_2d`, which
+  `BaseDinoEnv.reset` now sets, and must neither set them nor draw);
+  `heading_observation.heading_free_root_segments(qpos, root_linear_velocity)`
+  takes and returns two arrays (projected gravity, heading-frame velocity),
+  without the target; `HEADING_FREE_OBSERVATION_SCHEMA` is
+  `BIPEDAL_HEADING_FREE_SCHEMA` or `QUADRUPEDAL_HEADING_FREE_SCHEMA` (in
+  `heading_observation` and `symmetry`); `ModelMirror.mocap_map` is gone; a
+  `REWARD_PROBE` success effector is `("root_displacement", "<attribute>")`;
+  and code that read the Compsognathus info keys `reward_approach`,
+  `reward_target`, `prey_distance` or `target_success`, or a mid-episode
+  `is_success`, drops them.
 - **Every velociraptor checkpoint must be retrained; none can be widened**
   (velociraptor physics revision 4 → 5, policy interface revision 13 → 14,
   69 → 71 wide and 22 → 17 actions, visual revision 4 → 5; the maintainer's
@@ -2868,6 +2942,297 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the info stream of a deleted hunt key, or is the flags stream (which
     hashes the info key list); every reward stream and every other info
     stream is unchanged. The `poses` lines do not move.
+
+- **Every model's observation reads no world heading and no target, in one
+  layout under two schemas** (decision D-D59's amendment of 2026-11-23;
+  `configs/plant_versions.toml` note 24; breaking, Migration). Every
+  `_get_obs` is, in this order: `qpos[7:]`, `qvel[6:]`, the root's projected
+  gravity, its gyro, its linear velocity in the gravity-aligned heading frame
+  (forward, left, up), its accelerometer, the foot channels and the 3-wide
+  command, last (`command_frame.command_slice` still reads `obs[-3:]`). The
+  root is the pelvis under `bipedal-heading-free/v1` and the torso under
+  `quadrupedal-heading-free/v1`. The target direction (3) and distance (1)
+  leave all seven, and the Brachiosaurus, the Dibothrosuchus and the
+  Compsognathus robot leave the world frame (the root quaternion's 4 values
+  become projected gravity's 3, and the world velocity the heading-frame
+  velocity), so a whole-scene turn about vertical leaves every model's
+  observation unchanged.
+  - The schema strings are renamed, a departure from D-C6, under which notes
+    12, 14 and 22 kept the name when a segment's composition changed: here
+    segments leave and three models change frame, the old names described
+    target segments that no longer exist, and the rename lands in the
+    revision that strands every checkpoint anyway. `heading_observation`
+    exports `BIPEDAL_HEADING_FREE_SCHEMA`, `QUADRUPEDAL_HEADING_FREE_SCHEMA`
+    and `HEADING_FREE_ROOT_LABELS` (`pelvis`, `torso`), and the plant
+    contract refuses any other schema string.
+  - The Compsognathus robot's two foot channels read each sole's normal force
+    against the floor (`BaseDinoEnv._foot_floor_contact_forces` over the
+    robot class's `FOOT_OBSERVATION_FLOOR_GEOMS = (("right_sole",),
+    ("left_sole",))`, resolved into `_foot_observation_floor_geoms`), so a
+    sole resting on the other foot, which its touch sensors count, is not
+    read as support. The soles' collisions and dynamics are unchanged. On the
+    zero-action statue (seeds 3042–3061, 1000 steps) the two readings agree
+    to 0.0 N on every step; posed sole on sole, the upper foot's channel reads
+    0 N where its touch sensor reads 7.8 N. The reward's support flag still
+    reads touch on both Compsognathus models (the gait plan's PR-G7 moves it
+    to floor support), and the anatomical model's channels stay its touch
+    sensors. Both models share one `CompsognathusLongipesEnv._get_obs`, moved
+    from the anatomical class.
+  - The plant contract (`plant_contract/policy_layer.py`) records one segment
+    table for both schemas, hashes `heading_observation`'s helpers on every
+    model (`interface_implementations.heading_free_observation`, new on the
+    Brachiosaurus, Dibothrosuchus and robot), records the robot's
+    floor-contact segment (`source = "floor-contact-normal-force"`, the floor
+    geom and the geom groups, refused unless disjoint, non-empty and off the
+    floor) and hashes `_foot_floor_contact_forces` as
+    `interface_implementations.foot_floor_contact_observation`. It refuses a
+    plant with a mocap body (`_require_no_mocap_body`, in place of
+    `_mocap_target_name`'s exactly-one rule), and its observation probe fills
+    no mocap position.
+  - `symmetry.py` maps both schemas (`OBSERVATION_LAYOUTS`), refuses a mocap
+    body, mirrors no mocap state, mirrors `_reference_heading_2d` (its y
+    flips) in place of the prey bearing, and mirrors the quadrupeds'
+    `_quad_touchdown_sequence` (A ↔ B), which it refused before; floor-contact
+    channels are named `foot_floor_contact.<geoms>`. The Brachiosaurus and
+    Dibothrosuchus mirrors derive (observation equivariance error 0.0 over 100
+    and 50 random-action steps); the robot's is still refused
+    (`hip_roll_assembly` has no mirror partner). The committed T. rex map was
+    regenerated, 59 wide (`python -m environments.shared.symmetry --check` is
+    current).
+  - `scripts/observation_ablation_report.py`'s T. rex table is the 59-wide
+    layout (`root_linvel` 48–51, `command` 56–59) and its privileged slice is
+    `root_linvel` alone.
+
+- **The episode's forward reference is the heading the animal spawns with,
+  and the species reset hook is `_reset_episode_state`** (the same revision).
+  `BaseDinoEnv.reset` keyframes, draws the joint and velocity jitter, records
+  the drift anchor `_initial_pos_2d` and the reference heading
+  `_reference_heading_2d` (the unit forward of the spawn root's quaternion,
+  float64), calls the species' `_reset_episode_state`, settles the root on
+  the ground, then draws the push schedule (recovery stages) and the command.
+  The hook replaces `_spawn_target`: it clears the per-episode state (action
+  history, gait state, the T. rex's policy-action tags and stance-width
+  target, the anatomical Compsognathus spawn stance width), draws nothing and
+  sets neither anchor; the Allosaurus's has nothing to clear. Every forward,
+  lateral and heading term reads `_reference_heading_2d` where it read the
+  bearing to the prey or food at spawn (`_initial_prey_dir_2d`,
+  `_initial_food_dir_2d`). On the Compsognathus pair that bearing was the
+  spawn axis to within 3.4e-4 rad (no lateral offset), and every
+  Compsognathus statue reward reproduces to the printed 0.01.
+  - The stance `heading_weight` is 0 on the velociraptor, the T. rex (and its
+    recovery, through `extends`) and the Dibothrosuchus (0.1 before): a
+    heading-free stance with no command cannot observe a heading error, and
+    the spin and drift penalties price wandering; each TOML says why. The
+    locomotion heading weights stay (0.3 on the velociraptor and T. rex, 0.07
+    on the Brachiosaurus, 0.1 on the Dibothrosuchus, 0.2 on both
+    Compsognathus models), now measured against the spawn heading; the
+    Compsognathus `lateral_penalty_weight` values stay, as their prey had no
+    lateral offset.
+  - The Allosaurus's `course_complete` fires when the pelvis has moved
+    `COURSE_LENGTH_M - COURSE_TOLERANCE_M` = 7.65 m along
+    `_reference_heading_2d` since reset while a foot bears weight (on a stage
+    that pays forward velocity, as before), where it fired within 0.35 m of a
+    target 8 m ahead; a sideways offset neither causes nor prevents it. The
+    reference walk crosses the line one control step earlier (2362 steps,
+    23.62 s, on seeds 0, 1 and 7; the old disc needed 7.65069 m) and ends
+    identically at every whole-scene heading. `SUCCESS_KEYS` stays
+    `("course_complete",)`, the only success key left on any model;
+    `data/reference_validation.json` was regenerated (the XML digest and the
+    course trials) and the catalog's success definition and specialty
+    (`configs/species_manifest.toml`) describe the course.
+  - The stance reports' whole-scene turn (`stance_report._apply_spawn_yaw`,
+    protocol `whole_scene_yaw/v1`) turns the spawn and `_reference_heading_2d`
+    where it turned the mocap bodies and the prey bearing; the probe and
+    certificate texts say so.
+  - The digest harness's success probe moves the root along
+    `_reference_heading_2d` by the metres in the env attribute its
+    `REWARD_PROBE` names (`(0.02, "root_displacement", "COURSE_LENGTH_M")` on
+    the Allosaurus; `SUCCESS_PROBE_KINDS` holds that kind alone), where it
+    moved mocap body 0 onto a body; the six other models' probes are the roll
+    amplitude alone. Its exact mode records no `mocap_pos`.
+
+- **The T. rex and Dibothrosuchus constants that read the plant were
+  re-measured, as their skulls lost a hunt-only box** (T. rex physics r12:
+  the 0.2 kg `head_bite`, 85.72 → 85.52 kg, 840.91 → 838.95 N;
+  Dibothrosuchus physics r4: the 0.02 kg `snout_snap`, 8.65 → 8.63 kg,
+  84.86 → 84.66 N). Each differs from its predecessor from the first physics
+  step (`configs/plant_versions.toml` note 24 b). T. rex: `_NECK_SETTLED_QPOS`
+  (0.21394, 0, 0.22048) → (0.20784, 0, 0.21222), `_TAIL_SETTLED_QPOS`
+  (0.00010, 0, 0.00013, 0.00024) → (0.00015, 0, 0.00010, 0.00018) and
+  `_LEG_SETTLED_QPOS`, each by its documented procedure (which reproduces the
+  old value on the old plant); `natural_pitch` 0.017 → 0.012 (the statue
+  settles 0.69° nose-down, 0.95° before) and the stance
+  `nosedive_termination_threshold` 0.503 → 0.508 (the absolute cut stays
+  −0.520); the recovery push derived at multiple 1.5 is 159.7 N (165.6 N:
+  the home CoM 4.6 mm further back, the home contact box's nearest side
+  margin 77.2 → 74.6 mm). The test pins that read the r12 plant were
+  re-measured: the CoM-stance references (`test_com_stance_quality.py`, its
+  widths kept by the r11 precedent and two tightened), the CoP-band golden,
+  the gait recorder's statue CoP reading, the neck base pitch moment
+  (−42.85 → −41.51 N·m), the scripted nosedive's ankle offset (−0.05 →
+  −0.06, which ends at step 468), the stance-gate pad-CoP probe (−0.09 →
+  −0.095) and the heading-free tests' linear-policy gain (0.001). On r12 the
+  policy-probe bank's +0.03 lean falls on seed 3043 at step 515, so the T. rex
+  stance bank holds nine states (`policy_probe.BANK_SPEC` is unchanged); with
+  the new push schedule its pushed bank keeps two rows of three, where it
+  kept one. Dibothrosuchus: the reference walk's `sway_phase` 0.08 → 0.06
+  (with 0.08 the right forefoot landed on the left hind foot's control step
+  from about stride 10, and the order swapped at touchdown 63 of a 20-stride
+  walk; 0.06 keeps every ordering check of its review, and the neutral
+  nine-stride walk reads 0.157 m/s and a 0.80 s stride), its CoM-stance references
+  re-read (two widths tightened, the fore-aft margin width kept), and the
+  statue's snout check reads the `snout_geom` capsule, whose end sits where
+  the box's front face was. Every other removal is bit-identical, so no other
+  model's measured constant moved: the velociraptor (its pin revision only),
+  the Brachiosaurus and both Compsognathus models re-read their CoM-stance
+  pins unchanged, and the velociraptor's `REWARD_PROBE` amplitude re-measured
+  at 0.13.
+
+- **Statue-derived rails and references re-measured on the new plants**
+  (`python -m environments.shared.scripts.zero_action_baseline --model-id
+  <species> <embodiment> --episodes 40 --seed 3042 [--stage 2]` at the
+  stage's reset noise, 40/40 full horizon unless stated;
+  `statue_constants_physics_revision` follows each physics revision). Each
+  stance statue that paid the 0.1 heading term falls by about 100 without it:
+  - velociraptor stance 3241.68 ± 2.76 (r5 3341.03 ± 2.72):
+    `collapse_peak_floor_reference` 3341.0 → 3241.7 (floor 1458.8) and the
+    `min_avg_reward` rail 2000 → 1950 (0.60 × the statue to the nearest 10,
+    the file's rule); locomotion 798.35 ± 1.88 (796.59 ± 3.15; its heading
+    term now reads the spawn heading): 796.6 → 798.4 (floor 359.3); both pins
+    5 → 6.
+  - T. rex stance 4372.74 ± 30.63: 4470.6 → 4372.7 (floor 1967.7). The same
+    panel with the heading weight at 0.1 reads 4472.31 ± 30.80, so −99.6 is
+    the heading term and +1.7 the plant and its re-centred targets. The
+    `min_avg_reward` rail stays 2260 (0.52 × the statue; by the r11 precedent
+    the published rail stays, and the ratio rail binds first). Locomotion
+    1094.77 ± 3.19: 1092.7 → 1094.8 (floor 492.7). The pushed recovery
+    statue (`python -m environments.shared.harnesses.recovery_offdist_panel
+    --controller statue --schedule on --safe-set provisional`) 1730.6 ±
+    675.4 (sample SD), mean length 500.25, 0/40 full horizon, ending fallen
+    26 / nosedive 14, 51 of 80 shoves recovered: 1613.2 → 1730.6 (floor
+    778.8). All three pins 11 → 12. The statue's six-heading certificate
+    (`python environments/shared/scripts/stance_gate_report.py --species
+    tyrannosaurus_rex --embodiment anatomical --zero-action`) passes, 40/40
+    seeds clean at all six headings, reward 4372.7 at each; the stance TOML's
+    gate block records its r12 worst rows.
+  - Dibothrosuchus stance 2499.18 ± 0.23 (seeds from 3042) and 2499.24 ±
+    0.21 (from 3082; r3 2598.47 ± 0.65): `min_avg_reward` 1560 → 1500 and
+    `collapse_peak_floor` 1950 → 1870 (0.60 and 0.75 × the statue, by the
+    file's rules); locomotion 2171.54 ± 262.74 (its floor is absolute).
+  - Unchanged: the Brachiosaurus stance 1749.61 ± 0.15 and locomotion
+    2282.00 ± 11.20 (2281.55 ± 11.37 on r6 with the food bearing as the
+    reference); the anatomical Compsognathus 4574.38 ± 4.51 and 1499.70 ±
+    0.71 (its stance pin 3 → 4, the values kept); the robot 2997.82 ± 1.41
+    and 1499.44 ± 0.74. The Allosaurus statue does not stand (home torques,
+    no servos) and pins no statue constant.
+  The tests that mirror these constants follow
+  (`test_velociraptor_mongoliensis_stance_gate_config.py`,
+  `test_compsognathus_longipes_stance_gate_config.py`,
+  `test_curriculum_manager.py`, `test_recovery_gate_config.py`,
+  `test_curriculum_early_stopping.py`, `test_backfill_gate_verdict.py` and
+  the catalog's stage-1 rails in `test_species_catalog.py`).
+
+- **Both Compsognathus recovery calibrations were re-measured, not
+  restamped** (`python -m environments.shared.scripts.calibrate_recovery
+  --species compsognathus_longipes --embodiment anatomical|robot`). The push
+  schedule is drawn after the reset's removed draws, so every seeded schedule
+  moved, and the profiles recorded `recovery_env_kwargs` that named the
+  removed arguments; a restamp covers neither. Rule, seed blocks and
+  safe-set floors are unchanged; the quiet height references re-took equal
+  (0.24445671478620684 m and 0.21805927723252377 m), and the selected
+  multiple stays 1.2 on both (1.187 N for 0.20 s on the anatomical pelvis,
+  2.3515 N on the robot's core), so `recovery.toml`'s pre-registered
+  thresholds stay and only its comments give the new held-out numbers:
+
+  | Fixed-command panel | Anatomical r4 (r3) | Robot r2 (r1) |
+  |---|---:|---:|
+  | Selection at 1.2, successes / full horizon (of 32) | 6 / 15 (4 / 16) | 11 / 17 (12 / 21) |
+  | Held-out zero command (of 40) | 4 / 12 (6 / 17) | 14 / 22 (7 / 20) |
+  | Held-out fixed brace (of 40) | 4 / 12 (6 / 18) | 21 / 39 (15 / 40) |
+  | Stress, zero command / fixed brace successes | 0 / 0 (0 / 0) | 3 / 4 (1 / 1) |
+
+  The profiles' ids end `-2026-11-v4` (anatomical) and `-2026-11-v2`
+  (robot); they carry no `restamp_history` (the robot's Phase C restamp and
+  D-D33 migration describe its earlier profile) and record
+  `provenance.measurement_uncompressed_sha256` beside their measurements,
+  `environments/compsognathus_longipes/data/recovery_calibration_anatomical_r4.json.gz`
+  and `recovery_calibration_robot_r2.json.gz` (the r3 and v1 records stay).
+  `RECOVERY_CALIBRATION.md` opens with the current profiles.
+  `test_phase_c_interface.py`'s restamp and migration tests roll a committed
+  profile back one revision synthetically, as no committed profile carries a
+  restamp now, and
+  `test_committed_recovery_profiles_load_and_agree_with_their_measurements`
+  replaces the two-restamp and r3 pins.
+
+- **The reset golden is recaptured and the digest snapshot, the plant
+  manifests and the catalog are regenerated.**
+  - `environments/shared/tests/fixtures/phase_c_reset_golden.json` keeps its
+    purpose (a later revision that claims to draw nothing new must leave the
+    stream as it is; `command_mode = "none"` draws nothing), so its four
+    captures (the T. rex stance and recovery, both Compsognathus recoveries)
+    were re-taken with `reset_golden.py --recapture ... --reason "plant_versions
+    note 24 (D-D59): ..."` after a diff against the new tree showed every reset
+    half's `qpos` and `qvel` equal at 6 decimals and only the generator state,
+    the push schedules, the second reset and the mocap rows moved (the
+    Compsognathus trajectories bit-identical, the T. rex's within 1.1e-3 by
+    the `head_bite` removal). The records drop `mocap_pos`; the module
+    docstring describes a revision that changes the stream on purpose; the
+    top-level `source_commit` stays `7db7f8e`. `test_phase_c_interface.py`'s
+    `RECAPTURED` and `RECAPTURED_INTERFACES` name the new revisions and
+    `bipedal-heading-free/v1`.
+  - `configs/digest_snapshot.generated.txt`
+    (`--block-optional-backends --write`; 659 → 663 lines): 321 lines move
+    and 4 are added, on all seven models: the plant lines of the revision,
+    the policy layer's observation, segments, schema, probe, `_get_obs`,
+    sensor-cache, home-reset and whole-payload digests (with bodies, sites,
+    and on some models collision geoms and sensors), the four new
+    `heading_free_observation` / `foot_floor_contact_observation` lines, every
+    stage `task_sha256` (17) and `stage_config_view_sha256` (30), every
+    behavior recipe's `task_sha256` (77), the velociraptor and
+    Dibothrosuchus stance `gate_sha256` (their rails), both Compsognathus
+    `recovery … file_sha256` lines, and the reward captures (`summary` of 15
+    stages, `shape_sha256` and `rounded_values_sha256` of all 17). No
+    hyperparameter digest and no other gate digest moves. Of the reward
+    summaries, the Brachiosaurus stance's and the Allosaurus locomotion's do
+    not move; the Compsognathus stance and locomotion lines lose only their
+    success part; the Allosaurus stance's success probe reads −1.2000 where
+    it read 2.0000 (the root moved 8 m with no course check on stance, so
+    only the drift is priced); every other roll moves with the plant, the
+    heading term or the push schedule (the velociraptor stance 891.7259 →
+    855.5056, the T. rex stance 1024.0334 → 989.5941).
+  - `python -m environments.shared.plant_contract --write` (both manifests)
+    and `python -m environments.shared.species_catalog` (the README table,
+    `docs/SPECIES_CATALOG.md`, `website/src/data/species.generated.json`):
+    the widths, schemas, revisions and rails above, the T. rex at 85.52 kg
+    and the Dibothrosuchus at 8.63 kg, and the Allosaurus's course.
+
+- **Tests for the revision.** `test_heading_free_observation.py` and
+  `test_plant_contract_heading_free.py` run on all seven models (were the
+  first three heading-free bipeds; the quadrupeds' root is the torso, the
+  robot's feet read the floor; the Brachiosaurus's terminal-state test needs
+  N(0, 5) actions, as it stands N(0, 0.8) for 1000 steps, and the paired
+  rollouts pin the Allosaurus's falls, at step 91 at zero action and 154
+  under the linear policy). New: no
+  scene keeps a hunt object or hunt-only part, and the kept tips stay
+  (`test_mjcf_assets.py`); the reference heading is the spawn heading on all
+  seven, for turned and moved keyframes
+  (`test_base_env.py::TestTheReferenceHeadingIsTheSpawnHeading`); the reset
+  draws only the joint jitter (`TestResetDrawsOnlyTheJointJitter`);
+  `_foot_floor_contact_forces` on a stacked-box scene
+  (`TestFootFloorContactForces`), and the robot's floor channels on its statue
+  and posed sole on sole; the Allosaurus course line on a turned spawn; the
+  contract's refusals (a mocap body, a world-frame or target schema, an
+  overlapping, empty or off-model floor group); every model refusing a
+  removed target argument (`test_config.py`); and the digest harness
+  refusing an effector kind other than `root_displacement`. Retired, with the
+  height-jitter channel they pinned: the four `_bounded_reset_height_delta`
+  tests and `TestHeightJitterIsInertSinceGroundSettling`
+  (`TestResetHeightTruncation` is `TestResetStaysHealthy`, keeping its
+  healthy-range and zero-noise tests). `test_cached_observation_body_mapping_changes_interface_fingerprint`
+  is `test_cached_observation_sensor_mapping_changes_interface_fingerprint`:
+  the pelvis id fed only the target bearing, so the test now swaps the
+  velociraptor's per-site foot channels. The per-model width, schema,
+  revision, mass and body-weight tables follow the plants.
 
 - **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
   check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
@@ -5587,6 +5952,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`test_critic_phase.py`: `533fff20` → `cab8c221` on the archived r10 plant,
   `e9d349f8` → `df516f13` on the current one; its recipe digest does not
   move).
+- **The prey, food and course target, the hunt-only body parts, the
+  Compsognathus target task and the reset's height-jitter channel**
+  (decision D-D59's amendment of 2026-11-23; `configs/plant_versions.toml`
+  note 24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). The fourth change carrying
+  out the hunt's removal, and the one policy-interface revision the decision
+  accepted (Migration, Changed).
+  - From the scenes: the velociraptor's, T. rex's and Dibothrosuchus's `prey`
+    mocap bodies, the Brachiosaurus's `food`, both Compsognathus models'
+    `prey` (`scripts/build_models.py`'s `scene()`; both XMLs regenerated, and
+    the 3 prey lines are their only diff) and the Allosaurus's `target` and
+    `target_site` (`scripts/build_anatomy.py`, regenerated). `nmocap` is 0 on
+    every plant. Removing them is dynamically bit-identical on all seven: in
+    raw MuJoCo (the old MJCF against the same minus its mocap body, ten
+    seeds, 5000 steps on the home control and 3000 under action noise,
+    `qpos` and `qvel` equal) and through each environment's stage configs.
+  - The hunt-only parts: the velociraptor's colliding claw geoms
+    `r_claw_geom` / `l_claw_geom`, their `r_toe_claw` / `l_toe_claw` contact
+    exclude, the `r_claw_tip` / `l_claw_tip` sites and the `r_claw_pos` /
+    `l_claw_pos` sensors nothing read (each claw body keeps its 11 g as the
+    non-colliding capsule `r_toe_d2_ungual` / `l_toe_d2_ungual`, as MuJoCo
+    refuses a massless moving body, so the claw joint, its servo and the 17
+    actions stay; bit-identical, as the claw touched only the prey), the T.
+    rex's `head_bite` box and the Dibothrosuchus's `snout_snap` box (real
+    dynamics changes, Changed). The T. rex `head_tip`, the Dibothrosuchus
+    `snout_tip` and the Brachiosaurus `head_tip` with its `head_tip_pos`
+    sensor stay.
+  - The Compsognathus target task, from both embodiments: the
+    `target_approach_weight`, `target_reach_bonus`, `target_radius` and
+    `target_max_speed` arguments, the inline approach reward
+    (`reward_approach`, from `_prev_prey_distance`), `reward_target`, the info
+    keys `prey_distance` and `target_success`, the mid-episode `is_success`
+    and the `target_reached` termination. The species declares
+    `SUCCESS_KEYS = ()` and an amplitude-only `REWARD_PROBE`, so its
+    evaluations record no success rate and the Allosaurus is the only model
+    with a success key. `DiagnosticsCallback` no longer lists
+    `reward_target` and `target_success`, and `behavior_env` no longer zeroes
+    the two target weights.
+  - The target placement and its bookkeeping: the range arguments
+    (Migration) and their validation, `_initial_prey_dir_2d` and
+    `_initial_food_dir_2d`, the read-by-nothing `_prev_prey_distance`,
+    `_prev_snout_prey_distance` and `_prev_head_food_distance` the previous
+    change left, the species' `_initial_pos_2d` defaults (`BaseDinoEnv` sets
+    both anchors), their target and hunt-part ids (`prey_id`, `prey_geom_id`,
+    `prey_mocap_id`, `_target_mocap_id`, `food_geom_id`, `head_bite_geom_id`,
+    `snout_snap_geom_id` and the claw ids), and `BaseDinoEnv._spawn_target`,
+    `_spawn_target_2d` and `_compute_initial_direction_2d`.
+  - The reset's root-height jitter channel: its draw, the
+    `reset_height_noise_scale` argument (Migration),
+    `_bounded_reset_height_delta` and `_RESET_HEIGHT_TERMINATION_MARGIN`. The
+    ground settle had made it state-inert since #479, and it was kept only so
+    that the draw stream would not move; note 12 and `docs/KNOWN_ISSUES.md`
+    queued its removal for the next policy-interface revision. The four
+    Compsognathus stance and locomotion TOMLs' `reset_height_noise_scale =
+    0.0` lines go with it.
+  - The target observation and the world-frame layouts: the target direction
+    and distance segments, `heading_free_root_segments`' target argument and
+    return, the schema strings `bipedal-target-heading-free/v1`,
+    `bipedal-target/v1` and `quadrupedal-target/v1` with
+    `HEADING_FREE_OBSERVATION_SCHEMA`, the policy layer's world-frame segment
+    branch and `_mocap_target_name`, `ModelMirror.mocap_map` with the
+    mirror's target keys and `"scalar"` kind, the observation probe's mocap
+    fill, and `behavior_env`'s prop-collision handling and probe mocap copy,
+    which only the prey needed.
+  - The target's stage-TOML keys: `prey_distance_range` (and
+    `prey_lateral_range` where set) from the velociraptor, T. rex,
+    Dibothrosuchus and both Compsognathus models' stance and locomotion
+    TOMLs, `food_distance_range` and `food_height_range` from the
+    Brachiosaurus's, the Compsognathus `target_approach_weight` and
+    `target_reach_bonus`, and the scripts that passed the ranges
+    (`audit_motion.py` of the velociraptor and T. rex, `reference_walk.py` of
+    the Brachiosaurus and Dibothrosuchus; the Brachiosaurus walk is
+    unchanged, as its pinned ranges put the reference on the spawn axis).
+  - Three `docs/KNOWN_ISSUES.md` items, closed: the state-inert height-jitter
+    channel, `_mocap_target_name`'s exactly-one-mocap rule and the
+    Brachiosaurus food with no collision partner. Two are updated: the
+    robot's sole-on-sole item has its observation half fixed and its reward
+    half open (PR-G7), and the heading item has every observation heading-free
+    and the robot's and the quadrupeds' missing heading certificate open. A
+    new LOW item records two hand-run T. rex tools still sized for the r11
+    plant (`harnesses/recovery_offdist_panel.py`'s 120 N and 210 N rows, now
+    about 115.8 N and 203.0 N, and `scripts/replay_walk.py`, which runs only
+    at `3368abe` or earlier). `docs/GAIT_QUALITY_PLAN_2026_09.md` §5.4 and
+    `docs/hardware/SIM_TO_REAL_PLAN.md` (§3.1 and quick win 6) record the
+    observation reframe as done; `docs/PLANT_CONTRACT.md`'s heading-free
+    section, `CONTRIBUTING.md` (the new-species checklist: no target body,
+    `_reset_episode_state`, the two schemas; and the revision procedure:
+    statue re-measures, the reset golden and recovery calibrations), the
+    website's model, API, recipe, mirror-symmetry and hyperparameter pages,
+    the species READMEs, `docs/NEXT_STEPS.md`, `docs/ROADMAP.md`,
+    `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`'s status line,
+    `docs/TRAINING_ARTIFACT_PRESENTATION.md`'s policy-probe bank and the T. rex
+    and Dibothrosuchus reviews (dated status notes) follow, and the plan's
+    D-D59 row and top note carry the amendment.
 - **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
   the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
   `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing

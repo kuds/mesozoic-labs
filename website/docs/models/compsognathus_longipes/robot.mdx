@@ -10,7 +10,7 @@ export const MODEL = requireModel('compsognathus_longipes', 'robot');
 
 # Compsognathus Longipes (Robot)
 
-The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an unpowered fixed tail, and 46 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Its single head camera, IMU and joint encoders preserve the hardware design direction; the mass allocations still need validation against real parts.
+The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an unpowered fixed tail, and 41 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 (decision D-D59) none of them reads the world heading or a target: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes, and its two foot channels read each sole's force against the floor, not its touch sensors, so a sole resting on the other foot is not read as support. Its single head camera, IMU and joint encoders preserve the hardware design direction; the mass allocations still need validation against real parts.
 
 <SpeciesCatalog species={MODEL} />
 
@@ -27,7 +27,7 @@ python -m environments.shared.train --species compsognathus_longipes --embodimen
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
-Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state and target coordinates are privileged MLP inputs; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
+Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state, the pelvis velocity among it, is a privileged MLP input; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
 
 The initial configurations and short integration runs establish training compatibility. They do not establish learned walking, behavior convergence or hardware readiness. The zero-action standing baseline should be measured before tuning. Every node is judged on its own and its verdict written to `gate_verdict.json` beside the handoff checkpoint; a later run reuses it only under the reuse rule (a passed verdict, the same task digest and plant, chained by the parent's checkpoint digest) — see [Behavior Recipes](/docs/training/recipes).
 

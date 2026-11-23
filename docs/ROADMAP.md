@@ -309,8 +309,9 @@ critical bridge between "cool demo" and "transferable research."
   - _Dependency: Phase 1 (need locomotion policies as starting point)_
 
 - [ ] **Stage 4: Prey Pursuit (predator species only)**
-  - _Superseded (2026-11-23, decision D-D59): the prey object leaves every
-    scene, so there is no prey to pursue; following a commanded direction is
+  - _Superseded (2026-11-23, decision D-D59): the prey object left every
+    scene (`configs/plant_versions.toml` note 24), so there is no prey to
+    pursue; following a commanded direction is
     the path after walk. The plan below is kept as written._
   - Add a 4th curriculum stage where prey moves on predefined paths
   - `PreyPath` module with four path types: straight retreat, angled

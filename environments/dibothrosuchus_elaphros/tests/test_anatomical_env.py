@@ -4,6 +4,7 @@ Common env tests (spaces, reset, step, determinism, observation bounds) are in
 environments/shared/tests/test_species_integration.py.
 """
 
+import mujoco
 import numpy as np
 import pytest
 
@@ -46,19 +47,54 @@ class TestDibothrosuchusElaphrosSpecific:
         assert info["gait_instability"] >= 0.0
 
     def test_observation_layout_dimensions(self, env):
-        """28 qpos + 28 qvel + quat + gyro + linvel + accel + 4 feet + dir + dist + command.
+        """28 qpos + 28 qvel + gravity + gyro + heading-frame linvel + accel + 4 feet + command: 75.
 
-        The trailing 3 dims are the Phase C body-relative command segment
-        (BEHAVIOR_RECIPES_PLAN §4.6), zero under ``command_mode = "none"``.
+        quadrupedal-heading-free/v1 since policy interface r11 (decision
+        D-D59; r10: 80, with the trunk quaternion and the world-frame
+        linear velocity, and the prey direction and distance before the
+        command).  The trailing 3 dims are the Phase C body-relative command
+        segment (BEHAVIOR_RECIPES_PLAN §4.6), zero under
+        ``command_mode = "none"``.
         """
         obs, _ = env.reset(seed=0)
-        assert obs.shape == (28 + 28 + 4 + 3 + 3 + 3 + 4 + 3 + 1 + 3,)
+        assert obs.shape == (28 + 28 + 3 + 3 + 3 + 3 + 4 + 3,) == env.observation_space.shape
+        np.testing.assert_array_equal(obs[-3:], np.zeros(3, dtype=np.float32))
 
-    def test_prey_direction_is_unit_length(self, env):
+    def test_projected_gravity_is_the_unit_down_vector(self, env):
         obs, _ = env.reset(seed=7)
-        # direction(3) sits before distance(1) + command(3).
-        direction = obs[-7:-4]
-        assert np.linalg.norm(direction) == pytest.approx(1.0, abs=1e-5)
+        # The root block starts right after the 28 + 28 joint channels.
+        gravity = obs[56:59]
+        assert np.linalg.norm(gravity) == pytest.approx(1.0, abs=1e-5)
+        assert gravity[2] < -0.99  # the trunk frame is level at home
+
+    def test_foot_channels_are_the_four_touch_sensors(self, env):
+        env.reset(seed=7)
+        obs, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+        assert not terminated
+        # The four foot channels sit just before the command (3), the last segment.
+        expected = [env.data.sensordata[i] for i in (env._sensor_fr_foot, env._sensor_fl_foot)]
+        expected += [env.data.sensordata[i] for i in (env._sensor_rr_foot, env._sensor_rl_foot)]
+        np.testing.assert_array_equal(obs[-7:-3], np.asarray(expected, dtype=np.float32))
+
+    def test_turning_the_whole_scene_about_vertical_leaves_the_observation_unchanged(self, env):
+        """No channel carries the world heading: a 45 deg yaw of the root's pose and velocity changes nothing."""
+        env.reset(seed=7)
+        for _ in range(5):
+            env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+        # After a step the sensors still hold the state before its last integration: recompute them first.
+        mujoco.mj_forward(env.model, env.data)
+        before = env._get_obs()
+        yaw = np.radians(45.0)
+        turn = np.array([np.cos(yaw / 2), 0.0, 0.0, np.sin(yaw / 2)])
+        quat = np.empty(4)
+        mujoco.mju_mulQuat(quat, turn, env.data.qpos[3:7].copy())
+        rotation = np.array([[np.cos(yaw), -np.sin(yaw), 0.0], [np.sin(yaw), np.cos(yaw), 0.0], [0.0, 0.0, 1.0]])
+        env.data.qpos[0:3] = rotation @ env.data.qpos[0:3]
+        env.data.qpos[3:7] = quat
+        env.data.qvel[0:3] = rotation @ env.data.qvel[0:3]
+        mujoco.mj_forward(env.model, env.data)
+        after = env._get_obs()
+        np.testing.assert_allclose(after, before, rtol=0.0, atol=1e-6)
 
 
 class TestHomeResidualActionMapping:
@@ -85,20 +121,44 @@ class TestHomeResidualActionMapping:
         assert env._reset_keyframe_id == env.home_keyframe_id
 
 
-class TestNoSnap:
-    """The snap was removed with the hunt (decision D-D59).
+class TestNoPreyNoSnap:
+    """The snap was removed with the hunt (decision D-D59), and the prey with it in physics r4.
 
-    The prey sphere and the ``snout_snap`` geom stay in the scene until the
-    next policy-interface revision removes them; snout-prey contact pays,
-    records and ends nothing, and the species declares no success key.
+    The scene holds the animal and the floor alone: no mocap body, no prey
+    geom, and no ``snout_snap`` box (contype/conaffinity 2/2, which met only
+    the prey).  The ``snout_tip`` site stays for the snout-prop termination.
+    The forward reference is the spawn's own heading.
     """
 
-    def test_prey_on_the_snout_pays_nothing_and_ends_nothing(self, env):
-        import mujoco
+    def test_no_success_key_and_no_snap_or_prey_kwarg(self):
+        assert DibothrosuchusElaphrosAnatomicalEnv.SUCCESS_KEYS == ()
+        with pytest.raises(TypeError, match="snap_bonus"):
+            DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=10.0)
+        for kwarg in ("prey_distance_range", "prey_lateral_range"):
+            with pytest.raises(TypeError, match=kwarg):
+                DibothrosuchusElaphrosAnatomicalEnv(**{kwarg: (1.0, 2.0)})
 
+    def test_the_scene_has_no_prey_no_mocap_body_and_no_snap_geom(self, env):
+        model = env.model
+        assert model.nmocap == 0
+        for kind, name in (
+            (mujoco.mjtObj.mjOBJ_BODY, "prey"),
+            (mujoco.mjtObj.mjOBJ_GEOM, "prey_geom"),
+            (mujoco.mjtObj.mjOBJ_GEOM, "snout_snap"),
+        ):
+            assert mujoco.mj_name2id(model, kind, name) == -1
+        for attr in ("prey_geom_id", "prey_mocap_id", "snout_snap_geom_id", "_initial_prey_dir_2d"):
+            assert not hasattr(env, attr)
+        assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, "snout_tip") == env.snout_tip_site_id >= 0
+
+    def test_every_colliding_geom_is_on_the_floor_channel(self, env):
+        """Only channel 1/1 remains: the floor's, which every colliding animal geom shares."""
+        model = env.model
+        colliding = (model.geom_contype != 0) | (model.geom_conaffinity != 0)
+        assert np.all(model.geom_contype[colliding] == 1) and np.all(model.geom_conaffinity[colliding] == 1)
+
+    def test_no_hunt_info_key_and_no_success(self, env):
         env.reset(seed=42)
-        env.data.mocap_pos[0] = env.data.site_xpos[env.snout_tip_site_id].copy()
-        mujoco.mj_forward(env.model, env.data)
         _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
         hunt = {
             "snap_success",
@@ -115,10 +175,25 @@ class TestNoSnap:
         assert info.get("termination_reason") != "snap_success"
         assert not info.get("success", False)
 
-    def test_no_success_key_and_no_snap_kwarg(self):
-        assert DibothrosuchusElaphrosAnatomicalEnv.SUCCESS_KEYS == ()
-        with pytest.raises(TypeError, match="snap_bonus"):
-            DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=10.0)
+    def test_the_forward_reference_is_the_spawn_heading(self, env):
+        """The progress term reads _reference_heading_2d: velocity along it pays, across it does not."""
+        env.reset(seed=3042)
+        np.testing.assert_array_equal(env._reference_heading_2d, env._quat_to_forward_2d(env.data.qpos[3:7]))
+        env.forward_vel_weight = 1.0
+        env._reference_heading_2d = np.array([0.0, 1.0])
+        env.data.qvel[0:2] = (0.0, 0.5)
+        _, along = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        env.data.qvel[0:2] = (0.5, 0.0)
+        _, across = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        assert along["reward_forward"] > 0.0
+        assert across["reward_forward"] == pytest.approx(0.0, abs=1e-12)
+
+    def test_stance_pays_no_heading_term(self):
+        """stance.toml sets heading_weight 0 since policy interface r11: the observation cannot see heading."""
+        from environments.shared.config import load_stage_config
+
+        kwargs = load_stage_config(ModelId("dibothrosuchus_elaphros", "anatomical"), 1)["env_kwargs"]
+        assert kwargs["heading_weight"] == 0.0
 
 
 class TestSnoutTerminations:
@@ -134,8 +209,6 @@ class TestSnoutTerminations:
         forward_z is -0.34 against a -0.55 nosedive threshold, so every check
         that could preempt the snout gate has clear margin.
         """
-        import mujoco
-
         model, data = env.model, env.data
         env.reset(seed=0)
         pitch = np.radians(20.0)
@@ -182,29 +255,18 @@ class TestSnoutTerminations:
 class TestResetStaysInsideTheHealthyEnvelope:
     """Reset noise must perturb the pose, not spawn already-terminated episodes.
 
-    ``reset_noise_scale`` is a joint-angle scale in radians, but the shared base
-    also used it as a root-height jitter in metres.  On this 0.313 m stance that
-    put a quarter of stage-1 episodes outside ``healthy_z_range`` at step 1,
-    which inflated the zero-action baseline's apparent difficulty with noise no
-    policy can act on.  ``reset_height_noise_scale`` decoupled the two.
-
-    Since the ground settle the whole height channel is STATE-INERT — the root
-    height is overwritten from the sampled joint pose (see
-    TestHeightJitterIsInertSinceGroundSettling in test_base_env.py) — but the
-    knob still exists for RNG-stream compatibility, so these tests keep pinning
-    that it stays set and stays decoupled until the channel is removed.
+    ``reset_noise_scale`` is a joint-angle scale in radians.  The shared base
+    once also used it as a root-height jitter in metres, which on this 0.313 m
+    stance put a quarter of stage-1 episodes outside ``healthy_z_range`` at
+    step 1; a separate ``reset_height_noise_scale`` (0.03 m here) decoupled
+    the two.  Since the ground settle sets the root height from the sampled
+    joint pose, the height channel no longer reached the state, and policy
+    interface r11 removed its draw and its knob (decision D-D59).
     """
 
-    def test_height_noise_is_decoupled_from_joint_noise(self):
-        env = DibothrosuchusElaphrosAnatomicalEnv()
-        try:
-            assert env.reset_height_noise_scale is not None, (
-                "this species must set its own metre-scale height jitter; inheriting the "
-                "radian-scale joint noise spawns episodes outside healthy_z_range"
-            )
-            assert env.reset_height_noise_scale < 0.25 * (env.healthy_z_range[1] - env.healthy_z_range[0])
-        finally:
-            env.close()
+    def test_the_height_jitter_knob_is_gone(self):
+        with pytest.raises(TypeError, match="reset_height_noise_scale"):
+            DibothrosuchusElaphrosAnatomicalEnv(reset_height_noise_scale=0.03)
 
     def test_stage1_reset_never_spawns_out_of_bounds(self):
         """At the committed stage-1 noise, no seed starts already terminated."""

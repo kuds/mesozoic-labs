@@ -368,8 +368,8 @@ def reward_foot_load_balance(
             branch never once fired (``max |diff| = 0.000000``, correlation
             ``1.000000`` against the diagnostic).  Give it a real value: the
             duty metrics count a foot supported above ``0.1 N``, and ~5% of the
-            animal's own weight is the defensible physical scale (T-Rex: 85.72
-            kg of animal, excluding the prey prop, = 840.9 N, so ~42 N).
+            animal's own weight is the defensible physical scale (T-Rex: 85.52
+            kg of animal since physics r12, = 839.0 N, so ~42 N).
         airborne_penalty_weight: EXTRA penalty applied only when the pair is
             unsupported, making the ordering strictly monotone.  Without it
             airborne and single support both score ``-weight`` -- a flat region

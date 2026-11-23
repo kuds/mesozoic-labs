@@ -2,7 +2,7 @@
 name = "stance"
 description = "Learn to stand and balance without falling"
 
-[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1609.1 since the r10 LTSB recipe, the stance-landing decision of 2026-11-06; 1429.1 on physics r10, D-D44; 1329.1 from D-D27), as its note there says
+[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1730.6 since physics r12; 1613.2 on r11; 1609.1 from the r10 LTSB recipe, the stance-landing decision of 2026-11-06; 1429.1 on physics r10, D-D44; 1329.1 from D-D27), as its note there says
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
@@ -15,8 +15,9 @@ foot_contact_weight = 0.0                      # Read only by the retired MJX re
 bilateral_support_weight = 0.6                 # Reward the weaker-loaded foot, so both feet must carry weight
 foot_contact_saturation_force = 350.0          # N per foot; quiet home support (~421 N/foot) already earns full credit
 foot_load_balance_weight = 0.3                 # Penalize normalized left/right load imbalance
-foot_load_balance_min_support_force = 42.0     # 5% of the animal's own weight (85.72 kg excluding the prey prop =
-                                               # 840.9 N), which is the smallest load that is unambiguously bearing
+foot_load_balance_min_support_force = 42.0     # 5% of the animal's own weight (85.72 kg = 840.9 N when sized; 85.52 kg =
+                                               # 839.0 N since the 0.2 kg head_bite box left, D-D59, still 5.0%), which
+                                               # is the smallest load that is unambiguously bearing
                                                # rather than grazing. The previous 0.0 was a measured NO-OP: two
                                                # MuJoCo touch readings essentially never sum to exactly zero, so over
                                                # all 709 logged rollouts of run 20260731_132102 the airborne branch
@@ -199,7 +200,8 @@ stance_width_settle_steps = 200                # Equal to [curriculum] settle_st
                                                # the two equal). The statue's floor force is within 5% BW of its weight
                                                # from step 44 (47 at most), so its width at 200 is its settled width.
                                                # recovery.toml moves it to 140, before its first push.
-foot_terms_min_support_force = 168.0           # N, 0.20 body weight (840.9 N): a foot earns its foot_flatness share, and
+foot_terms_min_support_force = 168.0           # N, 0.20 body weight (840.9 N when sized; 0.200 of 839.0 N since the
+                                               # head_bite box left, D-D59): a foot earns its foot_flatness share, and
                                                # the pair the stance_width term, only while its substep-MIN touch carries
                                                # this much. Both terms read geometry alone, so seed 42's lifted feet earned
                                                # ~80% of flatness and ~98% of width on its airborne steps; gated, its
@@ -332,7 +334,7 @@ nosedive_weight = 1.5                          # Complements posture_weight agai
                                                # (Provenance note 2026-08-15: the original "Increased from 3.0"
                                                # described a decrease; same unrecoverable pre-repo history as
                                                # posture_weight above.)
-nosedive_termination_threshold = 0.503         # Terminates at forward_z < -0.520 (~31.3° nose-down), unchanged from the
+nosedive_termination_threshold = 0.508         # Terminates at forward_z < -0.520 (~31.3° nose-down), unchanged from the
                                                # 0.35 that preceded the natural_pitch 0.17 -> 0.05 correction. natural_pitch
                                                # describes the measured neutral pose, so the threshold absorbs every shift in
                                                # it and the absolute termination envelope stays put. The theropod stance
@@ -344,6 +346,11 @@ nosedive_termination_threshold = 0.503         # Terminates at forward_z < -0.52
                                                # settles at forward_z -0.01666, 0.95° nose-down), so it re-derives as
                                                #   0.503 = sin(0.05) + 0.47 - sin(0.017)
                                                # and the plant still terminates at the same absolute -0.520 (-0.519999).
+                                               # Physics r12 (the 0.2 kg head_bite box removed with the hunt, D-D59) moved
+                                               # natural_pitch 0.017 -> 0.012 (the noise-free statue settles at forward_z
+                                               # -0.01209, 0.69° nose-down), so it re-derives as
+                                               #   0.508 = sin(0.05) + 0.47 - sin(0.012)
+                                               # and the absolute cut stays -0.520 (-0.519999).
 smoothness_weight = 2.0                        # Second escalation: 0.1 -> 0.7 -> 2.0. The lever works but was
                                                # under-dosed. 0.1 was a rounding error (-0.0259/step, 1.0% of
                                                # return) and left RMS action change per joint flat at 1.018 for a
@@ -374,13 +381,18 @@ smoothness_weight = 2.0                        # Second escalation: 0.1 -> 0.7 -
                                                # Watch explained_variance on the next run -- the value function was
                                                # already fitting worse at 0.7, and this term is what got bigger.
                                                # Single-variable change; see min_avg_reward for the gate margin.
-heading_weight = 0.1                           # Small heading reward to prevent spin-to-balance exploits
+heading_weight = 0.0                           # 0 since policy interface r17 (decision D-D59; 0.1 before, against
+                                               # spin-to-balance exploits). The term priced facing the prey's bearing;
+                                               # with the prey gone it would price the spawn heading, which this
+                                               # heading-free observation cannot see and no command (command_mode
+                                               # "none") states, so it would pay for an error the policy cannot
+                                               # observe. Wandering stays priced by the spin and drift penalties.
+                                               # recovery.toml inherits this.
 gait_symmetry_weight = 0.0                     # Kept at 0.0: the alternation formula is fixed (base_env.py), but a
                                                # standing stage has no touchdowns to alternate, and it is unswept for the T-Rex
 height_weight = 0.6                            # Bounded target-centred height shaping; no reward for standing taller than home
 height_target_tolerance = 0.06                 # m Gaussian scale around the measured 0.926 m settled pelvis height
 fall_penalty = -100.0                          # Restored to -100: stronger penalty needed to discourage lying-flat exploit
-prey_distance_range = [10.0, 15.0]
 max_episode_steps = 1000                       # Match stage 2/3 for consistent episode horizon across curriculum
 reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT_VALIDATION §7/§12): the noise sweep on
                                                # the repaired plant showed reset noise does not make STANDING harder
@@ -564,7 +576,7 @@ train_freq = 16                  # Collect 16 env steps before training — matc
 gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on small buffer
 
 [sac.policy_kwargs]
-net_arch = [512, 256]            # Match PPO architecture (obs is 63, heading-free since policy interface r14: arms/distal tail welded, plus the Phase C command segment)
+net_arch = [512, 256]            # Match PPO architecture (obs is 59, heading-free since policy interface r14: arms/distal tail welded, plus the Phase C command segment, less the 4 prey channels removed with the prey, D-D59)
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
@@ -699,6 +711,18 @@ timesteps = 12000000
 # (docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md) holds the r10
 # panels.
 #
+# Physics r12 (plant_versions note 24: the 0.2 kg head_bite box removed, the
+# settled neck, tail and leg targets, natural_pitch and the nosedive threshold
+# re-measured with it, heading_weight 0) keeps every bar. Its statue, rolled
+# through the certificate code itself (stance_gate_report.py --zero-action,
+# seeds 3042-3081, 2026-11-23), is clean on 40/40 seeds at all six headings
+# (bound 0.928), its reward 4372.7 at every heading; at 0 degrees its worst
+# episode tilts a pad 1.607 degrees (bar 2.0), lifts a corner 2.7 mm (4.0),
+# turns 13.65 degrees (25), peaks at 1.212 BW after the grace (1.5), changes
+# its width 0.054 m (0.08), loads its lighter foot 0.4977 (0.4665 windowed)
+# and holds at least 2 pad contacts (median 2.80). The out-of-sample blocks
+# were not re-rolled on r12.
+#
 # The six-heading certificate (stance_quality_heading/v1, decision D-D32,
 # adopted 2026-10-11; docs/HEADING_INVARIANCE_DESIGN_2026_10.md). v2 judges
 # the training heading only, and the stance stage always spawns facing +x,
@@ -706,8 +730,8 @@ timesteps = 12000000
 # 52) passed v2 at 39/40 and stands 0/8 with the whole scene turned -90 or
 # -45 degrees. The certificate rolls the certification panel at each of six
 # whole-scene turns (-90, -45, 0, 45, 90 and 180 degrees, protocol
-# whole_scene_yaw/v1, fixed in code: the animal, the prey and the heading
-# reward's reference direction turn together, so a heading-free stance faces
+# whole_scene_yaw/v1, fixed in code: the animal and the heading reward's
+# reference direction turn together, so a heading-free stance faces
 # the same task at each) and passes only when every heading passes the v2
 # decision below against the statue rolled at that heading, AND the bound on
 # seeds clean at EVERY heading clears the bar. So min_eval_episodes and
@@ -967,6 +991,10 @@ min_avg_reward = 2260.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # LTSB statue. The ratio rail below re-derives itself: 0.60 x the statue panel
                                         # each report rolls, about 2682 under LTSB, binds before this one.
                                         #
+                                        # Kept at 2260 on physics r12 (plant_versions note 24), whose statue scores
+                                        # 4372.74 +/- 30.63 with heading_weight 0 (collapse_peak_floor_reference
+                                        # below): 0.52 x it; the ratio rail, about 2624, still binds first.
+                                        #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
                                         # it by better than 2x. Meanwhile 0.89 = 2900 sat within ~2.4% of a
@@ -1082,9 +1110,14 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-# R11, seeds 3042-3081, 40 episodes. The absolute stance rail stays at its published 2260; the live 0.60 statue ratio also applies.
-collapse_peak_floor_reference = 4470.6
-# Previous calibrations: The r10 LTSB stance recipe (the stance-landing decision of 2026-11-06):
+# R12 (plant_versions note 24: the 0.2 kg head_bite box removed, the settled neck, tail and leg targets and
+# natural_pitch re-measured with it, heading_weight 0.1 -> 0), 2026-11-23, zero_action_baseline.py --model-id
+# tyrannosaurus_rex anatomical --episodes 40 --seed 3042, noise 0.05: 4372.74 +/- 30.63, 40/40 full horizon;
+# -97.9 against 4470.6, of which -99.6 is the heading term (the same panel with heading_weight 0.1 scores
+# 4472.31 +/- 30.80) and +1.7 the plant and its re-centred targets. Floor 0.45 x 4372.7 = 1967.7. The absolute
+# stance rail stays at its published 2260; the live 0.60 statue ratio also applies.
+collapse_peak_floor_reference = 4372.7
+# Previous calibrations: R11, seeds 3042-3081, 40 episodes: 4470.6. The r10 LTSB stance recipe (the stance-landing decision of 2026-11-06):
                                          # the zero-action statue panel (zero_action_baseline.py, 40 episodes, seeds
                                          # 3042-3081, noise 0.05) on this config, physics r10: 4470.37 +/- 30.88,
                                          # 40/40 full horizon, +703.81 over the D-D27 task's 3766.56 (decomposed on
@@ -1115,7 +1148,7 @@ collapse_peak_floor_reference = 4470.6
                                          # carried (min_avg_reward above has the figures). Re-measured on physics
                                          # r10 (plant_versions note 20): 3766.56 +/- 16.21, 40/40, 3.8 standard
                                          # errors over 3756.8, so it moved to 3766.6 and the rail to 2260.
-statue_constants_physics_revision = 11  # Re-measured with the r11 proportioned hindlimb (4470.6).
+statue_constants_physics_revision = 12  # Re-measured without the head_bite box (4372.7; r11 4470.6).
 hop_watch_max_unsupported_duty = 0.05    # Opt-in hop watch (curriculum/hop_watch.py, D-D27): from
                                          # hop_watch_after_timesteps on, an evaluation whose unsupported duty
                                          # (gate_progress.npz) is above this logs a warning, writes hop_watch.json

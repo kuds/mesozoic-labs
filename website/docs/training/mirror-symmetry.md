@@ -47,11 +47,11 @@ python -m environments.shared.symmetry --write --species tyrannosaurus_rex --emb
 python -m environments.shared.symmetry --check
 ```
 
-Today the anatomical T. rex has a committed map. The anatomical
-Compsognathus, which shares its observation layout, derives one too. The
-other anatomical models pass the model checks, but their older observation
-layouts have no mirror rule yet. The Compsognathus robot fails the checks,
-because its model is not mirror-symmetric as built.
+Today the anatomical T. rex has a committed map. Every other anatomical
+model derives one too: since decision D-D59 every observation follows the
+same heading-free layout, the bipeds' rooted at the pelvis and the
+quadrupeds' at the torso, and the mirror rules cover both. The Compsognathus
+robot fails the checks, because its model is not mirror-symmetric as built.
 
 ## What mirror-symmetric training does
 

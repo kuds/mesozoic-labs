@@ -33,8 +33,8 @@ already certified.
 Until decision D-D59 (2026-11-23) six models had a hunting leaf after walk:
 the node `behavior` (historical stage 3), labelled `hunt`, whose task (strike,
 bite proxy, food reach, snap, target reach) came from its stage TOML. That
-node is removed (the prey it targeted leaves the scene with a later
-environment change under the same decision), so every chain now ends at walk;
+node is removed (the prey it targeted left the scene with the policy-interface
+revision that followed under the same decision), so every chain now ends at walk;
 `"hunt"` is refused naming `"walk"` wherever a label is taken, and the id
 `behavior` and legacy number 3 stay reserved, resolving to no stage.
 

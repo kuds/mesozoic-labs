@@ -445,7 +445,12 @@ TOMLs set its weight to 0 (cleanup §2 row 15, :106), and its KNOWN_ISSUES entry
 
 About 60 h of sessions if every first attempt succeeds; budget 120 h. The robot's touch observation still sees
 sole-on-sole force; it waits for the robot's next policy-interface revision (the one carrying `SIM_TO_REAL_PLAN.md` §6
-item 6), whose checklist must add a touch reading that excludes foot-on-foot force.
+item 6), whose checklist must add a touch reading that excludes foot-on-foot force. *Updated 2026-11-23: done by that
+revision (decision D-D59, `configs/plant_versions.toml` note 24; robot policy interface r4, which also made its
+observation heading-free): the robot's two foot channels read each sole's normal force against the floor, so a sole
+on the other foot reads 0 N, and on the zero-action statue they equal the touch readings to 0.0 N. The soles still
+collide with each other and the reward's support flag still reads touch on both Compsognathus models; the floor
+support in the table above is still this plan's (PR-G7).*
 
 ### 5.5 Validation ladder
 

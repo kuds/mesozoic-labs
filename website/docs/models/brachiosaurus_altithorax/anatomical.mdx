@@ -23,7 +23,8 @@ A sauropod-inspired quadrupedal simulation model designed for four-legged stance
 - A deep shoulder region and nearly equal-length humerus and femur, with the forelimbs gaining height through the forearm and metacarpus
 - Distinct forefeet and hindfeet with level, load-bearing soles, a padded hind heel and three medial hind claws
 - A tapered, supported neck and tail, with opposite flexion directions at the elbow and hind knee
-- Two published behaviors on one trunk (`configs/brachiosaurus_altithorax/anatomical/stages.toml`): stance (`stance`) and walk (`locomotion`, warm-started from stance); the food-reach hunt that followed walk was removed by decision D-D59, and its reward, termination and constructor arguments are gone from the environment; the food target is still in the scene and the observation, and leaves with the next policy-interface revision. See [Behavior Recipes](/docs/training/recipes)
+- Two published behaviors on one trunk (`configs/brachiosaurus_altithorax/anatomical/stages.toml`): stance (`stance`) and walk (`locomotion`, warm-started from stance); the food-reach hunt that followed walk was removed by decision D-D59 with its reward, termination and constructor arguments, and since policy interface r12 and physics r7 (the same decision) so is the food target, from the scene and from the observation. See [Behavior Recipes](/docs/training/recipes)
+- An observation that reads no world heading since policy interface r12: the direction of gravity in the torso's own frame and the torso's velocity relative to the way it faces replace the world-frame torso orientation and velocity, so turning the whole scene changes nothing the policy observes
 
 ## Unique Characteristics
 

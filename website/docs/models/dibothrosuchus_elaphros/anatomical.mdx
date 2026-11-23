@@ -12,7 +12,7 @@ export const MODEL = requireModel('dibothrosuchus_elaphros', 'anatomical');
 
 # Dibothrosuchus Model
 
-A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs. Its manifest (`configs/dibothrosuchus_elaphros/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the snout-contact snap hunt that followed walk was removed by decision D-D59, and its reward, termination and constructor arguments are gone from the environment; the prey sphere is still in the scene and the observation, and leaves with the next policy-interface revision. See [Behavior Recipes](/docs/training/recipes).
+A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs. Its manifest (`configs/dibothrosuchus_elaphros/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the snout-contact snap hunt that followed walk was removed by decision D-D59 with its reward, termination and constructor arguments, and since policy interface r11 and physics r4 (the same decision) so are the prey sphere, its observation channels and the 0.02 kg snout box the snap read. Since that revision the observation reads no world heading: the direction of gravity in the trunk's own frame and the trunk's velocity relative to the way it faces replace the world-frame trunk orientation and velocity, so turning the whole scene changes nothing the policy observes. See [Behavior Recipes](/docs/training/recipes).
 
 <SpeciesCatalog species={MODEL} />
 
@@ -24,7 +24,7 @@ The 112.5 mm humerus and 97.5 mm radius follow measurements of specimen IVPP V79
 
 ## Balance and reference walk
 
-At rest, the 8.65 kg model carries 27% of its weight on the forefeet and 73% on the hindfeet. Its center of mass projects 58 mm inside the support boundary. The reference walk advances through a left hind, left fore, right hind, right fore sequence. The replay shows the actual simulated contacts for each foot. The mass distribution and gait timing belong to the reconstruction. [Anatomical review and validation](https://github.com/kuds/mesozoic-labs/blob/main/environments/dibothrosuchus_elaphros/README.md#anatomical-review) · [Hutchinson et al. (2019), living crocodylian gait comparisons](https://www.nature.com/articles/s41598-019-55768-6)
+At rest, the 8.63 kg model carries 26% of its weight on the forefeet and 74% on the hindfeet. Its center of mass projects 58 mm inside the support boundary. The reference walk advances through a left hind, left fore, right hind, right fore sequence. The replay shows the actual simulated contacts for each foot. The mass distribution and gait timing belong to the reconstruction. [Anatomical review and validation](https://github.com/kuds/mesozoic-labs/blob/main/environments/dibothrosuchus_elaphros/README.md#anatomical-review) · [Hutchinson et al. (2019), living crocodylian gait comparisons](https://www.nature.com/articles/s41598-019-55768-6)
 
 <video controls preload="metadata" width="100%" src={useBaseUrl('/videos/dibothrosuchus_elaphros_anatomical_reference_walk.mp4')} aria-label="Dibothrosuchus walking on level ground with measured contact for each foot" />
 
@@ -39,7 +39,7 @@ After each training stage the `eval` command reports:
 | `stride_frequency` | Step frequency (Hz) |
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Trunk height stability (m) |
-| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
+| `mean_heading_alignment` | cos θ between the body's heading and its spawn heading ∈ [-1, 1] |
 
 ## Training Videos
 

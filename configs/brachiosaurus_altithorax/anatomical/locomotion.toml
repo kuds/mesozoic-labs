@@ -20,8 +20,6 @@ heading_weight = 0.07                  # Sweep winner: 0.069 — heading was alr
 lateral_penalty_weight = 0.11          # Sweep winner: 0.113 — essentially unchanged from 0.1.
 idle_penalty_weight = 0.26             # Sweep winner: 0.256 — slight reduction from 0.3, consistent direction.
 idle_velocity_threshold = 0.1          # Speed (m/s) at which idle penalty reaches zero. Below this, agent is penalised for inaction.
-food_distance_range = [8.0, 12.0]
-food_height_range = [2.0, 3.0]
 max_episode_steps = 1000
 reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
                                        # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
@@ -57,13 +55,13 @@ tau = 0.005
 ent_coef = "auto"                # Auto-entropy handles the standing-still exploit naturally —
                                  # maintains exploration when alive_bonus=0.1 could trap the policy
 buffer_size = 1_000_000          # Large buffer retains Stage 1 balance transitions;
-                                 # Brachiosaurus (86 obs dims) × 1M ≈ 650MB — fits in Colab RAM
+                                 # Brachiosaurus (81 obs dims) × 1M ≈ 650MB — fits in Colab RAM
 learning_starts = 10_000
 train_freq = 4                   # Batch env steps before training — 4× less Python loop overhead
 gradient_steps = 4               # Match train_freq to maintain update-to-data ratio
 
 [sac.policy_kwargs]
-net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 86 obs dims
+net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 81 obs dims
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
@@ -84,10 +82,12 @@ collapse_peak_warmup_timesteps = 4000000 # Evaluations before this step cannot S
                                          # conservative because the clip/entropy warm-up and the forward-weight
                                          # ramp both run from stage step 0, so shaping ends at 3.0M. EvalCallback scores at the full forward_vel_weight from
                                          # step 0, so a warm-started policy still standing evals at the locomotion
-                                         # statue (2242.7 +/- 7.8, 40 episodes, seed 3042, re-measured 2026-09-23;
-                                         # on physics r5 2201.3 +/- 200.6, median 2244.9, where two episodes lose
-                                         # 724 and 1088 of gait_symmetry's 2200 to a briefly unloaded foot),
-                                         # 22x the floor above, and the backstop would arm at 1.0M on it -- the
+                                         # statue (2282.0 +/- 11.2, 40/40 full horizon, seed 3042, on physics r7 /
+                                         # policy interface r12, whose forward and heading terms read the spawn
+                                         # heading; physics r6 along the food direction 2281.6 +/- 11.4; physics r5
+                                         # 2201.3 +/- 200.6, where two episodes lost 724 and 1088 of
+                                         # gait_symmetry's 2200 to a briefly unloaded foot),
+                                         # 23x the floor above, and the backstop would arm at 1.0M on it -- the
                                          # shape that stopped dibothrosuchus run 20260923_020654 at 1.45M of 12M.
                                          # 4.0M leaves 12M of the 16M budget protected. The floor stays absolute
                                          # until the plant settles (KNOWN_ISSUES, the collapse-floor entry).

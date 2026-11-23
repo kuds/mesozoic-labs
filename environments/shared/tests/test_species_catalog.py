@@ -108,13 +108,18 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         # note 21).  The velociraptor's life-size plant (note 22, the
         # maintainer's decision of 2026-11-08): 23 hinges, 17 servos, six
         # per-site foot channels, 15 kg (r4: 69, 22, 31, 30, 22, 13.5).
-        ALLOSAURUS_FRAGILIS: (45, 10, 19, 18, 10, 1482.2),
-        VELOCIRAPTOR_MONGOLIENSIS: (71, 17, 30, 29, 17, 15.0),
-        TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
-        BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
-        DIBOTHROSUCHUS_ELAPHROS: (80, 27, 35, 34, 27, 8.65),
-        COMPSOGNATHUS_LONGIPES: (55, 14, 24, 23, 14, 1.0),
-        COMPSOGNATHUS_LONGIPES_ROBOT: (46, 12, 19, 18, 12, 1.5856),
+        # The target-free revision dropped the 4 target channels from all
+        # seven and made the brachiosaurus, the dibothrosuchus and the robot
+        # heading-free too: 45/71/63/86/80/55/46 -> 41/67/59/81/75/51/41; the
+        # T-Rex's bite box (0.2 kg) and the dibothrosuchus's snap box
+        # (0.02 kg) left with it (85.72 -> 85.52, 8.65 -> 8.63 kg).
+        ALLOSAURUS_FRAGILIS: (41, 10, 19, 18, 10, 1482.2),
+        VELOCIRAPTOR_MONGOLIENSIS: (67, 17, 30, 29, 17, 15.0),
+        TYRANNOSAURUS_REX: (59, 15, 28, 27, 15, 85.52),
+        BRACHIOSAURUS_ALTITHORAX: (81, 30, 38, 37, 30, 175.3),
+        DIBOTHROSUCHUS_ELAPHROS: (75, 27, 35, 34, 27, 8.63),
+        COMPSOGNATHUS_LONGIPES: (51, 14, 24, 23, 14, 1.0),
+        COMPSOGNATHUS_LONGIPES_ROBOT: (41, 12, 19, 18, 12, 1.5856),
     }
 
     assert [stage["timesteps"] for stage in models[VELOCIRAPTOR_MONGOLIENSIS]["stages"]] == [
@@ -182,14 +187,16 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "fingerprint_tool_version": 2,
         "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
+    # Two schemas since the target-free revision: every biped on one heading-free layout rooted at the pelvis,
+    # both quadrupeds on one rooted at the torso.
     expected_observation_schemas = {
-        ALLOSAURUS_FRAGILIS: "bipedal-target-heading-free/v1",
-        VELOCIRAPTOR_MONGOLIENSIS: "bipedal-target-heading-free/v1",
-        TYRANNOSAURUS_REX: "bipedal-target-heading-free/v1",
-        BRACHIOSAURUS_ALTITHORAX: "quadrupedal-target/v1",
-        DIBOTHROSUCHUS_ELAPHROS: "quadrupedal-target/v1",
-        COMPSOGNATHUS_LONGIPES: "bipedal-target-heading-free/v1",
-        COMPSOGNATHUS_LONGIPES_ROBOT: "bipedal-target/v1",
+        ALLOSAURUS_FRAGILIS: "bipedal-heading-free/v1",
+        VELOCIRAPTOR_MONGOLIENSIS: "bipedal-heading-free/v1",
+        TYRANNOSAURUS_REX: "bipedal-heading-free/v1",
+        BRACHIOSAURUS_ALTITHORAX: "quadrupedal-heading-free/v1",
+        DIBOTHROSUCHUS_ELAPHROS: "quadrupedal-heading-free/v1",
+        COMPSOGNATHUS_LONGIPES: "bipedal-heading-free/v1",
+        COMPSOGNATHUS_LONGIPES_ROBOT: "bipedal-heading-free/v1",
     }
     # The T-Rex is at physics r5 for the theropod stance correction: the home
     # keyframe moved off a near-straight knee onto a 135 deg one and the leg
@@ -253,31 +260,34 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # Brachiosaurus and dibothrosuchus declared SB3-only when the frozen MJX
     # interface core was removed (plant_versions note 23): POLICY only,
     # physics and visual unchanged.
+    # The target-free revision (the prey, food and course targets out of every
+    # scene, the hunt-only claw collision, bite box and snap box out of the
+    # bodies, every observation heading-free) bumped all three on all seven.
     expected_policy_revisions = {
-        ALLOSAURUS_FRAGILIS: 1,
-        VELOCIRAPTOR_MONGOLIENSIS: 14,
-        TYRANNOSAURUS_REX: 16,
-        BRACHIOSAURUS_ALTITHORAX: 11,
-        DIBOTHROSUCHUS_ELAPHROS: 10,
-        COMPSOGNATHUS_LONGIPES: 6,
-        COMPSOGNATHUS_LONGIPES_ROBOT: 3,
+        ALLOSAURUS_FRAGILIS: 2,
+        VELOCIRAPTOR_MONGOLIENSIS: 15,
+        TYRANNOSAURUS_REX: 17,
+        BRACHIOSAURUS_ALTITHORAX: 12,
+        DIBOTHROSUCHUS_ELAPHROS: 11,
+        COMPSOGNATHUS_LONGIPES: 7,
+        COMPSOGNATHUS_LONGIPES_ROBOT: 4,
     }
     expected_physics_revisions = {
-        ALLOSAURUS_FRAGILIS: 1,
-        VELOCIRAPTOR_MONGOLIENSIS: 5,
-        TYRANNOSAURUS_REX: 11,
-        BRACHIOSAURUS_ALTITHORAX: 6,
-        DIBOTHROSUCHUS_ELAPHROS: 3,
+        ALLOSAURUS_FRAGILIS: 2,
+        VELOCIRAPTOR_MONGOLIENSIS: 6,
+        TYRANNOSAURUS_REX: 12,
+        BRACHIOSAURUS_ALTITHORAX: 7,
+        DIBOTHROSUCHUS_ELAPHROS: 4,
     }
     expected_visual_revisions = {
-        ALLOSAURUS_FRAGILIS: 1,
-        VELOCIRAPTOR_MONGOLIENSIS: 6,
-        TYRANNOSAURUS_REX: 5,
-        BRACHIOSAURUS_ALTITHORAX: 3,
-        DIBOTHROSUCHUS_ELAPHROS: 2,
+        ALLOSAURUS_FRAGILIS: 2,
+        VELOCIRAPTOR_MONGOLIENSIS: 7,
+        TYRANNOSAURUS_REX: 6,
+        BRACHIOSAURUS_ALTITHORAX: 4,
+        DIBOTHROSUCHUS_ELAPHROS: 3,
     }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
-        revisions.update({COMPSOGNATHUS_LONGIPES: 3, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
+        revisions.update({COMPSOGNATHUS_LONGIPES: 4, COMPSOGNATHUS_LONGIPES_ROBOT: 2})
     # Every table pins every model (review M4): a new model fails here, naming the table.
     for name, table in (
         ("expected_policy_revisions", expected_policy_revisions),
@@ -350,14 +360,16 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # width; 3495.2 on r7 with the 20260810 shaping pack:
     # tail_home_pose 0.25 at the settled-droop targets, action_saturation
     # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
-    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 3341.0 (the
-    # life-size physics r5 with the neck home pose beside the tail, impact and
+    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 3241.7 (physics
+    # r6, the target-free plant, whose stance pays no heading term; 3341.0 on
+    # the life-size physics r5 with the neck home pose beside the tail, impact and
     # airborne terms; 3091.3 on r4 with the 2026-11-06 terms, 2843.0 on r4
     # before them, 2842.8 on r3 with its stance-quality terms, 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
     # the plant repaired by plant_versions notes 7-8; 1749.6 on physics r6, 1738.4 on r5),
-    # dibothrosuchus 2598.3 (2598.5 on physics r2); the elliptic cone of note
-    # 17 moves none of the three rails.
+    # dibothrosuchus 2499.2 (physics r4, the target-free plant, whose stance
+    # pays no heading term; 2598.3 on r3, 2598.5 on physics r2); the elliptic
+    # cone of note 17 moves none of the three rails.
     #
     # A rail sits BELOW its statue deliberately. Section 9 showed the statue
     # is the reward optimum -- it collects 97.0% of the theoretical maximum
@@ -384,11 +396,12 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 3756.8, x0.60 = 2254.1 -> 2250, and for physics r10 (D-D44): statue
         # 3766.6, x0.60 = 2260.0 -> 2260.
         TYRANNOSAURUS_REX: 2260.0,
-        # 0.60 x 3341.0 = 2004.6 -> 2000 nearest-10 (physics r5; 1850 on r4's 3091.3, 1710 on 2842.8 before the
-        # 2026-11-06 [env], 1050 on the r2 plant).
-        VELOCIRAPTOR_MONGOLIENSIS: 2000.0,
+        # 0.60 x 3241.7 = 1945.0 -> 1950 nearest-10 (physics r6; 2000 on r5's 3341.0, 1850 on r4's 3091.3, 1710 on
+        # 2842.8 before the 2026-11-06 [env], 1050 on the r2 plant).
+        VELOCIRAPTOR_MONGOLIENSIS: 1950.0,
         BRACHIOSAURUS_ALTITHORAX: 1050.0,
-        DIBOTHROSUCHUS_ELAPHROS: 1560.0,
+        # 0.60 x 2499.2 = 1499.5 -> 1500 nearest-10 (physics r4; 1560 on r3's 2598.5).
+        DIBOTHROSUCHUS_ELAPHROS: 1500.0,
     }
 
     # T-Rex 1a moved to stance_quality/v1 and then, with physics r8, to
@@ -2026,12 +2039,12 @@ def test_catalog_page_blocks_differ_from_the_root_renderings_only_in_their_links
 
 def test_check_catalog_refuses_a_stale_or_missing_catalog_page(tmp_path: Path) -> None:
     """A hand edit of a generated cell, or a missing page, fails ``--check`` (cleanup CU-17)."""
-    # The velociraptor's row: 71 since its policy interface r14 (69 before).
+    # The velociraptor's row: 67 since its policy interface r15 (71 at r14, 69 before).
     page = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
-    assert "| Observation dimension | 71 |" in page
+    assert "| Observation dimension | 67 |" in page
     edited = tmp_path / "SPECIES_CATALOG.md"
     edited.write_text(
-        page.replace("| Observation dimension | 71 |", "| Observation dimension | 72 |", 1), encoding="utf-8"
+        page.replace("| Observation dimension | 67 |", "| Observation dimension | 68 |", 1), encoding="utf-8"
     )
     with pytest.raises(CatalogError, match="species catalog page is stale"):
         check_catalog(catalog_page_path=edited)
@@ -2063,7 +2076,7 @@ def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
     assert main([*paths, "--check"]) == 0
     capsys.readouterr()
     edited = page.read_text(encoding="utf-8").replace(
-        "| Observation dimension | 71 |", "| Observation dimension | 72 |", 1
+        "| Observation dimension | 67 |", "| Observation dimension | 68 |", 1
     )
     page.write_text(edited, encoding="utf-8")
     with pytest.raises(SystemExit) as stale:

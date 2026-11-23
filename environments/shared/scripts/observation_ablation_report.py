@@ -13,13 +13,13 @@ physical robot could produce from a joint encoder, an IMU or a contact switch;
 others are quantities only the simulator knows.  For the T-Rex the second group
 is ``qvel[0:3]`` -- the root body's linear velocity, which no sensor produces
 and which a feedforward policy cannot reconstruct from the rest of the vector
--- and the four target direction/distance slots.  A policy that scores the same
-without them can have them removed cheaply; one that collapses is built on
-ground truth.  Since the T-Rex's policy interface r14
-(``bipedal-target-heading-free/v1``, configs/plant_versions.toml note 18) the
-velocity arrives in the gravity-aligned heading frame and the target direction
-in pelvis coordinates, and the observation carries projected gravity instead
-of a quaternion; the slices below are that layout's.
+(the four target direction/distance slots were the other, until every scene
+lost its target).  A policy that scores the same without it can have it
+removed cheaply; one that collapses is built on ground truth.  Since the
+T-Rex's policy interface r14 (configs/plant_versions.toml note 18) the
+velocity arrives in the gravity-aligned heading frame and the observation
+carries projected gravity instead of a quaternion; the slices below are the
+``bipedal-heading-free/v1`` layout's.
 
 Three interventions, which answer different questions:
 
@@ -77,22 +77,20 @@ from environments.shared.species_names import add_model_arguments, parsed_model_
 # "body" intervention; None means the slice is not a world-frame 3-vector.
 # Derived by reading each model's _get_obs, not by assuming a shared layout;
 # test_plant_contract_heading_free checks them against the plant contract's
-# observation segments.  The T-Rex table is policy interface r14's
-# (bipedal-target-heading-free/v1: heading-frame velocity, pelvis-frame target,
-# so no slice is world-frame).  An r13 checkpoint does not load against it
-# (its 64-wide statistics cannot bind to the 63-wide env); its own table is in
-# this file's history.
+# observation segments.  The T-Rex table is the 59-wide
+# bipedal-heading-free/v1 layout's (heading-frame velocity, so no slice is
+# world-frame).  An older checkpoint does not load against it (its 63- or
+# 64-wide statistics cannot bind to the 59-wide env); its own table is in this
+# file's history.
 SLICES: dict[ModelId, dict[str, tuple[int, int, int | None]]] = {
     ModelId("tyrannosaurus_rex", "anatomical"): {
         "root_linvel": (48, 51, None),
-        "target_dir": (56, 59, None),
-        "target_dist": (59, 60, None),
-        "command": (60, 63, None),
+        "command": (56, 59, None),
     },
 }
 # Slices the simulator can supply but a physical robot could not, per model.
 # "privileged" ablates all of them at once.
-PRIVILEGED_SLICES = {ModelId("tyrannosaurus_rex", "anatomical"): ("root_linvel", "target_dir", "target_dist")}
+PRIVILEGED_SLICES = {ModelId("tyrannosaurus_rex", "anatomical"): ("root_linvel",)}
 
 
 def quat_to_rotation(quat: np.ndarray) -> np.ndarray:
@@ -201,7 +199,7 @@ def main(argv: list[str]) -> None:
     parser.add_argument(
         "--slices",
         nargs="*",
-        default=["root_linvel", "target_dir", "target_dist", "privileged"],
+        default=["root_linvel", "privileged"],
         help="named slices to ablate",
     )
     args = parser.parse_args(argv)

@@ -7,9 +7,9 @@ or twisting on its feet (in the window or from the spawn), or swaying and rockin
 (0.13 deg nose-down on the level-trunk plant of physics r5; 20 deg on r4) is the statue's own reference.
 
 Measured on physics r5 (2026-11-09, mujoco 3.10.0, the tests' own sampler; window 2-10 s; com_stance_calibration
---write --allow-loosen): the scripted 1 deg hip-roll lean reaches 4.3x a lean bar (r4 9.8x), the 0.05 m g w yaw
-torque 30.6x the pivot bar (r4 22.4x) and the 0.5 % m g fore-aft rock at 0.75 Hz 7.5x a sway bar (r4 7.0x), all
-standing the full horizon.  What the noisy-spawn bars allow on the current plant (80 spawns at reset noise 0.02):
+--write --allow-loosen; re-read unchanged on physics r6, the prey and claw geoms removed, 2026-11-23): the scripted
+1 deg hip-roll lean reaches 4.3x a lean bar (r4 9.8x), the 0.05 m g w yaw torque 30.6x the pivot bar (r4 22.4x) and
+the 0.5 % m g fore-aft rock at 0.75 Hz 7.5x a sway bar (r4 7.0x), all standing the full horizon.  What the noisy-spawn bars allow on the current plant (80 spawns at reset noise 0.02):
 the body ends turned up to 4.2 deg from its spawn (seed 143; r4 5.7), and the spread widths, twice the calibration
 spawns' worst, admit 2.7 deg of turn inside the window and 26 mm of foot travel from the spawn.
 """
@@ -23,9 +23,9 @@ from environments.shared.tests.com_stance_helpers import ComStanceQualityBase, T
 class TestComStanceQuality(ComStanceQualityBase):
     model_id = ModelId("velociraptor_mongoliensis", "anatomical")
     species_label = "Velociraptor"
-    physics_revision = 5
+    physics_revision = 6
     window_start_s = 2.0
-    # The noise-free statue's window values, physics r5, mujoco 3.10.0, read on 2026-11-09 with
+    # The noise-free statue's window values, physics r6, mujoco 3.10.0, read on 2026-11-23 with
     # com_stance_calibration and rounded to 0.01 mm and 1e-4 deg and of the load (under 1 % of a width).
     reference = {
         "com_margin_min_m": 0.06013,

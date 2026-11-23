@@ -10,8 +10,8 @@ observation and action maps; nothing here imports torch or Stable-Baselines3).
 The reflection is across the world xz-plane, ``S = diag(1, -1, 1)``.  A body pose
 ``(p, R)`` maps to ``(S p, S R S)``, which is again a proper rotation.  Under it:
 
-* polar vectors (positions, linear velocity and acceleration, gravity, target
-  directions) map by ``S``: the y component flips;
+* polar vectors (positions, linear velocity and acceleration, gravity, the
+  episode's reference heading) map by ``S``: the y component flips;
 * pseudovectors (angular velocity, torque) map by ``-S = diag(-1, 1, -1)``;
 * a quaternion ``(w, x, y, z)`` of ``R`` maps to ``(w, -x, y, -z)``;
 * a hinge about body-local axis ``a`` maps to a hinge about ``-S a`` at the same
@@ -27,7 +27,7 @@ positions, frames, axes, ranges, masses, inertias, gravity compensation, contact
 fluid, joint, fixed-tendon, actuator or sensor parameters differ, a colliding mesh whose
 vertices are not the mirror image of its partner's, a sensor type without a
 rule, and a feature it does not mirror (spatial tendons, equality constraints,
-explicit contact pairs, plugins, flexes, height fields, SDF geoms).  These are
+explicit contact pairs, plugins, flexes, mocap bodies, height fields, SDF geoms).  These are
 the model fields the plants use, not every field MuJoCo has, so a new species'
 map is accepted together with a paired-rollout equivariance test like the
 T. rex's (``tests/test_symmetry.py``), which catches whatever the checks miss.  Link
@@ -35,16 +35,17 @@ frames that a CAD export rotates differently on the two sides are handled by a
 per-body frame correction, and side tokens may be suffixes (``_r`` / ``_l``).
 No committed plant needs either (the correction is the identity on every plant
 that derives), so a synthetic biped in the tests exercises both, dynamics and
-site-frame sensors included.  Of the six plants, the five anatomical ones derive
+site-frame sensors included.  Of the seven plants, the six anatomical ones derive
 cleanly; the Compsognathus robot does not, because its MJCF is not mirror
 symmetric as authored (one side's ankle chain sits 37 mm from the mirror of the
 other's).
 
 :func:`build_env_mirror` adds the policy interface: the observation map from the
 model's observation layout (:data:`OBSERVATION_LAYOUTS`, keyed by the plant's
-``observation_schema``; ``bipedal-target-heading-free/v1`` is the one layout
-today, the T. rex and the anatomical Compsognathus) and the action map, the
-actuator map, after checking that the env's action scaling commutes with it.
+``observation_schema``: ``bipedal-heading-free/v1`` on the five bipeds and
+``quadrupedal-heading-free/v1`` on the two quadrupeds, one layout of keys) and
+the action map, the actuator map, after checking that the env's action scaling
+commutes with it.
 :func:`mirror_env_state` writes the mirror image of one env's full simulator
 and episode state into another env (or the same one), which is how the tests
 check equivariance by paired rollouts.
@@ -76,6 +77,7 @@ import mujoco
 import numpy as np
 
 from .command_frame import COMMAND_COMPONENTS
+from .heading_observation import BIPEDAL_HEADING_FREE_SCHEMA, QUADRUPEDAL_HEADING_FREE_SCHEMA
 from .model_id import ModelId
 from .paths import REPOSITORY_ROOT
 
@@ -97,7 +99,6 @@ DEFAULT_SUFFIX_RULES: tuple[tuple[str, str], ...] = (("_r", "_l"), ("_right", "_
 #: and the yaw rate (the z component of a pseudovector) flip.
 COMMAND_SIGNS = {"v_x_cmd": 1.0, "v_y_cmd": -1.0, "yaw_rate_cmd": -1.0}
 
-HEADING_FREE_OBSERVATION_SCHEMA = "bipedal-target-heading-free/v1"
 MIRROR_MAP_SCHEMA = "mesozoic.mirror-map/v1"
 MIRROR_MAP_FILENAME = "mirror_map.json"
 CONFIGS_ROOT = REPOSITORY_ROOT / "configs"
@@ -270,7 +271,6 @@ class ModelMirror:
     sensor_rule: tuple[str, ...]
     body_C: np.ndarray
     site_C: np.ndarray
-    mocap_map: np.ndarray
     qpos: SignedPermutation
     qvel: SignedPermutation
     ctrl: SignedPermutation
@@ -420,11 +420,11 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
     """
     rules = (prefix_rules, suffix_rules)
     m = model
-    if m.neq or m.npair or m.nplugin or m.na or m.nflex:
+    if m.neq or m.npair or m.nplugin or m.na or m.nflex or m.nmocap:
         raise SymmetryError(
-            "equality constraints, explicit contact pairs, plugins, actuator activations and flexes are not "
-            f"mirrored here (neq={m.neq} npair={m.npair} nplugin={m.nplugin} na={m.na} "
-            f"nflex={m.nflex})"
+            "equality constraints, explicit contact pairs, plugins, actuator activations, flexes and mocap bodies "
+            f"are not mirrored here (neq={m.neq} npair={m.npair} nplugin={m.nplugin} na={m.na} "
+            f"nflex={m.nflex} nmocap={m.nmocap})"
         )
     _require("opt.gravity", float(np.max(np.abs(m.opt.gravity * POLAR - m.opt.gravity))), tol)
     _require("opt.wind", float(np.max(np.abs(m.opt.wind * POLAR - m.opt.wind))), tol)
@@ -496,10 +496,6 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
             abs(float(m.body_gravcomp[body_map[b]] - m.body_gravcomp[b])),
             0.0,
         )
-    mocap_map = np.full(m.nmocap, -1, dtype=np.int64)
-    for b in range(m.nbody):
-        if m.body_mocapid[b] >= 0:
-            mocap_map[m.body_mocapid[b]] = m.body_mocapid[body_map[b]]
 
     def to_partner(b: int) -> np.ndarray:
         """Body *b*'s local polar coordinates expressed in its partner's local frame."""
@@ -946,7 +942,6 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
         sensor_rule=tuple(sensor_rule),
         body_C=body_C,
         site_C=site_C,
-        mocap_map=mocap_map,
         qpos=SignedPermutation(qpos_perm, qpos_sign, tuple(qpos_names), tuple(qpos_rules)),
         qvel=SignedPermutation(dof_perm, dof_sign, tuple(dof_names), tuple(dof_rules)),
         ctrl=SignedPermutation(actuator_map.copy(), actuator_sign.copy(), ctrl_names, tuple(actuator_rule)),
@@ -964,13 +959,16 @@ def _sensor_at(model: mujoco.MjModel, address: int, sensor_type: Any = None) -> 
 
 
 def heading_free_observation_keys(env: Any) -> tuple[list[tuple[Any, ...]], list[str]]:
-    """The semantic key and the name of every index of a ``bipedal-target-heading-free/v1`` observation.
+    """The semantic key and the name of every index of a heading-free observation (either schema).
 
     The layout is the plant contract's (``policy_layer._heading_free_observation_segments``): ``qpos[7:]``,
     ``qvel[6:]``, the root's projected gravity, the gyro, the heading-frame root velocity (forward, left, up), the
-    accelerometer, one summed touch channel per foot (``env._foot_sensor_groups``; one per group of
-    ``env._foot_observation_groups`` where the env declares them, the velociraptor's per-site channels), the target
-    direction in root coordinates, the target distance and the body-relative command.
+    accelerometer, one summed touch channel per foot (``env._foot_sensor_groups``, two on the bipeds and four on
+    the quadrupeds; one per group of ``env._foot_observation_groups`` where the env declares them, the
+    velociraptor's per-site channels; one summed floor-contact force per group of
+    ``env._foot_observation_floor_geoms`` where the env declares those, the Compsognathus robot's) and the
+    body-relative command.  The keys do not name the root body, so the
+    pelvis-rooted bipeds and the torso-rooted quadrupeds share them.
     """
     m = env.model
     free = [j for j in range(m.njnt) if int(m.jnt_type[j]) == _FREE]
@@ -1003,13 +1001,16 @@ def heading_free_observation_keys(env: Any) -> tuple[list[tuple[Any, ...]], list
     accel = _name(m, _OBJ.mjOBJ_SENSOR, _sensor_at(m, env._sensor_accel_start, mujoco.mjtSensor.mjSENS_ACCELEROMETER))
     for c, axis in enumerate("xyz"):
         add(("sensor", accel, c), f"{accel}.{axis}")
+    floor_channels = getattr(env, "_foot_observation_floor_geoms", None)
     channels = getattr(env, "_foot_observation_groups", None)
-    for group in env._foot_sensor_groups if channels is None else channels:
-        sensors = tuple(_name(m, _OBJ.mjOBJ_SENSOR, _sensor_at(m, address)) for address in group)
-        add(("sensor_sum", sensors), "foot_contact." + "+".join(sensors))
-    for c, axis in enumerate("xyz"):
-        add(("vec", "target_direction", c, "polar"), f"target_direction.{axis}")
-    add(("scalar", "target_distance"), "target_distance")
+    if floor_channels is not None:
+        for group in floor_channels:
+            geoms = tuple(sorted(_name(m, _OBJ.mjOBJ_GEOM, int(geom)) for geom in group))
+            add(("floor_force_sum", geoms), "foot_floor_contact." + "+".join(geoms))
+    else:
+        for group in env._foot_sensor_groups if channels is None else channels:
+            sensors = tuple(_name(m, _OBJ.mjOBJ_SENSOR, _sensor_at(m, address)) for address in group)
+            add(("sensor_sum", sensors), "foot_contact." + "+".join(sensors))
     for component in COMMAND_COMPONENTS:
         add(("command", component), f"command.{component}")
     if len(keys) != int(np.prod(env.observation_space.shape)):
@@ -1019,7 +1020,8 @@ def heading_free_observation_keys(env: Any) -> tuple[list[tuple[Any, ...]], list
 
 #: The observation layout of each ``observation_schema`` (configs/plant_versions.toml) that has one.
 OBSERVATION_LAYOUTS: dict[str, Callable[[Any], tuple[list[tuple[Any, ...]], list[str]]]] = {
-    HEADING_FREE_OBSERVATION_SCHEMA: heading_free_observation_keys,
+    BIPEDAL_HEADING_FREE_SCHEMA: heading_free_observation_keys,
+    QUADRUPEDAL_HEADING_FREE_SCHEMA: heading_free_observation_keys,
 }
 
 
@@ -1059,8 +1061,15 @@ def _mirror_key(mm: ModelMirror, model: mujoco.MjModel, key: tuple[Any, ...]) ->
             partners.append(_name(model, _OBJ.mjOBJ_SENSOR, int(mm.sensor_map[s])))
         side = "self" if tuple(partners) == tuple(key[1]) else "swapped"
         return ("sensor_sum", tuple(partners)), 1.0, f"a foot's summed touch ({side}): scalar"
-    if kind == "scalar":
-        return key, 1.0, f"{key[1]}: a mirror-invariant scalar"
+    if kind == "floor_force_sum":
+        geoms = tuple(
+            sorted(
+                _name(model, _OBJ.mjOBJ_GEOM, int(mm.geom_map[mujoco.mj_name2id(model, _OBJ.mjOBJ_GEOM, geom)]))
+                for geom in key[1]
+            )
+        )
+        side = "self" if geoms == tuple(key[1]) else "swapped"
+        return ("floor_force_sum", geoms), 1.0, f"a foot's summed floor-contact force ({side}): scalar"
     if kind == "command":
         return key, COMMAND_SIGNS[key[1]], f"body-relative command {key[1]}: sign {int(COMMAND_SIGNS[key[1]]):+d}"
     raise SymmetryError(f"unknown observation key kind {kind!r}")
@@ -1152,7 +1161,8 @@ def build_env_mirror(env: Any, observation_schema: str) -> EnvMirror:
 def mirror_physics_state(mm: ModelMirror, model: mujoco.MjModel, src: Any, dst: Any) -> None:
     """Write the mirror of *src*'s primary physics state into *dst* (``MjData``; may be the same).  No forward pass.
 
-    Time, ``qpos``, ``qvel``, ``ctrl``, the warm start, the applied forces and the mocap bodies (the target).
+    Time, ``qpos``, ``qvel``, ``ctrl``, the warm start and the applied forces (no plant has a mocap body,
+    :func:`derive_model_mirror` refuses one).
     """
     values = {
         "qpos": mm.qpos.apply(np.asarray(src.qpos, dtype=np.float64)),
@@ -1164,15 +1174,10 @@ def mirror_physics_state(mm: ModelMirror, model: mujoco.MjModel, src: Any, dst: 
     xfrc = np.asarray(src.xfrc_applied, dtype=np.float64)[mm.body_map].copy()
     xfrc[:, 0:3] *= POLAR
     xfrc[:, 3:6] *= PSEUDO
-    mocap_pos = np.asarray(src.mocap_pos)[mm.mocap_map] * POLAR
-    mocap_quat = np.asarray(src.mocap_quat)[mm.mocap_map] * QUAT_SIGNS
     dst.time = float(src.time)
     for name, value in values.items():
         getattr(dst, name)[:] = value
     dst.xfrc_applied[:] = xfrc
-    if model.nmocap:
-        dst.mocap_pos[:] = mocap_pos
-        dst.mocap_quat[:] = mocap_quat
 
 
 def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
@@ -1180,8 +1185,6 @@ def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
     have = vars(src)
     if have.get("direction_controller") is not None or have.get("_command_state") is not None:
         raise SymmetryError("a live command mode's controller state is not mirrored here")
-    if have.get("_quad_touchdown_sequence"):
-        raise SymmetryError("quadruped touchdown labels are not mirrored here")
     out: dict[str, Any] = {}
 
     def action(x: Any) -> Any:
@@ -1197,7 +1200,7 @@ def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
     for name in ("_prev_action", "_prev_prev_action", "_policy_action", "_action_filter_state"):
         if name in have:
             out[name] = action(have[name])
-    for name in ("_initial_prey_dir_2d", "_initial_pos_2d", "_prev_pos_2d"):
+    for name in ("_reference_heading_2d", "_initial_pos_2d", "_prev_pos_2d"):
         if name in have:
             out[name] = xy(have[name])
     if "_prev_r_in_contact" in have:
@@ -1207,6 +1210,9 @@ def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
     if "_prev_diag_a_in_contact" in have:
         out["_prev_diag_a_in_contact"] = src._prev_diag_b_in_contact
         out["_prev_diag_b_in_contact"] = src._prev_diag_a_in_contact
+    if "_quad_touchdown_sequence" in have:
+        # The mirror swaps the diagonals: A (front-right + rear-left) <-> B (front-left + rear-right).
+        out["_quad_touchdown_sequence"] = [{"A": "B", "B": "A"}[x] for x in src._quad_touchdown_sequence]
     if "_substep_min_foot_forces" in have:
         forces = have["_substep_min_foot_forces"]
         out["_substep_min_foot_forces"] = None if forces is None else np.asarray(forces)[em.foot_perm].copy()
@@ -1227,7 +1233,6 @@ def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
         "_policy_action_step",
         "_substep_contact_step",
         "_distance_traveled",
-        "_prev_prey_distance",
         "_stance_width_target",
     ):
         if name in have:

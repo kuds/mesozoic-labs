@@ -225,7 +225,7 @@ def test_on_it_changes_no_dynamics_and_adds_exactly_its_term(off_kwargs):
 def test_the_stagger_is_the_heading_frame_lead_and_flips_under_the_mirror(off_kwargs):
     env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **SCREENED)
     try:
-        mirror = SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+        mirror = SY.build_env_mirror(env, SY.BIPEDAL_HEADING_FREE_SCHEMA)
         env.reset(seed=3052)  # the split diagnosis' seed with a +30 mm spawn stagger
         for action in np.random.default_rng(2).uniform(-0.2, 0.2, (40, 15)):
             env.step(action)

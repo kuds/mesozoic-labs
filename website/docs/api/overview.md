@@ -44,9 +44,15 @@ removed every hunt node, and with it their reward terms, success terminations,
 info keys and constructor arguments (`strike_*`, `bite_*`, `food_reach_*`,
 `food_approach_weight`, `food_head_proximity_weight`, `snap_*`), which these
 classes now refuse with a `TypeError`. None of the four declares a success key,
-so its evaluations record no success rate. The prey or food target itself is
-still in the scene and the observation, and leaves with the next
-policy-interface revision.
+so its evaluations record no success rate. The prey, food or target object went
+too, in the policy-interface revision that followed under the same decision
+(`configs/plant_versions.toml` note 24): no scene has a mocap body, no
+observation reads a target, and the constructors refuse the target placement
+ranges (`prey_distance_range`, `prey_lateral_range`, `food_distance_range`,
+`food_lateral_range`, `food_height_range`, the Compsognathus `target_*`
+arguments) and `reset_height_noise_scale` with a `TypeError`. The forward,
+lateral and heading terms measure against the heading the animal spawns with,
+`env._reference_heading_2d`.
 
 ```python
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
@@ -66,11 +72,18 @@ obs, reward, terminated, truncated, info = env.step(action)
 
 ### Observation and Action Spaces
 
-Observations combine joint state, root-body sensors, foot contacts, and
-target-relative features. Actions are continuous values in `[-1, 1]`, scaled to
-the actuator control ranges in the MJCF. The exact observation and action
-dimensions are derived from the environment and compiled model and displayed on
-the generated [Velociraptor model page](/docs/models/velociraptor_mongoliensis/anatomical).
+Every model's observation reads no world heading and no target. It is, in
+order: the joint positions and velocities, the direction of gravity in the root
+body's frame, the root's gyro, the root's linear velocity in its
+gravity-aligned heading frame, its accelerometer, the foot-contact channels and
+the 3-wide command last (zeros unless a command is drawn). The root is the
+pelvis on the bipeds (`bipedal-heading-free/v1`) and the torso on the
+quadrupeds (`quadrupedal-heading-free/v1`). Turning the whole scene about
+vertical leaves the observation unchanged. Actions are continuous values in
+`[-1, 1]`, scaled to the actuator control ranges in the MJCF. The exact
+observation and action dimensions are derived from the environment and
+compiled model and displayed on the generated
+[Velociraptor model page](/docs/models/velociraptor_mongoliensis/anatomical).
 
 ### Reward Components
 
@@ -90,8 +103,8 @@ TOML configs.
 
 Large dinosaur-inspired bipedal model. Its former hunt, a fixed head-contact
 "bite" (the model has no articulated jaw), was removed by decision D-D59 with
-its `bite_*` arguments; the `head_bite` geom it used leaves with the prey at
-the next policy-interface revision.
+its `bite_*` arguments; the `head_bite` geom it used left with the prey in
+physics r12.
 
 ```python
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
@@ -107,7 +120,8 @@ source for its current observation and action dimensions.
 Quadrupedal dinosaur-inspired model. Its former hunt, a distance-based food
 reach (the head tip within a threshold of the food, with no contact), was
 removed by decision D-D59 with its `food_reach_*`, `food_approach_weight` and
-`food_head_proximity_weight` arguments.
+`food_head_proximity_weight` arguments; the food left the scene in physics r7.
+The `head_tip` site and its framepos sensor stay; no reward reads them.
 
 ```python
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
@@ -208,9 +222,9 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 
 | Metric key | Description | Species |
 |---|---|---|
-| `mean_heading_alignment` | cos θ alignment toward prey ∈ [-1, 1] | T-Rex, Velociraptor |
+| `mean_heading_alignment` | cos θ between the body's heading and its spawn heading ∈ [-1, 1] | All but the Allosaurus |
 | `mean_contact_asymmetry` | Left/right contact imbalance ∈ [0, 1] | All |
-| `success_rate` | Episode-level indicator: 1 if any of the model's success keys fired, otherwise 0; absent for a model that declares none | Allosaurus (`course_complete`) and the Compsognathus pair (`target_success`) |
+| `success_rate` | Episode-level indicator: 1 if any of the model's success keys fired, otherwise 0; absent for a model that declares none | Allosaurus (`course_complete`) |
 
 ### Species-Specific Key Mapping
 
@@ -218,13 +232,13 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 |---|---|---|---|
 | Height key | `pelvis_height` | `pelvis_height` | `pelvis_height` (aliased from torso) |
 | Success keys (`SUCCESS_KEYS`) | none | none | none |
-| Heading | ✓ | ✓ | N/A |
+| Heading | ✓ | ✓ | ✓ |
 
 `LocomotionMetrics(success_keys=...)` takes a model's `SUCCESS_KEYS`
 (`SpeciesConfig.success_keys`); with none it records no `success_rate`. The
 hunt's success keys (`bite_success`, `strike_success`, `food_reached`,
-`snap_success`) and its `prey_distance` and time-to-target metrics were
-removed with the hunt (decision D-D59).
+`snap_success`, the Compsognathus `target_success`) and its `prey_distance`
+and time-to-target metrics were removed with the hunt (decision D-D59).
 
 The shared CLI's `eval` command prints all metrics above grouped
 into **Core Performance**, **Velocity**, **Gait Quality** and **Balance**, with

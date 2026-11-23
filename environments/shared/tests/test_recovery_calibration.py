@@ -171,10 +171,10 @@ def test_complete_judge_is_hashed_and_legacy_records_remain_readable(profile_tas
     frozen = build_gate_resolution(
         **kwargs,
         evaluation_spec=loaded.evaluation_spec(),
-        null_provenance={"brace": {"stance_env_kwargs": {"prey_distance_range": (0.8, 1.2)}}},
+        null_provenance={"brace": {"stance_env_kwargs": {"healthy_z_range": (0.8, 1.2)}}},
     )
     assert frozen["resolution_sha256"] != legacy["resolution_sha256"]
-    assert frozen["null_provenance"]["brace"]["stance_env_kwargs"]["prey_distance_range"] == [0.8, 1.2]
+    assert frozen["null_provenance"]["brace"]["stance_env_kwargs"]["healthy_z_range"] == [0.8, 1.2]
     write_gate_resolution(tmp_path, frozen)
     assert require_gate_resolution(tmp_path, current_task_sha256="sha256:task") == frozen
     frozen["evaluation_spec"]["height_reference_m"] += 0.01

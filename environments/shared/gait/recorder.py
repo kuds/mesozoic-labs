@@ -299,8 +299,8 @@ class EpisodeTrace:
     geom_floor_mean: np.ndarray | None = None
     geom_floor_names: tuple[str, ...] = ()
     # --- ``balance=True`` only (``None`` otherwise, and when the balance capture failed) ---
-    #: (T,3) the whole animal's centre of mass (``subtree_com`` of the free root; a prey is a separate
-    #: mocap body), boundary sample; (3,) the same at the episode's first substep, ``frame_skip - 1``
+    #: (T,3) the whole animal's centre of mass (``subtree_com`` of the free root, so no other body of the
+    #: scene), boundary sample; (3,) the same at the episode's first substep, ``frame_skip - 1``
     #: substeps before the first boundary sample.
     com_pos: np.ndarray | None = None
     spawn_com_pos: np.ndarray | None = None
@@ -456,7 +456,7 @@ class SubstepContactRecorder:
         self._capture_actuators = False
         self._capture_slip = False
         self._capture_momentum = False
-        # The root's subtree (the animal; a prey is another tree), a contiguous run of body ids in MuJoCo's
+        # The root's subtree (the animal; any other body is another tree), a contiguous run of body ids in MuJoCo's
         # depth-first order (a slice), else the ids.
         subtree = [body for body in range(model.nbody) if int(model.body_rootid[body]) == self._root]
         contiguous = subtree == list(range(subtree[0], subtree[-1] + 1)) if subtree else False

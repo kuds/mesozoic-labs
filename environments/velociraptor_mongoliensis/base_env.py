@@ -1,15 +1,16 @@
 """
 Velociraptor Gymnasium Environment
 
-A bipedal dinosaur locomotion environment.  The prey sphere is still in the
-scene and the observation (direction and distance) until the next
-policy-interface revision removes it; no reward or termination reads it since
-the hunt was removed (decision D-D59).
+A bipedal dinosaur locomotion environment.  The scene holds the animal and the
+floor alone: the prey sphere and its observation channels (direction and
+distance) left in physics r6 / policy interface r15 with the hunt (decision
+D-D59), and the forward reference of the progress and heading terms is the
+spawn's own heading (``_reference_heading_2d``, set by BaseDinoEnv.reset).
 
-Observation space (bipedal-target-heading-free/v1 since policy interface r13, the
-maintainer's decision of 2026-11-06; the life-size plant of physics r5 and
-policy interface r14, the maintainer's decision of 2026-11-08, 71 values; the
-total dimension is generated in the public species catalog):
+Observation space (bipedal-heading-free/v1 since policy interface r15; heading-free
+since r13, the maintainer's decision of 2026-11-06; the life-size plant of
+physics r5 and policy interface r14, the maintainer's decision of 2026-11-08;
+67 values; the total dimension is generated in the public species catalog):
     - Joint positions (qpos[7:]) — 23 hinge joints excluding root freejoint, in
       qpos order: neck pitch, neck yaw, head pitch; tail 1 pitch, tail 1 yaw,
       tail 2 pitch, tail 3 pitch; then per leg (right, left) hip pitch, hip roll,
@@ -23,8 +24,6 @@ total dimension is generated in the public species catalog):
     - Foot contact — 6, one channel per load-bearing site since policy interface
       r14: the right foot's MTP pad, digit III and digit IV touch sensors, then
       the left foot's (the per-foot sums they replace are their totals)
-    - Prey direction in pelvis coordinates (unit vector) — 3
-    - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
 
 No channel carries the world heading: the three root blocks come from the
@@ -68,7 +67,7 @@ Reward components:
     - Floor impact (summed foot force above a body-weight multiple, the excess
       capped) and airborne substeps, read per physics substep (off by default)
     - Spin penalty (penalize pelvis angular velocity)
-    - Heading alignment (facing toward prey)
+    - Heading alignment (facing the spawn's heading, ``_reference_heading_2d``)
     - Lateral velocity penalty (anti crab-walk)
     - Speed penalty (penalise absolute speed above threshold)
 """
@@ -247,8 +246,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         floor_impact_threshold_bw: float = 3.0,
         airborne_substep_weight: float = 0.0,
         # Environment settings
-        prey_distance_range: tuple[float, float] = (3.0, 8.0),
-        prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
         # The pelvis-height fall / launch bounds: the r4 plant's (0.3, 1.0) m,
         # 0.593 / 1.978 of its 0.5055 m statue, scaled with the life-size hip
         # height (0.5488 m at the physics-r5 keyframe, x 1.0856) and rounded to
@@ -341,29 +338,17 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # default to the settled stance.
         self._natural_forward_z = -np.sin(natural_pitch)
 
-        # Raptor-specific env settings
-        self.prey_distance_range = prey_distance_range
-        self.prey_lateral_range = prey_lateral_range
-
-        # State tracking for delta-based rewards.  _spawn_target still resets
-        # _prev_prey_distance, which no reward reads since the approach
-        # shaping was removed with the hunt (decision D-D59); it leaves with
-        # the prey at the next policy-interface revision.
-        self._prev_prey_distance: float | None = None
+        # Action history for the smoothness and jerk terms (cleared by
+        # _reset_episode_state).
         self._prev_action: np.ndarray | None = None
 
         # Gait symmetry: track foot touchdown events for alternation reward
         self._init_gait_state()
 
-        # Cached initial direction to prey (set in _spawn_target).
-        # Used by forward-velocity and heading rewards so the "forward"
-        # reference direction stays fixed for the whole episode, preventing
-        # the reward from flipping sign when the raptor passes the prey.
-        self._initial_prey_dir_2d: np.ndarray = np.array([1.0, 0.0])
-
-        # Cached initial pelvis position (set in _spawn_target).
-        # Used by the drift penalty to discourage horizontal displacement.
-        self._initial_pos_2d: np.ndarray = np.array([0.0, 0.0])
+        # The progress and heading terms' forward reference and the drift
+        # penalty's anchor are BaseDinoEnv's _reference_heading_2d (the unit
+        # forward of the spawn's root quaternion) and _initial_pos_2d (the
+        # spawn's position), both set by BaseDinoEnv.__init__ and every reset.
 
         super().__init__(
             model_path=model_path,
@@ -425,10 +410,9 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         self._neck_home_qpos_indices = self._joint_qpos_indices(self._NECK_HOME_JOINTS)
         self._neck_home_qpos = np.asarray(self._NECK_SETTLED_QPOS, dtype=np.float64)
         # The animal's weight in N, for the floor-impact term: the pelvis
-        # subtree is the whole animal (the prey is a separate mocap body), so
-        # this is the 15.0 kg x 9.81 = 147.15 N (physics r5; r4 13.5 kg,
-        # 132.4 N) the floor-truth library and the stance gate's peak-force
-        # bars divide by.
+        # subtree is the whole animal, so this is the 15.0 kg x 9.81 =
+        # 147.15 N (physics r5; r4 13.5 kg, 132.4 N) the floor-truth library
+        # and the stance gate's peak-force bars divide by.
         self._body_weight_n = float(self.model.body_subtreemass[self.pelvis_id] * abs(self.model.opt.gravity[2]))
 
     def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
@@ -481,11 +465,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         self.pelvis_id = self._required_id(body, "pelvis")
         self.skull_body_id = self._required_id(body, "skull")
 
-        # Geom IDs for contact detection.  The sickle claws are contype /
-        # conaffinity 2/2 against the floor's 1/1: they meet only the prey.
-        self.prey_geom_id = self._required_id(geom, "prey_geom")
-        self.r_claw_geom_id = self._required_id(geom, "r_claw_geom")
-        self.l_claw_geom_id = self._required_id(geom, "l_claw_geom")
+        # Geom IDs for contact detection.  The sickle claws are visual
+        # (contype/conaffinity 0) since physics r6, so nothing here reads them.
         self.floor_geom_id = self._required_id(geom, "floor")
         # The trunk since physics r5: the dorsal torso, the low belly and the
         # pectoral ribcage capsules (r4 had the torso alone).
@@ -531,13 +512,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             ("site", self.head_tip_site_id),
             ("body", self.skull_body_id),
         )
-
-        # Mocap body for prey
-        self.prey_mocap_id = self._required_id(body, "prey")
-
-        # Claw tip site IDs (for claw-to-prey proximity shaping)
-        self.r_claw_tip_site_id = self._required_id(site, "r_claw_tip")
-        self.l_claw_tip_site_id = self._required_id(site, "l_claw_tip")
 
         # Sensor addresses, resolved by NAME since physics r5 (r4 hard-coded
         # them by position).  The shared IMU block stays at the addresses
@@ -601,18 +575,20 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
-        """Construct the bipedal-target-heading-free/v1 observation vector (71 values since policy interface r14).
+        """Construct the bipedal-heading-free/v1 observation vector (67 values since policy interface r15).
 
         Since policy interface r13 (the maintainer's decision of 2026-11-06) no channel carries the
-        world heading: the pelvis orientation is projected gravity, the pelvis
-        linear velocity is expressed in the gravity-aligned heading frame and
-        the prey direction in pelvis coordinates, all three from the free
-        root's own quaternion qpos[3:7] (environments/shared/heading_observation.py),
-        never from the orientation sensor, which is still zero when the
-        constructor calls this before any forward pass.  The T-Rex's layout
-        (D-D31), on this species' joints and feet, with one foot-contact
-        channel per load-bearing site (``_foot_observation_groups``) since
-        policy interface r14 (the maintainer's decision of 2026-11-08).
+        world heading: the pelvis orientation is projected gravity and the
+        pelvis linear velocity is expressed in the gravity-aligned heading
+        frame, both from the free root's own quaternion qpos[3:7]
+        (environments/shared/heading_observation.py), never from the
+        orientation sensor, which is still zero when the constructor calls
+        this before any forward pass.  The T-Rex's layout (D-D31), on this
+        species' joints and feet, with one foot-contact channel per
+        load-bearing site (``_foot_observation_groups``) since policy
+        interface r14 (the maintainer's decision of 2026-11-08), and no prey
+        channels since r15 (decision D-D59; r14 carried the prey direction
+        and distance before the command, 71 values).
         """
         # Joint positions (exclude root freejoint: first 7 values are pos + quat)
         qpos = self.data.qpos[7:].copy()
@@ -635,21 +611,9 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             ]
         )
 
-        # Prey info (relative to pelvis)
-        pelvis_pos = self.data.xpos[self.pelvis_id]
-        prey_pos = self.data.mocap_pos[0]  # First (and only) mocap body
-        prey_rel = prey_pos - pelvis_pos
-        prey_distance = np.linalg.norm(prey_rel)
-
-        # Normalize prey direction (world frame; turned into pelvis coordinates below)
-        prey_direction = prey_rel / (prey_distance + 1e-8)
-
-        # Heading-free root block: projected gravity, the root's world linear
-        # velocity (free joint qvel[0:3]) in the heading frame, the prey
-        # direction in pelvis coordinates.
-        gravity, heading_velocity, prey_direction_body = heading_free_root_segments(
-            self.data.qpos, self.data.qvel[0:3], prey_direction
-        )
+        # Heading-free root block: projected gravity and the root's world
+        # linear velocity (free joint qvel[0:3]) in the heading frame.
+        gravity, heading_velocity = heading_free_root_segments(self.data.qpos, self.data.qvel[0:3])
 
         obs = np.concatenate(
             [
@@ -660,8 +624,6 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
                 heading_velocity,  # Linear velocity (forward, left, up)
                 pelvis_accel,  # Accelerometer
                 foot_contact,  # Foot contacts (6: per site)
-                prey_direction_body,  # Direction to prey (unit vector, pelvis frame)
-                [prey_distance],  # Distance to prey (scalar)
                 self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]
         ).astype(np.float32)
@@ -673,10 +635,11 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         pelvis_pos = self.data.xpos[self.pelvis_id]
-        forward_ref_2d = self._initial_prey_dir_2d
+        # The forward reference: the spawn's heading, fixed for the episode.
+        forward_ref_2d = self._reference_heading_2d
         vel_2d = self.data.qvel[0:2]
 
-        # 1-1c. Forward velocity (toward prey), backward velocity penalty and drift penalty
+        # 1-1c. Forward velocity (along the reference heading), backward velocity penalty and drift penalty
         reward_forward, reward_backward, reward_drift = self._progress_terms(
             info, vel_2d, forward_ref_2d, pelvis_pos[:2]
         )
@@ -952,19 +915,13 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
 
         return False, info
 
-    def _spawn_target(self):
-        """Spawn prey at random location ahead of raptor."""
-        # The 0.15 m sphere's centre at 0.3 m, as on the r4 plant: the strike is
-        # claw-to-sphere, and the life-size claw rests where r4's did (tip
-        # 0.068 m high at home, r4 0.071) and reaches as high (0.76 m over its
-        # leg's joint ranges, r4 0.80), so the sphere's lower edge stays 0.08 m
-        # above the resting claw.
-        prey_pos = self._spawn_target_2d(self.prey_distance_range, self.prey_lateral_range, 0.3)
-        self._initial_prey_dir_2d = self._compute_initial_direction_2d(prey_pos)
-        self._initial_pos_2d = self.data.qpos[0:2].copy()
+    def _reset_episode_state(self) -> None:
+        """Clear the per-episode state: the action history and the gait tracking.
 
-        # Reset delta-based tracking (first step will produce zero deltas)
-        self._prev_prey_distance = None
+        BaseDinoEnv.reset has already set the drift anchor and the reference
+        heading from the spawn; nothing here draws a random number.
+        """
+        # The smoothness and jerk terms read no lag on an episode's first step.
         self._prev_action = None
         self._prev_prev_action = None
 

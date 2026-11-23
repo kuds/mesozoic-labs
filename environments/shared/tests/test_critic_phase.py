@@ -178,13 +178,15 @@ def test_the_off_path_scenario_restores_the_pre_landing_recipe_on_each_plant():
     )
     # The critic-off golden captured physics r10 / policy interface r15 at 4c9d5e9b, where this task read
     # 533fff20 (e9d349f8 on the current plant); both moved when the T. rex hunt arguments left its constructor
-    # defaults (decision D-D59's amendment), which changes no reward the stance computes.
+    # defaults (decision D-D59's amendment), which changes no reward the stance computes (cab8c221 / df516f13),
+    # and again with plant_versions note 24 (D-D59: the prey kwargs gone from the constructor, the reset's prey
+    # draws and the heading-free observation in the code the task hashes; the current plant physics r12).
     archived = stage_task_fingerprint(
         TYRANNOSAURUS_REX, 1, stage_config=stance, plant_identity=archived_plant_identity()
     )
-    assert archived["task_sha256"] == "sha256:cab8c2214b2d22050a39b56655d6987a35e843dbd5473fd72767facd792659c0"
+    assert archived["task_sha256"] == "sha256:a2c78b967ec8b4f8b26d2b2903f0ec70876565930589942bd851ff513175e86d"
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, 1, stage_config=stance)["task_sha256"] == (
-        "sha256:df516f1391423c72ff3ee3e0db939bf41f995fe67f7404cf8c105b19750b9f31"
+        "sha256:4a9821b5fa120d66c8879c797a5ec637164069e82a1be8b92d09345f46fe553b"
     )
     assert stance["curriculum_kwargs"]["collapse_peak_floor_reference"] == 3766.6
     assert configs[2] == committed[2]

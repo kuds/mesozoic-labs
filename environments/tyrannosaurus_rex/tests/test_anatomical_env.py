@@ -265,8 +265,8 @@ class TestFootContactSensors:
             for _ in range(200):
                 obs, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
                 assert not terminated
-            # foot contacts sit before direction (3) + distance (1) + command (3).
-            foot_dims = obs[-9:-7]
+            # foot contacts sit just before the command (3), the last block.
+            foot_dims = obs[-5:-3]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
             truth = _true_floor_force_per_foot(env)
             assert foot_dims[0] == pytest.approx(truth["r"], rel=1e-5)
@@ -431,7 +431,9 @@ class TestSettledPoseTargetsTrackTheStatue:
     over the post-settle window, measured on physics r8 and carried on r9
     (inside the tolerances below), and re-measured on r10 (plant_versions
     note 20: the preloaded tail springs hold the tail at the keyframe zeros
-    instead of drooping with tail_1 on its ventral stop, decision D-D44).
+    instead of drooping with tail_1 on its ventral stop, decision D-D44), and
+    again on r12 (the 0.2 kg head_bite box removed from the snout with the
+    hunt, decision D-D59, which lets the neck and head settle higher).
     Nothing derives them from the plant at run time, so a gain, spring or mass
     edit that moves the neck or tail would silently re-centre the statue off
     its own targets; this re-measures them instead, as
@@ -465,7 +467,8 @@ class TestSettledPoseTargetsTrackTheStatue:
         # -0.20280 / -0.09252 on r8, 0.21431 / 0.0 / 0.21968 and -0.21069 /
         # 0.0 / -0.20274 / -0.09249 on r9; the 40-seed spread at reset noise
         # 0.05 is under 2e-4 rad.  On r10: 0.21401 / 0.0 / 0.22054 and
-        # 0.00002 / 0.0 / 0.00006 / 0.00018, 40-seed sd under 3e-4 rad.
+        # 0.00002 / 0.0 / 0.00006 / 0.00018, 40-seed sd under 3e-4 rad.  On
+        # r12: 0.20784 / 0.0 / 0.21222 and 0.00015 / 0.0 / 0.00010 / 0.00018.
         np.testing.assert_allclose(neck, TyrannosaurusRexAnatomicalEnv._NECK_SETTLED_QPOS, atol=1e-4)
         np.testing.assert_allclose(tail, TyrannosaurusRexAnatomicalEnv._TAIL_SETTLED_QPOS, atol=5e-4)
 
@@ -492,7 +495,12 @@ class TestEveryHeadingIsPhysicallyIdentical:
 
     @classmethod
     def _joint_trajectory(cls, model, yaw_deg: float) -> np.ndarray:
-        """Joint qpos per step from the home keyframe, the root and the prey turned *yaw_deg* about world z."""
+        """Joint qpos per step from the home keyframe, the root turned *yaw_deg* about world z.
+
+        The root is the whole scene's only free body (the model has no mocap
+        body), so turning it about its own vertical turns the scene.
+        """
+        assert model.nmocap == 0
         data = mujoco.MjData(model)
         mujoco.mj_resetDataKeyframe(model, data, model.key("home").id)
         half = np.radians(yaw_deg) / 2
@@ -500,14 +508,6 @@ class TestEveryHeadingIsPhysicallyIdentical:
         root = np.zeros(4)
         mujoco.mju_mulQuat(root, turn, data.qpos[3:7].copy())
         data.qpos[3:7] = root
-        pivot = data.qpos[:2].copy()
-        cos, sin = np.cos(2 * half), np.sin(2 * half)
-        for body in range(model.nmocap):
-            offset = data.mocap_pos[body, :2] - pivot
-            data.mocap_pos[body, :2] = pivot + [cos * offset[0] - sin * offset[1], sin * offset[0] + cos * offset[1]]
-            mocap = np.zeros(4)
-            mujoco.mju_mulQuat(mocap, turn, data.mocap_quat[body].copy())
-            data.mocap_quat[body] = mocap
         mujoco.mj_forward(model, data)
         rng = np.random.default_rng(0)
         low, high = model.actuator_ctrlrange[:, 0], model.actuator_ctrlrange[:, 1]
@@ -542,8 +542,9 @@ class TestStage1ResetStaysInsideTheHealthyEnvelope:
     Two things have since moved and this test outlives both, which is why it
     reads the shipped config rather than a literal: stage 1 now runs at 0.05
     (PLANT_VALIDATION section 12), and root height is no longer sampled at all
-    — the ground settle derives it from the sampled joint pose, leaving the
-    whole height-jitter channel state-inert (see KNOWN_ISSUES).  The invariant
+    — the ground settle derives it from the sampled joint pose, and the
+    state-inert height-jitter channel (its knob, bound and draw) was removed
+    with the prey's spawn draws (decision D-D59).  The invariant
     asserted here — no seed starts already terminated — is what must hold
     regardless.
     """

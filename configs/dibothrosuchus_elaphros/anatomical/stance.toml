@@ -19,11 +19,15 @@ posture_weight = 1.5                           # Strong tilt penalty — the fai
 nosedive_weight = 1.0
 nosedive_termination_threshold = 0.45          # Terminates at forward_z < -0.45 (~27 deg nose-down) from the measured level neutral
 smoothness_weight = 0.1
-heading_weight = 0.1                           # Small heading reward to prevent spin-to-balance exploits
+heading_weight = 0.0                           # 0 since policy interface r11 (decision D-D59; 0.1 before, against
+                                               # spin-to-balance exploits). The term priced facing the prey's bearing;
+                                               # with the prey gone it would price the spawn heading, which this
+                                               # heading-free observation cannot see and no command (command_mode
+                                               # "none") states, so it would pay for an error the policy cannot
+                                               # observe. Wandering stays priced by the spin, drift and speed penalties.
 gait_symmetry_weight = 0.0                     # Disable: diagonal-pair alternation is meaningless while standing still
 height_weight = 1.0                            # Hold the trunk near the 0.313 m settled stance
 fall_penalty = -100.0
-prey_distance_range = [4.0, 6.0]               # The prey sets only the forward and heading reference since D-D59 removed the snap
 max_episode_steps = 1000
 reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT_VALIDATION §7/§12): joint-angle jitter
                                                # in RADIANS, and the same scalar bounds the uniform qvel kick. The old
@@ -32,7 +36,8 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
                                                # optimum at every noise level, so "headroom below the statue" cannot
                                                # be earned back by a better reward score, and at 0.30 survival and
                                                # stance quality are conflated in every metric. At 0.05 the statue is
-                                               # 100% full-horizon (standing 2598.3 +/- 0.9; 2598.5 on physics r2), so
+                                               # 100% full-horizon (standing 2499.2 +/- 0.2 on physics r4 with heading_weight
+                                               # 0; 2598.3 +/- 0.9 before, 2598.5 on physics r2), so
                                                # survival stops being the binding constraint and stance-quality gates
                                                # measure stance. Robustness moves to stage 1b's declared perturbations
                                                # (§13), where a lucky draw and a good controller are distinguishable.
@@ -70,14 +75,14 @@ train_freq = 16
 gradient_steps = 8                # 2:1 data-to-update ratio
 
 [sac.policy_kwargs]
-net_arch = [512, 256]             # Match PPO architecture (obs is 80 with the Phase C command segment)
+net_arch = [512, 256]             # Match PPO architecture (obs is 75: heading-free since policy interface r11, the Phase C command segment last)
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
-min_avg_reward = 1560.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.60 x the statue's
-                                        # standing reward at noise 0.05 (2598.3 +/- 0.9, 40 episodes). Only
+min_avg_reward = 1500.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.60 x the statue's
+                                        # standing reward at noise 0.05 (2499.2 +/- 0.2, 40 episodes). Only
                                         # rejects a policy that discarded most of the available return; 0.60
                                         # rather than §12's 0.89 for the reason derived in the trex config. The
                                         # old 100.0 was cleared by the statue (18x over) and certified nothing.
@@ -87,9 +92,15 @@ min_avg_reward = 1560.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # 1559.1 still rounds to 1560.
                                         # Physics r3: 2598.47 +/- 0.65, 40/40 at seeds 3082–3121.
                                         # Both this rail and the peak floor below still round to the same values.
-collapse_peak_floor = 1950.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
+                                        # Physics r4 (plant_versions note 24: the prey and the 0.02 kg snout_snap
+                                        # box removed; heading_weight 0.1 -> 0), same command, 2026-11-23:
+                                        # 2499.18 +/- 0.23, 40/40 (seed 3042), and 2499.24 +/- 0.21, 40/40 at
+                                        # seeds 3082-3121 (-99.2 against r3 there, the 0.1 per step the heading
+                                        # term paid the statue). 0.60 x 2499.2 = 1499.5, rounded to 1500 (was 1560).
+collapse_peak_floor = 1870.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
                                         # below a plausible active-policy peak. Absolute pending §14 item 3. On
-                                        # physics r2 0.75 x 2598.5 = 1948.9 still rounds to 1950.
+                                        # physics r2 0.75 x 2598.5 = 1948.9 still rounded to 1950; on physics r4
+                                        # (heading_weight 0) 0.75 x 2499.2 = 1874.4 rounds to 1870.
 min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the statue measures 100% at 0.05.
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
@@ -98,7 +109,8 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
 collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (the trex stance
                                          # precedent; early_stopping.py). Under home-keyframe-residual/v1 action
                                          # 0 commands the nominal stance, so the UNTRAINED policy is the statue
-                                         # (2598.3), above the 1950 floor: run 20260923_020654 armed at eval 20
+                                         # (2598.3 then, 2499.2 since physics r4), above the 1950 floor (1870
+                                         # since physics r4): run 20260923_020654 armed at eval 20
                                          # (1.0M) on the median of evals 1-5 (2592.9), the exploration dip that
                                          # followed read as a collapse, and it stopped at 1.45M of 6M, certifying
                                          # the statue-level 50k checkpoint. Replayed on that run's 29 evaluations,

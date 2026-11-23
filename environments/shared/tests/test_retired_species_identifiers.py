@@ -286,14 +286,10 @@ def test_no_recovery_calibration_names_a_retired_identifier_outside_its_recorded
         if retired_names(text)
     ]
     assert not hits, "these calibration entries name a model by a retired identifier (D-D33)\n" + "\n".join(hits)
-    # Only the robot needed a migration. The current anatomical profile was measured under its binomial.
-    anatomy, robot = (json.loads(path.read_text(encoding="utf-8")) for path in paths)
-    assert not anatomy.get("restamp_history")
-    assert any(
-        retired_names(json.dumps(entry["previous_identity"]))
-        for entry in robot["restamp_history"]
-        if "previous_identity" in entry
-    )
+    # Both profiles were measured under their binomials (plant_versions note 24 re-measured the robot's, whose
+    # migrated predecessor recorded its old identity), so neither records any history.
+    for path in paths:
+        assert not json.loads(path.read_text(encoding="utf-8")).get("restamp_history"), path
 
 
 def test_the_pattern_catches_a_retired_identifier_at_any_boundary_and_spares_the_binomials() -> None:

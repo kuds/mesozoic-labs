@@ -29,9 +29,9 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 
-#: Models these tables leave out on purpose (review M4): the two Compsognathus models reach a target, not prey, on
-#: their own reward, and their shared behaviour (the Gymnasium contract, every stage resetting and stepping, the
-#: registered horizon) is tested for both in environments/compsognathus_longipes/tests/test_training_env.py.
+#: Models these tables leave out on purpose (review M4): the two Compsognathus models share one reward of their own
+#: (one class for both embodiments), and their shared behaviour (the Gymnasium contract, every stage resetting and
+#: stepping, the registered horizon) is tested for both in environments/compsognathus_longipes/tests/test_training_env.py.
 EXEMPT = {ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot")}
 
 # Parametrize the anatomical environments covered by the shared reward checks.
@@ -52,13 +52,16 @@ MODEL_ENVS = [
 # heading-free observation (plant_versions note 18) then took it to 63, and the
 # velociraptor's (note 21, 2026-11-06) to 69; the velociraptor's life-size plant
 # (note 22, 2026-11-08) to 71 (six per-site foot channels for two per-foot sums,
-# 23 joints for 24) and its action to 17.
+# 23 joints for 24) and its action to 17.  The target-free revision then dropped
+# the 4 target channels (direction 3, distance 1) from every model and made the
+# two quadrupeds heading-free (quaternion 4 -> projected gravity 3, world
+# velocity -> heading-frame velocity): 45/71/63/86/80 -> 41/67/59/81/75.
 SPECIES_DIMS = {
-    ALLOSAURUS_FRAGILIS: {"obs": 45, "act": 10},
-    VELOCIRAPTOR_MONGOLIENSIS: {"obs": 71, "act": 17},
-    TYRANNOSAURUS_REX: {"obs": 63, "act": 15},
-    BRACHIOSAURUS_ALTITHORAX: {"obs": 86, "act": 30},
-    DIBOTHROSUCHUS_ELAPHROS: {"obs": 80, "act": 27},
+    ALLOSAURUS_FRAGILIS: {"obs": 41, "act": 10},
+    VELOCIRAPTOR_MONGOLIENSIS: {"obs": 67, "act": 17},
+    TYRANNOSAURUS_REX: {"obs": 59, "act": 15},
+    BRACHIOSAURUS_ALTITHORAX: {"obs": 81, "act": 30},
+    DIBOTHROSUCHUS_ELAPHROS: {"obs": 75, "act": 27},
 }
 
 # Expected reward component keys per species

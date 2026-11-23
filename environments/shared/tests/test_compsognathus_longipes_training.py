@@ -172,9 +172,14 @@ def assert_checkpoint_round_trip(model_id, algorithm, configs, stage, checkpoint
         expected = model.predict(obs, deterministic=True)[0]
         reloaded = getattr(sb3, algorithm.upper()).load(checkpoint, device="cpu")
         np.testing.assert_array_equal(expected, reloaded.predict(obs, deterministic=True)[0])
-        panels = eval_policy(model, eval_env, ["target_success"], n_episodes=2)
-        assert all(len(panel) == 2 and np.all(np.isfinite(panel)) for panel in panels)
-        assert all(0 < length <= 32 for length in panels[1])
+        # The Compsognathus declares no success key since the target-free revision: the success panel is empty
+        # and every other panel holds one finite value per episode.
+        success_keys = get_species_config(model_id).success_keys
+        assert success_keys == []
+        rewards, lengths, fwd_vels, successes, distances = eval_policy(model, eval_env, success_keys, n_episodes=2)
+        assert successes == []
+        assert all(len(panel) == 2 and np.all(np.isfinite(panel)) for panel in (rewards, lengths, fwd_vels, distances))
+        assert all(0 < length <= 32 for length in lengths)
     finally:
         eval_env.close()
 

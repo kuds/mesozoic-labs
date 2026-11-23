@@ -362,7 +362,7 @@ def load_stage_config(
     sac_raw = raw.get("sac", {})
     curriculum_raw = raw.get("curriculum", {})
 
-    # Convert lists to tuples for range parameters (e.g. prey_distance_range)
+    # Convert lists to tuples for range parameters (e.g. healthy_z_range)
     env_kwargs = {}
     for key, value in env_raw.items():
         if isinstance(value, list):

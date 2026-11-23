@@ -29,8 +29,8 @@ them.
   the home controls carry the body's weight, so zero action holds the stance.
 - **Feet.** Each foot stands on a rounded pad under the metatarsophalangeal (MTP) joint and on digits III and IV,
   which are passive sprung hinges. Digit II rides raised on its own sprung hinge. Its claw is a force-limited servo
-  that only the prey collides with. The pad, digit III and digit IV each have a touch sensor and their own
-  observation channel. The friction cone is elliptic, as on every species.
+  and, like digit II's other bones, does not collide. The pad, digit III and digit IV each have a touch sensor and
+  their own observation channel. The friction cone is elliptic, as on every species.
 - **Tail, neck and arms.** Spring preloads carry the weight of the five-segment tail, and its distal end is rigid. The
   neck and skull are separate bodies; the skull collides with the floor and the neck does not. The feathered arms are
   welded to the trunk and do not collide.
@@ -122,21 +122,22 @@ Species notes:
 
 The trained tasks are the stance and the walk; the strike, the hunt that followed the walk, was removed by decision
 D-D59. Its reward terms, its `strike_success` termination and its constructor arguments are gone from the code, and the
-model declares no success key. A prey sphere still spawns ahead of the animal at a random distance and side offset, and
-the observation still carries its direction and distance; the forward and heading terms measure along its initial
-direction. The prey, and with it the claw collision geoms, leave with the next policy-interface revision.
+model declares no success key. The prey sphere, its observation channels and the claws' prey-only collision went with
+it in policy interface r15 and physics r6, so the scene holds only the animal and the floor, and checkpoints of policy
+interface r14 or earlier no longer load. The forward and heading terms measure along the heading the animal spawns
+with.
 
-The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
-and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one channel per
-foot touch sensor, the prey distance and the command. Actions are offsets from the MJCF `home` keyframe: zero holds the
-standing pose, and -1 and +1 reach each actuator's limits. The docstring of [`base_env.py`](base_env.py) gives both
-layouts.
+The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
+frame, beside the joint state, the pelvis gyro and accelerometer, one channel per foot touch sensor and the command.
+Actions are offsets from the MJCF `home` keyframe: zero holds the standing pose, and -1 and +1 reach each actuator's
+limits. The docstring of [`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
 
 - **Survival and posture:** an alive bonus, a posture term centered on the settled pitch, an optional nosedive
   penalty, and a fall penalty.
-- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
+- **Progress:** forward velocity along the spawn heading, with optional backward, drift, sideways, spin and speed
+  penalties.
 - **Stance quality** (stance stage only): support under both feet, the home leg, tail and neck poses, and penalties
   on floor impacts, airborne physics substeps, action jerk and commands held at their limits.
 - **Effort:** energy, action smoothness and tail stability.

@@ -2,7 +2,7 @@
 
 A reconstruction of *Allosaurus fragilis*, a large Late Jurassic theropod, at adult size. It stands and walks on two
 digitigrade feet, each with three forward weight-bearing toes, a pad under the toe joints and a raised inner toe. The
-model is for standing and for walking straight ahead to a target on level ground. It is a research abstraction:
+model is for standing and for walking straight ahead on level ground. It is a research abstraction:
 fossils fix the segment lengths and foot structure, while the soft tissue, muscle torques and walking speed are
 reconstruction choices.
 
@@ -114,21 +114,25 @@ Species notes:
 
 ## Task and rewards
 
-The stance stage holds an upright posture on the feet. The locomotion stage walks straight to a target placed ahead
-of the animal at reset. The environment reports `course_complete` when the pelvis reaches the target while at least one
-foot bears weight; that ends the episode. The stance deliverable is judged on supported standing instead; the catalog
-entry gives its definition.
+The stance stage holds an upright posture on the feet. The locomotion stage walks an 8 m course straight ahead along
+the heading the animal has at reset. The environment reports `course_complete` when the pelvis has advanced 7.65 m
+along that heading (the course length less a 0.35 m tolerance) while at least one foot bears weight; that ends the
+episode. The finish is a line across the heading, so a sideways offset neither prevents nor causes it. Until policy
+interface r2 an invisible target sat 8 m ahead and the course ended within 0.35 m of it; the scene now holds only the
+animal and the floor. The stance deliverable is judged on supported standing instead; the catalog entry gives its
+definition.
 
-The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
-and the target direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one load
-channel per foot, the target distance and the command. Actions are offsets from the MJCF `home` torques: zero applies
-the home torques, and -1 and +1 reach each motor's limits.
+The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
+frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot and the command, 41 values
+in all. Policy interface r1 also read the target direction in pelvis coordinates and its distance (45 values), so its
+checkpoints do not load. Actions are offsets from the MJCF `home` torques: zero applies the home torques, and -1 and
++1 reach each motor's limits.
 
 The main reward groups:
 
 - **Support and posture:** an alive bonus and an upright-posture term at standing height, both paid only while a foot
   bears weight, and a fall penalty.
-- **Progress** (locomotion): forward velocity toward the target.
+- **Progress** (locomotion): forward velocity along the spawn heading.
 - **Drift** (stance): a penalty on horizontal displacement from the starting point.
 - **Effort:** an energy penalty on the squared action.
 

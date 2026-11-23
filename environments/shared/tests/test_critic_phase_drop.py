@@ -509,7 +509,8 @@ def test_the_trainer_drops_records_and_resumes_the_child_stock(phase_stance_pare
     # every weight but the phase columns.
     actor = [name for name in state if name.startswith(ACTOR)]
     assert actor and all(torch.equal(state[name], parent_policy[name]) for name in actor)
-    assert torch.equal(state[LAYER], parent_policy[LAYER][:, :63]) and tuple(parent_policy[LAYER].shape) == (512, 66)
+    # The real T. rex observation is 59 wide (plant_versions note 24), so the critic's first layer reads 59 + 3.
+    assert torch.equal(state[LAYER], parent_policy[LAYER][:, :59]) and tuple(parent_policy[LAYER].shape) == (512, 62)
     assert (
         type(child) is PPO and type(child.policy) is ActorCriticPolicy and type(child.rollout_buffer) is RolloutBuffer
     )
