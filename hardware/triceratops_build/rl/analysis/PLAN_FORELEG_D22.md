@@ -50,10 +50,11 @@ before any judged run, after the models below have passed an independent review.
 
 ## Training
 
-Identical to run 3 apart from the model: `configs/run3_terrain.json`, 10,000,000 steps, seeds 0 and 1, the same
-notebook and settings. Four runs on Colab, about 3 hours each (run 3's two took 3.0-3.1 h).
+Identical to run 3 apart from the model: `configs/run3_terrain.json`, 10,000,000 steps, the same notebook and
+settings; four seeds per length (D24: two seeds cannot resolve a 15 % foot-load effect), so eight runs on Colab of
+3-5 hours each (run 3's took 3.05 and 5.05 h).
 
-## Measures (the pre-registration picks the judged ones and their thresholds)
+## Measures (the pre-registration, PREREG_FORELEG_D22.md, fixes the judged ones and their thresholds)
 
 - Run 3's rules F1, F2, T1-T5, so each length is also judged as run 3 was.
 - Foot loads: the 10 ms mean and the 1 ms peak of each foot's normal force, in the gait report's target case and over

@@ -723,11 +723,12 @@ def test_foot_loads_on_a_trained_checkpoint(trained_run, tmp_path):
     assert len(res["episodes"]) == 5 and res["provenance"]["model"] == "trike60_C_closed_ankleroll.xml"
     assert res["provenance"]["steps"] == 1024 and len(res["provenance"]["zip_sha256"]) == 64
     for e in res["episodes"]:
-        if e["samples"]:
+        # every 1 ms step from 2 s to the episode's end (it may fall early: an untrained policy)
+        assert e["foot_samples"] == pytest.approx(round((e["seconds"] - 2.0) * 1000), abs=2)
+        if e["foot_samples"] >= 10:
             assert e["window_s"] == pytest.approx(0.010)
             for f in e["feet"].values():
-                if f["window_max_n"] is not None:
-                    assert f["window_max_n"] <= f["raw_max_n"] + 1e-9 and f["window_p99_n"] <= f["window_max_n"]
+                assert f["window_max_n"] <= f["raw_max_n"] + 1e-9 and f["window_p99_n"] <= f["window_max_n"]
 
 
 def test_evaluate_uses_vecnormalize_in_eval_mode(trained_run):

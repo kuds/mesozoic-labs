@@ -90,7 +90,8 @@ class LoadRecorder:
             return {"median": float(q[0]), "p95": float(q[1]), "p99": float(q[2]), "max": float(x.max())}
 
         F, M = np.asarray(self.force), np.asarray(self.moment)
-        out = {"samples": int(F.shape[0]) if F.size else 0, "weight_n": weight_n, "joints": {}, "feet": {}}
+        out = {"samples": int(F.shape[0]) if F.size else 0, "foot_samples": len(self.foot), "weight_n": weight_n,
+               "joints": {}, "feet": {}}
         for i, n in enumerate(self.names):
             out["joints"][n] = {"force_n": stats(F[:, i]) if F.size else None,
                                 "force_bw": stats(F[:, i] / weight_n) if F.size else None,
