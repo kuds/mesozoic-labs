@@ -282,3 +282,76 @@ def test_steering_measures_on_a_known_episode():
     assert m["stops"]["steps"] > 0 and m["stops"]["speed_mps"]["median"] == 0.0
     s = summarise([m, m])
     assert s["episodes"] == 2 and s["falls"] == 0 and s["turns_settled_share"] == 1.0
+
+
+# ---------------------------------------------------------------- heat, battery, loads (step 3)
+def test_thermal_calibration_reproduces_the_makers_figure_and_cools():
+    import math
+
+    from telemetry.thermal import DriveThermal, demo_temperatures
+
+    d = DriveThermal("x4", kt_nm_per_a=1.8, r_phase_ohm=0.2, thermal_eq_nm=7.5)
+    for tc in (600.0, 1200.0, 2400.0):
+        n = d.calibrate(tc)
+        assert n.run([(90 * 60.0, 7.5 ** 2)])[-1][1] == pytest.approx(100.0, abs=0.05)
+        assert n.time_constant_s == pytest.approx(tc)
+        ss = n.steady_state_c(7.5 ** 2)
+        assert ss is not None and ss >= 100.0 - 0.1  # held longer than 90 min, it ends at or above 100 C
+        assert n.run([(10 * tc, 7.5 ** 2)])[-1][1] == pytest.approx(ss, abs=0.2)
+        assert n.run([(5 * tc, 0.0)], start_c=80.0)[-1][1] == pytest.approx(25.0 + 55.0 * math.exp(-5), abs=0.1)
+    out = demo_temperatures({"x4": d}, {"x4": [(1200.0, 7.5 ** 2), (600.0, 0.0)]}, limit_c=60.0)
+    r = out["x4"]["20min"]
+    assert r["peak_c"] > r["end_c"] > 25.0 and r["minutes_to_limit"] is not None and r["cooldown_minutes"] > 0
+    assert out["x4"]["10min"]["peak_c"] > out["x4"]["40min"]["peak_c"]  # a short time constant heats faster
+
+
+def test_battery_arithmetic():
+    from telemetry.power import demo_battery
+
+    b = demo_battery([{"seconds": 90, "mean_draw_w": 40.0, "peak_draw_w": 400.0, "peak_surplus_w": 10.0,
+                       "surplus_share": 0.1},
+                      {"seconds": 30, "mean_draw_w": 8.0, "peak_draw_w": 20.0, "peak_surplus_w": 0.0,
+                       "surplus_share": 0.0}], pack_wh=100.0, usable_share=0.8, v_nominal=48.0, v_low=40.0,
+                     hotel_w=30.0)
+    assert b["mean_drive_draw_w"] == pytest.approx(32.0) and b["mean_total_w"] == pytest.approx(62.0)
+    assert b["runtime_minutes"] == pytest.approx(60 * 80 / 62.0)
+    assert b["current_peak_a"]["low_v"] == pytest.approx(430.0 / 40.0)
+    assert b["braking_surplus_share"] == pytest.approx(0.075)
+    with pytest.raises(ValueError):
+        demo_battery([], pack_wh=1, usable_share=1, v_nominal=1, v_low=1, hotel_w=0)
+
+
+def test_loads_balance_the_weight_standing():
+    from trike_env import CAPSULE_MODEL, CORNERS, TrikeEnv, TrikeEnvConfig
+
+    from telemetry.loads import LoadRecorder
+
+    env = TrikeEnv(TrikeEnvConfig(model_path=str(CAPSULE_MODEL), domain_randomization=False,
+                                  observation_noise=False))
+    m = env.model
+    joints = [m.joint(int(m.actuator(int(i)).trnid[0])).name for i in env._leg_act]
+    rec = LoadRecorder(m, joints, [f"{c}_sole" for c in CORNERS])
+    env.reset(seed=0)
+    env.substep_hook = lambda e: rec(e.model, e.data)
+    for _ in range(50):
+        env.step(np.zeros(12))
+    s = rec.summary(env.nominal_weight)
+    feet = sum(v["normal_n"]["median"] for v in s["feet"].values())
+    assert feet == pytest.approx(env.nominal_weight, rel=0.01)
+    for c in CORNERS:  # the top joint carries its foot's load less the leg's own weight
+        top = [j for j in joints if j.startswith(c)][0]
+        leg = float(m.body_subtreemass[m.jnt_bodyid[m.joint(top).id]]) * 9.81
+        assert s["joints"][top]["force_n"]["median"] == pytest.approx(
+            s["feet"][f"{c}_sole"]["normal_n"]["median"] - leg, abs=1.0)
+
+
+def test_demo_course_runs_end_to_end(tmp_path):
+    import demo_course
+
+    make, walker = demo_course.trot_factory()
+    res = demo_course.run(make, walker, [("walk_0.25", 60.0), ("stand", 30.0)], 3.0, 700_000, segment_s=4.0)
+    assert set(res["segments"]) == set(demo_course.SEGMENTS) and not any(s["fell"] for s in res["segments"].values())
+    assert res["battery"]["runtime_minutes"] > 0 and res["segments"]["stand"]["mean_draw_w"] < \
+        res["segments"]["walk_0.25"]["mean_draw_w"]
+    assert set(next(iter(res["temperatures"].values()))) == {"10min", "20min", "40min"}
+    assert demo_course.chart(res, tmp_path, "test") == "demo_temperatures.png"

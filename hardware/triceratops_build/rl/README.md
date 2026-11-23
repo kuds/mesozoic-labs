@@ -18,7 +18,8 @@ points. Colab itself is untested; the first Colab run is a one-hour pipeline tes
 | `trike_checkpoints.py` | Checkpoint pairs: the check that tells a broken file from an I/O error, the scan (newest intact pair, re-reads on I/O errors), atomic saves (non-finite parameters set aside), setting broken files aside, atomic JSON. |
 | `gait_metrics.py` | The gait and drive measures of an evaluation episode (logged every physics step): RMS torque / continuous rating per drive, time at the force limit (nominal and episode limit), stance slip ratio, debounced touchdowns, power, drift and heading change; the definitions of `analysis/gait_pipe1.py`. |
 | `steer_eval.py` | Steering evaluation (decision D20): a checkpoint on its request schedule and on scripted courses, with the measures of `telemetry/steering.py` and a top view per course. |
-| `telemetry/` | Generic training and hardware telemetry (decision D21; plan `PLAN_STEERING_AND_TELEMETRY.md`), robot-agnostic so a T. rex or larger Triceratops env can use it: `health.py` (training health, `train_health.jsonl`), `checks.py` (periodic checks at named points), `health_dashboard.py` (their charts), `steering.py` (direction-following measures from the shared contract's step fields). Tests: `tests/test_telemetry.py`, on a toy env. |
+| `demo_course.py` | Heat, battery and loads over a museum demo (decision D21): walking and standing simulated in segments, then a 20 min demo loop run through the thermal and battery models; bearing loads and foot forces per segment. |
+| `telemetry/` | Generic training and hardware telemetry (decision D21; plan `PLAN_STEERING_AND_TELEMETRY.md`), robot-agnostic so a T. rex or larger Triceratops env can use it: `health.py` (training health, `train_health.jsonl`), `checks.py` (periodic checks at named points), `health_dashboard.py` (their charts), `steering.py` (direction-following measures from the shared contract's step fields), `thermal.py` (drive winding temperature, a first-order model calibrated to the maker's temperature-rise figure), `power.py` (battery runtime, pack currents, braking surplus), `loads.py` (joint bearing loads and foot forces from MuJoCo). Tests: `tests/test_telemetry.py`, on a toy env. |
 | `tests/test_trike_env.py`, `tests/conftest.py` | 56 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
 
 ## How to run locally
@@ -314,6 +315,35 @@ edited.
   about 10 s more per check.
 - **Not yet decided:** the settings above are starting points, set before any steering run. The steering run's
   rules, its preset and step sheets come after run 3's results (D20).
+
+## Heat, battery and loads over a demo (decision D21; `demo_course.py`)
+
+These are simulation results plus model estimates, not measurements. `python demo_course.py --out DIR
+[--ckpt-dir RUN]` runs two stages.
+
+**1. Segments, simulated.** One 20 s episode per activity: walking at 0.25 m/s, walking at 0.15 m/s, and standing.
+Each is on the nominal model with sensor noise and a 10 ms delay. The walker is the model-based trot on the capsule
+feet, or a checkpoint. Each segment records, every 1 ms:
+- each drive's torque and speed;
+- the electrical estimate (copper loss, the drives' net draw on a shared bus, the braking surplus);
+- the joint bearing loads and the foot forces.
+
+**2. The demo, modelled.** A loop (default 90 s walking, 30 s standing) for 20 min is run through two models:
+- **winding temperature per drive:** a first-order model calibrated so the maker's rated torque reaches 100 °C at
+  90 min. The thermal time constant is not published, so it is given at 10, 20 and 40 min;
+- **battery:** 146.5 Wh, 80 % usable, 12S, with 45.6 V taken as nominal and 42.0 V as low charge, plus a 30 W hotel
+  load.
+
+**First reading** (model-based trot, capsule feet, 23 Nov 2026; not a judged result):
+- **Drive draw:** about 45 W walking and 10 W standing; 1 ms peaks of 400-600 W on the shared bus.
+- **Heat:** the hottest windings are the pitch drives, 35-47 °C after 20 min over the time-constant range. That is
+  far from 100 °C, but museum-shell airflow is not modelled.
+- **Battery:** about 106 min per pack at 66 W mean; peak pack current 10.4 A at low charge.
+- **Loads:**
+  - front foot: up to 2.4 body weights;
+  - front hip roll joint: up to 1.6 body weights of reaction force (99th percentile), with bending moments up to
+    about 21 N·m.
+  These feed the bench plan.
 
 ## What training prints and writes
 
