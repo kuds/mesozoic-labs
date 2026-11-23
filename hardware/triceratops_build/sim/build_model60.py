@@ -25,9 +25,10 @@ on the budget's 0.85 kg x s^2 basis, linkage mass on T15's four-bar basis, reser
 scaled for similarity, servo joint parameters made consistent, leftover belt parts removed, audio / bus adapter / second
 Teensy added. Details: REPORT_60CM.md.
 
-Usage: python build_model60.py [--out generated] [--ankle-roll] [--capsule-foot]
+Usage: python build_model60.py [--out generated] [--ankle-roll] [--capsule-foot [--foreleg 128 160]]
 Writes trike60_C_listed.xml, trike60_C_closed.xml (+ _ankleroll variants with --ankle-roll, + trike60_C_closed_capsule.xml
-with --capsule-foot) and their mass ledgers.
+with --capsule-foot, + trike60_C_closed_capsule_fore128.xml / _fore160.xml with --foreleg: PR #697's repackaged
+forelegs, build_foreleg60.py, D22) and their mass ledgers.
 """
 
 import argparse
@@ -436,12 +437,13 @@ def build(variant, ankle_roll=False, battery_x=-0.200 * S):
 
 CATEGORY60 = [("drives", ("_stator",)), ("leg transmissions", ("drive_crank", "pushrod", "output_crank")),
               ("frame and feet", ("6061_", "crossmember", "service_tray", "tray_stay", "neck_cradle", "shoulder_yoke",
-                                  "upper_strut", "lower_strut", "elbow_axle", "ankle_hub", "_sole")),
+                                  "upper_strut", "lower_strut", "elbow_axle", "ankle_hub", "_sole",
+                                  "drop_bracket", "offset_motor_mount", "mount_standoff")),  # the last three: PR #697
               ("shells", ("PA11_rib", "shell_seam", "limb_cover")),
               ("head", ("neck_pitch_case", "neck_hub", "frill", "skull", "horn", "_eye", "neck_yaw", "beak", "eyelid",
                         "frill_lights")),
               ("tail", ("tail_",)), ("compute and sensors", ("jetson", "nvme", "teensy", "oak_d", "vl53", "trunk_imu", "audio_",
-                                                             "io_and_sensor")),
+                                                             "io_and_sensor", "tof_mount")),
               ("battery", ("gtech",)), ("power, safety, wiring, cooling", ("power_board", "pilz", "dc_dc", "loom",
                                                                             "blowers")),
               ("reserve", ("reserve_",))]
@@ -486,7 +488,12 @@ def main():
     ap.add_argument("--capsule-foot", action="store_true",
                     help="also write trike60_C_closed_capsule.xml: the closed model with the foot study's capsule sole "
                          "(build_feet60 capsule_r24, the owner's foot, D19), and its mass ledger")
+    ap.add_argument("--foreleg", type=int, nargs="*", default=[], choices=(128, 160),
+                    help="with --capsule-foot, also write trike60_C_closed_capsule_fore<N>.xml: PR #697's repackaged "
+                         "forelegs at an N mm upper link (build_foreleg60.py; F18, D22), and their mass ledgers")
     a = ap.parse_args()
+    if a.foreleg and not a.capsule_foot:
+        ap.error("--foreleg applies to the capsule model: add --capsule-foot")
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     jobs = [("listed", False), ("closed", False)] + ([("closed", True)] if a.ankle_roll else [])
@@ -524,6 +531,18 @@ def main():
             cled["foot"] = "capsule sole, build_feet60 capsule_r24 (D19; sim/REPORT_FEET60.md)"
             (out / f"mass_ledger_{cname}.json").write_text(json.dumps(cled, indent=1) + "\n")
             print(f"{cname}.xml: {cled['total_mass_kg']:.3f} kg (the closed model, capsule soles)")
+            for length in a.foreleg:
+                import build_foreleg60  # PR #697's fore-assembly, applied to the capsule model just written
+
+                fname = f"{cname}_fore{length}"
+                ftext = build_foreleg60.edit(length, base=out / f"{cname}.xml")
+                (out / f"{fname}.xml").write_text(ftext)
+                fled = ledger(ftext, variant, dt, neck, {**notes, **build_foreleg60.mass_notes(length)})
+                fled["foot"] = cled["foot"]
+                fled["foreleg"] = (f"PR #697's repackaged foreleg, {length} mm upper link (commit "
+                                   f"{build_foreleg60.PR_COMMIT[:8]}; data/foreleg_pr697.json; F18, D22)")
+                (out / f"mass_ledger_{fname}.json").write_text(json.dumps(fled, indent=1) + "\n")
+                print(f"{fname}.xml: {fled['total_mass_kg']:.3f} kg (capsule soles, {length} mm upper foreleg)")
 
 
 if __name__ == "__main__":
