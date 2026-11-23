@@ -7,19 +7,26 @@ ESTIMATES, not measurements. Each drive is one thermal node, its winding, agains
 - ``tau_motor`` is the torque the motor makes at the drive's output (the joint torque, or the joint torque over a
   linkage's efficiency); ``Kt`` (N m per A rms, output side) and ``R_0`` (per-phase, Y-equivalent, at ``T_0``) are the
   caller's catalog figures, as the gait report's copper loss uses them.
-- **Calibration** from the maker's temperature-rise figure: a drive holding its ``thermal_eq_nm`` reaches
-  ``ref_temp_c`` (100 C) after ``ref_minutes`` (90 min) from ``ambient_c`` (25 C) in open air. With the time constant
-  ``tau = R_th C`` assumed, that fixes ``R_th`` (solved with the temperature-dependent resistance), and ``C = tau /
-  R_th``.
-- **The time constant is not published** for these drives, so it is an assumption: ``time_constants_s`` gives a
-  range (default 10, 20 and 40 min), and every result is reported for each. A longer time constant means slower
-  heating and a slower cool-down, with the same steady state.
+- **Calibration** from the maker's temperature-rise figure: a drive holding its ``thermal_eq_nm`` (the maker's
+  thermal-equilibrium torque, not its rated torque) reaches ``ref_temp_c`` (100 C) after ``ref_minutes`` (90 min)
+  from ``ambient_c`` (25 C) in open air. With the time constant ``tau = R_th C`` assumed, that fixes ``R_th`` (solved
+  with the temperature-dependent resistance), and ``C = tau / R_th``. Each time constant gets its own ``R_th``, so
+  the steady state at ``thermal_eq_nm`` differs between them (``steady_at_thermal_eq_c``): the longer the time
+  constant, the further above 100 C, since 90 min is then further from steady.
+- **The time constant** is ``R_th C`` at the reference resistance; the winding's resistance rises as it warms, so
+  the response under load is somewhat slower than the label. It is not published as such, so it is a range. The
+  maker's overload figures fix it roughly; fitted with this model (23 Nov 2026):
+  - X4-36-L at 10.5 N m reaches 100 C in 5.4-12.4 min: 6.6-15.3 min; at 21 N m it lasts 44 s: 4.7 min
+    (``hardware/trex_form_study/stage2/design/servo_model/reader2_hardware_facts.md``, the maker's figures);
+  - X6-50-L at 20 N m reaches 100 C in 4 min 9 s: 8.1 min (``hardware/trex_form_study/designlab/data/actuators.json``).
+  Hence the default range 5, 8 and 15 min (``TIME_CONSTANTS_S``); every result is reported for each.
 - Not modelled: the housing as a second node, the drive electronics' own losses, iron losses, airflow inside a
   museum shell (worse than open air), and the controller's own thermal limits. Calibrate against a bench
   temperature-rise test when one exists (the bench plan).
 
-The inputs are per-drive loss histories, a piecewise-constant mean copper loss per segment of a demo, which
-``simulate`` integrates exactly per segment.
+The inputs are per-drive loss histories, a piecewise-constant mean squared torque per segment of a demo, which
+``ThermalNode.run`` integrates in 1 s steps (exponential within a step, the resistance updated each step: within
+about 0.01 K of the exact solution over 90 min).
 """
 
 from __future__ import annotations
@@ -28,6 +35,12 @@ import math
 from dataclasses import dataclass, field
 
 ALPHA_CU = 0.00393  # 1/K, copper's resistance temperature coefficient near 20 C
+TIME_CONSTANTS_S = (300.0, 480.0, 900.0)  # 5, 8 and 15 min: the maker-data fits above
+
+
+def tc_key(time_constant_s: float) -> str:
+    """The result key of a time constant: exact, so two constants never share one."""
+    return f"tau_{float(time_constant_s):g}s"
 
 
 @dataclass(frozen=True)
@@ -110,17 +123,27 @@ class ThermalNode:
 
 
 def demo_temperatures(drives: dict[str, DriveThermal], segments: dict[str, list[tuple[float, float]]],
-                      time_constants_s=(600.0, 1200.0, 2400.0), limit_c: float = 100.0,
+                      time_constants_s=TIME_CONSTANTS_S, limit_c: float = 100.0,
                       cooldown_to_c: float = 40.0) -> dict:
-    """Per drive and time constant: the peak temperature over the demo's segments, the time it first reaches
-    ``limit_c`` (None if never), the end temperature, and the cool-down time from the end to ``cooldown_to_c`` at
-    zero load. ``segments[name]``: that drive's (duration s, mean squared motor torque) list."""
+    """Per drive and time constant (keys ``tc_key``), from ``ambient_c``:
+    - ``peak_c``, ``end_c``: over the demo's segments; ``minutes_to_limit``: when it first reaches ``limit_c`` (None
+      if never); ``cooldown_minutes``: from the end to ``cooldown_to_c`` at zero load;
+    - ``continuous_c``: the temperature that repeating the demo without a break settles to, the steady state at the
+      demo's time-weighted mean squared torque (segments short against the time constant; None if it runs away);
+    - ``steady_at_thermal_eq_c``: the calibration's own steady state at ``thermal_eq_nm``.
+    ``segments[name]``: that drive's (duration s, mean squared motor torque) list."""
+    keys = [tc_key(tc) for tc in time_constants_s]
+    if len(set(keys)) != len(keys):
+        raise ValueError("time constants must differ")
     out = {}
     for name, d in drives.items():
+        seg = segments[name]
+        total = sum(s for s, _ in seg)
+        mean_sq = sum(s * q for s, q in seg) / total if total > 0 else 0.0
         per = {}
-        for tc in time_constants_s:
+        for key, tc in zip(keys, time_constants_s):
             node = d.calibrate(tc)
-            trace = node.run(segments[name])
+            trace = node.run(seg)
             peak = max(T for _, T in trace)
             hit = next((t for t, T in trace if T >= limit_c), None)
             end = trace[-1][1]
@@ -128,8 +151,10 @@ def demo_temperatures(drives: dict[str, DriveThermal], segments: dict[str, list[
             if end > cooldown_to_c:
                 c = node.run([(6 * tc, 0.0)], start_c=end)
                 cool = next((t for t, T in c if T <= cooldown_to_c), None)
-            per[f"{tc / 60:.0f}min"] = {"r_th_k_per_w": node.r_th_k_per_w, "c_j_per_k": node.c_j_per_k,
-                                        "peak_c": peak, "end_c": end, "minutes_to_limit": None if hit is None
-                                        else hit / 60.0, "cooldown_minutes": None if cool is None else cool / 60.0}
+            per[key] = {"time_constant_s": float(tc), "r_th_k_per_w": node.r_th_k_per_w, "c_j_per_k": node.c_j_per_k,
+                        "peak_c": peak, "end_c": end, "minutes_to_limit": None if hit is None else hit / 60.0,
+                        "cooldown_minutes": None if cool is None else cool / 60.0,
+                        "continuous_c": node.steady_state_c(mean_sq),
+                        "steady_at_thermal_eq_c": node.steady_state_c(d.thermal_eq_nm ** 2)}
         out[name] = per
     return out

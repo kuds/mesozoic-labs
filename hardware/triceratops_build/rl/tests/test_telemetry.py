@@ -1,5 +1,7 @@
-"""The generic training telemetry (rl/telemetry/; decision D21): exercised on a toy env that knows nothing of the
-Triceratops, so the modules' robot-agnostic claim is tested, plus their wiring into train.py."""
+"""The generic telemetry (rl/telemetry/; decision D21). Training health and periodic checks run on a toy env that
+knows nothing of the Triceratops; the loads recorder on small MuJoCo models built here (one and two hinges on a body,
+a ball joint) as well as the Triceratops; heat and battery on plain numbers; plus their wiring into train.py and the
+demo course."""
 
 from __future__ import annotations
 
@@ -326,8 +328,10 @@ def test_thermal_calibration_reproduces_the_makers_figure_and_cools():
 
     from telemetry.thermal import DriveThermal, demo_temperatures
 
+    from telemetry.thermal import TIME_CONSTANTS_S, tc_key
+
     d = DriveThermal("x4", kt_nm_per_a=1.8, r_phase_ohm=0.2, thermal_eq_nm=7.5)
-    for tc in (600.0, 1200.0, 2400.0):
+    for tc in TIME_CONSTANTS_S + (2400.0,):
         n = d.calibrate(tc)
         assert n.run([(90 * 60.0, 7.5 ** 2)])[-1][1] == pytest.approx(100.0, abs=0.05)
         assert n.time_constant_s == pytest.approx(tc)
@@ -336,25 +340,50 @@ def test_thermal_calibration_reproduces_the_makers_figure_and_cools():
         assert n.run([(10 * tc, 7.5 ** 2)])[-1][1] == pytest.approx(ss, abs=0.2)
         assert n.run([(5 * tc, 0.0)], start_c=80.0)[-1][1] == pytest.approx(25.0 + 55.0 * math.exp(-5), abs=0.1)
     out = demo_temperatures({"x4": d}, {"x4": [(1200.0, 7.5 ** 2), (600.0, 0.0)]}, limit_c=60.0)
-    r = out["x4"]["20min"]
+    assert set(out["x4"]) == {"tau_300s", "tau_480s", "tau_900s"} and tc_key(610.5) == "tau_610.5s"
+    r = out["x4"]["tau_480s"]
     assert r["peak_c"] > r["end_c"] > 25.0 and r["minutes_to_limit"] is not None and r["cooldown_minutes"] > 0
-    assert out["x4"]["10min"]["peak_c"] > out["x4"]["40min"]["peak_c"]  # a short time constant heats faster
+    assert out["x4"]["tau_300s"]["peak_c"] > out["x4"]["tau_900s"]["peak_c"]  # a short time constant heats faster
+    # continuous: the steady state at the time-weighted mean square (2/3 of 7.5^2 here)
+    assert r["continuous_c"] == pytest.approx(d.calibrate(480.0).steady_state_c(7.5 ** 2 * 2 / 3))
+    assert 100.0 <= r["steady_at_thermal_eq_c"] < 102.0  # 90 min is about steady at an 8 min time constant
+    with pytest.raises(ValueError):
+        demo_temperatures({"x4": d}, {"x4": [(60.0, 1.0)]}, time_constants_s=(300.0, 300.0))
+
+
+def test_thermal_default_range_brackets_the_makers_overload_figures():
+    """The maker's overload times (thermal.py's docstring) fall within what the default time constants predict."""
+    from telemetry.thermal import TIME_CONSTANTS_S, DriveThermal
+
+    def minutes_to_100(d, tc, tau):
+        return next(t for t, T in d.calibrate(tc).run([(3600.0, tau ** 2)]) if T >= 100.0) / 60.0
+
+    x4, x6 = DriveThermal("x4", 1.0, 0.2, 7.5), DriveThermal("x6", 1.0, 0.2, 12.0)
+    lo, hi = min(TIME_CONSTANTS_S), max(TIME_CONSTANTS_S)
+    assert minutes_to_100(x4, lo, 10.5) <= 5.4 and minutes_to_100(x4, hi, 10.5) >= 12.4 * 0.95  # 5.4-12.4 min
+    assert minutes_to_100(x6, lo, 20.0) <= 4.15 <= minutes_to_100(x6, hi, 20.0)  # 4 min 9 s
 
 
 def test_battery_arithmetic():
     from telemetry.power import demo_battery
 
-    b = demo_battery([{"seconds": 90, "mean_draw_w": 40.0, "peak_draw_w": 400.0, "peak_surplus_w": 10.0,
-                       "surplus_share": 0.1},
+    b = demo_battery([{"seconds": 90, "mean_draw_w": 40.0, "peak_draw_w": 400.0, "peak_surplus_w": 40.0,
+                       "surplus_share": 0.1, "mean_sq_draw_w2": 2000.0, "brake_event_j_max": 1.5},
                       {"seconds": 30, "mean_draw_w": 8.0, "peak_draw_w": 20.0, "peak_surplus_w": 0.0,
-                       "surplus_share": 0.0}], pack_wh=100.0, usable_share=0.8, v_nominal=48.0, v_low=40.0,
-                     hotel_w=30.0)
+                       "surplus_share": 0.0, "mean_sq_draw_w2": 100.0, "brake_event_j_max": 0.0}],
+                     pack_wh=100.0, usable_share=0.8, v_nominal=48.0, v_low=40.0, hotel_w=30.0,
+                     hotel_range_w=(25.0, 40.0))
     assert b["mean_drive_draw_w"] == pytest.approx(32.0) and b["mean_total_w"] == pytest.approx(62.0)
     assert b["runtime_minutes"] == pytest.approx(60 * 80 / 62.0)
+    assert b["runtime_minutes_by_hotel_w"] == pytest.approx({"25": 60 * 80 / 57.0, "40": 60 * 80 / 72.0})
     assert b["current_peak_a"]["low_v"] == pytest.approx(430.0 / 40.0)
     assert b["braking_surplus_share"] == pytest.approx(0.075)
-    with pytest.raises(ValueError):
-        demo_battery([], pack_wh=1, usable_share=1, v_nominal=1, v_low=1, hotel_w=0)
+    assert b["braking_peak_beyond_hotel_w"] == pytest.approx(10.0) and b["braking_event_j_max"] == 1.5
+    ms = (90 * (2000 + 60 * 40 + 900) + 30 * (100 + 60 * 8 + 900)) / 120  # E[(p + h)^2]
+    assert b["current_rms_a"]["nominal_v"] == pytest.approx(ms ** 0.5 / 48.0)
+    for bad in ([], [{"seconds": 0, "mean_draw_w": 1, "peak_draw_w": 1, "peak_surplus_w": 0, "surplus_share": 0}]):
+        with pytest.raises(ValueError):
+            demo_battery(bad, pack_wh=1, usable_share=1, v_nominal=1, v_low=1, hotel_w=0)
 
 
 def test_loads_balance_the_weight_standing():
@@ -381,13 +410,140 @@ def test_loads_balance_the_weight_standing():
             s["feet"][f"{c}_sole"]["normal_n"]["median"] - leg, abs=1.0)
 
 
+LINK_XML = """<mujoco><option gravity="0 0 -9.81" timestep="0.001"/><worldbody>
+<body name="link" pos="0 0 1">{joints}<geom type="sphere" size="0.01" pos="0 {L} 0" mass="2"/></body>
+</worldbody>{actuators}</mujoco>"""
+
+
+def _link(joints, actuators="", L=0.05):
+    import mujoco
+
+    m = mujoco.MjModel.from_xml_string(LINK_XML.format(joints=joints, actuators=actuators, L=L))
+    return m, mujoco.MjData(m)
+
+
+def test_loads_single_hinge_bending_is_analytic():
+    """A 2 kg mass 0.05 m out along a hinge's own axis: the hinge carries no torque, the bearing 19.62 N and a
+    bending moment m g L = 0.981 N m (a sign error in the moment shift or the projection would show)."""
+    import mujoco
+
+    from telemetry.loads import LoadRecorder
+
+    m, d = _link('<joint name="pitch" type="hinge" axis="0 1 0"/>')
+    mujoco.mj_forward(m, d)
+    rec = LoadRecorder(m, ["pitch"])
+    rec(m, d)
+    assert rec.force[0][0] == pytest.approx(19.62, abs=1e-3) and rec.moment[0][0] == pytest.approx(0.981, abs=1e-4)
+    # the same mass on a hinge across it (axis x): all of m g L is that hinge's torque, no bending
+    m, d = _link('<joint name="roll" type="hinge" axis="1 0 0"/>')
+    mujoco.mj_forward(m, d)
+    rec = LoadRecorder(m, ["roll"])
+    rec(m, d)
+    assert rec.moment[0][0] < 0.05  # only the small inertial term of the free fall's first instant
+
+
+def test_loads_two_hinges_on_one_body_do_not_count_each_others_torque():
+    """Pitch (y) and roll (x) hinges on one body, the roll held by a stiff position servo against m g L: neither
+    joint reports the roll servo's torque as bending; both share the body's force."""
+    import mujoco
+
+    from telemetry.loads import LoadRecorder
+
+    m, d = _link('<joint name="pitch" type="hinge" axis="0 1 0"/><joint name="roll" type="hinge" axis="1 0 0" '
+                 'damping="5"/>', '<actuator><position joint="roll" kp="2000"/></actuator>')
+    for _ in range(3000):
+        mujoco.mj_step(m, d)
+    rec = LoadRecorder(m, ["pitch", "roll"])
+    rec(m, d)
+    assert abs(d.actuator_force[0]) == pytest.approx(0.981, rel=0.02)  # the servo holds m g L
+    assert rec.force[0][0] == pytest.approx(19.62, rel=0.01) and rec.force[0][1] == rec.force[0][0]
+    assert rec.moment[0][0] < 0.02 and rec.moment[0][1] < 0.02
+    s = rec.summary(19.62)
+    assert s["joints"]["pitch"]["shares_body_with"] == ["roll"]
+    ball_m, ball_d = _link('<joint name="ball" type="ball"/>')
+    mujoco.mj_forward(ball_m, ball_d)
+    rec = LoadRecorder(ball_m, ["ball"])
+    rec(ball_m, ball_d)
+    assert rec.summary(19.62)["joints"]["ball"]["bending_nm"] is None
+    free_m, _ = _link('<freejoint name="base"/>')
+    with pytest.raises(ValueError, match="free joint"):
+        LoadRecorder(free_m, ["base"])
+
+
+def test_loads_hook_does_not_change_the_simulation():
+    from trike_env import CAPSULE_MODEL, CORNERS, TrikeEnv, TrikeEnvConfig
+
+    from telemetry.loads import LoadRecorder
+
+    def run(with_hook):
+        env = TrikeEnv(TrikeEnvConfig(model_path=str(CAPSULE_MODEL)))
+        env.reset(seed=3)
+        m = env.model
+        if with_hook:
+            joints = [m.joint(int(m.actuator(int(i)).trnid[0])).name for i in env._leg_act]
+            rec = LoadRecorder(m, joints, [f"{c}_sole" for c in CORNERS])
+            env.substep_hook = lambda e: rec(e.model, e.data)
+        rng, obs_all = np.random.default_rng(3), []
+        for _ in range(100):
+            obs, *_ = env.step(rng.uniform(-0.5, 0.5, 12))
+            obs_all.append(obs)
+        return np.array(obs_all), env.data.qpos.copy()
+
+    (o1, q1), (o2, q2) = run(False), run(True)
+    assert np.array_equal(o1, o2) and np.array_equal(q1, q2)
+
+
+def test_demo_loop_is_validated():
+    import demo_course
+
+    assert demo_course.build_sequence([("walk", 0.0), ("stand", 30.0)], 1.5) == [("stand", 30.0)] * 3
+    assert demo_course.build_sequence([("walk", 60.0), ("stand", 30.0)], 2.0) == [("walk", 60.0), ("stand", 30.0),
+                                                                                   ("walk", 30.0)]
+    for loop in ([("walk", 0.0), ("stand", 0.0)], [("walk", -5.0), ("stand", 30.0)]):
+        with pytest.raises(ValueError):
+            demo_course.build_sequence(loop, 1.0)
+
+
 def test_demo_course_runs_end_to_end(tmp_path):
     import demo_course
 
     make, walker = demo_course.trot_factory()
-    res = demo_course.run(make, walker, [("walk_0.25", 60.0), ("stand", 30.0)], 3.0, 700_000, segment_s=4.0)
+    res = demo_course.run(make, walker, [("walk_0.25", 60.0), ("stand", 30.0)], None, 700_000, segment_s=4.0)
     assert set(res["segments"]) == set(demo_course.SEGMENTS) and not any(s["fell"] for s in res["segments"].values())
-    assert res["battery"]["runtime_minutes"] > 0 and res["segments"]["stand"]["mean_draw_w"] < \
+    assert res["valid"] and res["minutes_is_one_pack"]
+    b = res["battery"]
+    # one pack on a whole loop's mix; the demo ends part-way through a loop, so its own mix differs slightly
+    assert res["minutes"] == pytest.approx(b["runtime_minutes"], rel=2e-3)
+    assert b["runtime_minutes"] > 0 and res["segments"]["stand"]["mean_draw_w"] < \
         res["segments"]["walk_0.25"]["mean_draw_w"]
-    assert set(next(iter(res["temperatures"].values()))) == {"10min", "20min", "40min"}
+    assert b["current_peak_all_segments_a"]["low_v"] >= b["current_peak_a"]["low_v"]
+    assert b["current_rms_a"]["low_v"] >= b["current_mean_a"]["low_v"]
+    assert set(next(iter(res["temperatures"].values()))) == {"tau_300s", "tau_480s", "tau_900s"}
+    h = res["loads_headline"]
+    assert {"joint_force_p99_bw", "joint_force_max_bw", "bending_p99_nm", "bending_max_nm", "foot_max_bw"} <= set(h)
+    worst = max(j["force_bw"]["p99"] for s in res["segments"].values() for j in s["loads"]["joints"].values())
+    assert h["joint_force_p99_bw"]["value"] == worst
+    assert res["segments"]["walk_0.25"]["drive_energy_per_m_j"] > 0 and \
+        res["segments"]["stand"]["drive_energy_per_m_j"] is None
     assert demo_course.chart(res, tmp_path, "test") == "demo_temperatures.png"
+
+
+def test_demo_course_marks_a_fall_invalid(tmp_path):
+    """A walker that falls: the segment says so and the demo is INVALID; one that falls before the window gives no
+    demo at all rather than a crash."""
+    import demo_course
+
+    make, _ = demo_course.trot_factory()
+
+    def falling(command):
+        env, _ = make(command)
+        return env, lambda obs: np.full(12, 1.0)  # hard against the limits: down within a second or two
+
+    s = demo_course.measure_segment(falling, 0.25, 700_000, seconds=6.0)
+    assert s["fell"]
+    res = demo_course.run(falling, "falls", [("walk_0.25", 60.0), ("stand", 30.0)], 2.0, 700_000, segment_s=6.0)
+    assert not res["valid"] and res["fallen_segments"]
+    # an episode that ends inside the first 2 s (here by its time limit) has nothing measured: no demo, no crash
+    short = demo_course.run(make, "short", [("walk_0.25", 60.0), ("stand", 30.0)], 2.0, 700_000, segment_s=1.0)
+    assert not any(x["measured"] for x in short["segments"].values())
+    assert short["battery"] is None and short["temperatures"] is None and short["loads_headline"] == {}

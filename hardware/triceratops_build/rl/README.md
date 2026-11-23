@@ -346,22 +346,39 @@ feet, or a checkpoint. Each segment records, every 1 ms:
 - the electrical estimate (copper loss, the drives' net draw on a shared bus, the braking surplus);
 - the joint bearing loads and the foot forces.
 
-**2. The demo, modelled.** A loop (default 90 s walking, 30 s standing) for 20 min is run through two models:
-- **winding temperature per drive:** a first-order model calibrated so the maker's rated torque reaches 100 °C at
-  90 min. The thermal time constant is not published, so it is given at 10, 20 and 40 min;
-- **battery:** 146.5 Wh, 80 % usable, 12S, with 45.6 V taken as nominal and 42.0 V as low charge, plus a 30 W hotel
-  load.
+**2. The demo, modelled.** A loop (default 90 s walking, 30 s standing) is repeated for one pack's runtime (or
+`--minutes`), from 25 °C in open air, through two models:
+- **winding temperature per drive:** a first-order model calibrated so the maker's thermal-equilibrium torque (7.5
+  N·m for the X4-36-L; not its 10.5 N·m rated torque) reaches 100 °C at 90 min. The X6-60 has no published table,
+  so the X6-50-L's (12 N·m) stands in, as `sim/data/drives.json` records. The thermal time constant is given at 5,
+  8 and 15 min: fitted with this model to the maker's overload figures, 6.6-15.3 min (X4-36-L, 10.5 N·m to 100 °C in
+  5.4-12.4 min), 4.7 min (X4-36-L, 21 N·m for 44 s) and 8.1 min (X6-50-L, 20 N·m to 100 °C in 4 min 9 s). Each
+  drive also gets the temperature that running the loop without a break settles to;
+- **battery:** 146.5 Wh, 80 % usable, 12S, 44.4 V nominal (12 × 3.7 V) and 42.0 V at low charge, plus a 30 W hotel
+  load (also 25 and 40 W). Leg drives only, copper loss at 25 °C, no driver, converter, iron or gearbox losses: see
+  `telemetry/power.py`.
+A segment that falls makes the demo INVALID in the JSON, the printout and the chart. Not covered: turns, starts and
+stops (the segments are straight and the first 2 s are not measured), and back-to-back demos beyond the
+"without a break" figure.
 
-**First reading** (model-based trot, capsule feet, 23 Nov 2026; not a judged result):
-- **Drive draw:** about 45 W walking and 10 W standing; 1 ms peaks of 400-600 W on the shared bus.
-- **Heat:** the hottest windings are the pitch drives, 35-47 °C after 20 min over the time-constant range. That is
-  far from 100 °C, but museum-shell airflow is not modelled.
-- **Battery:** about 106 min per pack at 66 W mean; peak pack current 10.4 A at low charge.
-- **Loads:**
-  - front foot: up to 2.4 body weights;
-  - front hip roll joint: up to 1.6 body weights of reaction force (99th percentile), with bending moments up to
-    about 21 N·m.
-  These feed the bench plan.
+**Reading of 23 Nov 2026** (model-based trot, capsule feet; re-run after the review; simulation plus estimates, not a
+judged result). From `demo_course.py`'s printout:
+- **Drive draw:** 45.0 W walking at 0.25 m/s, 46.1 W at 0.15 m/s, 10.1 W standing; 1 ms peaks of 407 W and 597 W.
+- **Heat:** over one pack (106 min), the hottest windings are the pitch drives, 50.6-51.3 °C over the 5-15 min
+  range; running the loop without a break settles at about 50 °C. That is far from 100 °C, but museum-shell
+  airflow is not modelled.
+- **Battery:** 106 min per pack at 66 W mean (115 min at a 25 W hotel load, 92 min at 40 W). Pack current at low
+  charge: mean 1.6 A, RMS 2.1 A; peak 10.4 A on the default loop, and 14.9 A in the 0.15 m/s segment, which the
+  default loop leaves out.
+- **Braking:** the drives' net surplus peaks at 10 W on the loop (25 W in the 0.15 m/s segment), below the 30 W
+  hotel load, which takes it; the largest single braking event is 0.05 J on the loop and 0.14 J at 0.15 m/s. The
+  power board's ideal diodes keep it from the packs.
+- **Loads** (the largest over the three segments, all at 0.15 m/s):
+  - joint reaction force: front elbow (right_fore_flexion), 99th percentile 2.23 body weights, maximum 3.34;
+  - bending: front pitch, 99th percentile 25.9 N·m (right_fore_pitch), maximum 39.1 N·m (left_fore_pitch);
+  - front foot (right_fore_sole): up to 3.26 body weights.
+  These feed the bench plan. A body with several joints (the T. rex hips) gets its bending with all of its hinge
+  axes removed, so one drive's torque is not counted as another's bending.
 
 ## What training prints and writes
 
