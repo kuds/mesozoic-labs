@@ -739,15 +739,15 @@ export function formatHeadlineValue(metric: HeadlineMetric): string {
  * D-B15), and a provisional primary — fewer certifying runs than the
  * current config's certification_seeds — says so with its count (plan
  * §4.5, decision D-B11), so a one-seed pass never headlines as settled.  A
- * ladder summary publishes no deliverable and keeps the historical "Task
- * success" headline from stage3_success_rate, rendered exactly as before
- * (D-A10).
+ * ladder summary publishes no deliverable; its success rate is for the task
+ * identified as stage 3 in that historical run.
  */
 export function headlineFor(result: PublishedResult): {label: string; value: string} {
   const primary = primaryDeliverableOf(result);
   if (primary === null) {
+    const task = result.stages.find((stage) => stage.number === 3);
     return {
-      label: 'Task success',
+      label: task ? task.name.replace(/_/g, ' ') + ' task success' : 'Task success',
       value: result.stage3SuccessRate === null ? '—' : `${Math.round(result.stage3SuccessRate * 100)}%`,
     };
   }

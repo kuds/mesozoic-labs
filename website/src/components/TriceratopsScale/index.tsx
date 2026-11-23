@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import Heading from '@theme/Heading';
-import {anatomicalStudy, triceratopsVersions} from '@site/src/data/triceratops';
+import {anatomicalStudy, sizeReport} from '@site/src/data/triceratops';
 import styles from './styles.module.css';
 
 export default function TriceratopsScale() {
@@ -10,7 +10,6 @@ export default function TriceratopsScale() {
   const adult = useBaseUrl('/img/animals/triceratops-adult-profile.webp');
   const walk = useBaseUrl('/videos/triceratops_horridus_anatomical_reference_walk.mp4');
   const robot = useBaseUrl('/img/animals/triceratops-60cm-profile.webp');
-  const robotReport = triceratopsVersions.find(version => version.slug === '60-cm')?.source;
 
   return (
     <section className={styles.comparison} aria-labelledby="scale-comparison">
@@ -48,9 +47,9 @@ export default function TriceratopsScale() {
               <a href={walk}>Watch the adult walk in real time</a>
             </div>
             <div>
-              <strong>Current robot design</strong>
+              <strong>60 cm robot · earlier foot design</strong>
               <span>1.2 m overall length · 60 cm at the frill</span>
-              {robotReport && <a href={robotReport.href}>60 cm model report</a>}
+              <a href={sizeReport}>60 cm model dimensions</a>
             </div>
           </div>
           <p className={styles.modeNote} aria-live="polite">

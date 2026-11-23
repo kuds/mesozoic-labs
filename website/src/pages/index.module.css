@@ -55,9 +55,16 @@
   max-width: 55ch;
 }
 
+.introLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem 1.25rem;
+  margin-top: 1rem;
+}
+
 .primary {
   display: inline-block;
-  margin-top: 1rem;
   padding: .625rem .9rem;
   background: var(--museum-green);
   border-radius: 3px;
@@ -93,13 +100,25 @@
   display: block;
   width: 100%;
   height: auto;
+  aspect-ratio: 16 / 9;
   object-fit: contain;
+  padding: .75rem 6% .25rem;
+}
+
+.plates .robotStill {
+  padding: 0;
 }
 
 .plates figcaption {
   padding: .5rem .875rem;
   font-size: .875rem;
   font-weight: 600;
+}
+
+.plates figcaption a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: .2em;
 }
 
 .caption {
@@ -177,6 +196,56 @@
   flex-direction: column;
   align-items: flex-start;
   gap: .625rem;
+}
+
+.slopeStudy {
+  width: 100%;
+  padding-block: .875rem;
+  border-block: 1px solid var(--museum-rule);
+}
+
+.slopeStudy figcaption {
+  font-weight: 650;
+}
+
+.slopeStudy figcaption span {
+  font-weight: 400;
+}
+
+.slopeStudy dl {
+  display: grid;
+  gap: .375rem;
+  margin: .625rem 0 0;
+  font-size: .875rem;
+}
+
+.slopeRow {
+  display: grid;
+  grid-template-columns: 6.5em minmax(0, 1fr);
+  gap: .625rem;
+  align-items: center;
+}
+
+.slopeRow dd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5ch;
+  gap: .625rem;
+  align-items: center;
+  margin: 0;
+  font: .875rem/1.5 var(--museum-mono);
+  text-align: right;
+}
+
+.speedTrack {
+  display: block;
+  height: .625rem;
+  background: var(--museum-panel);
+}
+
+.speedTrack span {
+  display: block;
+  height: 100%;
+  background: var(--museum-green);
 }
 
 @media (max-width: 720px) {
