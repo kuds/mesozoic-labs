@@ -75,7 +75,7 @@ with a 75 cm body as its lead size.
 
 | Document | Date | One-liner |
 |---|---|---|
-| [hardware/README.md](hardware/README.md) | 2026-11-22 | Status, the robot concepts at a glance and where the detailed records are |
+| [hardware/README.md](hardware/README.md) | 2026-11-23 | Status, the robot concepts at a glance and where the detailed records are |
 | [hardware/PARTS_AND_COSTS.md](hardware/PARTS_AND_COSTS.md) | 2026-11-22 | Parts and estimated costs of each concept, the parts shared across builds and the first purchases planned |
 | [hardware/SIZES.md](hardware/SIZES.md) | 2026-11-22 | Sizes tried for the T. rex, the Triceratops and the other concepts, and what size taught |
 | [hardware/LESSONS_LEARNED.md](hardware/LESSONS_LEARNED.md) | 2026-11-22 | What was tried, what happened, the lessons that carry over and the open questions |

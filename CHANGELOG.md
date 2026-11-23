@@ -2664,6 +2664,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The wheel ships only the data files runtime code reads.**
+  `pyproject.toml`'s package data no longer globs `data/*.json` in every
+  package or names the anatomical Compsognathus recovery evidence
+  (`recovery_calibration_anatomical_r3.json.gz`). It lists
+  `compsognathus_longipes/data/model_parameters.json` (read by `model.py`) and
+  `shared/data/plant_manifest.generated.json` (the plant contract's bundled
+  manifest). The other files in each species' `data/` are evidence the docs
+  link to, read from a checkout. `include-package-data` is off, so that list
+  is the whole of it: a stale `*.egg-info` or setuptools-scm in the build
+  environment can no longer add every tracked file in a package. The wheel
+  goes from 9,052,735 B to 8,345,037 B.
+  `environments/shared/tests/test_package_data.py` pins the shipped set and
+  the setting.
+- **Issue templates:** the bug report asks for the model (species ID and
+  embodiment) and suggests MuJoCo 3.10.0 (the pinned version) and
+  mesozoic-labs 0.4.0.dev2 with the commit. The new-species proposal asks for
+  the binomial, the species ID and the embodiment (decision D-D33,
+  `docs/SPECIES_NAMING.md`).
+- **Docs:** `docs/hardware/README.md` gives the pull-request states as read on
+  23 Nov 2026 (#649 and #662 are now closed; all four October T. rex concept
+  PRs are closed unmerged). `docs/hardware/SIM_TO_REAL_PLAN.md` gains a dated
+  status note: `obs_functions.py` is gone, each env builds its observation in
+  `_get_obs`, and the current `species_manifest.toml` capability lines are
+  :40-58.
 - **Species display names are written in scientific form**: "Tyrannosaurus rex",
   "Velociraptor mongoliensis", "Brachiosaurus altithorax", "Dibothrosuchus elaphros",
   "Compsognathus longipes" and "Allosaurus fragilis" (genus capitalized, epithet
@@ -5113,6 +5137,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- `website/static/img/velociraptor_mongoliensis_anatomical_stance_ppo.gif`
+  (2,427,423 B). Nothing has referenced it since the homepage rewrite of
+  2026-11-20, and `results/velociraptor_mongoliensis/anatomical/ppo/stance.gif`
+  keeps the same file. The two apex GIFs stay by the owner's decision of 2026-09-30.
 - **`LocomotionMetrics`' gait symmetry, stride frequency and cost of
   transport**, together with `quad_gait_symmetry`, `total_energy`,
   `compute()`'s `body_mass` argument, and the `eval` and curriculum log lines

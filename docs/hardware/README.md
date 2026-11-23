@@ -29,7 +29,7 @@ cited that advice; the Triceratops replaces the July pick with a larger quadrupe
 | Triceratops, 75 cm (20 kg and 15 kg lists) | 4 legs | 75 cm frill, 1.5 m long | not adopted | 18 Nov 2026 |
 | T. rex, 75 cm Hybrid body | 2 legs | 75 cm crown | lead size; study paused | 18 Nov 2026 |
 | T. rex, 60 cm Tapered body | 2 legs | 60 cm crown | study paused | 18 Nov 2026 |
-| T. rex, October concepts | 2 legs | 27 cm to 1 m tall | pull requests, three of four closed unmerged | 21 Nov 2026 |
+| T. rex, October concepts | 2 legs | 27 cm to 1 m tall | pull requests, all four closed unmerged | 23 Nov 2026 |
 | Compsognathus revision B | 2 legs | 35 cm tall, 47 cm long | robot model; stands in simulation | Sep 2026 |
 | Compsognathus walker | 2 legs | seven powered joints | on paper | 19 Jul 2026 |
 | Velociraptor walker | 2 legs | 10 motors | on paper | 19 Jul 2026 |
@@ -59,7 +59,7 @@ SIM_TO_REAL_PLAN.md advises against a physical T. rex; that verdict concerns the
 ## Where the detailed records are
 
 The detailed records are not kept in this repository; each file link below is pinned to a commit that holds it, and the
-other records stay in the git history. Pull-request states are as read on 22 Nov 2026.
+other records stay in the git history. Pull-request states are as read on 23 Nov 2026.
 
 | Record | Files, branches or pull requests |
 |---|---|
@@ -73,9 +73,9 @@ other records stay in the git history. Pull-request states are as read on 22 Nov
 | | `claude/mesozoic-trex-stage2-archive-a1`: reference walks kept for training, never merged |
 | Early T. rex concepts | [#635](https://github.com/kuds/mesozoic-labs/pull/635): mini, medium, 1 m concepts; closed |
 | | [#648](https://github.com/kuds/mesozoic-labs/pull/648): mini torso layouts and leg folds; closed |
-| | [#649](https://github.com/kuds/mesozoic-labs/pull/649): mini skeleton; open |
+| | [#649](https://github.com/kuds/mesozoic-labs/pull/649): mini skeleton; closed |
 | | [#651](https://github.com/kuds/mesozoic-labs/pull/651): 60 cm skeleton; closed |
-| 60 cm T. rex platform | PR #662: platform and chassis layouts; open |
+| 60 cm T. rex platform | PR #662: platform and chassis layouts; closed |
 | | PR #663: its findings (walking results not reproduced); closed |
 | 75 cm T. rex, Jetson | PR #668: results unverified; closed |
 | Triceratops design study | [#669](https://github.com/kuds/mesozoic-labs/pull/669): the 75 cm concept; open |
