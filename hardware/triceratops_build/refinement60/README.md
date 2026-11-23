@@ -6,6 +6,23 @@ This is the first foreleg mock-up candidate for the museum demonstrator. Frill c
 
 [Four-beat walk, with four foot loads](media/walk.mp4) · [Moving turns, with requested and actual headings](media/steering.mp4) · [Printable design sheet](media/design-sheet.pdf) · [Foreleg bench plan](../bench/BENCH_PLAN_FORELEG.md)
 
+## Gentler steering on the same robot
+
+[Side-by-side right pivot](media/gentle-pivot-right.mp4) · [Side-by-side six-command walk](media/gentle-six-headings.mp4) · [Return to straight on the original course](media/gentle-course.mp4) · [128 mm versus 188 mm foreassembly](leg_length/)
+
+The original steering profile remains available for replay. Select `--turn-profile gentle` for the tested alternative. Both use the same physical model, motor limits, relative heading targets and 10 ms leg-command delay. The gentle profile limits yaw rate and acceleration, lowers the swing foot during pivots, and uses the noisy body gyro and gravity estimate to track yaw relative to the starting pose.
+
+| Test on this 128 mm upper foreleg | Original steering | Gentle steering |
+|---|---:|---:|
+| Seed 102 right pivot, right-fore peak | 580.2 N | 264.7 N |
+| Same pivot, largest 10 ms mean on any foot | 399.8 N | 210.2 N |
+| Same pivot, time to enter a sustained ±5° band | 1.83 s | 2.47 s |
+| Highest single-foot peak across the original six ±40° pivots | 580.2 N | 302.5 N |
+| Original moving course, complete trials (nominal and randomized, seeds 101–103) | 4/6 | 6/6 |
+| Six distinct moving commands, accepted changes across six trials | 30/36 | 36/36 |
+
+The six-command sequence begins with straight setup, then requests +15°, +35°, +10°, −15°, −35° and 0° over 40 s at a commanded 0.25 m/s. Both controllers had identical time windows. A command counts when actual chassis heading stays within ±5° for one continuous second. The gentle profile finished every command within 1.41° in these six trials, but their largest single-foot peak rose from 336.7 to 416.3 N (largest 10 ms mean 243.8 to 260.8 N). The separate held-out original-course runs also showed higher worst moving impact, 344.7 to 385.3 N. With an added steady gyro bias of ±0.5°/s, all eight bias-stressed 23 s trials missed at least one heading. Keep the 580 N case in the fixture design envelope and measure heading drift on the real machine. [Gentle pivot 1 kHz force samples](evidence/pivot-right-102-gentle.csv) · [Six-command measurements](evidence/six-distinct-headings.json) · [Original-course, holdout and gyro-bias results](motion/gentle-turn-results.json) · [Steering method and repeat commands](motion/README.md)
+
 ## Motor, link and silhouette
 
 Each X6 moves 20 mm aft, 5 mm outward and 6 mm upward in neutral upper-link coordinates. The bracket becomes a 3 mm plate. The upper and lower pivot spans remain 128 and 184 mm. Two 28 mm cranks stay coplanar, with 81.50 mm between rod pins at neutral. The forward rib, shoulder panels and edge of the dorsal covering are relieved around the drives. The sculpted forearm covers about 114 mm of the lower link and meets a tapered wrist cuff. The cuff adds no joint.
@@ -28,9 +45,9 @@ Both four-beat walks use a 96 mm stride. The revised walk lowers commanded swing
 | Greatest slow-walk normal load on any foot | 91.4 N | 87.8 N |
 | Static front weight share | 55.50% | 54.88% |
 
-The geometric margin measures the horizontal centre of mass against the ankle triangle during a single swing. The separate heading course uses a 0.25 m/s diagonal gait with 10 ms of command delay. All six revised runs finished upright, and four acquired every heading within ±5° for one second. The other two missed the final return to straight. The faster course reached 355 N on one foot in the revised plant. [Matched gait and load results](evidence/gait-comparison.json)
+The geometric margin measures the horizontal centre of mass against the ankle triangle during a single swing. In the original steering comparison, the separate heading course uses a 0.25 m/s diagonal gait with 10 ms of command delay. All six revised runs finished upright, and four acquired every heading within ±5° for one second. The other two missed the final return to straight. The faster course reached 355 N on one foot in the revised plant. [Matched gait and load results](evidence/gait-comparison.json)
 
-Both designs acquired all six in-place pivots. A right pivot at seed 102 put **580 N on the right forefoot** of the revised plant versus **572 N** on the reference. This is the largest instantaneous modeled load across the tested routines. The largest 10 ms mean was 400 N versus 404 N. Include the [1 kHz revised pivot trace](evidence/pivot-right-102-refined.csv) in the guarded foreleg test. The simulations covered level ground. The shoulder opening needs physical guarding, and actual heading, traction and stopping require a caught test on the venue floor.
+With the original steering profile, both designs acquired all six in-place pivots. A right pivot at seed 102 put **580 N on the right forefoot** of the revised plant versus **572 N** on the reference. This is the largest instantaneous modeled load across the tested routines. The largest 10 ms mean was 400 N versus 404 N. Include the [1 kHz revised pivot trace](evidence/pivot-right-102-refined.csv) in the guarded foreleg test. The simulations covered level ground. The shoulder opening needs physical guarding, and actual heading, traction and stopping require a caught test on the venue floor.
 
 ## Run the selected model
 
@@ -40,7 +57,8 @@ From this directory, use Python 3.14 and the pinned dependencies. The default wa
 python -m pip install -r requirements.txt
 python verify.py /tmp/triceratops-refinement-check
 python motion/run.py walk --model models/refined/physics.xml --seed 11 --record --out /tmp/refined-walk
-python motion/run.py course --model models/refined/physics.xml --seed 101 --record --out /tmp/refined-course
+python motion/run.py course --model models/refined/physics.xml --seed 103 --turn-profile gentle --record --out /tmp/refined-course
+python motion/run.py six-headings --seed 103 --random --turn-profile gentle --out /tmp/refined-six
 ```
 
-Load [the refined dressed MJCF](models/refined/triceratops.xml) to inspect the shoulder opening or [the previous dressed MJCF](models/reference/triceratops.xml) for comparison. Keep both model directories together so their shared textures and meshes resolve. The GitHub model check verifies the dressed and physics variants, load balance at rest, two straight walks, both pivot directions and one moving course. Run the [full multi-seed comparison](motion/README.md) or [regenerate the geometry and clearance checks](geometry/README.md) for the broader evaluation.
+Load [the refined dressed MJCF](models/refined/triceratops.xml) to inspect the shoulder opening or [the previous dressed MJCF](models/reference/triceratops.xml) for comparison. Keep both model directories together so their shared textures and meshes resolve. The GitHub model check verifies the dressed and physics variants, load balance at rest, two straight walks, both pivot directions, the seed-102 pivot load reduction and the recovered direction changes including the six-command course. Run the [full multi-seed comparison](motion/README.md) or [regenerate the geometry and clearance checks](geometry/README.md) for the broader evaluation.

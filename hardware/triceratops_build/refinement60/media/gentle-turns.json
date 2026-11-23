@@ -1,0 +1,75 @@
+{
+  "render_script": "media/render_turns.py",
+  "dressed_model": "models/refined/triceratops.xml",
+  "physics_xml_sha256": "cd2685d30015fe0a84ec9bda8d67994fdbaf488ad8208bf6f31ee3f93259aa78",
+  "dressed_model_and_referenced_assets_sha256": "0210ca0562e02c0f65a3827cfca4d0ba2c62b70edb848656059cb6056c57a966",
+  "asset_hash_recipe": "SHA-256 of lines of refinement60-relative path, space, file SHA-256, LF. XML first; then unique referenced assets in sorted path order.",
+  "rendering": "Identical MuJoCo model in both panels. Camera follows each floating base in XY with world-fixed azimuth 114 degrees and elevation -36 degrees. Poses sampled at 50 Hz use the nearest frame. Floor marks are replay-only. Each clip plays at 24 fps in real time, then holds the final state and scoring text for 2 seconds.",
+  "signals": "Yaw is measured relative to the reset bearing. Scoring uses the full 100 Hz controller trace. Force is the simulator right-fore normal-load sensor sampled every 1 ms. Curves retain each horizontal pixel column’s maximum after simulation time 2 s. The numeric readout is the running maximum through the frame timestamp.",
+  "mechanism": "The gait plant actuates the elbow directly. The dressed pushrod is carried with the upper link. These films do not simulate the four-bar mechanism under load.",
+  "clips": [
+    {
+      "file": "gentle-pivot-right.mp4",
+      "program": "pivot-right",
+      "seed": 102,
+      "domain_randomization": false,
+      "sim_seconds": 12,
+      "frames": 336,
+      "video_sha256": "0a6e33e9d4e7d511b5f4adbbd3cefcb58f549f929f98a9c6475bad1c9db58b40",
+      "inputs": {
+        "original": {
+          "recording_sha256": "04ee5b3854009458af686a28f856354b9d8a65bee7d57b53d172699d5a1058f8",
+          "right_fore_peak_N": 580.2288589605437,
+          "right_fore_peak_time_s": 3.631
+        },
+        "gentle": {
+          "recording_sha256": "8775d4ff4d328a94ff2b3141b346f593c0b9593a5a5d7da98ab6f4b39df29e3b",
+          "right_fore_peak_N": 264.6527124447351,
+          "right_fore_peak_time_s": 4.301
+        }
+      }
+    },
+    {
+      "file": "gentle-course.mp4",
+      "program": "course",
+      "seed": 103,
+      "domain_randomization": false,
+      "sim_seconds": 23,
+      "frames": 600,
+      "video_sha256": "1ec1ee3c96cad9dde264f2e7b96bc18693d663248059de61eef574043b67c386",
+      "inputs": {
+        "original": {
+          "recording_sha256": "b1921ba3325e5ddfcb0908f821468c65fd5d11a4c9a3041a8d8afe8b833ad0a7",
+          "right_fore_peak_N": 282.0986005863852,
+          "right_fore_peak_time_s": 11.371
+        },
+        "gentle": {
+          "recording_sha256": "01b2548c8f370c7e565102b184d0a4e0032306a8c5805e07b34fe8bbe1a0962c",
+          "right_fore_peak_N": 207.5569369190728,
+          "right_fore_peak_time_s": 11.371
+        }
+      }
+    },
+    {
+      "file": "gentle-six-headings.mp4",
+      "program": "six-headings",
+      "seed": 103,
+      "domain_randomization": false,
+      "sim_seconds": 40,
+      "frames": 1008,
+      "video_sha256": "2634abbe9e0763a24326f1941c269fb886ae591e40944f70aa23cf14cfe5e14c",
+      "inputs": {
+        "original": {
+          "recording_sha256": "ec586964c208eb565f839792565adc245cdf70ccb6d8d2ecd094ca9be1389b50",
+          "right_fore_peak_N": 188.99915443339833,
+          "right_fore_peak_time_s": 21.861
+        },
+        "gentle": {
+          "recording_sha256": "fc91a56d62749afdda6a568994da1b221b6a304dba509ad8e026d1978e52849b",
+          "right_fore_peak_N": 191.08265240299068,
+          "right_fore_peak_time_s": 16.261
+        }
+      }
+    }
+  ]
+}

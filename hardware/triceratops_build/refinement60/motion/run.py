@@ -12,6 +12,7 @@ import heading as steering
 import mujoco as mj
 import numpy as np
 import trajectory
+from gentle import GentleTurn
 from scipy.ndimage import gaussian_filter1d
 
 HERE = Path(__file__).resolve().parent
@@ -176,18 +177,21 @@ def force_transients(time, force, legs, timestep, csv_path):
     raw_row, raw_leg = np.unravel_index(np.argmax(force), force.shape)
     mean_start, mean_leg = np.unravel_index(np.argmax(means), means.shape)
     mean_end = mean_start + count - 1
-    indices = np.arange(len(time))
-    context = int(round(0.025 / timestep))
-    keep = (abs(indices - raw_row) <= context) | ((indices >= mean_start - context) & (indices <= mean_end + context))
-    csv_path.parent.mkdir(parents=True, exist_ok=True)
-    np.savetxt(
-        csv_path,
-        np.column_stack((time[keep], force[keep])),
-        delimiter=",",
-        comments="",
-        fmt="%.9f",
-        header="t_s,LF_N,RF_N,LH_N,RH_N",
-    )
+    if csv_path is not None:
+        indices = np.arange(len(time))
+        context = int(round(0.025 / timestep))
+        keep = (abs(indices - raw_row) <= context) | (
+            (indices >= mean_start - context) & (indices <= mean_end + context)
+        )
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        np.savetxt(
+            csv_path,
+            np.column_stack((time[keep], force[keep])),
+            delimiter=",",
+            comments="",
+            fmt="%.9f",
+            header="t_s,LF_N,RF_N,LH_N,RH_N",
+        )
     return {
         "sample_period_ms": timestep * 1000,
         "raw_peak_N": force[raw_row, raw_leg],
@@ -203,7 +207,7 @@ def force_transients(time, force, legs, timestep, csv_path):
 
 
 def course(a, path):
-    speed = 0.25 if a.program == "course" else 0.0
+    speed = steering.PROGRAMS[a.program][0][2]
     duration = steering.DURATION[a.program]
     e = walk60.TrikeEnv(
         walk60.plant_config(
@@ -217,6 +221,10 @@ def course(a, path):
     )
     obs, reset = e.reset(seed=a.seed, options={"delay_steps": 10, "command_target": (0.0, speed)})
     p = walk60.WalkParams(duty=0.70)
+    turn = None
+    if a.turn_profile != "original":
+        p = p.replace(lift_m=0.028) if speed > 0 else p.replace(lift_m=0.012, duty=0.64)
+        turn = GentleTurn(e, gyro_bias_dps=a.gyro_bias_dps, stock_yaw=a.turn_profile == "shaped-stock-yaw")
     c = walk60.TrotController(e, p)
     prog = [(t, d, speed) for t, d, _ in steering.PROGRAMS[a.program]]
     m = e.model
@@ -224,7 +232,7 @@ def course(a, path):
     legs, ids = leg_indices(m)
     lad = [m.sensor(j + "_normal_load").adr[0] for j in legs]
     soles = [m.geom(j + "_sole").id for j in legs]
-    signal = np.zeros((24000, 32))
+    signal = np.zeros((math.ceil((duration + e.dt) / m.opt.timestep), 32))
     n = 0
 
     def stats(e):
@@ -261,6 +269,8 @@ def course(a, path):
             seg += 1
             obs = e.set_command_target(headings + np.deg2rad(prog[seg][1]), speed)
         buf.append(frame())
+        if turn is not None:
+            obs = turn.apply(obs, prog[seg][1], speed, c)
         obs, _, term, trunc, info = e.step(c.act(obs))
         if term or trunc:
             buf.append(frame())
@@ -281,7 +291,11 @@ def course(a, path):
     tr = dict(zip(keys, map(np.array, zip(*buf))))
     if a.record:
         np.savez_compressed(
-            a.out.with_suffix(".npz"), **{k: v[::2] for k, v in tr.items()}, initial_heading_rad=headings
+            a.out.with_suffix(".npz"),
+            **{k: v[::2] for k, v in tr.items()},
+            initial_heading_rad=headings,
+            physics_t_s=signal[:n, 30],
+            physics_foot_load_N=signal[:n, :4],
         )
     result = steering.evaluate(tr, a.program, headings)
     h = signal[:n]
@@ -297,15 +311,17 @@ def course(a, path):
         ).tolist(),
         **leg_metrics(h[:, :4], h[:, 4:16], h[:, 16:28], h[:, 28:30], w),
     )
-    if a.force_trace:
-        result["force_transients"] = force_transients(h[:, 30], h[:, :4], legs, m.opt.timestep, a.force_trace)
+    enough_samples = len(h) >= round(0.010 / m.opt.timestep)
+    result["force_transients"] = (
+        force_transients(h[:, 30], h[:, :4], legs, m.opt.timestep, a.force_trace) if enough_samples else None
+    )
     result["time_in_air_pct"] = 100 * np.mean(np.sum(h[:, :4] > 2, axis=1) == 0)
     return result
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("program", choices=("stand", "walk", "course", "pivot", "pivot-right"))
+    parser.add_argument("program", choices=("stand", "walk", "course", "six-headings", "pivot", "pivot-right"))
     parser.add_argument("--model", type=Path, default=HERE.parent / "models/refined/physics.xml")
     parser.add_argument(
         "--gait",
@@ -331,9 +347,25 @@ def main():
         metavar="CSV",
         help="Write all four normal forces at physics rate around the maximum instantaneous load and 10 ms average for a steering trial.",
     )
+    parser.add_argument(
+        "--turn-profile",
+        choices=("original", "gentle", "shaped-stock-yaw"),
+        default="original",
+        help="Steering controller for course and pivots.",
+    )
+    parser.add_argument(
+        "--gyro-bias-dps",
+        type=float,
+        default=0.0,
+        help="Inject a constant bias in the gentle relative-yaw estimator (degrees/s).",
+    )
     a = parser.parse_args()
+    if a.gyro_bias_dps and a.turn_profile != "gentle":
+        parser.error("--gyro-bias-dps applies to the gentle turn profile")
+    if a.turn_profile != "original" and a.program in ("stand", "walk"):
+        parser.error("--turn-profile applies only to steering")
     if a.force_trace and a.program in ("stand", "walk"):
-        parser.error("--force-trace applies to course, pivot and pivot-right")
+        parser.error("--force-trace applies to steering programs")
     if a.stiff and a.program != "walk":
         parser.error("--stiff applies to walk")
     if a.random and a.program in ("stand", "walk"):
