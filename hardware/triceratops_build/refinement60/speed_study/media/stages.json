@@ -1,0 +1,190 @@
+{
+  "walk": {
+    "program": "walk",
+    "stages": [
+      {
+        "setting": 1,
+        "seed": 11,
+        "name": "Exhibit pace",
+        "window_s": [
+          5,
+          11
+        ],
+        "record": "walk/records/{mm}/1x-11-nominal"
+      },
+      {
+        "setting": 1.5,
+        "seed": 11,
+        "name": "Faster footfalls",
+        "window_s": [
+          4,
+          10
+        ],
+        "record": "walk/records/{mm}/1p5x-11-nominal"
+      },
+      {
+        "setting": 1.75,
+        "seed": 11,
+        "name": "Balance and contact stress",
+        "window_s": [
+          2,
+          8
+        ],
+        "record": "walk/records/{mm}/1p75x-11-nominal"
+      },
+      {
+        "setting": 2,
+        "seed": 11,
+        "name": "Loss of balance",
+        "window_s": [
+          0,
+          6
+        ],
+        "record": "walk/records/{mm}/2x-11-nominal",
+        "reframe_fall": true
+      }
+    ]
+  },
+  "steering": {
+    "program": "six-headings",
+    "footfall": "diagonal",
+    "stages": [
+      {
+        "setting": 0.25,
+        "seed": 103,
+        "name": "Reference pace",
+        "window_s": [
+          13,
+          19
+        ],
+        "record": "film/{mm}-250-103"
+      },
+      {
+        "setting": 0.45,
+        "seed": 103,
+        "name": "Higher command",
+        "window_s": [
+          13,
+          19
+        ],
+        "record": "film/{mm}-450-103"
+      },
+      {
+        "setting": 0.5,
+        "seed": 103,
+        "name": "Load stress",
+        "window_s": [
+          13,
+          19
+        ],
+        "record": "film/{mm}-500-103"
+      },
+      {
+        "setting": 0.6,
+        "seed": 103,
+        "name": "Early termination",
+        "window_s": [
+          1,
+          7.5
+        ],
+        "record": "film/{mm}-600-103"
+      }
+    ]
+  },
+  "fourbeat-turns": {
+    "program": "six-headings",
+    "footfall": "four-beat",
+    "stages": [
+      {
+        "setting": 0.08,
+        "seed": 103,
+        "name": "Staggered steps with weight transfer",
+        "window_s": [
+          0,
+          40
+        ],
+        "record": "film/{mm}-stagger-080-103"
+      }
+    ]
+  },
+  "rehearsed-course": {
+    "program": "rehearsed-course",
+    "footfall": "rehearsed",
+    "stages": [
+      {
+        "setting": 1.25,
+        "name": "Preplanned footfalls · open-loop bearing",
+        "seed": 11,
+        "window_s": [
+          0,
+          40
+        ],
+        "record": "walk/choreography/{mm}/1p25x-11-nominal"
+      }
+    ]
+  },
+  "rehearsed-speeds": {
+    "program": "rehearsed-course",
+    "footfall": "rehearsed",
+    "main_results": [
+      "choreography.json",
+      "choreography-speed.json",
+      "choreography-edge.json"
+    ],
+    "holdout_results": [
+      "choreography-holdout.json"
+    ],
+    "stages": [
+      {
+        "setting": 1.0,
+        "name": "Preplanned six-heading path · nominal seed 11",
+        "seed": 11,
+        "window_s": [
+          32,
+          38
+        ],
+        "record": "rehearsal-extra/{mm}/1x-11-nominal"
+      },
+      {
+        "setting": 1.25,
+        "name": "Preplanned six-heading path · nominal seed 11",
+        "seed": 11,
+        "window_s": [
+          32,
+          38
+        ],
+        "record": "walk/choreography/{mm}/1p25x-11-nominal"
+      },
+      {
+        "setting": 1.45,
+        "name": "Preplanned six-heading path · nominal seed 11",
+        "seed": 11,
+        "window_s": [
+          18,
+          24
+        ],
+        "record": "rehearsal-extra/{mm}/1p45x-11-nominal"
+      },
+      {
+        "setting": 1.5,
+        "name": "Preplanned six-heading path · nominal seed 11",
+        "seed": 11,
+        "window_s": [
+          18,
+          24
+        ],
+        "record": "rehearsal-extra/{mm}/1p5x-11-nominal"
+      },
+      {
+        "setting": 1.65,
+        "name": "Preplanned six-heading path · nominal seed 11",
+        "seed": 11,
+        "window_s": [
+          0,
+          6
+        ],
+        "record": "rehearsal-extra/{mm}/1p65x-11-nominal"
+      }
+    ]
+  }
+}

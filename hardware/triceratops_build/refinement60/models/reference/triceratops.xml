@@ -1,0 +1,855 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="Triceratops 60 cm hybrid">
+  <compiler angle="degree" autolimits="true" inertiafromgeom="true" />
+  <option timestep=".001" integrator="implicitfast" solver="Newton" iterations="80" gravity="0 0 -9.81" cone="elliptic" />
+  <statistic center="0 0 0.272" extent="0.88" meansize="0.056" />
+  <visual>
+    <global azimuth="128" elevation="-16" offwidth="1600" offheight="1000" fovy="35" />
+    <rgba rangefinder="0 0 0 0" frustum="0 0 0 0" fog=".31 .37 .40 1" haze=".31 .37 .40 1" />
+    <headlight ambient=".45 .44 .42" diffuse=".27 .26 .24" specular=".13 .13 .12" />
+    <map znear=".015" zfar="80" shadowclip="6" fogstart="4" fogend="12" />
+    <quality shadowsize="4096" offsamples="4" />
+  </visual>
+  <asset>
+    <material name="rail" rgba=".28 .39 .4 1" />
+    <material name="bracket" rgba=".17 .25 .28 1" />
+    <material name="rotor" rgba=".20 .23 .24 1" />
+    <material name="cap" rgba=".57 .61 .62 1" />
+    <material name="carbon" rgba=".15 .31 .30 1" />
+    <material name="skin" rgba=".35 .50 .36 1" />
+    <material name="crest" rgba=".48 .64 .45 1" />
+    <material name="horn" rgba=".85 .78 .59 1" />
+    <material name="pad" rgba=".105 .115 .11 1" />
+    <material name="compute" rgba=".16 .32 .47 1" />
+    <material name="power" rgba=".72 .39 .17 1" />
+    <material name="sensor" rgba=".12 .17 .22 1" />
+    <material name="lens" rgba=".16 .61 .69 1" />
+    <material name="harness" rgba=".46 .20 .15 1" />
+    <texture name="sky" type="skybox" builtin="gradient" rgb1=".54 .59 .56" rgb2=".79 .79 .71" height="512" width="256" />
+    <material name="floor_mat" rgba=".63 .62 .55 1" specular=".015" shininess=".01" />
+    <mesh name="frill_panel" vertex="0.02 -0.078 -0.034  0.00214 -0.13 0.013  -0.0313 -0.174 0.101  -0.05182 -0.168 0.155  -0.07348 -0.13 0.212  -0.08374 -0.077 0.239  -0.08792 0 0.25  -0.08374 0.077 0.239  -0.07348 0.13 0.212  -0.05182 0.168 0.155  -0.0313 0.174 0.101  0.00214 0.13 0.013  0.02 0.078 -0.034  -0.041981072 -0.035131094 0.12910808  -0.047293613 -0.041670652 0.14308845  -0.052166766 -0.049491037 0.15591254  -0.05641326 -0.058291718 0.16708753  -0.059869903 -0.067734489 0.17618396  -0.06240386 -0.077456469 0.18285226  -0.06391775 -0.087084048 0.18683619  -0.064353398 -0.096247244 0.18798263  -0.063694059 -0.10459392 0.18624752  -0.061965074 -0.11180332 0.18169756  -0.059232885 -0.11759839 0.17450759  -0.055602489 -0.12175642 0.16495392  -0.051213401 -0.12411764 0.15340369  -0.04623429 -0.12459129 0.14030076  -0.0408565 -0.12315917 0.12614869  -0.035286699 -0.11987632 0.11149131  -0.029738928 -0.11486891 0.096891916  -0.024426387 -0.10832935 0.082911546  -0.019553234 -0.10050896 0.070087457  -0.01530674 -0.091708282 0.058912474  -0.011850097 -0.082265511 0.049816044  -0.0093161402 -0.072543531 0.043147737  -0.0078022496 -0.062915952 0.039163815  -0.0073666025 -0.053752756 0.038017375  -0.0080259407 -0.045406079 0.039752475  -0.0097549262 -0.03819668 0.044302437  -0.012487115 -0.032401613 0.051492408  -0.016117511 -0.028243577 0.061046081  -0.020506599 -0.025882364 0.072596314  -0.02548571 -0.025408715 0.085699238  -0.0308635 -0.026840831 0.099851315  -0.036433301 -0.030123677 0.11450869  -0.029738928 0.11486891 0.096891916  -0.035286699 0.11987632 0.11149131  -0.0408565 0.12315917 0.12614869  -0.04623429 0.12459129 0.14030076  -0.051213401 0.12411764 0.15340369  -0.055602489 0.12175642 0.16495392  -0.059232885 0.11759839 0.17450759  -0.061965074 0.11180332 0.18169756  -0.063694059 0.10459392 0.18624752  -0.064353398 0.096247244 0.18798263  -0.06391775 0.087084048 0.18683619  -0.06240386 0.077456469 0.18285226  -0.059869903 0.067734489 0.17618396  -0.05641326 0.058291718 0.16708753  -0.052166766 0.049491037 0.15591254  -0.047293613 0.041670652 0.14308845  -0.041981072 0.035131094 0.12910808  -0.036433301 0.030123677 0.11450869  -0.0308635 0.026840831 0.099851315  -0.02548571 0.025408715 0.085699238  -0.020506599 0.025882364 0.072596314  -0.016117511 0.028243577 0.061046081  -0.012487115 0.032401613 0.051492408  -0.0097549262 0.03819668 0.044302437  -0.0080259407 0.045406079 0.039752475  -0.0073666025 0.053752756 0.038017375  -0.0078022496 0.062915952 0.039163815  -0.0093161402 0.072543531 0.043147737  -0.011850097 0.082265511 0.049816044  -0.01530674 0.091708282 0.058912474  -0.019553234 0.10050896 0.070087457  -0.024426387 0.10832935 0.082911546  0.032 -0.078 -0.034  0.01414 -0.13 0.013  -0.0193 -0.174 0.101  -0.03982 -0.168 0.155  -0.06148 -0.13 0.212  -0.07174 -0.077 0.239  -0.07592 0 0.25  -0.07174 0.077 0.239  -0.06148 0.13 0.212  -0.03982 0.168 0.155  -0.0193 0.174 0.101  0.01414 0.13 0.013  0.032 0.078 -0.034  -0.029981072 -0.035131094 0.12910808  -0.035293613 -0.041670652 0.14308845  -0.040166766 -0.049491037 0.15591254  -0.04441326 -0.058291718 0.16708753  -0.047869903 -0.067734489 0.17618396  -0.05040386 -0.077456469 0.18285226  -0.05191775 -0.087084048 0.18683619  -0.052353398 -0.096247244 0.18798263  -0.051694059 -0.10459392 0.18624752  -0.049965074 -0.11180332 0.18169756  -0.047232885 -0.11759839 0.17450759  -0.043602489 -0.12175642 0.16495392  -0.039213401 -0.12411764 0.15340369  -0.03423429 -0.12459129 0.14030076  -0.0288565 -0.12315917 0.12614869  -0.023286699 -0.11987632 0.11149131  -0.017738928 -0.11486891 0.096891916  -0.012426387 -0.10832935 0.082911546  -0.0075532338 -0.10050896 0.070087457  -0.00330674 -0.091708282 0.058912474  0.00014990342 -0.082265511 0.049816044  0.0026838598 -0.072543531 0.043147737  0.0041977504 -0.062915952 0.039163815  0.0046333975 -0.053752756 0.038017375  0.0039740593 -0.045406079 0.039752475  0.0022450738 -0.03819668 0.044302437  -0.00048711503 -0.032401613 0.051492408  -0.0041175107 -0.028243577 0.061046081  -0.0085065992 -0.025882364 0.072596314  -0.01348571 -0.025408715 0.085699238  -0.0188635 -0.026840831 0.099851315  -0.024433301 -0.030123677 0.11450869  -0.017738928 0.11486891 0.096891916  -0.023286699 0.11987632 0.11149131  -0.0288565 0.12315917 0.12614869  -0.03423429 0.12459129 0.14030076  -0.039213401 0.12411764 0.15340369  -0.043602489 0.12175642 0.16495392  -0.047232885 0.11759839 0.17450759  -0.049965074 0.11180332 0.18169756  -0.051694059 0.10459392 0.18624752  -0.052353398 0.096247244 0.18798263  -0.05191775 0.087084048 0.18683619  -0.05040386 0.077456469 0.18285226  -0.047869903 0.067734489 0.17618396  -0.04441326 0.058291718 0.16708753  -0.040166766 0.049491037 0.15591254  -0.035293613 0.041670652 0.14308845  -0.029981072 0.035131094 0.12910808  -0.024433301 0.030123677 0.11450869  -0.0188635 0.026840831 0.099851315  -0.01348571 0.025408715 0.085699238  -0.0085065992 0.025882364 0.072596314  -0.0041175107 0.028243577 0.061046081  -0.00048711503 0.032401613 0.051492408  0.0022450738 0.03819668 0.044302437  0.0039740593 0.045406079 0.039752475  0.0046333975 0.053752756 0.038017375  0.0041977504 0.062915952 0.039163815  0.0026838598 0.072543531 0.043147737  0.00014990342 0.082265511 0.049816044  -0.00330674 0.091708282 0.058912474  -0.0075532338 0.10050896 0.070087457  -0.012426387 0.10832935 0.082911546" face="2 29 30  107 106 79  6 15 16  93 92 83  6 59 15  92 136 83  4 5 20  97 82 81  5 19 20  97 96 82  6 17 5  82 94 83  6 16 17  94 93 83  12 70 71  148 147 89  8 54 7  84 131 85  7 54 55  132 131 84  6 7 57  134 84 83  0 1 34  111 78 77  2 30 1  78 107 79  5 18 19  96 95 82  5 17 18  95 94 82  12 69 70  147 146 89  7 55 56  133 132 84  7 56 57  134 133 84  6 58 59  136 135 83  6 57 58  135 134 83  74 11 73  150 88 151  2 3 27  104 80 79  11 72 73  150 149 88  12 72 11  88 149 89  12 71 72  149 148 89  34 1 33  110 78 111  1 32 33  110 109 78  30 31 1  78 108 107  1 31 32  109 108 78  0 36 37  114 113 77  0 34 35  112 111 77  0 35 36  113 112 77  4 20 21  98 97 81  4 21 22  99 98 81  4 22 23  100 99 81  4 23 3  80 100 81  3 23 24  101 100 80  3 26 27  104 103 80  2 28 29  106 105 79  2 27 28  105 104 79  8 53 54  131 130 85  8 52 53  130 129 85  8 51 52  129 128 85  8 9 51  128 86 85  9 50 51  128 127 86  10 47 9  86 124 87  10 46 47  124 123 87  10 45 46  123 122 87  3 24 25  102 101 80  3 25 26  103 102 80  9 47 48  125 124 86  10 11 76  153 88 87  10 76 45  122 153 87  9 49 50  127 126 86  9 48 49  126 125 86  74 75 11  88 152 151  11 75 76  153 152 88  63 43 62  139 120 140  44 62 43  120 139 121  44 13 62  139 90 121  61 62 13  90 139 138  63 64 43  120 141 140  42 43 64  141 120 119  41 64 65  142 141 118  41 42 64  141 119 118  41 65 66  143 142 118  41 66 40  117 143 118  12 37 69  146 114 89  12 0 37  114 77 89  68 37 38  115 114 145  68 69 37  114 146 145  15 60 14  91 137 92  59 60 15  92 137 136  61 13 60  137 90 138  13 14 60  137 91 90  68 38 39  116 115 145  68 39 67  144 116 145  40 66 39  116 143 117  66 67 39  116 144 143  1 0 77  1 77 78  2 1 78  2 78 79  3 2 79  3 79 80  4 3 80  4 80 81  5 4 81  5 81 82  6 5 82  6 82 83  7 6 83  7 83 84  8 7 84  8 84 85  9 8 85  9 85 86  10 9 86  10 86 87  11 10 87  11 87 88  12 11 88  12 88 89  0 12 89  0 89 77  13 14 91  13 91 90  14 15 92  14 92 91  15 16 93  15 93 92  16 17 94  16 94 93  17 18 95  17 95 94  18 19 96  18 96 95  19 20 97  19 97 96  20 21 98  20 98 97  21 22 99  21 99 98  22 23 100  22 100 99  23 24 101  23 101 100  24 25 102  24 102 101  25 26 103  25 103 102  26 27 104  26 104 103  27 28 105  27 105 104  28 29 106  28 106 105  29 30 107  29 107 106  30 31 108  30 108 107  31 32 109  31 109 108  32 33 110  32 110 109  33 34 111  33 111 110  34 35 112  34 112 111  35 36 113  35 113 112  36 37 114  36 114 113  37 38 115  37 115 114  38 39 116  38 116 115  39 40 117  39 117 116  40 41 118  40 118 117  41 42 119  41 119 118  42 43 120  42 120 119  43 44 121  43 121 120  44 13 90  44 90 121  45 46 123  45 123 122  46 47 124  46 124 123  47 48 125  47 125 124  48 49 126  48 126 125  49 50 127  49 127 126  50 51 128  50 128 127  51 52 129  51 129 128  52 53 130  52 130 129  53 54 131  53 131 130  54 55 132  54 132 131  55 56 133  55 133 132  56 57 134  56 134 133  57 58 135  57 135 134  58 59 136  58 136 135  59 60 137  59 137 136  60 61 138  60 138 137  61 62 139  61 139 138  62 63 140  62 140 139  63 64 141  63 141 140  64 65 142  64 142 141  65 66 143  65 143 142  66 67 144  66 144 143  67 68 145  67 145 144  68 69 146  68 146 145  69 70 147  69 147 146  70 71 148  70 148 147  71 72 149  71 149 148  72 73 150  72 150 149  73 74 151  73 151 150  74 75 152  74 152 151  75 76 153  75 153 152  76 45 122  76 122 153" scale="0.8 0.8 0.8" />
+    <mesh name="beaked_skull" vertex="0.006 0.068 -0.002  0.006 0.058889727 0.027  0.006 0.034 0.048229473  0.006 4.1637991e-18 0.056  0.006 -0.034 0.048229473  0.006 -0.058889727 0.027  0.006 -0.068 -0.002  0.006 -0.058889727 -0.031  0.006 -0.034 -0.052229473  0.006 -1.2491397e-17 -0.06  0.006 0.034 -0.052229473  0.006 0.058889727 -0.031  0.057 0.09 0.001  0.057 0.077942286 0.0365  0.057 0.045 0.062487804  0.057 5.5109106e-18 0.072  0.057 -0.045 0.062487804  0.057 -0.077942286 0.0365  0.057 -0.09 0.001  0.057 -0.077942286 -0.0345  0.057 -0.045 -0.060487804  0.057 -1.6532732e-17 -0.07  0.057 0.045 -0.060487804  0.057 0.077942286 -0.0345  0.132 0.064 -0.021  0.132 0.055425626 0.0025  0.132 0.032 0.019703194  0.132 3.9188698e-18 0.026  0.132 -0.032 0.019703194  0.132 -0.055425626 0.0025  0.132 -0.064 -0.021  0.132 -0.055425626 -0.0445  0.132 -0.032 -0.061703194  0.132 -1.1756609e-17 -0.068  0.132 0.032 -0.061703194  0.132 0.055425626 -0.0445  0.195 0.038 -0.026  0.195 0.032908965 -0.01  0.195 0.019 0.0017128129  0.195 2.3268289e-18 0.006  0.195 -0.019 0.0017128129  0.195 -0.032908965 -0.01  0.195 -0.038 -0.026  0.195 -0.032908965 -0.042  0.195 -0.019 -0.053712813  0.195 -6.9804868e-18 -0.058  0.195 0.019 -0.053712813  0.195 0.032908965 -0.042  0.218 0.01 -0.042  0.218 0.008660254 -0.035  0.218 0.005 -0.029875644  0.218 6.123234e-19 -0.028  0.218 -0.005 -0.029875644  0.218 -0.008660254 -0.035  0.218 -0.01 -0.042  0.218 -0.008660254 -0.049  0.218 -0.005 -0.054124356  0.218 -1.8369702e-18 -0.056  0.218 0.005 -0.054124356  0.218 0.008660254 -0.049" face="0 2 1  48 49 50  0 3 2  48 50 51  0 4 3  48 51 52  0 5 4  48 52 53  0 6 5  48 53 54  0 7 6  48 54 55  0 8 7  48 55 56  0 9 8  48 56 57  0 10 9  48 57 58  0 11 10  48 58 59  0 1 13  0 13 12  1 2 14  1 14 13  2 3 15  2 15 14  3 4 16  3 16 15  4 5 17  4 17 16  5 6 18  5 18 17  6 7 19  6 19 18  7 8 20  7 20 19  8 9 21  8 21 20  9 10 22  9 22 21  10 11 23  10 23 22  11 0 12  11 12 23  12 13 25  12 25 24  13 14 26  13 26 25  14 15 27  14 27 26  15 16 28  15 28 27  16 17 29  16 29 28  17 18 30  17 30 29  18 19 31  18 31 30  19 20 32  19 32 31  20 21 33  20 33 32  21 22 34  21 34 33  22 23 35  22 35 34  23 12 24  23 24 35  24 25 37  24 37 36  25 26 38  25 38 37  26 27 39  26 39 38  27 28 40  27 40 39  28 29 41  28 41 40  29 30 42  29 42 41  30 31 43  30 43 42  31 32 44  31 44 43  32 33 45  32 45 44  33 34 46  33 46 45  34 35 47  34 47 46  35 24 36  35 36 47  36 37 49  36 49 48  37 38 50  37 50 49  38 39 51  38 51 50  39 40 52  39 52 51  40 41 53  40 53 52  41 42 54  41 54 53  42 43 55  42 55 54  43 44 56  43 56 55  44 45 57  44 57 56  45 46 58  45 58 57  46 47 59  46 59 58  47 36 48  47 48 59" scale="0.8 0.8 0.8" />
+    <mesh name="tail_fairing" vertex="-0.485 0.002 -0.09  -0.485 0.0017320508 -0.088  -0.485 0.001 -0.086535898  -0.485 1.2246468e-19 -0.086  -0.485 -0.001 -0.086535898  -0.485 -0.0017320508 -0.088  -0.485 -0.002 -0.09  -0.485 -0.0017320508 -0.092  -0.485 -0.001 -0.093464102  -0.485 -3.6739404e-19 -0.094  -0.485 0.001 -0.093464102  -0.485 0.0017320508 -0.092  -0.29 0.021 -0.068  -0.29 0.018186533 -0.055  -0.29 0.0105 -0.04548334  -0.29 1.2858791e-18 -0.042  -0.29 -0.0105 -0.04548334  -0.29 -0.018186533 -0.055  -0.29 -0.021 -0.068  -0.29 -0.018186533 -0.081  -0.29 -0.0105 -0.09051666  -0.29 -3.8576374e-18 -0.094  -0.29 0.0105 -0.09051666  -0.29 0.018186533 -0.081  -0.135 0.043 -0.025  -0.135 0.037239092 -0.007  -0.135 0.0215 0.0061769145  -0.135 2.6329906e-18 0.011  -0.135 -0.0215 0.0061769145  -0.135 -0.037239092 -0.007  -0.135 -0.043 -0.025  -0.135 -0.037239092 -0.043  -0.135 -0.0215 -0.056176915  -0.135 -7.8989719e-18 -0.061  -0.135 0.0215 -0.056176915  -0.135 0.037239092 -0.043  -0.02 0.065 0.002  -0.02 0.056291651 0.027  -0.02 0.0325 0.04530127  -0.02 3.9801021e-18 0.052  -0.02 -0.0325 0.04530127  -0.02 -0.056291651 0.027  -0.02 -0.065 0.002  -0.02 -0.056291651 -0.023  -0.02 -0.0325 -0.04130127  -0.02 -1.1940306e-17 -0.048  -0.02 0.0325 -0.04130127  -0.02 0.056291651 -0.023  0 0.052 0.002  0 0.045033321 0.023  0 0.026 0.038373067  0 3.1840817e-18 0.044  0 -0.026 0.038373067  0 -0.045033321 0.023  0 -0.052 0.002  0 -0.045033321 -0.019  0 -0.026 -0.034373067  0 -9.552245e-18 -0.04  0 0.026 -0.034373067  0 0.045033321 -0.019" face="0 2 1  48 49 50  0 3 2  48 50 51  0 4 3  48 51 52  0 5 4  48 52 53  0 6 5  48 53 54  0 7 6  48 54 55  0 8 7  48 55 56  0 9 8  48 56 57  0 10 9  48 57 58  0 11 10  48 58 59  0 1 13  0 13 12  1 2 14  1 14 13  2 3 15  2 15 14  3 4 16  3 16 15  4 5 17  4 17 16  5 6 18  5 18 17  6 7 19  6 19 18  7 8 20  7 20 19  8 9 21  8 21 20  9 10 22  9 22 21  10 11 23  10 23 22  11 0 12  11 12 23  12 13 25  12 25 24  13 14 26  13 26 25  14 15 27  14 27 26  15 16 28  15 28 27  16 17 29  16 29 28  17 18 30  17 30 29  18 19 31  18 31 30  19 20 32  19 32 31  20 21 33  20 33 32  21 22 34  21 34 33  22 23 35  22 35 34  23 12 24  23 24 35  24 25 37  24 37 36  25 26 38  25 38 37  26 27 39  26 39 38  27 28 40  27 40 39  28 29 41  28 41 40  29 30 42  29 42 41  30 31 43  30 43 42  31 32 44  31 44 43  32 33 45  32 45 44  33 34 46  33 46 45  34 35 47  34 47 46  35 24 36  35 36 47  36 37 49  36 49 48  37 38 50  37 50 49  38 39 51  38 51 50  39 40 52  39 52 51  40 41 53  40 53 52  41 42 54  41 54 53  42 43 55  42 55 54  43 44 56  43 56 55  44 45 57  44 57 56  45 46 58  45 58 57  46 47 59  46 59 58  47 36 48  47 48 59" scale="0.8 0.8 0.8" />
+    <mesh name="left_brow_horn" vertex="0.065 0.077 0.045  0.065 0.074588457 0.055  0.065 0.068 0.062320508  0.065 0.059 0.065  0.065 0.05 0.062320508  0.065 0.043411543 0.055  0.065 0.041 0.045  0.065 0.043411543 0.035  0.065 0.05 0.027679492  0.065 0.059 0.025  0.065 0.068 0.027679492  0.065 0.074588457 0.035  0.15 0.086 0.067  0.15 0.083990381 0.075  0.15 0.0785 0.080856406  0.15 0.071 0.083  0.15 0.0635 0.080856406  0.15 0.058009619 0.075  0.15 0.056 0.067  0.15 0.058009619 0.059  0.15 0.0635 0.053143594  0.15 0.071 0.051  0.15 0.0785 0.053143594  0.15 0.083990381 0.059  0.23 0.086 0.084  0.23 0.084928203 0.0885  0.23 0.082 0.091794229  0.23 0.078 0.093  0.23 0.074 0.091794229  0.23 0.071071797 0.0885  0.23 0.07 0.084  0.23 0.071071797 0.0795  0.23 0.074 0.076205771  0.23 0.078 0.075  0.23 0.082 0.076205771  0.23 0.084928203 0.0795  0.285 0.083 0.09  0.285 0.082598076 0.0915  0.285 0.0815 0.092598076  0.285 0.08 0.093  0.285 0.0785 0.092598076  0.285 0.077401924 0.0915  0.285 0.077 0.09  0.285 0.077401924 0.0885  0.285 0.0785 0.087401924  0.285 0.08 0.087  0.285 0.0815 0.087401924  0.285 0.082598076 0.0885" face="0 2 1  36 37 38  0 3 2  36 38 39  0 4 3  36 39 40  0 5 4  36 40 41  0 6 5  36 41 42  0 7 6  36 42 43  0 8 7  36 43 44  0 9 8  36 44 45  0 10 9  36 45 46  0 11 10  36 46 47  0 1 13  0 13 12  1 2 14  1 14 13  2 3 15  2 15 14  3 4 16  3 16 15  4 5 17  4 17 16  5 6 18  5 18 17  6 7 19  6 19 18  7 8 20  7 20 19  8 9 21  8 21 20  9 10 22  9 22 21  10 11 23  10 23 22  11 0 12  11 12 23  12 13 25  12 25 24  13 14 26  13 26 25  14 15 27  14 27 26  15 16 28  15 28 27  16 17 29  16 29 28  17 18 30  17 30 29  18 19 31  18 31 30  19 20 32  19 32 31  20 21 33  20 33 32  21 22 34  21 34 33  22 23 35  22 35 34  23 12 24  23 24 35  24 25 37  24 37 36  25 26 38  25 38 37  26 27 39  26 39 38  27 28 40  27 40 39  28 29 41  28 41 40  29 30 42  29 42 41  30 31 43  30 43 42  31 32 44  31 44 43  32 33 45  32 45 44  33 34 46  33 46 45  34 35 47  34 47 46  35 24 36  35 36 47" scale="0.8 0.8 0.8" />
+    <mesh name="right_brow_horn" vertex="0.065 -0.041 0.045  0.065 -0.043411543 0.055  0.065 -0.05 0.062320508  0.065 -0.059 0.065  0.065 -0.068 0.062320508  0.065 -0.074588457 0.055  0.065 -0.077 0.045  0.065 -0.074588457 0.035  0.065 -0.068 0.027679492  0.065 -0.059 0.025  0.065 -0.05 0.027679492  0.065 -0.043411543 0.035  0.15 -0.056 0.067  0.15 -0.058009619 0.075  0.15 -0.0635 0.080856406  0.15 -0.071 0.083  0.15 -0.0785 0.080856406  0.15 -0.083990381 0.075  0.15 -0.086 0.067  0.15 -0.083990381 0.059  0.15 -0.0785 0.053143594  0.15 -0.071 0.051  0.15 -0.0635 0.053143594  0.15 -0.058009619 0.059  0.23 -0.07 0.084  0.23 -0.071071797 0.0885  0.23 -0.074 0.091794229  0.23 -0.078 0.093  0.23 -0.082 0.091794229  0.23 -0.084928203 0.0885  0.23 -0.086 0.084  0.23 -0.084928203 0.0795  0.23 -0.082 0.076205771  0.23 -0.078 0.075  0.23 -0.074 0.076205771  0.23 -0.071071797 0.0795  0.285 -0.077 0.09  0.285 -0.077401924 0.0915  0.285 -0.0785 0.092598076  0.285 -0.08 0.093  0.285 -0.0815 0.092598076  0.285 -0.082598076 0.0915  0.285 -0.083 0.09  0.285 -0.082598076 0.0885  0.285 -0.0815 0.087401924  0.285 -0.08 0.087  0.285 -0.0785 0.087401924  0.285 -0.077401924 0.0885" face="0 2 1  36 37 38  0 3 2  36 38 39  0 4 3  36 39 40  0 5 4  36 40 41  0 6 5  36 41 42  0 7 6  36 42 43  0 8 7  36 43 44  0 9 8  36 44 45  0 10 9  36 45 46  0 11 10  36 46 47  0 1 13  0 13 12  1 2 14  1 14 13  2 3 15  2 15 14  3 4 16  3 16 15  4 5 17  4 17 16  5 6 18  5 18 17  6 7 19  6 19 18  7 8 20  7 20 19  8 9 21  8 21 20  9 10 22  9 22 21  10 11 23  10 23 22  11 0 12  11 12 23  12 13 25  12 25 24  13 14 26  13 26 25  14 15 27  14 27 26  15 16 28  15 28 27  16 17 29  16 29 28  17 18 30  17 30 29  18 19 31  18 31 30  19 20 32  19 32 31  20 21 33  20 33 32  21 22 34  21 34 33  22 23 35  22 35 34  23 12 24  23 24 35  24 25 37  24 37 36  25 26 38  25 38 37  26 27 39  26 39 38  27 28 40  27 40 39  28 29 41  28 41 40  29 30 42  29 42 41  30 31 43  30 43 42  31 32 44  31 44 43  32 33 45  32 45 44  33 34 46  33 46 45  34 35 47  34 47 46  35 24 36  35 36 47" scale="0.8 0.8 0.8" />
+    <mesh name="nasal_horn" vertex="0.162 0.013 0  0.162 0.01125833 0.007  0.162 0.0065 0.012124356  0.162 7.9602042e-19 0.014  0.162 -0.0065 0.012124356  0.162 -0.01125833 0.007  0.162 -0.013 1.7145055e-18  0.162 -0.01125833 -0.007  0.162 -0.0065 -0.012124356  0.162 -2.3880613e-18 -0.014  0.162 0.0065 -0.012124356  0.162 0.01125833 -0.007  0.177 0.01 0.023  0.177 0.008660254 0.029  0.177 0.005 0.033392305  0.177 6.123234e-19 0.035  0.177 -0.005 0.033392305  0.177 -0.008660254 0.029  0.177 -0.01 0.023  0.177 -0.008660254 0.017  0.177 -0.005 0.012607695  0.177 -1.8369702e-18 0.011  0.177 0.005 0.012607695  0.177 0.008660254 0.017  0.2 0.003 0.052  0.2 0.0025980762 0.0535  0.2 0.0015 0.054598076  0.2 1.8369702e-19 0.055  0.2 -0.0015 0.054598076  0.2 -0.0025980762 0.0535  0.2 -0.003 0.052  0.2 -0.0025980762 0.0505  0.2 -0.0015 0.049401924  0.2 -5.5109106e-19 0.049  0.2 0.0015 0.049401924  0.2 0.0025980762 0.0505" face="0 2 1  24 25 26  0 3 2  24 26 27  0 4 3  24 27 28  0 5 4  24 28 29  0 6 5  24 29 30  0 7 6  24 30 31  0 8 7  24 31 32  0 9 8  24 32 33  0 10 9  24 33 34  0 11 10  24 34 35  0 1 13  0 13 12  1 2 14  1 14 13  2 3 15  2 15 14  3 4 16  3 16 15  4 5 17  4 17 16  5 6 18  5 18 17  6 7 19  6 19 18  7 8 20  7 20 19  8 9 21  8 21 20  9 10 22  9 22 21  10 11 23  10 23 22  11 0 12  11 12 23  12 13 25  12 25 24  13 14 26  13 26 25  14 15 27  14 27 26  15 16 28  15 28 27  16 17 29  16 29 28  17 18 30  17 30 29  18 19 31  18 31 30  19 20 32  19 32 31  20 21 33  20 33 32  21 22 34  21 34 33  22 23 35  22 35 34  23 12 24  23 24 35" scale="0.8 0.8 0.8" />
+    <texture name="paint_hide" type="2d" file="hide.png" />
+    <material name="finish_hide" texture="paint_hide" rgba="1 1 1 1" specular=".16" shininess=".12" />
+    <texture name="paint_limb" type="2d" file="limb.png" />
+    <material name="finish_limb" texture="paint_limb" rgba="1 1 1 1" specular=".16" shininess=".12" />
+    <texture name="paint_face" type="2d" file="face.png" />
+    <material name="finish_face" texture="paint_face" rgba="1 1 1 1" specular=".16" shininess=".12" />
+    <texture name="paint_frill" type="2d" file="frill.png" />
+    <material name="finish_frill" texture="paint_frill" rgba="1 1 1 1" specular=".16" shininess=".12" />
+    <texture name="paint_ivory" type="2d" file="ivory.png" />
+    <material name="finish_ivory" texture="paint_ivory" rgba="1 1 1 1" specular=".16" shininess=".12" />
+    <material name="finish_fold" rgba=".32 .35 .26 1" specular=".16" shininess=".12" />
+    <material name="finish_beak" rgba=".26 .25 .19 1" specular=".16" shininess=".12" />
+    <material name="finish_lowerbeak" rgba=".40 .36 .25 1" specular=".16" shininess=".12" />
+    <material name="finish_mouth" rgba=".18 .105 .10 1" specular=".16" shininess=".12" />
+    <material name="finish_tongue" rgba=".44 .24 .21 1" specular=".16" shininess=".12" />
+    <material name="finish_iris" rgba=".68 .42 .13 1" specular=".55" shininess=".45" />
+    <material name="finish_pupil" rgba=".045 .046 .033 1" specular=".55" shininess=".45" />
+    <material name="finish_glint" rgba=".92 .88 .70 1" specular=".55" shininess=".45" />
+    <material name="finish_lid" rgba=".36 .39 .27 1" specular=".16" shininess=".12" />
+    <material name="finish_rim" rgba=".57 .48 .32 1" specular=".16" shininess=".12" />
+    <material name="finish_boss" rgba=".43 .44 .29 1" specular=".16" shininess=".12" />
+    <mesh name="shape_frill" file="frill.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_0" file="frill_edge_0.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_1" file="frill_edge_1.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_2" file="frill_edge_2.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_3" file="frill_edge_3.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_4" file="frill_edge_4.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_5" file="frill_edge_5.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_6" file="frill_edge_6.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_7" file="frill_edge_7.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_8" file="frill_edge_8.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_9" file="frill_edge_9.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_10" file="frill_edge_10.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_11" file="frill_edge_11.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_12" file="frill_edge_12.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_13" file="frill_edge_13.obj" smoothnormal="true" />
+    <mesh name="shape_frill_edge_14" file="frill_edge_14.obj" smoothnormal="true" />
+    <mesh name="shape_frill_base" file="frill_base.obj" smoothnormal="true" />
+    <mesh name="shape_skull" file="skull.obj" smoothnormal="true" />
+    <mesh name="shape_upper_beak" file="upper_beak.obj" smoothnormal="true" />
+    <mesh name="shape_lower_jaw" file="lower_jaw.obj" smoothnormal="true" />
+    <mesh name="shape_mandible_tip" file="mandible_tip.obj" smoothnormal="true" />
+    <mesh name="shape_left_horn" file="left_horn.obj" smoothnormal="true" />
+    <mesh name="shape_right_horn" file="right_horn.obj" smoothnormal="true" />
+    <mesh name="shape_left_jugal_flange" file="left_jugal_flange.obj" smoothnormal="true" />
+    <mesh name="shape_right_jugal_flange" file="right_jugal_flange.obj" smoothnormal="true" />
+    <mesh name="shape_nose_horn" file="nose_horn.obj" smoothnormal="true" />
+    <material name="finish_sensor_window" rgba=".14 .21 .18 .55" specular=".56" shininess=".44" />
+    <mesh name="shape_left_fore_tof_bezel" file="left_fore_tof_bezel.obj" smoothnormal="true" />
+    <mesh name="shape_left_fore_tof_shroud" file="left_fore_tof_shroud.obj" smoothnormal="true" />
+    <mesh name="shape_right_fore_tof_bezel" file="right_fore_tof_bezel.obj" smoothnormal="true" />
+    <mesh name="shape_right_fore_tof_shroud" file="right_fore_tof_shroud.obj" smoothnormal="true" />
+    <material name="study_rib" rgba="0.64 0.53 0.34 1" specular="0.16" shininess=".18" />
+    <material name="study_limb" rgba="0.42 0.45 0.32 1" specular="0.13" shininess=".18" />
+    <material name="study_frame" rgba="0.2 0.23 0.22 1" specular="0.25" shininess=".18" />
+    <material name="study_motor" rgba="0.28 0.3 0.28 1" specular="0.36" shininess=".18" />
+    <material name="study_alloy" rgba="0.54 0.54 0.46 1" specular="0.43" shininess=".18" />
+    <material name="study_hub" rgba="0.22 0.25 0.24 1" specular="0.22" shininess=".18" />
+    <material name="study_dark" rgba="0.13 0.16 0.15 1" specular="0.13" shininess=".18" />
+    <material name="study_toe" rgba="0.47 0.44 0.32 1" specular="0.15" shininess=".18" />
+    <mesh name="mesh_dorsal_saddle" file="study_dorsal_saddle.obj" />
+    <mesh name="mesh_L_rib_0" file="study_L_rib_0.obj" />
+    <mesh name="mesh_R_rib_0" file="study_R_rib_0.obj" />
+    <mesh name="mesh_L_rib_1" file="study_L_rib_1.obj" />
+    <mesh name="mesh_R_rib_1" file="study_R_rib_1.obj" />
+    <mesh name="mesh_L_rib_2" file="study_L_rib_2.obj" />
+    <mesh name="mesh_R_rib_2" file="study_R_rib_2.obj" />
+    <mesh name="mesh_L_rib_3" file="study_L_rib_3.obj" />
+    <mesh name="mesh_R_rib_3" file="study_R_rib_3.obj" />
+    <mesh name="mesh_L_rib_4" file="study_L_rib_4.obj" />
+    <mesh name="mesh_R_rib_4" file="study_R_rib_4.obj" />
+    <mesh name="mesh_L_rib_5" file="study_L_rib_5.obj" />
+    <mesh name="mesh_R_rib_5" file="study_R_rib_5.obj" />
+    <mesh name="mesh_spine_0" file="study_spine_0.obj" />
+    <mesh name="mesh_spine_1" file="study_spine_1.obj" />
+    <mesh name="mesh_spine_2" file="study_spine_2.obj" />
+    <mesh name="mesh_spine_3" file="study_spine_3.obj" />
+    <mesh name="mesh_spine_4" file="study_spine_4.obj" />
+    <mesh name="mesh_spine_5" file="study_spine_5.obj" />
+    <mesh name="mesh_spine_6" file="study_spine_6.obj" />
+    <mesh name="mesh_spine_7" file="study_spine_7.obj" />
+    <mesh name="mesh_spine_8" file="study_spine_8.obj" />
+    <mesh name="mesh_spine_9" file="study_spine_9.obj" />
+    <mesh name="mesh_spine_10" file="study_spine_10.obj" />
+    <mesh name="mesh_spine_11" file="study_spine_11.obj" />
+    <mesh name="mesh_spine_12" file="study_spine_12.obj" />
+    <mesh name="mesh_spine_13" file="study_spine_13.obj" />
+    <mesh name="mesh_spine_14" file="study_spine_14.obj" />
+    <mesh name="mesh_spine_15" file="study_spine_15.obj" />
+    <mesh name="mesh_spine_16" file="study_spine_16.obj" />
+    <mesh name="mesh_spine_17" file="study_spine_17.obj" />
+    <mesh name="mesh_spine_18" file="study_spine_18.obj" />
+    <mesh name="mesh_spine_19" file="study_spine_19.obj" />
+    <mesh name="mesh_spine_20" file="study_spine_20.obj" />
+    <mesh name="mesh_spine_21" file="study_spine_21.obj" />
+    <mesh name="mesh_L_ilium" file="study_L_ilium.obj" />
+    <mesh name="mesh_L_acetabulum" file="study_L_acetabulum.obj" />
+    <mesh name="mesh_L_pubis" file="study_L_pubis.obj" />
+    <mesh name="mesh_L_ischium" file="study_L_ischium.obj" />
+    <mesh name="mesh_L_scapula" file="study_L_scapula.obj" />
+    <mesh name="mesh_L_coracoid" file="study_L_coracoid.obj" />
+    <mesh name="mesh_R_ilium" file="study_R_ilium.obj" />
+    <mesh name="mesh_R_acetabulum" file="study_R_acetabulum.obj" />
+    <mesh name="mesh_R_pubis" file="study_R_pubis.obj" />
+    <mesh name="mesh_R_ischium" file="study_R_ischium.obj" />
+    <mesh name="mesh_R_scapula" file="study_R_scapula.obj" />
+    <mesh name="mesh_R_coracoid" file="study_R_coracoid.obj" />
+    <mesh name="mesh_instrument_bay" file="study_instrument_bay.obj" />
+    <mesh name="mesh_caudal_core" file="study_caudal_core.obj" />
+    <mesh name="mesh_caudal_0" file="study_caudal_0.obj" />
+    <mesh name="mesh_caudal_1" file="study_caudal_1.obj" />
+    <mesh name="mesh_caudal_2" file="study_caudal_2.obj" />
+    <mesh name="mesh_caudal_3" file="study_caudal_3.obj" />
+    <mesh name="mesh_caudal_4" file="study_caudal_4.obj" />
+    <mesh name="mesh_caudal_5" file="study_caudal_5.obj" />
+    <mesh name="mesh_caudal_6" file="study_caudal_6.obj" />
+    <mesh name="mesh_caudal_7" file="study_caudal_7.obj" />
+    <mesh name="mesh_caudal_8" file="study_caudal_8.obj" />
+    <mesh name="mesh_caudal_9" file="study_caudal_9.obj" />
+    <mesh name="mesh_caudal_10" file="study_caudal_10.obj" />
+    <mesh name="mesh_caudal_11" file="study_caudal_11.obj" />
+    <mesh name="mesh_caudal_12" file="study_caudal_12.obj" />
+    <mesh name="mesh_caudal_13" file="study_caudal_13.obj" />
+    <mesh name="mesh_tail_root" file="study_tail_root.obj" />
+    <mesh name="mesh_left_fore_proximal" file="study_left_fore_proximal.obj" />
+    <mesh name="mesh_left_fore_distal" file="study_left_fore_distal.obj" />
+    <mesh name="mesh_left_fore_secondary" file="study_left_fore_secondary.obj" />
+    <mesh name="mesh_left_fore_drive_crank_partial_guard" file="study_left_fore_drive_crank_partial_guard.obj" />
+    <mesh name="mesh_left_fore_output_crank_partial_guard" file="study_left_fore_output_crank_partial_guard.obj" />
+    <mesh name="mesh_left_fore_digit_0" file="study_left_fore_digit_0.obj" />
+    <mesh name="mesh_left_fore_digit_1" file="study_left_fore_digit_1.obj" />
+    <mesh name="mesh_left_fore_digit_2" file="study_left_fore_digit_2.obj" />
+    <mesh name="mesh_left_fore_digit_3" file="study_left_fore_digit_3.obj" />
+    <mesh name="mesh_left_fore_digit_4" file="study_left_fore_digit_4.obj" />
+    <mesh name="mesh_left_hind_proximal" file="study_left_hind_proximal.obj" />
+    <mesh name="mesh_left_hind_distal" file="study_left_hind_distal.obj" />
+    <mesh name="mesh_left_hind_secondary" file="study_left_hind_secondary.obj" />
+    <mesh name="mesh_left_hind_digit_0" file="study_left_hind_digit_0.obj" />
+    <mesh name="mesh_left_hind_digit_1" file="study_left_hind_digit_1.obj" />
+    <mesh name="mesh_left_hind_digit_2" file="study_left_hind_digit_2.obj" />
+    <mesh name="mesh_left_hind_digit_3" file="study_left_hind_digit_3.obj" />
+    <mesh name="mesh_right_fore_proximal" file="study_right_fore_proximal.obj" />
+    <mesh name="mesh_right_fore_distal" file="study_right_fore_distal.obj" />
+    <mesh name="mesh_right_fore_secondary" file="study_right_fore_secondary.obj" />
+    <mesh name="mesh_right_fore_drive_crank_partial_guard" file="study_right_fore_drive_crank_partial_guard.obj" />
+    <mesh name="mesh_right_fore_output_crank_partial_guard" file="study_right_fore_output_crank_partial_guard.obj" />
+    <mesh name="mesh_right_fore_digit_0" file="study_right_fore_digit_0.obj" />
+    <mesh name="mesh_right_fore_digit_1" file="study_right_fore_digit_1.obj" />
+    <mesh name="mesh_right_fore_digit_2" file="study_right_fore_digit_2.obj" />
+    <mesh name="mesh_right_fore_digit_3" file="study_right_fore_digit_3.obj" />
+    <mesh name="mesh_right_fore_digit_4" file="study_right_fore_digit_4.obj" />
+    <mesh name="mesh_right_hind_proximal" file="study_right_hind_proximal.obj" />
+    <mesh name="mesh_right_hind_distal" file="study_right_hind_distal.obj" />
+    <mesh name="mesh_right_hind_secondary" file="study_right_hind_secondary.obj" />
+    <mesh name="mesh_right_hind_digit_0" file="study_right_hind_digit_0.obj" />
+    <mesh name="mesh_right_hind_digit_1" file="study_right_hind_digit_1.obj" />
+    <mesh name="mesh_right_hind_digit_2" file="study_right_hind_digit_2.obj" />
+    <mesh name="mesh_right_hind_digit_3" file="study_right_hind_digit_3.obj" />
+  </asset>
+  <default>
+    <geom contype="0" conaffinity="0" group="1" solref=".008 1" solimp=".93 .99 .002" friction=".8 .012 .001" />
+    <joint limited="true" damping=".14" armature=".002" />
+    <default class="chassis_collision">
+      <geom contype="2" conaffinity="61" group="3" />
+    </default>
+    <default class="distal_collision">
+      <geom contype="16" conaffinity="63" group="1" />
+    </default>
+    <default class="upper_collision">
+      <geom contype="32" conaffinity="63" group="1" />
+    </default>
+    <default class="shell_collision">
+      <geom contype="4" conaffinity="59" group="1" />
+    </default>
+    <default class="sole">
+      <geom contype="8" conaffinity="63" group="1" condim="4" friction=".85 .018 .001" solref=".006 1" />
+    </default>
+  </default>
+  <worldbody>
+    <geom name="floor" type="plane" size="0 0 .05" material="floor_mat" contype="1" conaffinity="62" group="0" />
+    <camera name="overview" mode="fixed" fovy="23" pos="1.2 -1.68 0.8" xyaxes=".814 .581 0 -.136 .190 .972" />
+    <camera name="side" mode="fixed" fovy="25" pos="0 -1.696 0.392" xyaxes="1 0 0 0 .04 .9992" />
+    <body name="chassis" pos="0 0 0.32">
+      <freejoint name="floating_base" />
+      <geom name="6061_left_rail" type="capsule" fromto="-0.26 0.0832 -0.012 0.26 0.0832 -0.012" size="0.0096" material="rail" mass="0.117626" group="5" />
+      <geom name="6061_right_rail" type="capsule" fromto="-0.26 -0.0832 -0.012 0.26 -0.0832 -0.012" size="0.0096" material="rail" mass="0.117626" group="5" />
+      <geom name="shoulder_crossmember" type="capsule" fromto="0.26 -0.136 0 0.26 0.136 0" size="0.0136" material="bracket" mass="0.069191" group="5" />
+      <geom name="pelvic_crossmember" type="capsule" fromto="-0.26 -0.136 0 -0.26 0.136 0" size="0.0136" material="bracket" mass="0.069191" group="5" />
+      <geom name="removable_service_tray" type="box" size="0.156 0.058 0.004" pos="-0.064 0 -0.06" material="rail" mass="0.083031" group="5" />
+      <geom name="neck_cradle" type="capsule" fromto="0.2376 0 -0.0016 0.324 0 0.08" size="0.0144" material="rail" mass="0.069191" group="5" />
+      <geom name="tray_stay_-0.255_1" type="capsule" fromto="-0.204 0.0544 -0.06 -0.204 0.0832 -0.012" size="0.0048" material="rail" mass="0.020755" group="5" />
+      <geom name="tray_stay_-0.255_-1" type="capsule" fromto="-0.204 -0.0544 -0.06 -0.204 -0.0832 -0.012" size="0.0048" material="rail" mass="0.020755" group="5" />
+      <geom name="tray_stay_0.095_1" type="capsule" fromto="0.076 0.0544 -0.06 0.076 0.0832 -0.012" size="0.0048" material="rail" mass="0.020755" group="5" />
+      <geom name="tray_stay_0.095_-1" type="capsule" fromto="0.076 -0.0544 -0.06 0.076 -0.0832 -0.012" size="0.0048" material="rail" mass="0.020755" group="5" />
+      <geom name="teensy41_can_carriers_x2" type="box" size="0.045 0.03 0.01" pos="0.08 0 0" material="compute" mass="0.120878" group="5" />
+      <geom name="oak_d_lite" type="box" size="0.015 0.048 0.014" pos="0.2016 0 0.0568" material="sensor" mass="0.061" group="5" />
+      <camera name="oak_d_lite_rgb" pos="0.216 0 0.0568" xyaxes="0 -1 0 0 0 1" fovy="54" />
+      <geom name="left_vl53l8cx" type="box" material="lens" mass="0.012" size="0.00635 0.01145 0.0015" pos="0.334270278463 0.0736325591532 -0.0482327844988" xyaxes="-0.207791131697 0.978173218601 0 0.69145714991 0.146884683579 0.707327293103" group="5" />
+      <site name="left_tof_ray" pos="0.336 0.074 -0.05" size="0.0024" rgba="0 .8 .9 .4" xyaxes="-0.207791131697 0.978173218601 0 0.69145714991 0.146884683579 0.707327293103" />
+      <geom name="right_vl53l8cx" type="box" material="lens" mass="0.012" size="0.00635 0.01145 0.0015" pos="0.334270278463 -0.0736325591532 -0.0482327844988" xyaxes="0.207791131697 0.978173218601 0 0.69145714991 -0.146884683579 0.707327293103" group="5" />
+      <site name="right_tof_ray" pos="0.336 -0.074 -0.05" size="0.0024" rgba="0 .8 .9 .4" xyaxes="0.207791131697 0.978173218601 0 0.69145714991 -0.146884683579 0.707327293103" />
+      <geom name="trunk_imu" type="box" size="0.011 0.011 0.004" pos="0 0.02 -0.0048" material="sensor" mass="0.005" group="5" />
+      <site name="imu" pos="0 0.02 -0.0048" size="0.0032" />
+      <geom name="io_and_sensor_carriers" type="box" size="0.025 0.03 0.008" pos="-0.19 0 -0.001" material="compute" mass="0.096702" group="5" />
+      <geom name="power_board_diode_or_precharge_clamp" type="box" size="0.04 0.035 0.012" pos="0.185 0 -0.03" material="power" mass="0.265931" group="5" />
+      <geom name="dc_dc_rails_and_pack_monitor" type="box" size="0.03 0.035 0.012" pos="0.185 0 0" material="bracket" mass="0.157141" group="5" />
+      <geom name="left_can_and_power_loom" type="capsule" fromto="-0.224 0.072 -0.0176 0.2264 0.072 -0.0176" size="0.0032" material="harness" mass="0.116043" group="5" />
+      <geom name="right_can_and_power_loom" type="capsule" fromto="-0.224 -0.072 -0.0176 0.2264 -0.072 -0.0176" size="0.0032" material="harness" mass="0.116043" group="5" />
+      <geom name="drive_bay_blowers_and_ducts" type="box" size="0.031 0.031 0.007" pos="-0.0144 0 0.0072" material="bracket" mass="0.120878" group="5" />
+      <geom name="PA11_rib_1_1" type="capsule" fromto="-0.2 -0.0960835 -0.0314638 -0.2 -0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_2" type="capsule" fromto="-0.2 -0.104 0.0016 -0.2 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_3" type="capsule" fromto="-0.2 -0.0960835 0.0346638 -0.2 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_4" type="capsule" fromto="-0.2 -0.0735391 0.062694 -0.2 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_5" type="capsule" fromto="-0.2 -0.0397991 0.0814232 -0.2 0 0.088" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_6" type="capsule" fromto="-0.2 0 0.088 -0.2 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_7" type="capsule" fromto="-0.2 0.0397991 0.0814232 -0.2 0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_8" type="capsule" fromto="-0.2 0.0735391 0.062694 -0.2 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_9" type="capsule" fromto="-0.2 0.0960835 0.0346638 -0.2 0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_1_10" type="capsule" fromto="-0.2 0.104 0.0016 -0.2 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_1" type="capsule" fromto="-0.056 -0.0960835 -0.0314638 -0.056 -0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_2" type="capsule" fromto="-0.056 -0.104 0.0016 -0.056 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_3" type="capsule" fromto="-0.056 -0.0960835 0.0346638 -0.056 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_4" type="capsule" fromto="-0.056 -0.0735391 0.062694 -0.056 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_5" type="capsule" fromto="-0.056 -0.0397991 0.0814232 -0.056 0 0.088" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_6" type="capsule" fromto="-0.056 0 0.088 -0.056 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_7" type="capsule" fromto="-0.056 0.0397991 0.0814232 -0.056 0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_8" type="capsule" fromto="-0.056 0.0735391 0.062694 -0.056 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_9" type="capsule" fromto="-0.056 0.0960835 0.0346638 -0.056 0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_2_10" type="capsule" fromto="-0.056 0.104 0.0016 -0.056 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_1" type="capsule" fromto="0.104 -0.0960835 -0.0314638 0.104 -0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_2" type="capsule" fromto="0.104 -0.104 0.0016 0.104 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_3" type="capsule" fromto="0.104 -0.0960835 0.0346638 0.104 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_4" type="capsule" fromto="0.104 -0.0735391 0.062694 0.104 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_5" type="capsule" fromto="0.104 -0.0397991 0.0814232 0.104 0 0.088" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_6" type="capsule" fromto="0.104 0 0.088 0.104 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_7" type="capsule" fromto="0.104 0.0397991 0.0814232 0.104 0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_8" type="capsule" fromto="0.104 0.0735391 0.062694 0.104 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_9" type="capsule" fromto="0.104 0.0960835 0.0346638 0.104 0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_3_10" type="capsule" fromto="0.104 0.104 0.0016 0.104 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_1" type="capsule" fromto="0.204 -0.0960835 -0.0314638 0.204 -0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_2" type="capsule" fromto="0.204 -0.104 0.0016 0.204 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_3" type="capsule" fromto="0.204 -0.0960835 0.0346638 0.204 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_4" type="capsule" fromto="0.204 -0.0735391 0.062694 0.204 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_5" type="capsule" fromto="0.204 -0.0397991 0.0814232 0.204 0 0.088" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_6" type="capsule" fromto="0.204 0 0.088 0.204 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_7" type="capsule" fromto="0.204 0.0397991 0.0814232 0.204 0.0735391 0.062694" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_8" type="capsule" fromto="0.204 0.0735391 0.062694 0.204 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_9" type="capsule" fromto="0.204 0.0960835 0.0346638 0.204 0.104 0.0016" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="PA11_rib_4_10" type="capsule" fromto="0.204 0.104 0.0016 0.204 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.013844" group="5" />
+      <geom name="left_shell_seam" type="capsule" fromto="-0.208 0.0968 -0.0224 0.2 0.0968 -0.0224" size="0.0048" material="skin" mass="0.051913" group="5" />
+      <geom name="right_shell_seam" type="capsule" fromto="-0.208 -0.0968 -0.0224 0.2 -0.0968 -0.0224" size="0.0048" material="skin" mass="0.051913" group="5" />
+      <geom name="torso_contact" type="ellipsoid" size="0.24 0.0928 0.0792" pos="0 0 0.004" material="skin" mass="0" rgba="0 0 0 0" class="chassis_collision" group="5" />
+      <geom name="service_tray_contact" type="box" size="0.1536 0.06 0.0048" pos="-0.064 0 -0.06" material="bracket" mass="0.00000" rgba="0 0 0 0" class="chassis_collision" group="5" />
+      <geom name="left_fore_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="chassis_collision" type="cylinder" fromto="0.2295 0.076 -0.04 0.2905 0.076 -0.04" size="0.0275" />
+      <geom name="right_fore_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="chassis_collision" type="cylinder" fromto="0.2295 -0.076 -0.04 0.2905 -0.076 -0.04" size="0.0275" />
+      <geom name="left_hind_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="chassis_collision" type="cylinder" fromto="-0.2905 0.076 0 -0.2295 0.076 0" size="0.0275" />
+      <geom name="right_hind_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="chassis_collision" type="cylinder" fromto="-0.2905 -0.076 0 -0.2295 -0.076 0" size="0.0275" />
+      <geom name="jetson_orin_nano_super_kit" type="box" pos="-0.03 0 -0.03" size="0.05 0.04 0.0175" material="compute" mass="0.174" group="5" />
+      <geom name="nvme_and_vibration_tray" type="box" pos="-0.031 0 -0.0505" size="0.052 0.042 0.003" material="bracket" mass="0.096702" group="5" />
+      <geom name="oak_d_usb_c_lock_cable" type="capsule" fromto="0.19 0 0.05 0.12 0 0.03" size="0.003" material="harness" mass="0.030219" group="5" />
+      <geom name="gtech_6s_3300_1" type="box" pos="-0.16 0.0215 -0.0345" size="0.069 0.021 0.0215" material="power" mass="0.506" group="5" />
+      <geom name="gtech_6s_3300_2" type="box" pos="-0.16 -0.0215 -0.0345" size="0.069 0.021 0.0215" material="power" mass="0.506" group="5" />
+      <geom name="pilz_relay_contactor_watchdog_radio_rx" type="box" pos="0.082 0 -0.0335" size="0.0605 0.05 0.0225" material="power" mass="0.507687" group="5" />
+      <geom name="audio_and_servo_bus_adapter" type="box" pos="-0.1 0 0" size="0.025 0.03 0.01" material="compute" mass="0.120878" group="5" />
+      <geom name="reserve_small_parts_est" type="box" pos="-0.06 -0.055 -0.016" size="0.032 0.01 0.008" material="harness" mass="0.138" group="5" />
+      <body name="head" pos="0.324 0 0.08">
+        <geom name="xc430_w240_neck_pitch_case" type="box" size="0.0143 0.017 0.0233" pos="-0.0136 0 -0.0152" material="rotor" mass="0.078571" group="5" />
+        <joint name="neck_pitch" axis="0 1 0" range="-20 20" damping="0.04" stiffness="0.40" springref="-30.910" armature="0.0002" />
+        <geom name="neck_hub_and_skull_carrier" type="box" size="0.036 0.032 0.02" pos="0.02 0 0.0064" material="bracket" mass="0.125012" group="5" />
+        <geom name="xc430_w240_neck_yaw_case" type="box" pos="0.028 0 0.026" size="0.0143 0.017 0.0233" material="rotor" mass="0.078571" group="5" />
+        <geom name="neck_yaw_bearing" type="cylinder" fromto="0.048 0 0 0.048 0 0.006" size="0.024" material="bracket" mass="0.036263" group="5" />
+        <body name="head_yaw" pos="0 0 0">
+          <joint name="neck_yaw" axis="0 0 1" range="-35 35" damping="0.04" armature="0.0002" />
+          <geom name="frill_pa11_panel" type="mesh" mesh="frill_panel" material="crest" mass="0.145440" class="shell_collision" group="5" />
+          <geom name="hollow_skull_equivalent" type="mesh" mesh="beaked_skull" material="skin" mass="0.185669" class="shell_collision" group="5" />
+          <geom name="left_brow_horn_tpu" type="mesh" mesh="left_brow_horn" material="horn" mass="0.023523" class="shell_collision" group="5" />
+          <geom name="left_eye" type="ellipsoid" size="0.0104 0.004 0.0096" pos="0.08 0.0608 0.0112" material="lens" mass="0.002478" group="5" />
+          <site name="left_horn_tip" pos="0.228 0.064 0.072" size="0.0024" rgba="1 .7 .2 0" />
+          <geom name="right_brow_horn_tpu" type="mesh" mesh="right_brow_horn" material="horn" mass="0.023523" class="shell_collision" group="5" />
+          <geom name="right_eye" type="ellipsoid" size="0.0104 0.004 0.0096" pos="0.08 -0.0608 0.0112" material="lens" mass="0.002478" group="5" />
+          <site name="right_horn_tip" pos="0.228 -0.064 0.072" size="0.0024" rgba="1 .7 .2 0" />
+          <geom name="nasal_horn_tpu" type="mesh" mesh="nasal_horn" material="horn" mass="0.008667" class="shell_collision" group="5" />
+          <site name="frill_crown" pos="-0.065536 0 0.2" size="0.0024" rgba="1 .7 .2 0" />
+          <geom name="xc430_w240_beak_case" type="box" pos="0.104 0 -0.01" size="0.0143 0.017 0.0233" material="rotor" mass="0.065" group="5" />
+          <geom name="left_xl330_eyelid" type="box" pos="0.074 0.056 0.018" size="0.010 0.017 0.013" material="rotor" mass="0.018" group="5" />
+          <geom name="right_xl330_eyelid" type="box" pos="0.074 -0.056 0.018" size="0.010 0.017 0.013" material="rotor" mass="0.018" group="5" />
+          <geom name="frill_lights_and_linkage" type="box" pos="0.016 0 0.072" size="0.016 0.024 0.008" material="compute" mass="0.042307" group="5" />
+          <geom name="exterior_frill" material="finish_frill" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill" />
+          <geom name="exterior_frill_edge_0" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_0" />
+          <geom name="exterior_frill_edge_1" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_1" />
+          <geom name="exterior_frill_edge_2" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_2" />
+          <geom name="exterior_frill_edge_3" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_3" />
+          <geom name="exterior_frill_edge_4" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_4" />
+          <geom name="exterior_frill_edge_5" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_5" />
+          <geom name="exterior_frill_edge_6" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_6" />
+          <geom name="exterior_frill_edge_7" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_7" />
+          <geom name="exterior_frill_edge_8" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_8" />
+          <geom name="exterior_frill_edge_9" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_9" />
+          <geom name="exterior_frill_edge_10" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_10" />
+          <geom name="exterior_frill_edge_11" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_11" />
+          <geom name="exterior_frill_edge_12" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_12" />
+          <geom name="exterior_frill_edge_13" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_13" />
+          <geom name="exterior_frill_edge_14" material="finish_rim" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_edge_14" />
+          <geom name="exterior_frill_base" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_frill_base" />
+          <geom name="exterior_skull" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_skull" />
+          <geom name="exterior_upper_beak" material="finish_beak" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_upper_beak" />
+          <body name="exterior_jaw" pos="0.043 0 -0.031">
+            <geom name="exterior_lower_jaw" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_lower_jaw" />
+            <geom name="exterior_mandible_tip" material="finish_lowerbeak" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_mandible_tip" />
+            <geom name="exterior_mouth_lining" material="finish_mouth" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.077 0 -0.009" size="0.075 0.039 0.008" euler="0 10 0" />
+            <geom name="exterior_tongue" material="finish_tongue" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.082 0 -0.007" size="0.064 0.024 0.006" euler="0 10 0" />
+          </body>
+          <geom name="exterior_left_horn" material="finish_ivory" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_left_horn" />
+          <geom name="exterior_left_brow" material="finish_boss" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.064 0.062 0.031" size="0.032 0.014 0.014" euler="0 -12 0" />
+          <geom name="exterior_left_orbit" material="finish_fold" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.07 0.07 0.013" size="0.017 0.0077 0.013" />
+          <geom name="exterior_left_eye" material="finish_iris" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.071 0.0764 0.013" size="0.0118 0.0043 0.01" />
+          <geom name="exterior_left_pupil" material="finish_pupil" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.074 0.0803 0.013" size="0.0058 0.0017 0.0074" />
+          <geom name="exterior_left_eye_glint" material="finish_glint" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.076 0.0819 0.0162" size="0.00165 0.0007 0.00165" />
+          <body name="exterior_left_lid" pos="0.07 0.0778 0.0295">
+            <geom name="exterior_left_lid_scale" material="finish_lid" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0 0" size="0.0158 0.0046 0.0073" />
+          </body>
+          <geom name="exterior_left_narial_rim" material="finish_boss" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.1592606 0.0455493 -0.01986888" size="0.014 0.0054 0.008" euler="0 -18 0" />
+          <geom name="exterior_left_nostril" material="finish_pupil" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.1616408 0.05031701 -0.02032117" size="0.0077 0.0025 0.0034" euler="0 -20 0" />
+          <geom name="exterior_left_cheek" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.04 0.064 -0.012" size="0.032 0.015 0.022" euler="0 -14 0" />
+          <geom name="exterior_right_horn" material="finish_ivory" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_right_horn" />
+          <geom name="exterior_right_brow" material="finish_boss" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.064 -0.062 0.031" size="0.032 0.014 0.014" euler="0 -12 0" />
+          <geom name="exterior_right_orbit" material="finish_fold" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.07 -0.07 0.013" size="0.017 0.0077 0.013" />
+          <geom name="exterior_right_eye" material="finish_iris" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.071 -0.0764 0.013" size="0.0118 0.0043 0.01" />
+          <geom name="exterior_right_pupil" material="finish_pupil" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.074 -0.0803 0.013" size="0.0058 0.0017 0.0074" />
+          <geom name="exterior_right_eye_glint" material="finish_glint" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.076 -0.0819 0.0162" size="0.00165 0.0007 0.00165" />
+          <body name="exterior_right_lid" pos="0.07 -0.0778 0.0295">
+            <geom name="exterior_right_lid_scale" material="finish_lid" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0 0" size="0.0158 0.0046 0.0073" />
+          </body>
+          <geom name="exterior_right_narial_rim" material="finish_boss" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.1592606 -0.0455493 -0.01986888" size="0.014 0.0054 0.008" euler="0 -18 0" />
+          <geom name="exterior_right_nostril" material="finish_pupil" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.1616408 -0.05031701 -0.02032117" size="0.0077 0.0025 0.0034" euler="0 -20 0" />
+          <geom name="exterior_right_cheek" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.04 -0.064 -0.012" size="0.032 0.015 0.022" euler="0 -14 0" />
+          <geom name="exterior_left_jugal_flange" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_left_jugal_flange" />
+          <geom name="exterior_right_jugal_flange" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_right_jugal_flange" />
+          <geom name="exterior_nose_horn" material="finish_ivory" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_nose_horn" />
+        </body>
+      </body>
+      <geom name="xl430_w250_tail_yaw_case" type="box" size="0.0143 0.017 0.0233" pos="-0.248 0 0.038" material="rotor" mass="0.057" group="5" />
+      <body name="tail" pos="-0.26 0 0">
+        <joint name="tail_yaw" axis="0 0 1" range="-24 24" damping="0.04" armature="0.0002" />
+        <joint name="tail_pitch" axis="0 1 0" range="-15 15" damping="0.04" armature="0.0002" />
+        <geom name="tail_shell_and_flex_core" type="mesh" mesh="tail_fairing" material="skin" mass="0.201141" class="shell_collision" group="5" />
+        <site name="tail_tip" pos="-0.388 0 -0.072" size="0.0024" rgba="1 .7 .2 0" />
+        <geom name="xl430_w250_tail_pitch_case" type="box" pos="-0.024 0 0" size="0.0143 0.017 0.0233" material="rotor" mass="0.057" group="5" />
+        <geom name="study_caudal_core" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_core" />
+        <geom name="study_caudal_0" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_0" />
+        <geom name="study_caudal_1" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_1" />
+        <geom name="study_caudal_2" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_2" />
+        <geom name="study_caudal_3" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_3" />
+        <geom name="study_caudal_4" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_4" />
+        <geom name="study_caudal_5" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_5" />
+        <geom name="study_caudal_6" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_6" />
+        <geom name="study_caudal_7" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_7" />
+        <geom name="study_caudal_8" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_8" />
+        <geom name="study_caudal_9" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_9" />
+        <geom name="study_caudal_10" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_10" />
+        <geom name="study_caudal_11" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_11" />
+        <geom name="study_caudal_12" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_12" />
+        <geom name="study_caudal_13" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_caudal_13" />
+        <geom name="study_tail_root" material="finish_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_tail_root" />
+      </body>
+      <geom name="left_fore_x4_roll_stator" type="cylinder" fromto="0.2295 0.076 -0.04 0.2905 0.076 -0.04" size="0.0275" material="rotor" mass="0.36" group="5" />
+      <body name="left_fore_roll_yoke" pos="0.26 0.076 -0.04">
+        <joint name="left_fore_roll" axis="1 0 0" range="-18 24" armature="0.003240" />
+        <geom name="left_fore_shoulder_yoke" type="capsule" fromto="0 0 0 0 0.064 0" size="0.0112" material="bracket" mass="0.024224" group="5" />
+        <geom name="left_fore_x4_pitch_stator" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" material="rotor" mass="0.36" group="5" />
+        <geom name="left_fore_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" />
+        <body name="left_fore_upper_link" pos="0 0.064 0">
+          <joint name="left_fore_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
+          <geom name="left_fore_upper_strut" type="capsule" fromto="0 0 0 -0.0946259392 0 -0.0861970511" size="0.0112" material="rail" mass="0.086488" class="upper_collision" group="5" />
+          <geom name="left_fore_x6_flexion_stator" type="cylinder" fromto="-0.0741178467 -0.03375 -0.0107025603 -0.0741178467 0.03375 -0.0107025603" size="0.0400" material="rotor" mass="0.82" group="5" />
+          <geom name="left_fore_drive_crank" type="cylinder" fromto="-0.0741178467 0.04675 -0.0107025603 -0.0741178467 0.03675 -0.0107025603" size="0.0350" material="bracket" mass="0.039890" group="5" />
+          <geom name="left_fore_pushrod" type="capsule" fromto="-0.0470970854 0.04175 -0.0180427552 -0.067605178 0.04175 -0.093537246" size="0.0045" material="rail" mass="0.029978" group="5" />
+          <geom name="left_fore_upper_limb_cover" type="capsule" fromto="0 0 0 -0.0946259392 0 -0.0861970511" size="0.024" material="skin" mass="0.046417" rgba=".55 .50 .40 .35" group="5" />
+          <geom name="left_fore_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="-0.0741178467 -0.03375 -0.0107025603 -0.0741178467 0.03375 -0.0107025603" size="0.0400" />
+          <body name="left_fore_lower_link" pos="-0.0946259392 0 -0.0861970511">
+            <joint name="left_fore_flexion" axis="0 -1 0" range="-47 36" armature="0.004304" damping=".20" />
+            <geom name="left_fore_elbow_axle" type="cylinder" fromto="0 0.036 0 0 -0.004 0" size="0.0064" material="cap" mass="0.006914" group="5" />
+            <geom name="left_fore_lower_strut" type="capsule" fromto="0 0 0 0.0946259392 0 -0.157802949" size="0.0096" material="carbon" mass="0.076117" class="distal_collision" group="5" />
+            <geom name="left_fore_output_crank" type="cylinder" fromto="0 0.04675 0 0 0.03675 0" size="0.0350" material="bracket" mass="0.029978" group="5" />
+            <geom name="left_fore_lower_limb_cover" type="capsule" fromto="0 0 0 0.0946259392 0 -0.157802949" size="0.019" material="skin" mass="0.030945" rgba=".55 .50 .40 .35" group="5" />
+            <body name="left_fore_foot" pos="0.0946259392 0 -0.157802949">
+              <joint name="left_fore_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
+              <geom name="left_fore_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.020755" group="5" />
+              <geom name="left_fore_sole" type="capsule" fromto="-0.02000 0 -0.01200 0.02000 0 -0.01200" size="0.02400" material="pad" mass="0.069191" class="sole" group="5" />
+              <site name="left_fore_load_cell" type="box" pos="0 0 -0.01200" size="0.04440 0.02440 0.02440" rgba="0 .7 .8 0" />
+              <site name="left_fore_toe" pos="0.044 0 -0.036" size="0.0024" rgba="0 .7 .8 0" />
+              <geom name="study_left_fore_heel" material="study_dark" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0 -0.023" size="0.0395 0.021 0.01" />
+              <geom name="study_left_fore_dorsal_pad" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.003 0 -0.013" size="0.032 0.025 0.012" />
+              <geom name="study_left_fore_digit_0" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_digit_0" />
+              <geom name="study_left_fore_ungual_0" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.035 -0.023 -0.023" size="0.0071 0.0074 0.0044" />
+              <geom name="study_left_fore_digit_1" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_digit_1" />
+              <geom name="study_left_fore_ungual_1" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.039 -0.008 -0.023" size="0.0071 0.0073 0.0044" />
+              <geom name="study_left_fore_digit_2" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_digit_2" />
+              <geom name="study_left_fore_ungual_2" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.037 0.0075 -0.023" size="0.0071 0.0069 0.0044" />
+              <geom name="study_left_fore_digit_3" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_digit_3" />
+              <geom name="study_left_fore_digit_4" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_digit_4" />
+            </body>
+            <geom name="study_actual_left_fore_elbow_axle" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 0.036 0 0 -0.004 0" size="0.0064" />
+            <geom name="study_actual_left_fore_lower_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0.0946259392 0 -0.157802949" size="0.0096" />
+            <geom name="study_actual_left_fore_output_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 0.04675 0 0 0.03675 0" size="0.0350" />
+            <geom name="study_left_fore_distal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_distal" />
+            <geom name="study_left_fore_secondary" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_secondary" />
+            <geom name="study_left_fore_output_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0.04775 0" size="0.0287 0.002 0.0287" />
+            <geom name="study_left_fore_output_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0.04985 0" size="0.0112 0.0021 0.0112" />
+            <geom name="study_left_fore_output_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.019539702 0.04975 0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_left_fore_output_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.0094387521 0.04975 0.019539702" size="0.002 0.00125 0.002" />
+            <geom name="study_left_fore_output_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.019539702 0.04975 -0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_left_fore_output_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0094387521 0.04975 -0.019539702" size="0.002 0.00125 0.002" />
+            <geom name="study_left_fore_output_crank_partial_guard" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_output_crank_partial_guard" />
+          </body>
+          <geom name="left_fore_offset_motor_mount" type="capsule" fromto="-0.0458344393 -0.038 -0.0417516966 -0.0741178467 -0.038 -0.0107025603" size=".005" material="bracket" mass=".030" group="5" />
+          <geom name="left_fore_mount_standoff" type="capsule" fromto="-0.0458344393 0 -0.0417516966 -0.0458344393 -0.038 -0.0417516966" size=".005" material="bracket" mass=".015" group="5" />
+          <geom name="study_actual_left_fore_upper_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 -0.0946259392 0 -0.0861970511" size="0.0112" />
+          <geom name="study_actual_left_fore_x6_flexion_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="-0.0741178467 -0.03375 -0.0107025603 -0.0741178467 0.03375 -0.0107025603" size="0.0400" />
+          <geom name="study_actual_left_fore_drive_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="-0.0741178467 0.04675 -0.0107025603 -0.0741178467 0.03675 -0.0107025603" size="0.0350" />
+          <geom name="study_actual_left_fore_pushrod" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.0470970854 0.04175 -0.0180427552 -0.067605178 0.04175 -0.093537246" size="0.0045" />
+          <geom name="study_actual_left_fore_offset_motor_mount" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.0458344393 -0.038 -0.0417516966 -0.0741178467 -0.038 -0.0107025603" size=".005" />
+          <geom name="study_actual_left_fore_mount_standoff" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.0458344393 0 -0.0417516966 -0.0458344393 -0.038 -0.0417516966" size=".005" />
+          <geom name="study_left_fore_proximal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_proximal" />
+          <geom name="study_left_fore_drive_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.074117847 0.04775 -0.01070256" size="0.0287 0.002 0.0287" />
+          <geom name="study_left_fore_drive_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.074117847 0.04985 -0.01070256" size="0.0112 0.0021 0.0112" />
+          <geom name="study_left_fore_drive_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.054578145 0.04975 -0.0012638082" size="0.002 0.00125 0.002" />
+          <geom name="study_left_fore_drive_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.083556599 0.04975 0.0088371418" size="0.002 0.00125 0.002" />
+          <geom name="study_left_fore_drive_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.093657549 0.04975 -0.020141312" size="0.002 0.00125 0.002" />
+          <geom name="study_left_fore_drive_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.064679095 0.04975 -0.030242262" size="0.002 0.00125 0.002" />
+          <geom name="study_left_fore_drive_crank_partial_guard" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_fore_drive_crank_partial_guard" />
+        </body>
+        <geom name="study_actual_left_fore_shoulder_yoke" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0 0.064 0" size="0.0112" />
+        <geom name="study_actual_left_fore_x4_pitch_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" />
+      </body>
+      <geom name="right_fore_x4_roll_stator" type="cylinder" fromto="0.2295 -0.076 -0.04 0.2905 -0.076 -0.04" size="0.0275" material="rotor" mass="0.36" group="5" />
+      <body name="right_fore_roll_yoke" pos="0.26 -0.076 -0.04">
+        <joint name="right_fore_roll" axis="-1 0 0" range="-18 24" armature="0.003240" />
+        <geom name="right_fore_shoulder_yoke" type="capsule" fromto="0 0 0 0 -0.064 0" size="0.0112" material="bracket" mass="0.024224" group="5" />
+        <geom name="right_fore_x4_pitch_stator" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" material="rotor" mass="0.36" group="5" />
+        <geom name="right_fore_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" />
+        <body name="right_fore_upper_link" pos="0 -0.064 0">
+          <joint name="right_fore_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
+          <geom name="right_fore_upper_strut" type="capsule" fromto="0 0 0 -0.0946259392 0 -0.0861970511" size="0.0112" material="rail" mass="0.086488" class="upper_collision" group="5" />
+          <geom name="right_fore_x6_flexion_stator" type="cylinder" fromto="-0.0741178467 -0.03375 -0.0107025603 -0.0741178467 0.03375 -0.0107025603" size="0.0400" material="rotor" mass="0.82" group="5" />
+          <geom name="right_fore_drive_crank" type="cylinder" fromto="-0.0741178467 -0.03675 -0.0107025603 -0.0741178467 -0.04675 -0.0107025603" size="0.0350" material="bracket" mass="0.039890" group="5" />
+          <geom name="right_fore_pushrod" type="capsule" fromto="-0.0470970854 -0.04175 -0.0180427552 -0.067605178 -0.04175 -0.093537246" size="0.0045" material="rail" mass="0.029978" group="5" />
+          <geom name="right_fore_upper_limb_cover" type="capsule" fromto="0 0 0 -0.0946259392 0 -0.0861970511" size="0.024" material="skin" mass="0.046417" rgba=".55 .50 .40 .35" group="5" />
+          <geom name="right_fore_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="-0.0741178467 -0.03375 -0.0107025603 -0.0741178467 0.03375 -0.0107025603" size="0.0400" />
+          <body name="right_fore_lower_link" pos="-0.0946259392 0 -0.0861970511">
+            <joint name="right_fore_flexion" axis="0 -1 0" range="-47 36" armature="0.004304" damping=".20" />
+            <geom name="right_fore_elbow_axle" type="cylinder" fromto="0 0.004 0 0 -0.036 0" size="0.0064" material="cap" mass="0.006914" group="5" />
+            <geom name="right_fore_lower_strut" type="capsule" fromto="0 0 0 0.0946259392 0 -0.157802949" size="0.0096" material="carbon" mass="0.076117" class="distal_collision" group="5" />
+            <geom name="right_fore_output_crank" type="cylinder" fromto="0 -0.03675 0 0 -0.04675 0" size="0.0350" material="bracket" mass="0.029978" group="5" />
+            <geom name="right_fore_lower_limb_cover" type="capsule" fromto="0 0 0 0.0946259392 0 -0.157802949" size="0.019" material="skin" mass="0.030945" rgba=".55 .50 .40 .35" group="5" />
+            <body name="right_fore_foot" pos="0.0946259392 0 -0.157802949">
+              <joint name="right_fore_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
+              <geom name="right_fore_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.020755" group="5" />
+              <geom name="right_fore_sole" type="capsule" fromto="-0.02000 0 -0.01200 0.02000 0 -0.01200" size="0.02400" material="pad" mass="0.069191" class="sole" group="5" />
+              <site name="right_fore_load_cell" type="box" pos="0 0 -0.01200" size="0.04440 0.02440 0.02440" rgba="0 .7 .8 0" />
+              <site name="right_fore_toe" pos="0.044 0 -0.036" size="0.0024" rgba="0 .7 .8 0" />
+              <geom name="study_right_fore_heel" material="study_dark" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0 -0.023" size="0.0395 0.021 0.01" />
+              <geom name="study_right_fore_dorsal_pad" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.003 0 -0.013" size="0.032 0.025 0.012" />
+              <geom name="study_right_fore_digit_0" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_digit_0" />
+              <geom name="study_right_fore_ungual_0" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.035 0.023 -0.023" size="0.0071 0.0074 0.0044" />
+              <geom name="study_right_fore_digit_1" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_digit_1" />
+              <geom name="study_right_fore_ungual_1" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.039 0.008 -0.023" size="0.0071 0.0073 0.0044" />
+              <geom name="study_right_fore_digit_2" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_digit_2" />
+              <geom name="study_right_fore_ungual_2" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.037 -0.0075 -0.023" size="0.0071 0.0069 0.0044" />
+              <geom name="study_right_fore_digit_3" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_digit_3" />
+              <geom name="study_right_fore_digit_4" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_digit_4" />
+            </body>
+            <geom name="study_actual_right_fore_elbow_axle" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 0.004 0 0 -0.036 0" size="0.0064" />
+            <geom name="study_actual_right_fore_lower_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0.0946259392 0 -0.157802949" size="0.0096" />
+            <geom name="study_actual_right_fore_output_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 -0.03675 0 0 -0.04675 0" size="0.0350" />
+            <geom name="study_right_fore_distal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_distal" />
+            <geom name="study_right_fore_secondary" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_secondary" />
+            <geom name="study_right_fore_output_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 -0.04775 0" size="0.0287 0.002 0.0287" />
+            <geom name="study_right_fore_output_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 -0.04985 0" size="0.0112 0.0021 0.0112" />
+            <geom name="study_right_fore_output_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.019539702 -0.04975 0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_right_fore_output_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.0094387521 -0.04975 0.019539702" size="0.002 0.00125 0.002" />
+            <geom name="study_right_fore_output_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.019539702 -0.04975 -0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_right_fore_output_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0094387521 -0.04975 -0.019539702" size="0.002 0.00125 0.002" />
+            <geom name="study_right_fore_output_crank_partial_guard" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_output_crank_partial_guard" />
+          </body>
+          <geom name="right_fore_offset_motor_mount" type="capsule" fromto="-0.0458344393 0.038 -0.0417516966 -0.0741178467 0.038 -0.0107025603" size=".005" material="bracket" mass=".030" group="5" />
+          <geom name="right_fore_mount_standoff" type="capsule" fromto="-0.0458344393 0 -0.0417516966 -0.0458344393 0.038 -0.0417516966" size=".005" material="bracket" mass=".015" group="5" />
+          <geom name="study_actual_right_fore_upper_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 -0.0946259392 0 -0.0861970511" size="0.0112" />
+          <geom name="study_actual_right_fore_x6_flexion_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="-0.0741178467 -0.03375 -0.0107025603 -0.0741178467 0.03375 -0.0107025603" size="0.0400" />
+          <geom name="study_actual_right_fore_drive_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="-0.0741178467 -0.03675 -0.0107025603 -0.0741178467 -0.04675 -0.0107025603" size="0.0350" />
+          <geom name="study_actual_right_fore_pushrod" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.0470970854 -0.04175 -0.0180427552 -0.067605178 -0.04175 -0.093537246" size="0.0045" />
+          <geom name="study_actual_right_fore_offset_motor_mount" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.0458344393 0.038 -0.0417516966 -0.0741178467 0.038 -0.0107025603" size=".005" />
+          <geom name="study_actual_right_fore_mount_standoff" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.0458344393 0 -0.0417516966 -0.0458344393 0.038 -0.0417516966" size=".005" />
+          <geom name="study_right_fore_proximal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_proximal" />
+          <geom name="study_right_fore_drive_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.074117847 -0.04775 -0.01070256" size="0.0287 0.002 0.0287" />
+          <geom name="study_right_fore_drive_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.074117847 -0.04985 -0.01070256" size="0.0112 0.0021 0.0112" />
+          <geom name="study_right_fore_drive_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.054578145 -0.04975 -0.0012638082" size="0.002 0.00125 0.002" />
+          <geom name="study_right_fore_drive_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.083556599 -0.04975 0.0088371418" size="0.002 0.00125 0.002" />
+          <geom name="study_right_fore_drive_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.093657549 -0.04975 -0.020141312" size="0.002 0.00125 0.002" />
+          <geom name="study_right_fore_drive_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.064679095 -0.04975 -0.030242262" size="0.002 0.00125 0.002" />
+          <geom name="study_right_fore_drive_crank_partial_guard" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_fore_drive_crank_partial_guard" />
+        </body>
+        <geom name="study_actual_right_fore_shoulder_yoke" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0 -0.064 0" size="0.0112" />
+        <geom name="study_actual_right_fore_x4_pitch_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" />
+      </body>
+      <geom name="left_hind_x4_roll_stator" type="cylinder" fromto="-0.2905 0.076 0 -0.2295 0.076 0" size="0.0275" material="rotor" mass="0.36" group="5" />
+      <body name="left_hind_roll_yoke" pos="-0.26 0.076 0">
+        <joint name="left_hind_roll" axis="1 0 0" range="-18 24" armature="0.003240" />
+        <geom name="left_hind_shoulder_yoke" type="capsule" fromto="0 0 0 0 0.064 0" size="0.0112" material="bracket" mass="0.024224" group="5" />
+        <geom name="left_hind_x4_pitch_stator" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" material="rotor" mass="0.36" group="5" />
+        <geom name="left_hind_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" />
+        <body name="left_hind_upper_link" pos="0 0.064 0">
+          <joint name="left_hind_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
+          <geom name="left_hind_upper_strut" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.0112" material="rail" mass="0.086488" class="upper_collision" group="5" />
+          <geom name="left_hind_x4_flexion_stator" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" material="rotor" mass="0.36" group="5" />
+          <geom name="left_hind_drive_crank" type="cylinder" fromto="0.0575049 -0.04675 -0.0692329 0.0575049 -0.03675 -0.0692329" size="0.0350" material="bracket" mass="0.039890" group="5" />
+          <geom name="left_hind_pushrod" type="capsule" fromto="0.079044 -0.04175 -0.0513425 0.14166 -0.04175 -0.12673" size="0.0045" material="rail" mass="0.029978" group="5" />
+          <geom name="left_hind_upper_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.024" material="skin" mass="0.046417" rgba=".55 .50 .40 .35" group="5" />
+          <geom name="left_hind_x4_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" />
+          <body name="left_hind_lower_link" pos="0.120121 0 -0.14462">
+            <joint name="left_hind_flexion" axis="0 1 0" range="-47 36" armature="0.003240" damping=".20" />
+            <geom name="left_hind_elbow_axle" type="cylinder" fromto="0 -0.036 0 0 0.004 0" size="0.0064" material="cap" mass="0.006914" group="5" />
+            <geom name="left_hind_lower_strut" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.0096" material="carbon" mass="0.076117" class="distal_collision" group="5" />
+            <geom name="left_hind_output_crank" type="cylinder" fromto="0 -0.04675 0 0 -0.03675 0" size="0.0350" material="bracket" mass="0.029978" group="5" />
+            <geom name="left_hind_lower_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.019" material="skin" mass="0.030945" rgba=".55 .50 .40 .35" group="5" />
+            <body name="left_hind_foot" pos="-0.120121 0 -0.13938">
+              <joint name="left_hind_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
+              <geom name="left_hind_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.020755" group="5" />
+              <geom name="left_hind_sole" type="capsule" fromto="-0.02000 0 -0.01200 0.02000 0 -0.01200" size="0.02400" material="pad" mass="0.069191" class="sole" group="5" />
+              <site name="left_hind_load_cell" type="box" pos="0 0 -0.01200" size="0.04440 0.02440 0.02440" rgba="0 .7 .8 0" />
+              <site name="left_hind_toe" pos="0.044 0 -0.036" size="0.0024" rgba="0 .7 .8 0" />
+              <geom name="study_left_hind_heel" material="study_dark" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0 -0.023" size="0.0395 0.021 0.01" />
+              <geom name="study_left_hind_dorsal_pad" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.003 0 -0.013" size="0.032 0.029 0.012" />
+              <geom name="study_left_hind_digit_0" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_hind_digit_0" />
+              <geom name="study_left_hind_ungual_0" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.033 -0.029 -0.023" size="0.0071 0.0071 0.0044" />
+              <geom name="study_left_hind_digit_1" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_hind_digit_1" />
+              <geom name="study_left_hind_ungual_1" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.04 -0.01 -0.023" size="0.0071 0.0072 0.0044" />
+              <geom name="study_left_hind_digit_2" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_hind_digit_2" />
+              <geom name="study_left_hind_ungual_2" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.039 0.01 -0.023" size="0.0071 0.0072 0.0044" />
+              <geom name="study_left_hind_digit_3" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_hind_digit_3" />
+              <geom name="study_left_hind_ungual_3" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.031 0.028 -0.023" size="0.0071 0.0063 0.0044" />
+            </body>
+            <geom name="study_actual_left_hind_elbow_axle" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 -0.036 0 0 0.004 0" size="0.0064" />
+            <geom name="study_actual_left_hind_lower_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.0096" />
+            <geom name="study_actual_left_hind_output_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 -0.04675 0 0 -0.03675 0" size="0.0350" />
+            <geom name="study_left_hind_distal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_hind_distal" />
+            <geom name="study_left_hind_secondary" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_hind_secondary" />
+            <geom name="study_left_hind_output_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 -0.03575 0" size="0.0287 0.002 0.0287" />
+            <geom name="study_left_hind_output_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 -0.03365 0" size="0.0112 0.0021 0.0112" />
+            <geom name="study_left_hind_output_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.019539702 -0.03375 0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_left_hind_output_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.0094387521 -0.03375 0.019539702" size="0.002 0.00125 0.002" />
+            <geom name="study_left_hind_output_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.019539702 -0.03375 -0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_left_hind_output_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0094387521 -0.03375 -0.019539702" size="0.002 0.00125 0.002" />
+          </body>
+          <geom name="study_actual_left_hind_upper_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.0112" />
+          <geom name="study_actual_left_hind_x4_flexion_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" />
+          <geom name="study_actual_left_hind_drive_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.0575049 -0.04675 -0.0692329 0.0575049 -0.03675 -0.0692329" size="0.0350" />
+          <geom name="study_actual_left_hind_pushrod" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.079044 -0.04175 -0.0513425 0.14166 -0.04175 -0.12673" size="0.0045" />
+          <geom name="study_left_hind_proximal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_left_hind_proximal" />
+          <geom name="study_left_hind_drive_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0575049 -0.03575 -0.0692329" size="0.0287 0.002 0.0287" />
+          <geom name="study_left_hind_drive_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0575049 -0.03365 -0.0692329" size="0.0112 0.0021 0.0112" />
+          <geom name="study_left_hind_drive_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.077044602 -0.03375 -0.059794148" size="0.002 0.00125 0.002" />
+          <geom name="study_left_hind_drive_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.048066148 -0.03375 -0.049693198" size="0.002 0.00125 0.002" />
+          <geom name="study_left_hind_drive_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.037965198 -0.03375 -0.078671652" size="0.002 0.00125 0.002" />
+          <geom name="study_left_hind_drive_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.066943652 -0.03375 -0.088772602" size="0.002 0.00125 0.002" />
+        </body>
+        <geom name="study_actual_left_hind_shoulder_yoke" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0 0.064 0" size="0.0112" />
+        <geom name="study_actual_left_hind_x4_pitch_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" />
+      </body>
+      <geom name="right_hind_x4_roll_stator" type="cylinder" fromto="-0.2905 -0.076 0 -0.2295 -0.076 0" size="0.0275" material="rotor" mass="0.36" group="5" />
+      <body name="right_hind_roll_yoke" pos="-0.26 -0.076 0">
+        <joint name="right_hind_roll" axis="-1 0 0" range="-18 24" armature="0.003240" />
+        <geom name="right_hind_shoulder_yoke" type="capsule" fromto="0 0 0 0 -0.064 0" size="0.0112" material="bracket" mass="0.024224" group="5" />
+        <geom name="right_hind_x4_pitch_stator" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" material="rotor" mass="0.36" group="5" />
+        <geom name="right_hind_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" />
+        <body name="right_hind_upper_link" pos="0 -0.064 0">
+          <joint name="right_hind_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
+          <geom name="right_hind_upper_strut" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.0112" material="rail" mass="0.086488" class="upper_collision" group="5" />
+          <geom name="right_hind_x4_flexion_stator" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" material="rotor" mass="0.36" group="5" />
+          <geom name="right_hind_drive_crank" type="cylinder" fromto="0.0575049 0.03675 -0.0692329 0.0575049 0.04675 -0.0692329" size="0.0350" material="bracket" mass="0.039890" group="5" />
+          <geom name="right_hind_pushrod" type="capsule" fromto="0.079044 0.04175 -0.0513425 0.14166 0.04175 -0.12673" size="0.0045" material="rail" mass="0.029978" group="5" />
+          <geom name="right_hind_upper_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.024" material="skin" mass="0.046417" rgba=".55 .50 .40 .35" group="5" />
+          <geom name="right_hind_x4_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="5" class="upper_collision" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" />
+          <body name="right_hind_lower_link" pos="0.120121 0 -0.14462">
+            <joint name="right_hind_flexion" axis="0 1 0" range="-47 36" armature="0.003240" damping=".20" />
+            <geom name="right_hind_elbow_axle" type="cylinder" fromto="0 -0.004 0 0 0.036 0" size="0.0064" material="cap" mass="0.006914" group="5" />
+            <geom name="right_hind_lower_strut" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.0096" material="carbon" mass="0.076117" class="distal_collision" group="5" />
+            <geom name="right_hind_output_crank" type="cylinder" fromto="0 0.03675 0 0 0.04675 0" size="0.0350" material="bracket" mass="0.029978" group="5" />
+            <geom name="right_hind_lower_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.019" material="skin" mass="0.030945" rgba=".55 .50 .40 .35" group="5" />
+            <body name="right_hind_foot" pos="-0.120121 0 -0.13938">
+              <joint name="right_hind_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
+              <geom name="right_hind_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.020755" group="5" />
+              <geom name="right_hind_sole" type="capsule" fromto="-0.02000 0 -0.01200 0.02000 0 -0.01200" size="0.02400" material="pad" mass="0.069191" class="sole" group="5" />
+              <site name="right_hind_load_cell" type="box" pos="0 0 -0.01200" size="0.04440 0.02440 0.02440" rgba="0 .7 .8 0" />
+              <site name="right_hind_toe" pos="0.044 0 -0.036" size="0.0024" rgba="0 .7 .8 0" />
+              <geom name="study_right_hind_heel" material="study_dark" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0 -0.023" size="0.0395 0.021 0.01" />
+              <geom name="study_right_hind_dorsal_pad" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.003 0 -0.013" size="0.032 0.029 0.012" />
+              <geom name="study_right_hind_digit_0" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_hind_digit_0" />
+              <geom name="study_right_hind_ungual_0" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.033 0.029 -0.023" size="0.0071 0.0071 0.0044" />
+              <geom name="study_right_hind_digit_1" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_hind_digit_1" />
+              <geom name="study_right_hind_ungual_1" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.04 0.01 -0.023" size="0.0071 0.0072 0.0044" />
+              <geom name="study_right_hind_digit_2" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_hind_digit_2" />
+              <geom name="study_right_hind_ungual_2" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.039 -0.01 -0.023" size="0.0071 0.0072 0.0044" />
+              <geom name="study_right_hind_digit_3" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_hind_digit_3" />
+              <geom name="study_right_hind_ungual_3" material="study_toe" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.031 -0.028 -0.023" size="0.0071 0.0063 0.0044" />
+            </body>
+            <geom name="study_actual_right_hind_elbow_axle" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 -0.004 0 0 0.036 0" size="0.0064" />
+            <geom name="study_actual_right_hind_lower_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.0096" />
+            <geom name="study_actual_right_hind_output_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 0.03675 0 0 0.04675 0" size="0.0350" />
+            <geom name="study_right_hind_distal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_hind_distal" />
+            <geom name="study_right_hind_secondary" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_hind_secondary" />
+            <geom name="study_right_hind_output_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0.03575 0" size="0.0287 0.002 0.0287" />
+            <geom name="study_right_hind_output_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0 0.03365 0" size="0.0112 0.0021 0.0112" />
+            <geom name="study_right_hind_output_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.019539702 0.03375 0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_right_hind_output_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.0094387521 0.03375 0.019539702" size="0.002 0.00125 0.002" />
+            <geom name="study_right_hind_output_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.019539702 0.03375 -0.0094387521" size="0.002 0.00125 0.002" />
+            <geom name="study_right_hind_output_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0094387521 0.03375 -0.019539702" size="0.002 0.00125 0.002" />
+          </body>
+          <geom name="study_actual_right_hind_upper_strut" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.0112" />
+          <geom name="study_actual_right_hind_x4_flexion_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" />
+          <geom name="study_actual_right_hind_drive_crank" material="study_hub" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.0575049 0.03675 -0.0692329 0.0575049 0.04675 -0.0692329" size="0.0350" />
+          <geom name="study_actual_right_hind_pushrod" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.079044 0.04175 -0.0513425 0.14166 0.04175 -0.12673" size="0.0045" />
+          <geom name="study_right_hind_proximal" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_right_hind_proximal" />
+          <geom name="study_right_hind_drive_crank_collar" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0575049 0.03575 -0.0692329" size="0.0287 0.002 0.0287" />
+          <geom name="study_right_hind_drive_crank_hub" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.0575049 0.03365 -0.0692329" size="0.0112 0.0021 0.0112" />
+          <geom name="study_right_hind_drive_crank_fastener_0" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.077044602 0.03375 -0.059794148" size="0.002 0.00125 0.002" />
+          <geom name="study_right_hind_drive_crank_fastener_1" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.048066148 0.03375 -0.049693198" size="0.002 0.00125 0.002" />
+          <geom name="study_right_hind_drive_crank_fastener_2" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.037965198 0.03375 -0.078671652" size="0.002 0.00125 0.002" />
+          <geom name="study_right_hind_drive_crank_fastener_3" material="study_alloy" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.066943652 0.03375 -0.088772602" size="0.002 0.00125 0.002" />
+        </body>
+        <geom name="study_actual_right_hind_shoulder_yoke" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0 0 0 0 -0.064 0" size="0.0112" />
+        <geom name="study_actual_right_hind_x4_pitch_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" />
+      </body>
+      <geom name="left_fore_drop_bracket" type="capsule" fromto="0.228 0.082 -0.012 0.228 0.076 -0.04" size=".006" material="bracket" mass=".030" group="5" />
+      <geom name="right_fore_drop_bracket" type="capsule" fromto="0.228 -0.082 -0.012 0.228 -0.076 -0.04" size=".006" material="bracket" mass=".030" group="5" />
+      <geom name="left_tof_mount_root" type="capsule" fromto="0.26 0.025 0 0.318 0.026 -0.016" size=".0024" material="bracket" mass=".003" group="5" />
+      <geom name="left_tof_mount_arm" type="capsule" fromto="0.318 0.026 -0.016 0.331848668311 0.0731181419677 -0.0457586827971" size=".0024" material="bracket" mass=".003" group="5" />
+      <geom name="right_tof_mount_root" type="capsule" fromto="0.26 -0.025 0 0.318 -0.026 -0.016" size=".0024" material="bracket" mass=".003" group="5" />
+      <geom name="right_tof_mount_arm" type="capsule" fromto="0.318 -0.026 -0.016 0.331848668311 -0.0731181419677 -0.0457586827971" size=".0024" material="bracket" mass=".003" group="5" />
+      <geom name="exterior_left_fore_tof_bezel" material="finish_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_left_fore_tof_bezel" />
+      <geom name="exterior_left_fore_tof_window" material="finish_sensor_window" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.3385254 0.07453646 -0.05258013 0.3387676 0.07458791 -0.05282754" size=".01055" />
+      <geom name="exterior_left_fore_tof_mount_root_boot" material="finish_limb" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.2585542 0.02497507 0.0003988384 0.3194458 0.02602493 -0.01639884" size="0.0046" />
+      <geom name="exterior_left_fore_tof_mount_arm_boot" material="finish_limb" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.3176383 0.0247692 -0.01522266 0.3322104 0.07434894 -0.04653603" size="0.0046" />
+      <geom name="exterior_left_fore_tof_shroud" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_left_fore_tof_shroud" />
+      <geom name="exterior_right_fore_tof_bezel" material="finish_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_right_fore_tof_bezel" />
+      <geom name="exterior_right_fore_tof_window" material="finish_sensor_window" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.3385254 -0.07453646 -0.05258013 0.3387676 -0.07458791 -0.05282754" size=".01055" />
+      <geom name="exterior_right_fore_tof_mount_root_boot" material="finish_limb" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.2585542 -0.02497507 0.0003988384 0.3194458 -0.02602493 -0.01639884" size="0.0046" />
+      <geom name="exterior_right_fore_tof_mount_arm_boot" material="finish_limb" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.3176383 -0.0247692 -0.01522266 0.3322104 -0.07434894 -0.04653603" size="0.0046" />
+      <geom name="exterior_right_fore_tof_shroud" material="finish_face" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="shape_right_fore_tof_shroud" />
+      <geom name="study_actual_6061_left_rail" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.26 0.0832 -0.012 0.26 0.0832 -0.012" size="0.0096" />
+      <geom name="study_actual_6061_right_rail" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.26 -0.0832 -0.012 0.26 -0.0832 -0.012" size="0.0096" />
+      <geom name="study_actual_shoulder_crossmember" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.26 -0.136 0 0.26 0.136 0" size="0.0136" />
+      <geom name="study_actual_pelvic_crossmember" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="-0.26 -0.136 0 -0.26 0.136 0" size="0.0136" />
+      <geom name="study_actual_left_fore_x4_roll_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.2295 0.076 -0.04 0.2905 0.076 -0.04" size="0.0275" />
+      <geom name="study_actual_right_fore_x4_roll_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="0.2295 -0.076 -0.04 0.2905 -0.076 -0.04" size="0.0275" />
+      <geom name="study_actual_left_hind_x4_roll_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="-0.2905 0.076 0 -0.2295 0.076 0" size="0.0275" />
+      <geom name="study_actual_right_hind_x4_roll_stator" material="study_motor" group="2" mass="0" contype="0" conaffinity="0" type="cylinder" fromto="-0.2905 -0.076 0 -0.2295 -0.076 0" size="0.0275" />
+      <geom name="study_actual_left_fore_drop_bracket" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.228 0.082 -0.012 0.228 0.076 -0.04" size=".006" />
+      <geom name="study_actual_right_fore_drop_bracket" material="study_frame" group="2" mass="0" contype="0" conaffinity="0" type="capsule" fromto="0.228 -0.082 -0.012 0.228 -0.076 -0.04" size=".006" />
+      <geom name="study_dorsal_saddle" material="finish_hide" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_dorsal_saddle" />
+      <geom name="study_L_rib_0" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_rib_0" />
+      <geom name="study_R_rib_0" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_rib_0" />
+      <geom name="study_L_rib_1" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_rib_1" />
+      <geom name="study_R_rib_1" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_rib_1" />
+      <geom name="study_L_rib_2" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_rib_2" />
+      <geom name="study_R_rib_2" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_rib_2" />
+      <geom name="study_L_rib_3" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_rib_3" />
+      <geom name="study_R_rib_3" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_rib_3" />
+      <geom name="study_L_rib_4" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_rib_4" />
+      <geom name="study_R_rib_4" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_rib_4" />
+      <geom name="study_L_rib_5" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_rib_5" />
+      <geom name="study_R_rib_5" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_rib_5" />
+      <geom name="study_vertebra_0" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.286 0 0.12602776" size="0.017 0.017 0.014" />
+      <geom name="study_spine_0" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_0" />
+      <geom name="study_vertebra_1" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.25733333 0 0.14646185" size="0.017 0.016809524 0.013857143" />
+      <geom name="study_spine_1" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_1" />
+      <geom name="study_vertebra_2" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.22866667 0 0.15820682" size="0.017 0.016619048 0.013714286" />
+      <geom name="study_spine_2" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_2" />
+      <geom name="study_vertebra_3" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.2 0 0.16743656" size="0.017 0.016428571 0.013571429" />
+      <geom name="study_spine_3" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_3" />
+      <geom name="study_vertebra_4" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.17133333 0 0.17304598" size="0.017 0.016238095 0.013428571" />
+      <geom name="study_spine_4" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_4" />
+      <geom name="study_vertebra_5" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.14266667 0 0.17477881" size="0.017 0.016047619 0.013285714" />
+      <geom name="study_spine_5" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_5" />
+      <geom name="study_vertebra_6" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.114 0 0.17569823" size="0.017 0.015857143 0.013142857" />
+      <geom name="study_spine_6" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_6" />
+      <geom name="study_vertebra_7" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.085333333 0 0.17597306" size="0.017 0.015666667 0.013" />
+      <geom name="study_spine_7" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_7" />
+      <geom name="study_vertebra_8" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.056666667 0 0.17284838" size="0.017 0.01547619 0.012857143" />
+      <geom name="study_spine_8" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_8" />
+      <geom name="study_vertebra_9" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="-0.028 0 0.16652701" size="0.017 0.015285714 0.012714286" />
+      <geom name="study_spine_9" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_9" />
+      <geom name="study_vertebra_10" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.00066666667 0 0.15986165" size="0.017 0.015095238 0.012571429" />
+      <geom name="study_spine_10" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_10" />
+      <geom name="study_vertebra_11" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.029333333 0 0.15361491" size="0.017 0.014904762 0.012428571" />
+      <geom name="study_spine_11" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_11" />
+      <geom name="study_vertebra_12" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.058 0 0.14676824" size="0.017 0.014714286 0.012285714" />
+      <geom name="study_spine_12" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_12" />
+      <geom name="study_vertebra_13" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.086666667 0 0.13929427" size="0.017 0.01452381 0.012142857" />
+      <geom name="study_spine_13" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_13" />
+      <geom name="study_vertebra_14" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.11533333 0 0.13051126" size="0.017 0.014333333 0.012" />
+      <geom name="study_spine_14" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_14" />
+      <geom name="study_vertebra_15" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.144 0 0.1201953" size="0.017 0.014142857 0.011857143" />
+      <geom name="study_spine_15" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_15" />
+      <geom name="study_vertebra_16" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.17266667 0 0.11153057" size="0.017 0.013952381 0.011714286" />
+      <geom name="study_spine_16" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_16" />
+      <geom name="study_vertebra_17" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.20133333 0 0.10626543" size="0.017 0.013761905 0.011571429" />
+      <geom name="study_spine_17" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_17" />
+      <geom name="study_vertebra_18" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.23 0 0.10210436" size="0.017 0.013571429 0.011428571" />
+      <geom name="study_spine_18" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_18" />
+      <geom name="study_vertebra_19" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.25866667 0 0.096749459" size="0.017 0.013380952 0.011285714" />
+      <geom name="study_spine_19" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_19" />
+      <geom name="study_vertebra_20" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.28733333 0 0.089186535" size="0.017 0.013190476 0.011142857" />
+      <geom name="study_spine_20" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_20" />
+      <geom name="study_vertebra_21" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="ellipsoid" pos="0.316 0 0.080025283" size="0.017 0.013 0.011" />
+      <geom name="study_spine_21" material="study_rib" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_spine_21" />
+      <geom name="study_L_ilium" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_ilium" />
+      <geom name="study_L_acetabulum" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_acetabulum" />
+      <geom name="study_L_pubis" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_pubis" />
+      <geom name="study_L_ischium" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_ischium" />
+      <geom name="study_L_scapula" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_scapula" />
+      <geom name="study_L_coracoid" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_L_coracoid" />
+      <geom name="study_R_ilium" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_ilium" />
+      <geom name="study_R_acetabulum" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_acetabulum" />
+      <geom name="study_R_pubis" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_pubis" />
+      <geom name="study_R_ischium" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_ischium" />
+      <geom name="study_R_scapula" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_scapula" />
+      <geom name="study_R_coracoid" material="study_limb" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_R_coracoid" />
+      <geom name="study_instrument_bay" material="study_dark" group="2" mass="0" contype="0" conaffinity="0" type="mesh" mesh="mesh_instrument_bay" />
+    </body>
+    <light pos="1.4 -2.4 3.5" dir="-.35 .50 -.90" diffuse=".54 .52 .48" specular=".12 .12 .10" castshadow="true" type="directional" />
+    <light pos="-.9 1.5 1.6" dir=".30 -.48 -.7" diffuse=".42 .45 .49" specular=".12 .12 .10" castshadow="false" type="directional" />
+    <light pos="-.4 -.8 .9" dir=".2 .65 -.6" diffuse=".19 .20 .16" specular=".12 .12 .10" castshadow="false" type="directional" />
+  </worldbody>
+  <actuator>
+    <position name="left_fore_roll" joint="left_fore_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-21.0000 21.0000" />
+    <position name="left_fore_pitch" joint="left_fore_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="left_fore_flexion" joint="left_fore_flexion" kp="598.5" kv="11.51" ctrlrange="-0.820305 0.628319" forcerange="-37.8000 37.8000" />
+    <position name="right_fore_roll" joint="right_fore_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-21.0000 21.0000" />
+    <position name="right_fore_pitch" joint="right_fore_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="right_fore_flexion" joint="right_fore_flexion" kp="598.5" kv="11.51" ctrlrange="-0.820305 0.628319" forcerange="-37.8000 37.8000" />
+    <position name="left_hind_roll" joint="left_hind_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-21.0000 21.0000" />
+    <position name="left_hind_pitch" joint="left_hind_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="left_hind_flexion" joint="left_hind_flexion" kp="598.5" kv="11.51" ctrlrange="-0.820305 0.628319" forcerange="-18.9000 18.9000" />
+    <position name="right_hind_roll" joint="right_hind_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-21.0000 21.0000" />
+    <position name="right_hind_pitch" joint="right_hind_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="right_hind_flexion" joint="right_hind_flexion" kp="598.5" kv="11.51" ctrlrange="-0.820305 0.628319" forcerange="-18.9000 18.9000" />
+    <position name="neck_pitch" joint="neck_pitch" kp="8" kv="0.3" ctrlrange="-0.349066 0.349066" forcerange="-1.3300 1.3300" />
+    <position name="neck_yaw" joint="neck_yaw" kp="6" kv="0.2" ctrlrange="-0.610865 0.610865" forcerange="-1.3300 1.3300" />
+    <position name="tail_yaw" joint="tail_yaw" kp="5" kv="0.15" ctrlrange="-0.418879 0.418879" forcerange="-1.0500 1.0500" />
+    <position name="tail_pitch" joint="tail_pitch" kp="8" kv="0.2" ctrlrange="-0.261799 0.261799" forcerange="-1.0500 1.0500" />
+  </actuator>
+  <sensor>
+    <framequat name="imu_orientation" objtype="site" objname="imu" />
+    <gyro name="imu_angular_velocity" site="imu" />
+    <accelerometer name="imu_specific_force" site="imu" />
+    <rangefinder name="left_tof_distance" site="left_tof_ray" />
+    <rangefinder name="right_tof_distance" site="right_tof_ray" />
+    <touch name="left_fore_normal_load" site="left_fore_load_cell" />
+    <jointpos name="left_fore_roll_angle" joint="left_fore_roll" />
+    <jointvel name="left_fore_roll_rate" joint="left_fore_roll" />
+    <jointpos name="left_fore_pitch_angle" joint="left_fore_pitch" />
+    <jointvel name="left_fore_pitch_rate" joint="left_fore_pitch" />
+    <jointpos name="left_fore_flexion_angle" joint="left_fore_flexion" />
+    <jointvel name="left_fore_flexion_rate" joint="left_fore_flexion" />
+    <jointpos name="left_fore_ankle_angle" joint="left_fore_ankle" />
+    <jointvel name="left_fore_ankle_rate" joint="left_fore_ankle" />
+    <touch name="right_fore_normal_load" site="right_fore_load_cell" />
+    <jointpos name="right_fore_roll_angle" joint="right_fore_roll" />
+    <jointvel name="right_fore_roll_rate" joint="right_fore_roll" />
+    <jointpos name="right_fore_pitch_angle" joint="right_fore_pitch" />
+    <jointvel name="right_fore_pitch_rate" joint="right_fore_pitch" />
+    <jointpos name="right_fore_flexion_angle" joint="right_fore_flexion" />
+    <jointvel name="right_fore_flexion_rate" joint="right_fore_flexion" />
+    <jointpos name="right_fore_ankle_angle" joint="right_fore_ankle" />
+    <jointvel name="right_fore_ankle_rate" joint="right_fore_ankle" />
+    <touch name="left_hind_normal_load" site="left_hind_load_cell" />
+    <jointpos name="left_hind_roll_angle" joint="left_hind_roll" />
+    <jointvel name="left_hind_roll_rate" joint="left_hind_roll" />
+    <jointpos name="left_hind_pitch_angle" joint="left_hind_pitch" />
+    <jointvel name="left_hind_pitch_rate" joint="left_hind_pitch" />
+    <jointpos name="left_hind_flexion_angle" joint="left_hind_flexion" />
+    <jointvel name="left_hind_flexion_rate" joint="left_hind_flexion" />
+    <jointpos name="left_hind_ankle_angle" joint="left_hind_ankle" />
+    <jointvel name="left_hind_ankle_rate" joint="left_hind_ankle" />
+    <touch name="right_hind_normal_load" site="right_hind_load_cell" />
+    <jointpos name="right_hind_roll_angle" joint="right_hind_roll" />
+    <jointvel name="right_hind_roll_rate" joint="right_hind_roll" />
+    <jointpos name="right_hind_pitch_angle" joint="right_hind_pitch" />
+    <jointvel name="right_hind_pitch_rate" joint="right_hind_pitch" />
+    <jointpos name="right_hind_flexion_angle" joint="right_hind_flexion" />
+    <jointvel name="right_hind_flexion_rate" joint="right_hind_flexion" />
+    <jointpos name="right_hind_ankle_angle" joint="right_hind_ankle" />
+    <jointvel name="right_hind_ankle_rate" joint="right_hind_ankle" />
+    <jointpos name="neck_pitch_angle" joint="neck_pitch" />
+    <jointpos name="tail_yaw_angle" joint="tail_yaw" />
+    <actuatorfrc name="left_fore_roll_effort" actuator="left_fore_roll" />
+    <actuatorfrc name="left_fore_pitch_effort" actuator="left_fore_pitch" />
+    <actuatorfrc name="left_fore_flexion_effort" actuator="left_fore_flexion" />
+    <actuatorfrc name="right_fore_roll_effort" actuator="right_fore_roll" />
+    <actuatorfrc name="right_fore_pitch_effort" actuator="right_fore_pitch" />
+    <actuatorfrc name="right_fore_flexion_effort" actuator="right_fore_flexion" />
+    <actuatorfrc name="left_hind_roll_effort" actuator="left_hind_roll" />
+    <actuatorfrc name="left_hind_pitch_effort" actuator="left_hind_pitch" />
+    <actuatorfrc name="left_hind_flexion_effort" actuator="left_hind_flexion" />
+    <actuatorfrc name="right_hind_roll_effort" actuator="right_hind_roll" />
+    <actuatorfrc name="right_hind_pitch_effort" actuator="right_hind_pitch" />
+    <actuatorfrc name="right_hind_flexion_effort" actuator="right_hind_flexion" />
+    <actuatorfrc name="neck_pitch_effort" actuator="neck_pitch" />
+    <actuatorfrc name="neck_yaw_effort" actuator="neck_yaw" />
+    <actuatorfrc name="tail_yaw_effort" actuator="tail_yaw" />
+    <actuatorfrc name="tail_pitch_effort" actuator="tail_pitch" />
+    <jointpos name="neck_yaw_angle" joint="neck_yaw" />
+    <jointpos name="tail_pitch_angle" joint="tail_pitch" />
+  </sensor>
+  <keyframe>
+    <key name="neutral" />
+    <key name="home" />
+  </keyframe>
+</mujoco>

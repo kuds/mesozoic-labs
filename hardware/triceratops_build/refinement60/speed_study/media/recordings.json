@@ -1,0 +1,297 @@
+{
+  "playback": "Both views use the same 24 fps simulation clock and matched world angles at each stage. A wider camera follows both builds during the rolling failure. Video excerpts are not time-scaled. A stopped steering trial holds its last measured pose and displays its termination time.",
+  "timing": "Walking speed is the whole-run forward speed reported by the exhibit judge. Steering uses the time-weighted measured progress along the requested bearing for the observed segments, including straight setup. A partial run reports only its own observed time. The native exhibit choreography reports projection over changed headings only, from 3–40 s.",
+  "loads": "Normal sole loads come from 1 kHz physics. Displayed scored peaks use the whole run under the scoring window (steady walk or post-2 s heading run). Shaded contacts use >5 N for walk and diagonal survey. For the full staggered course, ribbons and the post-3 s three-foot support fraction use >5% of each model’s weight. The preplanned exhibit course uses 5% of body weight for contacts and 3–40 s for peak sole loads and mean speed. Clean swings apply the native per-swing C4 test. The rehearsed speed film separately scores the main and fresh sets using six held headings, upright chassis, at least 10 mm support margin and strict ordered contact throughout a complete run.",
+  "models": {
+    "128": {
+      "physics_sha256": "cd2685d30015fe0a84ec9bda8d67994fdbaf488ad8208bf6f31ee3f93259aa78",
+      "dressed_xml_and_assets_sha256": "0210ca0562e02c0f65a3827cfca4d0ba2c62b70edb848656059cb6056c57a966"
+    },
+    "160": {
+      "physics_sha256": "0cc6782bfd8eb19782dfc5cdb4781bb71ec0cc79b7d33d6c3ebc3a9581838ccd",
+      "dressed_xml_and_assets_sha256": "1735e0babc951640e1c7b49d6ae86c6d70b291a17ecd5c9a26c1062e45a55bc0"
+    }
+  },
+  "clips": [
+    {
+      "video": "walk.mp4",
+      "sha256": "9e25763628ecf4091c9d72aff538ebd26a9f031a6c00a8a410c69ed83bebc224",
+      "frames": 576,
+      "fps": 24,
+      "stages": [
+        {
+          "setting": 1,
+          "seed": 11,
+          "interval_s": [
+            5,
+            11
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "d188e14c5a440ec81b04bbb5271d9cbdebf0f9e7844e7bbe736a54c679dda02f"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "11605fbb3d729201854b4cdc679bc0449964ac7696cf5e10a57007234d6336f5"
+            }
+          }
+        },
+        {
+          "setting": 1.5,
+          "seed": 11,
+          "interval_s": [
+            4,
+            10
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "adf2a2f41ab449eb143ac4ecd7ff398b060cfede20fa0d376c73b2214bfbb4e7"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "15531fd85b74875a33ae4f80233a4487d8ebbf472b86a949ca47ae704435c824"
+            }
+          }
+        },
+        {
+          "setting": 1.75,
+          "seed": 11,
+          "interval_s": [
+            2,
+            8
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "f4eae161c705b7dd543874c9bbbd24eddf2e1c7b45a8ed281da79e6021a20139"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "02584602a1e148245f96b52a38c92e17b14e3aecc659015e21064753c4bcd1c6"
+            }
+          }
+        },
+        {
+          "setting": 2,
+          "seed": 11,
+          "interval_s": [
+            0,
+            6
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "9b17be6f1c0731299adda52d9b2c9108b23dcc4118637e9a89da2c48ad169897"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "2777384922c170a46726deb3ed8499671392b59dd759f797fa0663e8556453b5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "video": "steering.mp4",
+      "sha256": "fa79d6e73a219ff9af2f84f79e72e79c93eb85101057b2085bdf81f37fd6e517",
+      "frames": 588,
+      "fps": 24,
+      "stages": [
+        {
+          "setting": 0.25,
+          "seed": 103,
+          "interval_s": [
+            13,
+            19
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "fc91a56d62749afdda6a568994da1b221b6a304dba509ad8e026d1978e52849b"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "740773eca08ee74390e1a9ef5916ac7125e6dae8ecabd7259fbaac76026f7a47"
+            }
+          }
+        },
+        {
+          "setting": 0.45,
+          "seed": 103,
+          "interval_s": [
+            13,
+            19
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "2f62286a9fdd8f23ed997db6eb137fe6a2b97f21782df0ed5231346db12975d8"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "2ef1f7216cfa5185bcd6f3e5f34e201202ef4d109aa01653cb64af16c856f6f7"
+            }
+          }
+        },
+        {
+          "setting": 0.5,
+          "seed": 103,
+          "interval_s": [
+            13,
+            19
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "b96d2ffa0b2e3899e06b0851cc54998fab4b1ac26ad9532f46e3771cfb0924e5"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "15aa0a304309544311a43d06b1d22c6c6a2e851c7faa02d735b565fb2fe14746"
+            }
+          }
+        },
+        {
+          "setting": 0.6,
+          "seed": 103,
+          "interval_s": [
+            1,
+            7.5
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "9e3c057be4842baa0b551ec69a1993454c8677ef5687b1ad1fd2906be634a8ef"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "474caa3bedb9724e45b3d81b8b1540a2f8344c85de11f0480e0cf791c7068239"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "video": "fourbeat-turns.mp4",
+      "sha256": "d8071a13f507a46dc3f9ce45305232bfd839719025af5c7b7d8fffb2d97af675",
+      "frames": 960,
+      "fps": 24,
+      "stages": [
+        {
+          "setting": 0.08,
+          "seed": 103,
+          "interval_s": [
+            0,
+            40
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "02b3cf64cf00db5b9a3d3ccd672eba59287de002bdcf3351709e7f86d1184846"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "4aafb253e1be06413505ff26074ce60b8cd3f41bcd3707bdcbc0360597a6963e"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "video": "rehearsed-course.mp4",
+      "sha256": "490a5bb7aaed54ecd392ec453e5b2dc74a3ee9c9f0630cd32de67afc81febd46",
+      "frames": 960,
+      "fps": 24,
+      "stages": [
+        {
+          "setting": 1.25,
+          "seed": 11,
+          "interval_s": [
+            0,
+            40
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "22e068c759c4c76630725794cb7af663e17f1fd81c85d3fe75b5b9fe92beb8a0"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "63f38fc5c4ef93b4354c9e287023ebd6c8b552044c350970c7fd9044e152e254"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "video": "rehearsed-speeds.mp4",
+      "sha256": "d9cd13982978e862f1290ac355853ca4244848a9488153ab6d4209f59debe9eb",
+      "frames": 720,
+      "fps": 24,
+      "stages": [
+        {
+          "setting": 1.0,
+          "seed": 11,
+          "interval_s": [
+            32,
+            38
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "fefb13d9e7278c0e59d9d2171488863de814cefb7f387513718d2925b0b58c72"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "b8496e3c22e599041d04417bdc34bf42b92f1d91698670741a1c0bbc8bf8933f"
+            }
+          }
+        },
+        {
+          "setting": 1.25,
+          "seed": 11,
+          "interval_s": [
+            32,
+            38
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "22e068c759c4c76630725794cb7af663e17f1fd81c85d3fe75b5b9fe92beb8a0"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "63f38fc5c4ef93b4354c9e287023ebd6c8b552044c350970c7fd9044e152e254"
+            }
+          }
+        },
+        {
+          "setting": 1.45,
+          "seed": 11,
+          "interval_s": [
+            18,
+            24
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "ab242644fe38977edbe54cf8d0e6f2b5111e0905c959278047dc84ae009b8b9b"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "b152d69a67e9f2bcb67e739e2e18ffa17efa81e7880a5676186142827e384423"
+            }
+          }
+        },
+        {
+          "setting": 1.5,
+          "seed": 11,
+          "interval_s": [
+            18,
+            24
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "1bd4bc7a72c42e56d3540de303da90a6fbce9733d344e3cc6c0abf925c2372b8"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "91b4dc77c014df6d2bef3dcbeeab39355e2f8569ac333c3b2575c382d496ad6c"
+            }
+          }
+        },
+        {
+          "setting": 1.65,
+          "seed": 11,
+          "interval_s": [
+            0,
+            6
+          ],
+          "inputs": {
+            "128": {
+              "pose_and_force_npz_sha256": "cd316d6314e4f3d4c87ed79006e881ea81ef384966ad7a77c9e446113e9dde9c"
+            },
+            "160": {
+              "pose_and_force_npz_sha256": "721c8b726936965095a0b533ee14105de5844a5b8cf1d87ad44704f548d1d6ec"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

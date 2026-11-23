@@ -14,6 +14,8 @@ measured.** Simulation results are labelled as simulation; targets and estimates
 
 ## Where things are
 
+The [60 cm open-rib foreleg study](refinement60/README.md) contains the revised mount, two directly loadable models, matched walking films and the bench dimensions. The slow four-beat exhibit walk and faster heading-following gait are characterized separately.
+
 | File | What it is |
 |---|---|
 | [DECISION_LOG.md](DECISION_LOG.md) | The owner's requirements and decisions (with the options put), constraints, findings (F), assumptions (A) |

@@ -1,0 +1,81 @@
+{
+  "camera": "Common world-fixed azimuth, elevation, range and vertical target on both sides. Walk follows x only and retains lateral sway. Steering follows x and y.",
+  "renderer": "mid160/render.py; 1344 by 696, 24 fps at real time, 2 s final hold. Neutral detail uses identical cameras for both variants in each row. Only the close-up tints the visible right X6 amber.",
+  "forces": "Per-millisecond maximum normal load across four feet; separate right-fore running peak. Walking shows the 5\u201317 s excerpt. Steering includes all scored samples after 2 s. Full-trial scores are in the study results.",
+  "models": {
+    "128": {
+      "physics_sha256": "cd2685d30015fe0a84ec9bda8d67994fdbaf488ad8208bf6f31ee3f93259aa78",
+      "dressed_xml_and_assets_sha256": "0210ca0562e02c0f65a3827cfca4d0ba2c62b70edb848656059cb6056c57a966"
+    },
+    "160": {
+      "physics_sha256": "0cc6782bfd8eb19782dfc5cdb4781bb71ec0cc79b7d33d6c3ebc3a9581838ccd",
+      "dressed_xml_and_assets_sha256": "1735e0babc951640e1c7b49d6ae86c6d70b291a17ecd5c9a26c1062e45a55bc0"
+    }
+  },
+  "clips": {
+    "walk": {
+      "seed": 11,
+      "time_range_s": [
+        5,
+        17
+      ],
+      "total_frames": 336,
+      "sha256": "356116528e33531b39814941fd4251f3dbb44e6911b89f48474dcd21135389cd",
+      "inputs": {
+        "128": {
+          "recording_sha256": "d188e14c5a440ec81b04bbb5271d9cbdebf0f9e7844e7bbe736a54c679dda02f",
+          "right_fore_peak_N": 74.695,
+          "all_feet_peak_N": 86.839
+        },
+        "160": {
+          "recording_sha256": "11605fbb3d729201854b4cdc679bc0449964ac7696cf5e10a57007234d6336f5",
+          "right_fore_peak_N": 77.561,
+          "all_feet_peak_N": 89.243
+        }
+      }
+    },
+    "pivot-right": {
+      "seed": 102,
+      "time_range_s": [
+        0,
+        12
+      ],
+      "total_frames": 336,
+      "sha256": "408943212a46c67d5aaf0804ee2e61a9665a6a95b7474a725501298dc0ea6981",
+      "inputs": {
+        "128": {
+          "recording_sha256": "8775d4ff4d328a94ff2b3141b346f593c0b9593a5a5d7da98ab6f4b39df29e3b",
+          "right_fore_peak_N": 264.653,
+          "all_feet_peak_N": 264.653
+        },
+        "160": {
+          "recording_sha256": "41359b82342f186908cc59ee4ec5fd46f678a164ca7b8339e71edddf6f3cee47",
+          "right_fore_peak_N": 193.377,
+          "all_feet_peak_N": 193.377
+        }
+      }
+    },
+    "six-headings": {
+      "seed": 103,
+      "time_range_s": [
+        0,
+        40
+      ],
+      "total_frames": 1008,
+      "sha256": "5b21e98f26f9e37b510e5af360ec129cc6b5b5d272dc7b4a29aa70a1e29af49a",
+      "inputs": {
+        "128": {
+          "recording_sha256": "fc91a56d62749afdda6a568994da1b221b6a304dba509ad8e026d1978e52849b",
+          "right_fore_peak_N": 191.083,
+          "all_feet_peak_N": 404.903
+        },
+        "160": {
+          "recording_sha256": "740773eca08ee74390e1a9ef5916ac7125e6dae8ecabd7259fbaac76026f7a47",
+          "right_fore_peak_N": 182.511,
+          "all_feet_peak_N": 269.884
+        }
+      }
+    }
+  },
+  "neutral_detail_sha256": "ed158fe512d16bdeb62ffd78243105b37037f98672d10dc3cbf094d40e9a8afc"
+}

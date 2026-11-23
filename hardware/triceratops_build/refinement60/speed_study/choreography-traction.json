@@ -1,0 +1,1514 @@
+{
+  "method": "Preplanned native exhibit geometry at the listed cadence multipliers; target schedule is known in advance. No yaw measurements drive the joint trajectories. Triangles use the baseline barycentric trunk location. Body heading is scored from the floating chassis. Force/contact and mean projected speed cover 3 to 40 s; C4 and upright tests cover the full run.",
+  "foot_order": [
+    "left_fore",
+    "right_fore",
+    "left_hind",
+    "right_hind"
+  ],
+  "traction_method": "C5c integrates each sole's horizontal velocity at contacting ground points at 1 kHz, then checks peak displacement from 100 ms after each scheduled touchdown to the next lift across the whole course; limit 10 mm. C6 uses the existing 100 Hz saturation fraction (any actuator at >=99% of its own limit); limit 1% of the run. All-gates requires the six actual one-second heading holds plus C1/C3/C4/C5c/C6.",
+  "runs": [
+    {
+      "upper_mm": 128,
+      "seed": 11,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.17,
+        3.28,
+        4.03,
+        3.72,
+        3.13,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.72,
+        37.09,
+        10.26,
+        -16.61,
+        -38.01,
+        -1.03
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.941830289587145,
+      "max_tilt_deg": 1.439327481423512,
+      "min_support_margin_mm": 29.63930743172407,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.70270270270271,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.14228208249352,
+        84.25128961401971,
+        117.72228914443579,
+        137.73687810960212
+      ],
+      "peak_10ms_N": 129.8843093886657,
+      "max_planted_slide_mm": 8.415917658307436,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.27900000000382
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 11,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.17,
+        3.28,
+        4.03,
+        3.73,
+        3.15,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.72,
+        37.1,
+        10.29,
+        -16.52,
+        -37.9,
+        -1.08
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.97735734328137,
+      "max_tilt_deg": 1.4500523198162816,
+      "min_support_margin_mm": 29.057388438229907,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.7945945945946,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        80.07613395593947,
+        86.47525427689853,
+        118.48834137942066,
+        135.77819965927097
+      ],
+      "peak_10ms_N": 128.03889206233538,
+      "max_planted_slide_mm": 8.932439027691833,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.3300000000037
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 128,
+      "seed": 11,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.25,
+        3.52,
+        3.93,
+        3.73,
+        3.28,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.34,
+        35.9,
+        9.78,
+        -16.37,
+        -37.26,
+        -1.05
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.89062399976535,
+      "max_tilt_deg": 1.5558595246216587,
+      "min_support_margin_mm": 28.84105639298541,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.53783783783784,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        84.30282656717009,
+        88.98932955921714,
+        106.02564719519064,
+        133.5219221685605
+      ],
+      "peak_10ms_N": 127.23476559780057,
+      "max_planted_slide_mm": 8.268320504316351,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.156000000004106
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 11,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.27,
+        3.54,
+        3.91,
+        3.72,
+        3.29,
+        4.34
+      ],
+      "final_heading_deg": [
+        15.28,
+        35.72,
+        9.68,
+        -16.46,
+        -37.25,
+        -1.18
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.63993284103769,
+      "max_tilt_deg": 1.643636196293062,
+      "min_support_margin_mm": 28.202198682641825,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.92432432432432,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        80.13005367494299,
+        84.79166838118849,
+        111.11418289298825,
+        132.3442259012781
+      ],
+      "peak_10ms_N": 125.18433909743405,
+      "max_planted_slide_mm": 8.803892411435507,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.289000000003796
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 128,
+      "seed": 12,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.07,
+        3.2,
+        4.08,
+        3.74,
+        3.13,
+        4.3
+      ],
+      "final_heading_deg": [
+        16.11,
+        37.55,
+        10.55,
+        -16.49,
+        -38.03,
+        -0.87
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.89484321426369,
+      "max_tilt_deg": 1.406685239760485,
+      "min_support_margin_mm": 29.41510713998264,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.6,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.61047831017906,
+        84.97882695228174,
+        117.19856629418284,
+        135.1725027370697
+      ],
+      "peak_10ms_N": 127.93778879250567,
+      "max_planted_slide_mm": 7.9377953705498,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.30500000000376
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 12,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.08,
+        3.2,
+        4.09,
+        3.76,
+        3.16,
+        4.29
+      ],
+      "final_heading_deg": [
+        16.08,
+        37.55,
+        10.59,
+        -16.37,
+        -37.9,
+        -0.89
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.94829344767172,
+      "max_tilt_deg": 1.4263951310541934,
+      "min_support_margin_mm": 28.76409659924407,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.71891891891892,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        81.05056927770917,
+        86.18527950867836,
+        117.44746515784486,
+        137.35506754567507
+      ],
+      "peak_10ms_N": 129.6983729555167,
+      "max_planted_slide_mm": 8.377086557836837,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.39000000000356
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 128,
+      "seed": 12,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.07,
+        3.3,
+        4.03,
+        3.8,
+        3.3,
+        4.31
+      ],
+      "final_heading_deg": [
+        16.02,
+        36.88,
+        10.36,
+        -16.08,
+        -37.17,
+        -0.92
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.770230810514658,
+      "max_tilt_deg": 1.5492640267922737,
+      "min_support_margin_mm": 28.39225045755105,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 99.0945945945946,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.6231135043423,
+        92.62231352447574,
+        110.10473335258246,
+        133.29548771628805
+      ],
+      "peak_10ms_N": 127.60029756102902,
+      "max_planted_slide_mm": 6.651270721226424,
+      "worst_slide_event": [
+        3,
+        32.732712209330295,
+        35.35636530293005,
+        35.2710000000085
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 12,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.16,
+        3.42,
+        3.97,
+        3.76,
+        3.29,
+        4.34
+      ],
+      "final_heading_deg": [
+        15.75,
+        36.4,
+        10.04,
+        -16.28,
+        -37.19,
+        -1.11
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.577835981742226,
+      "max_tilt_deg": 1.7816443029398181,
+      "min_support_margin_mm": 27.61633717088092,
+      "upright": true,
+      "strict_four_beat": false,
+      "swing_count": 55,
+      "failed_swings": [
+        [
+          "left_hind",
+          2.44
+        ],
+        [
+          "left_hind",
+          33.93
+        ]
+      ],
+      "three_loaded_pct": 99.1,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        79.7400201086987,
+        85.38447634163825,
+        111.89914136289063,
+        132.6119184049227
+      ],
+      "peak_10ms_N": 125.74682467609982,
+      "max_planted_slide_mm": 6.559836468036827,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.40000000000354
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": false,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": false
+    },
+    {
+      "upper_mm": 128,
+      "seed": 13,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.15,
+        3.25,
+        4.04,
+        3.7,
+        3.09,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.81,
+        37.25,
+        10.28,
+        -16.73,
+        -38.24,
+        -1.11
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.909148221015464,
+      "max_tilt_deg": 1.407458551862591,
+      "min_support_margin_mm": 29.41228720888,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.62162162162163,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.3081602771428,
+        85.16081442546988,
+        117.59375862046718,
+        135.8723000929288
+      ],
+      "peak_10ms_N": 128.57954924090342,
+      "max_planted_slide_mm": 8.030481342554669,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.302000000003765
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 13,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.15,
+        3.25,
+        4.04,
+        3.72,
+        3.12,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.79,
+        37.24,
+        10.32,
+        -16.62,
+        -38.11,
+        -1.13
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.958653805637624,
+      "max_tilt_deg": 1.4303335894425409,
+      "min_support_margin_mm": 28.76262641761161,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.73243243243243,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        80.77292719011702,
+        85.85389783270504,
+        117.96527123943936,
+        137.96326369795665
+      ],
+      "peak_10ms_N": 130.2686314757321,
+      "max_planted_slide_mm": 8.450901365306414,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.37700000000359
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 128,
+      "seed": 13,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.14,
+        3.38,
+        3.99,
+        3.77,
+        3.27,
+        4.33
+      ],
+      "final_heading_deg": [
+        15.83,
+        36.65,
+        10.16,
+        -16.27,
+        -37.32,
+        -1.06
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.77078676435733,
+      "max_tilt_deg": 1.5860043170029154,
+      "min_support_margin_mm": 28.441098460161257,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 99.06486486486486,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.75869606210686,
+        90.60147058254648,
+        109.55331656656652,
+        133.53156822429472
+      ],
+      "peak_10ms_N": 127.77393691415125,
+      "max_planted_slide_mm": 6.81624786723734,
+      "worst_slide_event": [
+        3,
+        32.732712209330295,
+        35.35636530293005,
+        35.273000000008494
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 13,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.2,
+        3.46,
+        3.94,
+        3.73,
+        3.26,
+        4.35
+      ],
+      "final_heading_deg": [
+        15.58,
+        36.2,
+        9.85,
+        -16.46,
+        -37.36,
+        -1.23
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.555337287564242,
+      "max_tilt_deg": 1.7138918776296879,
+      "min_support_margin_mm": 27.73728597962826,
+      "upright": true,
+      "strict_four_beat": false,
+      "swing_count": 55,
+      "failed_swings": [
+        [
+          "left_hind",
+          2.44
+        ],
+        [
+          "left_hind",
+          33.93
+        ]
+      ],
+      "three_loaded_pct": 99.07567567567568,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        79.85607294083431,
+        86.14548691004856,
+        111.98571398601958,
+        132.93201754070216
+      ],
+      "peak_10ms_N": 125.97205022414896,
+      "max_planted_slide_mm": 7.11253034587231,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.392000000003556
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": false,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": false
+    },
+    {
+      "upper_mm": 128,
+      "seed": 21,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.14,
+        3.25,
+        4.04,
+        3.71,
+        3.11,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.83,
+        37.25,
+        10.32,
+        -16.68,
+        -38.17,
+        -1.05
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.914237171464876,
+      "max_tilt_deg": 1.4077642855973451,
+      "min_support_margin_mm": 29.432461741051235,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.63513513513513,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.07685188598622,
+        85.11291439498736,
+        117.6781466994004,
+        136.35440216841275
+      ],
+      "peak_10ms_N": 128.976165422368,
+      "max_planted_slide_mm": 8.099647952984894,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.29200000000379
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 21,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.15,
+        3.25,
+        4.04,
+        3.72,
+        3.12,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.8,
+        37.24,
+        10.33,
+        -16.59,
+        -38.07,
+        -1.1
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.958955006791737,
+      "max_tilt_deg": 1.4244006727915686,
+      "min_support_margin_mm": 28.796185019054526,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.74864864864865,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        80.53782828426407,
+        85.86800732850368,
+        118.19008892503832,
+        138.4028164679673
+      ],
+      "peak_10ms_N": 130.62623272599416,
+      "max_planted_slide_mm": 8.54192988739986,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.36400000000362
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 128,
+      "seed": 21,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.12,
+        3.38,
+        4.02,
+        3.79,
+        3.32,
+        4.31
+      ],
+      "final_heading_deg": [
+        15.84,
+        36.64,
+        10.29,
+        -16.12,
+        -37.13,
+        -0.87
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.81098583855765,
+      "max_tilt_deg": 1.5382821149005215,
+      "min_support_margin_mm": 28.47007082291545,
+      "upright": true,
+      "strict_four_beat": false,
+      "swing_count": 55,
+      "failed_swings": [
+        [
+          "right_fore",
+          1.01
+        ]
+      ],
+      "three_loaded_pct": 98.96216216216216,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.83499834739577,
+        88.94657807688554,
+        106.67653539071318,
+        133.6507544924736
+      ],
+      "peak_10ms_N": 127.79255061241692,
+      "max_planted_slide_mm": 7.134702447838705,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.311000000003745
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": false,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": false
+    },
+    {
+      "upper_mm": 160,
+      "seed": 21,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.17,
+        3.44,
+        3.96,
+        3.75,
+        3.28,
+        4.33
+      ],
+      "final_heading_deg": [
+        15.7,
+        36.28,
+        9.96,
+        -16.33,
+        -37.22,
+        -1.12
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.563834803309586,
+      "max_tilt_deg": 1.6544088936031933,
+      "min_support_margin_mm": 27.776187564703985,
+      "upright": true,
+      "strict_four_beat": false,
+      "swing_count": 55,
+      "failed_swings": [
+        [
+          "left_hind",
+          33.93
+        ]
+      ],
+      "three_loaded_pct": 99.01891891891891,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        79.93584420742593,
+        85.92441149329204,
+        111.81971073903335,
+        132.8687831567145
+      ],
+      "peak_10ms_N": 125.88812953586678,
+      "max_planted_slide_mm": 7.514872527203294,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.362000000003626
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": false,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": false
+    },
+    {
+      "upper_mm": 128,
+      "seed": 22,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.23,
+        3.32,
+        4.0,
+        3.69,
+        3.09,
+        4.34
+      ],
+      "final_heading_deg": [
+        15.51,
+        36.88,
+        10.05,
+        -16.82,
+        -38.22,
+        -1.24
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.943420810181166,
+      "max_tilt_deg": 1.4437493994682926,
+      "min_support_margin_mm": 29.64308421802834,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.7081081081081,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.1780192622116,
+        84.20615413540854,
+        117.72271226215324,
+        137.75833637825446
+      ],
+      "peak_10ms_N": 129.88264632090713,
+      "max_planted_slide_mm": 8.483681278466657,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.27800000000382
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 22,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.23,
+        3.32,
+        4.0,
+        3.7,
+        3.11,
+        4.34
+      ],
+      "final_heading_deg": [
+        15.51,
+        36.88,
+        10.08,
+        -16.73,
+        -38.11,
+        -1.29
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.976988873970363,
+      "max_tilt_deg": 1.4505389244482654,
+      "min_support_margin_mm": 29.066454282542793,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.8081081081081,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        80.09036149240575,
+        86.42380434089395,
+        118.60828060705552,
+        135.79031200092118
+      ],
+      "peak_10ms_N": 128.0461542781304,
+      "max_planted_slide_mm": 8.974139115073772,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.328000000003705
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 128,
+      "seed": 22,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.26,
+        3.53,
+        3.92,
+        3.73,
+        3.28,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.31,
+        35.87,
+        9.76,
+        -16.39,
+        -37.27,
+        -1.06
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.889830049272575,
+      "max_tilt_deg": 1.5411263211119133,
+      "min_support_margin_mm": 28.857552670561844,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.53513513513514,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        84.31218430397307,
+        88.87813441014859,
+        106.50113720139659,
+        133.32692788462938
+      ],
+      "peak_10ms_N": 127.03992901828711,
+      "max_planted_slide_mm": 8.481142036642005,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.156000000004106
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 22,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.27,
+        3.55,
+        3.91,
+        3.72,
+        3.28,
+        4.34
+      ],
+      "final_heading_deg": [
+        15.25,
+        35.68,
+        9.65,
+        -16.49,
+        -37.27,
+        -1.18
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.640523555590047,
+      "max_tilt_deg": 1.62042463978127,
+      "min_support_margin_mm": 28.201376999485767,
+      "upright": true,
+      "strict_four_beat": false,
+      "swing_count": 55,
+      "failed_swings": [
+        [
+          "right_fore",
+          1.01
+        ]
+      ],
+      "three_loaded_pct": 98.94594594594595,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        80.12857123529827,
+        84.61155355623958,
+        111.38886112915166,
+        132.43501162699894
+      ],
+      "peak_10ms_N": 125.24064043264994,
+      "max_planted_slide_mm": 9.020152069116415,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.29000000000379
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": false,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": false
+    },
+    {
+      "upper_mm": 128,
+      "seed": 23,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.15,
+        3.26,
+        4.04,
+        3.71,
+        3.1,
+        4.32
+      ],
+      "final_heading_deg": [
+        15.79,
+        37.22,
+        10.29,
+        -16.71,
+        -38.2,
+        -1.09
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.913836144146153,
+      "max_tilt_deg": 1.4081587629705619,
+      "min_support_margin_mm": 29.432879210429057,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.63513513513513,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.0729127769921,
+        85.1133690941179,
+        117.68132332402902,
+        136.36163934286978
+      ],
+      "peak_10ms_N": 128.98193225403267,
+      "max_planted_slide_mm": 8.100515144912503,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.29200000000379
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 23,
+      "floor": "nominal",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.15,
+        3.25,
+        4.04,
+        3.73,
+        3.13,
+        4.31
+      ],
+      "final_heading_deg": [
+        15.81,
+        37.26,
+        10.35,
+        -16.57,
+        -38.05,
+        -1.08
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 27.957943849713843,
+      "max_tilt_deg": 1.4306489896540313,
+      "min_support_margin_mm": 28.816492953718434,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.74864864864865,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        80.53407538360491,
+        86.00427490114191,
+        118.1936182480624,
+        138.4091871870312
+      ],
+      "peak_10ms_N": 130.6299939554586,
+      "max_planted_slide_mm": 8.543241807818104,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.358000000003635
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 128,
+      "seed": 23,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130689
+      },
+      "holds_s": [
+        3.19,
+        3.44,
+        3.98,
+        3.75,
+        3.27,
+        4.33
+      ],
+      "final_heading_deg": [
+        15.6,
+        36.4,
+        10.05,
+        -16.36,
+        -37.36,
+        -1.11
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.81676720277036,
+      "max_tilt_deg": 1.5815430026996031,
+      "min_support_margin_mm": 28.48435703414781,
+      "upright": true,
+      "strict_four_beat": true,
+      "swing_count": 55,
+      "failed_swings": [],
+      "three_loaded_pct": 98.95405405405405,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        83.83641124593984,
+        88.99293950406576,
+        106.66176578585937,
+        133.6547003675455
+      ],
+      "peak_10ms_N": 127.79436457889399,
+      "max_planted_slide_mm": 7.1396596976555475,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.30800000000375
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": true,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": true
+    },
+    {
+      "upper_mm": 160,
+      "seed": 23,
+      "floor": "stiff",
+      "cadence": 1.5,
+      "ik": {
+        "samples": 7396,
+        "clipped_samples": 14,
+        "max_ankle_residual_mm": 7.782625734130639
+      },
+      "holds_s": [
+        3.21,
+        3.47,
+        3.94,
+        3.72,
+        3.25,
+        4.35
+      ],
+      "final_heading_deg": [
+        15.54,
+        36.13,
+        9.81,
+        -16.49,
+        -37.38,
+        -1.27
+      ],
+      "commands_complete": true,
+      "measured_forward_mm_s": 28.56447362748501,
+      "max_tilt_deg": 1.7076347996862296,
+      "min_support_margin_mm": 27.775723573020418,
+      "upright": true,
+      "strict_four_beat": false,
+      "swing_count": 55,
+      "failed_swings": [
+        [
+          "left_hind",
+          33.93
+        ]
+      ],
+      "three_loaded_pct": 99.01891891891891,
+      "airborne_pct": 0.0,
+      "peak_by_foot_N": [
+        79.93693422006683,
+        85.9703151435299,
+        111.86151035903933,
+        132.86932615076768
+      ],
+      "peak_10ms_N": 125.88855409722677,
+      "max_planted_slide_mm": 7.547741047999652,
+      "worst_slide_event": [
+        0,
+        34.879337467730096,
+        37.50299056132986,
+        37.36300000000362
+      ],
+      "actuator_saturation_pct": 0.0,
+      "traction_gates": {
+        "C1": true,
+        "six_headings": true,
+        "C3": true,
+        "C4": false,
+        "C5c": true,
+        "C6": true
+      },
+      "all_gates": false
+    }
+  ]
+}

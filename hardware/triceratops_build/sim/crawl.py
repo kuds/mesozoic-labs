@@ -232,12 +232,16 @@ def apply_seed(model, data, seed):
     return mu
 
 
-def run(model_path, seed, P=PARAMS, video=None, step_hook=None):
-    """One crawl. ``step_hook(model, data)``, if given, is called after every physics step and only reads the
-    simulation (the foot study's contact-point measures, build_feet60.py); without it the run is unchanged."""
+def run(model_path, seed, P=PARAMS, video=None, step_hook=None, *, motion_plan=None):
+    """One crawl. ``step_hook(model, data)``, if given, is called after every physics step for telemetry or
+    to set non-leg controls for the next step. An optional motion_plan supplies
+    (steps, times, 12-axis targets, swing phases) for precomputed exhibit paths."""
     model = mujoco.MjModel.from_xml_path(str(model_path))
-    kin, steps = plan(model, P)
-    times, targets, phases = trajectory(kin, steps, P)
+    if motion_plan is None:
+        kin, steps = plan(model, P)
+        times, targets, phases = trajectory(kin, steps, P)
+    else:
+        steps, times, targets, phases = motion_plan
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     mu = apply_seed(model, data, seed)
