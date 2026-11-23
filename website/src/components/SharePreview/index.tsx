@@ -2,9 +2,9 @@ import React from 'react';
 import {PageMetadata} from '@docusaurus/theme-common';
 
 const descriptions = {
-  home: 'The lab’s current Triceratops robot design in simulation. Its frill stands 60 cm high.',
-  triceratops: 'Side view of the 60 cm Triceratops robot model, showing the horned head and four mechanical legs.',
-  timeline: 'The 60 cm Triceratops in a simulated walking trial. A physical foreleg bench test is planned.',
+  home: 'November 22 simulation of the current Triceratops robot standing on rounded capsule feet. Its frill is 60 cm high.',
+  triceratops: 'The 60 cm Triceratops robot with rounded capsule feet, standing in the November 22 simulation still.',
+  timeline: 'The earlier roll-ankle Triceratops in a simulated walking trial. A physical foreleg bench test is planned.',
   collaborate: 'An anatomical Brachiosaurus model for a proposed review of its fossil evidence and reconstruction.',
   brachiosaurus: 'Brachiosaurus in its reconstructed standing pose, with four supporting legs and an elevated neck.',
 };

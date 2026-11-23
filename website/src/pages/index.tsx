@@ -4,6 +4,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 import useBrokenLinks from '@docusaurus/useBrokenLinks';
 import Layout from '@theme/Layout';
 import SharePreview from '@site/src/components/SharePreview';
+import {capsuleRenderNotes, capsuleSideImage} from '@site/src/data/triceratops';
 import styles from './index.module.css';
 
 const study = 'https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build';
@@ -43,19 +44,22 @@ function SectionHeading({id, children}: {id: string; children: string}) {
 }
 
 function TriceratopsStudy() {
-  const robot = useBaseUrl('/img/animals/triceratops-60cm-profile.webp');
+  const robot = useBaseUrl(capsuleSideImage);
   const adult = useBaseUrl('/img/animals/triceratops-adult-profile.webp');
   return (
     <figure>
       <div className={styles.plates}>
         <figure>
           <img
+            className={styles.robotStill}
             src={robot}
-            width={800}
-            height={400}
-            alt="Side view of the robot with a horned head, open chassis and jointed legs"
+            width={1600}
+            height={900}
+            alt="Side view of the simulated Triceratops robot standing on rounded capsule soles, with a horned head and open chassis"
           />
-          <figcaption>Current robot design · 60 cm at the frill</figcaption>
+          <figcaption>
+            Current design · 60 cm at the frill · <a href={capsuleRenderNotes}>22 November capsule feet</a>
+          </figcaption>
         </figure>
         <figure>
           <img
@@ -118,7 +122,7 @@ export default function Home(): React.JSX.Element {
             <SectionHeading id="journal">Build journal</SectionHeading>
             <div className={styles.metadata}><time dateTime="2026-11-19">19 November 2026</time> · Simulation</div>
             <h3>From flat floors to ramps</h3>
-            <p>The 60 cm robot stayed upright in all 40 judged trials. Using a model-based controller, it trotted across four simulated floor conditions, ten trials per condition.</p>
+            <p>These trials used the 60 cm robot’s earlier roll-ankle feet. With a model-based controller, it stayed upright in all 40 judged trials across four simulated floor conditions, ten trials per condition.</p>
             <p>In a separate exploratory test, the same controller targeted {targetSpeed} m/s in eight simulations per slope. At 5°, it moved 27% slower than on level ground.</p>
             <figure className={styles.slopeStudy}>
               <figcaption>Mean forward speed by slope <span>(m/s)</span></figcaption>

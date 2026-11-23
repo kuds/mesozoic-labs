@@ -39,6 +39,12 @@ export default function BrachiosaurusEvidence({image}: {image: string}) {
           </ol>
         </figcaption>
       </figure>
+      <details className={styles.prediction}>
+        <summary>Would a food target 0.6 m from the model’s head tip count as a reach?</summary>
+        <p>Yes. In the simulation, a reach counts when the head tip comes within 0.8 m of the target.
+          A different neck posture would change which targets fall within that distance.{' '}
+          <Link to="/docs/models/brachiosaurus_altithorax/anatomical">Read the model notes</Link></p>
+      </details>
       <p className={styles.feedback}>
         Which label would you change to make the evidence clearer to visitors?{' '}
         <Link to="/collaborate">Share feedback with the lab</Link>
