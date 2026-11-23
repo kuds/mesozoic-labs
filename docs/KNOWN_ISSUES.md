@@ -1569,9 +1569,11 @@ robustness, **LOW** = cosmetic / QoL.
   7042–7081 before a T-Rex stance is handed on), and no other species declares
   the rail.
 
-- **MEDIUM** — **only the T. rex and anatomical compsognathus stances
-  certify heading, and both r8 T-Rex stances stand only near the heading
-  they trained at (measured 2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
+- **MEDIUM** — **only three stances certify heading (the T. rex's and the
+  anatomical compsognathus's since D-D32, heading-free since policy
+  interface r14 and r4; the velociraptor's since 2026-11-06, heading-free
+  since r13), and both r8 T-Rex stances stand only near the heading they
+  trained at (measured 2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
   prey within about ±11°), and up to policy interface r13 the T-Rex
   observation carried heading only in world-frame quantities (the pelvis
   quaternion, the pelvis linear velocity, the prey vector), so a policy could
@@ -1811,20 +1813,24 @@ robustness, **LOW** = cosmetic / QoL.
   as the floor-truth kinds do (the three stance TOMLs already set it), or unify
   the two fallbacks. No cleanup PR owns it. (2026-08 gap review DU4)
 
-- **LOW** — **two hand-run T-Rex tools still assume the physics r11 plant or
-  older (found 2026-11-23).** `harnesses/recovery_offdist_panel.py` sizes its
-  `mag120` and `mag210` rows as `1.5 × target / 165.501`, the push that
-  capture multiple 1.5 derived on physics r7 through r11; on physics r12
-  (`configs/plant_versions.toml` note 24) the multiple derives 159.7 N, so
-  those rows push about 115.8 N and 203.0 N instead of 120 N and 210 N.
+- **LOW** — **a hand-run T-Rex tool still assumes the physics r11 plant or
+  older (found 2026-11-23).**
   `environments/tyrannosaurus_rex/scripts/replay_walk.py` builds the current
   environment from an archived Pilot4 stage's recorded config, which names
   the bite arguments and prey range the environment now refuses (the
   arguments since `e3cccca`, the range since note 24), and feeds a 63-wide policy
   the current 59-wide observation, so it runs only in a checkout of
-  `3368abe` or earlier. Neither runs in CI or training. Fix: derive the
-  harness's multiples from the current plant's derived push, and pin the
-  replay to the commit its review measured.
+  `3368abe` or earlier. It does not run in CI or training. Fix: port the
+  replay to a re-trained walk, or retire it with its review's Pilot4 transfer.
+  Updated 2026-11-23: on a later checkout the script now stops before it
+  reads a stage and names `3368abe` (`require_a_runnable_checkout`, pinned by
+  `environments/tyrannosaurus_rex/tests/test_replay_walk.py`). The other tool
+  this item named is fixed: `harnesses/recovery_offdist_panel.py` sized its
+  `mag120` and `mag210` rows as `1.5 × target / 165.501`, the push that
+  capture multiple 1.5 derived on physics r7 through r11, so on physics r12
+  (`configs/plant_versions.toml` note 24, 159.7 N at 1.5) they pushed about
+  115.8 N and 203.0 N; it now converts 120 N and 210 N to multiples on the
+  plant it builds (`multiple_for_force`, through `derive_push_parameters`).
 
 ## Infrastructure
 

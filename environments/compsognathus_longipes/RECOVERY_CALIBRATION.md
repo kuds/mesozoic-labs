@@ -22,6 +22,10 @@ python -m environments.shared.scripts.calibrate_recovery --species compsognathus
   --embodiment robot --output recovery_robot.json --screen-workers 2
 ```
 
+Each profile was then assembled from its measurement (see "Assembling the profile" below);
+`python -m environments.shared.scripts.assemble_recovery_profile --check` re-assembles both
+committed profiles from the measurements they name, byte for byte.
+
 The quiet nulls and their safe sets are unchanged (the quiet episodes are unpushed, and their reset
 states are the same), and so is the selected multiple on both models: 1.2 times capture velocity,
 1.187 N for 0.20 s on the anatomical pelvis and 2.352 N on the robot's core.
@@ -205,10 +209,11 @@ acceptance criteria, not estimates of a learned policy's capability. The
 full profile, quiet quantiles, force sweep, selected-controller outcomes,
 and holdout measurements are recorded with the executable calibration.
 
-## Measured physical calibration
+## Measured physical calibration (history: anatomical r2, robot r1)
 
-This section records the anatomical physics r2 and robot physics r1
-calibration; the current profiles are at the top. The completed run
+This section is history: it records the anatomical physics r2 and robot
+physics r1 calibration, which no committed profile uses; the current
+profiles are at the top. The completed run
 contains **1,056 episodes, 625,106 control steps, and 5,351 judged
 shoves** across quiet measurements, strength selection, and
 held-out nominal/stress panels (the anatomical column on physics r2; the r1
@@ -365,3 +370,43 @@ Validation includes actual force/impulse tests, default-behavior regressions,
 PPO/SAC stance-to-recovery updates and checkpoint reloads, notebook execution,
 and refusal of missing, stale, tampered, or undersized calibration evidence.
 Full training and trained-policy qualification remain future experiments.
+
+### Assembling the profile
+
+`environments/shared/scripts/assemble_recovery_profile.py` turns a measurement
+into the runtime profile, by the rule both current profiles (and the anatomical
+r3 one) were built with: the quiet calibration's height reference and safe set;
+the selected multiple, which must be the first one meeting the selection rule
+and must already be the recovery stage's `perturbation_capture_velocity_multiple`;
+the push and control step of the zero-command held-out panel at that multiple;
+the recovery stage's committed `[env]` block and pre-registered
+`capability_spec`; the current plant identity and recovery task fingerprint
+(the measurement's recorded MJCF hash must equal the file's); and the seed
+ranges, nominal recovery and dwell times and the measurement's uncompressed
+digest in `provenance`. Its module docstring lists every field.
+
+```bash
+python -m environments.shared.scripts.assemble_recovery_profile \
+  --species compsognathus_longipes --embodiment anatomical \
+  --measurement /tmp/recovery_calibration_anatomical.json \
+  --artifact recovery_calibration_anatomical_r5.json.gz \
+  --calibration-id compsognathus_longipes-anatomical-fixed-command-recovery-<yyyy-mm>-v5
+python -m environments.shared.scripts.assemble_recovery_profile --check
+```
+
+The first command keeps the measurement as
+`data/recovery_calibration_anatomical_r5.json.gz` (gzip, mtime 0; an existing
+file of that name with other content is refused) and replaces the committed
+profile, without a `restamp_history`. Name a new `--artifact` and a new
+`--calibration-id` for every measurement: earlier measurements stay as
+recorded, and the frozen identity check refuses every recovery freeze made
+from the old profile, whose bytes changed. `--check` exits non-zero when a
+committed profile no longer re-assembles from its measurement: wherever
+`load_recovery_calibration` would refuse it (a changed plant, task or
+recovery `[env]`), and wherever it was edited by hand.
+
+This check is stricter than the loader in one place: it compares the
+measurement's recorded MJCF bytes, while a restamp accepts any revision whose
+`physics_sha256` is unchanged. A restamp that changes the MJCF's bytes but not
+its physics therefore needs a re-measurement (or a change to the check) before
+`--check` passes again.

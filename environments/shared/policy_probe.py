@@ -165,7 +165,8 @@ def bank_env_kwargs(env_kwargs: Mapping[str, Any], horizon: int) -> dict[str, An
 
     A recovery stage pushes the animal on a schedule, and a push topples
     the statue and the leans before their kept steps: on the T. rex
-    recovery stage 6 of the 10 rows were lost, every statue row among them.
+    recovery stage at physics r11, 6 of the 10 rows were lost, every statue
+    row among them (5 on r12).
     The bank is the unpushed statue and held leans on every stage.  With
     the multiple at 0 the env runs no push code and its reset draws exactly
     what a push-free reset of the same seed draws (``base_env``); the
@@ -209,7 +210,8 @@ def build_state_bank(
     every model, whatever its axes.  The rows of one group share the episode
     (the same reset and actions give the same states).  A row whose episode
     ends at or before its kept step is dropped, with one warning naming every
-    dropped row (the scalars that compare with it then read NaN).  A model
+    dropped row (the scalars that compare with it then average the seeds
+    whose rows remain, and read NaN only when none does).  A model
     with no ankle pair keeps its statue rows only.  The env is closed
     afterwards.
     """
@@ -273,7 +275,8 @@ def build_state_bank(
         if dropped:
             logger.warning(
                 "Policy probe: %d of %d bank rows dropped, their episodes ending at or before the kept step: %s. "
-                "The probe's scalars that compare with a dropped row read NaN.",
+                "The probe's scalars that compare with a dropped row average the seeds whose rows remain "
+                "(NaN when none does).",
                 len(dropped),
                 len(spec),
                 "; ".join(dropped),

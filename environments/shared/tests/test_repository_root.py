@@ -25,7 +25,7 @@ from environments.shared import config, paths, species_catalog, task_fingerprint
 from environments.shared.plant_contract import constants as plant_constants
 from environments.shared.plant_contract import versions
 from environments.shared.plant_contract.source_layer import _source_payload
-from environments.shared.scripts import calibrate_recovery, restamp_recovery_calibration
+from environments.shared.scripts import assemble_recovery_profile, calibrate_recovery, restamp_recovery_calibration
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENVIRONMENTS = REPO_ROOT / "environments"
@@ -43,6 +43,7 @@ def test_every_name_for_the_root_is_the_one_object():
         "config._REPO_ROOT": config._REPO_ROOT,
         "task_fingerprint._REPOSITORY_ROOT": task_fingerprint._REPOSITORY_ROOT,
         "scripts.restamp_recovery_calibration._REPOSITORY_ROOT": restamp_recovery_calibration._REPOSITORY_ROOT,
+        "scripts.assemble_recovery_profile._REPOSITORY_ROOT": assemble_recovery_profile._REPOSITORY_ROOT,
         # Records repo-relative ``source_sha256`` keys.  (``probe_ppo_updates`` binds it the same way;
         # it is coverage-omitted, so no test imports it, and the static rule below covers it.)
         "scripts.calibrate_recovery.REPO_ROOT": calibrate_recovery.REPO_ROOT,

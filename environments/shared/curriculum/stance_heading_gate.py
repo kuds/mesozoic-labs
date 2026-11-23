@@ -18,8 +18,11 @@ rolled at every heading, with the episode's reference heading turned
 about the root with the animal, so a heading-invariant
 controller faces the same task at each one (every plant declares the
 elliptic friction cone since D-D29 and D-D30, so the physics is identical
-too).  The two stances that declare it observe no world heading either
-(T. rex policy interface r14 and anatomical Compsognathus r4, D-D31), so a
+too).  The three stances that declare it (the T. rex and the anatomical
+Compsognathus since D-D32, the velociraptor since the maintainer's decision
+of 2026-11-06) observe no world heading either (T. rex policy interface r14
+and anatomical Compsognathus r4, D-D31; velociraptor r13,
+``configs/plant_versions.toml`` note 21), so a
 seed's headings feed the policy the same observation and differ only by
 floating-point rounding, which an unstable closed loop can amplify into a
 different outcome: the certificate judges each heading's outcome and never

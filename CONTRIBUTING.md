@@ -327,6 +327,8 @@ notebook's `EMBODIMENT` dropdown already offers `robot`):
 5. **A recovery calibration** `configs/<species>/robot/recovery_calibration.json`,
    when the stage graph has a recovery stage, measured with
    `python -m environments.shared.scripts.calibrate_recovery --species <species> --embodiment robot --output <file>`
+   and assembled into the profile with
+   `python -m environments.shared.scripts.assemble_recovery_profile`
    ([the Compsognathus calibration guide](environments/compsognathus_longipes/RECOVERY_CALIBRATION.md)).
 6. **The documentation** (contract tests compare the three model lists with
    the manifest):
@@ -375,7 +377,10 @@ per species (decision D-D33). None of it exists yet.
    --recapture ... --reason ...` after showing that only the fields such a
    change must move have moved (its module docstring), and re-measures, with
    `python -m environments.shared.scripts.calibrate_recovery`, every committed
-   recovery calibration whose push schedule it moves: a restamp
+   recovery calibration whose push schedule it moves, then rebuilds each
+   profile from its new measurement with
+   `python -m environments.shared.scripts.assemble_recovery_profile` (its
+   `--check` re-assembles every committed profile byte for byte): a restamp
    (`environments/shared/scripts/restamp_recovery_calibration.py`) covers
    only an interface-only revision that leaves the task, the physics and the
    draw stream as they were. `configs/plant_versions.toml` note 24 did all

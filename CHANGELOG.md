@@ -3220,9 +3220,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   draws only the joint jitter (`TestResetDrawsOnlyTheJointJitter`);
   `_foot_floor_contact_forces` on a stacked-box scene
   (`TestFootFloorContactForces`), and the robot's floor channels on its statue
-  and posed sole on sole; the Allosaurus course line on a turned spawn; the
-  contract's refusals (a mocap body, a world-frame or target schema, an
-  overlapping, empty or off-model floor group); every model refusing a
+  (equal to its touch readings) and posed sole on sole; the Allosaurus
+  course line on a turned spawn; the contract's refusals (a mocap body, a
+  world-frame or target schema, an overlapping, empty or off-model floor
+  group); every model refusing a
   removed target argument (`test_config.py`); and the digest harness
   refusing an effector kind other than `root_displacement`. Retired, with the
   height-jitter channel they pinned: the four `_bounded_reset_height_delta`
@@ -3233,6 +3234,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the pelvis id fed only the target bearing, so the test now swaps the
   velociraptor's per-site foot channels. The per-model width, schema,
   revision, mass and body-weight tables follow the plants.
+
+- **The target-free revision's loose ends** (no plant, task, gate or
+  recovery-calibration digest moves; `configs/digest_snapshot.generated.txt`
+  is unchanged).
+  - `symmetry.mirror_env_state` refuses an env whose `gait_symmetry_weight`
+    is positive and that keeps a touchdown history, biped or quadruped. The
+    gait reward appends simultaneous touchdowns in a fixed order (`R` before
+    `L`, diagonal `A` before `B`) in an episode and in its mirror alike, so it
+    is not mirror-equivariant from any state, an empty history at reset
+    included: the Dibothrosuchus locomotion stage with the weight 1.0,
+    mirrored at a seeded reset, pays rewards 0.5 apart at step 5 while the
+    observations stay mirror images. The revision had replaced the refusal of
+    a non-empty quadruped history with an `A` ↔ `B` relabel, which stays for
+    the weight 0 (every biped stage and both quadruped stances). Tests
+    (`test_symmetry.py`): the refusal on a quadruped and a biped; a weight-0
+    quadruped mirrored mid-episode (its observation exact, its reward to
+    1e-9); the non-equivariance itself; and a synthetic biped whose
+    `_foot_observation_floor_geoms` channels swap sides under the mirror, the
+    layout's floor-contact branch, which no plant that derives a map has.
+  - New `environments/shared/scripts/assemble_recovery_profile.py` builds
+    `configs/<species>/<embodiment>/recovery_calibration.json` from a
+    `calibrate_recovery` measurement, the step both Compsognathus profiles
+    were built by, and its `--check` re-assembles every committed profile
+    from the measurement it names: both reproduce byte for byte
+    (`test_assemble_recovery_profile.py`). It is no recorded source of any
+    measurement. `environments/compsognathus_longipes/RECOVERY_CALIBRATION.md`
+    documents it ("Assembling the profile") and labels the anatomical r2 /
+    robot r1 table as history; `CONTRIBUTING.md`'s revision procedure and
+    new-robot checklist name it.
+  - `harnesses/recovery_offdist_panel.py`'s `mag120` and `mag210` rows push
+    120 N and 210 N on the plant they build (`multiple_for_force`, through
+    `derive_push_parameters`); they divided by the r7 push, 165.501 N, so on
+    physics r12 they pushed about 115.8 N and 203.0 N
+    (`test_gate_resolution_producer.py`).
+    `environments/tyrannosaurus_rex/scripts/replay_walk.py` now stops before
+    it reads a stage and names `3368abe`, the last commit it ran at
+    (`environments/tyrannosaurus_rex/tests/test_replay_walk.py`); the
+    `docs/KNOWN_ISSUES.md` LOW item stays open for it.
+  - Docs: `docs/TRAINING_ARTIFACT_PRESENTATION.md`'s policy-probe bank (on
+    physics r12 the T. rex keeps nine of its ten states, the +0.03 lean
+    falling on seed 3043 at step 515; with the pushes on, the current plants
+    keep 5 of 10 on the T. rex), and the six-heading certificate's three
+    stances in `curriculum/stance_heading_gate.py` and the `docs/KNOWN_ISSUES.md`
+    heading item.
 
 - **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
   check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`

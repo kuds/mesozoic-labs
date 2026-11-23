@@ -74,16 +74,40 @@ from environments.shared.recovery_evaluation import (
 SCHEDULE_MODEL_ID = ModelId("tyrannosaurus_rex", "anatomical")
 
 #: §6.1 schedules.  "on" is the training distribution (recovery.toml);
-#: the off-distribution rows change exactly one thing each.  The magnitude
-#: rows are expressed as capture-velocity multiples because that is the
-#: env's parameter; on the r7 plant multiple 1.5 derives 165.5 N, so the
-#: 120 N / 210 N targets of §6.1 are 1.5 * (target / 165.501).
-SCHEDULES = {
+#: the off-distribution rows change exactly one thing each: the timing row
+#: its interval and jitter, the magnitude rows the push, to the newtons of
+#: :data:`MAGNITUDE_TARGETS_N`.
+SCHEDULES: dict[str, dict[str, float]] = {
     "on": {},
     "timing": {"perturbation_interval": 3.5, "perturbation_jitter": 1.5},
-    "mag120": {"perturbation_capture_velocity_multiple": 1.5 * 120.0 / 165.501},
-    "mag210": {"perturbation_capture_velocity_multiple": 1.5 * 210.0 / 165.501},
+    "mag120": {},
+    "mag210": {},
 }
+#: The §6.1 magnitude rows' pushes, in newtons.  The env's parameter is the
+#: capture-velocity multiple, whose push ``derive_push_parameters`` derives
+#: from the plant (linear in the multiple), so :func:`multiple_for_force`
+#: converts on the current plant: 120 N and 210 N on every physics revision.
+#: (Through 2026-11 the rows were fixed multiples, 1.5 x target / 165.501,
+#: the r7 plant's push at 1.5; on physics r12, which derives 159.7 N there,
+#: they pushed about 115.8 N and 203.0 N.)
+MAGNITUDE_TARGETS_N = {"mag120": 120.0, "mag210": 210.0}
+
+
+def multiple_for_force(env: Any, force_n: float, *, duration_s: float) -> float:
+    """The capture-velocity multiple whose derived push on *env*'s plant is *force_n* for *duration_s*.
+
+    Derived as the env derives its own push (``base_env``): the plant's home
+    keyframe through ``derive_push_parameters``, at multiple 1.
+    """
+    from environments.shared.perturbation import derive_push_parameters
+
+    unit = derive_push_parameters(
+        env.model,
+        capture_velocity_multiple=1.0,
+        duration_s=duration_s,
+        keyframe_id=int(getattr(env, "_reset_keyframe_id", 0)),
+    )
+    return float(force_n) / float(unit["force_n"])
 
 
 def build_env(schedule: str, *, model_id: ModelId) -> Any:
@@ -92,6 +116,14 @@ def build_env(schedule: str, *, model_id: ModelId) -> Any:
     config = load_stage_config(model_id, "recovery")
     env_kwargs = dict(config["env_kwargs"])
     env_kwargs.update(SCHEDULES[schedule])
+    if schedule in MAGNITUDE_TARGETS_N:
+        probe = env_class(model_id)(**env_kwargs)
+        try:
+            env_kwargs["perturbation_capture_velocity_multiple"] = multiple_for_force(
+                probe, MAGNITUDE_TARGETS_N[schedule], duration_s=float(env_kwargs["perturbation_duration"])
+            )
+        finally:
+            probe.close()
     return env_class(model_id)(**env_kwargs)
 
 

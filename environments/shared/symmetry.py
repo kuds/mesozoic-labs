@@ -48,7 +48,9 @@ the action map, the actuator map, after checking that the env's action scaling
 commutes with it.
 :func:`mirror_env_state` writes the mirror image of one env's full simulator
 and episode state into another env (or the same one), which is how the tests
-check equivariance by paired rollouts.
+check equivariance by paired rollouts.  It refuses an env whose gait reward is
+on (``gait_symmetry_weight`` > 0): that term orders simultaneous touchdowns the
+same way in an episode and in its mirror, so it is not mirror-equivariant.
 
 The map file, ``configs/<species>/<embodiment>/mirror_map.json``, is generated
 (``python -m environments.shared.symmetry --write --species S --embodiment E``)
@@ -1181,10 +1183,34 @@ def mirror_physics_state(mm: ModelMirror, model: mujoco.MjModel, src: Any, dst: 
 
 
 def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
-    """The mirrored value of every episode-state attribute of a ``BaseDinoEnv`` that *src* has."""
+    """The mirrored value of every episode-state attribute of a ``BaseDinoEnv`` that *src* has.
+
+    The touchdown histories map side for side: ``R`` <-> ``L`` on a biped, the diagonals ``A`` (front-right +
+    rear-left) <-> ``B`` (front-left + rear-right) on a quadruped.  That is the mirror of the state, but the gait
+    reward that reads it is not mirror-equivariant: when both feet (or both diagonals) touch down in one step,
+    ``_compute_gait_symmetry`` appends ``R`` before ``L`` and ``_compute_quadruped_gait_symmetry`` ``A`` before
+    ``B`` in the source and in its mirror alike, so from then on the mirrored history is no longer the mirror of the
+    source's and the alternation ratios differ.  This holds from any state, an empty history at reset included
+    (measured with ``gait_symmetry_weight`` 1.0 and small smooth actions mirrored from a seeded reset: on the
+    dibothrosuchus locomotion stage, seed 3044, the histories ``[A]`` and ``[B]`` both gain ``A, B`` at step 5 and the
+    rewards differ by 0.5; the velociraptor locomotion stage, seed 3042, diverges the same way from step 13), while
+    the observations stay mirror images.  So an env whose ``gait_symmetry_weight`` is positive and that keeps a
+    touchdown history is refused; with the weight 0 (every biped stage, both quadruped stances) the gait reward is 0
+    and the relabel is a correct state map for the reward, the observation and the termination.  The
+    ``alternation_ratio`` / ``contact_asymmetry`` info diagnostics read the history at any weight and stay
+    order-dependent.
+    """
     have = vars(src)
     if have.get("direction_controller") is not None or have.get("_command_state") is not None:
         raise SymmetryError("a live command mode's controller state is not mirrored here")
+    gait_weight = float(have.get("gait_symmetry_weight", 0.0))
+    histories = [name for name in ("_touchdown_sequence", "_quad_touchdown_sequence") if name in have]
+    if gait_weight > 0.0 and histories:
+        raise SymmetryError(
+            f"gait_symmetry_weight is {gait_weight:g}: the gait reward appends simultaneous touchdowns in a fixed "
+            f"order ({' and '.join(histories)}), so it is not mirror-equivariant; mirror only an env whose gait "
+            "weight is 0"
+        )
     out: dict[str, Any] = {}
 
     def action(x: Any) -> Any:
@@ -1211,7 +1237,8 @@ def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
         out["_prev_diag_a_in_contact"] = src._prev_diag_b_in_contact
         out["_prev_diag_b_in_contact"] = src._prev_diag_a_in_contact
     if "_quad_touchdown_sequence" in have:
-        # The mirror swaps the diagonals: A (front-right + rear-left) <-> B (front-left + rear-right).
+        # The mirror swaps the diagonals: A (front-right + rear-left) <-> B (front-left + rear-right).  Reached only
+        # with the gait weight 0 (refused above otherwise).
         out["_quad_touchdown_sequence"] = [{"A": "B", "B": "A"}[x] for x in src._quad_touchdown_sequence]
     if "_substep_min_foot_forces" in have:
         forces = have["_substep_min_foot_forces"]
@@ -1248,6 +1275,10 @@ def mirror_env_state(src: Any, dst: Any, em: EnvMirror, *, forward: bool = True)
     state.  Mid-episode the source's own derived quantities are those of its last substep's pre-integration state,
     so mirror a source after an ``mj_forward`` of its own when comparing observations at that instant; every later
     step is consistent either way.
+
+    Refused (:class:`SymmetryError`): a live command mode's controller state, and an env with a positive
+    ``gait_symmetry_weight`` that keeps a touchdown history, biped or quadruped, whose gait reward is not
+    mirror-equivariant (see :func:`_mirror_env_attributes`).
     """
     if dst.model.nq != src.model.nq or dst.model.nu != src.model.nu:
         raise SymmetryError("the source and destination envs must share the model")

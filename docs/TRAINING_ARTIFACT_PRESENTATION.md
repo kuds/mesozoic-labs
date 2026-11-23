@@ -892,32 +892,46 @@ trains, or what its critic makes of a lean. `PolicyProbeCallback`
 rollout (so for the policy that collected it, before `train()` updates
 it), the policy's state and its outputs on a fixed bank of states.
 
-The bank is ten states of the stage's own env, on reset seeds 3042 and
-3043: the settled statue at step 199, the statue at step 599,
-mirror-symmetric ankle leans of +0.03 and -0.03 action units (ramped over
-steps 200 to 300, then held) at step 599, and a -0.05 lean at step 400.
-The lean is applied as `sign × x` to each side of every sagittal ankle
-pair, with each side's leftward-axis sign, so it is the same posture on
-every model. The bank is built once per session on a separate env instance
-that nothing else steps, with a horizon of its own (the stage's, or 601
-steps if that is longer), so a short stage horizon still yields all ten
-states. On a stage with scheduled pushes (a recovery stage's
+The bank specifies ten states (`policy_probe.BANK_SPEC`) of the stage's own
+env, on reset seeds 3042 and 3043: the settled statue at step 199, the
+statue at step 599, mirror-symmetric ankle leans of +0.03 and -0.03 action
+units (ramped over steps 200 to 300, then held) at step 599, and a -0.05
+lean at step 400. The lean is applied as `sign × x` to each side of every
+sagittal ankle pair, with each side's leftward-axis sign, so it is the same
+posture on every model. The bank is built once per session on a separate env
+instance that nothing else steps, with a horizon of its own (the stage's, or
+601 steps if that is longer), so a short stage horizon truncates no row
+before its kept step. A row whose episode ends at or before its kept step is
+dropped, with one warning naming every dropped row; a scalar that compares
+with it averages the seeds whose rows remain and reads NaN (`null` in
+`progress.json`) when none does. A guard snapshots and restores the global
+random generators around the build, which draws from none of them. The
+build costs about 5.6 s per session on the T. rex. SAC gets no bank and no
+rows.
+
+Since T. rex physics r12 (`configs/plant_versions.toml` note 24) the
+T. rex's bank holds nine of the ten states, on its stance and recovery
+stages alike: the +0.03 lean, a backward lean of the shank, falls on seed
+3043 at step 515, before its kept step 599, so that row is dropped. It held
+on r11; the r12 statue, its skull's 0.2 kg bite box gone, stands 4.6 mm
+further back, and a +0.025 lean holds on seeds 3042 to 3045. The bank's
+specification stays as it is: a dropped row is what the probe is built to
+tolerate, and the T. rex's scalars that compare with the +0.03 lean average
+the seed-3042 row alone (measured 2026-11-23; both Compsognathus banks hold
+all ten).
+
+On a stage with scheduled pushes (a recovery stage's
 `perturbation_capture_velocity_multiple`), the bank env runs with the
 pushes off (`policy_probe.bank_env_kwargs`): a push topples the statue and
-the leans before their kept steps, and with the pushes on the T. rex
-recovery stage kept 4 of the 10 states (no `statue` row) and the anatomical
-Compsognathus recovery stage 6 (measured on the T. rex's physics r11 and the
-push schedules of that date; `configs/plant_versions.toml` note 24 moved
-both). Since T. rex physics r12 the bank of the T. rex stance holds nine
-states: the +0.03 lean falls on seed 3043 at step 515, and its row is
-dropped as below. With the multiple at 0 the env's reset
-draws exactly what a push-free reset of the same seed draws, and the
-observation does not depend on it. A row whose episode still ends at or
-before its kept step is dropped, with one warning naming every dropped row, and
-the scalars that compare with it read NaN (`null` in `progress.json`). A
-guard snapshots and restores the global random generators around the
-build, which draws from none of them. The build costs about 5.6 s per
-session on the T. rex. SAC gets no bank and no rows.
+the leans before their kept steps. With the pushes on, the T. rex recovery
+stage kept 4 of the 10 states (no `statue` row) and the anatomical
+Compsognathus recovery stage 6, measured on the T. rex's physics r11 and
+the push schedules of that date. Note 24 moved both schedules (the reset
+draws fewer numbers before them): on the current plants the same build
+keeps 5 of the 10 on the T. rex (neither `statue` row), all 10 on the
+anatomical Compsognathus and 9 on the robot (measured 2026-11-23). With the
+multiple at 0 the env's reset draws exactly what a push-free reset of the
+same seed draws, and the observation does not depend on it.
 
 Per update the probe reads parameters and runs `torch.no_grad()` forward
 passes of the constant bank: no sampling, no gradient, and no parameter,
