@@ -32,6 +32,7 @@ from environments.shared.curriculum.gate_schema import (
     STANCE_GATE_KIND,
     GateSchemaError,
     declared_certification_seeds,
+    retired_gate_declarations,
 )
 from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
 from environments.shared.curriculum.stance_gate_v2 import (
@@ -40,7 +41,6 @@ from environments.shared.curriculum.stance_gate_v2 import (
     STANCE_V2_THRESHOLD_KEYS,
 )
 from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
-from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.model_id import EMBODIMENT_LABELS, EMBODIMENTS, ModelId
 from environments.shared.paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 from environments.shared.plant_contract import (
@@ -129,7 +129,7 @@ class CatalogError(ValueError):
 # Which statistic headlines a published deliverable is chosen by the gate
 # kind it was certified under: a stance policy is judged on unsupported duty
 # and full-horizon episodes, a recovery policy on its recovery-success lower
-# bound, a walk on velocity and a hunt on task success.  Each spec is
+# bound and a walk on velocity.  Each spec is
 # ``(summary key, label, unit)``; the VALUE is read from the published stage
 # row under that key, and a statistic the summary does not carry (stance and
 # recovery, whose per-stage gate metrics reach summary.json in a later phase
@@ -179,25 +179,11 @@ def _recovery_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec
 
 def _reward_and_length_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     # The historical gate measures whatever the stage declares: a walk
-    # (velocity floor) headlines its velocity, a hunt (success floor) its
-    # task success, and a stage gated on both publishes both.
+    # (velocity floor) headlines its velocity.
     specs: list[_HeadlineSpec] = []
     if current_gate.get("min_avg_forward_velocity") is not None:
         specs.append(("avg_forward_vel", "avg. forward velocity", "m/s"))
-    if current_gate.get("min_success_rate") is not None:
-        specs.append(("mean_success_rate", "task success", "percent"))
     return specs
-
-
-def _task_success_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
-    # The hunting gate certifies the exact binomial lower bound on task
-    # success (plan §4.4), which the summary stage row records as
-    # selected_model_success_lcb; the raw selected-checkpoint rate follows
-    # it so a reader sees both the bound and the fraction it bounds.
-    return [
-        ("selected_model_success_lcb", "task success LCB95", "ratio"),
-        ("selected_model_success_rate", "task success", "percent"),
-    ]
 
 
 def _no_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
@@ -211,7 +197,6 @@ _HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]
     STANCE_HEADING_GATE_KIND: _stance_heading_headline_specs,
     RECOVERY_GATE_KIND: _recovery_headline_specs,
     "reward_and_length/v1": _reward_and_length_headline_specs,
-    TASK_SUCCESS_GATE_KIND: _task_success_headline_specs,
     "none/v1": _no_headline_specs,
 }
 
@@ -235,10 +220,14 @@ def _deliverable_headline(
     record it.  A null *gate_kind* (a record whose verdict and config both
     left the kind unrecorded) headlines nothing: choosing a metric by the
     CURRENT gate would present a statistic the certifying gate never
-    measured.  A non-null kind outside the registry is fatal.
+    measured.  A non-null kind outside the registry is fatal, and a retired
+    one (``task_success/v1``, decision D-D59) says so.
     """
     if gate_kind is None:
         return []
+    retired = retired_gate_declarations({"gate_kind": gate_kind})
+    if retired:
+        raise CatalogError("; ".join(retired))
     specs = _HEADLINE_BY_GATE_KIND.get(gate_kind)
     if specs is None:
         raise CatalogError(
@@ -521,7 +510,6 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
         "min_avg_reward": curriculum.get("min_avg_reward"),
         "min_avg_episode_length": curriculum.get("min_avg_episode_length"),
         "min_avg_forward_velocity": curriculum.get("min_avg_forward_vel"),
-        "min_success_rate": curriculum.get("min_success_rate"),
         # stance_quality/v1. Exported so the published gate is the
         # one actually enforced: a stance-gated stage whose only
         # listed criterion was its reward rail would read as gated
@@ -539,9 +527,6 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
         "min_paired_success_delta_lcb": curriculum.get("min_paired_success_delta_lcb"),
         "recovery_t_recover_steps": curriculum.get("recovery_t_recover_steps"),
         "recovery_dwell_steps": curriculum.get("recovery_dwell_steps"),
-        # task_success/v1 (plan §4.4): the LCB bar the hunting deliverable
-        # is certified on; null on every other kind.
-        "min_success_lcb": curriculum.get("min_success_lcb"),
         "min_eval_episodes": int(curriculum.get("min_eval_episodes", DEFAULT_STAGE_THRESHOLD.min_eval_episodes)),
         "required_consecutive": int(
             curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
@@ -888,8 +873,7 @@ def _build_result_deliverables(
     id to its summary row as written, so a headline reads the statistic the
     summary records (``unsupported_duty_ucb``, ``full_horizon_fraction``,
     ``recovery_success_lcb`` once a later phase exports them — D-A9,
-    deferred by D-B15; ``selected_model_success_lcb`` for a task_success/v1
-    hunt is exported now) rather than the ladder projection, which carries
+    deferred by D-B15) rather than the ladder projection, which carries
     only the fixed ladder columns.
 
     A schema-2 ladder summary publishes NO deliverable: its ``stage_passed``
@@ -1382,7 +1366,7 @@ def _format_warm_start(stage: dict[str, Any], stage_headings: dict[str, str]) ->
 
 
 def _format_headline_metric(metric: dict[str, Any]) -> str:
-    """``task success 96.7%`` / ``unsupported duty 95% UCB not recorded`` (D-A9)."""
+    """``clean stance episodes 96.7%`` / ``unsupported duty 95% UCB not recorded`` (D-A9)."""
     value = metric["value"]
     if value is None:
         return f"{metric['label']} not recorded"
@@ -1454,27 +1438,6 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
             ]
         )
         return "; ".join(recovery_criteria)
-    # A task_success/v1 verdict is produced once, post-stage, from the
-    # selected checkpoint's per-episode evaluation_selected.csv (plan §4.4):
-    # the exact binomial LCB95 on task success against the declared bar at
-    # the declared panel size, with min_avg_reward as a collapse RAIL, never
-    # the gate -- rendered as "reward rail" so it cannot be read as the
-    # reward_and_length/v1 criterion. required_consecutive is in-training
-    # scheduler hysteresis only (D-B3), so the generic consecutive-passes
-    # tail is not rendered here either.
-    if gate.get("gate_kind") == "task_success/v1":
-        task_criteria = [f"task success LCB95 ≥ {gate['min_success_lcb']:g}"]
-        if gate["min_avg_reward"] is not None:
-            task_criteria.append(f"reward rail ≥ {gate['min_avg_reward']:g}")
-        if gate["min_avg_episode_length"] is not None:
-            task_criteria.append(f"episode length ≥ {gate['min_avg_episode_length']:g}")
-        task_criteria.extend(
-            [
-                f"≥ {gate['min_eval_episodes']} episodes/evaluation",
-                "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
-            ]
-        )
-        return "; ".join(task_criteria)
     # A stance_quality/v2 verdict is produced once, post-stage, from the
     # floor-truth stance_gate_report.json rolled on the handoff pair at the
     # certification panel seeds (D-D23); the in-training manager refuses the
@@ -1549,8 +1512,6 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
         criteria.append(f"episode length ≥ {gate['min_avg_episode_length']:g}")
     if gate["min_avg_forward_velocity"] is not None:
         criteria.append(f"avg. velocity ≥ {gate['min_avg_forward_velocity']:g} m/s")
-    if gate["min_success_rate"] is not None:
-        criteria.append(f"task success ≥ {_format_percent(gate['min_success_rate'])}")
     if gate.get("min_full_horizon_fraction") is not None:
         criteria.append(f"full-horizon episodes ≥ {_format_percent(gate['min_full_horizon_fraction'])}")
     if gate.get("max_unsupported_duty") is not None:

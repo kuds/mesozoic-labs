@@ -48,7 +48,7 @@ function formatVerdict(stage: ResultStage): string {
 
 function requireCriterion(gate: AdvancementGate, value: number | null, key: string): number {
   // The Python renderer indexes a kind's own threshold directly and fails
-  // on a missing one; a recovery_quality/v1 or task_success/v1 gate without
+  // on a missing one; a recovery_quality/v1 or floor-truth stance gate without
   // its thresholds is a catalog bug, not a row to render with blanks.
   if (value === null) throw new Error(`${gate.gateKind} gate is missing ${key}`);
   return value;
@@ -86,26 +86,6 @@ function formatGate(gate: AdvancementGate): string {
       'verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)',
     );
     return recoveryCriteria.join('; ');
-  }
-  // A task_success/v1 verdict is produced once, post-stage, from the
-  // selected checkpoint's per-episode evaluation_selected.csv: the binomial
-  // LCB95 on task success against the declared bar at the declared panel
-  // size, with min_avg_reward as a collapse RAIL ("reward rail"), never the
-  // gate; required_consecutive is in-training hysteresis only, so the
-  // generic consecutive-passes tail is not rendered here either.
-  if (gate.gateKind === 'task_success/v1') {
-    const taskCriteria = [
-      `task success LCB95 ≥ ${requireCriterion(gate, gate.minSuccessLcb, 'min_success_lcb').toLocaleString()}`,
-    ];
-    if (gate.minAverageReward !== null) taskCriteria.push(`reward rail ≥ ${gate.minAverageReward.toLocaleString()}`);
-    if (gate.minAverageEpisodeLength !== null) {
-      taskCriteria.push(`episode length ≥ ${gate.minAverageEpisodeLength.toLocaleString()}`);
-    }
-    taskCriteria.push(
-      `≥ ${gate.minEvaluationEpisodes} episodes/evaluation`,
-      "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
-    );
-    return taskCriteria.join('; ');
   }
   // A stance_quality/v2 verdict is produced once, post-stage, from the
   // floor-truth stance_gate_report.json rolled on the handoff pair at the
@@ -182,7 +162,6 @@ function formatGate(gate: AdvancementGate): string {
   if (gate.minAverageForwardVelocity !== null) {
     criteria.push(`avg. velocity ≥ ${gate.minAverageForwardVelocity.toLocaleString()} m/s`);
   }
-  if (gate.minSuccessRate !== null) criteria.push(`task success ≥ ${formatPercent(gate.minSuccessRate)}`);
   if (gate.minFullHorizonFraction !== null) {
     criteria.push(`full-horizon episodes ≥ ${formatPercent(gate.minFullHorizonFraction)}`);
   }
@@ -218,7 +197,7 @@ function formatWarmStart(stage: SpeciesStage, headings: Map<string, string>): st
   return heading;
 }
 
-/** `task success 96.7%` / `unsupported duty 95% UCB not recorded` (_format_headline_metric, D-A9). */
+/** `clean stance episodes 96.7%` / `unsupported duty 95% UCB not recorded` (_format_headline_metric, D-A9). */
 function formatHeadlineMetric(metric: HeadlineMetric): string {
   if (metric.value === null) return `${metric.label} not recorded`;
   if (metric.unit === 'percent') return `${metric.label} ${formatPercent(metric.value)}`;

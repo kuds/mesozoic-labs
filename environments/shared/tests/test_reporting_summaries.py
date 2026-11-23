@@ -279,36 +279,19 @@ class TestSaveResultsJsonIsAtomic:
 
 
 class TestTaskSuccessStageRow:
-    """The judged count, panel size and bound reach the stage row (plan §4.4)."""
+    """task_success/v1's count, panel size and bound left the stage row with the gate (decision D-D59)."""
 
-    def test_exported_when_the_stage_result_carries_them(self, tmp_path):
+    def test_never_exported_even_when_the_stage_result_carries_them(self, tmp_path):
         results = [
             make_stage_result(
                 2,
                 best_model_success_count=20,
                 best_model_n_episodes=30,
                 best_model_success_lcb=0.5005613,
-                gate_kind="task_success/v1",
             )
         ]
         path = save_results_json(
             results, ModelId("velociraptor_mongoliensis", "anatomical"), "PPO", seed=42, results_dir=tmp_path
-        )
-        stage = json.loads(path.read_text())["stages"]["2"]
-        assert stage["selected_model_success_count"] == 20
-        assert stage["selected_model_n_episodes"] == 30
-        assert stage["selected_model_success_lcb"] == 0.5006
-        # A count is published as an integer, not 20.0.
-        assert isinstance(stage["selected_model_success_count"], int)
-        assert isinstance(stage["selected_model_n_episodes"], int)
-
-    def test_absent_when_the_stage_result_lacks_them(self, tmp_path):
-        path = save_results_json(
-            [make_stage_result(2)],
-            ModelId("velociraptor_mongoliensis", "anatomical"),
-            "PPO",
-            seed=42,
-            results_dir=tmp_path,
         )
         stage = json.loads(path.read_text())["stages"]["2"]
         assert not {"selected_model_success_count", "selected_model_n_episodes", "selected_model_success_lcb"} & set(

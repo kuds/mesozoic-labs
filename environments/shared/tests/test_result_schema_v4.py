@@ -665,39 +665,23 @@ def test_v4_a_stage_cannot_be_both_trained_and_a_reused_ancestor() -> None:
         _canonical_publishable(summary)
 
 
-# ── task_success/v1 stage-row keys (plan §4.4; optional, never required) ───
-
-
-def test_task_success_stage_keys_are_optional_and_validate_when_present() -> None:
-    summary = _canonical_summary()
-    validate_result_summary(summary, canonical_provenance=True)
-    summary["stages"]["2"].update(
-        {"selected_model_success_lcb": 0.5006, "selected_model_success_count": 20, "selected_model_n_episodes": 30}
-    )
-    validate_result_summary(summary, canonical_provenance=True)
+# ── task_success/v1 stage-row keys: retired, now unvalidated (decision D-D59) ───
 
 
 @pytest.mark.parametrize(
-    ("updates", "message"),
+    "updates",
     [
-        ({"selected_model_success_lcb": 1.2}, "selected_model_success_lcb .* must be between 0 and 1"),
-        ({"selected_model_success_lcb": -0.1}, "selected_model_success_lcb .* must be between 0 and 1"),
-        ({"selected_model_success_lcb": "0.5"}, "selected_model_success_lcb .* must be a number or null"),
-        ({"selected_model_success_count": 31, "selected_model_n_episodes": 30}, "exceeds selected_model_n_episodes"),
-        ({"selected_model_success_count": -1}, "selected_model_success_count .* non-negative integer"),
-        ({"selected_model_n_episodes": 2.5}, "selected_model_n_episodes .* non-negative integer"),
-        ({"selected_model_success_count": True}, "selected_model_success_count .* non-negative integer"),
-        # json.loads accepts the Infinity / NaN tokens; int() of either raises
-        # OverflowError / ValueError, which the callers do not translate.
-        ({"selected_model_success_count": float("inf")}, "selected_model_success_count .* non-negative integer"),
-        ({"selected_model_n_episodes": float("nan")}, "selected_model_n_episodes .* non-negative integer"),
+        {"selected_model_success_lcb": 0.5006, "selected_model_success_count": 20, "selected_model_n_episodes": 30},
+        # Shapes the schema refused while the gate existed: no reader consumes the keys any more, so a stage
+        # row carrying them is treated like any other stage row with a key the schema does not name.
+        {"selected_model_success_lcb": 1.2},
+        {"selected_model_success_count": 31, "selected_model_n_episodes": 30},
     ],
 )
-def test_task_success_stage_keys_are_fail_closed(updates: dict[str, Any], message: str) -> None:
+def test_the_retired_task_success_stage_keys_are_unvalidated(updates: dict[str, Any]) -> None:
     summary = _canonical_summary()
     summary["stages"]["2"].update(updates)
-    with pytest.raises(ResultSchemaError, match=message):
-        validate_result_summary(summary, canonical_provenance=True)
+    validate_result_summary(summary, canonical_provenance=True)
 
 
 def test_v4_canonical_best_eval_reward_is_null_only_for_a_widened_root() -> None:

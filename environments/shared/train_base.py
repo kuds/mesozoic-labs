@@ -50,7 +50,6 @@ from .constants import (
     DEFAULT_CLIP_REWARD,
     DEFAULT_NORM_OBS,
     DEFAULT_NORM_REWARD,
-    PUBLICATION_SEED_START,
 )
 from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
 from .critic_phase import CriticPhaseError, CriticPhaseSpec, pop_critic_phase, read_critic_phase
@@ -59,7 +58,6 @@ from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, WARM_START_LO
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
-from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .model_id import ModelId
 from .paths import REPOSITORY_ROOT
 from .plant_contract import (
@@ -2298,7 +2296,6 @@ def _report_hpt_metrics(
                 model_dir,
                 algorithm,
                 plant_identity,
-                stage_config,
                 quality_episodes=quality_episodes,
                 velocity_episodes=velocity_episodes,
             )
@@ -2346,90 +2343,22 @@ def run_success_panel(
     species_cfg: SpeciesConfig,
     *,
     n_episodes: int,
-    curriculum: "Mapping[str, Any] | None",
-    evaluated_handoff: "tuple[str, str, str] | None",
-    stage_dir: Path,
 ) -> tuple[PanelEpisodes, dict[str, Any]]:
-    """Run the post-training velocity/success panel; for a hunt it doubles as the gate evidence.
+    """Run the post-training velocity/success panel.
 
     Its one caller is :func:`_post_training_eval_panels`, the panel
     ``train()`` rolls with ``report_metrics=True`` (decision D-B12 and its
-    amendment).  Returns the panel's
-    per-episode sequences and the ``metrics.json`` entries they add:
-
-    * For every kind, ``success_count`` / ``n_success_episodes`` — the exact
-      ``k`` / ``n`` a rounded ``mean_success_rate`` cannot recover.
-    * For a stage declaring ``task_success/v1`` whose panel evaluated the
-      handoff pair (*evaluated_handoff*, the ``select_handoff_checkpoint``
-      triple), the panel is sized at ``max(n_episodes, min_eval_episodes)``,
-      re-seeded to the publication seed, and written as
-      ``<stage_dir>/evaluation_selected.csv`` hash-bound to the pair; the
-      count keys are recorded ONLY when that file was written, together
-      with ``selected_mean_reward`` / ``selected_mean_episode_length`` (the
-      rail and length-floor inputs off the same rows).  A hunt panel that
-      did not evaluate the handoff pair (no checkpoint saved, the smoke-run
-      shape) or whose evidence write failed records no count at all, so
-      ``metrics.json`` holds no count beside a directory the judge refuses,
-      never a PASS beside a FAILED verdict file.
+    amendment).  Returns the panel's per-episode sequences and the
+    ``metrics.json`` entries they add: ``success_count`` /
+    ``n_success_episodes``, the exact ``k`` / ``n`` a rounded
+    ``mean_success_rate`` cannot recover (none when the panel recorded no
+    success flag).
     """
-    curriculum = curriculum or {}
-    task_success = curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND
-    evidence_panel = task_success and evaluated_handoff is not None
-    panel_episodes = n_episodes
-    if evidence_panel:
-        declared = curriculum.get("min_eval_episodes")
-        if declared is not None:
-            panel_episodes = max(n_episodes, int(declared))
-        # The panel doubles as the stage's gate evidence, so it runs on the
-        # publication seed like the notebook's selected-checkpoint panel;
-        # VecEnv.seed applies at the next reset, which eval_policy makes.
-        eval_env.seed(PUBLICATION_SEED_START)
-    episodes: PanelEpisodes = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=panel_episodes)
-    rewards, lengths, fwd_vels, successes, distances = episodes
-    metrics: dict[str, Any] = {}
+    episodes: PanelEpisodes = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=n_episodes)
+    successes = episodes[3]
     if not successes:
-        return episodes, metrics
-    count = {"success_count": sum(1 for flag in successes if flag), "n_success_episodes": len(successes)}
-    if not task_success:
-        metrics.update(count)
-        return episodes, metrics
-    if evaluated_handoff is None:
-        logger.warning(
-            "Task-success panel evaluated no handoff pair (quality_eval_checkpoint is a fallback), so its "
-            "%d/%d successes are NOT recorded as a task_success/v1 count: the gate is judged from "
-            "evaluation_selected.csv bound to the handoff, and this panel cannot be.",
-            count["success_count"],
-            count["n_success_episodes"],
-        )
-        return episodes, metrics
-    _, ckpt_path, ckpt_vecnorm = evaluated_handoff
-    try:
-        from .reporting import save_evaluation_episodes
-
-        written = save_evaluation_episodes(
-            stage_dir,
-            rewards=rewards,
-            lengths=lengths,
-            forward_velocities=fwd_vels,
-            distances=distances,
-            successes=successes,
-            evaluation_seed=PUBLICATION_SEED_START,
-            checkpoint_label="selected",
-            checkpoint_path=f"{ckpt_path}.zip",
-            normalization_path=ckpt_vecnorm,
-        )
-    except Exception:  # noqa: BLE001 - evidence must not sink the run; the judge refuses without it
-        logger.warning(
-            "Task-success evidence could not be written; the panel's count is not recorded either, "
-            "so metrics.json holds no count beside the refused verdict",
-            exc_info=True,
-        )
-        return episodes, metrics
-    logger.info("Task-success evidence for the handoff pair written to: %s", written)
-    metrics.update(count)
-    metrics["selected_mean_reward"] = float(sum(float(r) for r in rewards) / len(rewards))
-    metrics["selected_mean_episode_length"] = float(sum(float(n) for n in lengths) / len(lengths))
-    return episodes, metrics
+        return episodes, {}
+    return episodes, {"success_count": sum(1 for flag in successes if flag), "n_success_episodes": len(successes)}
 
 
 def _post_training_eval_panels(
@@ -2439,7 +2368,6 @@ def _post_training_eval_panels(
     model_dir: Path,
     algorithm: str,
     plant_identity: PlantIdentity | None,
-    stage_config: "dict[str, Any] | None" = None,
     *,
     quality_episodes: int,
     velocity_episodes: int,
@@ -2454,11 +2382,7 @@ def _post_training_eval_panels(
     The velocity/success panel is :func:`run_success_panel`: it records
     ``success_count`` / ``n_success_episodes`` beside ``mean_success_rate``
     — the exact ``k`` / ``n`` a rounded rate cannot recover (decision
-    D-B12) — and, when *stage_config* declares ``task_success/v1`` and the
-    panel evaluated the handoff pair, writes the same episodes as
-    ``<stage_dir>/evaluation_selected.csv`` hash-bound to the pair, so the
-    post-stage judge (``generate_stage_artifacts``) and ``metrics.json``
-    agree by construction.
+    D-B12).
     """
     import numpy as _np
 
@@ -2479,10 +2403,8 @@ def _post_training_eval_panels(
     # was 261.79 ± 261.72). The chosen name is recorded in the sidecar as
     # quality_eval_checkpoint.
     handoff = _select_handoff_checkpoint(model_dir)
-    evaluated_handoff: "tuple[str, str, str] | None" = None
     if handoff is not None:
         ckpt_name, ckpt_path, ckpt_vecnorm = handoff
-        evaluated_handoff = handoff
         # seed=None: an archive that recorded its training seed (every stage
         # train() or the CLI curriculum trains, D-D11) would otherwise re-seed
         # eval_env with it on load.
@@ -2541,7 +2463,6 @@ def _post_training_eval_panels(
     # Run for all stages so mean_distance_traveled is always captured.
     # Guarded so a mid-eval failure still writes the metrics.json sidecar
     # with whatever was collected above.
-    curriculum = (stage_config or {}).get("curriculum_kwargs", {})
     success_panel_metrics: dict[str, Any] = {}
     try:
         (_, _, fwd_vels, success_flags, distances), success_panel_metrics = run_success_panel(
@@ -2549,9 +2470,6 @@ def _post_training_eval_panels(
             eval_env,
             species_cfg,
             n_episodes=velocity_episodes,
-            curriculum=curriculum,
-            evaluated_handoff=evaluated_handoff,
-            stage_dir=model_dir.parent,
         )
     except Exception:
         logger.warning("Post-training eval_policy failed — skipping velocity/success metrics.", exc_info=True)
@@ -2579,9 +2497,7 @@ def _post_training_eval_panels(
             sum(1 for flag in success_flags if flag),
             len(success_flags),
         )
-    # The count and the panel size (D-B12). For task_success/v1 the shared
-    # panel records them only when it wrote the evidence file the judge
-    # reads, so the count always has the rows behind it.
+    # The count and the panel size (D-B12).
     panel.update(success_panel_metrics)
     return panel
 
@@ -2592,44 +2508,6 @@ def _post_training_eval_panels(
 #: (decision D-A5): the CurriculumManager's advancement decision, not the
 #: evidence-backed post-stage judgement ``generate_stage_artifacts`` makes.
 CURRICULUM_MANAGER_JUDGED_BY = "train_base.train_curriculum/CurriculumManager"
-
-
-def _in_training_task_success_result(
-    manager: Any,
-    stage: "int | str",
-    curriculum: Mapping[str, Any],
-) -> "dict[str, Any] | None":
-    """The ``stage_result`` the in-training verdict records for a ``task_success/v1`` node.
-
-    ``success_count`` / ``n_success_samples`` of the LAST evaluation the
-    manager recorded for *stage* (the panel the verdict was judged on) and
-    the bound it formed, under the persisted ``best_model_*`` names so the
-    verdict projects them; ``None`` for every other kind, and for a
-    task_success stage whose history carries no success sample (the verdict
-    then failed closed, and nothing is invented for it).
-    """
-    if curriculum.get("gate_kind") != TASK_SUCCESS_GATE_KIND:
-        return None
-    history = manager.summary()["eval_history"].get(stage) or []
-    latest = history[-1] if history else {}
-    if "success_count" not in latest or "n_success_samples" not in latest:
-        return None
-    from .curriculum.recovery_gate import binomial_lcb
-
-    count = int(latest["success_count"])
-    n_samples = int(latest["n_success_samples"])
-    return {
-        "stage": stage,
-        "success_count": count,
-        "n_success_samples": n_samples,
-        "best_model_success_count": count,
-        "best_model_n_episodes": n_samples,
-        "best_model_success_lcb": binomial_lcb(count, n_samples) if n_samples > 0 else float("nan"),
-        "mean_reward": latest.get("mean_reward"),
-        "mean_episode_length": latest.get("mean_length"),
-        "gate_kind": curriculum.get("gate_kind"),
-        "gate_schema_version": curriculum.get("gate_schema_version"),
-    }
 
 
 #: What ``train_curriculum``'s verdict records as ``judged_by`` for a
@@ -3393,11 +3271,7 @@ def train_curriculum(
         passed = bool(curriculum_cb.ready_to_advance) and not interrupted
         verdict_failures = [] if passed else ["stage budget exhausted without meeting advancement thresholds"]
         verdict_judged_by = CURRICULUM_MANAGER_JUDGED_BY
-        # A task_success/v1 node's in-training verdict is the manager's
-        # bound over the LAST EvalCallback panel (never the post-stage
-        # evidence CSV, which this path does not write); record the count
-        # it was judged on so the verdict is auditable.
-        verdict_stage_result = _in_training_task_success_result(manager, stage, cur_kwargs)
+        verdict_stage_result: "dict[str, Any] | None" = None
         if not interrupted and cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS:
             # The manager refuses stance_quality/v2 and the six-heading
             # certificate in-training, so the node is judged here instead,
@@ -3594,8 +3468,6 @@ def _record_stage_result(
         "reward_threshold": cur_kwargs.get("min_avg_reward", ""),
         "ep_length_threshold": cur_kwargs.get("min_avg_episode_length", ""),
         "forward_vel_threshold": cur_kwargs.get("min_avg_forward_vel", ""),
-        "success_rate_threshold": cur_kwargs.get("min_success_rate", ""),
-        "success_lcb_threshold": cur_kwargs.get("min_success_lcb", ""),
         # stance_quality/v1. A stance-gated stage otherwise records only its
         # reward rail, which reads as though reward were the gate.
         "gate_kind": cur_kwargs.get("gate_kind", ""),

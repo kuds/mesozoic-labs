@@ -14,7 +14,6 @@ from environments.shared import eval_diagnostics as eval_diagnostics_module
 from environments.shared.eval_diagnostics import (
     StageAwareEvalCallback,
     StageGatePlateauCallback,
-    success_metric_applicable,
 )
 from environments.shared.model_id import ModelId
 
@@ -23,44 +22,44 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 
 
-class TestSuccessMetricApplicable:
-    def test_requires_positive_configured_gate(self):
-        assert success_metric_applicable({"curriculum_kwargs": {"min_success_rate": 0.5}}) is True
-        assert success_metric_applicable({"curriculum_kwargs": {"min_success_rate": 0.0}}) is False
-        assert success_metric_applicable({"curriculum_kwargs": {}}) is False
-        assert success_metric_applicable({}) is False
+class TestTaskSuccessIsNoGate:
+    """min_success_rate and task_success/v1 left with the hunt nodes (decision D-D59): success gates nothing."""
 
-    def test_task_success_kind_applies_by_kind(self):
-        """task_success/v1 gates on the sample through min_success_lcb, not a rate floor."""
-        assert success_metric_applicable(
-            {"curriculum_kwargs": {"gate_kind": "task_success/v1", "min_success_lcb": 0.5}}
-        )
+    def test_the_gate_reader_is_gone(self):
+        assert not hasattr(eval_diagnostics_module, "success_metric_applicable")
 
-    def test_the_plateau_follows_the_lcb_bar_for_a_task_success_stage(self):
-        callback, eval_callback = _plateau_callback(
-            {"gate_kind": "task_success/v1", "min_success_lcb": 0.5, "min_eval_episodes": 30, "min_avg_reward": 361.0},
-            stage=3,
-        )
-        eval_callback.evaluations_successes.append([1.0] * 20 + [0.0] * 10)
-        metric = next(m for m in callback._metrics_for_evaluation(0) if m.key == "mean_success_rate")
-        assert metric.label == "success rate (LCB95 bar)"
-        assert metric.threshold == 0.5
+    def test_the_built_evaluation_callback_never_collects_success(self):
+        gym = pytest.importorskip("gymnasium")
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3.common.monitor import Monitor
+        from stable_baselines3.common.vec_env import DummyVecEnv
 
-    @pytest.mark.parametrize(
-        "model_id",
-        [VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX],
-        ids=lambda m: f"{m.species}-{m.embodiment}",
-    )
-    def test_real_configs_enable_success_on_no_stage(self, model_id):
-        """Only the hunt's stage 3 gated on success; it left with decision D-D59, so no committed stage does."""
-        from environments.shared.config import load_all_stages
+        from environments.shared.eval_diagnostics import build_stage_evaluation_callbacks
 
-        configs = load_all_stages(model_id)
+        class TinyEvalEnv(gym.Env):
+            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
 
-        assert 3 not in configs
-        assert {stage: success_metric_applicable(config) for stage, config in configs.items()} == {
-            stage: False for stage in configs
-        }
+        eval_env = DummyVecEnv([lambda: Monitor(TinyEvalEnv())])
+        try:
+            callback, _plateau = build_stage_evaluation_callbacks(
+                eval_env,
+                stage="walk",
+                stage_config={"curriculum_kwargs": {"min_avg_reward": 1.0}, "env_kwargs": {}},
+            )
+        finally:
+            eval_env.close()
+        assert callback.success_applicable is False
+
+    def test_the_plateau_never_follows_success(self):
+        """A success sample beside a (retired) success floor yields no plateau metric."""
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 100.0, "min_success_rate": 0.5}, stage=3)
+        eval_callback.evaluations_results.append([200.0] * 10)
+        eval_callback.evaluations_length.append([1000.0] * 10)
+        eval_callback.evaluations_successes.append([0.0] * 10)
+        assert "mean_success_rate" not in StageGatePlateauCallback._METRIC_PRIORITY
+        assert "mean_success_rate" not in StageGatePlateauCallback._GUIDANCE
+        assert [metric.key for metric in callback._metrics_for_evaluation(0)] == ["mean_reward"]
 
 
 def _bare_stage_aware_callback(
@@ -262,10 +261,8 @@ def _add_evaluation(
     reward: float,
     length: float,
     forward_vel: float | None = None,
-    success_rate: float | None = None,
     n_episodes: int = 10,
     forward_vel_episodes: int | None = None,
-    success_episodes: int | None = None,
     unsupported_duty: float | None = None,
     bilateral_duty: float | None = None,
 ) -> None:
@@ -278,9 +275,6 @@ def _add_evaluation(
     if forward_vel is not None:
         count = n_episodes if forward_vel_episodes is None else forward_vel_episodes
         eval_callback.evaluations_forward_velocities.append([forward_vel] * count)
-    if success_rate is not None:
-        count = n_episodes if success_episodes is None else success_episodes
-        eval_callback.evaluations_successes.append([success_rate] * count)
     callback.num_timesteps += 50_000
     assert callback._on_step() is True
 
@@ -312,70 +306,70 @@ class TestPlateauMessagesRenderForSemanticStages:
 class TestStageGatePlateauCallback:
     def test_waits_for_full_evaluation_window(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         for _ in range(2):
-            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
+            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
 
         assert "EVALUATION PLATEAU" not in caplog.text
 
-    def test_warns_once_for_stable_blocking_success_gate(self, caplog):
+    def test_warns_once_for_stable_blocking_velocity_gate(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         with caplog.at_level("WARNING", logger="environments.shared.eval_diagnostics"):
             for _ in range(4):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
 
         warnings = [record.message for record in caplog.records if "EVALUATION PLATEAU" in record.message]
         assert len(warnings) == 1
-        assert "STAGE 3" in warnings[0]
-        assert "success rate" in warnings[0]
-        assert "latest 0.0%, required 50.0%" in warnings[0]
+        assert "STAGE 2" in warnings[0]
+        assert "forward velocity" in warnings[0]
+        assert "latest 0.000 m/s, required 0.500 m/s" in warnings[0]
         assert "Training continues" in warnings[0]
         assert callback._plateau_active is True
 
     def test_rearms_only_after_meaningful_movement(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         with caplog.at_level("WARNING", logger="environments.shared.eval_diagnostics"):
             for _ in range(3):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
-            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.1)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
+            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.1)
             for _ in range(3):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
 
         warnings = [record for record in caplog.records if "EVALUATION PLATEAU" in record.message]
         assert len(warnings) == 2
         assert callback._plateau_active is True
 
-    def test_relative_range_uses_actual_success_gate_scale(self):
+    def test_relative_range_uses_actual_velocity_gate_scale(self):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
-        for success_rate in (0.0, 0.04, 0.0):
-            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=success_rate)
+        for forward_vel in (0.0, 0.04, 0.0):
+            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=forward_vel)
 
         callback.logger.record.assert_any_call("diagnostics/eval_plateau_relative_range", pytest.approx(0.08))
 
     def test_does_not_warn_when_all_configured_gates_pass(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         with caplog.at_level("WARNING", logger="environments.shared.eval_diagnostics"):
             for _ in range(3):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.6)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.6)
 
         assert "EVALUATION PLATEAU" not in caplog.text
         callback.logger.record.assert_any_call("diagnostics/eval_gate_met", 1.0)

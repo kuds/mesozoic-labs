@@ -143,17 +143,10 @@ class TestSpeciesConfig:
 
 
 class TestBuildCoreCallbacks:
-    @pytest.mark.parametrize(
-        ("stage", "success_threshold", "success_applicable"),
-        [(1, 0.0, False), (3, 0.5, True)],
-    )
-    def test_wires_stage_aware_eval_and_plateau_callbacks(
-        self,
-        tmp_path,
-        stage,
-        success_threshold,
-        success_applicable,
-    ):
+    # No stage collects task success in training: min_success_rate and task_success/v1, the gates that read
+    # it, left with the hunt nodes (decision D-D59).
+    @pytest.mark.parametrize("stage", [1, 3])
+    def test_wires_stage_aware_eval_and_plateau_callbacks(self, tmp_path, stage):
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback
         from stable_baselines3.common.vec_env import DummyVecEnv
@@ -169,7 +162,6 @@ class TestBuildCoreCallbacks:
         stage_config = {
             "curriculum_kwargs": {
                 "min_avg_reward": 100.0,
-                "min_success_rate": success_threshold,
                 "diagnostics_plateau_window": 7,
                 "diagnostics_plateau_min_relative_variation": 0.02,
             }
@@ -189,7 +181,7 @@ class TestBuildCoreCallbacks:
         )
 
         assert isinstance(eval_callback, StageAwareEvalCallback)
-        assert eval_callback.success_applicable is success_applicable
+        assert eval_callback.success_applicable is False
         plateau_callback = next(callback for callback in callbacks if isinstance(callback, StageGatePlateauCallback))
         assert plateau_callback.plateau_window == 7
         assert plateau_callback.min_relative_variation == 0.02
@@ -1629,73 +1621,35 @@ class TestTrainCurriculumWalksTheManifest:
             assert kwargs["stage_config"] is configs[stage]
             assert kwargs["plant_identity"] is plant
 
-    def test_a_task_success_node_records_the_panel_count_it_was_judged_on(self, tmp_path):
-        """A CLI task_success verdict is the manager's LAST-panel bound; its stage_result says which panel (D-B12 amendment)."""
-        from environments.shared.curriculum import CurriculumManager
-        from environments.shared.train_base import _in_training_task_success_result
+    def test_the_walk_records_the_floor_truth_result_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
+        """train_curriculum passes stage_result= to write_gate_verdict for the floor-truth stance (the trex stance's
+        six-heading certificate since D-D32; stubbed by ``_run``) and None for every other kind: the wiring, not
+        only the helper, is pinned. The in-training task_success/v1 record left with the gate (decision D-D59)."""
+        from environments.shared import train_base
 
-        curriculum = {
-            "gate_kind": "task_success/v1",
-            "gate_schema_version": 1,
-            "min_success_lcb": 0.5,
-            "min_eval_episodes": 30,
-            "min_avg_reward": 361.0,
-            "required_consecutive": 1,
+        assert not hasattr(train_base, "_in_training_task_success_result")
+
+        def eval_panel(manager):
+            manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
+
+        record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, eval_panel=eval_panel)
+
+        by_id = {verdict["stage_id"]: verdict for verdict in record["verdicts"]}
+        assert by_id["stance"]["stage_result"] == {
+            "stage": 1,
+            "gate_kind": "stance_quality_heading/v1",
+            "gate_passed": True,
         }
-        manager = CurriculumManager(
-            model_id=VELOCIRAPTOR_MONGOLIENSIS,
-            stage_thresholds={3: {k: v for k, v in curriculum.items() if k != "gate_schema_version"}},
-            start_stage=3,
-        )
-        # No panel recorded yet: nothing is invented for the verdict.
-        assert _in_training_task_success_result(manager, 3, curriculum) is None
-        assert manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
+        assert by_id["stance"]["judged_by"] == "train_base.train_curriculum/stance_heading_report"
+        assert by_id["locomotion"]["stage_result"] is None
+        assert by_id["behavior"]["stage_result"] is None
 
-        recorded = _in_training_task_success_result(manager, 3, curriculum)
-        assert recorded is not None
-        assert (recorded["success_count"], recorded["n_success_samples"]) == (20, 30)
-        assert (recorded["best_model_success_count"], recorded["best_model_n_episodes"]) == (20, 30)
-        assert recorded["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
-        assert recorded["gate_kind"] == "task_success/v1"
-        # Other kinds record nothing extra.
-        assert _in_training_task_success_result(manager, 3, {"gate_kind": "reward_and_length/v1"}) is None
-        # And the record survives the writer's projection: what KNOWN_ISSUES
-        # says the verdict file carries is what is on disk.
-        from environments.shared.curriculum.gate_schema import gate_config_view
-        from environments.shared.result_bundle import read_gate_verdict, write_gate_verdict
-
-        stage_dir = tmp_path / "03_behavior"
-        models = stage_dir / "models"
-        models.mkdir(parents=True)
-        (models / "best_model.zip").write_bytes(b"weights")
-        (models / "best_model_vecnorm.pkl").write_bytes(b"stats")
-        write_gate_verdict(
-            stage_dir,
-            model_id=VELOCIRAPTOR_MONGOLIENSIS,
-            stage=3,
-            stage_id="behavior",
-            gate_kind="task_success/v1",
-            gate_schema_version=1,
-            passed=True,
-            failures=[],
-            task_sha256="sha256:" + "c" * 64,
-            judged_by="test",
-            checkpoint=models / "best_model.zip",
-            normalization=models / "best_model_vecnorm.pkl",
-            gate_config=gate_config_view(curriculum),
-            stage_result=recorded,
-        )
-        on_disk = read_gate_verdict(stage_dir)["stage_result"]
-        assert (on_disk["success_count"], on_disk["n_success_samples"]) == (20, 30)
-        assert (on_disk["best_model_success_count"], on_disk["best_model_n_episodes"]) == (20, 30)
-
-    def test_the_walk_records_the_task_success_panel_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
-        """train_curriculum passes stage_result= to write_gate_verdict for a task_success node, the
-        post-training result for the floor-truth stance (the trex stance's six-heading certificate since
-        D-D32; stubbed by ``_run``), and None for every other kind: the wiring, not only the helper, is
-        pinned. No committed stage declares task_success/v1 since decision D-D59 removed the trex hunt,
-        its one user, so the fixture leaf is given the block the hunt declared."""
+    def test_a_node_declaring_the_retired_task_success_gate_is_refused_naming_the_decision(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """The hunt's block, set on the fixture leaf, is refused before any node trains (decision D-D59)."""
         from environments.shared.config import load_all_stages
+        from environments.shared.curriculum.gate_schema import GateSchemaError
 
         stage_configs = load_all_stages(TYRANNOSAURUS_REX)
         stage_configs[3]["curriculum_kwargs"] = {
@@ -1707,27 +1661,10 @@ class TestTrainCurriculumWalksTheManifest:
             "min_eval_episodes": 30,
             "required_consecutive": 3,
         }
-
-        def eval_panel(manager):
-            if manager.current_stage == 3:
-                manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
-
-        record = self._run(
-            TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, eval_panel=eval_panel, stage_configs=stage_configs
-        )
-
-        by_id = {verdict["stage_id"]: verdict for verdict in record["verdicts"]}
-        assert by_id["behavior"]["gate_kind"] == "task_success/v1"
-        stage_result = by_id["behavior"]["stage_result"]
-        assert (stage_result["success_count"], stage_result["n_success_samples"]) == (20, 30)
-        assert stage_result["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
-        assert by_id["stance"]["stage_result"] == {
-            "stage": 1,
-            "gate_kind": "stance_quality_heading/v1",
-            "gate_passed": True,
-        }
-        assert by_id["stance"]["judged_by"] == "train_base.train_curriculum/stance_heading_report"
-        assert by_id["locomotion"]["stage_result"] is None
+        with pytest.raises(
+            GateSchemaError, match=r"'task_success/v1' was removed with the hunt nodes \(decision D-D59\)"
+        ):
+            self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, stage_configs=stage_configs)
 
     def test_an_interrupted_node_records_no_verdict_and_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
         """A Ctrl-C partway through a budget is not a gate failure: no verdict, no handoff, loop stops."""

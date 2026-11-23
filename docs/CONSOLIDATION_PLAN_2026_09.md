@@ -475,7 +475,8 @@ per-episode statistic; write an evidence writer in the `write_recovery_evidence`
 pattern producing per-episode rows (`command_v_x`, `command_yaw_rate`,
 `tracking_error_v`, `tracking_error_yaw`, `terrain_family`, `course_progress_m`,
 survival), hash-bound to model.zip/vecnormalize.pkl the way
-`_task_success_stage_gate` binds its CSV (gates.py:463-); judge in
+`_task_success_stage_gate` bound its CSV (gates.py:463-; deleted with
+`task_success/v1` by decision D-D59, last at `527aa8b`); judge in
 reporting/gates.py; the notebook's JUDGE/TRAIN branches then write
 `gate_verdict.json` through `_apply_stage_gate` with no new cell. The name is
 honest by decision: the certificate samples per EPISODE and lacks the plan's

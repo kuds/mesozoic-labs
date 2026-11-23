@@ -32,7 +32,6 @@ export interface AdvancementGate {
   minAverageReward: number | null;
   minAverageEpisodeLength: number | null;
   minAverageForwardVelocity: number | null;
-  minSuccessRate: number | null;
   /** stance_quality/v1 criteria; null on every other gate kind. */
   minFullHorizonFraction: number | null;
   maxUnsupportedDuty: number | null;
@@ -42,8 +41,6 @@ export interface AdvancementGate {
   minPairedSuccessDeltaLcb: number | null;
   recoveryTRecoverSteps: number | null;
   recoveryDwellSteps: number | null;
-  /** task_success/v1 bar (the binomial LCB95 on task success); null on every other gate kind. */
-  minSuccessLcb: number | null;
   /** stance_quality/v2 bar (the binomial LCB95 on clean episodes; the six-heading certificate's per-heading and
    * grouped bar too) and settle window; null on every other gate kind. */
   minCleanStanceLcb: number | null;
@@ -294,7 +291,6 @@ interface RawStage {
     min_avg_reward: number | null;
     min_avg_episode_length: number | null;
     min_avg_forward_velocity: number | null;
-    min_success_rate: number | null;
     min_full_horizon_fraction: number | null;
     max_unsupported_duty: number | null;
     max_unsupported_duty_ucb: number | null;
@@ -302,7 +298,6 @@ interface RawStage {
     min_paired_success_delta_lcb: number | null;
     recovery_t_recover_steps: number | null;
     recovery_dwell_steps: number | null;
-    min_success_lcb: number | null;
     min_eval_episodes: number;
     required_consecutive: number;
     // stance_quality/v2 (species_catalog._STANCE_V2_EXPORTED_KEYS): exported
@@ -660,7 +655,6 @@ function adaptSpecies(raw: RawSpecies): Species {
         minAverageReward: stage.advancement_gate.min_avg_reward,
         minAverageEpisodeLength: stage.advancement_gate.min_avg_episode_length,
         minAverageForwardVelocity: stage.advancement_gate.min_avg_forward_velocity,
-        minSuccessRate: stage.advancement_gate.min_success_rate,
         minFullHorizonFraction: stage.advancement_gate.min_full_horizon_fraction,
         maxUnsupportedDuty: stage.advancement_gate.max_unsupported_duty,
         maxUnsupportedDutyUcb: stage.advancement_gate.max_unsupported_duty_ucb,
@@ -668,7 +662,6 @@ function adaptSpecies(raw: RawSpecies): Species {
         minPairedSuccessDeltaLcb: stage.advancement_gate.min_paired_success_delta_lcb,
         recoveryTRecoverSteps: stage.advancement_gate.recovery_t_recover_steps,
         recoveryDwellSteps: stage.advancement_gate.recovery_dwell_steps,
-        minSuccessLcb: stage.advancement_gate.min_success_lcb,
         minCleanStanceLcb: stage.advancement_gate.min_clean_stance_lcb ?? null,
         settleSteps: stage.advancement_gate.settle_steps ?? null,
         minAverageRewardStatueRatio: stage.advancement_gate.min_avg_reward_statue_ratio ?? null,

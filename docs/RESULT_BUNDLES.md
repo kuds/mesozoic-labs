@@ -96,10 +96,11 @@ none, and the audit does not require it. A run judged before Phase A
 therefore cannot serve as a `--trunk-from` / `TRUNK_FROM` trunk until its
 stage directories are re-judged — by `generate_stage_artifacts`, or by
 `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>`,
-which re-derives a `stance_quality/v1`, `reward_and_length/v1` or
-`task_success/v1` verdict from the evidence the directory already holds
-(`judged_by = "backfill"`; the last only from an `evaluation_selected.csv`
-hash-bound to the handoff pair), re-derives a `stance_quality/v2` verdict only
+which re-derives a `stance_quality/v1` or `reward_and_length/v1` verdict
+from the evidence the directory already holds (`judged_by = "backfill"`),
+refuses a recorded block that names a gate kind or key retired with the hunt
+nodes (`task_success/v1`, `min_success_rate` and the rest; decision D-D59),
+re-derives a `stance_quality/v2` verdict only
 from a `stance_gate_report.json` the judge admits for the stage's gate,
 measurement definition, handoff pair and recorded task and can re-derive
 from its own rows (decision D-D23), re-derives a `stance_quality_heading/v1`

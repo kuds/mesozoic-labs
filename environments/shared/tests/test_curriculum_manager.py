@@ -47,9 +47,14 @@ class TestStageThreshold:
         t = StageThreshold(min_avg_forward_vel=0.5)
         assert t.min_avg_forward_vel == 0.5
 
-    def test_min_success_lcb_defaults_fail_closed(self):
-        """No binomial bound reaches +inf, so an unpopulated bar refuses every panel."""
-        assert StageThreshold().min_success_lcb == float("inf")
+    @pytest.mark.parametrize("field", ["min_success_rate", "min_success_lcb"])
+    def test_the_retired_success_fields_are_gone(self, field):
+        """min_success_rate and task_success/v1's min_success_lcb left with the hunt nodes (decision D-D59)."""
+        from dataclasses import fields
+
+        assert field not in {f.name for f in fields(StageThreshold)}
+        with pytest.raises(TypeError, match=field):
+            StageThreshold(**{field: 0.5})
 
 
 class TestCurriculumManager:
@@ -89,11 +94,11 @@ class TestCurriculumManager:
     def test_current_threshold_returns_effective_override(self):
         manager = CurriculumManager(
             model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
-            stage_thresholds={1: {"min_success_rate": 0.75}},
+            stage_thresholds={1: {"min_avg_forward_vel": 0.75}},
             start_stage=1,
         )
 
-        assert manager.current_threshold.min_success_rate == 0.75
+        assert manager.current_threshold.min_avg_forward_vel == 0.75
 
     def test_should_not_advance_without_data(self, manager):
         assert not manager.should_advance()
@@ -240,43 +245,21 @@ class TestCurriculumManager:
         good_vels = [1.0, 1.2, 0.8]
         assert mgr.should_advance(rewards, lengths, good_vels)
 
-    def test_success_rate_gate_blocks_low_rate(self):
-        """Success rate below threshold should block advancement."""
+    def test_a_success_sample_is_measured_but_never_gates(self):
+        """No gate kind consumes task success since decision D-D59: an all-failure sample still advances."""
         mgr = CurriculumManager(
             model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "min_avg_reward": 10.0,
                     "min_avg_episode_length": 50,
-                    "min_success_rate": 0.5,
                     "min_eval_episodes": 3,
                     "required_consecutive": 1,
                 },
             },
         )
-        rewards = [100.0, 100.0, 100.0]
-        lengths = [500.0, 500.0, 500.0]
-        low_success = [0.0, 0.0, 1.0]  # mean = 0.33, below 0.5
-        assert not mgr.should_advance(rewards, lengths, success_rates=low_success)
-
-    def test_success_rate_gate_passes_high_rate(self):
-        """Success rate above threshold should allow advancement."""
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
-            stage_thresholds={
-                1: {
-                    "min_avg_reward": 10.0,
-                    "min_avg_episode_length": 50,
-                    "min_success_rate": 0.5,
-                    "min_eval_episodes": 3,
-                    "required_consecutive": 1,
-                },
-            },
-        )
-        rewards = [100.0, 100.0, 100.0]
-        lengths = [500.0, 500.0, 500.0]
-        high_success = [1.0, 1.0, 0.0]  # mean = 0.67, above 0.5
-        assert mgr.should_advance(rewards, lengths, success_rates=high_success)
+        assert mgr.should_advance([100.0] * 3, [500.0] * 3, success_rates=[0.0, 0.0, 0.0])
+        assert mgr.summary()["eval_history"][1][-1]["mean_success_rate"] == 0.0
 
     def test_record_eval_with_forward_vel(self):
         """record_eval should include forward velocity in summary."""
@@ -287,56 +270,6 @@ class TestCurriculumManager:
         summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], forward_velocities=[1.0, 2.0])
         assert summary["mean_forward_vel"] == 1.5
 
-    def test_task_success_gate_blocks_low_lcb(self):
-        """19/30 bounds at 0.467 < 0.5: refused, whatever the reward."""
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
-            stage_thresholds={
-                1: {
-                    "gate_kind": "task_success/v1",
-                    "min_success_lcb": 0.5,
-                    "min_eval_episodes": 30,
-                    "min_avg_reward": 100.0,
-                    "required_consecutive": 1,
-                }
-            },
-        )
-        assert not mgr.should_advance([1e6] * 30, [1000.0] * 30, success_rates=[1.0] * 19 + [0.0] * 11)
-        latest = mgr.summary()["eval_history"][1][-1]
-        assert (latest["success_count"], latest["n_success_samples"]) == (19, 30)
-
-    def test_task_success_gate_passes_high_lcb(self):
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
-            stage_thresholds={
-                1: {
-                    "gate_kind": "task_success/v1",
-                    "min_success_lcb": 0.5,
-                    "min_eval_episodes": 30,
-                    "min_avg_reward": 100.0,
-                    "required_consecutive": 2,
-                }
-            },
-        )
-        panel = [1.0] * 20 + [0.0] * 10
-        assert not mgr.should_advance([500.0] * 30, [1000.0] * 30, success_rates=panel)
-        assert mgr.should_advance([500.0] * 30, [1000.0] * 30, success_rates=panel)
-
-    def test_task_success_gate_keeps_the_reward_rail_as_a_conjunct(self):
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
-            stage_thresholds={
-                1: {
-                    "gate_kind": "task_success/v1",
-                    "min_success_lcb": 0.5,
-                    "min_eval_episodes": 30,
-                    "min_avg_reward": 361.0,
-                    "required_consecutive": 1,
-                }
-            },
-        )
-        assert not mgr.should_advance([200.0] * 30, [1000.0] * 30, success_rates=[1.0] * 30)
-
     def test_record_eval_with_success_rate(self):
         """record_eval should include success rate in summary."""
         mgr = CurriculumManager(
@@ -345,6 +278,8 @@ class TestCurriculumManager:
         )
         summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], success_rates=[1.0, 0.0])
         assert summary["mean_success_rate"] == 0.5
+        # The count and sample size task_success/v1 formed its bound from left with it (decision D-D59).
+        assert not {"success_count", "n_success_samples"} & set(summary)
 
 
 class TestThresholdsFromConfigs:
@@ -375,7 +310,6 @@ class TestThresholdsFromConfigs:
                     min_avg_reward=10.0,
                     min_avg_episode_length=100,
                     min_avg_forward_vel=0.5,
-                    min_success_rate=0.3,
                     min_eval_episodes=12,
                     required_consecutive=3,
                 ),
@@ -383,11 +317,10 @@ class TestThresholdsFromConfigs:
         }
         thresholds = thresholds_from_configs(configs)
         assert thresholds[1]["min_avg_forward_vel"] == 0.5
-        assert thresholds[1]["min_success_rate"] == 0.3
         assert thresholds[1]["min_eval_episodes"] == 12
 
-    def test_extracts_task_success_thresholds(self):
-        """task_success/v1's bar is copied (the manager judges it in-training), unlike recovery's."""
+    def test_a_retired_task_success_config_is_refused_naming_the_decision(self):
+        """task_success/v1 and its bar were deleted with the hunt nodes (decision D-D59); no threshold is built."""
         configs = {
             1: {
                 "curriculum_kwargs": {
@@ -400,15 +333,8 @@ class TestThresholdsFromConfigs:
                 }
             }
         }
-        thresholds = thresholds_from_configs(configs)
-        assert thresholds[1] == {
-            "gate_kind": "task_success/v1",
-            "min_success_lcb": 0.5,
-            "min_eval_episodes": 30,
-            "min_avg_reward": 361.0,
-            "required_consecutive": 1,
-        }
-        assert StageThreshold(**thresholds[1]).min_success_lcb == 0.5
+        with pytest.raises(GateSchemaError, match=r"'task_success/v1' was removed with the hunt nodes .*D-D59"):
+            thresholds_from_configs(configs)
 
     def test_empty_configs(self):
         thresholds = thresholds_from_configs({})
@@ -513,17 +439,25 @@ class TestThresholdsFromConfigs:
         # The bound's power is specified at this panel size.
         assert curriculum["min_eval_episodes"] == 40
 
-    def test_no_committed_stage_declares_task_success(self):
-        """The trex hunt, the one stage certified on the task-success LCB95 (plan §4.4, WS-B2), left with every hunt
-        (decision D-D59); the kind stays registered, unused, until the change that deletes it."""
+    def test_no_committed_stage_declares_a_retired_kind_or_key(self):
+        """task_success/v1 and min_success_rate left with every hunt (decision D-D59), and no stage names them."""
         from environments.shared.config import load_all_stages
-        from environments.shared.curriculum import TASK_SUCCESS_GATE_KIND
+        from environments.shared.curriculum.gate_schema import (
+            GATE_KINDS,
+            RETIRED_CURRICULUM_KEYS,
+            RETIRED_GATE_KINDS,
+            retired_gate_declarations,
+        )
         from environments.shared.species_names import model_ids
 
+        assert set(RETIRED_GATE_KINDS) == {"task_success/v1"}
+        assert set(RETIRED_CURRICULUM_KEYS) == {"min_success_rate", "min_success_lcb", "task_success_panel_episodes"}
+        # A retired name is no longer registered, so nothing can declare it as live.
+        assert not set(RETIRED_GATE_KINDS) & set(GATE_KINDS)
+        assert not set(RETIRED_CURRICULUM_KEYS) & frozenset().union(*GATE_KINDS.values())
         for model_id in model_ids():
             for stage, cfg in load_all_stages(model_id).items():
-                assert cfg["curriculum_kwargs"].get("gate_kind") != TASK_SUCCESS_GATE_KIND, (model_id, stage)
-                assert "min_success_lcb" not in cfg["curriculum_kwargs"], (model_id, stage)
+                assert retired_gate_declarations(cfg["curriculum_kwargs"]) == [], (model_id, stage)
 
     def test_with_real_configs(self):
         """Integration test: extract thresholds from actual TOML configs."""
@@ -562,7 +496,7 @@ class TestPublicationKeys:
         """Every kind a committed stage declares, plus a synthetic block for each kind none declares yet.
 
         The committed blocks of every species (stance v1, reward_and_length,
-        task_success, recovery) are validated as they stand; the pilot,
+        recovery) are validated as they stand; the pilot,
         ``stance_quality/v2`` -- registered by D-D23 before any stage adopts
         it -- and the six-heading certificate (D-D32) get a minimal
         schema-valid block each, so the loop still covers exactly
@@ -592,15 +526,6 @@ class TestPublicationKeys:
             }
             for kind in (STANCE_GATE_V2_KIND, STANCE_HEADING_GATE_KIND)
         }
-        # task_success/v1 has no committed user since decision D-D59 removed the trex hunt.
-        task_success = {
-            "gate_schema_version": GATE_SCHEMA_VERSION,
-            "gate_kind": "task_success/v1",
-            "min_success_lcb": 0.5,
-            "min_eval_episodes": 30,
-        }
-        assert validate_gate_config(3, {**task_success, "certification_seeds": 3}) == "task_success/v1"
-        seen.add("task_success/v1")
         for kind, block in synthetic.items():
             if kind not in seen:
                 assert validate_gate_config(1, {**block, "certification_seeds": 3}) == kind

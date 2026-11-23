@@ -1033,110 +1033,74 @@ def test_a_recovery_resolution_must_start_at_the_certification_panel_seed(
         validate_evaluation_evidence(run_dir, summary, without_role)
 
 
-def _declare_task_success_on_leaf_stage(run_dir: Path, *, min_success_lcb: float, min_eval_episodes: int = 3) -> None:
-    """Switch the resolved leaf (stage-2) config to task_success/v1 (plan §4.4) at the given bar."""
+def _declare_on_leaf_stage(run_dir: Path, curriculum: dict[str, Any]) -> None:
+    """Replace the resolved leaf (stage-2) config's curriculum block with *curriculum*."""
     config_path = run_dir / "stage2" / "stage_config.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     key = "curriculum" if "curriculum" in config else "curriculum_kwargs"
-    config[key] = {
-        "gate_kind": "task_success/v1",
-        "gate_schema_version": 1,
-        "min_success_lcb": min_success_lcb,
-        "min_eval_episodes": min_eval_episodes,
-        "min_avg_reward": 1.0,
-    }
+    config[key] = curriculum
     config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-#: The fixture's selected evidence records 2 of 3 successes: an exact
-#: one-sided 95% lower bound of 0.1354.
-_FIXTURE_LCB = 0.1354
+# ── task_success/v1 and min_success_rate: retired (decision D-D59) ────────────
 
 
-def test_publication_refuses_a_task_success_pass_below_the_bar(tmp_path: Path, stable_provenance: None) -> None:
-    """A recorded PASS whose evidence bounds below min_success_lcb is refused, whatever the reward."""
+@pytest.mark.parametrize(
+    ("curriculum", "message"),
+    [
+        (
+            {
+                "gate_kind": "task_success/v1",
+                "gate_schema_version": 1,
+                "min_success_lcb": 0.1,
+                "min_eval_episodes": 3,
+                "min_avg_reward": 1.0,
+            },
+            r"stage 2 publication gate config: gate_kind 'task_success/v1' was removed with the hunt nodes "
+            r"\(decision D-D59\)",
+        ),
+        (
+            {
+                "gate_kind": "reward_and_length/v1",
+                "gate_schema_version": 1,
+                "min_avg_reward": 1.0,
+                "min_success_rate": 0.1,
+            },
+            r"stage 2 publication gate config: \[curriculum\] key 'min_success_rate' was removed with the hunt nodes "
+            r"\(decision D-D59\)",
+        ),
+    ],
+    ids=["task_success-v1", "min_success_rate"],
+)
+def test_publication_refuses_a_retired_gate_naming_the_decision(
+    tmp_path: Path, stable_provenance: None, curriculum: dict[str, Any], message: str
+) -> None:
+    """A stage whose frozen config names a retired kind or key is never published, pass or not.
+
+    The fixture's evidence (2 of 3 successes, rewards above 1.0) clears both
+    blocks as they were judged before the hunt's removal; neither is now
+    re-derivable, and the legacy loop would certify the stage on its reward
+    floor alone.
+    """
     run_dir = tmp_path / "run"
     summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_leaf_stage(run_dir, min_success_lcb=0.2)
+    _declare_on_leaf_stage(run_dir, curriculum)
 
-    with pytest.raises(ResultBundleError, match=r"stage 2 publication gate fails task_success/v1: task_success_lcb"):
+    with pytest.raises(ResultBundleError, match=message):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+    summary["stages"]["2"]["stage_passed"] = False
+    with pytest.raises(ResultBundleError, match=message):
         validate_evaluation_evidence(run_dir, summary, provenance)
 
 
-def test_a_task_success_pass_reproduces_from_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
+def test_the_retired_task_success_stage_row_keys_are_not_re_derived(tmp_path: Path, stable_provenance: None) -> None:
+    """selected_model_success_{lcb,count} / _n_episodes have no reader since D-D59, like any unnamed row key."""
     run_dir = tmp_path / "run"
     summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_leaf_stage(run_dir, min_success_lcb=0.1)
-
-    validate_evaluation_evidence(run_dir, summary, provenance)
-
-    # The panel size is judged too: n=3 below a declared 30 is a refusal.
-    _declare_task_success_on_leaf_stage(run_dir, min_success_lcb=0.1, min_eval_episodes=30)
-    with pytest.raises(ResultBundleError, match=r"n_episodes 3 < min_eval_episodes 30"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-
-
-def test_a_task_success_pass_needs_the_checkpoint_column(tmp_path: Path, stable_provenance: None) -> None:
-    """Unbound evidence only warns for the legacy kinds; a task_success pass is refused on it."""
-    run_dir = tmp_path / "run"
-    summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_leaf_stage(run_dir, min_success_lcb=0.1)
-    _rewrite_csv_column(run_dir / "stage2" / "evaluation_selected.csv", field="checkpoint_sha256", value=None)
-
-    with pytest.raises(ResultBundleError, match=r"stage 2 selected evidence records no checkpoint_sha256"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-
-
-def test_a_recorded_task_success_count_must_match_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
-    """The bound is checked at a tolerance; the published k/n must equal the rows' exactly."""
-    run_dir = tmp_path / "run"
-    summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_leaf_stage(run_dir, min_success_lcb=0.1)
-
     summary["stages"]["2"].update(
-        {"selected_model_success_lcb": _FIXTURE_LCB, "selected_model_success_count": 2, "selected_model_n_episodes": 3}
+        {"selected_model_success_lcb": 0.9, "selected_model_success_count": 3, "selected_model_n_episodes": 30}
     )
     validate_evaluation_evidence(run_dir, summary, provenance)
-
-    # A laundered headline: the bound still matches, the count claims 3/3.
-    summary["stages"]["2"]["selected_model_success_count"] = 3
-    with pytest.raises(ResultBundleError, match=r"stage 2 selected_model_success_count records 3, but .* 2/3"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-    summary["stages"]["2"]["selected_model_success_count"] = 2
-    summary["stages"]["2"]["selected_model_n_episodes"] = 30
-    with pytest.raises(ResultBundleError, match=r"stage 2 selected_model_n_episodes records 30"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-
-
-def test_a_task_success_pass_needs_a_certified_checkpoint_to_bind_to(tmp_path: Path, stable_provenance: None) -> None:
-    """Defence in depth beside the schema: no certified hash means nothing the evidence can be bound to."""
-    from environments.shared.result_bundle.evidence import _validate_task_success_evidence
-
-    run_dir = tmp_path / "run"
-    _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_leaf_stage(run_dir, min_success_lcb=0.1)
-    curriculum = {"gate_kind": "task_success/v1", "min_success_lcb": 0.1, "min_eval_episodes": 3}
-    with pytest.raises(ResultBundleError, match=r"stage 2 records no certified selected checkpoint"):
-        _validate_task_success_evidence(
-            run_dir / "stage2" / "evaluation_selected.csv",
-            curriculum,
-            selected_aggregates={"reward": 1.0, "episode_length": 1.0},
-            certified_hash=None,
-            stage=2,
-        )
-
-
-def test_a_recorded_task_success_lcb_must_match_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
-    run_dir = tmp_path / "run"
-    summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_leaf_stage(run_dir, min_success_lcb=0.1)
-
-    summary["stages"]["2"]["selected_model_success_lcb"] = _FIXTURE_LCB
-    validate_evaluation_evidence(run_dir, summary, provenance)
-
-    summary["stages"]["2"]["selected_model_success_lcb"] = 0.9
-    with pytest.raises(ResultBundleError, match=r"stage 2 selected_model_success_lcb differs"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
 
 
 # ── stance_quality/v2 (decision D-D23) ───────────────────────────────────────

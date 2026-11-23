@@ -81,41 +81,22 @@ class TestCallbackMethodsMocked:
         assert "Stage 1 locomotion: forward_velocity=1.500, total_distance=10.000, cost_of_transport=0.300" in messages
         assert "Stage 1 terminations (1 eps): fall=1, timeout=3" in messages
 
-    def test_success_samples_are_na_when_stage_has_no_success_gate(self):
+    def test_no_success_sample_reaches_the_manager(self):
+        """No gate kind consumes task success since decision D-D59, so neither eval's success flags are passed on."""
         cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_forward_velocities = [[1.0]]
         cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.0)
+        cb.curriculum_manager.current_threshold = StageThreshold()
+        cb.curriculum_manager.should_advance.return_value = False
+        cb._read_latest_eval = MagicMock(return_value=([100.0], [1000.0], [1.0], 1))
+        cb._run_supplementary_eval = MagicMock(return_value=([1.0], [1.0], []))
+        cb._log_locomotion_metrics = MagicMock()
 
-        result = cb._success_rates_for_stage([1.0, 0.0], [1.0])
+        assert cb._on_step_with_eval_callback() is True
 
-        assert result is None
-
-    def test_task_success_stage_gates_on_the_sample_without_a_rate_floor(self):
-        """task_success/v1 consumes no min_success_rate; the kind alone selects the sample."""
-        cb = object.__new__(CurriculumCallback)
-        cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(gate_kind="task_success/v1", min_success_rate=0.0)
-
-        assert cb._success_rates_for_stage([1.0, 0.0], [1.0]) == [1.0, 0.0]
-        assert cb._success_rates_for_stage(None, [1.0, 0.0]) == [1.0, 0.0]
-
-    def test_success_gate_prefers_full_eval_samples(self):
-        cb = object.__new__(CurriculumCallback)
-        cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.5)
-
-        result = cb._success_rates_for_stage([0.0, 0.0], [1.0])
-
-        assert result == [0.0, 0.0]
-
-    def test_success_gate_falls_back_to_supplementary_samples(self):
-        cb = object.__new__(CurriculumCallback)
-        cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.5)
-
-        result = cb._success_rates_for_stage(None, [1.0, 0.0])
-
-        assert result == [1.0, 0.0]
+        assert cb.curriculum_manager.should_advance.call_args.args[3] is None
+        assert not hasattr(CurriculumCallback, "_success_rates_for_stage")
 
     def test_forward_velocity_gate_prefers_main_eval_sample(self):
         cb = object.__new__(CurriculumCallback)

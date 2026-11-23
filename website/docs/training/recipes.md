@@ -676,4 +676,4 @@ or beside the variant under the same log base.
   `gate_sha256`, decision D-A22), but the deliverable's summary does not
   surface it yet. The hunt deliverable was the exception, exporting its
   `task_success/v1` bound into the stage row, until decision D-D59 removed
-  the hunt.
+  the hunt and, with it, that gate kind and its export.

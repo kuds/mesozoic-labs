@@ -1804,14 +1804,16 @@ robustness, **LOW** = cosmetic / QoL.
   stance report, its probes and publication fall back to
   `DEFAULT_MIN_EVAL_EPISODES_STANCE` = 40 (`curriculum/stance_gate.py:142`,
   `reporting/stage_artifacts.py:239,629`, `result_bundle/evidence.py:511`).
-  The gate schema requires `min_eval_episodes` for `task_success/v1` only
-  (`curriculum/gate_schema.py:148-179`), so nothing stops a new
+  The gate schema requires `min_eval_episodes` of the floor-truth stance
+  kinds (`stance_quality/v2` and the six-heading certificate) but not of
+  `stance_quality/v1` (`task_success/v1`, which also required it, was
+  removed with the hunt nodes, decision D-D59), so nothing stops a new
   `stance_quality/v1` TOML from leaving it out; the three that exist (the
   T-Rex's and both Compsognathus models' `stance.toml`) set 40, so it is latent. #519 named both
   values and kept them apart on purpose, because unifying them would change
   which panels the SB3 manager certifies (gap review DU4, part 2 not applied).
   Fix: require `min_eval_episodes` for `stance_quality/v1` in the gate schema,
-  as `task_success/v1` does (the three stance TOMLs already set it), or unify
+  as the floor-truth kinds do (the three stance TOMLs already set it), or unify
   the two fallbacks. No cleanup PR owns it. (2026-08 gap review DU4)
 
 ## Infrastructure

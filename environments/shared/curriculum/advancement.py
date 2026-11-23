@@ -19,7 +19,6 @@ from .manager import CurriculumManager
 from .sb3_compat import BaseCallback
 from .schedules import ENT_COEF_WARMUP_MARKER, _ConstantSchedule
 from .stance_gate import STANCE_GATE_KIND, StancePanel, stance_panel_from_episode_duties
-from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 if TYPE_CHECKING:  # pragma: no cover - typing only; SB3 stays an optional runtime import
     import torch
@@ -97,25 +96,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self.ready_to_advance = False
         self._last_eval_step = 0
         self._last_seen_n_evals = 0
-
-    def _success_rates_for_stage(
-        self,
-        preferred: list[float] | None,
-        fallback: list[float] | None,
-    ) -> list[float] | None:
-        """Select success samples only when the current stage gates on them.
-
-        A ``task_success/v1`` stage gates on them by kind (its bar is
-        ``min_success_lcb``, and ``min_success_rate`` is not a key it
-        consumes); every other kind only when a positive success-rate floor
-        is declared.  Incidental target contacts in balance/locomotion are
-        not stage success.
-        """
-
-        threshold = self.curriculum_manager.current_threshold
-        if threshold.gate_kind != TASK_SUCCESS_GATE_KIND and threshold.min_success_rate <= 0.0:
-            return None
-        return preferred if preferred else fallback
 
     def _forward_velocities_for_eval(
         self,
@@ -336,22 +316,21 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
     def _on_step_with_eval_callback(self) -> bool:
         """Advancement check using EvalCallback results + supplementary eval."""
-        rewards, lengths, npz_successes, n_evals = self._read_latest_eval()
+        rewards, lengths, _successes, n_evals = self._read_latest_eval()
         if rewards is None:
             return True  # EvalCallback hasn't produced new results yet
 
         # Run supplementary eval for forward_vel / locomotion metrics
-        forward_vels, success_flags, episode_reports = self._run_supplementary_eval()
+        forward_vels, _success_flags, episode_reports = self._run_supplementary_eval()
         self._log_locomotion_metrics(episode_reports)
 
         fwd_vel_arg = self._forward_velocities_for_eval(n_evals, forward_vels or None)
-        # Prefer the EvalCallback's per-episode successes (full
-        # n_eval_episodes sample) over the small supplementary eval, but only
-        # when task success is an active gate for this stage.  Incidental
-        # target contacts in balance/locomotion are not stage success.
-        success_arg = self._success_rates_for_stage(npz_successes, success_flags or None)
+        # No success sample reaches the manager: no gate kind consumes task
+        # success since decision D-D59 removed task_success/v1 and
+        # min_success_rate with the hunt nodes, and an incidental contact in
+        # balance or locomotion is not stage success.
         stance_panel = self._stance_panel_for_eval(n_evals, rewards, lengths)
-        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg, stance_panel):
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, None, stance_panel):
             self.ready_to_advance = True
             logger.info(
                 "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",
@@ -435,7 +414,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self._log_locomotion_metrics(episode_reports)
 
         fwd_vel_arg = forward_vels if forward_vels else None
-        success_arg = self._success_rates_for_stage(None, success_flags or None)
         stance_panel = None
         if self.curriculum_manager.current_threshold.gate_kind == STANCE_GATE_KIND:
             stance_panel = stance_panel_from_episode_duties(
@@ -444,7 +422,8 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 episode_rewards=rewards,
                 horizon=self._eval_horizon(),
             )
-        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg, stance_panel):
+        # No success sample, as in _on_step_with_eval_callback: no gate kind consumes it (decision D-D59).
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, None, stance_panel):
             self.ready_to_advance = True
             logger.info(
                 "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",

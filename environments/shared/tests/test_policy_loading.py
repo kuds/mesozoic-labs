@@ -617,7 +617,8 @@ def test_the_known_load_sites_call_the_loader():
     expected = {
         "environments/shared/train_base.py": 3,
         "environments/shared/evaluation.py": 1,
-        "environments/shared/reporting/stage_artifacts.py": 5,
+        # Four since the task_success/v1 evidence roll left with the gate (decision D-D59).
+        "environments/shared/reporting/stage_artifacts.py": 4,
         "environments/shared/harnesses/freeze_recovery_gate.py": 1,
         "environments/shared/scripts/widen_checkpoint.py": 1,
         "environments/shared/behavior_checkpoint.py": 1,
@@ -673,7 +674,7 @@ CALL_TIME_READS = {
         "_PERIODIC_CHECKPOINT_RE": 1,
     },
     "environments/shared/evaluation.py": {"_ensure_sb3": 2, "_resolve_vecnorm_sidecar": 1},
-    "environments/shared/reporting/stage_artifacts.py": {"_ensure_sb3": 2},
+    "environments/shared/reporting/stage_artifacts.py": {"_ensure_sb3": 1},
     "environments/shared/cli.py": {"_PERIODIC_CHECKPOINT_RE": 1},
     # The SB3 notebook RESUME cell's periodic-pair walk (cleanup CU-6), which replaced the cell's own pattern.
     "environments/shared/curriculum/checkpoints.py": {"_PERIODIC_CHECKPOINT_RE": 1},
@@ -953,7 +954,7 @@ class _Reached(BaseException):
 
 
 def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]]:
-    """The nine library callers of ``_ensure_sb3``, each called just far enough to reach it."""
+    """The eight library callers of ``_ensure_sb3``, each called just far enough to reach it."""
     from environments.shared import evaluation, task_fingerprint, train_base
     from environments.shared.config import load_all_stages
     from environments.shared.reporting import stage_artifacts
@@ -966,7 +967,6 @@ def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]
     models.mkdir()
     (models / "robust_best_model.zip").write_bytes(b"weights")
     (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
-    task_success = {"env_kwargs": {}, "curriculum_kwargs": {"gate_kind": "task_success/v1", "min_eval_episodes": 30}}
     return {
         "make_env": lambda: train_base.make_env(species_cfg, {}, 1, 0),
         "create_vec_env": lambda: train_base.create_vec_env(species_cfg, {}, 1, 1),
@@ -985,14 +985,6 @@ def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]
         "train_curriculum": lambda: train_base.train_curriculum(species_cfg, {}),
         "record_stage_video": lambda: evaluation.record_stage_video(None, object, {}, 1, tmp_path),
         "evaluate": lambda: evaluation.evaluate(species_cfg, {1: {"env_kwargs": {}}}, str(tmp_path / "m.zip")),
-        "_write_task_success_evidence": lambda: stage_artifacts._write_task_success_evidence(
-            species_cfg=species_cfg,
-            stage=3,
-            stage_config=task_success,
-            stage_dir=tmp_path,
-            model_dir=models,
-            algorithm="ppo",
-        ),
         "_record_stage_replays": lambda: stage_artifacts._record_stage_replays(
             species_cfg=species_cfg,
             stage_config={"env_kwargs": {}},
@@ -1018,7 +1010,6 @@ def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]
         "train_curriculum",
         "record_stage_video",
         "evaluate",
-        "_write_task_success_evidence",
         "_record_stage_replays",
     ],
 )
@@ -1029,11 +1020,10 @@ def test_one_patch_of_ensure_sb3_reaches_every_caller(caller, monkeypatch, tmp_p
     With SB3 installed, a caller whose own lookup went elsewhere (the
     ``train_base`` alias, say) gets the real classes and carries on, and could
     reach the spy through a caller further down (``create_vec_env`` through
-    ``make_env``, ``train`` and ``_write_task_success_evidence`` through
-    ``create_vec_env``).
+    ``make_env``, ``train`` through ``create_vec_env``).
     """
     callers = _ensure_sb3_callers(monkeypatch, tmp_path)
-    assert len(callers) == 9
+    assert len(callers) == 8
 
     def reached():
         raise _Reached(sys._getframe(1).f_code.co_name)

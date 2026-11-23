@@ -103,15 +103,6 @@ _PERSISTED_STAGE_RESULT_KEYS = (
     "best_model_std_fwd_vel",
     "best_model_distance",
     "best_model_success_rate",
-    # task_success/v1 (plan §4.4): the count, panel size and bound the
-    # verdict was judged on, copied by _apply_stage_gate from the evidence
-    # — and, for the CLI curriculum's in-training verdict, the manager's
-    # LAST EvalCallback panel count under its own names (D-B12 amendment).
-    "best_model_success_count",
-    "best_model_n_episodes",
-    "best_model_success_lcb",
-    "success_count",
-    "n_success_samples",
     # stance_quality/v2 (decision D-D23): the clean count, panel size,
     # clean fraction and bound the floor-truth verdict was re-derived on, and
     # the statue panel's full-horizon mean reward its statue-relative rail

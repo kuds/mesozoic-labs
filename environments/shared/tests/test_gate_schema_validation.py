@@ -68,7 +68,14 @@ class TestBackendOverrideTable:
 
     def test_overriding_a_field_the_kind_does_not_consume_is_fatal(self):
         with pytest.raises(GateSchemaError, match="does not consume"):
-            _validate(dict(_STANCE, jax={"min_success_rate": 0.5}))
+            _validate(dict(_STANCE, jax={"min_avg_forward_vel": 0.5}))
+
+    def test_a_retired_key_inside_the_override_table_names_its_decision(self):
+        """min_success_rate left with the hunt nodes (decision D-D59), in the override table as at the top level."""
+        with pytest.raises(
+            GateSchemaError, match=r"'min_success_rate' was removed with the hunt nodes \(decision D-D59\)"
+        ):
+            _validate(dict(_GATE, min_avg_reward=100.0, jax={"min_success_rate": 0.5}))
 
     def test_non_numeric_and_non_table_overrides_are_fatal(self):
         with pytest.raises(GateSchemaError, match="finite numbers"):

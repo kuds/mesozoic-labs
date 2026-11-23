@@ -507,11 +507,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "recovery_t_recover_steps": None,
         "recovery_dwell_steps": None,
     }
-    # task_success/v1's bar (plan §4.4) is exported on every stage row and
-    # is null wherever the kind is not declared — every committed stage since
-    # decision D-D59 removed the trex hunt, the kind's only user.
-    task_success_null: dict[str, float | None] = {"min_success_lcb": None}
-
     stage_one_gate_kind = {
         # The six-heading certificate since D-D32 (v2's block judged at six whole-scene headings).
         TYRANNOSAURUS_REX: "stance_quality_heading/v1",
@@ -569,7 +564,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 "min_avg_reward": None,
                 "min_avg_episode_length": None,
                 "min_avg_forward_velocity": None,
-                "min_success_rate": None,
                 "min_eval_episodes": 40,
                 "required_consecutive": 3,
                 "min_recovery_success_lcb": 0.5,
@@ -577,7 +571,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 "recovery_t_recover_steps": 40,
                 "recovery_dwell_steps": 20,
                 **stance_null,
-                **task_success_null,
             }
             continue
         # Gates are addressed by LEGACY number, not by list position: the
@@ -593,12 +586,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "min_avg_reward": stage_one_min_avg_reward[model_id],
             "min_avg_episode_length": stage_one_length[model_id],
             "min_avg_forward_velocity": None,
-            "min_success_rate": None,
             "min_eval_episodes": stage_one_eval_episodes[model_id],
             "required_consecutive": 3,
             **stage_one_stance[model_id],
             **recovery_null,
-            **task_success_null,
         }
         # Stage 2 stays on reward_and_length/v1, so its stance fields export as
         # nulls.
@@ -608,12 +599,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "min_avg_reward": 100.0,
             "min_avg_episode_length": 750,
             "min_avg_forward_velocity": None,
-            "min_success_rate": None,
             "min_eval_episodes": 10,
             "required_consecutive": 3,
             **stance_null,
             **recovery_null,
-            **task_success_null,
         }
 
     # The recovery stage exports its frozen recovery_quality/v1 gate (P5,
@@ -633,7 +622,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "min_avg_reward": None,
         "min_avg_episode_length": None,
         "min_avg_forward_velocity": None,
-        "min_success_rate": None,
         "min_eval_episodes": 40,
         "required_consecutive": 3,
         "min_recovery_success_lcb": 0.30,
@@ -641,7 +629,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "recovery_t_recover_steps": 100,
         "recovery_dwell_steps": 50,
         **stance_null,
-        **task_success_null,
     }
     assert tyrannosaurus_rex_recovery["video"] is None
 
@@ -658,11 +645,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     assert _gate(VELOCIRAPTOR_MONGOLIENSIS, 2)["min_avg_forward_velocity"] == 2.1
     assert _gate(TYRANNOSAURUS_REX, 2)["min_avg_forward_velocity"] == 1.0
     assert _gate(BRACHIOSAURUS_ALTITHORAX, 2)["min_avg_forward_velocity"] == 0.75
-    # No committed stage declares a success-rate floor or bound since decision D-D59 removed the hunt stages.
+    # The success-rate floor and the task-success bound left the export with the gate (decision D-D59).
     for entry in models.values():
         for stage in entry["stages"]:
-            assert stage["advancement_gate"]["min_success_rate"] in (None, 0, 0.0), stage["id"]
-            assert stage["advancement_gate"]["min_success_lcb"] is None, stage["id"]
+            assert not {"min_success_rate", "min_success_lcb"} & set(stage["advancement_gate"]), stage["id"]
 
 
 def test_catalog_scopes_success_semantics_to_training_backends() -> None:
@@ -1072,7 +1058,7 @@ def test_default_paths_are_inside_repository() -> None:
 
 def test_current_gate_kinds_follow_the_manifest() -> None:
     # The trex hunt, the one stage on task_success/v1 (plan §4.4, WS-B2), left
-    # with every other hunt by decision D-D59.
+    # with every other hunt by decision D-D59, and the kind with it.
     assert current_gate_kinds(TYRANNOSAURUS_REX) == {
         "stance": "stance_quality_heading/v1",
         "recovery": "recovery_quality/v1",
@@ -1515,46 +1501,27 @@ def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -
         (
             "reward_and_length/v1",
             {"avg_forward_vel": 3.47, "mean_success_rate": None},
-            {"min_avg_forward_velocity": 1.0, "min_success_rate": None},
+            {"min_avg_forward_velocity": 1.0},
             [("avg_forward_vel", 3.47, "m/s")],
         ),
-        (
-            "reward_and_length/v1",
-            {"avg_forward_vel": 0.71, "mean_success_rate": 0.9333},
-            {"min_avg_forward_velocity": None, "min_success_rate": 0.5},
-            [("mean_success_rate", 0.9333, "percent")],
-        ),
+        # A success rate is never a headline: the success floor left with the hunt nodes (decision D-D59).
         (
             "reward_and_length/v1",
             {"avg_forward_vel": 1.68, "mean_success_rate": 0.9667},
-            {"min_avg_forward_velocity": 2.0, "min_success_rate": 0.5},
-            [("avg_forward_vel", 1.68, "m/s"), ("mean_success_rate", 0.9667, "percent")],
+            {"min_avg_forward_velocity": 2.0},
+            [("avg_forward_vel", 1.68, "m/s")],
         ),
-        # A reward-only rail headlines nothing: neither floor is declared.
+        # A reward-only rail headlines nothing: no floor is declared.
         ("reward_and_length/v1", {"avg_forward_vel": 0.02}, {"min_avg_reward": 1050.0}, []),
-        # task_success/v1 (plan §4.4): the bound the gate certifies, then
-        # the raw selected-checkpoint rate it bounds; nulls until recorded.
-        (
-            "task_success/v1",
-            {"selected_model_success_lcb": 0.5006, "selected_model_success_rate": 0.6667},
-            {"min_success_lcb": 0.5},
-            [("selected_model_success_lcb", 0.5006, "ratio"), ("selected_model_success_rate", 0.6667, "percent")],
-        ),
-        (
-            "task_success/v1",
-            {"mean_success_rate": 0.9667},
-            {"min_success_lcb": 0.5},
-            [("selected_model_success_lcb", None, "ratio"), ("selected_model_success_rate", None, "percent")],
-        ),
         (
             "stance_quality/v2",
             {"mean_success_rate": 1.0},
             {"min_clean_stance_lcb": 0.8},
             [("stance_clean_lcb", None, "ratio"), ("stance_clean_fraction", None, "percent")],
         ),
-        ("none/v1", {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
+        ("none/v1", {"mean_success_rate": 1.0}, {}, []),
         # Unrecorded gate kind: nothing measured, nothing headlined.
-        (None, {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
+        (None, {"mean_success_rate": 1.0}, {}, []),
     ],
 )
 def test_headline_metric_by_gate_kind(
@@ -1567,9 +1534,8 @@ def test_headline_metric_by_gate_kind(
 
     Stance and recovery name their statistics with null values in Phase A
     (D-A9) and carry the value through as soon as the summary stage records
-    it; reward_and_length headlines velocity and/or success according
-    to which floors the current gate declares; none/v1 and an unrecorded
-    kind headline nothing.
+    it; reward_and_length headlines velocity when the current gate declares
+    its floor; none/v1 and an unrecorded kind headline nothing.
     """
     headline = _deliverable_headline(gate_kind, stage_row, current_gate)
     assert [(metric["key"], metric["value"], metric["unit"]) for metric in headline] == expected
@@ -1580,6 +1546,14 @@ def test_unknown_gate_kind_has_no_headline_and_is_fatal() -> None:
     """A kind the registry does not know is a catalog failure that names the registry."""
     with pytest.raises(CatalogError, match="_HEADLINE_BY_GATE_KIND"):
         _deliverable_headline("tracking_quality/v1", {}, {})
+
+
+def test_a_deliverable_certified_under_the_retired_task_success_gate_is_fatal_naming_the_decision() -> None:
+    """task_success/v1 left with the hunt nodes (decision D-D59): its headline went too, and the refusal says why."""
+    with pytest.raises(
+        CatalogError, match=r"gate_kind 'task_success/v1' was removed with the hunt nodes \(decision D-D59\)"
+    ):
+        _deliverable_headline("task_success/v1", {"selected_model_success_lcb": 0.5006}, {})
 
 
 def test_a_stance_v2_stage_exports_and_renders_its_own_criteria() -> None:
@@ -2297,14 +2271,14 @@ def test_website_gate_formatter_mirrors_python() -> None:
 
     Both renderers are pinned against one phrase list, so a criterion added
     to one and not the other fails here whichever side moved.  The branch
-    order pin (none/v1, then recovery_quality/v1, then task_success/v1, then
-    stance_quality/v2, then the six-heading certificate, then the generic
-    path) keeps the frozen-verdict
-    sentence on the recovery row, the evidence-CSV sentence on the hunting
-    row, the floor-truth report sentence on the v2 stance row, and the
-    consecutive-passes tail off all three, on both sides.  The task_success
-    and stance_quality/v2 rails are rendered as "reward rail" so the generic
-    path's "reward ≥ " stays unique to it.
+    order pin (none/v1, then recovery_quality/v1, then stance_quality/v2,
+    then the six-heading certificate, then the generic path) keeps the
+    frozen-verdict sentence on the recovery row, the floor-truth report
+    sentence on the v2 stance row, and the consecutive-passes tail off all
+    three, on both sides.  The stance_quality/v2 rails are rendered as
+    "reward rail" so the generic path's "reward ≥ " stays unique to it.
+    task_success/v1's branch and the generic path's success-rate criterion
+    left with the gate and min_success_rate (decision D-D59), on both sides.
     """
     python_source = (REPOSITORY_ROOT / "environments/shared/species_catalog.py").read_text(encoding="utf-8")
     python_body = python_source.split("def _format_advancement_gate(", 1)[1].split("\ndef ", 1)[0]
@@ -2319,9 +2293,7 @@ def test_website_gate_formatter_mirrors_python() -> None:
         "re-entry ≤ ",
         "-step dwell",
         "verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)",
-        "task success LCB95 ≥ ",
         "reward rail ≥ ",
-        "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
         "clean stance episodes LCB95 ≥ ",
         " over ≥ ",
         "episodes (settle ",
@@ -2338,7 +2310,6 @@ def test_website_gate_formatter_mirrors_python() -> None:
         "episode length ≥ ",
         "avg. velocity ≥ ",
         " m/s",
-        "task success ≥ ",
         "full-horizon episodes ≥ ",
         "unsupported duty ≤ ",
         "unsupported duty 95% upper bound ≤ ",
@@ -2352,15 +2323,16 @@ def test_website_gate_formatter_mirrors_python() -> None:
     assert {phrase: sides for phrase, sides in missing.items() if sides} == {}
 
     for body in (python_body, tsx_body):
+        for retired in ("task_success/v1", "task success", "min_success_rate", "minSuccessRate"):
+            assert retired not in body, retired
         none_branch = body.index("none/v1")
         recovery_branch = body.index("recovery_quality/v1")
-        task_success_branch = body.index("task_success/v1")
         stance_v2_branch = body.index("stance_quality/v2")
         heading_branch = body.index("stance_quality_heading/v1")
         # Anchored on a phrase ONLY the generic path emits: "reward ≥ " would
         # resolve inside a branch that rendered its rail with the same words.
         generic_path = body.index("avg. velocity ≥ ")
-        assert none_branch < recovery_branch < task_success_branch < stance_v2_branch < heading_branch < generic_path
+        assert none_branch < recovery_branch < stance_v2_branch < heading_branch < generic_path
         # The certificate's sentences belong to its own branch.
         assert heading_branch < body.index("seeds clean at all six headings") < generic_path
         assert heading_branch < body.index("verdict from the six-heading stance_heading_report.json") < generic_path
@@ -2369,11 +2341,12 @@ def test_website_gate_formatter_mirrors_python() -> None:
         assert stance_v2_branch < body.index("verdict from the floor-truth stance_gate_report.json") < generic_path
         # The consecutive-passes tail belongs to the generic path only.
         assert body.index(" consecutive passes") > generic_path
-        assert body.index("verdict from the frozen gate_resolution.json") < task_success_branch
-        assert task_success_branch < body.index("verdict from the selected checkpoint") < generic_path
-        # The hunting rail is "reward rail ≥ "; the plain criterion is generic.
-        assert task_success_branch < body.index("reward rail ≥ ") < generic_path
-        assert body.index("reward ≥ ") > body.index("reward rail ≥ ")
+        assert body.index("verdict from the frozen gate_resolution.json") < stance_v2_branch
+        # The floor-truth rail is "reward rail ≥ "; the plain criterion is generic, rendered after every rail
+        # (comments, which name the phrase to explain the rule, are not renderings).
+        assert stance_v2_branch < body.index("reward rail ≥ ") < generic_path
+        code = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith(("#", "//")))
+        assert code.index("reward ≥ ") > code.rindex("reward rail ≥ ")
 
 
 def test_website_stance_criteria_follow_the_gate() -> None:

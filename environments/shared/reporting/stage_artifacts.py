@@ -13,7 +13,6 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
-from ..constants import PUBLICATION_SEED_START
 from ..curriculum.checkpoints import select_handoff_checkpoint
 from ..curriculum.stance_gate import DEFAULT_MIN_EVAL_EPISODES_STANCE
 from ..model_id import ModelId
@@ -501,198 +500,6 @@ def _write_stance_heading_certificate(
             stage,
             exc_info=True,
         )
-    return None
-
-
-def _write_task_success_evidence(
-    *,
-    species_cfg: Any,
-    stage: int,
-    stage_config: dict[str, Any],
-    stage_dir: Path,
-    model_dir: Path,
-    algorithm: str,
-    allow_legacy_plant: bool = False,
-) -> "Path | None":
-    """Make sure a ``task_success/v1`` stage holds the evidence its gate is judged on.
-
-    The verdict for this kind comes ONLY from ``evaluation_selected.csv`` —
-    the selected checkpoint's per-episode task successes, hash-bound to the
-    handoff pair — and the notebook writes that file itself
-    (``evaluate_stage_checkpoints``).  A caller that rolled no bound panel
-    would otherwise record a FAILED verdict for want of evidence (decision
-    D-B12).  This is the stance treatment (:func:`_write_stance_gate_report`):
-    for every SB3 run, when the file is absent or is not
-    bound to the handoff ``select_handoff_checkpoint`` picks NOW, roll
-    ``min_eval_episodes`` episodes from that pair on the publication seed
-    and write it through ``csv_output.save_evaluation_episodes``.  A file
-    already bound to the handoff (the trainer's post-training panel wrote
-    it) is kept, so the on-disk verdict and the count ``metrics.json``
-    records agree by construction — "bound" meaning the checkpoint digest
-    AND, when the rows record one, the VecNormalize sidecar digest (the
-    judge refuses a panel rolled under other observation statistics), and
-    the file must hold at least ``min_eval_episodes`` rows: a smaller
-    trainer panel would leave the stage unjudgeable where a fresh roll
-    makes it judgeable.
-
-    ``task_success_panel_episodes`` in ``[curriculum]`` overrides the panel
-    size (``0`` skips the roll; a smaller panel is warned about, since the
-    bound's power is specified at ``min_eval_episodes`` and the judge then
-    refuses it by its own n).  Non-fatal to artifact generation, like the
-    stance report: a failed roll leaves no file, and the judge refuses.
-
-    Returns the evidence path, or ``None`` when nothing was written.
-    """
-    from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND, read_task_successes
-
-    curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") != TASK_SUCCESS_GATE_KIND:
-        return None
-    handoff = select_handoff_checkpoint(model_dir)
-    if handoff is None:
-        logger.warning(
-            "Task-success evidence skipped for stage %s: no checkpoint in %s has its matched _vecnorm.pkl, "
-            "and rolling without the observation statistics would record evidence for a different policy.",
-            stage,
-            model_dir,
-        )
-        return None
-    selected_name, selected_path, selected_vecnorm = handoff
-    selected_zip = Path(f"{selected_path}.zip")
-    declared = curriculum.get("min_eval_episodes")
-    declared_episodes = None if declared is None else int(declared)
-    evidence_path = stage_dir / "evaluation_selected.csv"
-    if evidence_path.is_file():
-        from ..result_bundle.hashing import sha256_file
-
-        try:
-            recorded = read_task_successes(evidence_path)
-        except (OSError, ValueError):
-            recorded = None
-        bound = (
-            recorded is not None
-            and recorded.checkpoint_sha256 == sha256_file(selected_zip)
-            and (
-                recorded.normalization_sha256 is None or recorded.normalization_sha256 == sha256_file(selected_vecnorm)
-            )
-        )
-        if (
-            bound
-            and recorded is not None
-            and declared_episodes is not None
-            and len(recorded.successes) < declared_episodes
-        ):
-            logger.warning(
-                "Stage %s %s is bound to the handoff %s but holds %d episodes, fewer than min_eval_episodes %d; "
-                "re-rolling the selected panel at the declared size so the stage can be judged.",
-                stage,
-                evidence_path.name,
-                selected_name,
-                len(recorded.successes),
-                declared_episodes,
-            )
-        elif bound:
-            logger.info(
-                "Task-success evidence for stage %s already bound to %s: %s", stage, selected_name, evidence_path
-            )
-            return evidence_path
-        else:
-            logger.warning(
-                "Stage %s %s is not bound to the handoff %s; re-rolling the selected panel so the verdict "
-                "describes the checkpoint it certifies.",
-                stage,
-                evidence_path.name,
-                selected_name,
-            )
-
-    if declared_episodes is None:
-        logger.warning("Task-success evidence skipped for stage %s: no min_eval_episodes declared", stage)
-        return None
-    panel_episodes = curriculum.get("task_success_panel_episodes")
-    panel_episodes = declared_episodes if panel_episodes is None else int(panel_episodes)
-    if panel_episodes < 1:
-        logger.info(
-            "Task-success evidence skipped for stage %s: task_success_panel_episodes = %d", stage, panel_episodes
-        )
-        return None
-    if panel_episodes != declared_episodes:
-        logger.warning(
-            "Task-success evidence for stage %s rolls %d episodes, not the stage's min_eval_episodes %d. "
-            "The bound's power is specified at the latter; this panel does not certify what the gate claims.",
-            stage,
-            panel_episodes,
-            declared_episodes,
-        )
-
-    try:
-        from ..curriculum import load_vecnorm_stats
-        from ..evaluation import eval_policy
-        from ..plant_contract import current_plant_identity, validate_model_plant
-        from ..policy_loading import _ensure_sb3
-        from ..train_base import create_vec_env
-
-        sb3 = _ensure_sb3()
-        alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-        plant_identity = current_plant_identity(species_cfg.model_id)
-        algo_kwargs = stage_config.get(f"{algorithm}_kwargs", {})
-        eval_env = create_vec_env(
-            species_cfg,
-            {stage: stage_config},
-            stage,
-            1,
-            PUBLICATION_SEED_START,
-            algorithm=algorithm,
-            gamma=algo_kwargs.get("gamma"),
-            plant_identity=plant_identity,
-        )
-        try:
-            # seed=None: a seeded archive would re-seed eval_env with its TRAINING seed on
-            # load, and the rows below record PUBLICATION_SEED_START.
-            model = load_sb3_model(selected_path, algorithm=alg_cls, env=eval_env, seed=None)
-            validate_model_plant(model, plant_identity, artifact=str(selected_zip), allow_legacy=allow_legacy_plant)
-            load_vecnorm_stats(
-                selected_vecnorm,
-                eval_env,
-                current_plant=plant_identity,
-                allow_legacy_plant=allow_legacy_plant,
-            )
-            eval_env.training = False
-            eval_env.norm_reward = False
-            logger.info(
-                "Task-success evidence rolling stage %s checkpoint %s (%d episodes)",
-                stage,
-                selected_name,
-                panel_episodes,
-            )
-            rewards, lengths, fwd_vels, successes, distances = eval_policy(
-                model,
-                eval_env,
-                species_cfg.success_keys,
-                n_episodes=panel_episodes,
-            )
-        finally:
-            eval_env.close()
-        written = csv_output.save_evaluation_episodes(
-            stage_dir,
-            rewards=rewards,
-            lengths=lengths,
-            forward_velocities=fwd_vels,
-            distances=distances,
-            successes=successes,
-            evaluation_seed=PUBLICATION_SEED_START,
-            checkpoint_label="selected",
-            checkpoint_path=selected_zip,
-            normalization_path=selected_vecnorm,
-        )
-        logger.info(
-            "Task-success evidence: %d/%d episodes succeeded -> %s",
-            sum(1 for success in successes if success),
-            len(successes),
-            written,
-        )
-        return written
-    except Exception:  # noqa: BLE001 - evidence rolling must not sink the run; the judge refuses without it
-        logger.warning("Task-success evidence could not be rolled for stage %s", stage, exc_info=True)
     return None
 
 
@@ -1536,34 +1343,6 @@ def _apply_stage_gate(
         logger.warning("Stage %s curriculum gate could not be evaluated", stage, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
     curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") == "task_success/v1" and stage_dir is not None:
-        # The numbers the verdict was judged on travel with it: the count,
-        # the panel size and the bound go onto stage_results, hence into
-        # gate_verdict.json's stage_result and the summary's stage row
-        # (selected_model_success_count / _n_episodes / _success_lcb) —
-        # and the same panel's mean reward / length, which the rail and
-        # the length floor were judged on, so the verdict describes one
-        # panel rather than a bound from the CSV beside a best_eval_reward
-        # from the argmax EvalCallback panel.  Read through the same
-        # binding the judge used; absent evidence copies nothing, and the
-        # verdict above already says why.
-        try:
-            from .gates import task_success_statistics
-
-            stats, _ = task_success_statistics(Path(stage_dir))
-        except Exception:  # noqa: BLE001 - a copy of the numbers must never cost the artifacts
-            logger.warning("Stage %s task-success statistics could not be read", stage, exc_info=True)
-            stats = None
-        if stats:
-            for key in (
-                "best_model_success_count",
-                "best_model_n_episodes",
-                "best_model_success_lcb",
-                "best_model_reward",
-                "best_model_length",
-            ):
-                if key in stats:
-                    stage_results[key] = stats[key]
     from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 
     if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND:
@@ -1961,18 +1740,6 @@ def generate_stage_artifacts(
         stage_config=stage_config,
         stage_dir=stage_dir,
         model_dir=model_dir,
-    )
-    # A task_success/v1 stage is judged from evaluation_selected.csv; make
-    # sure the directory holds one bound to the handoff before the gate
-    # (a caller that rolled no bound panel wrote none — decision D-B12).
-    _write_task_success_evidence(
-        species_cfg=species_cfg,
-        stage=stage,
-        stage_config=stage_config,
-        stage_dir=stage_dir,
-        model_dir=model_dir,
-        algorithm=algorithm,
-        allow_legacy_plant=allow_legacy_plant,
     )
     # Before the replays and graphs below, which are best-effort and can be
     # skipped: the verdict must not depend on whether matplotlib imported.

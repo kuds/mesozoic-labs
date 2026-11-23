@@ -53,7 +53,6 @@ from .stance_heading_gate import (
     STANCE_HEADING_REQUIRED_KEYS,
     STANCE_HEADING_THRESHOLD_KEYS,
 )
-from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 #: Bumped when the meaning of an existing key changes.  Adding a new gate
 #: kind does not require a bump; changing how an existing one is evaluated
@@ -72,7 +71,6 @@ GATE_KINDS: dict[str, frozenset[str]] = {
             "min_avg_reward",
             "min_avg_episode_length",
             "min_avg_forward_vel",
-            "min_success_rate",
             "min_eval_episodes",
             "required_consecutive",
         }
@@ -141,25 +139,6 @@ GATE_KINDS: dict[str, frozenset[str]] = {
             "required_consecutive",
         }
     ),
-    # The hunting deliverable's gate (BEHAVIOR_RECIPES_PLAN §4.4): certifies
-    # the selected checkpoint's per-episode TASK success through an exact
-    # one-sided 95% binomial lower bound (recovery_gate.binomial_lcb) at a
-    # declared panel size, replacing the raw min_success_rate floor.
-    # ``min_avg_reward`` is carried as a collapse RAIL on the selected
-    # checkpoint's mean reward — never the gate, exactly the stance role —
-    # and ``min_avg_episode_length`` is optional.  ``required_consecutive``
-    # stays allowed as the in-training manager's hysteresis (decision D-B3),
-    # like every advancing kind's copy of it.  See
-    # :mod:`environments.shared.curriculum.task_success_gate`.
-    TASK_SUCCESS_GATE_KIND: frozenset(
-        {
-            "min_success_lcb",
-            "min_eval_episodes",
-            "min_avg_reward",
-            "min_avg_episode_length",
-            "required_consecutive",
-        }
-    ),
     # An explicit, recorded non-advancing mode for pilots and diagnostics.
     # Declaring it is the ONLY supported way to run a stage with no gate, and
     # it refuses to advance rather than passing by default.
@@ -212,7 +191,7 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
         }
     ),
     # The panel size and the bar (a binomial bound's power is a function of
-    # the declared n, as for task_success/v1), the settle window that splits
+    # the declared n), the settle window that splits
     # every episode, and the seven criteria every audit hack fails at least
     # one of while every statue clears all of them.  The species-specific
     # flatness and coverage keys, the statue-relative ratios and the rails
@@ -232,12 +211,6 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
             "recovery_dwell_steps",
         }
     ),
-    # The bound AND the panel size are required — min_eval_episodes is
-    # required here alone among the kinds because a binomial bound's power
-    # is a function of the declared n (20/30 clears 0.5, 19/30 does not),
-    # so a config that leaves n to a backend default is not stating the
-    # gate it claims.  min_avg_reward stays an optional rail.
-    TASK_SUCCESS_GATE_KIND: frozenset({"min_success_lcb", "min_eval_episodes"}),
     "none/v1": frozenset(),
 }
 
@@ -295,7 +268,6 @@ _DIAGNOSTIC_KEYS = frozenset(
         "diagnostics_plateau_min_relative_variation",
         "supplementary_episodes",
         "stance_report_episodes",
-        "task_success_panel_episodes",
         "baseline_warn_after_budget_fraction",
         # The posture-drift advisory (curriculum/posture_watch.py): a warning
         # line, never a stop; like the baseline warning, in no digest.
@@ -388,13 +360,75 @@ BACKEND_OVERRIDABLE_KEYS = frozenset(
         "min_avg_reward",
         "min_avg_episode_length",
         "min_avg_forward_vel",
-        "min_success_rate",
     }
 )
 
 #: Every threshold key any gate kind knows about, used to tell "belongs to a
 #: different gate kind" apart from "not a gate key at all".
 _ALL_THRESHOLD_KEYS = frozenset().union(*GATE_KINDS.values())
+
+#: Gate kinds retired by a decision: the kind, mapped to the decision that
+#: removed it and what it was removed with.  A retired kind is no alias and
+#: no longer a key of :data:`GATE_KINDS`; every gate reader refuses it naming
+#: the decision (:func:`retired_gate_declarations`), whether a stage TOML
+#: declares it (:func:`validate_gate_config`) or a frozen record does (a
+#: ``stage_config.json`` read by the in-training manager, the post-stage
+#: judge ``reporting.gates.evaluate_stage_gate``, the recorded-history
+#: reading and publication), and none of them judges such a stage on the
+#: reward conjunction instead.  ``task_success/v1`` was removed with the
+#: hunt nodes, the T. rex bite having been the only stage that declared it
+#: (decision D-D59).
+RETIRED_GATE_KINDS: dict[str, tuple[str, str]] = {
+    "task_success/v1": ("D-D59", "the hunt nodes"),
+}
+
+#: ``[curriculum]`` keys retired by a decision, refused the same way:
+#: ``min_success_rate`` (the ``reward_and_length/v1`` task-success floor,
+#: set only by hunt stages), ``min_success_lcb`` (``task_success/v1``'s bar)
+#: and ``task_success_panel_episodes`` (the size of that kind's evidence
+#: panel) went with the hunt nodes (decision D-D59).  A retired key is
+#: refused rather than ignored: a frozen record that sets one was judged on
+#: a criterion no reader evaluates any more, and dropping it would judge the
+#: stage on its remaining thresholds alone.
+RETIRED_CURRICULUM_KEYS: dict[str, tuple[str, str]] = {
+    "min_success_rate": ("D-D59", "the hunt nodes"),
+    "min_success_lcb": ("D-D59", "the hunt nodes"),
+    "task_success_panel_episodes": ("D-D59", "the hunt nodes"),
+}
+
+
+def retired_gate_declarations(curriculum: Mapping[str, Any]) -> list[str]:
+    """One refusal per retired gate kind or ``[curriculum]`` key *curriculum* declares; empty when none.
+
+    ``retired_gate_declarations({"gate_kind": "task_success/v1"})`` is
+    ``["gate_kind 'task_success/v1' was removed with the hunt nodes
+    (decision D-D59); no gate reader evaluates it, so a stage or record
+    declaring it is refused"]``, and a retired key
+    such as ``min_success_rate`` reads ``"[curriculum] key
+    'min_success_rate' was removed with the hunt nodes (decision D-D59);
+    ..."``.  The kind comes first, then the keys in sorted order; a
+    ``[curriculum.jax]`` override table is searched too.
+    """
+    messages: list[str] = []
+    kind = curriculum.get("gate_kind")
+    if isinstance(kind, str) and kind in RETIRED_GATE_KINDS:
+        decision, removed_with = RETIRED_GATE_KINDS[kind]
+        messages.append(
+            f"gate_kind {kind!r} was removed with {removed_with} (decision {decision}); no gate reader "
+            "evaluates it, so a stage or record declaring it is refused"
+        )
+    keys = set(curriculum)
+    for table in BACKEND_OVERRIDE_TABLES & keys:
+        overrides = curriculum[table]
+        if isinstance(overrides, Mapping):
+            keys |= set(overrides)
+    for key in sorted(keys & set(RETIRED_CURRICULUM_KEYS)):
+        decision, removed_with = RETIRED_CURRICULUM_KEYS[key]
+        messages.append(
+            f"[curriculum] key {key!r} was removed with {removed_with} (decision {decision}); no gate "
+            "reader evaluates it, so a stage or record setting it is refused (delete the key)"
+        )
+    return messages
 
 
 def gate_config_view(curriculum: Mapping[str, Any]) -> dict[str, Any]:
@@ -580,9 +614,16 @@ def validate_gate_config(
             declares the report-only heading probe
             (``stance_probe_spawn_yaw_deg``) beside the heading certificate,
             declares a ``warm_start_log_std`` that is not a finite number,
-            or omits the gate declaration entirely while advancement is
-            enabled.
+            declares a retired gate kind or ``[curriculum]`` key
+            (:data:`RETIRED_GATE_KINDS`, :data:`RETIRED_CURRICULUM_KEYS`;
+            the message names the decision that retired it), or omits the
+            gate declaration entirely while advancement is enabled.
     """
+    # Before the unknown-key and unknown-kind checks, so a retired name is
+    # refused with the decision that retired it rather than as a typo.
+    retired = retired_gate_declarations(curriculum_kwargs)
+    if retired:
+        raise GateSchemaError(f"{_describe(stage)}: " + "; ".join(retired) + ".")
     known = (
         _SCHEMA_KEYS
         | _SCHEDULE_KEYS

@@ -76,7 +76,6 @@ declared, default 1) and ``provisional`` (a boolean that must equal
 
 from __future__ import annotations
 
-import math
 import re
 from datetime import date, datetime
 from functools import partial
@@ -193,36 +192,6 @@ _optional_nonempty_string = partial(record_fields.optional_nonempty_string, erro
 _require_positive_int = partial(record_fields.require_positive_int, error=ResultSchemaError)
 _optional_number = partial(record_fields.optional_number, error=ResultSchemaError)
 _require_sha256 = partial(record_fields.require_sha256, error=ResultSchemaError)
-
-
-def _validate_task_success_stage_keys(raw_stage: Mapping[str, Any], *, prefix: str) -> None:
-    """Validate the optional ``selected_model_success_{lcb,count}`` / ``_n_episodes`` trio."""
-    lcb = _optional_number(
-        raw_stage.get("selected_model_success_lcb"), field=f"selected_model_success_lcb for {prefix}"
-    )
-    if lcb is not None and not 0.0 <= lcb <= 1.0:
-        raise ResultSchemaError(f"selected_model_success_lcb for {prefix} must be between 0 and 1")
-    counts: dict[str, int | None] = {}
-    for key in ("selected_model_success_count", "selected_model_n_episodes"):
-        value = raw_stage.get(key)
-        if value is None:
-            counts[key] = None
-            continue
-        if (
-            isinstance(value, bool)
-            or not isinstance(value, (int, float))
-            or not math.isfinite(float(value))
-            or float(value) != int(value)
-            or value < 0
-        ):
-            raise ResultSchemaError(f"{key} for {prefix} must be a non-negative integer or null")
-        counts[key] = int(value)
-    count = counts["selected_model_success_count"]
-    n_episodes = counts["selected_model_n_episodes"]
-    if count is not None and n_episodes is not None and count > n_episodes:
-        raise ResultSchemaError(
-            f"selected_model_success_count for {prefix} ({count}) exceeds selected_model_n_episodes ({n_episodes})"
-        )
 
 
 def _canonical_plant_identity(value: Any, *, model_id: ModelId, field: str) -> dict[str, Any]:
@@ -1566,11 +1535,6 @@ def validate_result_summary(
         )
         if selected_success_rate is not None and not 0.0 <= selected_success_rate <= 1.0:
             raise ResultSchemaError(f"selected_model_success_rate for {prefix} must be between 0 and 1")
-        # task_success/v1's judged numbers (plan §4.4): OPTIONAL keys — a
-        # canonical summary of any other kind never carries them — but when
-        # present they must be the shape the gate certifies: a bound in
-        # [0, 1], and a non-negative integer count no larger than its panel.
-        _validate_task_success_stage_keys(raw_stage, prefix=prefix)
         _optional_nonempty_string(raw_stage.get("training_time"), field=f"training_time for {prefix}")
         if not isinstance(raw_stage.get("stage_passed"), bool):
             raise ResultSchemaError(f"stage_passed for {prefix} must be a boolean")

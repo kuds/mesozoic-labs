@@ -71,12 +71,11 @@ RUN_SHAPE = (
     "ppo.n_epochs=1",
 )
 # Every reward_and_length/v1 criterion opened: 0.0 disables the forward-velocity
-# and success-rate criteria, and no panel reward is below the rail.
+# criterion, and no panel reward is below the rail.
 OPEN_GATES = (
     "curriculum.min_avg_reward=-1000000000",
     "curriculum.min_avg_episode_length=0",
     "curriculum.min_avg_forward_vel=0",
-    "curriculum.min_success_rate=0",
 )
 # The compsognathus robot's stance node under stance_quality/v1 at the 32-step
 # horizon (cleanup CU-10a). Only what is sized to the TOML's 1,000-step episode

@@ -2346,6 +2346,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recovery or locomotion digest moved). A result summary with a stage-3 row
   is refused by the validator ("no stage with legacy number 3"), so an old
   hunt bundle cannot be published or promoted into `results/`.
+- **A config or record that names `task_success/v1`, `min_success_rate`,
+  `min_success_lcb` or `task_success_panel_episodes` is refused, naming
+  decision D-D59; delete the key** (`curriculum/gate_schema.py`:
+  `RETIRED_GATE_KINDS`, `RETIRED_CURRICULUM_KEYS` and their one reader
+  `retired_gate_declarations`, after `stage_manifest.RETIRED_RECIPE_LABELS`).
+  A stage TOML, a `[curriculum.jax]` table or an `--override` that sets one
+  is refused when the `curriculum` command builds its thresholds; on the
+  other paths (the `train` subcommand, the notebook's `train()`) the stage
+  trains and the post-stage judge then refuses it, so
+  `generate_stage_artifacts` records a FAILED verdict. The refusal reads
+  "gate_kind 'task_success/v1' was removed with the
+  hunt nodes (decision D-D59); no gate reader evaluates it, so a stage or
+  record declaring it is refused" (a key reads "[curriculum] key
+  'min_success_rate' was removed with the hunt nodes (decision D-D59); ...
+  (delete the key)"), before the unknown-key and unknown-kind checks, so
+  neither reads as a typo; `min_success_rate = 0` is refused too. A frozen
+  record that names one is refused by every reader rather than judged on the
+  floors it has left (a `reward_and_length/v1` hunt block would otherwise
+  have been judged on its reward floor alone): the post-stage judge
+  (`evaluate_stage_gate` returns the messages as the stage's failures, so
+  `generate_stage_artifacts` records a FAILED verdict), the in-training
+  manager (a threshold built by hand past the schema), the backfill tool (a
+  `BackfillError`, never a FAIL verdict), publication (a `ResultBundleError`
+  for the stage, whatever its recorded verdict) and the catalog (a
+  `CatalogError` for a deliverable certified under the kind); the
+  recorded-history reading (`evaluate_recorded_gate`, the Drive summary)
+  reads such a history as `None`. An earlier hunt run's stage directory
+  therefore cannot be re-judged, backfilled or published; its stance and
+  walk are unaffected.
+- **The task-success numbers in summaries and verdicts are no longer
+  validated or written.** A result summary's stage row accepts keys the
+  schema does not name, so `selected_model_success_lcb`,
+  `selected_model_success_count` and `selected_model_n_episodes` are now
+  such keys: no writer emits them, publication no longer re-derives them
+  from the evidence, and the schema no longer refuses an out-of-range value
+  (`test_result_schema_v4.py` and `test_result_bundle_evidence.py` pin
+  both). This was chosen over refusing them, which would have treated three
+  names unlike every other unnamed stage-row key; nothing reads them, and no
+  published summary carries them (every model's `result_summary_paths` is
+  empty since the hunt's results were deleted). `gate_verdict.json` drops
+  `best_model_success_count`, `best_model_n_episodes`,
+  `best_model_success_lcb`, `success_count` and `n_success_samples` from its
+  projected `stage_result` at write time; a verdict written before this
+  change that carries them still reads.
 - **Every velociraptor checkpoint must be retrained; none can be widened**
   (velociraptor physics revision 4 → 5, policy interface revision 13 → 14,
   69 → 71 wide and 22 → 17 actions, visual revision 4 → 5; the maintainer's
@@ -5212,6 +5256,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     in training, hunt success counted on a falling step, and the
     Brachiosaurus statue reaching the food (with the related food-reach
     experiment item).
+- **The `task_success/v1` gate kind and the `min_success_rate` floor, with
+  everything that only configured, evaluated, recorded, reported or
+  presented them** (decision D-D59 and its amendment of 2026-11-23;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). The second change carrying out the
+  hunt's removal: the first left the kind registered and unused (the T. rex
+  bite was the only stage that declared it), and no committed stage set
+  `min_success_rate` once the hunt nodes were gone. No stage, task, gate or
+  recipe digest moves (`digest_snapshot --block-optional-backends --check`
+  is current at 659 lines): a gate digest hashes only the keys a stage
+  declares, and none declared these, so no certified checkpoint is
+  stranded. The names are kept only to refuse them (Migration).
+  - `environments/shared/curriculum/task_success_gate.py`
+    (`TASK_SUCCESS_GATE_KIND`, `TaskSuccessGateThresholds`,
+    `evaluate_task_success_gate`, `read_task_successes`) and the
+    `curriculum.TASK_SUCCESS_GATE_KIND` export. The exact one-sided
+    Clopper-Pearson bound it called, `recovery_gate.binomial_lcb`, stays
+    where it was: the recovery gate and the floor-truth stance gates use it,
+    and nothing imported it through this module.
+  - The schema's entries: the kind in `gate_schema.GATE_KINDS` and its
+    required keys, `min_success_rate` from `reward_and_length/v1`'s keys and
+    from the `[curriculum.jax]` overridable keys, and
+    `task_success_panel_episodes` from the diagnostic keys.
+  - In training: the manager's arm (`_task_success_gate_passes`),
+    `StageThreshold.min_success_rate` and `.min_success_lcb`,
+    `reward_and_length/v1`'s success clause, the `success_count` /
+    `n_success_samples` that `record_eval` kept for the bound, and
+    `CurriculumCallback._success_rates_for_stage` (no success sample reaches
+    the manager; `record_eval` still records `mean_success_rate` when one is
+    passed); `train_base._in_training_task_success_result` and the count
+    the CLI curriculum's in-training verdict recorded.
+  - The post-stage judge's arm (`reporting.gates._task_success_stage_gate`,
+    `task_success_statistics`), the recorded-history reading of the kind
+    (`_recorded_task_success_gate`) and the success criterion of
+    `reward_and_length/v1` in both readers; `generate_stage_artifacts`' roll
+    of the kind's evidence panel (`stage_artifacts._write_task_success_evidence`)
+    and its copy of the kind's numbers onto the stage results.
+  - Publication's arm (`result_bundle.evidence._validate_task_success_evidence`),
+    the `success_lcb` evidence aggregate and its comparison with the
+    summary's `selected_model_success_lcb`, and `min_success_rate` in the
+    legacy threshold loop; `result_schema._validate_task_success_stage_keys`;
+    the backfill tool's task-success path and the three count keys it wrote.
+  - The trainer's evidence panel: `train_base.run_success_panel` no longer
+    resizes or re-seeds the panel or writes `evaluation_selected.csv` for the
+    kind, nor records `selected_mean_reward` / `selected_mean_episode_length`;
+    its `curriculum`, `evaluated_handoff` and `stage_dir` arguments go, and
+    so does `_post_training_eval_panels`' `stage_config`. It still records
+    D-B12's `success_count` / `n_success_episodes` for every stage.
+  - The recorded fields: the kind's five keys from `gate_verdict.json`'s
+    projected `stage_result`; `selected_model_success_count`,
+    `selected_model_n_episodes` and `selected_model_success_lcb` from the
+    summary's stage row; the `success_rate_threshold`,
+    `success_lcb_threshold`, `selected_mean_reward` and
+    `selected_mean_episode_length` columns of `collected_results.csv`, and
+    the two threshold columns of the CLI's stage-result rows.
+  - The plateau diagnostic's success-rate metric and its guidance, which
+    pointed at "the Stage 3 reward ramp", and
+    `eval_diagnostics.success_metric_applicable`:
+    `build_stage_evaluation_callbacks` passes `success_applicable=False`,
+    which every committed stage already read, so no evaluation changes.
+  - The catalog's `min_success_rate` and `min_success_lcb` export, its
+    task-success headline and its rendering of either (`species_catalog.py`;
+    `website/src/data/species.generated.json` regenerated with the catalog
+    tool, two keys out of every stage row; `docs/SPECIES_CATALOG.md` and the
+    README are unchanged, as no stage rendered either), and the website's
+    `minSuccessRate` / `minSuccessLcb` fields and `formatGate` branch
+    (`website/src/data/species.ts`, `website/src/components/SpeciesCatalog/index.tsx`).
+  - The Drive summary notebook's `success_rate_threshold` and
+    `success_lcb_threshold` columns and its T-Rex hunt comments
+    (`notebooks/google_drive_summary.ipynb`; outputs stay empty).
+  - The `min_success_rate` and `min_success_lcb` rows of
+    `website/docs/training/hyperparameters.md`, which now says the
+    task-success gates are gone and are refused; `docs/RESULT_BUNDLES.md`,
+    `docs/KNOWN_ISSUES.md` (the DU4 panel-floor item), `docs/README.md`,
+    `website/docs/training/recipes.md` and a pointer in
+    `docs/CONSOLIDATION_PLAN_2026_09.md` say so too, and the plan's D-D59
+    row, its top note and invariant 10 carry dated amendments.
+  The evaluation's success measurement is unchanged: the environments'
+  success keys and the hard-coded success-key tuples, `mean_success_rate`,
+  the evidence CSV's `task_success` column and `metrics.json`'s
+  `success_count` / `n_success_episodes` stay until the change that removes
+  the environments' hunt code. Tests: the task-success cases of
+  `test_gate_dispatch_fail_closed.py` become `TestRetiredTaskSuccessGateFailsClosed`
+  (the schema, the judge and the recorded reading refuse both names, and an
+  AST pin that the refusal runs before the dispatch), with refusal cases in
+  the manager, backfill, publication, catalog, stage-artifact and walk
+  tests; the success-gated plateau tests run on the velocity gate instead.
 - **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
   the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
   `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing

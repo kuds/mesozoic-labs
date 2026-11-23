@@ -111,7 +111,6 @@ from .schedules import (
     _ConstantSchedule,
     schedule_members_from_hyperparameters,
 )
-from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 __all__ = [
     "DEFAULT_CERTIFICATION_SEEDS",
@@ -140,7 +139,6 @@ __all__ = [
     "SaveVecNormalizeCallback",
     "StageThreshold",
     "StageWarmupCallback",
-    "TASK_SUCCESS_GATE_KIND",
     "_ConstantSchedule",
     "schedule_members_from_hyperparameters",
     "build_baseline_progress_callback",

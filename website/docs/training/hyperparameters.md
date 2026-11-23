@@ -118,16 +118,19 @@ Stage transitions are controlled by the `[curriculum]` section in each config:
 | `min_avg_reward` | Minimum evaluation-window mean reward for early advancement |
 | `min_avg_episode_length` | Minimum evaluation-window mean episode length for early advancement |
 | `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only) |
-| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero (`reward_and_length/v1` only; no committed stage declares it since the hunt stages were removed, decision D-D59) |
-| `min_success_lcb` | `task_success/v1` only: the one-sided 95% Clopper-Pearson lower bound on per-episode task success must clear this bar; `min_avg_reward` is then a collapse rail, never the gate. No committed stage declares the kind since the T-Rex hunt, its only user, was removed (decision D-D59) |
-| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold` except for `task_success/v1`, where it is REQUIRED (the bound's power is a function of the declared n) |
+| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold`, and required by the floor-truth stance gates (the bound's power is a function of the declared n) |
 | `required_consecutive` | Consecutive evaluations that must satisfy every enabled criterion |
+
+The task-success gates are gone: `min_success_rate`, the `task_success/v1`
+gate kind and its `min_success_lcb` bar were removed with the hunt stages, their
+only users (decision D-D59). A config or a recorded stage that still names one
+is refused with a message naming that decision.
 
 For the SB3 curriculum, every enabled criterion must pass in the same evaluation
 window, the window must contain at least `min_eval_episodes` episodes (10 by
-default, the `StageThreshold.min_eval_episodes` implementation default; the
-declared value for a `task_success/v1` stage), and this result must
-repeat for `required_consecutive` evaluations before the stage advances early.
+default, the `StageThreshold.min_eval_episodes` implementation default), and
+this result must repeat for `required_consecutive` evaluations before the
+stage advances early.
 If the `timesteps` budget runs out first, the node's `gate_verdict.json`
 records a failure and the `curriculum` command stops before the next node
 rather than training it from an uncertified parent. Consult the generated

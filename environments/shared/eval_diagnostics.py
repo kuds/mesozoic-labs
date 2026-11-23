@@ -20,7 +20,6 @@ import numpy as np
 
 from .curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from .curriculum.stance_gate import required_duty_episodes
-from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
 from .model_id import ModelId
 from .stance_diagnostics import derive_stance_info
@@ -311,31 +310,18 @@ except ImportError:
     _SB3_AVAILABLE = False
 
 
-def success_metric_applicable(stage_config: dict[str, Any]) -> bool:
-    """Return whether task success is an active gate for *stage_config*.
-
-    Stage number alone is deliberately not used: the TOML curriculum config
-    is the authority, and a genuine zero remains meaningful whenever a
-    positive success-rate threshold is configured — or whenever the stage
-    declares ``task_success/v1``, whose bar is ``min_success_lcb`` (plan
-    §4.4) and which consumes no ``min_success_rate`` key at all.
-    """
-
-    curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND:
-        return True
-    return float(curriculum.get("min_success_rate", 0.0)) > 0.0
-
-
 class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     """SB3 ``EvalCallback`` with stage-aware success and velocity capture.
 
     Stable-Baselines3 prints a success rate whenever an environment emits
     terminal ``info["is_success"]``.  The dinosaur environments intentionally
     keep emitting that standard field, but success is only an evaluation
-    metric in stages whose config has a positive success-rate gate.  This
-    callback suppresses collection in other stages and prints an explicit
-    ``N/A`` instead of a misleading ``0.00%``.
+    metric when *success_applicable* is set, and no stage sets it: the
+    success gates (``min_success_rate`` and ``task_success/v1``) were
+    removed with the hunt nodes (decision D-D59), and
+    :func:`build_stage_evaluation_callbacks` passes ``False``.  Without it
+    this callback suppresses collection and prints an explicit ``N/A``
+    instead of a misleading ``0.00%``.
 
     Mean forward velocity is also captured for every evaluation episode so
     the plateau diagnostic can follow the Stage 2 locomotion gate without
@@ -1775,8 +1761,8 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
 
     A plateau is a small range over the latest ``plateau_window`` deterministic
     evaluations, normalized by that metric's configured gate.  The callback
-    follows the most behaviorally specific failing gate: task success, forward
-    velocity, episode length, then reward.  It disarms after meaningful
+    follows the most behaviorally specific failing gate: forward velocity,
+    the stance criteria, episode length, then reward.  It disarms after meaningful
     movement or a gate pass and can warn again only after a later plateau.
 
     This callback is diagnostic only.  It never stops training and is separate
@@ -1789,7 +1775,6 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     # reward-tuning guidance for a stage whose blocking criterion is foot
     # contact, which is worse than silence.
     _METRIC_PRIORITY = (
-        "mean_success_rate",
         "mean_forward_vel",
         "mean_unsupported_duty",
         "full_horizon_fraction",
@@ -1798,9 +1783,6 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     )
 
     _GUIDANCE = {
-        "mean_success_rate": (
-            "Inspect target reachability, contact/proximity signals, and the Stage 3 reward ramp before tuning the optimizer."
-        ),
         "mean_forward_vel": (
             "Inspect gait stability, actuator saturation, and locomotion reward balance before tuning the optimizer."
         ),
@@ -2141,13 +2123,11 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         rewards = self.eval_callback.evaluations_results
         lengths = self.eval_callback.evaluations_length
         velocities = self.eval_callback.evaluations_forward_velocities
-        successes = self.eval_callback.evaluations_successes
 
         samples: dict[str, Any | None] = {
             "mean_reward": rewards[index] if index < len(rewards) else None,
             "mean_episode_length": lengths[index] if index < len(lengths) else None,
             "mean_forward_vel": velocities[index] if index < len(velocities) else None,
-            "mean_success_rate": successes[index] if index < len(successes) else None,
         }
         values = {key: self._finite_mean(sample) if sample is not None else None for key, sample in samples.items()}
         counts = {key: self._finite_count(sample) if sample is not None else 0 for key, sample in samples.items()}
@@ -2172,24 +2152,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         else:
             horizon_fraction, horizon_count = None, 0
 
-        # task_success/v1 gates on a binomial LOWER BOUND, not the raw rate;
-        # the plateau follows the raw success rate against the LCB bar (the
-        # bound is monotone in the rate at fixed n, so the metric that has
-        # to move is the same one) and the label says which bar it is.
-        task_success = self.curriculum_kwargs.get("gate_kind") == TASK_SUCCESS_GATE_KIND
         configured = (
-            _GateMetric(
-                "mean_success_rate",
-                "success rate (LCB95 bar)" if task_success else "success rate",
-                float(
-                    self.curriculum_kwargs.get("min_success_lcb", self.curriculum_kwargs.get("min_success_rate", 0.0))
-                )
-                if task_success
-                else float(self.curriculum_kwargs.get("min_success_rate", 0.0)),
-                values["mean_success_rate"],
-                counts["mean_success_rate"],
-                percent=True,
-            ),
             _GateMetric(
                 "mean_forward_vel",
                 "forward velocity",
@@ -2763,7 +2726,9 @@ def build_stage_evaluation_callbacks(
     eval_callback = StageAwareEvalCallback(
         eval_env,
         stage=stage,
-        success_applicable=success_metric_applicable(stage_config),
+        # No gate kind consumes task success since decision D-D59 removed
+        # min_success_rate and task_success/v1 with the hunt nodes.
+        success_applicable=False,
         # Taken from the stage's own gate declaration so the duty this
         # callback measures uses the same settling window the gate compares
         # it against. Absent (any non-stance gate) it is 0, which measures the
