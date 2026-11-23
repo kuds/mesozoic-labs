@@ -5170,21 +5170,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The retired `[curriculum.jax]` override table and the JAX array
   dispatch.** A `[curriculum.jax]` sub-table is refused by name on every path:
   `load_stage_config` refuses it in a stage TOML, as it refuses a top-level
-  `[jax]` (the SB3 notebook included), the CLI refuses an `--override
-  curriculum.jax=...` on every subcommand, and the gate schema refuses it in a
-  `curriculum_kwargs` mapping built in memory, whatever `advancement_enabled`
-  is set to. Only the JAX/MJX trainer applied that table, and D-D17 retired
-  it. Its validation code is gone (`BACKEND_OVERRIDE_TABLES`,
-  `BACKEND_OVERRIDABLE_KEYS`, `_validate_backend_override_table`). No
-  committed stage config held the table, and `gate_config_view` never
-  projected it, so no gate digest moves. `reward_functions.py` and
-  `perturbation.py` are NumPy-only: both `_array_mod` helpers and their
-  `jax.numpy` branches are gone, `check_height_tilt_termination` returns
-  `tuple[bool, str | None]` directly, and the docstrings no longer describe
-  JAX tracing. Two comments in `action_filter.py` lose their JAX wording, and
-  its hashed tokens are unchanged. Two guard tests no longer name deleted
-  files: the retired-tuning scan drops the species `requirements*.txt` clause,
-  and the retired-identifier test's exempt record-name example is now
+  `[jax]` (the SB3 notebook included), and refuses any stage table written as
+  something other than a table, such as `[[curriculum]]` or an array of
+  key-value pairs, which used to be coerced into a mapping past that check;
+  the CLI refuses an `--override curriculum.jax=...` on every subcommand, and
+  the gate schema refuses it in a `curriculum_kwargs` mapping built in memory,
+  whatever `advancement_enabled` is set to. Only the JAX/MJX trainer applied
+  that table, and D-D17 retired it. Its validation code is gone
+  (`BACKEND_OVERRIDE_TABLES`, `BACKEND_OVERRIDABLE_KEYS`,
+  `_validate_backend_override_table`). No committed stage config held the
+  table, and `gate_config_view` never projected it, so no gate digest moves.
+  `reward_functions.py` and `perturbation.py` are NumPy-only: both
+  `_array_mod` helpers and their `jax.numpy` branches are gone,
+  `check_height_tilt_termination` returns `tuple[bool, str | None]` directly,
+  and the docstrings no longer describe JAX tracing. Two comments in
+  `action_filter.py` lose their JAX wording, and its hashed tokens are
+  unchanged. Two guard tests no longer name deleted files: the retired-tuning
+  scan drops the species `requirements*.txt` clause, and the
+  retired-identifier test's exempt record-name example is now
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`. The cleanup
   plan's §4.9 takes dated amendments for the two items it had said to keep.
   The digest golden, the plant manifest and the species catalog are current,

@@ -368,7 +368,7 @@ DEFAULT_CERTIFICATION_SEEDS = 1
 _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 
 #: The retired per-backend override sub-table, ``[curriculum.jax]`` in TOML
-#: (``curriculum_kwargs["jax"]`` once loaded).  It let a stage state a
+#: (the ``curriculum_kwargs["jax"]`` key in a mapping).  It let a stage state a
 #: JAX-calibrated scalar bar beside the shared one, which only the JAX/MJX
 #: trainer applied.  D-D17 retired that trainer.  ``config.load_stage_config``
 #: refuses the TOML table, as it does a top-level ``[jax]``, so it stops every

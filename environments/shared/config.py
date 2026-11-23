@@ -334,7 +334,8 @@ def load_stage_config(
     Raises:
         ValueError: If the file declares a top-level table outside
             :data:`_STAGE_CONFIG_TABLES` (the retired ``[jax]`` among them),
-            the retired ``[curriculum.jax]`` sub-table, or an ``extends`` that
+            one of those tables written as something other than a table, the
+            retired ``[curriculum.jax]`` sub-table, or an ``extends`` that
             :func:`_read_stage_toml` refuses.
     """
     if config_path is not None:
@@ -357,8 +358,15 @@ def load_stage_config(
             f"{sorted(_STAGE_CONFIG_TABLES)}. A misspelled table would otherwise load as empty and the "
             "stage would train on class / library defaults — a different experiment, with no warning."
         )
+    not_tables = sorted(name for name in _STAGE_CONFIG_TABLES if name in raw and not isinstance(raw[name], dict))
+    if not_tables:
+        raise ValueError(
+            f"{path}: {', '.join(f'[{name}]' for name in not_tables)} must be a TOML table, not "
+            f"{', '.join(type(raw[name]).__name__ for name in not_tables)}. An array such as [[curriculum]] or "
+            "curriculum = [[key, value], ...] used to be coerced into a mapping, skipping the checks on its keys."
+        )
     curriculum_raw = raw.get("curriculum", {})
-    if isinstance(curriculum_raw, dict) and _RETIRED_CURRICULUM_TABLE in curriculum_raw:
+    if _RETIRED_CURRICULUM_TABLE in curriculum_raw:
         raise ValueError(
             f"{path}: [curriculum.{_RETIRED_CURRICULUM_TABLE}] is refused: it overrode the shared [curriculum] "
             "thresholds for the JAX/MJX trainer, which D-D17 retired, so nothing would enforce it. Remove the "

@@ -663,6 +663,24 @@ class TestLoadStageConfigTableValidation:
         assert message.startswith(f"{path}: [curriculum.jax] is refused")
         assert "D-D17 retired" in message
 
+    @pytest.mark.parametrize(
+        ("toml", "tables"),
+        [
+            ('curriculum = [["timesteps", 100], ["jax", { min_avg_reward = 40.0 }]]\n', "[curriculum]"),
+            ("[[curriculum]]\njax = 1\ntimesteps = 2\n", "[curriculum]"),
+            ('env = 3\nppo = "fast"\n', "[env], [ppo]"),
+            ('stage = ["x"]\n', "[stage]"),
+        ],
+        ids=["array-of-pairs", "array-of-tables", "scalars", "array"],
+    )
+    def test_a_stage_table_written_as_anything_but_a_table_is_rejected(self, tmp_path, toml, tables):
+        """``dict()`` turned an array of pairs or of tables into a mapping, so a ``jax`` key got past the
+        ``[curriculum.jax]`` refusal; every stage table must now be a TOML table."""
+        path = self._write(tmp_path, toml)
+        with pytest.raises(ValueError) as excinfo:
+            load_stage_config("ignored", 1, config_path=str(path))
+        assert str(excinfo.value).startswith(f"{path}: {tables} must be a TOML table, not ")
+
     def test_empty_env_table_warns(self, tmp_path, caplog):
         path = self._write(tmp_path, '[stage]\nname = "x"\n\n[ppo]\nlearning_rate = 1e-4\n')
         with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
