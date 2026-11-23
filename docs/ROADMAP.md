@@ -517,6 +517,15 @@ recoverable from the same tag._
 are roadmap goals. The repository does not currently include a hardware prototype,
 a ROS 2 bridge, or published sim-to-real validation results.
 
+- **Where hardware goes** (2026-11-22): this repository holds the simulation, the
+  anatomical and robot models. The physical build, with its design files, firmware
+  and bench data, will get its own repository. The high-level hardware notes (parts
+  and costs, sizes tried, lessons learned and the current plan) are in
+  [hardware/](hardware/README.md). The first planned build is a 60 cm Triceratops,
+  chosen on 2026-11-18. The D-D33 note and the milestones below (the hardware
+  abstraction layer, the ROS 2 bridge and the Compsognathus prototype) predate this
+  split.
+
 - **Where robot code goes** (decision D-D33, 2026-10-11): a robot is an
   embodiment of its species, at `environments/<species>/robot/` and
   `configs/<species>/robot/` beside the anatomical model, as the Compsognathus

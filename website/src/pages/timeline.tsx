@@ -6,7 +6,7 @@ import Layout from '@theme/Layout';
 import styles from './timeline.module.css';
 
 const repository = 'https://github.com/kuds/mesozoic-labs/blob/';
-const hardwareStudy = repository + 'c1feca1227ae2b16fc590c5e39e8e83360650031/hardware/';
+const hardwareNotes = repository + 'main/docs/hardware/';
 const walkingReport = repository + '7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/walk/REPORT_WALK60.md';
 
 interface Milestone {
@@ -37,7 +37,7 @@ const recorded: Milestone[] = [
     id: 'triceratops-build-decision', when: '18 Nov 2026', dateTime: '2026-11-18', category: 'Design decision',
     title: 'Triceratops becomes the first planned build',
     description: 'The lab chose a four-legged robot for its first hardware demonstration. A Triceratops can keep three feet down during a slow walk. The two-legged T. rex study was paused for a later build.',
-    href: hardwareStudy + 'trex_form_study/RESUME.md', linkText: 'Read the build decision',
+    href: hardwareNotes + 'README.md#where-things-stand', linkText: 'Read the build decision',
   },
   {
     id: 'triceratops-walking-trials', when: '19 Nov 2026', dateTime: '2026-11-19', category: 'Simulation result',
@@ -52,8 +52,8 @@ const planned: Milestone[] = [
     id: 'foreleg-bench-test', when: 'Next', category: 'Planned bench test',
     title: 'Measure one Triceratops foreleg',
     description: 'A single-leg test rig would let the lab measure turning force, speed, heat and the delay between a command and the motor’s response. Those measurements can be checked against the simulation before assembling four legs.',
-    href: hardwareStudy + 'triceratops_kickoff/CONSOLIDATION_PLAN.md#52-triceratops-milestones-a-proposal-the-dates-are-planning-estimates',
-    linkText: 'Read the proposed bench tests',
+    href: hardwareNotes + 'PARTS_AND_COSTS.md#first-purchases-planned',
+    linkText: 'Read the planned bench purchases',
   },
   {
     id: 'triceratops-hardware-walk', when: 'Q3 2027', category: 'Hardware target',
@@ -65,7 +65,7 @@ const planned: Milestone[] = [
     id: 'tyrannosaurus-hardware-build', when: '2028', dateTime: '2028', category: 'Hardware target',
     title: 'Build and test the 75 cm T. rex',
     description: 'The biped adds a balance challenge at every step. Its retained simulation studies include tests of how motor response time affects its ability to stay upright.',
-    href: hardwareStudy + 'trex_form_study/RESUME.md', linkText: 'Explore the T. rex study and restart plan',
+    href: hardwareNotes + 'LESSONS_LEARNED.md#if-the-t-rex-resumes', linkText: 'Explore the T. rex study and restart plan',
   },
 ];
 
