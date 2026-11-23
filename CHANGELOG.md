@@ -5278,6 +5278,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **The SB3 load preflight's throwaway test passes when run on its own.**
+  `test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_writes_nothing`
+  checks that the temporary directory it gives the preflight is empty
+  afterwards. Run alone, that directory held `torchinductor_<user>`: the
+  throwaway PPO's optimizer is the first one the process builds, and it
+  imports `torch._dynamo`, which creates torch's compile cache under
+  `tempfile.gettempdir()` and pins `TORCHINDUCTOR_CACHE_DIR` in the
+  environment. The test now points that variable outside the checked
+  directory, so it passes in a fresh process and after other tests, and it
+  still fails on any file the preflight leaves behind. The preflight is
+  unchanged: its own temporary directory holds only the throwaway archive, and
+  torch's cache goes to the system temp, as it does for any training.
 - **An `--eval-freq` below `--n-envs` no longer turns evaluation off.** The
   `EvalCallback` cadence was `eval_freq // n_envs` with no floor. Below
   `--n-envs` that came to 0, which `EvalCallback` never reaches, so the stage
