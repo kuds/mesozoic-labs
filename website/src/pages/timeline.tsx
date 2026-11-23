@@ -7,7 +7,8 @@ import styles from './timeline.module.css';
 
 const repository = 'https://github.com/kuds/mesozoic-labs/blob/';
 const hardwareNotes = repository + 'main/docs/hardware/';
-const walkingReport = repository + '7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/walk/REPORT_WALK60.md';
+// The judged flat-floor trials and the ramp and delay sweep, side by side.
+const walkingResults = 'https://github.com/kuds/mesozoic-labs/tree/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/walk/results';
 
 interface Milestone {
   id: string;
@@ -43,7 +44,7 @@ const recorded: Milestone[] = [
     id: 'triceratops-walking-trials', when: '19 Nov 2026', dateTime: '2026-11-19', category: 'Simulation result',
     title: 'Forty flat-floor trials',
     description: 'The 60 cm Triceratops completed ten trials in each of four simulated floor conditions. It stayed upright in all forty. A separate test on a 5° ramp reduced its speed by 27%.',
-    href: walkingReport, linkText: 'See the walking trial results',
+    href: walkingResults, linkText: 'See the walking trial results',
   },
 ];
 
