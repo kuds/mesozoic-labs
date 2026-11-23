@@ -185,8 +185,15 @@ def latest_branch(rows: list[dict], key: str) -> list[dict]:
             continue
         sid, start = r.get("session"), r.get("session_start")
         cut = start if sid is not None and isinstance(start, (int, float)) else None
+        dropped = set()
         while kept and (kept[-1][key] >= n or (cut is not None and kept[-1].get("session") != sid
                                                and kept[-1][key] > cut)):
+            dropped.add(kept[-1].get("session"))
+            kept.pop()
+        # a session that ran past the cut also wrote the row AT it after the checkpoint was saved (the pair is saved
+        # in the rollout's last step, before that rollout's update): that row's update is not in the checkpoint
+        if (cut is not None and kept and kept[-1][key] == cut and kept[-1].get("session") != sid
+                and kept[-1].get("session") in dropped):
             kept.pop()
         kept.append(r)
     return kept

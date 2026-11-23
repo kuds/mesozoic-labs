@@ -103,6 +103,14 @@ def test_latest_branch_and_torn_line_recovery(tmp_path):
     c = [{"session": "C", "session_start": 1500, "t": n} for n in (2012, 2524)]
     assert [(r["session"], r["t"]) for r in latest_branch(a + b + c, "t")] == [("A", 512), ("A", 1024), ("C", 2012),
                                                                               ("C", 2524)]
+    # a pair exactly at a rollout's end (2048): the killed session's 2048 row carries an update the pair lacks
+    e = [{"session": "E", "session_start": 0, "t": n} for n in (512, 1024, 1536, 2048, 2560)]
+    f = [{"session": "F", "session_start": 2048, "t": n} for n in (2560, 3072)]
+    assert [(r["session"], r["t"]) for r in latest_branch(e + f, "t")] == [("E", 512), ("E", 1024), ("E", 1536),
+                                                                          ("F", 2560), ("F", 3072)]
+    # a completed run extended from its last pair keeps its last row
+    g = [{"session": "G", "session_start": 2048, "t": n} for n in (2560,)]
+    assert [r["t"] for r in latest_branch(e[:4] + g, "t")] == [512, 1024, 1536, 2048, 2560]
     path = tmp_path / "h.jsonl"
     path.write_text('{"timesteps": 7}\n{"timesteps": 8, "algo')  # a session killed mid-write
     _ppo().learn(64, callback=TrainingHealth(path))
@@ -212,7 +220,7 @@ def test_train_records_health_and_checks_are_not_kept_settings(tmp_path, monkeyp
     # through main(): refused before any file is written (the review's N1)
     for extra, env in ((["--checks", "step_3cm,moon"], None), ([], str(tmp_path)),
                        (["--model", str(outside)], None)):
-        run = tmp_path / f"refused{len(extra)}{bool(env)}"
+        run = tmp_path / f"refused_{len(list((tmp_path).glob('*')))}"
         if env:
             monkeypatch.setenv("TRIKE_ENV_DIR", env)
         else:
