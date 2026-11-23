@@ -5378,6 +5378,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passed `gate_verdict.json`. `train_curriculum` without the argument fails
   the end-to-end test, and `_eval_horizon` reading the TOML again fails it
   and five of the six unit tests. No digest moves.
+- **The website loads Google Analytics only after the visitor accepts
+  cookies** (`website/docusaurus.config.ts`,
+  `website/src/components/CookieConsent/`, `website/src/clientModules/gtag.ts`).
+  Before, every visitor downloaded gtag.js and sent `gtag('config')`, with
+  only `analytics_storage` defaulted to denied, and every build, local and
+  fork builds included, reported to the production property. Now the head
+  script denies all four Consent Mode signals. It requests gtag.js and
+  sends config only after the visitor accepts: at startup on a return visit
+  with a stored acceptance, otherwise from the banner. Accepting grants
+  `analytics_storage` only. The preconnect to googletagmanager.com is gone.
+  The measurement ID is `GA_MEASUREMENT_ID` if set, otherwise the
+  production ID only in the upstream repository's Actions build
+  (`GITHUB_ACTIONS` and `GITHUB_REPOSITORY` are both checked, so a codespace
+  does not count); any other build has no analytics script and no banner.
+  Declining or resetting now sends consent denied, sets `ga-disable-<ID>`
+  once gtag.js is loaded, and deletes the `_ga`, `_ga_<container>` and
+  `_gid` cookies on the host and its parent domains. A browser that blocks
+  site data no longer shows "This page crashed": every storage access is
+  guarded. Page views on client-side navigation are sent only with consent.
+  They now carry the new page's title, waiting for react-helmet-async's
+  animation frame; a bare `setTimeout` sent the previous page's title. The
+  privacy page describes this, no longer lists the consent choice (kept in
+  local storage) as a cookie, and is dated November 2026. New
+  `website/tests/consent.test.mjs` (`npm test`, node:test, no new
+  dependencies) runs in the deploy workflow.
 
 ## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup
 
