@@ -69,8 +69,9 @@ def provenance(gait: dict, sweep: dict) -> list[str]:
     steps = gait["policy"]["steps"]
     if not TOTAL_STEPS <= steps < TOTAL_STEPS + BLOCK:
         bad.append(f"checkpoint at {steps} steps is not the run's final pair")
-    if sweep["checkpoint"] != gait["policy"]["checkpoint"] and Path(str(sweep["checkpoint"])).name != \
-            gait["policy"]["checkpoint"]:
+    ck = sweep["checkpoint"]  # the sweep records names and sha256 of the pair; the gait report under "policy"
+    if (ck["zip_sha256"], ck["vecnormalize_sha256"]) != (gait["policy"]["zip_sha256"],
+                                                         gait["policy"]["vecnormalize_sha256"]):
         bad.append("the two tools measured different checkpoints")
     return bad
 
