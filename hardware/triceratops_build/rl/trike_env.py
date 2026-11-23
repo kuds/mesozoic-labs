@@ -39,7 +39,10 @@ DEFAULT_MODEL = MODEL_DIR / "trike60_C_closed.xml"
 ANKLE_ROLL_MODEL = MODEL_DIR / "trike60_C_closed_ankleroll.xml"
 CAPSULE_MODEL = MODEL_DIR / "trike60_C_closed_capsule.xml"  # the owner's foot (D19): the foot study's capsule sole
 MODELS = {"trike60_C_closed": DEFAULT_MODEL, "trike60_C_closed_ankleroll": ANKLE_ROLL_MODEL,
-          "trike60_C_closed_capsule": CAPSULE_MODEL}
+          "trike60_C_closed_capsule": CAPSULE_MODEL,
+          # the foreleg comparison (D22): PR #697's repackaged forelegs, 128 and 160 mm upper links
+          "trike60_C_closed_capsule_fore128": MODEL_DIR / "trike60_C_closed_capsule_fore128.xml",
+          "trike60_C_closed_capsule_fore160": MODEL_DIR / "trike60_C_closed_capsule_fore160.xml"}
 
 CORNERS = ("left_fore", "right_fore", "left_hind", "right_hind")
 AXES = ("roll", "pitch", "flexion")

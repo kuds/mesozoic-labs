@@ -8,6 +8,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import json
+
 import numpy as np
 import pytest
 from conftest import RL_DIR  # noqa: F401  (puts rl/ on sys.path)
@@ -28,23 +30,54 @@ def test_generator_reproduces_the_committed_variants(tmp_path):
         assert (tmp_path / f"mass_ledger_{n}.json").read_bytes() == (GEN / f"mass_ledger_{n}.json").read_bytes(), n
 
 
-def test_edit_refuses_a_base_that_moved_on(tmp_path):
+@pytest.mark.parametrize("element,attr,value", [
+    ("left_fore_upper_strut", "fromto", "0 0 0 -0.1 0 -0.15"),  # inside the change set
+    ("6061_left_rail", "fromto", "-0.2 0.1 0 0.3 0.1 0"),  # outside it: the review's rails 2 mm outboard case
+    ("left_fore_x6_flexion_stator", "mass", "0.78"),
+])
+def test_edit_refuses_any_change_to_the_base(tmp_path, element, attr, value):
     root = ET.parse(bf.BASE).getroot()
-    strut = next(e for e in root.iter("geom") if e.get("name") == "left_fore_upper_strut")
-    strut.set("fromto", "0 0 0 -0.1 0 -0.15")  # a base design the change set was not taken from
+    el = next(e for e in root.iter() if e.get("name") == element)
+    el.set(attr, value)
     stale = tmp_path / "stale.xml"
     stale.write_text(ET.tostring(root, encoding="unicode"))
-    with pytest.raises(SystemExit, match="differs from the one PR #697's change set was taken from"):
+    with pytest.raises(SystemExit, match="re-run --extract"):
         bf.edit(128, base=stale)
 
 
-def test_packaging_clears_at_128_and_160_and_not_at_188():
-    base = bf.packaging(bf.BASE)
-    assert all(v["x6_to_upper_strut_m"] < -0.04 for v in base.values())  # F18: the 188 mm X6 overlaps its strut
+def test_change_set_reproduces_the_prs_files_without_their_commit():
+    """The data holds each PR file's canonical-XML sha256: the change set without the deviation must give it."""
+    assert all(bf.reproduces_pr(n) for n in bf.LENGTHS)
+
+
+def test_consistent_masses_scale_the_188_mm_parts_by_length():
     for n in bf.LENGTHS:
-        r = bf.packaging(GEN / f"trike60_C_closed_capsule_fore{n}.xml")
-        for side in r.values():
-            assert side["x6_to_upper_strut_m"] > 0.005 and side["x6_to_chassis_min_m"] > 0.005
+        for dv in bf.deviations(n):
+            if "strut" in dv["name"]:
+                assert dv["length_ratio_to_188"] == pytest.approx(n / 188, abs=1e-4)
+            assert dv["kg"] != dv["pr_kg"] or n == 0
+        ledger = json.loads((GEN / f"mass_ledger_trike60_C_closed_capsule_fore{n}.json").read_text())
+        assert ledger["total_mass_kg"] == pytest.approx(sum(ledger["category_kg"].values()), abs=2e-3)
+
+
+# Overlaps the variants keep from the 188 mm model: the shoulder yoke around its own roll drive (the mount), and the
+# schematic shoulder crossmember through the shoulder (F19); nothing else of the front legs may touch the chassis.
+KNOWN = ("shoulder_yoke | {c}_x4_roll_stator", "| shoulder_crossmember")
+
+
+def test_packaging_clears_at_128_and_160_and_not_at_188():
+    base = bf.packaging(bf.BASE, steps=5)
+    assert all(v["named"]["x6_to_upper_strut"]["m"] < -0.04 for v in base.values())  # F18
+    for n in bf.LENGTHS:
+        r = bf.packaging(GEN / f"trike60_C_closed_capsule_fore{n}.xml", steps=5)
+        for c, side in r.items():
+            named = {k: v["m"] for k, v in side["named"].items()}
+            assert named["x6_to_upper_strut"] > 0.005 and named["x6_to_chassis"] > 0.005
+            assert named["offset_motor_mount_to_chassis"] > 0.004  # PR #697: plate to rail 4.68 mm
+            bad = [k for k, v in side["pairs"].items() if v["m"] < 0
+                   and not any(s.format(c=c) in k for s in KNOWN)]
+            assert bad == [], bad
+    assert bf.ZERO_RETRIES == []
 
 
 def test_variants_keep_run3s_interface_and_geometry_where_it_should():
@@ -83,3 +116,10 @@ def test_variants_match_the_prs_models_when_its_commit_is_here():
     if not have:
         pytest.skip("PR #697's commit is not fetched in this clone")
     assert bf.check() == []
+
+
+def test_train_resolves_the_variants_by_name():
+    import train
+
+    for n in bf.LENGTHS:
+        assert Path(train.resolve_model(f"trike60_C_closed_capsule_fore{n}")) == GEN / f"trike60_C_closed_capsule_fore{n}.xml"

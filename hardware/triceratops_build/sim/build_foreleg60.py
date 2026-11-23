@@ -66,7 +66,8 @@ def extract(base: Path = BASE, out: Path = DATA) -> dict:
         "file": str(base.relative_to(REPO)), "sha256": hashlib.sha256(base_bytes).hexdigest()}, "variants": {}}
     for length in LENGTHS:
         raw = _pr_text(length)
-        res["source"]["files"][str(length)] = {"path": PR_FILES[length], "sha256": hashlib.sha256(raw).hexdigest()}
+        res["source"]["files"][str(length)] = {"path": PR_FILES[length], "sha256": hashlib.sha256(raw).hexdigest(),
+                                               "canonical_sha256": _canonical_sha(raw)}
         p_root = ET.fromstring(raw)
         p = _named(p_root)
         missing = [k for k in b if k not in p]
@@ -98,21 +99,40 @@ def extract(base: Path = BASE, out: Path = DATA) -> dict:
     return res
 
 
-def edit(length: int, base: Path = BASE, data: Path = DATA) -> str:
-    """The base model with the PR's fore-assembly of this length. Refuses if an attribute the PR changed no longer
-    has its recorded base value (the base design moved on: re-extract and review)."""
-    spec = json.loads(data.read_text())["variants"][str(length)]
-    root = ET.parse(base).getroot()
+def _canonical_sha(text) -> str:
+    """sha256 of the XML's canonical form (attribute order and whitespace between elements do not count)."""
+    return hashlib.sha256(ET.canonicalize(xml_data=text, strip_text=True).encode()).hexdigest()
+
+
+def _fromto_len(el) -> float:
+    v = [float(x) for x in el.get("fromto").split()]
+    return ((v[3] - v[0]) ** 2 + (v[4] - v[1]) ** 2 + (v[5] - v[2]) ** 2) ** 0.5
+
+
+CONSISTENT = ("upper_strut", "upper_limb_cover", "pushrod")
+
+
+def consistent_masses(root, base_root) -> list[dict]:
+    """A recorded deviation from PR #697 (the review of 23 Nov): the 128 mm model keeps the 188 mm parts' masses for
+    the upper strut, upper limb cover and pushrod, and the 160 mm model scales those by its own length ratios to
+    128 mm, so its strut came out heavier than the 188 mm one. Here each of the three is the 188 mm part's mass times
+    its length over the 188 mm part's length (same section). Edits ``root`` in place; returns what changed."""
+    b = _named(base_root)
+    out = []
+    for c in ("left_fore", "right_fore"):
+        for part in CONSISTENT:
+            name = f"{c}_{part}"
+            el, _ = _named(root)[("geom", name)]
+            bel, _ = b[("geom", name)]
+            ratio = _fromto_len(el) / _fromto_len(bel)
+            mass = float(bel.get("mass")) * ratio
+            out.append({"name": name, "pr_kg": float(el.get("mass")), "kg": mass, "length_ratio_to_188": ratio})
+            el.set("mass", f"{mass:.6f}")
+    return out
+
+
+def _apply(spec, root, length):
     named = _named(root)
-    stale = []
-    for ch in spec["changed"]:
-        el, _ = named[(ch["tag"], ch["name"])]
-        for a, (old, new) in ch["attrib"].items():
-            if el.get(a) != old:
-                stale.append(f"{ch['name']}.{a}: base {el.get(a)!r}, recorded {old!r}")
-    if stale:
-        raise SystemExit("the base model differs from the one PR #697's change set was taken from:\n  "
-                         + "\n  ".join(stale[:10]))
     for ch in spec["changed"]:
         el, _ = named[(ch["tag"], ch["name"])]
         for a, (_, new) in ch["attrib"].items():
@@ -120,69 +140,152 @@ def edit(length: int, base: Path = BASE, data: Path = DATA) -> str:
                 el.attrib.pop(a, None)
             else:
                 el.set(a, new)
-    root.set("model", f"triceratops_60cm_C_closed_capsule_fore{length}")
     for ad in spec["added"]:
         if (ad["tag"], ad["name"]) in named:
             raise SystemExit(f"{ad['name']} already exists in the base model")
-        parent = next(e for e in root.iter() if e.tag == ad["parent"][0] and e.get("name") == ad["parent"][1])
+        parents = [e for e in root.iter() if e.tag == ad["parent"][0] and e.get("name") == ad["parent"][1]]
+        if len(parents) != 1:
+            raise SystemExit(f"{ad['name']}: its parent {ad['parent']} is not in the base model once")
+        parent = parents[0]
         new = ET.Element(ad["tag"], ad["attrib"])
         if ad["after"] is None:
-            idx = 0
+            idx, tail = 0, parent.text
         else:
-            prev = next(c for c in parent if c.tag == ad["after"][0] and c.get("name") == ad["after"][1])
-            idx = list(parent).index(prev) + 1
+            prev = [c for c in parent if c.tag == ad["after"][0] and c.get("name") == ad["after"][1]]
+            if len(prev) != 1:
+                raise SystemExit(f"{ad['name']}: its anchor {ad['after']} is not in {ad['parent']} once")
+            idx, tail = list(parent).index(prev[0]) + 1, prev[0].tail
         parent.insert(idx, new)
-        new.tail = prev.tail if ad["after"] is not None else parent.text
+        new.tail = tail
         named[(ad["tag"], ad["name"])] = (new, parent)
+
+
+def edit(length: int, base: Path = BASE, data: Path = DATA, deviations: bool = True) -> str:
+    """The base model with the PR's fore-assembly of this length, then (``deviations``) the consistent part masses.
+    Refuses unless the base model is byte for byte the one the change set was taken from (its sha256 in the data):
+    a base that moved on needs ``--extract`` again and a review of the new change set."""
+    d = json.loads(data.read_text())
+    spec = d["variants"][str(length)]
+    raw = Path(base).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != d["base"]["sha256"]:
+        raise SystemExit(f"the base model {Path(base).name} is not the one PR #697's change set was taken from "
+                         f"(sha256 {d['base']['sha256'][:12]}...): re-run --extract and review the change set")
+    root = ET.fromstring(raw)
+    base_root = ET.fromstring(raw)
+    _apply(spec, root, length)
+    if deviations:
+        consistent_masses(root, base_root)
+        root.set("model", f"triceratops_60cm_C_closed_capsule_fore{length}")
+    else:
+        root.set("model", spec["model_name"])  # the PR's own name: reproduces its file (see check)
     return ET.tostring(root, encoding="unicode") + "\n"
 
 
+def deviations(length: int, base: Path = BASE, data: Path = DATA) -> list[dict]:
+    root = ET.fromstring(edit(length, base, data, deviations=False))
+    return consistent_masses(root, ET.parse(base).getroot())
+
+
 def mass_notes(length: int, data: Path = DATA) -> dict:
-    """Ledger notes for the geoms the change set adds or whose mass it changes."""
+    """Ledger notes for the geoms the change set adds or whose mass it changes, and for the consistent masses."""
     spec = json.loads(data.read_text())["variants"][str(length)]
     notes = {}
     for ad in spec["added"]:
         if "mass" in ad["attrib"]:
-            notes[ad["name"]] = f"PR #697 fore-assembly / open-rib part, its mass {ad['attrib']['mass']} kg (EST)"
+            notes[ad["name"]] = (f"PR #697 part as its author estimated it, {ad['attrib']['mass']} kg (EST); not grown "
+                                 "by the closed variant's reserve factor, unlike the generator's own EST parts")
     for ch in spec["changed"]:
         if "mass" in ch["attrib"]:
             old, new = ch["attrib"]["mass"]
-            notes[ch["name"]] = f"PR #697: {old} -> {new} kg (EST)"
+            notes[ch["name"]] = f"PR #697 changed it from {old} to {new} kg (EST)"
+    for dv in deviations(length, data=data):
+        notes[dv["name"]] = (f"the 188 mm part's mass x its length ratio {dv['length_ratio_to_188']:.4f} (same section; "
+                             f"a recorded deviation from PR #697's {dv['pr_kg']:.6f} kg, EST)")
     return notes
 
 
+def _model_arrays(m):
+    import numpy as np
+
+    skip = ("names", "paths", "names_map", "text_data", "signature")
+    for a in dir(m):
+        if a.startswith("_") or a.startswith("name_") or a.startswith("path") or a in skip:
+            continue
+        v = getattr(m, a, None)
+        if isinstance(v, np.ndarray):
+            yield a, v
+
+
 def check(generated: Path = HERE / "generated") -> list[str]:
-    """Each generated variant against the PR's compiled model: every model array that describes the robot."""
+    """Each generated variant against the PR's model with the same recorded deviation applied: every compiled array
+    of the model (names and their addresses aside) and every option, so only the deviation may differ from the PR."""
     import mujoco
     import numpy as np
 
     problems = []
-    fields = ("body_pos", "body_quat", "body_mass", "body_inertia", "body_ipos", "body_iquat", "jnt_pos", "jnt_axis",
-              "jnt_range", "jnt_stiffness", "dof_damping", "dof_armature", "geom_type", "geom_size", "geom_pos",
-              "geom_quat", "geom_contype", "geom_conaffinity", "geom_friction", "actuator_gainprm",
-              "actuator_biasprm", "actuator_forcerange", "actuator_ctrlrange", "key_qpos", "site_pos", "site_quat")
+    base_root = ET.parse(BASE).getroot()
     for length in LENGTHS:
         mine = mujoco.MjModel.from_xml_path(str(generated / f"trike60_C_closed_capsule_fore{length}.xml"))
-        tmp = generated / f".pr697_{length}_check.xml"
-        tmp.write_bytes(_pr_text(length))
-        try:
-            theirs = mujoco.MjModel.from_xml_path(str(tmp))
-        finally:
-            tmp.unlink()
-        names = lambda m, kind, n: [getattr(m, kind)(i).name for i in range(n)]  # noqa: E731
-        if names(mine, "geom", mine.ngeom) != names(theirs, "geom", theirs.ngeom):
+        pr_root = ET.fromstring(_pr_text(length))
+        consistent_masses(pr_root, base_root)
+        theirs = mujoco.MjModel.from_xml_string(ET.tostring(pr_root, encoding="unicode"))
+        if [mine.geom(i).name for i in range(mine.ngeom)] != [theirs.geom(i).name for i in range(theirs.ngeom)]:
             problems.append(f"{length} mm: geom order or names differ")
             continue
-        for f in fields:
-            a, b = getattr(mine, f), getattr(theirs, f)
-            if a.shape != b.shape or not np.allclose(a, b, rtol=0, atol=1e-9):
-                problems.append(f"{length} mm: {f} differs (largest {np.max(np.abs(a - b)) if a.shape == b.shape else 'shape'})")
+        n = 0
+        for a, v in _model_arrays(mine):
+            w = getattr(theirs, a)
+            n += 1
+            if v.shape != w.shape or not np.array_equal(v, w):
+                problems.append(f"{length} mm: {a} differs")
+        for a in dir(mine.opt):
+            if not a.startswith("_"):
+                x, y = getattr(mine.opt, a), getattr(theirs.opt, a)
+                if isinstance(x, (int, float, np.ndarray)) and not np.array_equal(x, y):
+                    problems.append(f"{length} mm: option {a} differs")
+        if n < 300:
+            problems.append(f"{length} mm: only {n} arrays compared")
     return problems
 
 
-def packaging(model_path: Path) -> dict:
-    """Signed distances (m) from each front X6 housing to its upper strut (the two share a body, so one pose
-    suffices) and, over the shoulder and elbow ranges, its least distance to any chassis geom."""
+def reproduces_pr(length: int, data: Path = DATA) -> bool:
+    """Without the PR's commit: the change set, without the deviation, gives the PR's file (canonical XML sha256)."""
+    d = json.loads(data.read_text())
+    return _canonical_sha(edit(length, deviations=False, data=data)) == d["source"]["files"][str(length)][
+        "canonical_sha256"]
+
+
+LEG_BODIES = ("roll_yoke", "upper_link", "lower_link")
+ZERO_RETRIES = []  # (pair, pose) where mj_geomDistance returned exactly 0 even after the retry (reported, never hidden)
+
+
+def _dist(mujoco, m, d, g, h, distmax, ft, joints=None, pose=None):
+    """mj_geomDistance, with its occasional exact 0 re-measured: on 23 Nov it read 0.0 for the X6 against the torso
+    ellipsoid at isolated grid poses where every neighbour read about 40 mm and an implicit-surface test put the
+    housing outside; a wider limit did not help. The retry nudges the leg's joints by 1e-4 rad (0.006 deg), which a
+    real overlap survives; a 0 that survives the nudge is kept and recorded in ZERO_RETRIES."""
+    v = float(mujoco.mj_geomDistance(m, d, g, h, distmax, ft))
+    if v == 0.0 and joints is not None:
+        for j in joints:
+            d.qpos[j.qposadr[0]] += 1e-4
+        mujoco.mj_kinematics(m, d)
+        v = float(mujoco.mj_geomDistance(m, d, g, h, distmax, ft))
+        for j in joints:
+            d.qpos[j.qposadr[0]] -= 1e-4
+        mujoco.mj_kinematics(m, d)
+        if v == 0.0:
+            ZERO_RETRIES.append((m.geom(g).name, m.geom(h).name, pose))
+    return v
+
+
+def packaging(model_path: Path, steps: int = 9) -> dict:
+    """Signed distances (m), over a grid of ``steps`` values across each of the roll, pitch and flexion ranges:
+    - ``pairs``: every geom on the front roll yoke, upper link and lower link against every chassis geom, the least
+      distance of each pair (only pairs within 20 mm are kept);
+    - the PR's named clearances that the physics model carries: X6 to upper strut (same body), X6 to any chassis
+      geom, the offset motor plate and its standoff to any chassis geom, X6 to the output crank (across the elbow).
+    Not here: the moving pushrod (the model's rod is a fixed capsule), the dressed meshes' clearances (rod to guard,
+    X6 to the sculpted rib): PR #697's own evidence gives those."""
     import itertools
 
     import mujoco
@@ -190,29 +293,57 @@ def packaging(model_path: Path) -> dict:
 
     m = mujoco.MjModel.from_xml_path(str(model_path))
     d = mujoco.MjData(m)
-    out = {}
     ft = np.zeros(6)
     chassis = [i for i in range(m.ngeom) if m.geom_bodyid[i] == m.body("chassis").id and m.geom_type[i] != 0]
+    out = {}
     for c in ("left_fore", "right_fore"):
-        mujoco.mj_resetDataKeyframe(m, d, 0)
-        mujoco.mj_forward(m, d)
-        x6, strut = m.geom(f"{c}_x6_flexion_stator").id, m.geom(f"{c}_upper_strut").id
-        to_strut = float(mujoco.mj_geomDistance(m, d, x6, strut, 0.2, ft))
+        bodies = {m.body(f"{c}_{b}").id for b in LEG_BODIES}
+        leg = [i for i in range(m.ngeom) if m.geom_bodyid[i] in bodies]
         joints = [m.joint(f"{c}_{j}") for j in ("roll", "pitch", "flexion")]
-        grids = [np.linspace(j.range[0], j.range[1], 7) for j in joints]
-        least = (np.inf, None)
+        grids = [np.linspace(j.range[0], j.range[1], steps) for j in joints]
+        least = {}
+        name = lambda i: m.geom(i).name  # noqa: E731
+        x6 = m.geom(f"{c}_x6_flexion_stator").id
+        crank = m.geom(f"{c}_output_crank").id
+        named = {"x6_to_upper_strut": (x6, [m.geom(f"{c}_upper_strut").id]), "x6_to_chassis": (x6, chassis),
+                 "x6_to_output_crank": (x6, [crank])}
+        for part in ("offset_motor_mount", "mount_standoff"):
+            if f"{c}_{part}" in [m.geom(i).name for i in range(m.ngeom)]:
+                named[f"{part}_to_chassis"] = (m.geom(f"{c}_{part}").id, chassis)
+        best = {k: (np.inf, None) for k in named}
         for q in itertools.product(*grids):
             mujoco.mj_resetDataKeyframe(m, d, 0)
             for j, v in zip(joints, q):
                 d.qpos[j.qposadr[0]] = v
             mujoco.mj_kinematics(m, d)
-            for g in chassis:
-                dist = float(mujoco.mj_geomDistance(m, d, x6, g, 0.2, ft))
-                if dist < least[0]:
-                    least = (dist, m.geom(g).name)
-        out[c] = {"x6_to_upper_strut_m": to_strut, "x6_to_chassis_min_m": least[0], "nearest_chassis_geom": least[1],
-                  "grid": "7 values over each of roll, pitch and flexion ranges"}
+            for g in leg:
+                for h in chassis:
+                    dist = _dist(mujoco, m, d, g, h, 0.02, ft, joints, q)
+                    if dist < 0.02 and dist < least.get((g, h), (np.inf,))[0]:
+                        least[(g, h)] = (dist, [float(np.degrees(v)) for v in q])
+            for k, (g, others) in named.items():
+                for h in others:
+                    dist = _dist(mujoco, m, d, g, h, 0.2, ft, joints, q)
+                    if dist < best[k][0]:
+                        best[k] = (dist, name(h))
+        out[c] = {"pairs": {f"{name(g)} | {name(h)}": {"m": v[0], "at_roll_pitch_flexion_deg": v[1]}
+                            for (g, h), v in sorted(least.items(), key=lambda kv: kv[1][0])},
+                  "named": {k: {"m": v[0], "nearest": v[1]} for k, v in best.items()},
+                  "grid": f"{steps} values over each of roll, pitch and flexion"}
     return out
+
+
+def overlaps(model_path: Path, base_path: Path = BASE, steps: int = 9) -> dict:
+    """Overlapping leg-chassis pairs of a variant, split into those the 188 mm base model has too (inherited) and
+    those it does not (new)."""
+    mine, base = packaging(model_path, steps), packaging(base_path, steps)
+    res = {}
+    for c in mine:
+        bad = {k: v for k, v in mine[c]["pairs"].items() if v["m"] < 0}
+        inherited = {k for k, v in base[c]["pairs"].items() if v["m"] < 0}
+        res[c] = {"new": {k: v for k, v in bad.items() if k not in inherited},
+                  "inherited": {k: v for k, v in bad.items() if k in inherited}}
+    return res
 
 
 def main(argv=None) -> int:
@@ -229,17 +360,25 @@ def main(argv=None) -> int:
         print("wrote", DATA)
     if a.check:
         p = check()
-        print("check: " + ("the generated variants match PR #697's models in every compared field" if not p else
-                           "PROBLEMS\n  " + "\n  ".join(p)))
+        print("check: " + ("each variant equals PR #697's model with the recorded mass deviation, in every compiled "
+                           "array and option" if not p else "PROBLEMS\n  " + "\n  ".join(p)))
+        print("reproduces PR #697's files without the deviation (canonical XML): "
+              + ", ".join(f"{n} mm {reproduces_pr(n)}" for n in LENGTHS))
         if p:
             return 1
     if a.packaging is not None:
-        files = [Path(f) for f in a.packaging] or [BASE] + [HERE / "generated" / f"trike60_C_closed_capsule_fore{n}.xml"
-                                                           for n in LENGTHS]
+        files = [Path(f) for f in a.packaging] or [HERE / "generated" / f"trike60_C_closed_capsule_fore{n}.xml"
+                                                   for n in LENGTHS]
         for f in files:
             r = packaging(f)
-            print(f.name, {c: {k.replace("_m", "_mm"): (round(v * 1000, 1) if isinstance(v, float) else v)
-                               for k, v in x.items() if k != "grid"} for c, x in r.items()})
+            ov = overlaps(f)
+            print(f.name)
+            for c, x in r.items():
+                print("  ", c, {k: (round(1000 * v["m"], 1), v["nearest"]) for k, v in x["named"].items()}, "(mm)")
+                for kind in ("new", "inherited"):
+                    print(f"     overlaps, {kind} against the 188 mm model:",
+                          {k: (round(1000 * v["m"], 1), [round(a) for a in v["at_roll_pitch_flexion_deg"]])
+                           for k, v in ov[c][kind].items()} or "none")
     return 0
 
 

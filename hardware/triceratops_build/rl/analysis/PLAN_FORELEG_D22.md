@@ -25,11 +25,25 @@ before any judged run, after the models below have passed an independent review.
   generated model, so both variants come from the generator with a mass ledger, not as hand-copied files. Each
   generated variant is checked against PR #697's physics model geom by geom (positions, sizes, masses) and reports
   any difference.
-- **Packaging check:** the X6-to-upper-strut signed distance and the other clearances the PR reports, at the neutral
-  keyframe and over the joint ranges, must be positive in the generated models (F18's check).
-- **Chassis:** both lengths use the same open-rib chassis, so 128 against 160 differs only in the foreleg. Run 3
-  (188 mm, the closed chassis, 0.15 kg lighter) is reported beside them as a reference, not as a third arm: its
-  chassis differs and its foreleg cannot be built.
+- **Mass basis, a recorded deviation from PR #697** (after the models' review, 23 Nov): the PR's 128 mm model keeps
+  the 188 mm upper strut, upper limb cover and pushrod masses, and its 160 mm model scales those by its own ratio
+  to 128 mm, so its strut came out heavier than the 188 mm one. Here each is the 188 mm part's mass times its length
+  ratio (same section): 12.749 kg (128 mm) and 12.806 kg (160 mm) in total, against the PR's 12.844 and 12.925 kg.
+  The PR's new parts keep its own mass estimates, without the closed variant's reserve growth (about 0.03 kg).
+- **Packaging check** (`--packaging`; 9 values over each of roll, pitch and flexion): every geom of the front roll
+  yoke, upper link and lower link against every chassis geom, and PR #697's named clearances that the physics model
+  carries. 128 / 160 mm: X6 to upper strut 8.7 / 7.1 mm, X6 to chassis 7.7 / 7.7 mm, motor plate to rail 4.7 /
+  4.7 mm, X6 to output crank 7.2 / 29.0 mm (the PR: 8.70, 7.07, 7.68, 4.68 and 7.155 mm). Overlaps left: the
+  shoulder yoke around its own roll drive (the mount) and the schematic shoulder crossmember through the shoulder
+  (F19), both in the 188 mm model too. Not checked here, taken from PR #697's evidence: the moving pushrod (the
+  model's rod is fixed; the PR gives 3.50 mm to the X6) and the dressed meshes (rod to guard 3.30 mm, X6 to the
+  sculpted rib 4.97 mm).
+- **Against run 3's model:** the same chassis in effect (the open-rib edits do not collide and are mass-neutral),
+  but a different fore-assembly: the shoulder pivot 40 mm lower, the X6 in the shoulder, 0.055-0.11 kg more
+  fore-assembly hardware, and, with run 3's action scales, about 14 % less forefoot travel per unit action (pitch
+  +-0.40 rad: +-111 mm at 188 mm, +-95 mm at 128 and 160 mm). 128 against 160 is fair on foot travel, since both
+  keep the same shoulder-to-foot distance. Run 3 (188 mm) is therefore reported beside them as a reference, not as
+  a third arm: its foreleg cannot be built (F18), and its fore-assembly differs in these ways besides the length.
 
 ## Training
 
