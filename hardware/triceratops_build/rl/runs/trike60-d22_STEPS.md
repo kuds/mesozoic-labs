@@ -30,20 +30,21 @@ Three rules for the whole sheet (as before):
     The machine:  Runtime type "CPU" with "High-RAM" on. No GPU.
     The length:   TOTAL_STEPS = 10000000 per run. Run 3's two runs took 3.05 and 5.05 hours (909 and 550 steps per
                   second: the speed depends on the machine Colab gives), plus a few minutes for installs and the
-                  final test. Two runs can go at the same time, each in its own notebook copy, as you did for run 3.
+                  final test. Up to three runs can go at the same time, each in its own notebook copy and its own
+                  runtime. Running them side by side does not change any result, only the waiting.
     Drive:        each run in  My Drive / mesozoic-labs / triceratops60 / <RUN_ID> ; about 90 MB each.
 
-    The eight runs (any order; I suggest the rounds below, two at a time):
+    The eight runs, three at a time (any order works; this one mixes both lengths in every round):
 
       round  RUN_ID                MODEL                               SEED
       1      trike60-fore128-s0    trike60_C_closed_capsule_fore128    0
       1      trike60-fore160-s0    trike60_C_closed_capsule_fore160    0
-      2      trike60-fore128-s1    trike60_C_closed_capsule_fore128    1
+      1      trike60-fore128-s1    trike60_C_closed_capsule_fore128    1
       2      trike60-fore160-s1    trike60_C_closed_capsule_fore160    1
-      3      trike60-fore128-s2    trike60_C_closed_capsule_fore128    2
-      3      trike60-fore160-s2    trike60_C_closed_capsule_fore160    2
-      4      trike60-fore128-s3    trike60_C_closed_capsule_fore128    3
-      4      trike60-fore160-s3    trike60_C_closed_capsule_fore160    3
+      2      trike60-fore128-s2    trike60_C_closed_capsule_fore128    2
+      2      trike60-fore160-s2    trike60_C_closed_capsule_fore160    2
+      3      trike60-fore128-s3    trike60_C_closed_capsule_fore128    3
+      3      trike60-fore160-s3    trike60_C_closed_capsule_fore160    3
 
     The same values for every run: TOTAL_STEPS 10000000, N_ENVS 8, ENV_PRESET run3_terrain, EVAL_EPISODES 5,
     USE_GOOGLE_DRIVE ticked, AUTO_DISCONNECT ticked.
