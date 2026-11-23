@@ -48,6 +48,10 @@ class PeriodicChecks(BaseCallback):
 
     def _on_training_start(self) -> None:
         self.next = first_multiple_above(self.model.num_timesteps, self.every)
+        self._session_start = int(self.model.num_timesteps)
+        from .health import session_id
+
+        self._session = session_id()
 
     def _act(self, obs):
         vn = self.model.get_vec_normalize_env()
@@ -75,7 +79,9 @@ class PeriodicChecks(BaseCallback):
                     eps.append({"error": repr(exc), "seed": s})
                     errors.append(f"{name} seed {s}: {exc!r}")
             out[name] = eps
-        rec = {"steps": int(n), "time_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        rec = {"session": getattr(self, "_session", None), "session_start": getattr(self, "_session_start", None),
+               "steps": int(n),
+               "time_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                "wall_s": round(time.time() - t0, 2), "seeds": list(self.seeds), "points": out}
         try:
             with open(self.path, "a", encoding="utf-8") as f:

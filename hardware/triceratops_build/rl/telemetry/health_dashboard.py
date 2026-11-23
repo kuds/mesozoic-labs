@@ -176,18 +176,19 @@ def health_figure(rows: list[dict], label: str, out: Path, w: int = 20) -> str:
 
 
 def checks_series(rows: list[dict]) -> dict:
-    rows = latest_branch(rows, "steps")
+    rows = [r for r in latest_branch(rows, "steps") if isinstance(r.get("points"), dict)]
     steps = [r["steps"] for r in rows]
     names = list(dict.fromkeys(n for r in rows for n in r["points"]))
     s = {"steps": steps, "points": {}}
     for n in names:
         falls, speed = [], []
+        s["points"][n] = {"failed_episodes": sum(1 for r in rows for e in (r["points"].get(n) or []) if "error" in e)}
         for r in rows:
             eps = [e for e in (r["points"].get(n) or []) if "error" not in e]
             falls.append(sum(bool(e.get("fell")) for e in eps) / len(eps) if eps else None)
             ok = [e["forward_speed_mps"] for e in eps if not e.get("fell") and e.get("forward_speed_mps") is not None]
             speed.append(float(np.mean(ok)) if ok else None)
-        s["points"][n] = {"fall_share": falls, "speed_mps": speed}
+        s["points"][n].update(fall_share=falls, speed_mps=speed)
     return s
 
 
@@ -208,6 +209,10 @@ def checks_figure(rows: list[dict], label: str, out: Path) -> str:
     for ax in axes:
         ax.set_xlabel("training steps, millions")
     extra = f" (first four of {len(s['points'])} shown; the JSON has all)" if len(s["points"]) > 4 else ""
+    failed = {n: v["failed_episodes"] for n, v in s["points"].items() if v["failed_episodes"]}
+    if failed:
+        extra += (". Episodes that failed to run, left out: "
+                  + ", ".join(f"{n} {k}" for n, k in failed.items()))
     cs.frame(fig, f"Checks during training: {label}",
              f"A few deterministic episodes per point at each check{extra}. Progress readings, not a verdict.",
              "SIMULATION. Source: rl/telemetry/health_dashboard.py from checks_during_training.jsonl "

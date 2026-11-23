@@ -94,11 +94,20 @@ def test_health_prefixes_are_the_callers(tmp_path):
 
 def test_latest_branch_and_torn_line_recovery(tmp_path):
     rows = [{"t": 1}, {"t": 2}, {"t": 3}, {"t": 4}, {"t": 2.5}, {"t": 3}, {"x": 9}, {"t": 5}]
-    assert [r["t"] for r in latest_branch(rows, "t")] == [1, 2, 2.5, 3, 5]
+    assert [r["t"] for r in latest_branch(rows, "t")] == [1, 2, 2.5, 3, 5]  # an older file: cut at the first row
+    # the review's kill-and-resume: a pair at 1500, the killed session ran on to 2560, the resume starts at 1500
+    a = [{"session": "A", "session_start": 0, "t": n} for n in (512, 1024, 1536, 2048, 2560)]
+    b = [{"session": "B", "session_start": 1500, "t": n} for n in (2012, 2524, 3036)]
+    assert [r["t"] for r in latest_branch(a + b, "t")] == [512, 1024, 2012, 2524, 3036]
+    # a second kill and resume from the same pair
+    c = [{"session": "C", "session_start": 1500, "t": n} for n in (2012, 2524)]
+    assert [(r["session"], r["t"]) for r in latest_branch(a + b + c, "t")] == [("A", 512), ("A", 1024), ("C", 2012),
+                                                                              ("C", 2524)]
     path = tmp_path / "h.jsonl"
     path.write_text('{"timesteps": 7}\n{"timesteps": 8, "algo')  # a session killed mid-write
     _ppo().learn(64, callback=TrainingHealth(path))
-    assert [r["timesteps"] for r in read_health(path)] == [7, 64]
+    rows = read_health(path)
+    assert [r["timesteps"] for r in rows] == [7, 64] and rows[1]["session_start"] == 0 and rows[1]["session"]
 
 
 def test_health_reads_only(tmp_path):
@@ -158,7 +167,11 @@ def test_checks_run_every_n_steps_with_the_deterministic_policy(tmp_path):
     r = rows[0]["points"]
     assert [e["fell"] for e in r["cliff"]] == [True, True] and r["flat"][0]["action"] == r["flat"][1]["action"]
     assert all("no such floor" in e["error"] for e in r["broken"])  # a failing point never stops training
-    assert sum("WARNING" in s for s in said) == 2
+    assert sum("WARNING" in s for s in said) == 2 and rows[0]["session_start"] == 0
+    from telemetry import health_dashboard as hd
+
+    s = hd.checks_series(rows + [{"steps": 300}])  # a row without points (a foreign file) is skipped
+    assert s["points"]["broken"]["failed_episodes"] == 4 and s["points"]["broken"]["fall_share"] == [None, None]
     with pytest.raises(ValueError):
         PeriodicChecks(path, every=0, points={}, run_point=run_point)
 
@@ -196,6 +209,16 @@ def test_train_records_health_and_checks_are_not_kept_settings(tmp_path, monkeyp
     shutil.copy(cfg.model_path, outside)
     with pytest.raises(SystemExit, match="sim/generated"):
         train.make_checks(args2, cfg.replace(model_path=str(outside)), tmp_path)
+    # through main(): refused before any file is written (the review's N1)
+    for extra, env in ((["--checks", "step_3cm,moon"], None), ([], str(tmp_path)),
+                       (["--model", str(outside)], None)):
+        run = tmp_path / f"refused{len(extra)}{bool(env)}"
+        if env:
+            monkeypatch.setenv("TRIKE_ENV_DIR", env)
+        else:
+            monkeypatch.delenv("TRIKE_ENV_DIR", raising=False)
+        assert train.main(["--out", str(run), "--total-steps", "1024", "--checks-every", "512", *extra]) == 2
+        assert not run.exists()
     monkeypatch.setenv("TRIKE_ENV_DIR", str(tmp_path))
     with pytest.raises(SystemExit, match="TRIKE_ENV_DIR"):
         train.make_checks(args2, cfg, tmp_path)

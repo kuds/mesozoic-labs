@@ -6,6 +6,9 @@ predicts returns), each reward term and the reasons episodes end say early why.
 
 Each line of ``train_health.jsonl`` covers one rollout and the update that followed it:
 
+- ``session``: an identifier of this training session (its start time and process); ``session_start``: the step
+  count it started from (a resumed session starts at its checkpoint's). Together they let ``latest_branch`` drop
+  what a killed session ran past that checkpoint;
 - ``timesteps``: the model's step count at the end of that rollout; ``wall_s``: the wall time since the previous
   line (the rollout, its update, and any evaluations, checks or saves the other callbacks made in between);
 - ``algo``: SB3's ``train/*`` values of that update (PPO: approx_kl, clip_fraction, entropy_loss, explained_variance,
@@ -81,6 +84,8 @@ class TrainingHealth(BaseCallback):
 
     def _on_training_start(self) -> None:
         self._reset_rollout()
+        self._session_start = int(self.model.num_timesteps)
+        self._session = session_id()
         # a session killed mid-write leaves a torn last line: end it, so this session's first line stands on its own
         try:
             if self.path.exists() and self.path.stat().st_size:
@@ -133,7 +138,9 @@ class TrainingHealth(BaseCallback):
         algo = {k[len("train/"):]: _finite(v) for k, v in m.logger.name_to_value.items() if k.startswith("train/")}
         policy = m.policy
         log_std = getattr(policy, "log_std", None)
-        rec = {"timesteps": self._steps_at_end, "rollout": self.rollouts, "time_utc": time.strftime(
+        rec = {"session": getattr(self, "_session", None), "session_start": getattr(self, "_session_start", None),
+               "timesteps": self._steps_at_end,
+               "rollout": self.rollouts, "time_utc": time.strftime(
             "%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "wall_s": round(time.time() - self._t0, 3),
             "algo": algo, "grad_norm": _finite(grad_norm(policy.parameters())),
             "action_std": _finite(float(np.exp(log_std.detach().cpu().numpy()).mean())) if log_std is not None
@@ -158,16 +165,28 @@ class TrainingHealth(BaseCallback):
         self._reset_rollout()
 
 
+def session_id() -> str:
+    import os
+
+    return f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{os.getpid()}"
+
+
 def latest_branch(rows: list[dict], key: str) -> list[dict]:
-    """The rows of the run as it stands: a resumed session restarts at its checkpoint's step count, so rows the
-    killed session wrote past that point (its discarded branch) are dropped, and a later row replaces an earlier one
-    at the same count. Rows without ``key`` are skipped. In step order."""
+    """The rows of the run as it stands. A resumed session restarts at its checkpoint's step count, so the rows a
+    killed session wrote past that point (its discarded branch) are dropped:
+    - where rows carry ``session`` and ``session_start``, every row of an earlier session past the new session's
+      start goes, including a rollout that straddled the checkpoint;
+    - otherwise (older files), the cut is at the new session's first row.
+    A later row replaces an earlier one at the same count. Rows without ``key`` are skipped. In step order."""
     kept: list[dict] = []
     for r in rows:
         n = r.get(key)
         if not isinstance(n, (int, float)):
             continue
-        while kept and kept[-1][key] >= n:
+        sid, start = r.get("session"), r.get("session_start")
+        cut = start if sid is not None and isinstance(start, (int, float)) else None
+        while kept and (kept[-1][key] >= n or (cut is not None and kept[-1].get("session") != sid
+                                               and kept[-1][key] > cut)):
             kept.pop()
         kept.append(r)
     return kept
