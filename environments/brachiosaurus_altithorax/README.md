@@ -2,8 +2,8 @@
 
 A sauropod-inspired quadruped with a long, articulated neck, a tapering tail and shoulders that stand higher than its
 hips. It walks with a slow four-beat, lateral-sequence gait that keeps at least two feet on the ground. The model is
-for learning to stand, to walk, and to reach food: bringing the head tip to an elevated food target. It is a research
-abstraction at model scale, not a validated model of how the animal moved.
+for learning to stand and to walk. It is a research abstraction at model scale, not a validated model of how the
+animal moved.
 
 ## Models
 
@@ -90,9 +90,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then food reach, each warm-started from its parent in `stages.toml` and run with
-the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The food reach that followed locomotion was removed with every hunt node (decision D-D59). To reuse the
+certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical \
@@ -100,24 +100,28 @@ python -m environments.shared.train --species brachiosaurus_altithorax --embodim
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "brachiosaurus_altithorax"`,
-`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
 
 Species notes:
 
-- **Published results.** The published results and training clips predate physics revision 6, so a policy for the
-  current model must be trained and evaluated again. Checkpoints from policy interface r10 or earlier fail the plant
+- **Published clips.** The published training clips predate physics revision 6, so a policy for the current model
+  must be trained and evaluated again. The 2026-07-18 result summary they came with was deleted with the hunt nodes
+  (decision D-D59; `results/README.md`). Checkpoints from policy interface r10 or earlier fail the plant
   check and cannot seed a warm start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
 - **Reference walk speed.** The reference walk is slower than the locomotion gate's minimum speed. It shows what the
   plant can do mechanically, not a gait that would pass the gate.
 
 ## Task and rewards
 
-A food target spawns ahead of and above the animal at reset. The task is to bring the head-tip site within a
-configured distance of it; it is a distance test, and no food geom touches the head. The environment reports
-`food_reached` and, when the food-reach bonus is enabled (the food-reach stage), ends the episode.
+The trained tasks are the stance and the walk; the food reach, the hunt that followed the walk, was removed by
+decision D-D59 and no stage trains it. Until the environment change that removes them, a food target still spawns
+ahead of and above the animal at reset, the observation still carries its direction and distance, and the food-reach
+terms below are still in the code, set to zero by every stage config. The food reach was a distance test: the
+environment reports `food_reached` when the head-tip site comes within a configured distance of the target, and when
+the food-reach bonus is enabled it ends the episode.
 
 The observation holds the joint positions and velocities, the torso orientation quaternion, gyro, linear velocity and
 accelerometer, one touch channel per foot, the food direction and distance, and the command. Actions are offsets from
@@ -130,7 +134,8 @@ The main reward groups:
   term.
 - **Progress:** forward velocity and heading toward the food, with penalties on backward, sideways and drifting
   motion, spin, speed above a threshold and standing idle.
-- **Food reach:** a large bonus on success, shaping on the head-to-food distance and a head-proximity term.
+- **Food reach** (zero in every stage config since D-D59): a large bonus on success, shaping on the head-to-food
+  distance and a head-proximity term.
 - **Gait quality:** penalties on torso and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs.
 - **Effort:** an energy penalty on actuator use.

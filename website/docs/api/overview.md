@@ -36,7 +36,13 @@ a subclass of the species base class `<Species>Env` in `environments.<species>.b
 
 ## Velociraptor Environment
 
-The main environment for velociraptor locomotion and predatory strike training.
+The main environment for velociraptor stance and locomotion training.
+
+The hunt tasks (the velociraptor strike, the T-Rex head-contact bite, the
+Brachiosaurus food reach) are no longer trained: decision D-D59 removed every
+hunt node, so no stage config enables them. Their constructor arguments, the
+prey or food target and their info keys stay in the environment API, as
+shown below, until the environment change that removes them.
 
 ```python
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
@@ -81,9 +87,9 @@ TOML configs.
 
 ## T-Rex Environment
 
-Large dinosaur-inspired bipedal model with a fixed head-contact task. The
-Stage 3 name "Bite" is retained in configs and metric keys, but the model has no
-articulated jaw: success means the fixed `head_bite` geom contacted the prey.
+Large dinosaur-inspired bipedal model. Its former hunt, a fixed head-contact
+"bite" (the model has no articulated jaw: `bite_success` means the fixed
+`head_bite` geom contacted the prey), is no longer trained (decision D-D59).
 
 ```python
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
@@ -100,9 +106,9 @@ source for its current observation and action dimensions.
 
 ## Brachiosaurus Environment
 
-Quadrupedal dinosaur-inspired model with a distance-based food-target task.
-"Food reached" means the head tip moved within the configured threshold; it
-does not require physical contact with a food geom.
+Quadrupedal dinosaur-inspired model. Its former hunt, a distance-based food
+reach ("food reached" means the head tip moved within the configured threshold,
+with no contact with a food geom), is no longer trained (decision D-D59).
 
 ```python
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
@@ -136,10 +142,10 @@ model.save("velociraptor_mongoliensis_anatomical_stance")
 ```
 
 Or use the shared training CLI from the repository root, which takes the model as
-`--species <species> --embodiment <embodiment>` (both required). The `curriculum` command runs all three stages in a single call — each stage loads its own hyperparameters from the TOML config automatically:
+`--species <species> --embodiment <embodiment>` (both required). The `curriculum` command runs the model's advancing stages, stance then locomotion, in a single call — each stage loads its own hyperparameters from the TOML config automatically:
 
 ```bash
-# Full 3-stage curriculum (recommended) — one command, stages 1-3
+# The full curriculum (recommended) — one command, stance then locomotion
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo --n-envs 4
 

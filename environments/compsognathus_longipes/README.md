@@ -2,9 +2,8 @@
 
 *Compsognathus longipes* was a small, long-tailed bipedal theropod. The species has two models: an anatomical
 reconstruction scaled from a fossil, and the Rev B robot, a twelve-servo biped with a fixed head and an unpowered
-tail. Both are for learning to stand, to recover from pushes, to walk, and to reach a target marker and stop beside
-it. They are research abstractions: the anatomical model is not a validated model of how the animal moved, and the
-robot has not been built.
+tail. Both are for learning to stand, to recover from pushes and to walk. They are research abstractions: the
+anatomical model is not a validated model of how the animal moved, and the robot has not been built.
 
 ## Models
 
@@ -95,9 +94,9 @@ python -m environments.shared.train --species compsognathus_longipes --embodimen
 python -m environments.shared.train --species compsognathus_longipes --embodiment robot curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then target reaching, each warm-started from its parent in `stages.toml` and run
-with the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The target reaching that followed locomotion was removed with every hunt node (decision D-D59). To
+reuse the certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical \
@@ -105,7 +104,7 @@ python -m environments.shared.train --species compsognathus_longipes --embodimen
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "compsognathus_longipes"`,
-`EMBODIMENT` to `"anatomical"` or `"robot"` and `BEHAVIOR` to `"stance"`, `"recover"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT` to `"anatomical"` or `"robot"` and `BEHAVIOR` to `"stance"`, `"recover"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
@@ -138,10 +137,13 @@ Species notes:
 
 ## Task and rewards
 
-A target marker spawns ahead of the animal at a random distance and side offset. The task is to reach it and stop:
-the upright pelvis must enter the target radius in the ground plane at or below a speed limit, with no body part but
-the feet on the floor. The environment reports `target_success` and ends the episode. The marker is not touched or
-bitten; the robot's head is fixed.
+The trained tasks are the stance, recovery from pushes and the walk; the target reach, the hunt that followed the
+walk, was removed by decision D-D59 and no stage trains it. Until the environment change that removes them, a target
+marker still spawns ahead of the animal at a random distance and side offset, the observation still carries its
+direction and distance, and the target terms below are still in the code, set to zero by every stage config. The
+target reach asked the upright pelvis to enter the target radius in the ground plane at or below a speed limit, with
+no body part but the feet on the floor; the environment reports `target_success` and, while the target task is
+enabled, ends the episode.
 
 The observation holds the joint positions and velocities, the pelvis gyro and accelerometer, the foot forces, the
 target's direction and distance, and the command. The anatomical observation reads no world heading: it uses projected
@@ -155,7 +157,8 @@ The main reward groups:
 
 - **Survival and posture:** an alive bonus paid while the feet carry weight, upright posture, pelvis height, the home
   joint pose and a fall penalty.
-- **Progress:** forward velocity and progress toward the target, heading alignment and a target-reach bonus.
+- **Progress:** forward velocity, heading alignment, and progress toward the target with a target-reach bonus (both
+  zero in every stage config since D-D59).
 - **Stability:** drift, sideways-velocity and spin penalties, and an optional gait-symmetry term.
 - **Stance quality** (anatomical stance and recovery): support under both feet, level pads and the settled stance
   width on loaded feet, the home leg pose and every support geom loaded, and penalties on floor impacts, airborne
@@ -165,8 +168,8 @@ The main reward groups:
 The weights are the `CompsognathusLongipesEnv` constructor defaults in `base_env.py` and, for the stance-quality
 terms, the `CompsognathusLongipesAnatomicalEnv` defaults in `anatomical/env.py`, where they are off. The `[env]` table
 of each stage TOML under `configs/compsognathus_longipes/<embodiment>/` overrides them. An episode ends on a
-non-finite state, a pelvis too low or too high, excessive tilt, any body part but the feet touching the floor, or a
-target reached. The thresholds are in `base_env.py`.
+non-finite state, a pelvis too low or too high, excessive tilt, any body part but the feet touching the floor, or,
+while the target task is enabled, a target reached. The thresholds are in `base_env.py`.
 
 ## Robot embodiment
 

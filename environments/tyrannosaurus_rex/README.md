@@ -2,8 +2,8 @@
 
 A scaled-down reconstruction of an adult *Tyrannosaurus rex*: a heavy biped with a broad skull, two-fingered arms and
 a long counterbalancing tail. It stands on a plantar pad and three forward toes per foot. The model is for learning to
-stand, to recover from pushes, to walk, and to reach prey and touch it with the snout. The jaw is fixed, so the "bite"
-is a head-contact proxy, and the model is a research abstraction, not a validated account of the animal's mechanics.
+stand, to recover from pushes and to walk. It is a research abstraction, not a validated account of the animal's
+mechanics.
 
 ## Models
 
@@ -93,9 +93,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then the bite task, each warm-started from its parent in `stages.toml` and run
-with the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The bite task that followed locomotion was removed with every hunt node (decision D-D59). To reuse the
+certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
@@ -103,7 +103,7 @@ python -m environments.shared.train --species tyrannosaurus_rex --embodiment ana
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "tyrannosaurus_rex"`,
-`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"recover"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"recover"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
@@ -129,9 +129,12 @@ Species notes:
 
 ## Task and rewards
 
-A prey sphere spawns ahead of the animal at a random distance and side offset. The task is to reach it and touch it
-with the fixed head-contact geom. The environment reports `bite_success` on that contact, while the bite reward is on;
-the contact ends the episode.
+The trained tasks are the stance, recovery from pushes and the walk; the bite, the hunt that followed the walk, was
+removed by decision D-D59 and no stage trains it. Until the environment change that removes them, a prey sphere still
+spawns ahead of the animal at a random distance and side offset, the observation still carries its direction and
+distance, and the bite terms below are still in the code, set to zero by every stage config. The jaw is fixed, so the
+bite was a head-contact proxy: the environment reports `bite_success` when the fixed head-contact geom touches the
+prey while the bite reward is on, and the contact ends the episode.
 
 The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
 and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one load
@@ -144,7 +147,8 @@ The main reward groups:
 - **Survival and posture:** an alive bonus, posture, nosedive and height terms, head clearance and neck posture, and a
   fall penalty.
 - **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
-- **Bite:** approach shaping, head-proximity shaping, and a bonus when the head-contact geom touches the prey.
+- **Bite** (zero in every stage config since D-D59): approach shaping, head-proximity shaping, and a bonus when the
+  head-contact geom touches the prey.
 - **Stance quality** (stance and recovery): support and load balance between the feet, the home leg and tail poses,
   flat soles and a steady stance width, sideways lean, foot stagger, each foot's center of pressure, and penalties on
   floor impacts and airborne physics substeps.

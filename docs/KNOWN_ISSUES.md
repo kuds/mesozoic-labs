@@ -186,7 +186,7 @@ robustness, **LOW** = cosmetic / QoL.
   3042–3081 panel (39/40) but is clean on 32/40 of the re-judge seeds
   7042–7081 (re-rolled from its checkpoint in the 2026-10-10 review), so
   the two-seed ask stands. On 2026-10-11 the maintainer ruled seed 52
-  research-only, not a trunk for recovery, walk or hunt (the stance-gate HIGH
+  research-only, not a trunk for recovery or walk (the stance-gate HIGH
   below;
   [investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
   §1.2–§1.3).
@@ -658,7 +658,8 @@ robustness, **LOW** = cosmetic / QoL.
   reads the per-node files (`gate_verdict.json`, `task_fingerprint.json`,
   `plant_identity.json`, `stage_config.json`), which are written the moment
   a node is judged, so `TRUNK_FROM = "auto"` still selects the run and
-  reuses both nodes for a hunt session, whose chain runs through both
+  reuses both nodes for a hunt session (before decision D-D59 removed the
+  hunt), whose chain runs through both
   (2026-09-17 Drive survey,
   [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md));
   a recover or walk session (a stand session before D-D35) considers
@@ -853,47 +854,6 @@ robustness, **LOW** = cosmetic / QoL.
   replication 1: its `complete` bundle cannot be rewritten in place (the
   MEDIUM entry "run-level records go stale" above; a complete bundle is
   immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md)).
-- **MEDIUM (provisional threshold)** — **the T-Rex hunting bar
-  `min_success_lcb = 0.5` in `configs/tyrannosaurus_rex/anatomical/behavior.toml` is PROVISIONAL
-  (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,
-  on the strength of the schema-2 committed result (`results/tyrannosaurus_rex/anatomical/ppo/
-  summary.json` stage 3: mean 0.9667 → 29/30 → LCB 0.8514, a recomputation
-  from a rounded mean with no per-episode evidence, judged at
-  `min_success_rate` 0.25 with no velocity term under a different `[env]`
-  block) — freeze-then-revise, not the pilot-then-freeze precedent the
-  recovery gate set. Follow-up: after the first hunting pilot under
-  `task_success/v1`, re-freeze the bar attainable-not-aspirational from its
-  `evaluation_selected.csv` (20/30 clears 0.5 at 0.5006; 19/30 does not),
-  update the TOML comment and plan §4.4, and re-judge — never retrain — any
-  verdict minted under the provisional bar (a moved threshold is a re-judge
-  under D-B7/D-B8).
-- **LOW (calibration owed)** — **`collapse_peak_warmup_timesteps =
-  1_000_000` on the T-Rex behavior stage is a judgment, not a measurement
-  (decision D-B5).** Stance's 1.0M was measured by replaying run
-  `20260803_012355`'s evaluation series through the detector; no
-  behavior-stage series under the current config exists to replay, so the
-  value is the stance/recovery number bounded below by the 600k stage-entry
-  window (`warmup_timesteps` + `ramp_timesteps`, where a warm-started walker
-  evaluates near the 602.13 statue and would arm the 270.9 floor at once)
-  and above by the ≤ 0.5× budget pin in `test_curriculum_early_stopping.py`.
-  Follow-up: replay the first full hunting run's `evaluations.npz` through
-  `EvalCollapseEarlyStopCallback` (as STAGE1_SPLIT_PLAN §12.4 did) and
-  re-derive; re-measure the statue (`zero_action_baseline.py --model-id
-  tyrannosaurus_rex anatomical --stage 3 --episodes 40 --seed 3042`) whenever a behavior reward weight or the plant
-  moves, and re-derive the 361 rail and the 602.0 reference together.
-- **MEDIUM (operational)** — **a CLI-certified hunt (`curriculum --target
-  hunt`) is judged IN-TRAINING on the last EvalCallback panel and cannot be
-  backfilled.** `train_curriculum` has no post-stage judge and writes no
-  `evaluation_selected.csv`; its `task_success/v1` verdict is the
-  `CurriculumManager`'s own bound over the EvalCallback successes
-  (persisted as `success_count` / `n_success_samples` in the verdict's
-  `stage_result`, with `required_consecutive` hysteresis), which is a
-  different estimator from the post-stage arm's single hash-bound panel on
-  the selected handoff. `backfill_gate_verdict.py` refuses such a directory
-  (no `evaluation_selected.csv` hash-bound to the handoff), and publication
-  needs the notebook, whose chain loop writes the evidence CSV and judges
-  it through `generate_stage_artifacts`. Treat a CLI hunt verdict as a
-  training-time signal, not a certification.
 
 <!-- The items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and
@@ -1191,11 +1151,6 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM (perf)** — `EvalCallback` runs 30 serial episodes every 50k steps
   plus supplementary + post-stage evals — up to ~3.6M serial eval steps per
   6M-step stage. Vectorize the eval env or trim episodes. (June §6.1)
-- **Experiment** — consider tightening Brachiosaurus
-  `head_proximity_max_dist` (~2.0 m) to concentrate the last-mile
-  food-reach gradient. (June §6.10; the rest of that finding is resolved —
-  the published summary is now the 2026-07-18 run, which passes its
-  stage-3 gate with success rate 1.0.)
 - **Watch item** — the biped home-residual action mapping has a
   slope discontinuity at action 0 (the two piecewise segments span
   home→min and home→max, which are unequal), so zero-mean Gaussian
@@ -1530,36 +1485,6 @@ robustness, **LOW** = cosmetic / QoL.
   adopted per species ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G9; GQ-13,
   open); allowing no two-footed touchdown in a push window, seed 44 scores
   5/40.
-
-- **MEDIUM** — **hunt success counts on a step that ends in a fall, and the
-  panel and training definitions disagree (executed 2026-09-28).** On T-Rex,
-  velociraptor, brachiosaurus and dibothrosuchus the reward info sets the
-  success flag and pays the 1,000 bonus whenever the contact or reach holds,
-  but `_is_terminated` runs every fall check except floor contact before its
-  success check, so such a step ends as a fall with `is_success` False
-  (`base_env.py:1372`). The post-training panel reads the flag on every step
-  (`evaluation.py:118-119`) and counts the episode, for T-Rex in the `task_success`
-  that `task_success/v1` judges; training reads `is_success` and does not.
-  Executed on each hunt env with the body rolled past `max_tilt_angle` and the
-  prey on the success geometry: `excessive_tilt`, 991–992 reward, a panel
-  success (T-Rex 30/30, gate PASS) and 0 in training; a floor-contact fall on
-  the contact step ends as a success in both. The compsognathus pair reads
-  success after its fall checks (`compsognathus_longipes/base_env.py:298-312`) and is
-  unaffected. Leaves with each hunt's task revision, which the gait plan does
-  not schedule ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9;
-  [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3).
-
-- **MEDIUM** — **the brachiosaurus zero-action statue reaches the food in 11
-  of 40 hunt episodes (executed 2026-09-28).** The food spawns 1.5–4.0 m ahead
-  and 2.0–3.5 m up and counts within 0.8 m of the head tip
-  (`configs/brachiosaurus_altithorax/anatomical/food_reach.toml:18-23`), so the statue
-  reaches it on 27.5% of the audit's seeds (3042–3081; a spawn draw, about
-  ±7%) against a `min_success_rate` of 0.5: more than half the bar is free
-  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). Leaves with the
-  brachiosaurus hunt's task revision (a paired comparison with the statue, or
-  food spawned out of resting reach), which the gait plan does not schedule
-  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9). On physics r6, the untrained
-  statue reaches the target in 9 of the same 40 episodes (22.5%).
 
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on T-Rex, velociraptor, brachiosaurus or dibothrosuchus (read from

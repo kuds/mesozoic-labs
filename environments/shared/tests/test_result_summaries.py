@@ -1,4 +1,11 @@
-"""Schema and provenance checks for curated result summaries."""
+"""Schema and provenance checks for curated result summaries.
+
+``results/`` holds no summary since decision D-D59 deleted the four historical ladder summaries (three from March
+2026 and the Brachiosaurus run of 2026-07-18) with the hunt nodes their last stage trained; the committed-file checks
+below run over whatever ``results/`` holds (none today), and
+the schema checks run on ``result_bundle_helpers.LADDER_SUMMARY``, a curated schema-2 ladder summary kept as a
+fixture.
+"""
 
 from __future__ import annotations
 
@@ -34,8 +41,21 @@ RESULT_CSVS = tuple(sorted((REPOSITORY_ROOT / "results").rglob("collected_result
 
 
 def test_result_summaries_are_discovered() -> None:
-    """Protect against a vacuous schema test caused by a bad repository path."""
-    assert RESULT_SUMMARIES, "no results/*/*/*/summary.json files were found"
+    """Protect against a vacuous schema test caused by a bad repository path: the glob runs over the real
+    ``results/`` directory, and it finds exactly the summaries the species manifest lists (none since decision
+    D-D59), so a summary filed anywhere the catalog reads is checked here."""
+    import tomllib
+
+    assert (REPOSITORY_ROOT / "results" / "README.md").is_file()
+    with (REPOSITORY_ROOT / "configs" / "species_manifest.toml").open("rb") as handle:
+        manifest = tomllib.load(handle)
+    listed = sorted(
+        REPOSITORY_ROOT / path
+        for species in manifest["species"].values()
+        for embodiment in species["embodiments"].values()
+        for path in embodiment["result_summary_paths"]
+    )
+    assert list(RESULT_SUMMARIES) == listed
 
 
 @pytest.mark.parametrize("summary_path", RESULT_SUMMARIES, ids=lambda path: str(path.relative_to(REPOSITORY_ROOT)))
@@ -55,7 +75,6 @@ def test_result_summary_schema_and_provenance(summary_path: Path) -> None:
 
 def test_every_collected_results_csv_has_a_sibling_summary() -> None:
     """A curated CSV is a derived view of the ``summary.json`` beside it; one without it has nothing to agree with."""
-    assert RESULT_CSVS, "no results/**/collected_results.csv files were found"
     orphans = [
         str(path.relative_to(REPOSITORY_ROOT)) for path in RESULT_CSVS if not path.with_name("summary.json").is_file()
     ]
@@ -133,11 +152,37 @@ def test_a_summary_of_one_embodiment_is_refused_for_the_other() -> None:
         validate_result_summary(canonical, canonical_provenance=True)
 
 
+def test_the_ladder_fixture_is_a_complete_schema_2_summary() -> None:
+    """``LADDER_SUMMARY`` validates as the curated form, complete over the two advancing stages."""
+    summary = _published_summary()
+    assert summary["schema_version"] == 2 and sorted(summary["stages"]) == ["1", "2"]
+    assert summary["total_timesteps"] == sum(stage["timesteps"] for stage in summary["stages"].values())
+    validated = validate_result_summary(
+        summary,
+        expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+        relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
+        require_complete=True,
+    )
+    assert validated is summary
+
+
+def test_a_ladder_summary_with_the_removed_hunt_stage_is_refused() -> None:
+    """Legacy stage 3, the hunt, resolves to no stage since decision D-D59, so a summary recording it (the four
+    deleted historical ladder summaries did) is refused."""
+    summary = deepcopy(_published_summary())
+    summary["stages"]["3"] = deepcopy(summary["stages"]["2"])
+    summary["total_timesteps"] += summary["stages"]["3"]["timesteps"]
+    with pytest.raises(ResultSchemaError, match="no stage with legacy number 3"):
+        validate_result_summary(
+            summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=False
+        )
+
+
 def test_partial_summary_accepts_a_nonempty_stage_subset() -> None:
     summary = deepcopy(_published_summary())
-    del summary["stages"]["3"]
+    del summary["stages"]["2"]
     summary["total_timesteps"] = sum(stage["timesteps"] for stage in summary["stages"].values())
-    summary["final_avg_reward"] = summary["stages"]["2"]["final_eval_reward"]
+    summary["final_avg_reward"] = summary["stages"]["1"]["final_eval_reward"]
 
     validate_result_summary(
         summary,
@@ -162,16 +207,16 @@ def test_partial_summary_rejects_empty_or_unknown_stages() -> None:
         validate_result_summary(summary, require_complete=False)
 
     summary = deepcopy(_published_summary())
-    summary["stages"]["4"] = summary["stages"].pop("3")
+    summary["stages"]["4"] = summary["stages"].pop("2")
     with pytest.raises(ResultSchemaError, match="invalid stage reference '4'"):
         validate_result_summary(summary, require_complete=False)
 
 
 def _tyrannosaurus_rex_summary_with_recovery(schema_version: int = RESULT_SCHEMA_VERSION) -> dict[str, Any]:
-    """The committed T-Rex summary plus a synthetic recovery stage, at the writers' schema (v5; was v3 before
-    decision D-D33 retired it)."""
-    summary = _load_summary(REPOSITORY_ROOT / "results" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "summary.json")
-    summary = deepcopy(summary)
+    """The ladder fixture as a T-Rex summary plus a synthetic recovery stage, at the writers' schema (v5; was v3
+    before decision D-D33 retired it). The committed T-Rex summary it was built on until decision D-D59 is gone."""
+    summary = _published_summary()
+    summary.update(ModelId("tyrannosaurus_rex", "anatomical").record())
     summary["schema_version"] = schema_version
     recovery_stage = deepcopy(summary["stages"]["1"])
     recovery_stage["name"] = "recovery"
@@ -188,8 +233,9 @@ def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
     """Recovery joins the summary without weakening the advancing-stage rule.
 
     The v2 ``exactly {1, 2, 3}`` equality enforced "a complete curriculum
-    recorded every advancing stage".  The pre-v4 rule set keeps that rule
-    bit-for-bit for the advancing trio while the non-advancing recovery stage
+    recorded every advancing stage" (``{1, 2}`` since decision D-D59).  The
+    pre-v4 rule set keeps that rule for the advancing stages while the
+    non-advancing recovery stage
     rides along, and its recorded verdict may be False, because a
     non-advancing pilot's failure must not be laundered into (or block) the
     curriculum's own completeness.  Schema 3 is retired (decision D-D33): the
@@ -212,7 +258,7 @@ def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
         require_complete=True,
     )
 
-    # Still fail-closed on the advancing trio: recovery cannot substitute
+    # Still fail-closed on the advancing stages: recovery cannot substitute
     # for a missing numbered stage.
     summary = _tyrannosaurus_rex_summary_with_recovery(schema_version=2)
     summary["total_timesteps"] -= summary["stages"]["2"]["timesteps"]

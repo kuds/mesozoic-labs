@@ -132,7 +132,7 @@ export interface SpeciesStage {
   deliverable: boolean;
   /** Stage id this node warm-starts from, or null for a root node. */
   warmStartFrom: string | null;
-  /** Behavior recipe label (stance/recover/walk/hunt) the node belongs to, or null. */
+  /** Behavior recipe label (stance/recover/walk) the node belongs to, or null. */
   recipe: string | null;
   /** Distinct-seed runs a deliverable needs before it stops being provisional (plan §4.5, D-B9; default 1). */
   certificationSeeds: number;
@@ -214,9 +214,8 @@ export interface PublishedResult {
   totalTimesteps: number;
   totalTrainingTime: string | null;
   finalAverageReward: number | null;
+  /** Fastest stage velocity the summary reports; a ladder summary's headline (headlineFor). */
   maxAverageForwardVelocity: number | null;
-  /** Historical ladder headline; read only through headlineFor. */
-  stage3SuccessRate: number | null;
   provenance: ResultProvenance;
   /** Empty for every schema-2 ladder summary; never synthesized. */
   deliverables: ResultDeliverable[];
@@ -409,7 +408,6 @@ interface RawResult {
   total_training_time: string | null;
   final_avg_reward: number | null;
   max_average_forward_velocity: number | null;
-  stage3_success_rate: number | null;
   provenance: {
     model_revision_status: 'current' | 'historical';
     verification_status: 'verified' | 'unverified';
@@ -571,7 +569,6 @@ function adaptResult(result: RawResult): PublishedResult {
     totalTrainingTime: result.total_training_time,
     finalAverageReward: result.final_avg_reward,
     maxAverageForwardVelocity: result.max_average_forward_velocity,
-    stage3SuccessRate: result.stage3_success_rate,
     provenance: {
       modelRevisionStatus: result.provenance.model_revision_status,
       verificationStatus: result.provenance.verification_status,
@@ -734,21 +731,21 @@ export function formatHeadlineValue(metric: HeadlineMetric): string {
  * The one statistic that headlines a published result on the landing page.
  *
  * A schema-4 result headlines its primary deliverable's first gate-kind
- * metric (a walk its velocity, a hunt its task success; stance and recovery
- * name the metric with no value until a later phase — decisions D-A9 and
- * D-B15), and a provisional primary — fewer certifying runs than the
- * current config's certification_seeds — says so with its count (plan
- * §4.5, decision D-B11), so a one-seed pass never headlines as settled.  A
- * ladder summary publishes no deliverable and keeps the historical "Task
- * success" headline from stage3_success_rate, rendered exactly as before
- * (D-A10).
+ * metric (a walk its velocity; stance and recovery name the metric with no
+ * value until a later phase — decisions D-A9 and D-B15), and a provisional
+ * primary — fewer certifying runs than the current config's
+ * certification_seeds — says so with its count (plan §4.5, decision D-B11),
+ * so a one-seed pass never headlines as settled.  A ladder summary
+ * publishes no deliverable and headlines the fastest stage velocity it
+ * reports; its stage-3 "Task success" headline left with the hunt nodes
+ * (decision D-D59).
  */
 export function headlineFor(result: PublishedResult): {label: string; value: string} {
   const primary = primaryDeliverableOf(result);
   if (primary === null) {
     return {
-      label: 'Task success',
-      value: result.stage3SuccessRate === null ? '—' : `${Math.round(result.stage3SuccessRate * 100)}%`,
+      label: 'Max. avg. forward velocity',
+      value: result.maxAverageForwardVelocity === null ? '—' : `${result.maxAverageForwardVelocity.toFixed(2)} m/s`,
     };
   }
   const provisional = primary.provisional

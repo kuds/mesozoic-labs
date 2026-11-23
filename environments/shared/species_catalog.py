@@ -705,9 +705,9 @@ def _validate_result_summary(summary: Any, *, model_id: ModelId, relative_path: 
     """Validate public results while preserving the catalog error API.
 
     Publishable, not complete (decision D-A2): a schema-4 run that certified
-    walk but failed hunt publishes its certified deliverables as ``partial``.
-    Below schema 4 the two flags are synonyms, so the four committed v2
-    summaries validate exactly as before.
+    stance but failed walk publishes its certified deliverables as
+    ``partial``.  Below schema 4 the two flags are synonyms, so a v2 ladder
+    summary validates exactly as before.
     """
     try:
         return validate_result_summary(
@@ -843,7 +843,6 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
         for key in ("model_revision_status", "verification_status", "evaluation_episodes", *PROVENANCE_IDENTIFIERS)
     }
     max_average_forward_velocity = _max_reported_velocity(stage_summaries)
-    stage_three = next((stage for stage in stage_summaries if stage["number"] == 3), None)
     return {
         "summary_path": relative_path,
         "algorithm": summary["algorithm"],
@@ -858,11 +857,12 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
         ),
         "total_training_time": summary.get("total_training_time"),
         "final_avg_reward": summary.get("final_avg_reward"),
+        # The ladder headline: a schema-2 summary publishes no deliverable,
+        # so the website headlines its fastest reported stage velocity; a v4
+        # result's headline comes from its primary deliverable below. The
+        # stage-3 task-success headline left with the hunt nodes (decision
+        # D-D59).
         "max_average_forward_velocity": max_average_forward_velocity,
-        # The historical ladder headline (plan §4.3): unchanged for every
-        # committed row; a v4 result's headline comes from its primary
-        # deliverable below, and a v4 run without a behavior stage is null.
-        "stage3_success_rate": stage_three.get("mean_success_rate") if stage_three else None,
         "provenance": provenance,
         # Per-deliverable publication (schema 4): [] and nulls for every
         # schema-2 summary — never synthesized from a ladder pass.
@@ -1717,9 +1717,9 @@ def render_readme_results(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                     f"{_format_percent(stage['mean_success_rate'])} | "
                     f"{_format_millions(stage['timesteps'])} | {_format_verdict(stage)} |"
                 )
-            # Only a schema-4 result publishes deliverables; the four
-            # committed ladder summaries publish none, and this block is
-            # byte-identical to its pre-Phase-A rendering for them (D-A10).
+            # Only a schema-4 result publishes deliverables; a ladder
+            # summary publishes none, and its block renders as it did before
+            # Phase A (D-A10).
             if result["deliverables"]:
                 lines.extend(
                     [
@@ -1741,6 +1741,11 @@ def render_readme_results(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                     f"{result_metric['definition']}",
                 ]
             )
+    if not any(model["historical_results"] for model in catalog["models"]):
+        # Decision D-D59 deleted the four historical ladder summaries with
+        # the hunt nodes their last stage trained; an empty block says so rather
+        # than ending on a preamble with nothing under it.
+        lines.extend(["", "No result summary is published under `results/` at present."])
     return "\n".join(lines)
 
 

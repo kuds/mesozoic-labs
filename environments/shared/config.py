@@ -5,7 +5,7 @@ Each model (species, embodiment; decision D-D33) has a
 configs/<species>/<embodiment>/ directory with one TOML file per stage,
 named by its stage with no number, as the model's stage manifest
 (``stages.toml`` in the same directory) declares (tyrannosaurus_rex/anatomical:
-stance.toml, recovery.toml, locomotion.toml, behavior.toml).
+stance.toml, recovery.toml, locomotion.toml).
 
 Each TOML file has up to five tables: [stage], [env], [ppo], [sac] and
 [curriculum].  A top-level ``extends`` key, before the first table header,
@@ -303,9 +303,10 @@ def load_stage_config(
 
     Args:
         model_id: The model (e.g. ``ModelId("tyrannosaurus_rex", "anatomical")``).
-        stage: Either a legacy stage number (1, 2, or 3 — resolved through
+        stage: Either a legacy stage number (1 or 2 — resolved through
             the stage manifest's legacy_number mapping, so existing callers
-            and artifacts keep their meaning) or a semantic stage ID — any
+            and artifacts keep their meaning; 3, the hunt, stays reserved and
+            resolves to no stage since decision D-D59) or a semantic stage ID — any
             id the model's manifest declares, resolved through it.  Stages
             without a legacy number — recovery, every open id — are
             reachable only by ID.
@@ -862,7 +863,8 @@ def save_stage_config(
 
     Args:
         stage_dir: Directory for this stage (e.g. ``run_dir/stage1``).
-        stage: Stage number (1, 2, or 3).
+        stage: The stage's reference: a legacy stage number (1 or 2; 3 is
+            reserved since decision D-D59) or a semantic stage ID.
         stage_config: The config dict returned by :func:`load_stage_config`.
         algorithm: Algorithm name (``"PPO"`` or ``"SAC"``).
         extra: Optional dict of additional metadata to include at the top level

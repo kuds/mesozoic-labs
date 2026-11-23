@@ -24,7 +24,7 @@ These docs cover the simulation tools behind the [animal collection](/animals). 
 
 The model pages render observation and action dimensions, compiled-model facts,
 current curriculum stages, and published result summaries from the generated
-species catalog. Each stage row shows its recipe label (stance, recover, walk or hunt),
+species catalog. Each stage row shows its recipe label (stance, recover or walk),
 whether it is a published deliverable, and the parent it warm-starts from;
 published results list one row per deliverable, headlined by the metric its
 gate kind certifies:
@@ -47,7 +47,7 @@ current model revision and configs.
 
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
 - [Animals](/animals) - Explore anatomical models, robot designs and movement studies
-- [Behavior Recipes](/docs/training/recipes) - Train stance, walk and hunt on one certified trunk
+- [Behavior Recipes](/docs/training/recipes) - Train stance, recovery and walk on one certified trunk
 - [Training](/docs/training/ppo) - Learn how to train your own dinosaur
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code
 

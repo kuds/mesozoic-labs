@@ -1,9 +1,8 @@
 # Velociraptor Mongoliensis
 
 A life-size reconstruction of *Velociraptor mongoliensis*, a small feathered theropod. It walks on two weight-bearing
-toes per foot and carries a raised sickle claw on each foot. The model is for learning to stand, to walk, and to run
-down a prey target and strike it with a sickle claw. It is a research abstraction built on measured bones, not a
-validated model of how the animal moved.
+toes per foot and carries a raised sickle claw on each foot. The model is for learning to stand and to walk. It is a
+research abstraction built on measured bones, not a validated model of how the animal moved.
 
 ## Models
 
@@ -94,9 +93,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then the strike, each warm-started from its parent in `stages.toml` and run with
-the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The strike that followed locomotion was removed with every hunt node (decision D-D59). To reuse the
+certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
@@ -104,7 +103,7 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "velociraptor_mongoliensis"`,
-`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
@@ -121,9 +120,11 @@ Species notes:
 
 ## Task and rewards
 
-A prey sphere spawns ahead of the animal at a random distance and side offset. The task is to reach it and touch it
-with a sickle claw. The environment reports `strike_success` when a sickle-claw geom contacts the prey while the
-strike reward is on; that contact ends the episode.
+The trained tasks are the stance and the walk; the strike, the hunt that followed the walk, was removed by decision
+D-D59 and no stage trains it. Until the environment change that removes them, a prey sphere still spawns ahead of the
+animal at a random distance and side offset, the observation still carries its direction and distance, and the strike
+terms below are still in the code, set to zero by every stage config. The environment reports `strike_success` when a
+sickle-claw geom contacts the prey while the strike reward is on; that contact ends the episode.
 
 The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
 and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one channel per
@@ -136,7 +137,8 @@ The main reward groups:
 - **Survival and posture:** an alive bonus, a posture term centered on the settled pitch, an optional nosedive
   penalty, and a fall penalty.
 - **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
-- **Strike:** approach shaping, optional proximity terms, and a bonus on claw contact.
+- **Strike** (zero in every stage config since D-D59): approach shaping, optional proximity terms, and a bonus on
+  claw contact.
 - **Stance quality** (stance stage only): support under both feet, the home leg, tail and neck poses, and penalties
   on floor impacts, airborne physics substeps, action jerk and commands held at their limits.
 - **Effort:** energy, action smoothness and tail stability.

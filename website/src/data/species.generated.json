@@ -54,7 +54,7 @@
       "display_name": "Velociraptor Mongoliensis (Anatomical)",
       "tagline": "Swift Bipedal Predator",
       "gait": "Bipedal",
-      "specialty": "Sickle-claw contact attack",
+      "specialty": "Fast bipedal running",
       "environment": {
         "entrypoint": "environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv",
         "observation_dim": 71,
@@ -95,9 +95,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "strike_success",
-          "label": "Sickle-claw contact success",
-          "definition": "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
+          "key": "forward_velocity_gate",
+          "label": "Gated forward velocity (reward_and_length/v1)",
+          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
         }
       ],
       "deliverable_metrics": [
@@ -120,16 +120,6 @@
           "key": "forward_velocity_gate",
           "label": "Gated forward velocity (reward_and_length/v1)",
           "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "stable-baselines3"
-          ],
-          "key": "strike_success",
-          "label": "Sickle-claw contact success",
-          "definition": "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
         }
       ],
       "stages": [
@@ -249,236 +239,9 @@
             "model_hash": null,
             "config_hash": null
           }
-        },
-        {
-          "id": "behavior",
-          "position": 3,
-          "number": 3,
-          "label": "3",
-          "name": "strike",
-          "title": "Strike",
-          "description": "Sprint and strike prey with sickle claw",
-          "config_path": "configs/velociraptor_mongoliensis/anatomical/strike.toml",
-          "timesteps": 12000000,
-          "deliverable": true,
-          "warm_start_from": "locomotion",
-          "recipe": "hunt",
-          "certification_seeds": 1,
-          "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": null,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": null,
-            "min_avg_forward_velocity": null,
-            "min_success_rate": 0.5,
-            "min_full_horizon_fraction": null,
-            "max_unsupported_duty": null,
-            "max_unsupported_duty_ucb": null,
-            "min_recovery_success_lcb": null,
-            "min_paired_success_delta_lcb": null,
-            "recovery_t_recover_steps": null,
-            "recovery_dwell_steps": null,
-            "min_success_lcb": null,
-            "min_eval_episodes": 10,
-            "required_consecutive": 3
-          },
-          "video": {
-            "path": "/videos/velociraptor_mongoliensis_anatomical_ppo_stage3_best.mp4",
-            "algorithm": "PPO",
-            "backend": "stable-baselines3",
-            "backend_version": null,
-            "model_revision_status": "historical",
-            "verification_status": "unverified",
-            "repository_commit": null,
-            "model_hash": null,
-            "config_hash": null
-          }
         }
       ],
-      "historical_results": [
-        {
-          "summary_path": "results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
-          "algorithm": "PPO",
-          "backend": "stable-baselines3",
-          "backend_version": null,
-          "date": "2026-03-15",
-          "hardware": "Google Colab",
-          "seed": 42,
-          "parallel_envs": 4,
-          "total_timesteps": 22000000,
-          "total_training_time": "11:25:15",
-          "final_avg_reward": 1258.93,
-          "max_average_forward_velocity": 3.47,
-          "stage3_success_rate": 0.9333,
-          "provenance": {
-            "model_revision_status": "historical",
-            "verification_status": "unverified",
-            "evaluation_episodes": null,
-            "repository_commit": null,
-            "model_hash": null,
-            "config_hash": null
-          },
-          "deliverables": [],
-          "primary_deliverable": null,
-          "target_deliverable": null,
-          "stages": [
-            {
-              "id": "stance",
-              "position": 1,
-              "number": 1,
-              "label": "1",
-              "recipe": "stance",
-              "deliverable": true,
-              "name": "balance",
-              "description": "Learn to stand and balance without falling",
-              "timesteps": 6000000,
-              "best_eval_reward": 1964.43,
-              "final_eval_reward": 1839.99,
-              "avg_forward_vel": 0.11,
-              "avg_episode_length": 969.5,
-              "mean_success_rate": null,
-              "training_time": "2:57:25",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "stance_quality_heading/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "locomotion",
-              "position": 2,
-              "number": 2,
-              "label": "2",
-              "recipe": "walk",
-              "deliverable": true,
-              "name": "locomotion",
-              "description": "Learn forward walking/running",
-              "timesteps": 8000000,
-              "best_eval_reward": 2678.68,
-              "final_eval_reward": 2677.51,
-              "avg_forward_vel": 3.47,
-              "avg_episode_length": 1000.0,
-              "mean_success_rate": null,
-              "training_time": "4:35:55",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "behavior",
-              "position": 3,
-              "number": 3,
-              "label": "3",
-              "recipe": "hunt",
-              "deliverable": true,
-              "name": "strike",
-              "description": "Sprint and strike prey with sickle claw",
-              "timesteps": 8000000,
-              "best_eval_reward": 1366.19,
-              "final_eval_reward": 1258.93,
-              "avg_forward_vel": 2.02,
-              "avg_episode_length": 191.2,
-              "mean_success_rate": 0.9333,
-              "training_time": "3:51:54",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            }
-          ]
-        },
-        {
-          "summary_path": "results/velociraptor_mongoliensis/anatomical/sac/summary.json",
-          "algorithm": "SAC",
-          "backend": "stable-baselines3",
-          "backend_version": null,
-          "date": "2026-03-21",
-          "hardware": "Google Colab",
-          "seed": 42,
-          "parallel_envs": 8,
-          "total_timesteps": 22000000,
-          "total_training_time": "22:59:18",
-          "final_avg_reward": 1187.45,
-          "max_average_forward_velocity": 2.91,
-          "stage3_success_rate": 0.9,
-          "provenance": {
-            "model_revision_status": "historical",
-            "verification_status": "unverified",
-            "evaluation_episodes": null,
-            "repository_commit": null,
-            "model_hash": null,
-            "config_hash": null
-          },
-          "deliverables": [],
-          "primary_deliverable": null,
-          "target_deliverable": null,
-          "stages": [
-            {
-              "id": "stance",
-              "position": 1,
-              "number": 1,
-              "label": "1",
-              "recipe": "stance",
-              "deliverable": true,
-              "name": "balance",
-              "description": "Learn to stand and balance without falling",
-              "timesteps": 6000000,
-              "best_eval_reward": 970.19,
-              "final_eval_reward": -24.1,
-              "avg_forward_vel": -0.64,
-              "avg_episode_length": 945.7,
-              "mean_success_rate": null,
-              "training_time": "5:08:59",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "stance_quality_heading/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "locomotion",
-              "position": 2,
-              "number": 2,
-              "label": "2",
-              "recipe": "walk",
-              "deliverable": true,
-              "name": "locomotion",
-              "description": "Learn forward walking/running",
-              "timesteps": 8000000,
-              "best_eval_reward": 2078.62,
-              "final_eval_reward": 1934.79,
-              "avg_forward_vel": 2.91,
-              "avg_episode_length": 874.4,
-              "mean_success_rate": null,
-              "training_time": "8:36:12",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "behavior",
-              "position": 3,
-              "number": 3,
-              "label": "3",
-              "recipe": "hunt",
-              "deliverable": true,
-              "name": "strike",
-              "description": "Sprint and strike prey with sickle claw",
-              "timesteps": 8000000,
-              "best_eval_reward": 1195.43,
-              "final_eval_reward": 1187.45,
-              "avg_forward_vel": 1.63,
-              "avg_episode_length": 257.6,
-              "mean_success_rate": 0.9,
-              "training_time": "9:14:06",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            }
-          ]
-        }
-      ]
+      "historical_results": []
     },
     {
       "species": "tyrannosaurus_rex",
@@ -487,7 +250,7 @@
       "display_name": "Tyrannosaurus Rex (Anatomical)",
       "tagline": "Apex Predator",
       "gait": "Bipedal",
-      "specialty": "Head-contact attack",
+      "specialty": "Heavy-bodied bipedal balance and walking",
       "environment": {
         "entrypoint": "environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv",
         "observation_dim": 63,
@@ -528,9 +291,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "bite_success",
-          "label": "Head-contact bite proxy",
-          "definition": "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
+          "key": "forward_velocity_gate",
+          "label": "Gated forward velocity (reward_and_length/v1)",
+          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
         }
       ],
       "deliverable_metrics": [
@@ -563,16 +326,6 @@
           "key": "forward_velocity_gate",
           "label": "Gated forward velocity (reward_and_length/v1)",
           "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "stable-baselines3"
-          ],
-          "key": "bite_success",
-          "label": "Head-contact bite success (task_success/v1)",
-          "definition": "The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate."
         }
       ],
       "stages": [
@@ -726,145 +479,9 @@
             "model_hash": null,
             "config_hash": null
           }
-        },
-        {
-          "id": "behavior",
-          "position": 4,
-          "number": 3,
-          "label": "3",
-          "name": "bite",
-          "title": "Bite",
-          "description": "Sprint to prey and make contact with the head bite proxy",
-          "config_path": "configs/tyrannosaurus_rex/anatomical/behavior.toml",
-          "timesteps": 8000000,
-          "deliverable": true,
-          "warm_start_from": "locomotion",
-          "recipe": "hunt",
-          "certification_seeds": 1,
-          "advancement_gate": {
-            "gate_kind": "task_success/v1",
-            "pending_gate_kind": null,
-            "min_avg_reward": 361.0,
-            "min_avg_episode_length": null,
-            "min_avg_forward_velocity": null,
-            "min_success_rate": null,
-            "min_full_horizon_fraction": null,
-            "max_unsupported_duty": null,
-            "max_unsupported_duty_ucb": null,
-            "min_recovery_success_lcb": null,
-            "min_paired_success_delta_lcb": null,
-            "recovery_t_recover_steps": null,
-            "recovery_dwell_steps": null,
-            "min_success_lcb": 0.5,
-            "min_eval_episodes": 30,
-            "required_consecutive": 3
-          },
-          "video": {
-            "path": "/videos/tyrannosaurus_rex_anatomical_ppo_stage3_best.mp4",
-            "algorithm": "PPO",
-            "backend": "stable-baselines3",
-            "backend_version": null,
-            "model_revision_status": "historical",
-            "verification_status": "unverified",
-            "repository_commit": null,
-            "model_hash": null,
-            "config_hash": null
-          }
         }
       ],
-      "historical_results": [
-        {
-          "summary_path": "results/tyrannosaurus_rex/anatomical/ppo/summary.json",
-          "algorithm": "PPO",
-          "backend": "stable-baselines3",
-          "backend_version": null,
-          "date": "2026-03-18",
-          "hardware": "Google Colab",
-          "seed": 42,
-          "parallel_envs": 4,
-          "total_timesteps": 22000000,
-          "total_training_time": "13:02:32",
-          "final_avg_reward": 1234.49,
-          "max_average_forward_velocity": 3.47,
-          "stage3_success_rate": 0.9667,
-          "provenance": {
-            "model_revision_status": "historical",
-            "verification_status": "unverified",
-            "evaluation_episodes": null,
-            "repository_commit": null,
-            "model_hash": null,
-            "config_hash": null
-          },
-          "deliverables": [],
-          "primary_deliverable": null,
-          "target_deliverable": null,
-          "stages": [
-            {
-              "id": "stance",
-              "position": 1,
-              "number": 1,
-              "label": "1",
-              "recipe": "stance",
-              "deliverable": true,
-              "name": "balance",
-              "description": "Learn to stand and balance without falling",
-              "timesteps": 6000000,
-              "best_eval_reward": 3008.66,
-              "final_eval_reward": 2998.07,
-              "avg_forward_vel": 0.02,
-              "avg_episode_length": 999.5,
-              "mean_success_rate": null,
-              "training_time": "3:35:24",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "stance_quality_heading/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "locomotion",
-              "position": 3,
-              "number": 2,
-              "label": "2",
-              "recipe": "walk",
-              "deliverable": true,
-              "name": "locomotion",
-              "description": "Learn forward walking/running",
-              "timesteps": 8000000,
-              "best_eval_reward": 1936.01,
-              "final_eval_reward": 1905.66,
-              "avg_forward_vel": 3.47,
-              "avg_episode_length": 984.6,
-              "mean_success_rate": null,
-              "training_time": "5:17:18",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "behavior",
-              "position": 4,
-              "number": 3,
-              "label": "3",
-              "recipe": "hunt",
-              "deliverable": true,
-              "name": "bite",
-              "description": "Sprint to prey and make contact with the head bite proxy",
-              "timesteps": 8000000,
-              "best_eval_reward": 1294.28,
-              "final_eval_reward": 1234.49,
-              "avg_forward_vel": 1.68,
-              "avg_episode_length": 175.9,
-              "mean_success_rate": 0.9667,
-              "training_time": "4:09:49",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "task_success/v1",
-              "gate_retired": true
-            }
-          ]
-        }
-      ]
+      "historical_results": []
     },
     {
       "species": "brachiosaurus_altithorax",
@@ -873,7 +490,7 @@
       "display_name": "Brachiosaurus Altithorax (Anatomical)",
       "tagline": "Gentle Giant Herbivore",
       "gait": "Quadrupedal",
-      "specialty": "Head-to-food reach",
+      "specialty": "Long-necked quadrupedal walking",
       "environment": {
         "entrypoint": "environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv",
         "observation_dim": 86,
@@ -914,9 +531,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "food_reached",
-          "label": "Head-tip distance-threshold success",
-          "definition": "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
+          "key": "forward_velocity_gate",
+          "label": "Gated forward velocity (reward_and_length/v1)",
+          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
         }
       ],
       "deliverable_metrics": [
@@ -939,16 +556,6 @@
           "key": "forward_velocity_gate",
           "label": "Gated forward velocity (reward_and_length/v1)",
           "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "stable-baselines3"
-          ],
-          "key": "food_reached",
-          "label": "Head-tip distance-threshold success",
-          "definition": "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
         }
       ],
       "stages": [
@@ -1039,135 +646,9 @@
             "model_hash": null,
             "config_hash": null
           }
-        },
-        {
-          "id": "behavior",
-          "position": 3,
-          "number": 3,
-          "label": "3",
-          "name": "food_reach",
-          "title": "Food Reach",
-          "description": "Move the head tip within the configured distance threshold of food",
-          "config_path": "configs/brachiosaurus_altithorax/anatomical/food_reach.toml",
-          "timesteps": 12000000,
-          "deliverable": true,
-          "warm_start_from": "locomotion",
-          "recipe": "hunt",
-          "certification_seeds": 1,
-          "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": null,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": null,
-            "min_avg_forward_velocity": null,
-            "min_success_rate": 0.5,
-            "min_full_horizon_fraction": null,
-            "max_unsupported_duty": null,
-            "max_unsupported_duty_ucb": null,
-            "min_recovery_success_lcb": null,
-            "min_paired_success_delta_lcb": null,
-            "recovery_t_recover_steps": null,
-            "recovery_dwell_steps": null,
-            "min_success_lcb": null,
-            "min_eval_episodes": 10,
-            "required_consecutive": 3
-          },
-          "video": null
         }
       ],
-      "historical_results": [
-        {
-          "summary_path": "results/brachiosaurus_altithorax/anatomical/ppo/summary.json",
-          "algorithm": "PPO",
-          "backend": "stable-baselines3",
-          "backend_version": null,
-          "date": "2026-07-18",
-          "hardware": "Google Colab L4 GPU",
-          "seed": 42,
-          "parallel_envs": 4,
-          "total_timesteps": 34021376,
-          "total_training_time": "19:46:16",
-          "final_avg_reward": 1203.74,
-          "max_average_forward_velocity": 1.42,
-          "stage3_success_rate": 1.0,
-          "provenance": {
-            "model_revision_status": "historical",
-            "verification_status": "unverified",
-            "evaluation_episodes": 30,
-            "repository_commit": "e179198baddbaa1b3003031b7e97472594946b34",
-            "model_hash": null,
-            "config_hash": null
-          },
-          "deliverables": [],
-          "primary_deliverable": null,
-          "target_deliverable": null,
-          "stages": [
-            {
-              "id": "stance",
-              "position": 1,
-              "number": 1,
-              "label": "1",
-              "recipe": "stance",
-              "deliverable": true,
-              "name": "balance",
-              "description": "Learn to stand and balance on four legs",
-              "timesteps": 6004736,
-              "best_eval_reward": 1740.53,
-              "final_eval_reward": 1739.79,
-              "avg_forward_vel": 0.01,
-              "avg_episode_length": 1000.0,
-              "mean_success_rate": null,
-              "training_time": "4:24:22",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "locomotion",
-              "position": 2,
-              "number": 2,
-              "label": "2",
-              "recipe": "walk",
-              "deliverable": true,
-              "name": "locomotion",
-              "description": "Learn coordinated quadrupedal walking",
-              "timesteps": 16007168,
-              "best_eval_reward": 6634.6,
-              "final_eval_reward": 6318.26,
-              "avg_forward_vel": 1.42,
-              "avg_episode_length": 993.3,
-              "mean_success_rate": 0.0333,
-              "training_time": "9:48:01",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            },
-            {
-              "id": "behavior",
-              "position": 3,
-              "number": 3,
-              "label": "3",
-              "recipe": "hunt",
-              "deliverable": true,
-              "name": "food_reach",
-              "description": "Move the head tip within the configured distance threshold of food",
-              "timesteps": 12009472,
-              "best_eval_reward": 1368.13,
-              "final_eval_reward": 1203.74,
-              "avg_forward_vel": 0.71,
-              "avg_episode_length": 74.6,
-              "mean_success_rate": 1.0,
-              "training_time": "5:33:52",
-              "stage_passed": true,
-              "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
-              "gate_retired": true
-            }
-          ]
-        }
-      ]
+      "historical_results": []
     },
     {
       "species": "dibothrosuchus_elaphros",
@@ -1176,7 +657,7 @@
       "display_name": "Dibothrosuchus Elaphros (Anatomical)",
       "tagline": "Gracile Erect-Limbed Crocodylomorph",
       "gait": "Quadrupedal",
-      "specialty": "Snout-contact snap",
+      "specialty": "Erect-limbed quadrupedal walking",
       "environment": {
         "entrypoint": "environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv",
         "observation_dim": 80,
@@ -1217,9 +698,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "snap_success",
-          "label": "Snout-contact snap proxy",
-          "definition": "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
+          "key": "forward_velocity_gate",
+          "label": "Gated forward velocity (reward_and_length/v1)",
+          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
         }
       ],
       "deliverable_metrics": [
@@ -1242,16 +723,6 @@
           "key": "forward_velocity_gate",
           "label": "Gated forward velocity (reward_and_length/v1)",
           "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "stable-baselines3"
-          ],
-          "key": "snap_success",
-          "label": "Snout-contact snap proxy",
-          "definition": "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
         }
       ],
       "stages": [
@@ -1322,40 +793,6 @@
             "required_consecutive": 3
           },
           "video": null
-        },
-        {
-          "id": "behavior",
-          "position": 3,
-          "number": 3,
-          "label": "3",
-          "name": "snap",
-          "title": "Snap",
-          "description": "Close on small prey and touch it with the snout snap proxy",
-          "config_path": "configs/dibothrosuchus_elaphros/anatomical/snap.toml",
-          "timesteps": 8000000,
-          "deliverable": true,
-          "warm_start_from": "locomotion",
-          "recipe": "hunt",
-          "certification_seeds": 1,
-          "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": null,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": null,
-            "min_avg_forward_velocity": null,
-            "min_success_rate": 0.5,
-            "min_full_horizon_fraction": null,
-            "max_unsupported_duty": null,
-            "max_unsupported_duty_ucb": null,
-            "min_recovery_success_lcb": null,
-            "min_paired_success_delta_lcb": null,
-            "recovery_t_recover_steps": null,
-            "recovery_dwell_steps": null,
-            "min_success_lcb": null,
-            "min_eval_episodes": 10,
-            "required_consecutive": 3
-          },
-          "video": null
         }
       ],
       "historical_results": []
@@ -1367,7 +804,7 @@
       "display_name": "Compsognathus Longipes (Anatomical)",
       "tagline": "Small Bipedal Theropod",
       "gait": "Bipedal",
-      "specialty": "Non-contact target reach",
+      "specialty": "Small-bodied bipedal walking",
       "environment": {
         "entrypoint": "environments.compsognathus_longipes.anatomical.env:CompsognathusLongipesAnatomicalEnv",
         "observation_dim": 55,
@@ -1408,9 +845,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "target_success",
-          "label": "Pelvis target-reaching success",
-          "definition": "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+          "key": "forward_velocity_gate",
+          "label": "Gated forward velocity (reward_and_length/v1)",
+          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
         }
       ],
       "deliverable_metrics": [
@@ -1443,16 +880,6 @@
           "key": "forward_velocity_gate",
           "label": "Gated forward velocity (reward_and_length/v1)",
           "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "stable-baselines3"
-          ],
-          "key": "target_success",
-          "label": "Pelvis target-reaching success",
-          "definition": "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
         }
       ],
       "stages": [
@@ -1586,40 +1013,6 @@
             "required_consecutive": 3
           },
           "video": null
-        },
-        {
-          "id": "behavior",
-          "position": 4,
-          "number": 3,
-          "label": "3",
-          "name": "target_reach",
-          "title": "Target Reach",
-          "description": "Reach the randomized horizontal target and slow down while upright",
-          "config_path": "configs/compsognathus_longipes/anatomical/behavior.toml",
-          "timesteps": 3000000,
-          "deliverable": true,
-          "warm_start_from": "locomotion",
-          "recipe": "hunt",
-          "certification_seeds": 1,
-          "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": null,
-            "min_avg_reward": 25.0,
-            "min_avg_episode_length": null,
-            "min_avg_forward_velocity": null,
-            "min_success_rate": 0.7,
-            "min_full_horizon_fraction": null,
-            "max_unsupported_duty": null,
-            "max_unsupported_duty_ucb": null,
-            "min_recovery_success_lcb": null,
-            "min_paired_success_delta_lcb": null,
-            "recovery_t_recover_steps": null,
-            "recovery_dwell_steps": null,
-            "min_success_lcb": null,
-            "min_eval_episodes": 20,
-            "required_consecutive": 3
-          },
-          "video": null
         }
       ],
       "historical_results": []
@@ -1631,7 +1024,7 @@
       "display_name": "Compsognathus Longipes (Robot)",
       "tagline": "Twelve-Servo Biped Prototype",
       "gait": "Bipedal",
-      "specialty": "Non-contact target reach with fixed head and tail",
+      "specialty": "Servo-driven bipedal walking with fixed head and tail",
       "environment": {
         "entrypoint": "environments.compsognathus_longipes.robot.env:CompsognathusLongipesRobotEnv",
         "observation_dim": 46,
@@ -1672,9 +1065,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "target_success",
-          "label": "Pelvis target-reaching success",
-          "definition": "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+          "key": "forward_velocity_gate",
+          "label": "Gated forward velocity (reward_and_length/v1)",
+          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
         }
       ],
       "deliverable_metrics": [
@@ -1707,16 +1100,6 @@
           "key": "forward_velocity_gate",
           "label": "Gated forward velocity (reward_and_length/v1)",
           "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "stable-baselines3"
-          ],
-          "key": "target_success",
-          "label": "Pelvis target-reaching success",
-          "definition": "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
         }
       ],
       "stages": [
@@ -1809,40 +1192,6 @@
             "min_avg_episode_length": 900,
             "min_avg_forward_velocity": 0.04,
             "min_success_rate": null,
-            "min_full_horizon_fraction": null,
-            "max_unsupported_duty": null,
-            "max_unsupported_duty_ucb": null,
-            "min_recovery_success_lcb": null,
-            "min_paired_success_delta_lcb": null,
-            "recovery_t_recover_steps": null,
-            "recovery_dwell_steps": null,
-            "min_success_lcb": null,
-            "min_eval_episodes": 20,
-            "required_consecutive": 3
-          },
-          "video": null
-        },
-        {
-          "id": "behavior",
-          "position": 4,
-          "number": 3,
-          "label": "3",
-          "name": "target_reach",
-          "title": "Target Reach",
-          "description": "Reach the randomized horizontal target and slow down while upright",
-          "config_path": "configs/compsognathus_longipes/robot/behavior.toml",
-          "timesteps": 3000000,
-          "deliverable": true,
-          "warm_start_from": "locomotion",
-          "recipe": "hunt",
-          "certification_seeds": 1,
-          "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": null,
-            "min_avg_reward": 25.0,
-            "min_avg_episode_length": null,
-            "min_avg_forward_velocity": null,
-            "min_success_rate": 0.7,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,

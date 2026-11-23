@@ -33,7 +33,8 @@ from .result_bundle_helpers import (
     _snapshot_files,
 )
 
-_TYRANNOSAURUS_REX_STAGES: "tuple[int | str, ...]" = (1, "recovery", 2, 3)
+#: The T-Rex's stages in manifest order (its bite hunt, legacy 3, left with decision D-D59).
+_TYRANNOSAURUS_REX_STAGES: "tuple[int | str, ...]" = (1, "recovery", 2)
 
 
 def test_tyrannosaurus_rex_bundle_with_recovery_stage_is_canonical_valid(
@@ -43,7 +44,7 @@ def test_tyrannosaurus_rex_bundle_with_recovery_stage_is_canonical_valid(
     """A recovery-bearing bundle publishes its certified nodes, audits clean, and re-validates.
 
     Recovery is a deliverable in the v2 manifest whose none/v1 pilot verdict is
-    False, so the bundle is PARTIAL (schema v4): stance, walk and hunt are
+    False, so the bundle is PARTIAL (schema v4): stance and walk are
     certified and published, recovery is recorded honestly as uncertified, and
     the bundle is not ``complete`` (plan decision D4).
     """
@@ -57,7 +58,7 @@ def test_tyrannosaurus_rex_bundle_with_recovery_stage_is_canonical_valid(
     )
 
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
-    assert set(summary["stages"]) == {"1", "recovery", "2", "3"}
+    assert set(summary["stages"]) == {"1", "recovery", "2"}
     assert summary["schema_version"] == 5  # re-pinned from 4: the summary names its embodiment (decision D-D33)
     assert summary["bundle_status"] == "partial"
     # The pilot's honest verdict is recorded, not laundered.
@@ -66,11 +67,10 @@ def test_tyrannosaurus_rex_bundle_with_recovery_stage_is_canonical_valid(
         "1": True,
         "recovery": False,
         "2": True,
-        "3": True,
     }
-    # The headline reward is the primary deliverable's — the hunt target.
-    assert summary["provenance"]["primary_deliverable"] == "3"
-    assert summary["final_avg_reward"] == summary["stages"]["3"]["final_eval_reward"]
+    # The headline reward is the primary deliverable's — the walk target.
+    assert summary["provenance"]["primary_deliverable"] == "2"
+    assert summary["final_avg_reward"] == summary["stages"]["2"]["final_eval_reward"]
     validate_result_summary(
         summary,
         expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"),
@@ -82,12 +82,12 @@ def test_tyrannosaurus_rex_bundle_with_recovery_stage_is_canonical_valid(
         validate_result_summary(
             summary, expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"), require_complete=True
         )
-    assert set(summary["provenance"]["selected_checkpoints"]) == {"1", "recovery", "2", "3"}
+    assert set(summary["provenance"]["selected_checkpoints"]) == {"1", "recovery", "2"}
 
     with paths["collected_results_csv"].open(newline="", encoding="utf-8") as source:
         rows = list(csv.DictReader(source))
     # CSV rows in manifest order, the recovery row keyed by its id.
-    assert [row["stage"] for row in rows] == ["1", "recovery", "2", "3"]
+    assert [row["stage"] for row in rows] == ["1", "recovery", "2"]
     recovery_row = rows[1]
     assert recovery_row["stage_passed"] == "False"
     assert recovery_row["curriculum_gate_kind"] == "none/v1"

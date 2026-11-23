@@ -12,7 +12,7 @@ export const MODEL = requireModel('velociraptor_mongoliensis', 'anatomical');
 
 # Velociraptor Model
 
-This 15 kg reconstruction of *Velociraptor mongoliensis* has a long, narrow snout, feathered forelimbs and a raised sickle claw on each foot. It simulates bipedal locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
+This 15 kg reconstruction of *Velociraptor mongoliensis* has a long, narrow snout, feathered forelimbs and a raised sickle claw on each foot. It simulates bipedal stance and locomotion. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the strike hunt that followed walk was removed by decision D-D59. See [Behavior Recipes](/docs/training/recipes).
 
 The stance node certifies stance quality, not reward: since physics r3 its gate judges every episode of a 40-episode
 panel on the floor's force under each foot (no hop at reset, both feet planted, every support of each foot loaded, no
@@ -42,7 +42,7 @@ The feathered surface follows the articulated skeleton. Its colour, feather leng
 - **Arms** - Folded forelimbs welded to the body and non-colliding, with no joints or actuators, as the T-Rex's
 - **Tail** - 5-segment counterbalance (4 servos on the mobile segments), its weight carried by spring preloads
 
-## Diagnostic Metrics (behavior node, hunt)
+## Diagnostic Metrics
 
 After each training stage the `eval` command reports:
 
@@ -54,8 +54,6 @@ After each training stage the `eval` command reports:
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
 | `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
-| `success_rate` | Fraction of episodes with successful sickle-claw target contact |
-| `min_prey_distance` | Closest approach to prey (m) |
 
 ## Reference walk
 
@@ -82,10 +80,10 @@ python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode wal
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical train --stage 1
 
-# The advancing stages (stance, locomotion, behavior) in manifest order
+# The advancing stages (stance, locomotion) in manifest order
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```

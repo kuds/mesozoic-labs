@@ -1,7 +1,5 @@
 """Tests for environments.shared.curriculum.manager."""
 
-from pathlib import Path
-
 import pytest
 
 from environments.shared.curriculum import (
@@ -134,20 +132,27 @@ class TestCurriculumManager:
         assert new_stage == 2
         assert manager.current_stage == 2
 
+    def test_the_default_stage_count_is_the_manifests_advancing_ladder(self, manager):
+        """Locomotion is the last advancing stage of every committed manifest since decision D-D59, so the
+        default ``total_stages`` is 2, read from the manifest (it was a fixed 3, the hunt's stage included)."""
+        assert manager.total_stages == 2
+        assert CurriculumManager(model_id=ModelId("tyrannosaurus_rex", "anatomical")).total_stages == 2
+        assert (
+            CurriculumManager(model_id=ModelId("velociraptor_mongoliensis", "anatomical"), total_stages=1).total_stages
+            == 1
+        )
+
     def test_advance_to_final_stage(self, manager):
         manager.advance()
-        manager.advance()
-        assert manager.current_stage == 3
+        assert manager.current_stage == 2
         assert manager.is_final_stage
 
     def test_advance_past_final_raises(self, manager):
-        manager.advance()
         manager.advance()
         with pytest.raises(RuntimeError, match="Cannot advance past final stage"):
             manager.advance()
 
     def test_should_not_advance_on_final_stage(self, manager):
-        manager.advance()
         manager.advance()
         # Even with good data, can't advance past final
         rewards = [100.0] * 10
@@ -508,56 +513,17 @@ class TestThresholdsFromConfigs:
         # The bound's power is specified at this panel size.
         assert curriculum["min_eval_episodes"] == 40
 
-    def test_tyrannosaurus_rex_behavior_gates_on_task_success(self):
-        """The trex hunt is certified on the binomial LCB95, not on speed or a raw mean (plan §4.4, WS-B2).
-
-        Review CF2 / plan D1 retired ``min_avg_forward_vel`` (a bite episode
-        cannot average 2.0 m/s) and SS2 retired the raw-mean
-        ``min_success_rate`` (43% false-block at threshold); the schema's
-        misplaced-key check would reject either if it crept back.  The panel
-        size is REQUIRED for this kind because the bound's power is a
-        function of the declared n, and it is coupled to the notebook's
-        provenance ``evaluation_episodes`` (result_bundle/evidence.py
-        refuses any other row count) -- decision D-B1 keeps all of them at
-        30, so a change to one must move the rest.
-        """
-        import re
-
+    def test_no_committed_stage_declares_task_success(self):
+        """The trex hunt, the one stage certified on the task-success LCB95 (plan §4.4, WS-B2), left with every hunt
+        (decision D-D59); the kind stays registered, unused, until the change that deletes it."""
         from environments.shared.config import load_all_stages
         from environments.shared.curriculum import TASK_SUCCESS_GATE_KIND
+        from environments.shared.species_names import model_ids
 
-        curriculum = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[3]["curriculum_kwargs"]
-        assert curriculum["gate_kind"] == TASK_SUCCESS_GATE_KIND
-        assert "min_avg_forward_vel" not in curriculum
-        assert "min_success_rate" not in curriculum
-        # D-B2: 0.5 is PROVISIONAL until the first Phase-B pilot re-freezes it.
-        assert curriculum["min_success_lcb"] == 0.5
-        # D-B1: the declared panel n; every notebook evaluation_episodes= must agree.
-        assert curriculum["min_eval_episodes"] == 30
-        notebook = Path(__file__).resolve().parents[3] / "notebooks" / "sb3_training.ipynb"
-        notebook_text = notebook.read_text(encoding="utf-8")
-        declared = {int(n) for n in re.findall(r"evaluation_episodes=(\d+)", notebook_text)}
-        assert declared == {curriculum["min_eval_episodes"]}, declared
-        # The number the judge actually counts is the ROW COUNT of
-        # evaluation_selected.csv, which the notebook's selected-checkpoint
-        # panels (reporting.evaluate_stage_checkpoints since consolidation
-        # PR-14c) roll with a literal n_episodes=; raising min_eval_episodes
-        # without moving these would make every notebook hunt verdict refuse.
-        import inspect
-
-        from environments.shared.reporting import evaluate_stage_checkpoints
-
-        evaluation = inspect.getsource(evaluate_stage_checkpoints)
-        rolled = {int(n) for n in re.findall(r"n_episodes=(\d+)", notebook_text + evaluation)}
-        assert rolled == {curriculum["min_eval_episodes"]}, rolled
-        # The scheduler's hysteresis stays as an allowed key (D-B3); the
-        # thresholds the manager extracts carry the bar.
-        assert curriculum["required_consecutive"] == 3
-        thresholds = thresholds_from_configs(load_all_stages(ModelId("tyrannosaurus_rex", "anatomical")))[3]
-        assert thresholds["gate_kind"] == TASK_SUCCESS_GATE_KIND
-        assert thresholds["min_success_lcb"] == 0.5
-        assert thresholds["min_eval_episodes"] == 30
-        assert StageThreshold(**thresholds).min_success_lcb == 0.5
+        for model_id in model_ids():
+            for stage, cfg in load_all_stages(model_id).items():
+                assert cfg["curriculum_kwargs"].get("gate_kind") != TASK_SUCCESS_GATE_KIND, (model_id, stage)
+                assert "min_success_lcb" not in cfg["curriculum_kwargs"], (model_id, stage)
 
     def test_with_real_configs(self):
         """Integration test: extract thresholds from actual TOML configs."""
@@ -626,6 +592,15 @@ class TestPublicationKeys:
             }
             for kind in (STANCE_GATE_V2_KIND, STANCE_HEADING_GATE_KIND)
         }
+        # task_success/v1 has no committed user since decision D-D59 removed the trex hunt.
+        task_success = {
+            "gate_schema_version": GATE_SCHEMA_VERSION,
+            "gate_kind": "task_success/v1",
+            "min_success_lcb": 0.5,
+            "min_eval_episodes": 30,
+        }
+        assert validate_gate_config(3, {**task_success, "certification_seeds": 3}) == "task_success/v1"
+        seen.add("task_success/v1")
         for kind, block in synthetic.items():
             if kind not in seen:
                 assert validate_gate_config(1, {**block, "certification_seeds": 3}) == kind

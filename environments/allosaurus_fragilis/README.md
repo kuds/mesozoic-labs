@@ -2,9 +2,9 @@
 
 A reconstruction of *Allosaurus fragilis*, a large Late Jurassic theropod, at adult size. It stands and walks on two
 digitigrade feet, each with three forward weight-bearing toes, a pad under the toe joints and a raised inner toe. The
-model is for standing and for walking straight ahead to a target on level ground; it has no hunting task. It is a
-research abstraction: fossils fix the segment lengths and foot structure, while the soft tissue, muscle torques and
-walking speed are reconstruction choices.
+model is for standing and for walking straight ahead to a target on level ground. It is a research abstraction:
+fossils fix the segment lengths and foot structure, while the soft tissue, muscle torques and walking speed are
+reconstruction choices.
 
 ## Models
 

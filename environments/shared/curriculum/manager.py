@@ -168,7 +168,10 @@ class CurriculumManager:
         stage_thresholds: Mapping from stage number to threshold dict.
             Keys in each dict should match ``StageThreshold`` fields.
         start_stage: Initial curriculum stage (default 1).
-        total_stages: Total number of stages (default 3).
+        total_stages: Total number of stages; default (None) the number of
+            the model's advancing (legacy-numbered) stages, two on every
+            committed manifest since decision D-D59 removed the hunt (the
+            fixed default of 3 counted the hunt's stage).
     """
 
     def __init__(
@@ -176,8 +179,12 @@ class CurriculumManager:
         model_id: ModelId,
         stage_thresholds: dict[int, dict[str, Any]] | None = None,
         start_stage: int = 1,
-        total_stages: int = 3,
+        total_stages: int | None = None,
     ):
+        if total_stages is None:
+            from ..stage_manifest import load_stage_manifest
+
+            total_stages = len(load_stage_manifest(model_id).advancing_stages)
         self.model_id = model_id
         self.total_stages = total_stages
         self._current_stage = start_stage

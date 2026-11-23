@@ -227,7 +227,8 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
         exec(compile(sources[index], f"google_drive_summary code cell {index}", "exec"), namespace)
 
     out = capsys.readouterr().out
-    assert "Found 13 stage results across 5 runs/sweeps." in out
+    # Two-stage velociraptor runs and a stance/recovery/locomotion T-Rex run (the hunt stages left with D-D59).
+    assert "Found 10 stage results across 5 runs/sweeps." in out
     assert "Skipped top-level directories (not a species of the manifest; not read): pre_rename_tree" in out
     assert namespace["SKIPPED_DIRS"] == ["pre_rename_tree"]
     assert set(zip(namespace["df"]["species"], namespace["df"]["embodiment"])) == {
@@ -240,7 +241,7 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     expected = [
         *(
             ("velociraptor_mongoliensis", valid, str(s), f"Stage {s}", "True", "training", sb3, "canonical-valid")
-            for s in (1, 2, 3)
+            for s in (1, 2)
         ),
         *(
             (
@@ -253,11 +254,11 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
                 sb3,
                 "canonical-partial",
             )
-            for s in (1, "recovery", 2, 3)
+            for s in (1, "recovery", 2)
         ),
         *(
             ("velociraptor_mongoliensis", failed, str(s), f"Stage {s}", "False", "training", sb3, "failed")
-            for s in (1, 2, 3)
+            for s in (1, 2)
         ),
         ("velociraptor_mongoliensis", legacy, "1", "Stance", "True", "training", sb3, "legacy-unverified"),
         ("velociraptor_mongoliensis", sweep, "1", "Stance", "True", "sweep", sb3, "sweep"),

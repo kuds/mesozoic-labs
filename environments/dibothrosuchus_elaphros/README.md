@@ -2,8 +2,8 @@
 
 *Dibothrosuchus elaphros* was a small, lightly built crocodylomorph from the Early Jurassic of Yunnan, China. The
 model is a quadruped with an upright stance, gracile limbs, hindlimbs longer than its forelimbs, and a mobile neck,
-head and tail. It is for learning to stand, to walk, and to snap: closing on small prey and touching it with the
-snout. It is a research abstraction: the jaws form one rigid body, and the mass and soft tissue are modeling choices.
+head and tail. It is for learning to stand and to walk. It is a research abstraction: the jaws form one rigid body,
+and the mass and soft tissue are modeling choices.
 
 ## Models
 
@@ -95,8 +95,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then the snap, each warm-started from its parent in `stages.toml` and run with the
-budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The snap that followed locomotion was removed with every hunt node (decision D-D59). To reuse the
+certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical \
@@ -104,7 +105,7 @@ python -m environments.shared.train --species dibothrosuchus_elaphros --embodime
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "dibothrosuchus_elaphros"`,
-`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
@@ -118,9 +119,12 @@ Species notes:
 
 ## Task and rewards
 
-A small prey sphere spawns ahead of the animal at reset, just above the ground. The task is to touch it with the
-fixed snout geom `snout_snap`; the model has no articulated jaw. The environment reports `snap_success` and, when
-the snap bonus is enabled (the snap stage), ends the episode.
+The trained tasks are the stance and the walk; the snap, the hunt that followed the walk, was removed by decision
+D-D59 and no stage trains it. Until the environment change that removes them, a small prey sphere still spawns ahead
+of the animal at reset, just above the ground, the observation still carries its direction and distance, and the snap
+terms below are still in the code, set to zero by every stage config. The model has no articulated jaw: the
+environment reports `snap_success` when the fixed snout geom `snout_snap` touches the prey, and when the snap bonus is
+enabled that ends the episode.
 
 The observation holds the joint positions and velocities, the trunk orientation quaternion, gyro, linear velocity and
 accelerometer, one touch channel per foot, the prey direction and distance, and the command. Actions are offsets from
@@ -133,8 +137,8 @@ The main reward groups:
   term.
 - **Progress:** forward velocity and heading toward the prey, with penalties on backward, sideways and drifting
   motion, spin, speed above a threshold and standing idle.
-- **Snap:** a large bonus on contact, shaping on the snout-to-prey distance and a snout-proximity term for the last
-  approach. The shaping is measured from the snout, not the trunk: the skull rides a mobile neck, so trunk-referenced
+- **Snap** (zero in every stage config since D-D59): a large bonus on contact, shaping on the snout-to-prey distance
+  and a snout-proximity term for the last approach. The shaping is measured from the snout, not the trunk: the skull rides a mobile neck, so trunk-referenced
   shaping would keep paying after the snout had overshot the prey.
 - **Gait quality:** penalties on trunk and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs (front right with rear left, front left with rear right).

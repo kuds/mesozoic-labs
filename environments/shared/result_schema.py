@@ -1046,7 +1046,8 @@ def validate_provenance(
         deliverable_runtime: dict[str, Any] = {}
         if not v4:
             # The published model is the terminal ADVANCING stage's checkpoint
-            # — "3" (behavior) for every current species.  Recovery, at an
+            # — "2" (locomotion) for every current species since decision
+            # D-D59 removed the hunt ("3", behavior, before).  Recovery, at an
             # earlier manifest position and non-advancing, can never be
             # terminal here.
             terminal_key = next(key for key, entry in reversed(checkpoint_entries) if entry.legacy_number is not None)
@@ -1254,7 +1255,8 @@ def validate_captured_provenance(
     ``deliverables`` map with a certified entry (a finalized v4 partial run)
     keeps its real deliverables, checkpoints and primary; otherwise ONE
     placeholder deliverable is synthesized, keyed on the model's last
-    manifest deliverable (``"3"`` for every current model), and stripped
+    manifest deliverable (``"2"`` for every current model since decision
+    D-D59; ``"3"`` before), and stripped
     from the return again.
     """
     provenance = _require_mapping(provenance, field=f"provenance in {result_path}")
@@ -1309,8 +1311,9 @@ def validate_captured_provenance(
             candidate["selected_model_path"] = "pending/model.bin"
         normalization_required = candidate.get("backend") == "stable-baselines3"
         # The placeholder's chain ancestors get pending checkpoints too —
-        # for every current species exactly the historical {"1","2","3"}
-        # trio — except those the block already carries as reused ancestors.
+        # for every current species exactly {"1","2"} (the historical
+        # {"1","2","3"} trio before decision D-D59) — except those the block
+        # already carries as reused ancestors.
         recorded_ancestors = candidate.get("ancestors")
         reused_ids = set()
         if isinstance(recorded_ancestors, Mapping):
@@ -1737,7 +1740,8 @@ def validate_result_summary(
         if summary_plant != provenance["plant_identity"]:
             raise ResultSchemaError(f"plant_identity in {label} does not match provenance.plant_identity")
         # The run's headline reward: below schema 4 the terminal ADVANCING
-        # stage's ("3", behavior, for every current species) — a trailing
+        # stage's ("2", locomotion, for every current species since decision
+        # D-D59) — a trailing
         # non-advancing stage must not redefine it; from schema 4 on the
         # PRIMARY deliverable's, the same checkpoint selected_model_path
         # names (a failed leaf never headlines the run).

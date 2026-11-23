@@ -708,7 +708,8 @@ class TestPortedStanceTerms:
             "airborne_substep_weight",
         }
         assert names <= set(stage_task_fingerprint(model_id, "stance")["env"])
-        for stage in ("locomotion", "behavior"):
+        # Every stage but the stance (the strike hunt left with decision D-D59).
+        for stage in ("locomotion",):
             assert not names & set(stage_task_fingerprint(model_id, stage)["env"]), stage
 
 

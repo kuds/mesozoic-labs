@@ -11,61 +11,59 @@ and the ledger of judgements made outside training
 results/
 ├── velociraptor_mongoliensis/
 │   └── anatomical/
-│       ├── ppo/
-│       │   ├── collected_results.csv
-│       │   ├── stance.gif
-│       │   ├── strike.gif
-│       │   └── summary.json
-│       └── sac/
-│           ├── collected_results.csv
-│           ├── strike.gif
-│           └── summary.json
-├── tyrannosaurus_rex/
-│   └── anatomical/
 │       └── ppo/
-│           ├── collected_results.csv
-│           └── summary.json
-├── brachiosaurus_altithorax/
-│   └── anatomical/
-│       └── ppo/
-│           ├── collected_results.csv
-│           └── summary.json
+│           └── stance.gif
 ├── offline_judgements.csv
 └── README.md
 ```
+
+No result summary is published here at present. The species catalog reads
+every `results/<species>/<embodiment>/<algo>/summary.json` on disk, and each
+must be listed in its model's `result_summary_paths` in
+`configs/species_manifest.toml`; today every model lists none.
 
 ## Naming Conventions
 
 - **Paths**: `results/<species>/<embodiment>/<algo>/`
 - **GIFs**: `<stage>.gif`, the stage config's name under `configs/<species>/<embodiment>/`
 
-Task filenames and metric keys are shorthand for implemented simulation
-criteria. T-Rex `bite` means contact between a fixed head geom and prey (there
-is no articulated jaw), while Brachiosaurus `food_reach` means the head tip is
-within a configured distance of the target (physical food contact is not
-required).
+A summary's top-level `backend` identifies the training implementation, and
+its `provenance` block says whether it measures the current model revision.
+A run may be labeled `current` or `verified` only when its repository commit,
+model hash, configuration hash, backend version, and evaluation-episode count
+are recorded; summary schema version 2 made this backend and provenance
+metadata mandatory.
 
-The checked-in summaries predate model/config hash tracking. Their
-`provenance` blocks therefore mark them as `historical` and `unverified`; they
-should not be presented as measurements of the current model revision. The
-top-level `backend` identifies the training implementation; the legacy
-`backend_version` and evaluation-episode counts are `null` because they were
-not recorded. A run may be labeled `current` or `verified` only when its
-repository commit, model hash, configuration hash, backend version, and
-evaluation-episode count are recorded. Summary schema version 2 makes this
-backend and provenance metadata mandatory. On 2026-10-11 decision D-D33 moved
-the four summaries to `results/<species>/anatomical/<algo>/` and amended only
-their identity in place: `species` is the binomial, `"embodiment":
-"anatomical"` is added, and each CSV gains an `embodiment` column. They stay
-schema 2, every other value is as recorded, and the GIFs were renamed by
-stage with their bytes unchanged.
+## Removed historical summaries (decision D-D59)
+
+Until 2026-11-23 this directory held four historical ladder summaries, each
+with its `collected_results.csv`: the velociraptor PPO and SAC runs and the
+T-Rex PPO run, all from March 2026, and the Brachiosaurus PPO run of
+2026-07-18, plus a `strike.gif` for each velociraptor run. The last stage of every one was a
+hunt (the strike, the bite and the food reach), and decision D-D59 removed
+the hunt nodes, so stage 3 of those summaries no longer resolves to any
+stage and the summaries were deleted with them rather than edited (dropping
+the stage-3 rows would have left recorded totals that no longer add up).
+The last commit that holds them is
+`6c9982d81c8a34c0402905feb2724cffde04e974`; `git show 6c9982d81c8a:results/<path>`
+reads any of them. They were schema 2, marked `historical` and `unverified`:
+they predated model and configuration hashes, so they were never evidence
+for a current model revision. The website's two unused apex GIFs,
+`website/static/img/ppo_apex.gif` and `sac_apex.gif`, were byte-identical
+copies of the two `strike.gif` and were deleted with them; the same commit
+holds them (`git show 6c9982d81c8a:website/static/img/<name>`).
+
+`velociraptor_mongoliensis/anatomical/ppo/stance.gif` is the stance stage of
+the March 2026 velociraptor PPO run whose summary was removed. It stays as
+the root README's illustration, a historical recording rather than a result
+of the current model.
 
 ## How Results Are Generated
 
 SB3 training runs are saved to Google Drive as portable result bundles (so were
 the JAX/MJX runs before decision D-D17 retired that backend; they still validate).
 The shared exporter captures provenance at run time, writes one canonical
-`summary.json` after all three stages, derives `collected_results.csv` from the
+`summary.json` after the run's last stage, derives `collected_results.csv` from the
 same normalized metrics, binds selected and terminal claims to episode-level
 evidence, records the selected checkpoint (and SB3 normalization state) for
 every stage, and writes an artifact manifest last. See

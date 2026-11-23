@@ -46,13 +46,13 @@ class TestLoadStageConfig:
     """Test loading individual stage configs."""
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_loads_successfully(self, model_id, stage):
         config = load_stage_config(model_id, stage)
         assert isinstance(config, dict)
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_has_required_keys(self, model_id, stage):
         config = load_stage_config(model_id, stage)
         assert "name" in config
@@ -62,7 +62,7 @@ class TestLoadStageConfig:
         assert "sac_kwargs" in config
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_env_kwargs_has_common_keys(self, model_id, stage):
         config = load_stage_config(model_id, stage)
         env_kw = config["env_kwargs"]
@@ -72,7 +72,7 @@ class TestLoadStageConfig:
         assert "max_episode_steps" in env_kw
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_ppo_kwargs_has_common_keys(self, model_id, stage):
         config = load_stage_config(model_id, stage)
         ppo_kw = config["ppo_kwargs"]
@@ -81,7 +81,7 @@ class TestLoadStageConfig:
         assert "gamma" in ppo_kw
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_range_params_are_tuples(self, model_id, stage):
         """TOML lists should be converted to tuples for range parameters."""
         config = load_stage_config(model_id, stage)
@@ -91,7 +91,7 @@ class TestLoadStageConfig:
                 assert isinstance(value, tuple), f"{key} should be a tuple, got {type(value)}"
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_net_arch_only_under_policy_kwargs(self, model_id, stage):
         """net_arch must live under [<alg>.policy_kwargs], never in [<alg>].
 
@@ -112,7 +112,7 @@ class TestLoadStageConfig:
         )
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_ppo_kwargs_accepted_by_sb3(self, model_id, stage):
         """Every top-level [ppo] key must be a PPO constructor kwarg or a harness schedule key."""
         sb3 = pytest.importorskip("stable_baselines3")
@@ -140,7 +140,7 @@ class TestLoadStageConfig:
         )
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    @pytest.mark.parametrize("stage", [1, 2, 3])
+    @pytest.mark.parametrize("stage", [1, 2])
     def test_env_kwargs_accepted_by_env_constructor(self, model_id, stage):
         """[env] is passed verbatim to the species env constructor; unknown keys crash at reset."""
         import inspect
@@ -196,9 +196,11 @@ class TestLoadAllStages:
         stages = load_all_stages(model_id)
         # The legacy numbers are present for every species; a species whose
         # manifest declares semantic-only stages (trex: recovery) carries
-        # them under their IDs without moving the integers.
-        assert {1, 2, 3} <= set(stages.keys())
-        extra = set(stages.keys()) - {1, 2, 3}
+        # them under their IDs without moving the integers. Legacy 3, the
+        # hunt, left every manifest with decision D-D59.
+        assert {1, 2} <= set(stages.keys())
+        assert 3 not in stages
+        extra = set(stages.keys()) - {1, 2}
         assert extra == ({"recovery"} if model_id == TYRANNOSAURUS_REX else set())
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -217,35 +219,25 @@ class TestLoadAllStages:
         """Alive bonus should not increase across stages (less reliance on survival)."""
         stages = load_all_stages(model_id)
         assert stages[1]["env_kwargs"]["alive_bonus"] >= stages[2]["env_kwargs"]["alive_bonus"]
-        assert stages[2]["env_kwargs"]["alive_bonus"] >= stages[3]["env_kwargs"]["alive_bonus"]
-
-    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    def test_stage_progression_learning_rate(self, model_id):
-        """Later stages should use moderate LRs (Stage 1 can be lower due to sweep-tuned warmup in S2)."""
-        stages = load_all_stages(model_id)
-        assert stages[2]["ppo_kwargs"]["learning_rate"] >= stages[3]["ppo_kwargs"]["learning_rate"]
 
 
 class TestCurriculumInvariants:
     """Test that curriculum configs maintain expected invariants."""
 
-    def test_velociraptor_mongoliensis_strike_bonus_only_stage3(self):
-        stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
-        assert stages[1]["env_kwargs"]["strike_bonus"] == 0.0
-        assert stages[2]["env_kwargs"]["strike_bonus"] == 0.0
-        assert stages[3]["env_kwargs"]["strike_bonus"] > 0.0
-
-    def test_brachiosaurus_altithorax_food_reach_only_stage3(self):
-        stages = load_all_stages(BRACHIOSAURUS_ALTITHORAX)
-        assert stages[1]["env_kwargs"]["food_reach_bonus"] == 0.0
-        assert stages[2]["env_kwargs"]["food_reach_bonus"] == 0.0
-        assert stages[3]["env_kwargs"]["food_reach_bonus"] > 0.0
-
-    def test_tyrannosaurus_rex_bite_bonus_only_stage3(self):
-        stages = load_all_stages(TYRANNOSAURUS_REX)
-        assert stages[1]["env_kwargs"]["bite_bonus"] == 0.0
-        assert stages[2]["env_kwargs"]["bite_bonus"] == 0.0
-        assert stages[3]["env_kwargs"]["bite_bonus"] > 0.0
+    @pytest.mark.parametrize(
+        ("model_id", "bonus"),
+        [
+            (VELOCIRAPTOR_MONGOLIENSIS, "strike_bonus"),
+            (BRACHIOSAURUS_ALTITHORAX, "food_reach_bonus"),
+            (TYRANNOSAURUS_REX, "bite_bonus"),
+        ],
+        ids=lambda value: value if isinstance(value, str) else value.species,
+    )
+    def test_no_stage_enables_a_hunt_bonus(self, model_id, bonus):
+        """Decision D-D59 removed every hunt stage; every remaining stage keeps the hunt's terminal bonus at zero
+        (the environment still has the argument until the change that removes it)."""
+        stages = load_all_stages(model_id)
+        assert {key: stage["env_kwargs"][bonus] for key, stage in stages.items()} == {key: 0.0 for key in stages}
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_consistent_episode_length(self, model_id):

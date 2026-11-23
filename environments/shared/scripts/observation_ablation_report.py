@@ -185,7 +185,8 @@ def build_conditions(model_id: ModelId, requested: list[str]) -> list[tuple]:
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_model_arguments(parser)
-    parser.add_argument("stage", type=int, choices=(1, 2, 3))
+    # Legacy stage numbers: 1 stance, 2 locomotion.  3 (the hunt) resolves to no stage since decision D-D59.
+    parser.add_argument("stage", type=int, choices=(1, 2))
     parser.add_argument("--model", required=True, help="SB3 .zip policy")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
     parser.add_argument(

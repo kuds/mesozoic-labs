@@ -32,7 +32,7 @@ notebook's `BEHAVIOR` node in the chain loop). The bundle status is:
 | status | meaning |
 |---|---|
 | `complete` | the target is present and certified **and** every deliverable present in the run is certified — the bundle is then immutable |
-| `partial` | at least one deliverable is certified, but not the target or not every present one — a stance-only run targeting hunt, a walk-only run targeting hunt, a run whose hunt leaf failed above a trunk it trained and certified |
+| `partial` | at least one deliverable is certified, but not the target or not every present one — a stance-only run targeting walk, a run whose walk failed above a stance it trained and certified |
 | `failed` | no deliverable is certified — a failed root, a trunk whose gate failed below every leaf, or a trunked run whose only trained node (its target) failed |
 
 `summary.json` is written whenever at least one deliverable is certified, so a
@@ -78,8 +78,7 @@ specified in [Training artifact names and stance replays](TRAINING_ARTIFACT_PRES
 │   ├── evaluation_final.csv
 │   ├── evaluation_selected.csv
 │   └── models/
-├── 03_locomotion/
-├── 04_behavior/
+├── 03_locomotion/               # the last stage since D-D59; runs written before it may hold 04_behavior/
 └── ancestors/                   # nodes reused from another run — records, never checkpoints
     └── stance/
         ├── ancestor.json        # mesozoic.ancestor-record/v1
@@ -465,13 +464,16 @@ results/<species>/<embodiment>/jax_ppo/summary.json   # JAX/MJX PPO, recorded be
 The validator still files a `jax-mjx` summary under `jax_<algorithm>/`, so a
 JAX run recorded before D-D17 retired that backend (cleanup PR-B) is never
 mislabeled as a different reinforcement-learning algorithm; nothing writes one
-now, and `results/` holds only Stable-Baselines3 results. The paths are
+now, and `results/` holds only Stable-Baselines3 results (none at present:
+decision D-D59 deleted the four historical summaries with the hunt nodes their
+last stage trained; `results/README.md` names the last commit that holds them). The paths are
 unchanged by schema v4; the summary carries the deliverables map. Decision
 D-D33 added the `<embodiment>` level and made `species` and `embodiment` two
 required fields of every summary (result schema 5; the CSV gains an
 `embodiment` column). The readers accept schema 2 and 5. Schema 2 is the
-curated historical form: the four committed summaries predate the plant
-contract, and D-D33 amended their identity in place (the binomial `species`
-and `"embodiment": "anatomical"`), leaving every other value as recorded. A
+curated historical form: the four summaries committed until D-D59 predated
+the plant contract, and D-D33 amended their identity in place (the binomial
+`species` and `"embodiment": "anatomical"`), leaving every other value as
+recorded. A
 summary of schema 3 or 4 names a species ID that no longer exists and is
 refused.

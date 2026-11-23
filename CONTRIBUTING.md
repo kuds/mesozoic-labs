@@ -169,7 +169,10 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
 2. **Create the MJCF model** (`anatomical/assets/<species>_anatomical.xml`, with
    `<mujoco model="<species>_anatomical">`):
    - Define the body hierarchy, joints, actuators, and sensors
-   - Include a mocap body for the prey/food target
+   - Include the mocap marker body that `_spawn_target` places (the
+     Allosaurus's `target`). It is not a prey or food target: decision D-D59
+     removed the hunt, and the existing scenes' prey leaves with the
+     environment change that follows it
    - Add touch sensors on feet and relevant contact geoms
 
 3. **Implement the environment:**
@@ -209,9 +212,9 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      (`docs/PLANT_CONTRACT.md`, "The heading-free observation schema")
 
 5. **Add curriculum configs** (`configs/<species>/anatomical/`):
-   - Create `stance.toml`, `locomotion.toml` and the skill stage
-     (`strike.toml`, `snap.toml`, `food_reach.toml` or `behavior.toml`), each
-     named by its stage with no number, plus `stages.toml` and the eleven
+   - Create `stance.toml` and `locomotion.toml`, each named by its stage
+     with no number (the hunt stage that once followed locomotion was
+     removed by decision D-D59), plus `stages.toml` and the eleven
      behavior recipes under `behaviors/`, each with
      `[behavior] species = "<species>"` and `embodiment = "anatomical"`
    - Follow the TOML structure from an existing species

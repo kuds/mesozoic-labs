@@ -23,7 +23,7 @@ const featured = [
   {
     href: '/animals/brachiosaurus_altithorax',
     name: 'Brachiosaurus',
-    description: 'How does a long-necked quadruped reach for food?',
+    description: 'How does a long-necked quadruped balance on four legs?',
     link: 'Explore the anatomy',
   },
 ];

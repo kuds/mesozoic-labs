@@ -12,7 +12,7 @@ export const MODEL = requireModel('brachiosaurus_altithorax', 'anatomical');
 
 # Brachiosaurus Model
 
-A sauropod-inspired quadrupedal simulation model designed for four-legged locomotion and head-positioning tasks.
+A sauropod-inspired quadrupedal simulation model designed for four-legged stance and locomotion.
 
 <SpeciesCatalog species={MODEL} />
 
@@ -23,17 +23,15 @@ A sauropod-inspired quadrupedal simulation model designed for four-legged locomo
 - A deep shoulder region and nearly equal-length humerus and femur, with the forelimbs gaining height through the forearm and metacarpus
 - Distinct forefeet and hindfeet with level, load-bearing soles, a padded hind heel and three medial hind claws
 - A tapered, supported neck and tail, with opposite flexion directions at the elbow and hind knee
-- Head-positioning behavior using neck articulation
-- Three published behaviors on one trunk (`configs/brachiosaurus_altithorax/anatomical/stages.toml`): stance (`stance`), walk (`locomotion`, warm-started from stance) and hunt (`behavior` — the food-reach task, warm-started from locomotion); see [Behavior Recipes](/docs/training/recipes)
+- Two published behaviors on one trunk (`configs/brachiosaurus_altithorax/anatomical/stages.toml`): stance (`stance`) and walk (`locomotion`, warm-started from stance); the food-reach hunt that followed walk was removed by decision D-D59. See [Behavior Recipes](/docs/training/recipes)
 
 ## Unique Characteristics
 
 Brachiosaurus differs from the bipedal species in the project:
 
 - **Quadrupedal gait** instead of bipedal
-- **Target-proximity task** using the head tip instead of a predatory contact task
 
-## Diagnostic Metrics (behavior node, hunt)
+## Diagnostic Metrics
 
 After each training stage the `eval` command reports:
 
@@ -44,8 +42,6 @@ After each training stage the `eval` command reports:
 | `stride_frequency` | Step frequency (Hz) |
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Torso height stability (m) |
-| `success_rate` | Fraction of episodes where the head tip enters the configured distance threshold around the food target |
-| `min_prey_distance` | Closest approach to food (m, `head_food_distance`) |
 
 ## Reference walk
 
@@ -69,10 +65,10 @@ python environments/brachiosaurus_altithorax/scripts/view_model.py --embodiment 
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 1
 
-# The advancing stages (stance, locomotion, behavior) in manifest order
+# The advancing stages (stance, locomotion) in manifest order
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```

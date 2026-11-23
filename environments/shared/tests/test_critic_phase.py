@@ -16,7 +16,7 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 #: The T. rex recipe digests on main.  The stance and recovery PPO digests moved with the r10 LTSB stance recipe
 #: (the stance-landing decision of 2026-11-06: mirror-KL PPO in stance's [ppo], which recovery inherits); the
 #: critic-phase option still adds no committed key.  The SAC digests read only [sac] and [curriculum] keys that did not
-#: move.
+#: move.  The bite hunt's two digests left with its stage (decision D-D59); the other six are unmoved by that removal.
 MAIN_RECIPE_DIGESTS = {
     ("stance", "PPO"): "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
     ("stance", "SAC"): "sha256:c6eb8d73dfdde463350306ba49070b031cbe327407cfdaf6aee270eb52d8fd26",
@@ -24,8 +24,6 @@ MAIN_RECIPE_DIGESTS = {
     ("recovery", "SAC"): "sha256:09b1e8034671fa666c74e2e4faac98fa751288a4ead8dc3473d1c702b7116b31",
     ("locomotion", "PPO"): "sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c",
     ("locomotion", "SAC"): "sha256:49ef875a97a5105b442714fe18795a5a5277b765476f92b79616469ab1d1a799",
-    ("behavior", "PPO"): "sha256:3b59c56dd347b26e87c4a9b5fd90f721350698c6efb5987e6bf05fe186236639",
-    ("behavior", "SAC"): "sha256:8a9c178c021753cfe300e6896eb82277e0740d3ac86f1c71949000f5b7a81b38",
 }
 
 

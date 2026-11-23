@@ -171,7 +171,7 @@ def save_result_bundle(
     trunk and a walk-only run writes a valid bundle; its
     ``selected_model_path`` / ``model_hash`` are the PRIMARY deliverable's —
     the target when certified, else the deepest certified one.  A stance-only
-    run targeting hunt is ``partial``, never ``complete``, so the bundle stays
+    run targeting walk is ``partial``, never ``complete``, so the bundle stays
     writable for the chain's next node; a ``complete`` marker is immutable.
 
     Every present stage's declared parent must be present or carried by an

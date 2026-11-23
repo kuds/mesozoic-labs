@@ -854,9 +854,10 @@ rollout, over the episodes that ended in it: `rollout_balance/episodes`,
 
 A fall here is any episode that did not reach the time limit (`cause` not
 `truncated`). On a stance stage no termination is a success. On a task stage
-the env also terminates on success (`bite_success`, `strike_success`,
-`food_reached`, `target_reached`, `snap_success`), and those episodes
-count as falls in the ledger's summaries (`rollout_balance/falls`,
+the env also terminates on success (the Allosaurus walk's `course_complete`;
+before decision D-D59 removed the hunt stages, also `bite_success`,
+`strike_success`, `food_reached`, `target_reached` and `snap_success`), and
+those episodes count as falls in the ledger's summaries (`rollout_balance/falls`,
 `training_rollouts.falls`, `fall_fraction`, `falls_total` and the `_falls`
 means) and in `rollout_falls` below; the ledger's `cause` column and
 `rollout_term_count_<reason>` name them.

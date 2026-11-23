@@ -11,11 +11,11 @@ export interface Animal {
 
 const summaries: Record<string, string> = {
   allosaurus_fragilis: 'A long tail balances a crested skull as three forward toes spread the load on each foot.',
-  velociraptor_mongoliensis: 'Balance on two feet, run, and aim a raised sickle claw at simulated prey.',
-  tyrannosaurus_rex: 'A heavy tail balances the skull as the model stands, recovers from pushes, and advances on prey.',
-  brachiosaurus_altithorax: 'Four supporting legs and a long, articulated neck work together to reach elevated food.',
-  dibothrosuchus_elaphros: 'A small crocodylomorph walks on upright limbs and guides its narrow snout toward prey.',
-  compsognathus_longipes: 'An anatomical model and a robot take on the same challenge of walking to a target and stopping there.',
+  velociraptor_mongoliensis: 'Balance on two feet and run, with the sickle claw on each foot held clear of the ground.',
+  tyrannosaurus_rex: 'A heavy tail balances the skull as the model stands, recovers from pushes, and walks.',
+  brachiosaurus_altithorax: 'Four supporting legs carry the body while a long, articulated neck holds the head high.',
+  dibothrosuchus_elaphros: 'A small crocodylomorph stands and walks on upright limbs, its narrow snout held ahead.',
+  compsognathus_longipes: 'An anatomical model and a robot take on the same challenges of standing, recovering from pushes and walking.',
 };
 
 export function animalModelImage(model: Species): string {

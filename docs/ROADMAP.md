@@ -111,6 +111,15 @@ curriculum with published results and reproducible checkpoints.
 > (`curriculum --trunk-from`, the notebook's `TRUNK_FROM`) instead of
 > retraining it; "fully trained" below means every deliverable certified.
 
+> **Update (2026-11-23):** decision D-D59 removed the hunt: every chain now
+> ends at walk, and the published deliverables are stance, walk and, on the
+> T-Rex and both Compsognathus models, recover. The four historical ladder
+> summaries under `results/` (three from March 2026, which the v0.3.0 items
+> below published, and the Brachiosaurus run of 2026-07-18) were deleted with it (`results/README.md`
+> names the last commit that holds them). Walk becomes command-driven, and
+> following a commanded direction is the path after walk. The stage-3 items
+> below record the plan before that day.
+
 Stage 3 task names below are simulation labels: T-Rex "bite success" is fixed
 head-geom contact (the model has no articulated jaw), and Brachiosaurus
 `food_reach` is a head-tip distance threshold rather than physical food contact.
@@ -300,6 +309,9 @@ critical bridge between "cool demo" and "transferable research."
   - _Dependency: Phase 1 (need locomotion policies as starting point)_
 
 - [ ] **Stage 4: Prey Pursuit (predator species only)**
+  - _Superseded (2026-11-23, decision D-D59): the prey object leaves every
+    scene, so there is no prey to pursue; following a commanded direction is
+    the path after walk. The plan below is kept as written._
   - Add a 4th curriculum stage where prey moves on predefined paths
   - `PreyPath` module with four path types: straight retreat, angled
     retreat (30-60 degree offset), smooth arc, and zigzag evasion
@@ -324,6 +336,7 @@ critical bridge between "cool demo" and "transferable research."
     slots rather than per-stage zero padding._
 
 - [ ] **Reactive scripted prey**
+  - _Superseded (2026-11-23, decision D-D59): see Stage 4 above._
   - Extend Stage 4's predefined prey paths with reactive evasion behaviours
   - Prey behaviors: flee when predator is within range, random wandering,
     dodge on approach (reactive to predator position, not just clock-based)
@@ -341,6 +354,8 @@ critical bridge between "cool demo" and "transferable research."
 recover from pushes, and chase moving prey (predefined paths in Stage 4,
 reactive evasion in scripted prey). Published ablation studies showing the
 impact of each robustness technique.
+_The prey-chasing clause is superseded by D-D59 (2026-11-23): there is no prey
+object; following a commanded direction takes its place._
 
 ---
 
@@ -588,7 +603,7 @@ Phase 6:  |        |        |         |         |     ████|████�
 |---------|-------|------|---------------|
 | v0.2.0 | 0 | Clean Slate | Config format may change |
 | v0.3.0 | 1 | First Steps | Env API stable, config format stable |
-| v0.4.0 | 2 | Into the Wild | Observation space grows (prey_velocity for predators), Stage 4 added |
+| v0.4.0 | 2 | Into the Wild | Observation space grows (prey_velocity for predators), Stage 4 added (superseded by D-D59: no prey; command-driven walk and follow-direction instead) |
 | v0.5.0 | 3 | Evolution | Multi-species API stable |
 | v0.6.0 | 4 | The Pack | Multi-agent API stable |
 | v0.7.0 | 5 | Hyperdrive (retired, D-D17) | — |
@@ -605,6 +620,7 @@ Velociraptor training (P1) → Custom networks (P3) → Hierarchical RL (P3)
 
 Locomotion (P1) → Turning (P2) → Stage 4 prey pursuit (P2) → Reactive prey (P2) → Multi-agent (P4)
                                                                                  → Learned prey (P4)
+(The prey-pursuit branch above is superseded by D-D59, 2026-11-23: Locomotion → command-driven walk → follow-direction.)
 
 Compsognathus species (P3) → Physical prototype (P6) → Sim-to-real (P6)
 Sensor noise policies (P2) → HAL (P6) → ROS 2 bridge (P6)

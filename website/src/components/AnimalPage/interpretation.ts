@@ -37,7 +37,7 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
   },
   brachiosaurus_altithorax: {
     classification: 'Late Jurassic · Sauropod',
-    title: 'Reaching from a four-legged stance',
+    title: 'A long neck over four legs',
     anatomy: 'The raised shoulders sit above compact forefeet. The hindfeet have padded heels and three claws. A four-beat walk transfers weight between them while the long neck holds the head above the chest.',
     alt: 'Brachiosaurus with a deep chest, raised shoulders, tapered tail and elevated neck',
     detailLabel: 'Head and neck control', detail: '6 actuators',
@@ -51,13 +51,12 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
           caption: 'Scripted reference walk · Physics revision 6 · Measured speed 0.34 m/s',
         },
       },
-      behavior: {title: 'Guide the head', description: 'Food targets appear 2.0–3.5 m above the ground. A reach counts when the head tip comes within 0.8 m of the target.'},
     },
   },
   velociraptor_mongoliensis: {
     classification: 'Late Cretaceous · Theropod',
     title: 'A claw held clear of the ground',
-    anatomy: 'Each foot supports the body on a rounded pad and two toes. The sickle claw rides above them. The model can move that claw separately as it approaches prey.',
+    anatomy: 'Each foot supports the body on a rounded pad and two toes. The sickle claw rides above them. The model can move that claw separately.',
     alt: 'Feathered Velociraptor with a long, low snout, folded arms and a raised sickle claw on each foot',
     detailLabel: 'Tail control', detail: '4 actuators',
     studies: {
@@ -70,7 +69,6 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
           caption: 'Scripted reference walk · Level ground · Measured speed 0.258 m/s',
         },
       },
-      behavior: {title: 'Aim the sickle claw', description: 'Either raised claw can score a strike by touching the simulated prey.'},
     },
   },
   tyrannosaurus_rex: {
@@ -83,7 +81,6 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
       stance: {title: 'Stand over the feet', description: 'The model balances its forward-leaning trunk and skull above two planted hind feet.'},
       recovery: {title: 'Recover from a push', description: 'Scheduled pushes disturb a standing model. The controller tries to recover its upright stance.'},
       locomotion: {title: 'Carry the skull forward', description: 'The hind legs alternate support as the body advances and the tail balances the trunk.'},
-      behavior: {title: 'Make head contact', description: 'A contact surface on the head represents a bite. Touching simulated prey with that surface counts as success.'},
     },
   },
   dibothrosuchus_elaphros: {
@@ -95,13 +92,12 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
     studies: {
       stance: {title: 'Stand tall', description: 'The foot pads hold the body above the ground as the animal maintains its erect stance.'},
       locomotion: {title: 'Work in diagonal pairs', description: 'Each foreleg coordinates with the opposite hind leg as the model walks.'},
-      behavior: {title: 'Place the snout', description: 'The MuJoCo task scores a touch of the snout on the prey.'},
     },
   },
   compsognathus_longipes: {
     classification: 'Late Jurassic · Theropod',
     title: 'Two ways to balance a small biped',
-    anatomy: 'The anatomical model carries a long, articulated tail. A second model fixes the head and tail to a robot chassis. Both use their legs to balance and approach a target.',
+    anatomy: 'The anatomical model carries a long, articulated tail. A second model fixes the head and tail to a robot chassis. Both use their legs to balance and walk.',
     alt: 'Small bipedal Compsognathus model with a narrow body, long hind legs and an extended tail',
     detailLabel: 'Anatomical tail', detail: 'Articulated',
     robot: {
@@ -114,7 +110,6 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
       stance: {title: 'Settle onto both feet', description: 'The stance test checks that the foot pads and toes share the load without hopping or tipping onto an edge.'},
       recovery: {title: 'Regain balance', description: 'In this pilot task, a calibrated sideways or fore-and-aft push tests how the standing model responds.'},
       locomotion: {title: 'Walk upright', description: 'The model advances on its hind feet while keeping the rest of its body clear of the floor.'},
-      behavior: {title: 'Arrive and slow down', description: 'The pelvis must enter a target zone at low speed with the body still upright. The target moves to a new position each episode.'},
     },
   },
 };

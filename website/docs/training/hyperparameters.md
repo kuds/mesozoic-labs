@@ -8,7 +8,7 @@ Guide to tuning hyperparameters for training experiments.
 
 ## Config Files
 
-All hyperparameters are defined in TOML config files under `configs/<species>/<embodiment>/`, one directory per model (a species and an embodiment, `anatomical` or `robot`). Every model commits a `stages.toml` manifest (schema `mesozoic.stage-manifest/v2`) that names its stage config files and declares the recipe graph over them. Each stage config is named by its stage, with no number. The anatomical Velociraptor, Brachiosaurus and Dibothrosuchus have three stage configs; the anatomical T-Rex and both Compsognathus models have four:
+All hyperparameters are defined in TOML config files under `configs/<species>/<embodiment>/`, one directory per model (a species and an embodiment, `anatomical` or `robot`). Every model commits a `stages.toml` manifest (schema `mesozoic.stage-manifest/v2`) that names its stage config files and declares the recipe graph over them. Each stage config is named by its stage, with no number. The anatomical Velociraptor, Brachiosaurus, Dibothrosuchus and Allosaurus have two stage configs; the anatomical T-Rex and both Compsognathus models have three (the hunt stage that followed locomotion on every model but Allosaurus was removed by decision D-D59):
 
 ```
 configs/
@@ -16,46 +16,45 @@ configs/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── locomotion.toml
-│       ├── strike.toml
 │       └── stages.toml
 ├── tyrannosaurus_rex/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── recovery.toml
 │       ├── locomotion.toml
-│       ├── behavior.toml
 │       └── stages.toml
 ├── brachiosaurus_altithorax/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── locomotion.toml
-│       ├── food_reach.toml
 │       └── stages.toml
 ├── dibothrosuchus_elaphros/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── locomotion.toml
-│       ├── snap.toml
 │       └── stages.toml
-└── compsognathus_longipes/
-    ├── anatomical/
-    │   ├── stance.toml
-    │   ├── recovery.toml
-    │   ├── locomotion.toml
-    │   ├── behavior.toml
-    │   └── stages.toml
-    └── robot/
+├── compsognathus_longipes/
+│   ├── anatomical/
+│   │   ├── stance.toml
+│   │   ├── recovery.toml
+│   │   ├── locomotion.toml
+│   │   └── stages.toml
+│   └── robot/
+│       ├── stance.toml
+│       ├── recovery.toml
+│       ├── locomotion.toml
+│       └── stages.toml
+└── allosaurus_fragilis/
+    └── anatomical/
         ├── stance.toml
-        ├── recovery.toml
         ├── locomotion.toml
-        ├── behavior.toml
         └── stages.toml
 ```
 
 Each model directory also holds its behavior recipes under `behaviors/`, and the
 Compsognathus models their `recovery_calibration.json`.
 
-Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover`, `walk` or `hunt`; a label equals a stage id only when it resolves to that stage, as `stance` does, and `stand`, the stance label until decision D-D38, is refused; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
+Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover` or `walk`; a label equals a stage id only when it resolves to that stage, as `stance` does, `stand`, the stance label until decision D-D38, is refused naming `stance`, and `hunt`, removed with the hunt nodes by decision D-D59, is refused naming `walk`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
@@ -119,9 +118,9 @@ Stage transitions are controlled by the `[curriculum]` section in each config:
 | `min_avg_reward` | Minimum evaluation-window mean reward for early advancement |
 | `min_avg_episode_length` | Minimum evaluation-window mean episode length for early advancement |
 | `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only) |
-| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero (`reward_and_length/v1` only; retired for the T-Rex hunt, which is gated on the bound below) |
-| `min_success_lcb` | `task_success/v1` only: the one-sided 95% Clopper-Pearson lower bound on per-episode task success must clear this bar (T-Rex hunt: 0.5, provisional — 20/30 clears it, 19/30 does not); `min_avg_reward` is then a collapse rail, never the gate |
-| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold` except for `task_success/v1`, where it is REQUIRED (the bound's power is a function of the declared n; T-Rex hunt: 30) |
+| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero (`reward_and_length/v1` only; no committed stage declares it since the hunt stages were removed, decision D-D59) |
+| `min_success_lcb` | `task_success/v1` only: the one-sided 95% Clopper-Pearson lower bound on per-episode task success must clear this bar; `min_avg_reward` is then a collapse rail, never the gate. No committed stage declares the kind since the T-Rex hunt, its only user, was removed (decision D-D59) |
+| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold` except for `task_success/v1`, where it is REQUIRED (the bound's power is a function of the declared n) |
 | `required_consecutive` | Consecutive evaluations that must satisfy every enabled criterion |
 
 For the SB3 curriculum, every enabled criterion must pass in the same evaluation
@@ -200,7 +199,6 @@ the original run's checkpoint. See
 3. **Monitor with TensorBoard** — Every stage logs its per-component rewards as `diagnostics/*` scalars; point `tensorboard --logdir` at the run directory
 4. **Watch a run mid-training** — Every stage directory holds `progress.json`, rewritten after each evaluation: steps against the budget, steps per second and the projected finish, the latest evaluation and how its episodes ended, the posture against the stage's bars (centre of pressure, sole tilt and corner lift, per foot), the checkpoints so far and any warnings. On Colab, open it from Drive at `MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json` while the notebook trains; the full per-evaluation series are in `gate_progress.npz` beside it. A line starting `PostureDrift` in the training output means that on two evaluations in a row, half or more of the evaluation episodes that reached the horizon stood over the stage's fore-aft centre-of-pressure bar; training continues. An evaluation in which no episode reached the horizon measures no posture and breaks the streak, so a seed whose episodes all fall gets no `PostureDrift` line; its falls show in `progress.json`'s `evaluation.falls`. A line starting `PostureTrend` comes earlier: on two evaluations in a row, at least a tenth of those episodes stood over the bar, and the feet's signed centre of pressure is moving toward the edge it is on. It is a prompt to look at the run, not a sign the stage will fail, and training continues. Beside `progress.json`, `eval_episodes.csv` has one row per evaluation episode (its return, how it ended, its posture, balance and floor forces) and `train_episodes.csv` one row per training episode, so the falls the policy learns from can be read too. When the stage ends, `figures/gate_progress.png` plots the evaluations' reward, centre of pressure, over-bar fractions and leg offsets against steps; to plot a run mid-training, download its stage directory and run `python environments/shared/scripts/plot_gate_progress.py <stage_dir>`, which writes the figure to the current directory, never into the run. The stage's training history from those two ledgers (its feet, balance, asymmetry, saturation and per-actuator policy spread over the training) is in `figures/training_history/training_history.html`, also written when the stage ends. The schema is in `docs/TRAINING_ARTIFACT_PRESENTATION.md` in the repository
 5. **Measure throughput** — Compare CPU and GPU performance for your algorithm and parallel-environment count
-6. **Increase timesteps for stage 3** — The sparse terminal reward (strike/bite/food) often needs more samples to converge
 
 ## Tuning Playbook
 
@@ -227,21 +225,6 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 | Unrealistic "ice-skating" gait | Symmetry and smoothness under-weighted | Raise `env.gait_symmetry_weight`, raise `env.smoothness_weight` |
 | Max forward speed exceeds physical reasonableness | Reward uncapped | Set `env.forward_vel_max` (e.g. `3.0` for the Velociraptor, `1.5` for the Brachiosaurus) |
 
-### Stage 3 — Behavior (Strike / Bite / Food Reach)
-
-The names "Bite" and "Food Reach" refer to simulation success proxies. In the
-Gym/SB3 environments, T-Rex uses contact from a fixed head geom and has no
-articulated jaw; Brachiosaurus uses a head-tip distance threshold and does not
-require physical food contact.
-
-| Symptom | Most likely cause | What to change |
-|---|---|---|
-| Never triggers terminal event (strike/bite/food) | Sparse-reward exploration stalled | Raise `ppo.ent_coef` to `0.005–0.01`, widen `ppo.clip_range` to `0.15`, tighten `env.prey_distance_range` so the target spawns closer |
-| Lingers near target without triggering | Proximity bonuses rewarding hovering | Zero `env.strike_proximity_weight` (or `env.food_head_proximity_weight`), keep the terminal bonus dominant per the current stage config, and use `*_approach_weight` as the approach gradient |
-| Forgets locomotion during Stage 3 warm-up | Reward schedule shift too abrupt | Use `curriculum.warmup_timesteps = 300000`, `curriculum.ramp_timesteps = 500000`, `curriculum.warmup_clip_range = 0.02` to anneal changes |
-| Learns the behavior but then regresses | Over-entropy or critic drift | Lower `ppo.ent_coef` after convergence, narrow `ppo.clip_range` to `0.1` |
-| `strike_bonus` signal not dominating | Discounted future alive-reward too large | Ensure `env.alive_bonus = 0` in stage 3 and that `strike_bonus >> gamma^H · per_step_reward` |
-
 ### Algorithm-specific notes
 
 **PPO.** Treat the `learning_rate` / `learning_rate_end` schedule as a primary
@@ -261,4 +244,4 @@ budget.
 2. **Diagnose.** If the run fails, match symptoms against the tables above. Do not change more than one group of knobs per run.
 3. **Narrow.** For promising directions, train 3–5 candidate values as separate runs, each changing one value with `--override` (see [Overriding Hyperparameters from the CLI](#overriding-hyperparameters-from-the-cli)), and compare them with the baseline under the same protocol.
 4. **Promote.** Commit the winning values back to the TOML with a trailing comment explaining why (see existing configs for the house style — e.g. `# Setting 4 sweep: ...`). The edit moves the stage's digests, so regenerate the committed digest snapshot in the same commit with `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write` (CI's plant-contract job checks it).
-5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the behavior node. The regress-test run reuses the trunk's ancestors above the edited node and can pass them on: a later run trunked from it resolves each reused node through its ancestor record to the run that certified it, one machine-visible run directory away, so later behaviors can trunk from the regress-test run directly.
+5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the nodes below it. The regress-test run reuses the trunk's ancestors above the edited node and can pass them on: a later run trunked from it resolves each reused node through its ancestor record to the run that certified it, one machine-visible run directory away, so later behaviors can trunk from the regress-test run directly.

@@ -21,14 +21,13 @@ relative of crocodiles; its upright, long-legged posture moves differently from 
 Compsognathus also has a twelve-servo robot model. The models are simplified for research; they are not validated
 anatomical reconstructions.
 
-Each model learns a few behaviors, such as stance (standing balance), walk and hunt (a species task such as a claw
-strike or a reach for food). Each behavior is a separate policy, judged against its own pass/fail test and published
-on its own. A behavior that passes its test is certified, and later stages start from it, so a certified policy is
-reused, not trained again.
+Each model learns a few behaviors, such as stance (standing balance), recovery from pushes and walk. Each behavior
+is a separate policy, judged against its own pass/fail test and published on its own. A behavior that passes its test
+is certified, and later stages start from it, so a certified policy is reused, not trained again.
 
-The goals are locomotion controllers for these bodies, predatory behaviors (hunting, striking and, later, pack
-coordination) and, in the long run, policies that run on real robots. All work so far is in simulation. Hardware
-transfer is future work, and no sim-to-real results are published.
+The goals are locomotion controllers for these bodies, walking that follows a commanded direction and speed, and, in
+the long run, policies that run on real robots. All work so far is in simulation. Hardware transfer is future work,
+and no sim-to-real results are published.
 
 ## Species
 
@@ -38,12 +37,12 @@ and the executable environments; do not edit by hand. -->
 
 | Model | Description | Gait | Task | Observation / action dim. | Details |
 |---|---|---|---|---:|---|
-| <a id="velociraptor_mongoliensis-anatomical"></a>**Velociraptor Mongoliensis (Anatomical)** | Swift Bipedal Predator | Bipedal | Sickle-claw contact attack | 71 / 17 | [README](environments/velociraptor_mongoliensis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
-| <a id="tyrannosaurus_rex-anatomical"></a>**Tyrannosaurus Rex (Anatomical)** | Apex Predator | Bipedal | Head-contact attack | 63 / 15 | [README](environments/tyrannosaurus_rex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) · [model page](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
-| <a id="brachiosaurus_altithorax-anatomical"></a>**Brachiosaurus Altithorax (Anatomical)** | Gentle Giant Herbivore | Quadrupedal | Head-to-food reach | 86 / 30 | [README](environments/brachiosaurus_altithorax/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
-| <a id="dibothrosuchus_elaphros-anatomical"></a>**Dibothrosuchus Elaphros (Anatomical)** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Snout-contact snap | 80 / 27 | [README](environments/dibothrosuchus_elaphros/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
-| <a id="compsognathus_longipes-anatomical"></a>**Compsognathus Longipes (Anatomical)** | Small Bipedal Theropod | Bipedal | Non-contact target reach | 55 / 14 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) |
-| <a id="compsognathus_longipes-robot"></a>**Compsognathus Longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Non-contact target reach with fixed head and tail | 46 / 12 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
+| <a id="velociraptor_mongoliensis-anatomical"></a>**Velociraptor Mongoliensis (Anatomical)** | Swift Bipedal Predator | Bipedal | Fast bipedal running | 71 / 17 | [README](environments/velociraptor_mongoliensis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
+| <a id="tyrannosaurus_rex-anatomical"></a>**Tyrannosaurus Rex (Anatomical)** | Apex Predator | Bipedal | Heavy-bodied bipedal balance and walking | 63 / 15 | [README](environments/tyrannosaurus_rex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) · [model page](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
+| <a id="brachiosaurus_altithorax-anatomical"></a>**Brachiosaurus Altithorax (Anatomical)** | Gentle Giant Herbivore | Quadrupedal | Long-necked quadrupedal walking | 86 / 30 | [README](environments/brachiosaurus_altithorax/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
+| <a id="dibothrosuchus_elaphros-anatomical"></a>**Dibothrosuchus Elaphros (Anatomical)** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Erect-limbed quadrupedal walking | 80 / 27 | [README](environments/dibothrosuchus_elaphros/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
+| <a id="compsognathus_longipes-anatomical"></a>**Compsognathus Longipes (Anatomical)** | Small Bipedal Theropod | Bipedal | Small-bodied bipedal walking | 55 / 14 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) |
+| <a id="compsognathus_longipes-robot"></a>**Compsognathus Longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Servo-driven bipedal walking with fixed head and tail | 46 / 12 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
 | <a id="allosaurus_fragilis-anatomical"></a>**Allosaurus Fragilis (Anatomical)** | Jurassic Tridactyl Theropod | Bipedal | Level-ground walk to a target | 45 / 10 | [README](environments/allosaurus_fragilis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#allosaurus_fragilis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/allosaurus_fragilis/anatomical) |
 
 The [species catalog](docs/SPECIES_CATALOG.md) holds each model's full entry: specifications, current stages
@@ -108,7 +107,7 @@ Pick a species, its embodiment and a behavior, and set `QUICK_TEST = True` first
 | [`notebooks/google_drive_summary.ipynb`](notebooks/google_drive_summary.ipynb) | Collect and summarize training artifacts from Google Drive. |
 <!-- END GENERATED: NOTEBOOKS -->
 
-On the command line, one command trains a model through its stages, from stance up to its task. Each stage uses the
+On the command line, one command trains a model through its stages, from stance up to walk. Each stage uses the
 budget and hyperparameters in its stage config. Stages run for millions of steps, so a full run takes hours:
 
 ```bash
@@ -129,7 +128,7 @@ stage, the recovery stage and the notebook's settings.
 | [`environments/`](environments) | The Gymnasium environments, one package per species; `shared/` holds training, evaluation and the catalog generator |
 | [`configs/`](configs) | The species manifest and each model's stage configs (`configs/<species>/<embodiment>/`) |
 | [`notebooks/`](notebooks) | Colab notebooks for training and for summarizing results |
-| [`results/`](results) | Published run summaries, metrics and GIFs, including historical, unverified ones |
+| [`results/`](results) | Published run summaries, metrics and GIFs (none is published at present), and the ledger of judgements made outside training |
 | [`docs/`](docs) | The generated species catalog, plans, design records, investigations and reviews |
 | [`website/`](website) | Source of [mesozoiclabs.com](https://mesozoiclabs.com) (Docusaurus) |
 | [`examples/`](examples) | The standalone Stegosaurus reference |
@@ -142,7 +141,7 @@ Start with the guides on [mesozoiclabs.com](https://mesozoiclabs.com) and the ge
 | To… | Read |
 |---|---|
 | Install, view a model, train, evaluate and override hyperparameters step by step | [Installation](https://mesozoiclabs.com/docs/getting-started/installation) and [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) |
-| Train stance, walk and hunt, reuse certified stages across runs and read a run directory; the training command's flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
+| Train stance, recovery and walk, reuse certified stages across runs and read a run directory; the training command's flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
 | Tune PPO, SAC and the stage configs | [Training guides](https://mesozoiclabs.com/docs/training/ppo) |
 | Look up one model: specifications, stages with their budgets and pass/fail tests, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the model's page on the site; both are linked from the [Species](#species) table |
 | Find the published run-summary files and when a summary counts as current | [results/README.md](results/README.md) |

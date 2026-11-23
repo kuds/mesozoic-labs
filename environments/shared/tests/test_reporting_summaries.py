@@ -70,12 +70,12 @@ class TestSaveResultsJson:
         assert "date" in data
 
     def test_stages_match_input(self, tmp_path):
-        results = [make_stage_result(1), make_stage_result(2), make_stage_result(3)]
+        results = [make_stage_result(1), make_stage_result(2)]
         path = save_results_json(
             results, ModelId("velociraptor_mongoliensis", "anatomical"), "PPO", seed=42, results_dir=tmp_path
         )
         data = json.loads(path.read_text())
-        assert set(data["stages"].keys()) == {"1", "2", "3"}
+        assert set(data["stages"].keys()) == {"1", "2"}
 
     def test_total_timesteps(self, tmp_path):
         results = [make_stage_result(1, timesteps=100_000), make_stage_result(2, timesteps=200_000)]
@@ -284,7 +284,7 @@ class TestTaskSuccessStageRow:
     def test_exported_when_the_stage_result_carries_them(self, tmp_path):
         results = [
             make_stage_result(
-                3,
+                2,
                 best_model_success_count=20,
                 best_model_n_episodes=30,
                 best_model_success_lcb=0.5005613,
@@ -294,7 +294,7 @@ class TestTaskSuccessStageRow:
         path = save_results_json(
             results, ModelId("velociraptor_mongoliensis", "anatomical"), "PPO", seed=42, results_dir=tmp_path
         )
-        stage = json.loads(path.read_text())["stages"]["3"]
+        stage = json.loads(path.read_text())["stages"]["2"]
         assert stage["selected_model_success_count"] == 20
         assert stage["selected_model_n_episodes"] == 30
         assert stage["selected_model_success_lcb"] == 0.5006
@@ -304,13 +304,13 @@ class TestTaskSuccessStageRow:
 
     def test_absent_when_the_stage_result_lacks_them(self, tmp_path):
         path = save_results_json(
-            [make_stage_result(3)],
+            [make_stage_result(2)],
             ModelId("velociraptor_mongoliensis", "anatomical"),
             "PPO",
             seed=42,
             results_dir=tmp_path,
         )
-        stage = json.loads(path.read_text())["stages"]["3"]
+        stage = json.loads(path.read_text())["stages"]["2"]
         assert not {"selected_model_success_count", "selected_model_n_episodes", "selected_model_success_lcb"} & set(
             stage
         )

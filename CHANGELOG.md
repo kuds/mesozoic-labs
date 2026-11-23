@@ -2338,6 +2338,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **A run that targets the hunt is refused; target walk** (decision D-D59).
+  `BEHAVIOR = "hunt"`, `--target hunt`, `--target behavior` and `--target 3`
+  no longer resolve on any model; `"auto"` and a bare `curriculum` train
+  stance then walk. An earlier run's `behavior` stage directory is left as it
+  is, and its certified stance and walk are reused as before (no stance,
+  recovery or locomotion digest moved). A result summary with a stage-3 row
+  is refused by the validator ("no stage with legacy number 3"), so an old
+  hunt bundle cannot be published or promoted into `results/`.
 - **Every velociraptor checkpoint must be retrained; none can be widened**
   (velociraptor physics revision 4 → 5, policy interface revision 13 → 14,
   69 → 71 wide and 22 → 17 actions, visual revision 4 → 5; the maintainer's
@@ -2663,6 +2671,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+
+- **`hunt` is a retired recipe label, and every chain ends at walk** (decision
+  D-D59). `stage_manifest.RETIRED_RECIPE_LABELS` gains a removed form beside
+  the renamed one: `hunt` maps to `walk` (`RETIRED_REMOVED`), and
+  `resolve_behavior`, the manifest loader, the species manifest's
+  deliverables, the notebook's `BEHAVIOR` and `curriculum --target` refuse it
+  with `'hunt' was removed with every node it labelled (decision D-D59); use
+  'walk', the behavior those nodes were trained from`. `BEHAVIOR = "auto"`
+  and the command-line default (the last advancing stage) resolve to walk on
+  all seven models. The id `behavior` and legacy number 3 stay reserved and
+  resolve to no stage, so an old run's `03_behavior`/`04_behavior` directory
+  keeps its name. The decision row records that the prey object goes too,
+  that walk becomes command-driven and follow-direction is the path after it,
+  and that every model moves to heading-free observations in one
+  policy-interface revision, all in later changes; it supersedes D-B1–D-B5,
+  D-B12, D-B14, D-B15's hunt exception, the hunt instance of CF2/CF3 under D1
+  and assumption A1's hunting node, each marked so in the plan, and amends
+  D-A11.
+  - `CurriculumManager`'s `total_stages` defaults to the number of the
+    model's advancing stages, read from its manifest (two on every committed
+    model), instead of a fixed 3 that counted the hunt's stage; the
+    command-line curriculum already passed its ladder's length, so no run
+    changes. Comments in `result_schema.py` that named `"3"` as every model's
+    terminal stage now name `"2"`.
+  - Tests that pin the command-line curriculum's ladder mechanics on a node
+    between the root and an advancing target (`test_train_base.py`'s two
+    curriculum classes, `test_ancestors.py`'s trunk selection and two
+    `test_cli.py` cases) run on a fixture ladder,
+    `environments/shared/tests/ladder_helpers.py`: the committed configs plus
+    a third advancing node labelled `sprint`, a copy of locomotion's config.
+    The notebook pins that need a deeper chain append an open `follow_direction`
+    node the same way. The result-schema, bundle and catalog tests that read
+    the deleted summaries read `result_bundle_helpers.LADDER_SUMMARY`, a
+    schema-2 ladder fixture built from the stance and walk rows of the deleted
+    velociraptor PPO summary, and their leaf is the walk.
 
 - **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
   check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
@@ -5096,6 +5139,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The hunt nodes and their publication** (decision D-D59, taken 2026-11-23;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). The first change carrying out the
+  hunt's removal; it changes no environment code, so no stance, recovery or
+  locomotion `task_sha256`, gate or recipe digest moves and no certified
+  checkpoint is stranded (`configs/digest_snapshot.generated.txt` loses only
+  its 66 behavior-stage lines). Breaking every earlier hunt run is accepted.
+  - The six `behavior` nodes (recipe label `hunt`, legacy stage 3) and their
+    stage TOMLs: `configs/velociraptor_mongoliensis/anatomical/strike.toml`,
+    `configs/tyrannosaurus_rex/anatomical/behavior.toml`,
+    `configs/brachiosaurus_altithorax/anatomical/food_reach.toml`,
+    `configs/dibothrosuchus_elaphros/anatomical/snap.toml` and
+    `configs/compsognathus_longipes/{anatomical,robot}/behavior.toml`, with their
+    `[[stages]]` entries. Every chain now ends at walk: stance → locomotion,
+    with recovery a sibling off stance on the T-Rex and both Compsognathus
+    models. The T-Rex hunt was the only stage declaring `task_success/v1`; the
+    gate stays registered, unused, until the change that deletes it.
+  - The four historical result summaries under `results/`, whose last stage
+    was a hunt (velociraptor PPO and SAC and T-Rex PPO from March 2026, and
+    the Brachiosaurus PPO run of 2026-07-18; all schema 2, `historical` and
+    `unverified`), their `collected_results.csv`, and the two velociraptor
+    `strike.gif`. Stage 3 of those summaries no
+    longer resolves, and dropping only those rows would have left recorded
+    totals that no longer add up, so they were deleted rather than edited.
+    The last commit holding them is `6c9982d81c8a34c0402905feb2724cffde04e974`
+    (`git show 6c9982d81c8a:results/<path>`). `results/velociraptor_mongoliensis/anatomical/ppo/stance.gif`
+    stays as the root README's illustration, and `results/offline_judgements.csv`
+    (no stage-3 row) is unchanged. Every model's `result_summary_paths` is now `[]`.
+    Without the two `strike.gif` a fresh Colab runtime's blobless sparse
+    checkout downloads about 14 MB instead of 38 MB (measured with the setup
+    cell's own fetch over a local remote: 37.0 MB before this change, 13.6 MB
+    after); the setup cells' comments and the installation page give the new
+    figure.
+  - The two website stage-3 videos (`velociraptor_mongoliensis_anatomical_ppo_stage3_best.mp4`,
+    `tyrannosaurus_rex_anatomical_ppo_stage3_best.mp4`) and their posters, with
+    their `stage_videos` entries.
+  - The two unused website apex GIFs, `website/static/img/ppo_apex.gif` and
+    `website/static/img/sac_apex.gif` (about 23.5 MB together). They were
+    byte-identical copies of the two `strike.gif`, kept on 2026-09-30 under the
+    cleanup plan's rule of deleting both copies or neither (CU-16), so they go
+    with them. The same commit, `6c9982d81c8a`, holds them
+    (`git show 6c9982d81c8a:website/static/img/<name>`); `docs/WEBSITE_PLAN.md`
+    closes its "Use the Training GIFs" item.
+  - In `configs/species_manifest.toml`, the six `deliverable = "hunt"` metric
+    blocks. The six models' backend success metric, which was the hunt's
+    (`strike_success`, `bite_success`, `food_reached`, `snap_success`,
+    `target_success`), is now the walk's gated forward velocity
+    (`forward_velocity_gate`, word for word the walk deliverable's) until walk
+    is judged on command tracking, and the six specialty strings describe the
+    walk instead of the hunt.
+  - The catalog's `stage3_success_rate` export (`species_catalog.py`, the
+    website's `RawResult` and `PublishedResult`): a schema-2 ladder result on
+    the website now headlines its fastest stage velocity
+    (`max_average_forward_velocity`), and the RESULTS block of
+    `docs/SPECIES_CATALOG.md`, with no summary to render, says that no result
+    summary is published. The D-A10 golden of the four summaries
+    (`environments/shared/tests/fixtures/readme_results_block_2026_09_06.md`)
+    is deleted; the ladder rendering is pinned on a fixture summary instead.
+  - The hunt's place in the notebook and the docs: `"hunt"` leaves the
+    `BEHAVIOR` dropdown of `notebooks/sb3_training.ipynb` and its help text
+    (`"auto"` is walk on every model), the hunt's study labels leave the
+    website's animal pages, and the README, the species READMEs, the
+    website's training, model, API and getting-started pages, `CONTRIBUTING.md`,
+    `docs/SPECIES_NAMING.md`, `docs/RESULT_BUNDLES.md`, `docs/ROADMAP.md`,
+    `docs/NEXT_STEPS.md` and `docs/TRAINING_ARTIFACT_PRESENTATION.md` stop
+    presenting the hunt as a trained task (the species READMEs say the prey
+    and the hunt terms stay in the environments, zeroed by every stage config,
+    until the environment change that removes them).
+  - Five `docs/KNOWN_ISSUES.md` items, closed as removed with the hunt nodes:
+    the provisional T-Rex `min_success_lcb` bar, the T-Rex behavior stage's
+    unmeasured `collapse_peak_warmup_timesteps`, the CLI-certified hunt judged
+    in training, hunt success counted on a falling step, and the
+    Brachiosaurus statue reaching the food (with the related food-reach
+    experiment item).
 - **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
   the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
   `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing

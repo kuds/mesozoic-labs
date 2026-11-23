@@ -12,7 +12,7 @@ export const MODEL = requireModel('tyrannosaurus_rex', 'anatomical');
 
 # T-Rex Model
 
-This 85.7 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stands 0.877 m above the floor at home. The tibia measures 91% of femur length. A broad posterior skull, two-fingered forelimbs and tapering tail follow the simulated skeleton. Each foot rests on a plantar pad and three independently hinged toes. The smaller first digit sits above the floor. The hunting task detects contact at the snout with a fixed jaw.
+This 85.7 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stands 0.877 m above the floor at home. The tibia measures 91% of femur length. A broad posterior skull, two-fingered forelimbs and tapering tail follow the simulated skeleton. Each foot rests on a plantar pad and three independently hinged toes. The smaller first digit sits above the floor.
 
 Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the prey's direction relative to its body, so turning the whole scene changes nothing it observes. T-Rex trains on Stable-Baselines3 only.
 
@@ -21,8 +21,8 @@ Since policy interface r14 the T-Rex's observation reads no world heading: the p
 ## Curriculum
 
 The T-Rex manifest (`configs/tyrannosaurus_rex/anatomical/stages.toml`, schema
-`mesozoic.stage-manifest/v2`) declares four nodes and four recipes — stance,
-recover, walk and hunt — every one of them a published deliverable:
+`mesozoic.stage-manifest/v2`) declares three nodes and three recipes — stance,
+recover and walk — every one of them a published deliverable:
 
 1. **`stance`** (recipe `stance`; root, historical stage 1) — settle from a
    randomized spawn and hold a stable upright pose; gated on physical stance
@@ -57,8 +57,10 @@ recover, walk and hunt — every one of them a published deliverable:
    the plan is to re-declare it as `recovery` by a manifest edit once a
    recovery run passes the frozen gate (plan assumption A2) — nothing
    re-parents it on its own.
-4. **`behavior`** (recipe `hunt`; `warm_start_from = "locomotion"`,
-   historical stage 3) — the head-contact "bite" proxy task.
+
+The head-contact "bite" hunt that followed locomotion (`behavior`, recipe
+`hunt`, historical stage 3) was removed by decision D-D59, so the chain ends
+at walk and `BEHAVIOR = "hunt"` is refused naming `"walk"`.
 
 Each recipe label names one node: the notebook's `BEHAVIOR = "stance"` trains
 the stance node alone, and `BEHAVIOR = "recover"` trains stance and then
@@ -80,7 +82,7 @@ The femur and tibia measure 0.368 m and 0.335 m. At home the knee has a 135° in
 
 ![Previous and revised T. rex at the same scale, with closer views of the three weight-bearing toes](../../../../docs/reviews/trex_2026_11/anatomy.png)
 
-## Diagnostic Metrics (behavior node, hunt)
+## Diagnostic Metrics
 
 After each training stage the `eval` command reports:
 
@@ -92,9 +94,6 @@ After each training stage the `eval` command reports:
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
 | `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
-| `success_rate` | Fraction of episodes where the fixed head-contact proxy touches the prey target |
-| `success_lcb` | One-sided 95% lower bound on that fraction over the selected checkpoint's 30-episode panel — the `task_success/v1` hunt gate statistic (bar 0.5, provisional), published as `selected_model_success_lcb` |
-| `min_prey_distance` | Closest approach to prey (m) |
 
 ## Reference walk
 
@@ -124,10 +123,10 @@ python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode walk --seco
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage 1
 
-# The advancing stages (stance, locomotion, behavior) in manifest order
+# The advancing stages (stance, locomotion) in manifest order
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 

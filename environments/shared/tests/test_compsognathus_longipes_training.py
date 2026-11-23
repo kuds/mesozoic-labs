@@ -185,7 +185,8 @@ def test_shared_trainer_all_stages_and_checkpoint_handoffs(model_id, algorithm, 
     config = get_species_config(model_id)
     stages = smoke_configs(model_id)
     previous = None
-    for stage in (1, 2, 3):
+    # Every advancing stage: stance then locomotion (the third, the target-reach hunt, left with decision D-D59).
+    for stage in (1, 2):
         directory = tmp_path / f"stage{stage}"
         ppo_updates.clear()
         model = train(

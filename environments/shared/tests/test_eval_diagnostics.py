@@ -51,14 +51,16 @@ class TestSuccessMetricApplicable:
         [VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX],
         ids=lambda m: f"{m.species}-{m.embodiment}",
     )
-    def test_real_configs_enable_success_only_for_stage_three(self, model_id):
+    def test_real_configs_enable_success_on_no_stage(self, model_id):
+        """Only the hunt's stage 3 gated on success; it left with decision D-D59, so no committed stage does."""
         from environments.shared.config import load_all_stages
 
         configs = load_all_stages(model_id)
 
-        assert success_metric_applicable(configs[1]) is False
-        assert success_metric_applicable(configs[2]) is False
-        assert success_metric_applicable(configs[3]) is True
+        assert 3 not in configs
+        assert {stage: success_metric_applicable(config) for stage, config in configs.items()} == {
+            stage: False for stage in configs
+        }
 
 
 def _bare_stage_aware_callback(

@@ -4,8 +4,8 @@ sidebar_position: 0
 
 # Behavior Recipes
 
-Every model trains a small set of named behaviors — stance, walk and hunt,
-and recover on the models with a recovery stage — and each one is its own
+Every model trains a small set of named behaviors — stance and walk, and
+recover on the models with a recovery stage — and each one is its own
 policy: certified against its own gate, published on
 its own, and built by reusing the certified trunk beneath it and training
 only what is missing above it. This page owns that vocabulary and workflow;
@@ -16,7 +16,7 @@ pages link here instead of re-explaining it.
 
 The training tree is not a ladder whose last rung is the only product. It is
 a small directed graph of certified checkpoints: one shared trunk (stance,
-walk) and a leaf per behavior (hunt). Every node is judged on its own, every
+walk) and a leaf per behavior built on it. Every node is judged on its own, every
 deliverable is published on its own, and no run redoes work an earlier run
 already certified.
 
@@ -25,19 +25,26 @@ already certified.
 | **Node** | One stage TOML (`[env]`, `[curriculum]`, `[ppo]`, `[sac]` and a `gate_kind`); one training run with one checkpoint and one gate verdict. Today's "stage". |
 | **Edge** (`warm_start_from`) | The declared parent a node initialises from, under `initialize_next_stage`, with lineage recorded. |
 | **Trunk** | The shared certified chain every behavior builds on: stance → (recovery) → locomotion. |
-| **Leaf** | A node with no children, such as `locomotion` on Allosaurus or `behavior` on a model with a hunting task. |
+| **Leaf** | A node with no children, such as `locomotion` on every model, or `recovery` on the models that have it. |
 | **Deliverable** | A node whose certified checkpoint is a published policy (`deliverable = true`). |
-| **Recipe** | A deliverable plus its ancestor chain, *derived* from the edges; the per-entry `recipe` label groups nodes under a behavior name. "stance" = stance alone, on every model; "recover" = stance → recovery where a recovery node exists; "walk" = stance → locomotion; "hunt" = stance → locomotion → behavior. |
+| **Recipe** | A deliverable plus its ancestor chain, *derived* from the edges; the per-entry `recipe` label groups nodes under a behavior name. "stance" = stance alone, on every model; "recover" = stance → recovery where a recovery node exists; "walk" = stance → locomotion. |
 | **Certified** | A property of one checkpoint: the node's own gate passed *and* every ancestor's gate passed, with every piece of evidence hash-bound to the checkpoint it describes. |
 
-Models with a hunting task name the node `behavior`. Its recipe label is `hunt`, and the task name (strike, bite proxy, food reach, snap,
-target reach) comes from the stage TOML's `[stage] name`.
+Until decision D-D59 (2026-11-23) six models had a hunting leaf after walk:
+the node `behavior` (historical stage 3), labelled `hunt`, whose task (strike,
+bite proxy, food reach, snap, target reach) came from its stage TOML. That
+node is removed (the prey it targeted leaves the scene with a later
+environment change under the same decision), so every chain now ends at walk;
+`"hunt"` is refused naming `"walk"` wherever a label is taken, and the id
+`behavior` and legacy number 3 stay reserved, resolving to no stage.
 
 Direction-following and terrain traversal exist today as a separate pilot
 pipeline (see `docs/TRAIN_DIRECTION_AND_TERRAIN.md` in the repository) and
 are planned as manifest nodes under `locomotion` — `follow_direction` and
 `follow_direction_difficult_terrain`, with their own gate kind — so the leaf
 set on this page will grow; nothing on this page changes until then.
+Follow-direction, driven by a commanded heading and speed, is the path after
+walk (decision D-D59).
 
 ## The stage manifest
 
@@ -48,7 +55,7 @@ schema `mesozoic.stage-manifest/v2`. Per `[[stages]]` entry:
 |---|---|
 | `id` | The stage's identity; an open vocabulary matching `^[a-z][a-z0-9_]*$`. The four ids `stance`, `recovery`, `locomotion` and `behavior` are reserved and keep their meaning everywhere. |
 | `config` | The stage TOML file, relative to the model's config directory. |
-| `legacy_number` | The integer the stage was known as before manifests existed (1, 2, 3); absent on a stage that is addressed by id only. |
+| `legacy_number` | The integer the stage was known as before manifests existed (1, 2; 3 was the removed hunt); absent on a stage that is addressed by id only. |
 | `warm_start_from` | The id of an **earlier** entry this node initialises from; absent means root. A self or forward reference is fatal. |
 | `deliverable` | `true` when the node's certified checkpoint is a published policy. A v2 manifest with no deliverable is fatal. |
 | `recipe` | The behavior label the node belongs to. A label resolves to its deepest deliverable in manifest order. |
@@ -80,31 +87,21 @@ legacy_number = 2
 warm_start_from = "stance"       # the 2026-08-23 lineage rule, now declared;
 recipe = "walk"                  # flips to "recovery" once a recovery run passes (plan A2)
 deliverable = true
-
-[[stages]]                       # id stays "behavior"; the label is the recipe
-id = "behavior"
-config = "behavior.toml"
-legacy_number = 3
-warm_start_from = "locomotion"
-recipe = "hunt"
-deliverable = true
 ```
 
 The anatomical Compsognathus and the Compsognathus robot commit the same
-four-node layout, labels included. The anatomical Velociraptor, Brachiosaurus and
-Dibothrosuchus commit three nodes — `stance` (labelled `stance`), `locomotion` (`walk`,
-warm-started from stance) and `behavior` (`hunt`, warm-started from
-locomotion) — over `stance.toml`, `locomotion.toml` and their task file
-(`strike.toml`, `food_reach.toml` or `snap.toml`); every stage file is named by
-its stage, with no number. Every node in
-every committed manifest is a deliverable.
+three-node layout, labels included. The anatomical Velociraptor, Brachiosaurus,
+Dibothrosuchus and Allosaurus commit two nodes — `stance` (labelled `stance`)
+and `locomotion` (`walk`, warm-started from stance) — over `stance.toml` and
+`locomotion.toml`; every stage file is named by its stage, with no number.
+Every node in every committed manifest is a deliverable.
 
-The labels are `stance`, `recover`, `walk` and `hunt`. Each names one node
+The labels are `stance`, `recover` and `walk`. Each names one node
 on every model that has it, so label resolution never surprises: `"stance"`
 resolves to `stance` on every model (it is both the stance node's id and its
 label), `"recover"` to `recovery` on the T-Rex and both Compsognathus models
-(chain `stance -> recovery`) and to nothing elsewhere, and `"hunt"` to
-`behavior` on models with a hunting task. For Allosaurus, select `stance` or `walk` in the notebook. A label may equal a stage id only when it resolves to that very
+(chain `stance -> recovery`) and to nothing elsewhere, and `"walk"` to
+`locomotion` on every model. A label may equal a stage id only when it resolves to that very
 stage, as `stance` does; the loader refuses any other overlap, so a label
 never shadows a different node's id. Until decision D-D35 (2026-10-16) the
 recovery node was labelled `stand` too, so `"stand"` resolved to `recovery`
@@ -116,11 +113,14 @@ standing behavior one name, `stance`, everywhere: `"stand"` is no alias, and
 every place that takes a label (the notebook's `BEHAVIOR`, `curriculum
 --target`, a manifest's `recipe`, the species manifest's deliverables)
 refuses it with `'stand' was renamed to 'stance' (decision D-D38); use
-'stance'`. Inside a run, stage directories are named `{position:02d}_{id}`
-(`01_stance`, `02_locomotion`, `03_behavior` for the three-node models;
-`01_stance`, `02_recovery`, `03_locomotion`, `04_behavior` on the T-Rex), and
-file labels keep `stage1`, `stage2`, `stage3` for the legacy-numbered stages
-and the bare id otherwise (`recovery_final.zip`).
+'stance'`. The hunt label is refused the same way since decision D-D59, with
+`'hunt' was removed with every node it labelled (decision D-D59); use 'walk',
+the behavior those nodes were trained from`. Inside a run, stage directories
+are named `{position:02d}_{id}` (`01_stance`, `02_locomotion` for the two-node
+models; `01_stance`, `02_recovery`, `03_locomotion` on the T-Rex and both
+Compsognathus models; an older run may also hold `03_behavior` or
+`04_behavior`), and file labels keep `stage1`, `stage2` for the
+legacy-numbered stages and the bare id otherwise (`recovery_final.zip`).
 
 ## What one run does
 
@@ -166,7 +166,7 @@ certify, and an earlier run's certified target is that run's deliverable,
 published from there. A node trains only on a parent that passed its gate; a
 failed node stops the chain, and nothing is trained from scratch silently. In
 the notebook the bundle is written before the verdict is enforced, so a
-failed hunt still publishes the certified nodes this run trained beneath it.
+failed walk still publishes the certified nodes this run trained beneath it.
 Ancestors reused from a trunk are not this run's deliverables: they stay
 published by the run that certified them (D-A18) and appear here only under
 `provenance.ancestors`, so a trunked run whose target fails has nothing
@@ -352,7 +352,7 @@ must not be this run — certified nodes of an earlier run come in through
 a node on the chosen behavior's chain.
 
 The setup cell resolves `"auto"` to the last deliverable in the model manifest.
-This selects `walk` for Allosaurus and `hunt` for the other models. Explicit
+This selects `walk` on every model. Explicit
 recipe labels and stage IDs go through `MANIFEST.resolve_behavior(BEHAVIOR)`.
 The cell obtains the chain with `MANIFEST.chain_for(TARGET_NODE.id)`. One `# ===== BEHAVIOR CHAIN LOOP =====`
 cell then walks `CHAIN` root-first and, per node, reuses, judges or trains
@@ -367,24 +367,22 @@ node's algorithm block prints a warning naming the differing keys and points
 at `RETRAIN_FROM`. A stage directory that already records a node is refused,
 so a new variant is a new `RUN_ID`.
 
-**Hunt on a walk trunk.** An earlier run `20260901_120000` certified stance
-and locomotion for the Velociraptor under PPO. In a fresh session:
+**Walk on a stance trunk.** An earlier run `20260901_120000` certified
+stance for the Velociraptor under PPO. In a fresh session:
 
 ```python
-BEHAVIOR = "hunt"
+BEHAVIOR = "walk"
 TRUNK_FROM = "20260901_120000"
 ```
 
-The chain is `stance -> locomotion -> behavior`. The loop reuses the trunk's
-stance if its verdict passed, its task digest and plant match, and it entered
-from no parent; reuses the trunk's locomotion only if it was trained from
-that very stance checkpoint; then trains `behavior` here, warm-started from
-the reused locomotion handoff. The run directory gains `ancestors/stance/`
-and `ancestors/locomotion/`, the trained `03_behavior/` records
-`parent_run_id`, and the bundle publishes `behavior` as its one deliverable
-(`target_deliverable = "behavior"`), with `provenance.ancestors` carrying
-stance and locomotion — certified through the trunk's verdicts and still
-published by the trunk run.
+The chain is `stance -> locomotion`. The loop reuses the trunk's stance if
+its verdict passed, its task digest and plant match, and it entered from no
+parent; then trains `locomotion` here, warm-started from the reused stance
+handoff. The run directory gains `ancestors/stance/`, the trained
+`02_locomotion/` records `parent_run_id`, and the bundle publishes
+`locomotion` as its one deliverable (`target_deliverable = "2"`, its stage
+key), with `provenance.ancestors` carrying stance — certified through the
+trunk's verdict and still published by the trunk run.
 
 **Recover on the T-Rex.** `"recover"` resolves to `recovery`, on the T-Rex
 and both Compsognathus models:
@@ -453,18 +451,13 @@ node after the gap against the skipped stage's thresholds. `--retrain-from`
 must name a node on the target's chain.
 
 ```bash
-# Reuse an earlier run's certified stance and locomotion; train behavior here
+# Reuse an earlier run's certified stance; train locomotion here
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 
-# A walk-only run: reuse the certified stance, train locomotion here as the target, stop
+# A stance-only run: train the stance here as the target, stop
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  curriculum --algorithm ppo --target walk --trunk-from logs/<earlier_run> --output-dir logs/<walk_run>
-
-# Reuse only the certified stance; retrain locomotion and behavior here
-python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --retrain-from locomotion \
-  --output-dir logs/<new_run>
+  curriculum --algorithm ppo --target stance --output-dir logs/<stance_run>
 
 # Tag every trained node (recorded beside its hyperparameter digest)
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
@@ -546,10 +539,9 @@ After a notebook run that reused a trunk's stance, a T-Rex run directory
 │   ├── models/robust_best_model.zip + _vecnorm.pkl
 │   ├── stage_config.json       run block: load_mode = initialize_next_stage,
 │   │                             parent_checkpoint_sha256 = the stance digest, parent_run_id
-│   └── gate_verdict.json       passed, hash-bound to the handoff pair above
-├── 04_behavior/                the target: always trained here
-│   └── ...
-├── provenance.json             deliverables {locomotion, behavior}, each with certified;
+│   └── gate_verdict.json       passed, hash-bound to the handoff pair above; the target,
+│                                 always trained here
+├── provenance.json             deliverables {locomotion}, with certified;
 │                               ancestors {stance} — reused, still published by run 20260901
 └── summary.json                written whenever anything certified; status complete | partial
 ```
@@ -614,10 +606,10 @@ schema-2 summaries still read):
 - Bundle status is `complete` when the target is present and certified and
   every present deliverable is certified, `partial` when at least one
   deliverable is certified, and `failed` otherwise. `summary.json` is written
-  whenever something is certified, so a failed hunt publishes the certified
-  walk it trained, a walk-only run is a complete bundle when walk was its
-  target, and a stance-only run targeting hunt is `partial`, never
-  `complete`. Deliverables are the nodes trained or judged in this run; a
+  whenever something is certified, so a failed walk publishes the certified
+  stance it trained, a stance-only run is a complete bundle when stance was
+  its target, and a run that targeted walk but certified only stance is
+  `partial`, never `complete`. Deliverables are the nodes trained or judged in this run; a
   reused ancestor is listed under `provenance.ancestors` only, so a trunked
   run whose target fails is `failed` and writes no `summary.json` — its
   trunk is already published by the run that certified it.
@@ -634,8 +626,10 @@ never hand-edited); result rows list one entry per deliverable
 headlined by its gate kind, with stance and recovery headline values
 rendered as null until a later phase exports per-stage gate metrics
 (decision D-B15); and stage
-videos are keyed by stage id. The four historical ladder summaries publish
-`deliverables = []` and are never relabelled certified.
+videos are keyed by stage id. A historical ladder summary publishes
+`deliverables = []` and is never relabelled certified; the four committed
+ones, whose last stage was a hunt, were deleted by decision D-D59 (the last
+commit holding them is named in `results/README.md`).
 
 ## Experiments on a node that already passes
 
@@ -663,13 +657,13 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
   --output-dir logs/<variant_run>
 ```
 
-The variant reuses stance as an ancestor and trains locomotion and behavior
-here. A later hunt trunked from `<variant_run>` reuses the variant's
-locomotion and, through the variant's `ancestors/stance/` record, the stance
-that `<certified_run>` certified (rule 1 above): the winning locomotion
-carries into later hunts without retraining anything, provided the original
-run is still visible from the machine — as recorded, or beside the variant
-under the same log base.
+The variant reuses stance as an ancestor and trains locomotion here. A
+later run of a node built on locomotion, trunked from `<variant_run>`, reuses
+the variant's locomotion and, through the variant's `ancestors/stance/`
+record, the stance that `<certified_run>` certified (rule 1 above): the
+winning locomotion carries into later runs without retraining anything,
+provided the original run is still visible from the machine — as recorded,
+or beside the variant under the same log base.
 
 ## What stays on the ladder in Phase A
 
@@ -680,12 +674,6 @@ under the same log base.
   until per-stage gate metrics are exported into the summary (a later phase,
   decision D-B15). A verdict records the gate it was judged under (`gate` /
   `gate_sha256`, decision D-A22), but the deliverable's summary does not
-  surface it yet. The hunt deliverable is the exception: `task_success/v1`
-  exports `selected_model_success_lcb` (with the count and panel size) into
-  the stage row, judged from the selected checkpoint's `evaluation_selected.csv`.
-- A CLI-certified hunt (`curriculum --target hunt`) is judged IN-TRAINING on
-  the last EvalCallback panel (the manager's bound over its successes,
-  recorded as `success_count` / `n_success_samples` in the verdict's
-  `stage_result`) and writes no `evaluation_selected.csv`, so it cannot be
-  backfilled or published without the notebook's post-stage judge; treat it
-  as a training-time signal, not a certification.
+  surface it yet. The hunt deliverable was the exception, exporting its
+  `task_success/v1` bound into the stage row, until decision D-D59 removed
+  the hunt.

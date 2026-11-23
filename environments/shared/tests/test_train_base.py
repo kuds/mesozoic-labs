@@ -37,6 +37,7 @@ from environments.shared.train_base import (
     linear_schedule,
 )
 
+from .ladder_helpers import LADDER_LEAF_LABEL, install_three_stage_ladder
 from .reporting_helpers import make_plant_identity as _plant_identity
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
@@ -945,7 +946,17 @@ class TestTrainCurriculumWalksTheManifest:
     skipped trex's recovery stage without a log line.  Every heavyweight
     collaborator is replaced so the loop's ORDER, its skip, and its handoff
     are the only things exercised.
+
+    Every committed ladder ends at locomotion since decision D-D59 removed the
+    hunt nodes, so these walks run on the three-stage fixture ladder
+    (``ladder_helpers``): the committed configs plus a third advancing node,
+    ``behavior`` (legacy 3, labelled ``sprint``, a copy of locomotion's
+    config), so a run has an ancestor between its root and its target.
     """
+
+    @pytest.fixture(autouse=True)
+    def _three_stage_ladder(self, tmp_path_factory, monkeypatch):
+        install_three_stage_ladder(tmp_path_factory.mktemp("ladder_configs"), monkeypatch)
 
     def _run(
         self,
@@ -1216,7 +1227,7 @@ class TestTrainCurriculumWalksTheManifest:
         # The rule is handed the resolved parent's digest so it can check the
         # chain (rule 4): None for the root, the reused stance's for walk.
         assert asked == [("stance", None), ("locomotion", ancestor.model_sha256)]
-        # Stance was reused, never trained; walk and hunt were trained here.
+        # Stance was reused, never trained; walk and the leaf were trained here.
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
         # Only a node trained here is seeded with the run's seed (D-D11) and records its duration (D-A15).
         assert record["seeds"] == [1, 1]
@@ -1228,7 +1239,7 @@ class TestTrainCurriculumWalksTheManifest:
             for stage in (2, 3)
         ]
         # Walk entered on the ancestor's handoff, crossing the edge, with the
-        # trunk's run id recorded as lineage; hunt's parent was trained here.
+        # trunk's run id recorded as lineage; the leaf's parent was trained here.
         assert record["loads"][0] == ancestor.model_stem
         assert record["saved"][0] == (2, ancestor.model_stem, "initialize_next_stage")
         assert record["parent_run_ids"] == [(2, "trunk-run-id"), (3, None)]
@@ -1356,8 +1367,8 @@ class TestTrainCurriculumWalksTheManifest:
 
     def test_trunk_from_reuses_the_whole_chain_but_never_the_target(self, tmp_path, monkeypatch, caplog):
         """A run's target is what it exists to certify: with stance and walk both certified in the
-        trunk, hunt is still trained here, on the reused walk, with the trunk as its lineage.  An
-        earlier run's certified hunt is that run's deliverable, published from there."""
+        trunk, the leaf is still trained here, on the reused walk, with the trunk as its lineage.  An
+        earlier run's certified leaf is that run's deliverable, published from there."""
         trunk = tmp_path / "trunk-run"
         stance = self._certified_ancestor(trunk, "stance", "1", model_sha256="a" * 64)
         locomotion = self._certified_ancestor(trunk, "locomotion", "2", model_sha256="b" * 64)
@@ -1389,7 +1400,7 @@ class TestTrainCurriculumWalksTheManifest:
         another run by construction), follows that record to the run that certified stance.  The curriculum passes the middle
         run and receives the ORIGINAL: it is what is recorded as this run's ancestor and what walk's
         ``parent_run_id`` names; walk, which the middle run neither trained nor reused, is trained
-        here, and hunt is the target."""
+        here, and the leaf is the target."""
         from environments.shared.ancestors import find_certified_ancestor, record_ancestor
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import load_stage_manifest
@@ -1619,7 +1630,7 @@ class TestTrainCurriculumWalksTheManifest:
             assert kwargs["plant_identity"] is plant
 
     def test_a_task_success_node_records_the_panel_count_it_was_judged_on(self, tmp_path):
-        """The CLI hunt verdict is the manager's LAST-panel bound; its stage_result says which panel (D-B12 amendment)."""
+        """A CLI task_success verdict is the manager's LAST-panel bound; its stage_result says which panel (D-B12 amendment)."""
         from environments.shared.curriculum import CurriculumManager
         from environments.shared.train_base import _in_training_task_success_result
 
@@ -1678,17 +1689,32 @@ class TestTrainCurriculumWalksTheManifest:
         assert (on_disk["success_count"], on_disk["n_success_samples"]) == (20, 30)
         assert (on_disk["best_model_success_count"], on_disk["best_model_n_episodes"]) == (20, 30)
 
-    def test_the_walk_records_the_hunt_panel_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
-        """train_curriculum passes stage_result= to write_gate_verdict for the task_success node, the
+    def test_the_walk_records_the_task_success_panel_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
+        """train_curriculum passes stage_result= to write_gate_verdict for a task_success node, the
         post-training result for the floor-truth stance (the trex stance's six-heading certificate since
         D-D32; stubbed by ``_run``), and None for every other kind: the wiring, not only the helper, is
-        pinned."""
+        pinned. No committed stage declares task_success/v1 since decision D-D59 removed the trex hunt,
+        its one user, so the fixture leaf is given the block the hunt declared."""
+        from environments.shared.config import load_all_stages
+
+        stage_configs = load_all_stages(TYRANNOSAURUS_REX)
+        stage_configs[3]["curriculum_kwargs"] = {
+            "gate_schema_version": 1,
+            "gate_kind": "task_success/v1",
+            "timesteps": 8_000_000,
+            "min_avg_reward": 361.0,
+            "min_success_lcb": 0.5,
+            "min_eval_episodes": 30,
+            "required_consecutive": 3,
+        }
 
         def eval_panel(manager):
             if manager.current_stage == 3:
                 manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
 
-        record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, eval_panel=eval_panel)
+        record = self._run(
+            TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, eval_panel=eval_panel, stage_configs=stage_configs
+        )
 
         by_id = {verdict["stage_id"]: verdict for verdict in record["verdicts"]}
         assert by_id["behavior"]["gate_kind"] == "task_success/v1"
@@ -1907,20 +1933,25 @@ class TestTrainCurriculumWalksTheManifest:
         [manager] = record["managers"]
         assert manager.current_stage == 2
 
-    def test_target_hunt_is_the_default_and_a_stage_id_or_legacy_number_resolves_like_its_label(
+    def test_target_the_leaf_label_is_the_default_and_a_stage_id_or_legacy_number_resolves_like_its_label(
         self, tmp_path, monkeypatch, caplog
     ):
-        """``target="hunt"`` (the label), ``"behavior"`` (the deliverable's id) and ``3`` (its legacy
-        number) each walk exactly what the default walks; ``"locomotion"`` and ``2`` walk exactly what
-        ``"walk"`` walks.  The record projections compare with run directories factored out."""
+        """The fixture leaf's label, ``"behavior"`` (the deliverable's id) and ``3`` (its legacy number)
+        each walk exactly what the default walks; ``"locomotion"`` and ``2`` walk exactly what ``"walk"``
+        walks.  The record projections compare with run directories factored out."""
         walks = {}
-        for name, target in (("default", None), ("hunt", "hunt"), ("behavior", "behavior"), ("three", 3)):
+        for name, target in (
+            ("default", None),
+            ("leaf", LADDER_LEAF_LABEL),
+            ("behavior", "behavior"),
+            ("three", 3),
+        ):
             run_dir = tmp_path / name
             record = self._run(
                 VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target
             )
             walks[name] = self._walk(record, run_dir)
-        assert walks["hunt"] == walks["behavior"] == walks["three"] == walks["default"]
+        assert walks["leaf"] == walks["behavior"] == walks["three"] == walks["default"]
         assert [stage for stage, _, _ in walks["default"]["saved"]] == [1, 2, 3]
         banners = [r.message for r in caplog.records if r.message.startswith("Starting automated")]
         assert len(banners) == 4 and all(
@@ -1995,7 +2026,7 @@ class TestTrainCurriculumWalksTheManifest:
 
     def _run_with_behavior_edge_on_stance(self, tmp_path, monkeypatch, caplog, **run_kwargs):
         """The velociraptor curriculum with behavior's edge retargeted at stance, leaving locomotion —
-        still advancing, still numbered 2 — off hunt's chain.  The loader accepts it: legacy numbers
+        still advancing, still numbered 2 — off the leaf's chain.  The loader accepts it: legacy numbers
         pin ids and order, not the edges between advancing nodes."""
         import shutil
 
@@ -2014,12 +2045,12 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs)
         return self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, **run_kwargs)
 
-    @pytest.mark.parametrize("target", ["hunt", "behavior", 3])
+    @pytest.mark.parametrize("target", [LADDER_LEAF_LABEL, "behavior", 3])
     def test_a_target_whose_chain_skips_a_ladder_stage_raises_before_any_directory_is_written(
         self, tmp_path, monkeypatch, caplog, target
     ):
         """An explicit target's chain must be a PREFIX of the advancing ladder, not merely all-advancing:
-        with behavior's edge on stance, hunt's chain is stance -> behavior and the manager — advanced
+        with behavior's edge on stance, the leaf's chain is stance -> behavior and the manager — advanced
         once after stance, so at stage 2 of 3 — would judge behavior against locomotion's thresholds.
         Refused naming the skipped stage, the ladder and the notebook, with no run directory."""
         run_dir = tmp_path / "fresh-run"
@@ -2055,7 +2086,7 @@ class TestTrainCurriculumWalksTheManifest:
         [
             (
                 "fly",
-                "target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no behavior 'fly'; recipe labels: \\['stance', 'walk', 'hunt'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
+                "target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no behavior 'fly'; recipe labels: \\['stance', 'walk', 'sprint'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
             ),
             (
                 7,
@@ -2161,7 +2192,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert "'stance'" in message and "trunk-run-id" in message
         assert "ppo.learning_rate, shaping.warmup_timesteps" in message
         assert "--retrain-from stance" in message
-        # Reused all the same: stance was not trained, walk and hunt were.
+        # Reused all the same: stance was not trained, walk and the leaf were.
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
         assert [a.stage_id for _, a in record["ancestors"]] == ["stance"]
 
@@ -2823,7 +2854,7 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
 
 
 class TestOneStageBody:
-    """Cleanup CU-10b: ``train()`` and the CLI curriculum train each stage through one body,
+    """On the three-stage fixture ladder, as :class:`TestTrainCurriculumWalksTheManifest`. Cleanup CU-10b: ``train()`` and the CLI curriculum train each stage through one body,
     ``train_base._train_stage_body``, from the environments to the final save.
 
     The body builds the evaluation environment on ``eval_env_seed(seed)``; the caller's own callback (the
@@ -2836,6 +2867,10 @@ class TestOneStageBody:
     moves it."""
 
     SEED = 8675309
+
+    @pytest.fixture(autouse=True)
+    def _three_stage_ladder(self, tmp_path_factory, monkeypatch):
+        install_three_stage_ladder(tmp_path_factory.mktemp("ladder_configs"), monkeypatch)
 
     def _patch(self, monkeypatch, *, interrupt=False):
         import inspect

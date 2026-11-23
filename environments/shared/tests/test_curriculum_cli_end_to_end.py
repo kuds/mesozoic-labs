@@ -12,7 +12,8 @@ subprocess with tiny budgets and 32-step episodes, and ``--override`` sets
 every gate so that each stage advances on its first evaluation.  They check
 the run's on-disk contract, not learning.
 
-The ladder is the Dibothrosuchus's: all three of its advancing stages gate on
+The ladder is the Dibothrosuchus's: both of its advancing stages (stance and
+locomotion; its snap hunt left with decision D-D59) gate on
 ``reward_and_length/v1``, which ``--override`` opens (velociraptor's was, until
 its stance moved to ``stance_quality/v2`` with physics r3, decision D-D25: the
 overrides that open a reward gate are keys v2 refuses).  Compsognathus's stance
@@ -180,7 +181,7 @@ def _assert_checkpoints_record_the_run_seed(models: Path, run: dict[str, Any]) -
 
 @pytest.fixture(scope="module")
 def ladder(tmp_path_factory):
-    """One full CLI curriculum run (stance -> locomotion -> behavior), shared by the tests below."""
+    """One full CLI curriculum run (stance -> locomotion), shared by the tests below."""
     run_dir = tmp_path_factory.mktemp("cli_curriculum") / "ladder"
     result = _run_cli(run_dir)
     return run_dir, result
@@ -194,7 +195,7 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
 
     manifest = load_stage_manifest(MODEL_ID)
     chain = [entry for entry in manifest.stages if entry in manifest.advancing_stages]
-    assert [entry.reference for entry in chain] == [1, 2, 3]
+    assert [entry.reference for entry in chain] == [1, 2]
     configs = _expected_configs(*RUN_SHAPE, *OPEN_GATES)
 
     # The run directory: one stage directory per advancing node, the run's
@@ -281,7 +282,7 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     # writer (reporting.csv_output.write_results_csv in append mode), so the
     # header is the sorted hyperparameter columns then CSV_METRIC_COLUMNS.
     rows = _rows(run_dir)
-    assert [row["stage"] for row in rows] == ["1", "2", "3"]
+    assert [row["stage"] for row in rows] == ["1", "2"]
     assert {row["stage_passed"] for row in rows} == {"True"}
     # The CSV records the time learn() took, a part of the node's recorded duration (to 0.1 s).
     for row, entry in zip(rows, chain):
@@ -313,23 +314,24 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
     _assert_succeeded(result)
     _assert_no_cloud_imports(result)
 
-    target_dir = stage_dirname(MODEL_ID, 3)
+    target_dir = stage_dirname(MODEL_ID, 2)
     assert {path.name for path in run_dir.iterdir()} == {
         "ancestors",
         target_dir,
         "plant_identity.json",
         "curriculum_results.csv",
     }
-    for stage_id in ("stance", "locomotion"):
+    assert sorted(path.name for path in (run_dir / "ancestors").iterdir()) == ["stance"]
+    for stage_id in ("stance",):
         assert (run_dir / "ancestors" / stage_id / "ancestor.json").is_file()
         assert (run_dir / "ancestors" / stage_id / "gate_verdict.json").is_file()
         # A record, never the checkpoint.
         assert not list((run_dir / "ancestors" / stage_id).glob("*.zip"))
 
-    parent_verdict = _read(trunk / stage_dirname(MODEL_ID, 2) / "gate_verdict.json")
+    parent_verdict = _read(trunk / stage_dirname(MODEL_ID, 1) / "gate_verdict.json")
     run = _read(run_dir / target_dir / "stage_config.json")["run"]
     assert run["seed"] == 1  # not the trunk's 0, so a warm start that keeps its parent's seed is caught
-    assert Path(run["load_path"]) == trunk / stage_dirname(MODEL_ID, 2) / parent_verdict["checkpoint"]
+    assert Path(run["load_path"]) == trunk / stage_dirname(MODEL_ID, 1) / parent_verdict["checkpoint"]
     assert run["parent_checkpoint_sha256"] == parent_verdict["checkpoint_sha256"]
     assert run["parent_run_id"] == trunk.name
     assert _read(run_dir / target_dir / "gate_verdict.json")["passed"] is True
@@ -337,7 +339,7 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
     _assert_checkpoints_record_the_run_seed(run_dir / target_dir / "models", run)
 
     # A reused node writes no curriculum_results.csv row.
-    assert [row["stage"] for row in _rows(run_dir)] == ["3"]
+    assert [row["stage"] for row in _rows(run_dir)] == ["2"]
 
 
 def test_a_failed_gate_stops_the_cli_curriculum_after_recording_it(tmp_path):

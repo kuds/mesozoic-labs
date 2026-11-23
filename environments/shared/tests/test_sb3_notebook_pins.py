@@ -158,6 +158,42 @@ def _define_node_budget(namespace: dict) -> None:
     exec_top_level_def(_cell(INFRA_CELL_MARKER), "node_budget", namespace)
 
 
+#: The deliverable :func:`_deep_chain_configs` adds below locomotion, and its recipe label.
+DEEP_NODE = "follow_direction"
+DEEP_BEHAVIOR = "follow"
+
+
+def _deep_chain_configs(configs_root: Path, monkeypatch, model_id: ModelId) -> None:
+    """Serve a copy of *model_id*'s configs with one more deliverable, ``follow_direction`` (recipe ``follow``,
+    warm-started from locomotion, its config a copy of ``locomotion.toml``), from *configs_root*.
+
+    Since decision D-D59 removed the hunt nodes every committed chain ends at walk, so no committed chain has a
+    non-root ancestor below its target; the cases that need one (a node between the root and the target) run on
+    this copy. Both readers of the configs root (the stage manifest and the stage config loader) are pointed at
+    it."""
+    import shutil
+
+    from environments.shared import config as config_module
+    from environments.shared import stage_manifest as stage_manifest_module
+
+    source = model_id.path(stage_manifest_module._CONFIGS_DIR)
+    target = model_id.path(configs_root)
+    shutil.copytree(source, target)
+    shutil.copyfile(target / "locomotion.toml", target / f"{DEEP_NODE}.toml")
+    with open(target / "stages.toml", "a", encoding="utf-8") as handle:
+        handle.write(
+            f'\n[[stages]]\nid = "{DEEP_NODE}"\nconfig = "{DEEP_NODE}.toml"\nwarm_start_from = "locomotion"\n'
+            f'recipe = "{DEEP_BEHAVIOR}"\ndeliverable = true\n'
+        )
+    monkeypatch.setattr(stage_manifest_module, "_CONFIGS_DIR", configs_root)
+    monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs_root)
+    assert [entry.id for entry in load_stage_manifest(model_id).chain_for(DEEP_NODE)] == [
+        "stance",
+        "locomotion",
+        DEEP_NODE,
+    ]
+
+
 def _top_level_assigns(src: str) -> dict[str, ast.expr]:
     """``NAME = value`` statements at the top level of *src*, by name."""
     assigns: dict[str, ast.expr] = {}
@@ -2300,14 +2336,20 @@ class TestJudgeFirst:
             capsys.readouterr().out
         )
 
-    def test_executed_an_unjudged_ancestor_on_the_resolved_parent_is_judged(self, tmp_path, monkeypatch):
+    def test_executed_an_unjudged_ancestor_on_the_resolved_parent_is_judged(
+        self, tmp_path, tmp_path_factory, monkeypatch
+    ):
         """A non-root trained here on the parent this session resolved (the trunk's stance) is judged; the trunk
-        still stands in for stance, which this run never trained."""
+        still stands in for stance, which this run never trained. Run on a chain one node deeper than walk
+        (:func:`_deep_chain_configs`), so locomotion is an ancestor, not the target."""
+        _deep_chain_configs(
+            tmp_path_factory.mktemp("configs"), monkeypatch, ModelId("velociraptor_mongoliensis", "anatomical")
+        )
         finals: dict = {}
         namespace, asked, recorded, judged, trained = self._loop(
             tmp_path,
             monkeypatch,
-            behavior="hunt",
+            behavior=DEEP_BEHAVIOR,
             prepare=lambda run: finals.update(
                 locomotion=self._final_pair(run, "locomotion", run_block=self._edge(self.TRUNK_SHA))
             ),
@@ -2319,17 +2361,20 @@ class TestJudgeFirst:
         assert asked == [(self.RUN_ID, "stance"), (self.TRUNK_ID, "stance"), (self.RUN_ID, "locomotion")]
 
     def test_executed_an_unjudged_ancestor_on_another_parent_is_refused_before_the_trunk_is_asked(
-        self, tmp_path, monkeypatch
+        self, tmp_path, tmp_path_factory, monkeypatch
     ):
         """Rule 4 before the trunk is skipped: JUDGE applies no chain check, so a node trained on another parent
         than the one resolved here is refused, with the remedy that works (a fresh RUN_ID), not judged; and the
-        trunk's copy may not stand in for it either."""
+        trunk's copy may not stand in for it either. Run on the deeper chain, as above."""
         from environments.shared.result_bundle import ResultBundleError
 
+        _deep_chain_configs(
+            tmp_path_factory.mktemp("configs"), monkeypatch, ModelId("velociraptor_mongoliensis", "anatomical")
+        )
         namespace, asked, recorded, judged, trained = self._loop(
             tmp_path,
             monkeypatch,
-            behavior="hunt",
+            behavior=DEEP_BEHAVIOR,
             prepare=lambda run: self._final_pair(run, "locomotion", run_block=self._edge("sha256:" + "c" * 64)),
         )
         with pytest.raises(ResultBundleError, match="does not chain onto the parent this session resolved") as excinfo:
@@ -3250,12 +3295,13 @@ class TestResumeCell:
         assert "BEHAVIOR" not in str(excinfo.value)
         assert "judges the resumed node before it consults any trunk" in str(excinfo.value)
 
-    def test_a_retrain_from_below_the_resumed_node_does_not_cover_it(self, tmp_path):
+    def test_a_retrain_from_below_the_resumed_node_does_not_cover_it(self, tmp_path, tmp_path_factory, monkeypatch):
         """Executed: RETRAIN_FROM covers the named node and its descendants only; resuming an ancestor of it
-        trains as usual."""
-        [call] = self._run_resume_cell(
-            tmp_path, ModelId("compsognathus_longipes", "robot"), "hunt", "locomotion", 2, retrain_from="behavior"
-        )
+        trains as usual. On a chain one node deeper than walk (:func:`_deep_chain_configs`), since every
+        committed chain ends at walk (decision D-D59)."""
+        model_id = ModelId("compsognathus_longipes", "robot")
+        _deep_chain_configs(tmp_path_factory.mktemp("configs"), monkeypatch, model_id)
+        [call] = self._run_resume_cell(tmp_path, model_id, DEEP_BEHAVIOR, "locomotion", 2, retrain_from=DEEP_NODE)
         assert call["stage"] == 2
 
     def test_a_broken_newest_periodic_pair_falls_back_to_the_next_intact_one(self, tmp_path, capsys):
@@ -3950,19 +3996,29 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert namespace["TARGET_NODE"].id == "stance"
         assert [node.id for node in namespace["CHAIN"]] == ["stance"]
 
-    def test_allosaurus_defaults_to_walk_and_rejects_an_explicit_hunt(self):
+    @pytest.mark.parametrize("model_id", MODELS_WITH_MANIFESTS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_every_model_defaults_to_walk_and_refuses_hunt_naming_walk(self, model_id):
+        """Decision D-D59: ``"auto"`` resolves to walk (stance -> locomotion) on all seven models, and
+        ``BEHAVIOR = "hunt"`` stops the resolve cell with the pointer to ``"walk"``, binding no chain."""
         from environments.shared.config import load_all_stages
 
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         config = _cell(CONFIG_CELL_MARKER)
-        exec(config.replace('SPECIES = "velociraptor_mongoliensis"', 'SPECIES = "allosaurus_fragilis"'), namespace)
+        assert config.count('SPECIES = "velociraptor_mongoliensis"') == 1
+        config = config.replace('SPECIES = "velociraptor_mongoliensis"', f"SPECIES = {model_id.species!r}")
+        config = config.replace('EMBODIMENT = "anatomical"', f"EMBODIMENT = {model_id.embodiment!r}")
+        exec(config, namespace)
         resolve = _cell("EnvClass = SPECIES_CFG.env_class")
         exec(resolve, namespace)
+        assert namespace["BEHAVIOR"] == "auto"
         assert namespace["TARGET_NODE"].recipe == "walk"
         assert [node.id for node in namespace["CHAIN"]] == ["stance", "locomotion"]
-        namespace["BEHAVIOR"] = "hunt"
-        with pytest.raises(StageManifestError, match="has no behavior 'hunt'"):
-            exec(resolve, namespace)
+        fresh = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(config, fresh)
+        fresh["BEHAVIOR"] = "hunt"
+        with pytest.raises(StageManifestError, match=r"has no behavior 'hunt': .* use 'walk'"):
+            exec(resolve, fresh)
+        assert "TARGET_NODE" not in fresh and "CHAIN" not in fresh
 
     @staticmethod
     def _tyrannosaurus_rex_configuration():
@@ -4000,9 +4056,10 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         config = _cell(CONFIG_CELL_MARKER)
         behavior_line = next(line for line in config.splitlines() if line.startswith("BEHAVIOR ="))
         options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
-        # The four recipe labels (decisions D-D35 and D-D38): "recover" is the recovery stage's label,
-        # and "stance", the stance stage's id and label, is the stance stage alone on every model.
-        assert options == ["auto", "stance", "recover", "walk", "hunt"]
+        # The three recipe labels (decisions D-D35, D-D38 and D-D59): "recover" is the recovery stage's label,
+        # "stance", the stance stage's id and label, is the stance stage alone on every model, and "hunt" left
+        # with the hunt nodes.
+        assert options == ["auto", "stance", "recover", "walk"]
         assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
         assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
         for source in (_cell("REPO_REF ="), config):

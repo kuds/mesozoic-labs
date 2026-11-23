@@ -199,7 +199,15 @@ the mirror-symmetrised policies of two handoffs were clean on 4 and 6 more
 seeds of 40, and on a third checkpoint on 3 fewer, and the plan judges that
 it would not remove an offset both feet share). None of those figures is an
 r5 one: each candidate is re-measured on the r5 statue first, and the order
-is the maintainer's.* Section 2 labels each
+is the maintainer's.* *2026-11-23: the maintainer took D-D59: the hunt is
+removed. No manifest declares a `behavior` node now, so every chain ends at
+walk, `BEHAVIOR = "hunt"` and `--target hunt` are refused naming `walk`, and
+the sessions below that name a hunt (or `hunt` among a stance's sessions)
+record the plan before that day; the four historical ladder summaries under
+`results/` (three from March 2026 and the Brachiosaurus run of 2026-07-18),
+whose last stage was a hunt, are deleted (`results/README.md` names the last commit
+that holds them). Walk becomes command-driven and follow-direction is the
+path after it, in later changes.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -210,8 +218,10 @@ consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; th
 after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
 Configuration-cell defaults:
-`BEHAVIOR = "hunt"` (dropdown: `stance`, `recover`, `walk`, `hunt`, stage ids by
-free input; the eleven direction/terrain values leave with the PR-12 slice;
+`BEHAVIOR = "auto"`, the model's last deliverable, walk on every model since
+decision D-D59 (dropdown: `auto`, `stance`, `recover`, `walk`, stage ids by
+free input; `hunt` is refused naming `walk` since D-D59; the eleven
+direction/terrain values leave with the PR-12 slice;
 `recover`, stance then push recovery on the T-Rex and both Compsognathus
 models, since decision D-D35, before which `stand` meant that chain there;
 `stance`, the stance stage alone on every model, labelled `stand` until
