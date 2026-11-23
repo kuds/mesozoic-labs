@@ -23,8 +23,8 @@ before any judged run, after the models below have passed an independent review.
   - 12.844 kg in total against 12.694 kg; the same joints, actuators and keyframes.
 - **How they are made here:** `sim/build_model60.py` gains a foreleg option that applies those changes to the
   generated model, so both variants come from the generator with a mass ledger, not as hand-copied files. Each
-  generated variant is checked against PR #697's physics model geom by geom (positions, sizes, masses) and reports
-  any difference.
+  generated variant is compiled and compared with PR #697's model array by array (every compiled array and option;
+  only the recorded mass deviation below may differ), and the change set reproduces the PR's files exactly.
 - **Mass basis, a recorded deviation from PR #697** (after the models' review, 23 Nov): the PR's 128 mm model keeps
   the 188 mm upper strut, upper limb cover and pushrod masses, and its 160 mm model scales those by its own ratio
   to 128 mm, so its strut came out heavier than the 188 mm one. Here each is the 188 mm part's mass times its length

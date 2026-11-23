@@ -77,47 +77,44 @@ def provenance(gait: dict, sweep: dict) -> list[str]:
 
 
 def judge_seed(gait: dict, sweep: dict) -> dict:
+    """The rules on one seed. The tools leave out a point's speed and drift when every episode fell, and the gait
+    report its speed and drive figures when no target episode could be analysed (all shorter than 3.5 s): each such
+    rule fails (PREREG_RUN3.md, "a point where every episode fell has neither and fails"; F2's added rule)."""
     t = gait["cases"]["target_0.25"]["summary"]
     pts = sweep["points"]
 
     def pt(k):
         return pts[k]["summary"]
 
-    nominal = pt(NOMINAL)["speed_mps"]
+    nominal = pt(NOMINAL).get("speed_mps")
+    share = lambda sp: None if sp is None or nominal is None else sp / nominal  # noqa: E731
     out = {}
     # F1: mean speed (analysed episodes) >= 0.225 and no falls in 5 (short episodes count as falls)
-    v = t["speed"]["forward_speed_mps"]
-    falls = t["falls"]
-    out["F1"] = {"pass": v is not None and v >= 0.225 and falls == 0 and t["episodes"] == 5,
-                 "speed_mps": v, "falls": falls, "episodes": t["episodes"], "short": t.get("short_episodes")}
+    v = (t.get("speed") or {}).get("forward_speed_mps")
+    falls = t.get("falls")
+    out["F1"] = {"pass": v is not None and v >= 0.225 and falls == 0 and t.get("episodes") == 5,
+                 "speed_mps": v, "falls": falls, "episodes": t.get("episodes"), "short": t.get("short_episodes")}
     # F2: every joint's mean RMS torque / continuous rating < 1.0; no value (no analysed episode) fails
-    per = t.get("drives", {}).get("per_joint") or {}
+    per = (t.get("drives") or {}).get("per_joint") or {}
     worst = max(((j, d["rms_over_continuous"]["mean"]) for j, d in per.items()), key=lambda x: x[1], default=None)
     out["F2"] = {"pass": worst is not None and worst[1] < 1.0, "worst_joint": worst[0] if worst else None,
                  "worst": worst[1] if worst else None}
-
-    def terrain_rule(k):
+    for rule, k in (("T1", STEP[3]), ("T2", RAMP[8])):
         s = pt(k)
-        sp = s["speed_mps"]
-        return s, sp
-
-    s, sp = terrain_rule(STEP[3])
-    out["T1"] = {"pass": s["falls"] == 0 and sp is not None and sp >= 0.8 * nominal, "falls": s["falls"],
-                 "speed_mps": sp, "share_of_nominal": None if sp is None else sp / nominal}
-    s, sp = terrain_rule(RAMP[8])
-    out["T2"] = {"pass": s["falls"] == 0 and sp is not None and sp >= 0.8 * nominal, "falls": s["falls"],
-                 "speed_mps": sp, "share_of_nominal": None if sp is None else sp / nominal}
+        sp = s.get("speed_mps")
+        out[rule] = {"pass": s["falls"] == 0 and sp is not None and share(sp) is not None and sp >= 0.8 * nominal,
+                     "falls": s["falls"], "speed_mps": sp, "share_of_nominal": share(sp)}
     rows = {}
     for name, k in (("step_2cm", STEP[2]), ("step_3cm", STEP[3]), ("ramp_5deg", RAMP[5]), ("ramp_8deg", RAMP[8])):
         s = pt(k)
-        rows[name] = {"falls": s["falls"], "drift_m": s["drift_abs_mean_m"],
-                      "pass": s["falls"] == 0 and s["drift_abs_mean_m"] is not None and s["drift_abs_mean_m"] <= 0.30}
+        dr = s.get("drift_abs_mean_m")
+        rows[name] = {"falls": s["falls"], "drift_m": dr, "pass": s["falls"] == 0 and dr is not None and dr <= 0.30}
     out["T3"] = {"pass": all(r["pass"] for r in rows.values()), "points": rows}
     s = pt(FRICTION_03)
-    sp, dr = s["speed_mps"], s["drift_abs_mean_m"]
-    out["T4"] = {"pass": s["falls"] == 0 and dr is not None and dr <= 0.20 and sp is not None and sp >= 0.8 * nominal,
-                 "falls": s["falls"], "drift_m": dr, "speed_mps": sp,
-                 "share_of_nominal": None if sp is None else sp / nominal}
+    sp, dr = s.get("speed_mps"), s.get("drift_abs_mean_m")
+    out["T4"] = {"pass": s["falls"] == 0 and dr is not None and dr <= 0.20 and share(sp) is not None
+                 and sp >= 0.8 * nominal, "falls": s["falls"], "drift_m": dr, "speed_mps": sp,
+                 "share_of_nominal": share(sp)}
     f = {dv: pt(k)["falls"] for dv, k in PUSH.items()}
     out["T5"] = {"pass": f[-1.0] == 0 and f[1.0] == 0 and f[-1.25] <= 2 and f[1.25] <= 2,
                  "falls": {f"{dv:+g}": n for dv, n in f.items()}}
