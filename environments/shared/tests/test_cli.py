@@ -685,3 +685,63 @@ class TestNestedOverrides:
         assert all(cfg["ppo_kwargs"]["policy_kwargs"]["log_std_init"] == -1.25 for cfg in configs.values())
         with pytest.raises(ValueError, match="which is not a table"):
             _apply_overrides(configs, ["env.max_episode_steps.x=1"], TYRANNOSAURUS_REX)
+
+
+class TestRetiredCurriculumJaxOverride:
+    """``--override curriculum.jax=...`` is refused at apply time, as the loader refuses the TOML table.
+
+    Only the retired JAX/MJX trainer applied ``[curriculum.jax]`` (D-D17).  An override sets the key after
+    the loader ran, and the single-stage ``train`` path runs no gate schema, so without this refusal the
+    table reached ``train()`` and was recorded in ``stage_config.json`` as if it were a bar.
+    """
+
+    @staticmethod
+    def _configs():
+        return {
+            1: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {"timesteps": 100}},
+            "recovery": {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {"timesteps": 100}},
+            2: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {"timesteps": 100}},
+        }
+
+    @pytest.mark.parametrize(
+        "override",
+        [
+            "curriculum.jax={ min_avg_reward = 40.0 }",
+            "curriculum.jax=40.0",
+            "curriculum.jax.min_avg_reward=40.0",
+            "2.curriculum.jax={ min_avg_reward = 40.0 }",
+            "recovery.curriculum.jax={}",
+        ],
+    )
+    def test_every_form_is_refused_and_writes_nothing(self, override):
+        configs = self._configs()
+        with pytest.raises(ValueError, match=r"sets \[curriculum\.jax\], which is refused.*D-D17 retired"):
+            _apply_overrides(configs, [override])
+        assert configs == self._configs()
+
+    def test_a_manifest_stage_id_is_refused_too(self):
+        configs = self._configs()
+        with pytest.raises(ValueError, match=r"\[curriculum\.jax\], which is refused"):
+            _apply_overrides(configs, ["locomotion.curriculum.jax={ min_avg_reward = 40.0 }"], TYRANNOSAURUS_REX)
+        assert configs == self._configs()
+
+    def test_other_curriculum_keys_still_apply(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["curriculum.timesteps=200", "curriculum.jaxx=1"])
+        assert all(cfg["curriculum_kwargs"] == {"timesteps": 200, "jaxx": 1} for cfg in configs.values())
+
+    def test_the_train_command_refuses_it_before_training(self):
+        """The single-stage path, which runs no gate schema, stops on the override before ``train()``."""
+        species_cfg = MagicMock()
+        species_cfg.model_id = TYRANNOSAURUS_REX
+        mock_train = MagicMock()
+        with (
+            patch("environments.shared.config.load_all_stages", MagicMock(return_value=self._configs())),
+            patch("environments.shared.train_base.train", mock_train),
+            patch(
+                "sys.argv", ["prog", "train", "--stage", "1", "--override", "curriculum.jax={ min_avg_reward = 40.0 }"]
+            ),
+            pytest.raises(ValueError, match=r"\[curriculum\.jax\], which is refused"),
+        ):
+            main(species_cfg)
+        mock_train.assert_not_called()

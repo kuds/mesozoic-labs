@@ -4,7 +4,8 @@
 ``thresholds_from_configs``). These cases were tested only through the JAX
 curriculum's ``check_stage_gate`` until D-D17 retired it (cleanup PR-B); the
 schema itself stays, and refuses the retired ``[curriculum.jax]`` override table
-by name.
+by name in a mapping built in memory (the loader refuses it in a TOML, and the CLI
+refuses it as an ``--override``).
 """
 
 from __future__ import annotations
@@ -81,17 +82,18 @@ class TestRetiredBackendOverrideTable:
         with pytest.raises(GateSchemaError, match=r"\[curriculum\.jax\] is refused"):
             thresholds_from_configs(configs)
 
-    def test_a_toml_sub_table_loads_but_the_schema_refuses_it(self, tmp_path):
-        """The loader passes ``[curriculum]`` through whole, so the table stops only where the schema runs."""
+    def test_a_toml_sub_table_is_refused_by_the_loader_before_the_schema_runs(self, tmp_path):
+        """The loader refuses the table, so no path that reads a stage file (the SB3 notebook included) gets
+        past it; the schema's own refusal above covers a mapping built in memory."""
+        model_id = ModelId("tyrannosaurus_rex", "anatomical")
         path = tmp_path / "retired.toml"
         path.write_text(_OVERRIDE_TOML)
-        curriculum = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1, config_path=str(path))[
-            "curriculum_kwargs"
-        ]
-        assert curriculum["jax"] == {"min_avg_reward": 40.0}
-        with pytest.raises(GateSchemaError, match=r"\[curriculum\.jax\] is refused"):
-            _validate(curriculum)
-        del curriculum["jax"]
+        with pytest.raises(ValueError, match=r"\[curriculum\.jax\] is refused.*D-D17 retired") as excinfo:
+            load_stage_config(model_id, 1, config_path=str(path))
+        assert not isinstance(excinfo.value, GateSchemaError)
+        assert str(excinfo.value).startswith(str(path))
+        path.write_text(_OVERRIDE_TOML.split("[curriculum.jax]")[0])
+        curriculum = load_stage_config(model_id, 1, config_path=str(path))["curriculum_kwargs"]
         assert _validate(curriculum) == "reward_and_length/v1"
 
 

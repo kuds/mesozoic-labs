@@ -233,8 +233,8 @@ class TestSaveStageConfigKeepsTheCurriculumTable:
 
     def test_the_sb3_config_writer_still_records_the_shared_table_verbatim(self, tmp_path):
         """generate_stage_artifacts hands save_stage_config the raw config, and the writer filters
-        nothing: refusing a key is the gate schema's job (it refuses this retired ``[curriculum.jax]``
-        table), so the record shows what the stage declared, sub-table and all."""
+        nothing: refusing a key is the stage loader's, the CLI's and the gate schema's job (each refuses this
+        retired ``[curriculum.jax]`` table), so the record shows what the stage declared, sub-table and all."""
         from environments.shared.config import save_stage_config
 
         stage_config = {

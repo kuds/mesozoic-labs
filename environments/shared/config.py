@@ -177,6 +177,15 @@ _CONFIGS_DIR = _REPO_ROOT / "configs"
 #: constructor defaults (review CF4).  ``[jax]`` has been rejected too since
 #: D-D17 retired the JAX/MJX trainer that read it.
 _STAGE_CONFIG_TABLES = frozenset({"stage", "env", "ppo", "sac", "curriculum"})
+#: The retired ``[curriculum.jax]`` sub-table: a per-backend gate override that
+#: only the JAX/MJX trainer applied.  :func:`load_stage_config` refuses it like a
+#: top-level ``[jax]``, so every path that reads a stage TOML stops on it, the
+#: SB3 notebook included.  ``cli._apply_overrides`` refuses an
+#: ``--override curriculum.jax=...`` on every CLI subcommand, and where the gate
+#: schema runs (CLI ``curriculum`` training, through ``thresholds_from_configs``)
+#: ``gate_schema.validate_gate_config`` refuses the key in a ``curriculum_kwargs``
+#: mapping built in memory.
+_RETIRED_CURRICULUM_TABLE = "jax"
 _ALGORITHM_TABLES = ("ppo", "sac")
 #: The tables ``extends`` may inherit.  ``[curriculum]`` is never inherited:
 #: a stage's budget and advancement gate are its own.
@@ -321,6 +330,13 @@ def load_stage_config(
         tables as resolved through ``extends``.  Values in [env] that are
         lists are converted to tuples so they can be passed directly to the
         environment constructors.
+
+    Raises:
+        ValueError: If the file declares a top-level table outside
+            :data:`_STAGE_CONFIG_TABLES` (the retired ``[jax]`` among them),
+            one of those tables written as something other than a table, the
+            retired ``[curriculum.jax]`` sub-table, or an ``extends`` that
+            :func:`_read_stage_toml` refuses.
     """
     if config_path is not None:
         path = Path(config_path)
@@ -342,6 +358,20 @@ def load_stage_config(
             f"{sorted(_STAGE_CONFIG_TABLES)}. A misspelled table would otherwise load as empty and the "
             "stage would train on class / library defaults — a different experiment, with no warning."
         )
+    not_tables = sorted(name for name in _STAGE_CONFIG_TABLES if name in raw and not isinstance(raw[name], dict))
+    if not_tables:
+        raise ValueError(
+            f"{path}: {', '.join(f'[{name}]' for name in not_tables)} must be a TOML table, not "
+            f"{', '.join(type(raw[name]).__name__ for name in not_tables)}. An array such as [[curriculum]] or "
+            "curriculum = [[key, value], ...] used to be coerced into a mapping, skipping the checks on its keys."
+        )
+    curriculum_raw = raw.get("curriculum", {})
+    if _RETIRED_CURRICULUM_TABLE in curriculum_raw:
+        raise ValueError(
+            f"{path}: [curriculum.{_RETIRED_CURRICULUM_TABLE}] is refused: it overrode the shared [curriculum] "
+            "thresholds for the JAX/MJX trainer, which D-D17 retired, so nothing would enforce it. Remove the "
+            "table; the shared [curriculum] thresholds are the stage's only bar."
+        )
     if not raw.get("env"):
         _logger.warning(
             "%s declares no [env] table (or an empty one): the stage will train on the environment "
@@ -359,7 +389,6 @@ def load_stage_config(
     env_raw = raw.get("env", {})
     ppo_raw = raw.get("ppo", {})
     sac_raw = raw.get("sac", {})
-    curriculum_raw = raw.get("curriculum", {})
 
     # Convert lists to tuples for range parameters (e.g. prey_distance_range)
     env_kwargs = {}

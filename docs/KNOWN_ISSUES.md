@@ -776,7 +776,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM (operational)** — **`train --load <checkpoint>` (default
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
-  `config.refuse_occupied_stage_dir` (`config.py:539-562`, called at
+  `config.refuse_occupied_stage_dir` (`config.py:568-591`, called at
   `train_base.py:1588`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
@@ -2337,7 +2337,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   without a summary (`:794-806`), takes the provenance one. For an older
   run without a bundle it is the mesozoic-labs version, which the legacy
   `scan_run` (cell 8, `:535`) reads from `stage_config.json`
-  (`config.py:938`). The summary tables (cells 14, 16 and 18) and the
+  (`config.py:980`). The summary tables (cells 14, 16 and 18) and the
   export to `runs_summary.csv` (cell 24) show both under the one name. In
   a probe of the reader cells, a complete and a failed run read the
   backend version their bundles record and a flat run its stage config's

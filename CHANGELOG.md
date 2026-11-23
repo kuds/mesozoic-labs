@@ -5137,6 +5137,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The training figures' cost-of-transport and gait-symmetry panels.**
+  `plot_diagnostics_graphs` no longer draws "Cost of Transport" in
+  `locomotion_health.png` or "Gait Symmetry + Stride Frequency" in
+  `behavioral_metrics.png`. Like `LocomotionMetrics`' versions, they measured
+  the wrong thing. The first divided the action penalty `|reward_energy|` by
+  forward speed floored at 0.01 m/s, so it scaled with each stage's penalty
+  weight. The second compared rollout-mean left and right contact forces: a
+  statue, an in-phase hop and an alternating walk all scored about 1.0, and
+  its "stride frequency" was a mean force in newtons. In
+  `locomotion_health.png`, the reward decomposition now takes the whole bottom
+  row. In `behavioral_metrics.png`, distance traveled, which every species
+  records, takes the whole top row, above heading alignment and drift. The
+  prey-distance and strike-success row is drawn only when a stage recorded a
+  finite value, not whenever `diagnostics.npz` carries the keys (it always
+  does, all-NaN when unused). A panel no stage recorded, such as the
+  Allosaurus's heading alignment, reads "No data recorded" instead of drawing
+  blank. File names are unchanged. No gate, digest or result bundle read
+  either panel.
 - `website/static/img/velociraptor_mongoliensis_anatomical_stance_ppo.gif`
   (2,427,423 B). Nothing has referenced it since the homepage rewrite of
   2026-11-20, and `results/velociraptor_mongoliensis/anatomical/ppo/stance.gif`
@@ -5150,23 +5168,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read them. The website's metric tables and its list of `eval` output
   sections no longer include them.
 - **The retired `[curriculum.jax]` override table and the JAX array
-  dispatch.** Where the gate schema runs (CLI curriculum training, through
-  `thresholds_from_configs`), it now refuses a `[curriculum.jax]` sub-table by
-  name, whatever `advancement_enabled` is set to. Only the JAX/MJX trainer
-  applied that table, and D-D17 retired it. Unlike a top-level `[jax]`, which
-  the stage loader refuses on every path, the table is not refused at load
-  time, so the SB3 notebook, which never runs the gate schema, still loads
-  one. Its validation code is gone (`BACKEND_OVERRIDE_TABLES`,
-  `BACKEND_OVERRIDABLE_KEYS`, `_validate_backend_override_table`). No
-  committed stage config held the table, and `gate_config_view` never
-  projected it, so no gate digest moves. `reward_functions.py` and
-  `perturbation.py` are NumPy-only: both `_array_mod` helpers and their
-  `jax.numpy` branches are gone, `check_height_tilt_termination` returns
-  `tuple[bool, str | None]` directly, and the docstrings no longer describe
-  JAX tracing. Two comments in `action_filter.py` lose their JAX wording, and
-  its hashed tokens are unchanged. Two guard tests no longer name deleted
-  files: the retired-tuning scan drops the species `requirements*.txt` clause,
-  and the retired-identifier test's exempt record-name example is now
+  dispatch.** A `[curriculum.jax]` sub-table is refused by name on every path:
+  `load_stage_config` refuses it in a stage TOML, as it refuses a top-level
+  `[jax]` (the SB3 notebook included), and refuses any stage table written as
+  something other than a table, such as `[[curriculum]]` or an array of
+  key-value pairs, which used to be coerced into a mapping past that check;
+  the CLI refuses an `--override curriculum.jax=...` on every subcommand, and
+  the gate schema refuses it in a `curriculum_kwargs` mapping built in memory,
+  whatever `advancement_enabled` is set to. Only the JAX/MJX trainer applied
+  that table, and D-D17 retired it. Its validation code is gone
+  (`BACKEND_OVERRIDE_TABLES`, `BACKEND_OVERRIDABLE_KEYS`,
+  `_validate_backend_override_table`). No committed stage config held the
+  table, and `gate_config_view` never projected it, so no gate digest moves.
+  `reward_functions.py` and `perturbation.py` are NumPy-only: both
+  `_array_mod` helpers and their `jax.numpy` branches are gone,
+  `check_height_tilt_termination` returns `tuple[bool, str | None]` directly,
+  and the docstrings no longer describe JAX tracing. Two comments in
+  `action_filter.py` lose their JAX wording, and its hashed tokens are
+  unchanged. Two guard tests no longer name deleted files: the retired-tuning
+  scan drops the species `requirements*.txt` clause, and the
+  retired-identifier test's exempt record-name example is now
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`. The cleanup
   plan's §4.9 takes dated amendments for the two items it had said to keep.
   The digest golden, the plant manifest and the species catalog are current,
@@ -5260,6 +5281,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **The SB3 load preflight's throwaway test passes when run on its own.**
+  `test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_writes_nothing`
+  checks that the temporary directory it gives the preflight is empty
+  afterwards. Run alone, that directory held `torchinductor_<user>`: the
+  throwaway PPO's optimizer is the first one the process builds, and it
+  imports `torch._dynamo`, which creates torch's compile cache under
+  `tempfile.gettempdir()` and pins `TORCHINDUCTOR_CACHE_DIR` in the
+  environment. The test now points that variable outside the checked
+  directory, so it passes in a fresh process and after other tests, and it
+  still fails on any file the preflight leaves behind. The preflight is
+  unchanged: its own temporary directory holds only the throwaway archive, and
+  torch's cache goes to the system temp, as it does for any training.
 - **An `--eval-freq` below `--n-envs` no longer turns evaluation off.** The
   `EvalCallback` cadence was `eval_freq // n_envs` with no floor. Below
   `--n-envs` that came to 0, which `EvalCallback` never reaches, so the stage

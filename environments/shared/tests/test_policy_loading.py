@@ -1434,6 +1434,10 @@ def test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_wr
     elif trunk == "a handoff without its sidecar":
         _trunk_with_handoff(trunk_dir, "01_stance", FIXTURES / FIXTURE_NAMES[0], sidecar=False)
     before = _tree_bytes(trunk_dir)
+    # torch's per-user compile cache is torch's, not the preflight's: the first optimizer a process builds imports
+    # torch._dynamo, which creates $TORCHINDUCTOR_CACHE_DIR (unset: tempfile.gettempdir()/torchinductor_<user>) and
+    # pins it in os.environ. Kept out of the scratch, so this holds run alone as after another test built a model.
+    monkeypatch.setenv("TORCHINDUCTOR_CACHE_DIR", str(tmp_path / "torch_cache"))
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     monkeypatch.chdir(cwd)
     real_load, seen = policy_loading.load_sb3_model, []

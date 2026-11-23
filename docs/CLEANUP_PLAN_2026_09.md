@@ -1451,6 +1451,9 @@ unchanged, with no rebase conflict.
   `[curriculum.jax]` table.* *Amended 2026-11-23: the validation is deleted too, and `validate_gate_config` refuses a
   `[curriculum.jax]` table by name instead. Only CLI curriculum training runs it (through `thresholds_from_configs`);
   no reader of recorded blocks does, and neither does the SB3 notebook. `gate_config_view` still leaves the table out.*
+  *Amended 2026-11-23: `load_stage_config` now refuses the table too, so every path that reads a stage TOML, the SB3
+  notebook included, stops on it, and the CLI refuses an `--override curriculum.jax=...` on every subcommand; the
+  schema's refusal stays for a `curriculum_kwargs` mapping built in memory.*
 - **`command_frame.py`,** including its MJX refusal. PR-9 rewrites that file.
 - **All of SAC.**
 - **The frozen core,** the dual declarations, the `foot_contact_*` keys and params, and the byte-frozen files.
