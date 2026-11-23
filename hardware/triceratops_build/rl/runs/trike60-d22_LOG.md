@@ -36,14 +36,24 @@ moved the first files to the trash. Copies of the two discarded run records are 
 The restarted runs are judged as the runs. This start-up error does not count as a run's one allowed restart. The
 D22 report repeats this note.
 
-**Machines.** All three runtimes report 2 vCPUs (run 3 had 8). `trike60-fore128-s0` trains at 213 env steps/s
-(23:11:40-23:16:09, from `train_health.jsonl`), so a run takes about 13 hours instead of run 3's 3-5. The settings
-are the same either way: one torch thread, and each env seeded.
+**Machines, and a second restart.** Those three runtimes all had 2 vCPUs (run 3 had 8). `trike60-fore128-s0`
+trained at 213 env steps/s (23:11:40-23:16:09, from `train_health.jsonl`), so a run would have taken about 13 hours
+instead of run 3's 3-5. The owner therefore stopped all three, moved their folders to the trash, and started all
+three again from step 0 on High-RAM CPU runtimes (sessions 23:24:48, 23:25:22 and 23:25:22, 8 vCPUs each). This
+restart is part of the same start-up and not a result-driven change: no run had reached 100,000 steps or any
+evaluation. The machine does not change the settings: one torch thread, and each env seeded. Copies of the three
+stopped records are in `runs/d22_startup/` (`*_2vcpu-*_run_record.json`).
 
 ## Checks on the runs as they go (the record-only part of `judge_d22.checks`)
 
-| run | session start | seed | model | commit, clean | settings and arguments as run 3's | vCPUs |
-|---|---|---|---|---|---|---|
-| trike60-fore128-s0 | 23:11:04 | 0 | fore128 | yes | yes | 2 |
-| trike60-fore160-s0 | 23:18:21 (restart) | 0 | fore160 | yes | yes | 2 |
-| trike60-fore128-s1 | 23:18:43 (restart) | 1 | fore128 | yes | yes | 2 |
+The runs that count, from 23:24 on:
+
+| run | session start | seed | model | commit, clean | settings and arguments as run 3's | vCPUs | first rate |
+|---|---|---|---|---|---|---|---|
+| trike60-fore128-s0 | 23:24:48 | 0 | fore128 | yes | yes | 8 | 565 env steps/s |
+| trike60-fore160-s0 | 23:25:22 | 0 | fore160 | yes | yes | 8 | 878 env steps/s |
+| trike60-fore128-s1 | 23:25:22 | 1 | fore128 | yes | yes | 8 | 630 env steps/s |
+
+The rates come from the first 3-5 rollouts and point to about 3-5 hours per run, as in run 3. Stopped starts:
+fore128-s0 at 23:11:04 (2 vCPUs); fore160-s0 at 23:11:48 (the mixed folder) and 23:18:21 (2 vCPUs); fore128-s1 at
+23:14:16 and 23:18:43 (2 vCPUs).
