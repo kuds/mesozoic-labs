@@ -229,12 +229,12 @@ class TestBuildStageResultsFromEvalData:
 
 
 class TestSaveStageConfigKeepsTheCurriculumTable:
-    """The SB3 config writer records ``[curriculum]`` verbatim, a recorded backend sub-table included."""
+    """The SB3 config writer records ``[curriculum]`` verbatim, a sub-table included."""
 
     def test_the_sb3_config_writer_still_records_the_shared_table_verbatim(self, tmp_path):
-        """generate_stage_artifacts hands save_stage_config the raw config and the SB3 gate judges the
-        shared bar (thresholds_from_configs ignores the table), so the SB3 artifacts keep recording it,
-        sub-table and all."""
+        """generate_stage_artifacts hands save_stage_config the raw config, and the writer filters
+        nothing: refusing a key is the gate schema's job (it refuses this retired ``[curriculum.jax]``
+        table), so the record shows what the stage declared, sub-table and all."""
         from environments.shared.config import save_stage_config
 
         stage_config = {

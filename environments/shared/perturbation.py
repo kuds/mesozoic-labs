@@ -4,8 +4,8 @@ Species-generic by construction (STAGE1_SPLIT_PLAN §3.3, plan §W1): nothing
 in this module names a species.  The push magnitude derives from each
 plant's own mass and stance geometry (``derive_push_parameters``), the
 schedule derives from an integer seed through a portable integer hash, and
-every entry point is either a pure function usable verbatim on NumPy and
-JAX arrays or an init-time helper that touches only ``mujoco`` on the host.
+every entry point is either a pure NumPy function or an init-time helper
+that touches only ``mujoco`` on the host.
 
 Design contract:
 
@@ -13,17 +13,16 @@ Design contract:
   means no schedule, no derivation, no RNG draws, no ``xfrc`` writes —
   integrating environments must not change any behaviour until the multiple
   is positive.
-* **Schedule identity is a hash, not backend RNG.**  NumPy and JAX random
-  streams cannot be made bit-identical, so pairing (the same episode seed
-  must produce the same pushes for the policy and for every null
-  controller, on either backend) instead comes from ``lowbias32`` over
-  ``uint32`` — identical arithmetic on both array libraries without
-  requiring JAX 64-bit mode.  Push start steps are exact integers on both
-  backends; direction components are trig of identically-hashed floats and
-  agree to float32 precision.
+* **Schedule identity is a hash, not an RNG stream.**  Pairing (the same
+  episode seed must produce the same pushes for the policy and for every
+  null controller) comes from ``lowbias32`` over ``uint32``, so a schedule
+  is a pure function of its seed.  The hash was chosen when a JAX backend
+  had to reproduce the same schedules (retired by D-D17); it stays because
+  it defines every existing schedule (``SCHEDULE_IMPLEMENTATION`` in
+  ``task_fingerprint.py``).
 * **Static shapes.**  ``push_schedule`` returns fixed-size arrays
-  (``max_pushes`` rows) so the JAX side can carry them through ``scan``;
-  pushes scheduled at or beyond the horizon simply never activate.
+  (``max_pushes`` rows); pushes scheduled at or beyond the horizon simply
+  never activate.
 * **The clock starts at episode step 0.**  The first draw lands at
   ``interval ± jitter``.  Whether a stage's gate scores pushes inside the
   settle window is a gate decision (plan §6 decision 4), not a scheduler
@@ -40,50 +39,30 @@ import numpy as np
 Array = Any
 
 
-def _array_mod(arr: Array) -> Any:
-    """Return the array module (numpy or jax.numpy) for *arr*."""
-    if type(arr).__module__.startswith("jax"):
-        import jax.numpy as jnp
-
-        return jnp
-    return np
-
-
 def lowbias32(x: Array) -> Array:
-    """The lowbias32 integer mixer over ``uint32``, backend-agnostic.
+    """The lowbias32 integer mixer over ``uint32``.
 
-    Chosen over backend RNG because both backends must produce identical
-    schedules from identical seeds; ``uint32`` arithmetic wraps identically
-    in NumPy and JAX (no jax x64 requirement).
+    Chosen over an RNG stream so a schedule is a pure function of its seed
+    (the module docstring's schedule-identity contract).
     """
-    xp = _array_mod(x)
-    x = xp.asarray(x).astype(xp.uint32)
+    x = np.asarray(x).astype(np.uint32)
     # uint32 wraparound is the mixer's defined behaviour; NumPy >= 2 warns
-    # on scalar overflow even for unsigned types, so silence it explicitly
-    # on the NumPy path (JAX wraps silently).
-    if xp is np:
-        with np.errstate(over="ignore"):
-            x = x ^ (x >> np.uint32(16))
-            x = x * np.uint32(0x7FEB352D)
-            x = x ^ (x >> np.uint32(15))
-            x = x * np.uint32(0x846CA68B)
-            x = x ^ (x >> np.uint32(16))
-        return x
-    x = x ^ (x >> xp.uint32(16))
-    x = x * xp.uint32(0x7FEB352D)
-    x = x ^ (x >> xp.uint32(15))
-    x = x * xp.uint32(0x846CA68B)
-    x = x ^ (x >> xp.uint32(16))
+    # on scalar overflow even for unsigned types, so silence it explicitly.
+    with np.errstate(over="ignore"):
+        x = x ^ (x >> np.uint32(16))
+        x = x * np.uint32(0x7FEB352D)
+        x = x ^ (x >> np.uint32(15))
+        x = x * np.uint32(0x846CA68B)
+        x = x ^ (x >> np.uint32(16))
     return x
 
 
 def hash_uniform01(seed: Array, index: Array) -> Array:
-    """Deterministic uniform [0, 1) from ``(seed, index)``, backend-agnostic."""
-    xp = _array_mod(seed) if type(seed).__module__.startswith("jax") else _array_mod(index)
-    seed_u = xp.asarray(seed).astype(xp.uint32)
-    index_u = xp.asarray(index).astype(xp.uint32)
-    mixed = lowbias32(seed_u ^ lowbias32(index_u ^ xp.uint32(0x9E3779B9)))
-    return mixed.astype(xp.float32) / xp.float32(4294967296.0)
+    """Deterministic uniform [0, 1) from ``(seed, index)``."""
+    seed_u = np.asarray(seed).astype(np.uint32)
+    index_u = np.asarray(index).astype(np.uint32)
+    mixed = lowbias32(seed_u ^ lowbias32(index_u ^ np.uint32(0x9E3779B9)))
+    return mixed.astype(np.float32) / np.float32(4294967296.0)
 
 
 def max_pushes_for(horizon_steps: int, interval_steps: int, jitter_steps: int) -> int:
@@ -108,15 +87,14 @@ def push_schedule(
     float32)``.  Rows are strictly ordered when ``interval > 2 * jitter``,
     which ``validate_push_config`` enforces at configuration time.
     """
-    xp = _array_mod(schedule_seed)
-    k = xp.arange(max_pushes, dtype=xp.uint32)
-    jitter_u = hash_uniform01(schedule_seed, k * xp.uint32(2))
-    theta_u = hash_uniform01(schedule_seed, k * xp.uint32(2) + xp.uint32(1))
-    nominal = (k.astype(xp.float32) + xp.float32(1.0)) * xp.float32(interval_steps)
-    jitter = (jitter_u * xp.float32(2.0) - xp.float32(1.0)) * xp.float32(jitter_steps)
-    start_steps = xp.round(nominal + jitter).astype(xp.int32)
-    theta = theta_u * xp.float32(2.0 * math.pi)
-    directions = xp.stack([xp.cos(theta), xp.sin(theta)], axis=-1).astype(xp.float32)
+    k = np.arange(max_pushes, dtype=np.uint32)
+    jitter_u = hash_uniform01(schedule_seed, k * np.uint32(2))
+    theta_u = hash_uniform01(schedule_seed, k * np.uint32(2) + np.uint32(1))
+    nominal = (k.astype(np.float32) + np.float32(1.0)) * np.float32(interval_steps)
+    jitter = (jitter_u * np.float32(2.0) - np.float32(1.0)) * np.float32(jitter_steps)
+    start_steps = np.round(nominal + jitter).astype(np.int32)
+    theta = theta_u * np.float32(2.0 * math.pi)
+    directions = np.stack([np.cos(theta), np.sin(theta)], axis=-1).astype(np.float32)
     return start_steps, directions
 
 
@@ -135,11 +113,10 @@ def external_push_force(
     can write the result to ``xfrc_applied`` unconditionally each control
     step — the force is self-clearing and never persists past its window.
     """
-    xp = _array_mod(start_steps)
-    step = xp.asarray(step_index).astype(xp.int32)
-    active = (step >= start_steps) & (step < start_steps + xp.int32(duration_steps))
-    horizontal = xp.sum(active.astype(xp.float32)[:, None] * directions, axis=0) * xp.float32(force_newtons)
-    return xp.concatenate([horizontal, xp.zeros((1,), dtype=xp.float32)])
+    step = np.asarray(step_index).astype(np.int32)
+    active = (step >= start_steps) & (step < start_steps + np.int32(duration_steps))
+    horizontal = np.sum(active.astype(np.float32)[:, None] * directions, axis=0) * np.float32(force_newtons)
+    return np.concatenate([horizontal, np.zeros((1,), dtype=np.float32)])
 
 
 def validate_push_config(
@@ -190,7 +167,7 @@ def derive_push_parameters(
 ) -> dict[str, float]:
     """Derive the per-species push force from the plant itself.
 
-    Host-side (mujoco, not jitted), run once at environment construction.
+    Host-side (mujoco), run once at environment construction.
     The capture-point argument: a stance can absorb a CoM velocity of about
     ``v_cap = r_support * sqrt(g / z_com)`` without stepping (linear
     inverted pendulum), so a push delivering ``multiple * v_cap`` of CoM

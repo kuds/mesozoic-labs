@@ -2,17 +2,9 @@
 
 Every function in this module accepts plain array inputs (positions,
 velocities, sensor data) and returns scalar rewards.  No ``self``,
-no MuJoCo data objects.  All operations use the intersection of
-NumPy and JAX (``+``, ``-``, ``*``, ``/``, ``clip``, ``sum``, ``dot``,
-``norm``), so the functions accept both ``np.ndarray`` and
-``jnp.ndarray``.
-
-**JAX-trace-safe**: all functions avoid ``float()``, Python ``min``/
-``max``/``abs``/``if`` on array values so they can be used inside
-``jax.jit``, ``jax.vmap``, and ``jax.lax.scan`` without breaking
-tracing.  The MJX trainer that called them that way was retired by
-D-D17; ``_array_mod`` keeps the dispatch (the NumPy-only simplification
-is deferred, docs/CLEANUP_PLAN_2026_09.md §4.9).
+no MuJoCo data objects.  They compute with NumPy only: the JAX array
+dispatch they kept for the MJX trainer went with that trainer's
+retirement (D-D17).
 
 The Gymnasium environments (``BaseDinoEnv`` subclasses) delegate to
 these functions via thin wrappers that extract the relevant arrays
@@ -26,19 +18,9 @@ from typing import Any
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Type alias: works with both numpy and jax arrays
+# Type alias: a NumPy array or scalar (a Python float is accepted too)
 # ---------------------------------------------------------------------------
-Array = Any  # np.ndarray | jnp.ndarray
-
-
-def _array_mod(arr: Array) -> Any:
-    """Return the array module (numpy or jax.numpy) for *arr*."""
-    cls_module = type(arr).__module__
-    if cls_module.startswith("jax"):
-        import jax.numpy as jnp
-
-        return jnp
-    return np
+Array = Any
 
 
 # ---------------------------------------------------------------------------
@@ -57,9 +39,8 @@ def reward_forward_velocity(
     Returns:
         (reward, raw_forward_vel) tuple.
     """
-    xp = _array_mod(vel_2d)
-    forward_vel = xp.dot(vel_2d, forward_dir_2d)
-    forward_vel_norm = xp.clip(forward_vel / vel_max, -1.0, 1.0)
+    forward_vel = np.dot(vel_2d, forward_dir_2d)
+    forward_vel_norm = np.clip(forward_vel / vel_max, -1.0, 1.0)
     reward = weight * forward_vel_norm
     return reward, forward_vel
 
@@ -74,9 +55,8 @@ def reward_backward_penalty(
     Returns:
         (reward, backward_vel) tuple.
     """
-    xp = _array_mod(forward_vel)
-    backward_vel = xp.maximum(0.0, -forward_vel)
-    backward_vel_norm = xp.minimum(backward_vel / vel_max, 1.0)
+    backward_vel = np.maximum(0.0, -forward_vel)
+    backward_vel_norm = np.minimum(backward_vel / vel_max, 1.0)
     reward = -weight * backward_vel_norm
     return reward, backward_vel
 
@@ -91,9 +71,8 @@ def reward_drift_penalty(
     Returns:
         (reward, drift_distance) tuple.
     """
-    xp = _array_mod(current_pos_2d)
     drift_2d = current_pos_2d - initial_pos_2d
-    drift_dist = xp.linalg.norm(drift_2d)
+    drift_dist = np.linalg.norm(drift_2d)
     drift_norm = drift_dist / 2.0
     reward = -weight * (drift_norm**2)
     return reward, drift_dist
@@ -106,8 +85,7 @@ def reward_alive(alive_bonus: float) -> float:
 
 def reward_energy(action: Array, n_actuators: int, weight: float) -> Array:
     """Normalised energy penalty: ``-weight * mean(action**2)``."""
-    xp = _array_mod(action)
-    energy = xp.sum(xp.square(action))
+    energy = np.sum(np.square(action))
     energy_norm = energy / n_actuators
     return -weight * energy_norm
 
@@ -125,8 +103,7 @@ def reward_action_smoothness(
     """
     if prev_action is None:
         return 0.0, 0.0
-    xp = _array_mod(action)
-    action_delta = xp.sum(xp.square(action - prev_action))
+    action_delta = np.sum(np.square(action - prev_action))
     max_action_delta = n_actuators * 4.0
     action_delta_norm = action_delta / max_action_delta
     reward = -weight * action_delta_norm
@@ -169,8 +146,7 @@ def reward_action_jerk(
     """
     if prev_action is None or prev_prev_action is None:
         return 0.0, 0.0
-    xp = _array_mod(action)
-    jerk = xp.sum(xp.square(action - 2.0 * prev_action + prev_prev_action))
+    jerk = np.sum(np.square(action - 2.0 * prev_action + prev_prev_action))
     max_jerk = n_actuators * 16.0
     reward = -weight * (jerk / max_jerk)
     return reward, jerk
@@ -183,21 +159,19 @@ def reward_action_jerk(
 
 def quat_to_tilt(quat: Array) -> Array:
     """Tilt angle (radians) between body up-axis and world up."""
-    xp = _array_mod(quat)
     _w, x, y, _z = quat[0], quat[1], quat[2], quat[3]
     body_up_z = 1.0 - 2.0 * (x * x + y * y)
-    return xp.arccos(xp.clip(body_up_z, -1.0, 1.0))
+    return np.arccos(np.clip(body_up_z, -1.0, 1.0))
 
 
 def quat_to_forward_2d(quat: Array) -> Array:
     """Body forward direction (+X local) projected into XY plane (normalised)."""
-    xp = _array_mod(quat)
     w, x, y, z = quat[0], quat[1], quat[2], quat[3]
     body_forward_x = 1.0 - 2.0 * (y * y + z * z)
     body_forward_y = 2.0 * (x * y + w * z)
-    body_forward_2d = xp.array([body_forward_x, body_forward_y])
-    length = xp.linalg.norm(body_forward_2d)
-    body_forward_2d = xp.where(length > 1e-6, body_forward_2d / length, body_forward_2d)
+    body_forward_2d = np.array([body_forward_x, body_forward_y])
+    length = np.linalg.norm(body_forward_2d)
+    body_forward_2d = np.where(length > 1e-6, body_forward_2d / length, body_forward_2d)
     return body_forward_2d
 
 
@@ -217,9 +191,8 @@ def reward_posture(
     Returns:
         (reward, tilt_angle) tuple.
     """
-    xp = _array_mod(quat)
     tilt_angle = quat_to_tilt(quat)
-    tilt_angle_norm = xp.minimum(tilt_angle / max_tilt_angle, 1.0)
+    tilt_angle_norm = np.minimum(tilt_angle / max_tilt_angle, 1.0)
     reward = -weight * (tilt_angle_norm**2)
     return reward, tilt_angle
 
@@ -240,30 +213,29 @@ def reward_lean_aware_posture(
 
     The reward uses a normalised squared chord distance instead of
     ``acos(alignment) ** 2``.  The chord form has the same local quadratic
-    behaviour but keeps JAX gradients finite at the exact target pose.
+    behaviour but no ``acos`` singularity at the exact target pose.
 
     Returns:
         ``(reward, absolute_tilt_angle)``.  The absolute tilt remains relative
         to world-up so termination and historical diagnostics keep their
         existing semantics.
     """
-    xp = _array_mod(quat)
     w, x, y, z = quat[0], quat[1], quat[2], quat[3]
 
     body_forward_z = 2.0 * (x * z - w * y)
     body_up_z = 1.0 - 2.0 * (x * x + y * y)
 
-    target_forward_z = xp.clip(natural_forward_z, -1.0, 1.0)
-    target_up_z = xp.sqrt(xp.maximum(0.0, 1.0 - target_forward_z**2))
+    target_forward_z = np.clip(natural_forward_z, -1.0, 1.0)
+    target_up_z = np.sqrt(np.maximum(0.0, 1.0 - target_forward_z**2))
     # The target's lateral-axis Z component is zero, so its dot-product
     # contribution vanishes.  Roll is still penalised through body_up_z.
     alignment = body_forward_z * target_forward_z + body_up_z * target_up_z
 
-    max_chord_error = 1.0 - xp.cos(max_tilt_angle)
-    chord_error_norm = xp.clip((1.0 - alignment) / max_chord_error, 0.0, 1.0)
+    max_chord_error = 1.0 - np.cos(max_tilt_angle)
+    chord_error_norm = np.clip((1.0 - alignment) / max_chord_error, 0.0, 1.0)
     reward = -weight * chord_error_norm
 
-    tilt_angle = xp.arccos(xp.clip(body_up_z, -1.0, 1.0))
+    tilt_angle = np.arccos(np.clip(body_up_z, -1.0, 1.0))
     return reward, tilt_angle
 
 
@@ -277,9 +249,8 @@ def reward_nosedive(
     Returns:
         (reward, forward_z) tuple.
     """
-    xp = _array_mod(quat)
     forward_z = quat_to_forward_z(quat)
-    nosedive_excess = xp.maximum(0.0, -(forward_z - natural_forward_z))
+    nosedive_excess = np.maximum(0.0, -(forward_z - natural_forward_z))
     reward = -weight * nosedive_excess
     return reward, forward_z
 
@@ -299,10 +270,9 @@ def reward_target_centered_height(
     Returns:
         ``(reward, absolute_height_error, height_quality)``.
     """
-    xp = _array_mod(body_height)
-    safe_tolerance = xp.maximum(tolerance, 1e-8)
-    height_error = xp.abs(body_height - target_z)
-    height_quality = xp.exp(-xp.square(height_error / safe_tolerance))
+    safe_tolerance = np.maximum(tolerance, 1e-8)
+    height_error = np.abs(body_height - target_z)
+    height_quality = np.exp(-np.square(height_error / safe_tolerance))
     return weight * height_quality, height_error, height_quality
 
 
@@ -324,10 +294,9 @@ def reward_bilateral_support(
     Returns:
         ``(reward, bilateral_support_quality)`` with quality in ``[0, 1]``.
     """
-    xp = _array_mod(foot_forces)
-    safe_saturation = xp.maximum(saturation_force, 1e-8)
-    per_foot_quality = xp.clip(foot_forces / safe_saturation, 0.0, 1.0)
-    support_quality = xp.min(per_foot_quality)
+    safe_saturation = np.maximum(saturation_force, 1e-8)
+    per_foot_quality = np.clip(foot_forces / safe_saturation, 0.0, 1.0)
+    support_quality = np.min(per_foot_quality)
     return weight * support_quality, support_quality
 
 
@@ -385,16 +354,15 @@ def reward_foot_load_balance(
         monotone ordering lives in the reward, so the diagnostic keeps its
         documented range.
     """
-    xp = _array_mod(foot_forces)
     right_force, left_force = foot_forces[0], foot_forces[1]
     total = right_force + left_force
     supported = total > min_support_force
-    imbalance = xp.where(
+    imbalance = np.where(
         supported,
-        xp.abs(right_force - left_force) / (total + 1e-8),
+        np.abs(right_force - left_force) / (total + 1e-8),
         1.0,
     )
-    airborne_penalty = airborne_penalty_weight * xp.where(supported, 0.0, 1.0)
+    airborne_penalty = airborne_penalty_weight * np.where(supported, 0.0, 1.0)
     return -weight * imbalance - airborne_penalty, imbalance
 
 
@@ -427,17 +395,16 @@ def reward_soft_home_pose(
     Returns:
         ``(reward, rms_error, mean_pose_quality)``.
     """
-    xp = _array_mod(joint_positions)
-    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    safe_tolerance = np.maximum(tolerance, 1e-8)
     error = joint_positions - home_positions
-    rms_error = xp.sqrt(xp.mean(xp.square(error)))
-    narrow = xp.exp(-xp.square(error / safe_tolerance))
+    rms_error = np.sqrt(np.mean(np.square(error)))
+    narrow = np.exp(-np.square(error / safe_tolerance))
     if broad_fraction > 0.0:
-        broad = xp.exp(-xp.square(error / (broad_scale * safe_tolerance)))
+        broad = np.exp(-np.square(error / (broad_scale * safe_tolerance)))
         per_joint = (1.0 - broad_fraction) * narrow + broad_fraction * broad
     else:
         per_joint = narrow
-    pose_quality = xp.mean(per_joint)
+    pose_quality = np.mean(per_joint)
     return weight * pose_quality, rms_error, pose_quality
 
 
@@ -464,12 +431,11 @@ def reward_sole_flatness(
     Returns:
         ``(reward, flatness_quality)`` with quality in ``[0, 1]``.
     """
-    xp = _array_mod(sole_tilts_deg)
-    safe_tolerance = xp.maximum(tolerance_deg, 1e-8)
-    per_foot = xp.exp(-xp.square(sole_tilts_deg / safe_tolerance))
+    safe_tolerance = np.maximum(tolerance_deg, 1e-8)
+    per_foot = np.exp(-np.square(sole_tilts_deg / safe_tolerance))
     if foot_weights is not None:
         per_foot = per_foot * foot_weights
-    flatness_quality = xp.mean(per_foot)
+    flatness_quality = np.mean(per_foot)
     return weight * flatness_quality, flatness_quality
 
 
@@ -490,10 +456,9 @@ def reward_stance_width(
     Returns:
         ``(reward, absolute_width_error, width_quality)``.
     """
-    xp = _array_mod(stance_width)
-    safe_tolerance = xp.maximum(tolerance, 1e-8)
-    width_error = xp.abs(stance_width - home_width)
-    width_quality = xp.exp(-xp.square(width_error / safe_tolerance))
+    safe_tolerance = np.maximum(tolerance, 1e-8)
+    width_error = np.abs(stance_width - home_width)
+    width_quality = np.exp(-np.square(width_error / safe_tolerance))
     return weight * width_quality, width_error, width_quality
 
 
@@ -513,9 +478,8 @@ def reward_lateral_lean(
     Returns:
         ``(reward, lean_quality)`` with quality in ``[0, 1]``.
     """
-    xp = _array_mod(lateral_offset)
-    safe_tolerance = xp.maximum(tolerance, 1e-8)
-    lean_quality = xp.exp(-xp.square(lateral_offset / safe_tolerance))
+    safe_tolerance = np.maximum(tolerance, 1e-8)
+    lean_quality = np.exp(-np.square(lateral_offset / safe_tolerance))
     return weight * lean_quality, lean_quality
 
 
@@ -536,16 +500,14 @@ def reward_stance_stagger(
     Returns:
         ``(reward, stagger_quality)`` with reward in ``[-weight, 0]`` and quality in ``[0, 1]``.
     """
-    xp = _array_mod(stagger)
-    safe_tolerance = xp.maximum(tolerance, 1e-8)
-    stagger_quality = xp.exp(-xp.square(stagger / safe_tolerance))
+    safe_tolerance = np.maximum(tolerance, 1e-8)
+    stagger_quality = np.exp(-np.square(stagger / safe_tolerance))
     return -weight * (1.0 - stagger_quality), stagger_quality
 
 
 def band_excess(value: Array, lower: float, upper: float) -> Array:
     """How far ``value`` lies outside ``[lower, upper]``: 0 inside, ``lower - value`` below, ``value - upper`` above."""
-    xp = _array_mod(value)
-    return xp.maximum(lower - value, 0.0) + xp.maximum(value - upper, 0.0)
+    return np.maximum(lower - value, 0.0) + np.maximum(value - upper, 0.0)
 
 
 def cop_band_load_guard(
@@ -568,10 +530,9 @@ def cop_band_load_guard(
     ends of the ramp are exact.  Per foot, so swapping the feet swaps the
     factors.
     """
-    xp = _array_mod(load_share)
-    loaded = xp.asarray(foot_loaded, dtype=bool) & xp.asarray(pad_loaded, dtype=bool) & xp.isfinite(load_share)
-    ramp = xp.clip((load_share - full_price_share) / (min_share - full_price_share), 0.0, 1.0)
-    return xp.where(loaded, ramp, 0.0)
+    loaded = np.asarray(foot_loaded, dtype=bool) & np.asarray(pad_loaded, dtype=bool) & np.isfinite(load_share)
+    ramp = np.clip((load_share - full_price_share) / (min_share - full_price_share), 0.0, 1.0)
+    return np.where(loaded, ramp, 0.0)
 
 
 def reward_stance_cop_band(
@@ -604,18 +565,17 @@ def reward_stance_cop_band(
     Returns:
         ``(reward, quality)`` with reward in ``[-weight, 0]`` and ``quality`` the per-foot qualities in ``[0, 1]``.
     """
-    xp = _array_mod(foot_cop)
-    guard = xp.asarray(guard)
+    guard = np.asarray(guard)
     read = guard > 0.0
     lower, upper = band
     pad_lower, pad_upper = pad_band
     # A foot whose guard is 0 may carry NaN readings: read it at its band's lower edge (excess 0); it scores 0 below.
-    whole = band_excess(xp.where(read, foot_cop, lower), lower, upper)
-    pad = band_excess(xp.where(read, pad_cop, pad_lower), pad_lower, pad_upper)
-    excess = xp.maximum(whole, pad)
-    safe_tolerance = xp.maximum(tolerance, 1e-8)
-    quality = xp.where(read, guard * xp.exp(-xp.square(excess / safe_tolerance)), 0.0)
-    return -weight * xp.mean(1.0 - quality), quality
+    whole = band_excess(np.where(read, foot_cop, lower), lower, upper)
+    pad = band_excess(np.where(read, pad_cop, pad_lower), pad_lower, pad_upper)
+    excess = np.maximum(whole, pad)
+    safe_tolerance = np.maximum(tolerance, 1e-8)
+    quality = np.where(read, guard * np.exp(-np.square(excess / safe_tolerance)), 0.0)
+    return -weight * np.mean(1.0 - quality), quality
 
 
 def reward_action_saturation(
@@ -638,10 +598,9 @@ def reward_action_saturation(
     Returns:
         ``(reward, saturation_fraction)``.
     """
-    xp = _array_mod(action)
     span = max(1.0 - threshold, 1e-8)
-    excess = xp.clip((xp.abs(action) - threshold) / span, 0.0, 1.0)
-    saturation_fraction = xp.mean(excess)
+    excess = np.clip((np.abs(action) - threshold) / span, 0.0, 1.0)
+    saturation_fraction = np.mean(excess)
     return -weight * saturation_fraction, saturation_fraction
 
 
@@ -660,10 +619,9 @@ def reward_head_clearance(
     Returns:
         ``(reward, head_clearance_quality)``.
     """
-    xp = _array_mod(head_height)
-    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    safe_tolerance = np.maximum(tolerance, 1e-8)
     clearance_floor = target_height - tolerance
-    normalized = xp.clip((head_height - clearance_floor) / safe_tolerance, 0.0, 1.0)
+    normalized = np.clip((head_height - clearance_floor) / safe_tolerance, 0.0, 1.0)
     clearance_quality = normalized * normalized * (3.0 - 2.0 * normalized)
     return weight * clearance_quality, clearance_quality
 
@@ -683,9 +641,8 @@ def reward_angular_velocity_penalty(
     Returns:
         (reward, instability_magnitude) tuple.
     """
-    xp = _array_mod(angvel)
-    instability = xp.linalg.norm(angvel)
-    instability_norm = xp.minimum(instability / max_angvel, 1.0)
+    instability = np.linalg.norm(angvel)
+    instability_norm = np.minimum(instability / max_angvel, 1.0)
     reward = -weight * instability_norm
     return reward, instability
 
@@ -705,8 +662,7 @@ def reward_heading_alignment(
     Returns:
         (reward, heading_alignment_cos) tuple.
     """
-    xp = _array_mod(body_forward_2d)
-    heading_alignment = xp.dot(body_forward_2d, forward_ref_2d)
+    heading_alignment = np.dot(body_forward_2d, forward_ref_2d)
     reward = weight * heading_alignment
     return reward, heading_alignment
 
@@ -721,9 +677,8 @@ def reward_lateral_velocity_penalty(
     Returns:
         (reward, lateral_vel) tuple.
     """
-    xp = _array_mod(vel_2d)
-    lateral_vel = xp.abs(vel_2d[0] * body_forward_2d[1] - vel_2d[1] * body_forward_2d[0])
-    lateral_vel_norm = xp.clip(lateral_vel / 5.0, 0.0, 1.0)
+    lateral_vel = np.abs(vel_2d[0] * body_forward_2d[1] - vel_2d[1] * body_forward_2d[0])
+    lateral_vel_norm = np.clip(lateral_vel / 5.0, 0.0, 1.0)
     reward = -weight * lateral_vel_norm
     return reward, lateral_vel
 
@@ -739,10 +694,9 @@ def reward_speed_penalty(
     Returns:
         (reward, absolute_speed) tuple.
     """
-    xp = _array_mod(vel_2d)
-    speed = xp.linalg.norm(vel_2d)
-    excess = xp.maximum(0.0, speed - threshold)
-    excess_norm = xp.minimum(excess / max_excess, 1.0)
+    speed = np.linalg.norm(vel_2d)
+    excess = np.maximum(0.0, speed - threshold)
+    excess_norm = np.minimum(excess / max_excess, 1.0)
     reward = -weight * excess_norm
     return reward, speed
 
@@ -757,9 +711,8 @@ def reward_idle_penalty(
     Returns:
         (reward, absolute_speed) tuple.
     """
-    xp = _array_mod(vel_2d)
-    speed = xp.linalg.norm(vel_2d)
-    idle_frac = xp.where(speed >= threshold, 0.0, 1.0 - speed / threshold)
+    speed = np.linalg.norm(vel_2d)
+    idle_frac = np.where(speed >= threshold, 0.0, 1.0 - speed / threshold)
     reward = -weight * idle_frac
     return reward, speed
 
@@ -783,10 +736,9 @@ def reward_approach_shaping(
     """
     if prev_distance is None:
         return 0.0, 0.0
-    xp = _array_mod(current_distance)
     approach_delta = prev_distance - current_distance
     max_delta = max_speed * dt
-    approach_delta_norm = xp.clip(approach_delta / max_delta, -1.0, 1.0)
+    approach_delta_norm = np.clip(approach_delta / max_delta, -1.0, 1.0)
     reward = weight * approach_delta_norm
     return reward, approach_delta
 
@@ -801,9 +753,8 @@ def reward_proximity(
     Returns:
         (reward, proximity) tuple.
     """
-    xp = _array_mod(distance)
     safe_max = max(max_distance, 1e-6)  # max_distance is always a plain float
-    proximity = xp.maximum(0.0, 1.0 - distance / safe_max)
+    proximity = np.maximum(0.0, 1.0 - distance / safe_max)
     reward = weight * proximity
     return reward, proximity
 
@@ -818,29 +769,16 @@ def check_height_tilt_termination(
     tilt_angle: Array,
     healthy_z_range: tuple[float, float],
     max_tilt_angle: float,
-) -> tuple[Array, str | None]:
+) -> tuple[bool, str | None]:
     """Check common height and tilt termination conditions.
 
-    JAX-trace-safe: uses ``|`` instead of Python ``if`` on traced
-    values.  Reason strings are returned for plain NumPy inputs
-    (Gymnasium path) but ``None`` under JAX tracing.
-
     Returns:
-        (terminated, reason) where reason is ``None`` if not terminated
-        or when running under JAX tracing.
+        (terminated, reason) where reason is ``None`` if not terminated.
     """
-    xp = _array_mod(body_z)
-    fallen = body_z < healthy_z_range[0]
-    too_high = body_z > healthy_z_range[1]
-    tilted = tilt_angle > max_tilt_angle
-    terminated = fallen | too_high | tilted
-    # Reason strings only for NumPy path (not trace-safe)
-    if xp is np:
-        if fallen:
-            return True, "fallen"
-        if too_high:
-            return True, "too_high"
-        if tilted:
-            return True, "excessive_tilt"
-        return False, None
-    return terminated, None
+    if body_z < healthy_z_range[0]:
+        return True, "fallen"
+    if body_z > healthy_z_range[1]:
+        return True, "too_high"
+    if tilt_angle > max_tilt_angle:
+        return True, "excessive_tilt"
+    return False, None

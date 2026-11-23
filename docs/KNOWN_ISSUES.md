@@ -1839,8 +1839,8 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM (design gap)** — **every push of a recovery stage has the same
   magnitude (read from the code 2026-09-30).** `push_schedule` draws each
   push's start and heading from hash lanes `k*2` and `k*2+1`
-  (`perturbation.py:95-120`), and `external_push_force` applies one scalar
-  `force_newtons` to every push (:123-142), while the recovery design
+  (`perturbation.py:74-98`), and `external_push_force` applies one scalar
+  `force_newtons` to every push (:101-119), while the recovery design
   pre-generated push "times, directions, and magnitudes" per episode
   ([STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) W1), so a
   certified recovery policy has met one force. Adding magnitudes needs a hash
