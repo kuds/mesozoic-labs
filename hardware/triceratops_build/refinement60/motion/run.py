@@ -73,9 +73,34 @@ def leg_metrics(load, tau, rpm, tilt, w):
     )
 
 
+def stance_slides(t, hist, phases):
+    """Measure horizontal contact-point displacement from 100 ms after touchdown to the next lift."""
+    windows = {i: [[0.0, None]] for i in range(4)}
+    for ph in phases:
+        i = ph["leg_index"]
+        windows[i][-1][1] = ph["swing_start"]
+        windows[i].append([ph["swing_end"], None])
+    slide = []
+    events = []
+    for i, span in windows.items():
+        span[-1][1] = t[-1]
+        for start, end in span:
+            a0 = np.searchsorted(t, start + 0.1)
+            b = np.searchsorted(t, end, side="right")
+            if b > a0:
+                vv = np.linalg.norm(hist[a0:b, i] - hist[a0, i], axis=1)
+                slide.append(float(vv.max()))
+                events.append([i, float(start), float(end), float(t[a0 + np.argmax(vv)])])
+    worst = int(np.argmax(slide))
+    return slide[worst], events[worst]
+
+
 def walk(a, path):
     m = mj.MjModel.from_xml_path(str(path))
     motion, P, T = trajectory.exhibit_plan(crawl, m, a.gait)
+    cadence = getattr(a, "walk_cadence", 1.0)
+    if cadence != 1.0:
+        motion, P = trajectory.retime_exhibit(motion, P, cadence)
     _, tplan, _, phases = motion
     legs, ids = leg_indices(m)
     body = m.body("chassis").id
@@ -118,23 +143,8 @@ def walk(a, path):
     rules, info = crawl.judge(r)
     t = np.array(slider.t)
     hist = np.array(slider.hist)
-    windows = {i: [[0.0, None]] for i in range(4)}
-    for ph in phases:
-        i = ph["leg_index"]
-        windows[i][-1][1] = ph["swing_start"]
-        windows[i].append([ph["swing_end"], None])
-    slide = []
-    events = []
-    for i, span in windows.items():
-        span[-1][1] = t[-1]
-        for start, end in span:
-            a0 = np.searchsorted(t, start + 0.1)
-            b = np.searchsorted(t, end, side="right")
-            if b > a0:
-                vv = np.linalg.norm(hist[a0:b, i] - hist[a0, i], axis=1)
-                slide.append(float(vv.max()))
-                events.append([i, float(start), float(end), float(t[a0 + np.argmax(vv)])])
-    rules["C5c"] = max(slide) <= 0.010
+    max_slide, worst_event = stance_slides(t, hist, phases)
+    rules["C5c"] = max_slide <= 0.010
     lt = np.array(r["log"]["t"])
     base = np.array(r["log"]["base"])
     lo, hi = phases[2]["swing_start"], phases[-1]["swing_end"]
@@ -144,10 +154,13 @@ def walk(a, path):
     load = sig[ss0, :4]
     result = dict(
         rules=rules,
+        cadence_multiplier=cadence,
+        footfall_interval_s=P["shift_s"] + P["swing_s"],
+        max_tilt_deg=info["max_tilt_deg"],
         steady_seconds=[lo, hi],
         min_support_margin_mm=1000 * info["min_margin_measured_m"],
-        worst_slide_event=events[int(np.argmax(slide))],
-        max_slide_mm=1000 * max(slide),
+        worst_slide_event=worst_event,
+        max_slide_mm=1000 * max_slide,
         saturated_pct=100 * info["saturated_fraction"],
         pass_all=all(rules[k] for k in ("C1", "C2", "C3", "C4", "C5c", "C6")),
         drift_mm=1000 * info["drift_m"],
@@ -215,26 +228,41 @@ def force_transients(time, force, legs, timestep, csv_path):
 
 
 def course(a, path):
-    speed = steering.PROGRAMS[a.program][0][2]
+    prog = steering.PROGRAMS[a.program]
+    if getattr(a, "speed_mps", None) is not None:
+        prog = [(t, heading, a.speed_mps) for t, heading, _ in prog]
+    speed = prog[0][2]
     duration = steering.DURATION[a.program]
-    e = walk60.TrikeEnv(
-        walk60.plant_config(
-            model_path=str(path),
-            command_mode="heading",
-            episode_seconds=duration,
-            domain_randomization=a.random,
-            observation_noise=True,
-            cmd_yaw_gain=a.yaw_gain,
-        )
+    config = walk60.plant_config(
+        model_path=str(path),
+        command_mode="heading",
+        episode_seconds=duration,
+        domain_randomization=a.random,
+        observation_noise=True,
+        cmd_yaw_gain=a.yaw_gain,
     )
+    # Increase only the command encoding range for above-envelope simulation requests.
+    config.cmd_speed_scale = max(config.cmd_speed_scale, speed)
+    e = walk60.TrikeEnv(config)
     obs, reset = e.reset(seed=a.seed, options={"delay_steps": 10, "command_target": (0.0, speed)})
     p = walk60.WalkParams(duty=0.70)
     turn = None
     if a.turn_profile != "original":
         p = p.replace(lift_m=0.028) if speed > 0 else p.replace(lift_m=0.012, duty=0.64)
         turn = GentleTurn(e, gyro_bias_dps=a.gyro_bias_dps, stock_yaw=a.turn_profile == "shaped-stock-yaw")
-    c = walk60.TrotController(e, p)
-    prog = [(t, d, speed) for t, d, _ in steering.PROGRAMS[a.program]]
+    phase_offsets = None
+    support_shift = None
+    if getattr(a, "steering_footfall", "diagonal") == "four-beat":
+        # One foot swings at a time in a hind-then-fore lateral sequence.
+        phase_offsets = {"left_hind": 0.0, "left_fore": 0.25, "right_hind": 0.5, "right_fore": 0.75}
+        p = p.replace(period_s=1.75, duty=0.80, lift_m=0.018)
+
+        def lateral_shift(phase, elapsed):
+            # Move the chassis away from the side whose legs will swing, ramping after stand.
+            return (0.0, -0.030 * min(elapsed / p.ramp_s, 1.0) * math.cos(2 * math.pi * (phase - 0.025)))
+
+        support_shift = lateral_shift
+    c = walk60.TrotController(e, p, phase_offsets=phase_offsets, support_shift=support_shift)
     m = e.model
     body = m.body("chassis").id
     legs, ids = leg_indices(m)
@@ -275,10 +303,10 @@ def course(a, path):
         elapsed = e._step_count * e.dt
         if seg + 1 < len(prog) and elapsed >= prog[seg + 1][0] - 1e-8:
             seg += 1
-            obs = e.set_command_target(headings + np.deg2rad(prog[seg][1]), speed)
+            obs = e.set_command_target(headings + np.deg2rad(prog[seg][1]), prog[seg][2])
         buf.append(frame())
         if turn is not None:
-            obs = turn.apply(obs, prog[seg][1], speed, c)
+            obs = turn.apply(obs, prog[seg][1], prog[seg][2], c)
         obs, _, term, trunc, info = e.step(c.act(obs))
         if term or trunc:
             buf.append(frame())
@@ -305,7 +333,9 @@ def course(a, path):
             physics_t_s=signal[:n, 30],
             physics_foot_load_N=signal[:n, :4],
         )
-    result = steering.evaluate(tr, a.program, headings)
+    result = steering.evaluate(tr, a.program, headings, schedule=prog)
+    if phase_offsets is not None:
+        result["footfall_schedule"] = dict(period_s=p.period_s, duty=p.duty, stand_s=p.stand_s, offsets=phase_offsets)
     h = signal[:n]
     h = h[h[:, 30] > 2.0] if n > 2000 else h
     w = m.body_mass.sum() * 9.81
@@ -314,6 +344,9 @@ def course(a, path):
         termination=info["termination"],
         initial_heading_rad=float(headings),
         friction=reset.get("friction"),
+        command_speed_scale_mps=config.cmd_speed_scale,
+        max_ik_residual_m=c.ik_err_max,
+        support_count_pct=(100 * np.bincount(np.sum(h[:, :4] > 2, axis=1), minlength=5) / len(h)).tolist(),
         saturation_pct_by_axis=(
             100 * np.mean(np.abs(h[:, 4:16]) >= 0.99 * m.actuator_forcerange[ids, 1], axis=0)
         ).tolist(),
@@ -330,12 +363,21 @@ def course(a, path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", choices=("stand", "walk", "course", "six-headings", "pivot", "pivot-right"))
+    parser.add_argument(
+        "--speed-mps", type=float, help="Simulation forward command for a moving heading course, in m/s."
+    )
     parser.add_argument("--model", type=Path, default=HERE.parent / "models/refined/physics.xml")
     parser.add_argument(
         "--gait",
         choices=("reference", "refined"),
         default="refined",
-        help="Four-beat reference used by walk. Steering uses its separate 70%%-stance controller.",
+        help="Four-beat exhibit reference used by walk. Steering uses a separate gait; see --steering-footfall.",
+    )
+    parser.add_argument(
+        "--walk-cadence",
+        type=float,
+        default=1.0,
+        help="Multiply the exhibit footfall cadence while preserving stride and the neck gesture.",
     )
     parser.add_argument("--seed", type=int)
     parser.add_argument(
@@ -367,13 +409,27 @@ def main():
         default=0.0,
         help="Inject a constant bias in the gentle relative-yaw estimator (degrees/s).",
     )
+    parser.add_argument(
+        "--steering-footfall",
+        choices=("diagonal", "four-beat"),
+        default="diagonal",
+        help="For the six-heading course, stagger the swings using the experimental four-beat steering gait.",
+    )
     a = parser.parse_args()
+    if a.steering_footfall == "four-beat" and (a.program != "six-headings" or a.turn_profile != "gentle"):
+        parser.error("the four-beat steering gait requires six-headings and --turn-profile gentle")
+    if a.speed_mps is not None and (
+        a.program not in ("course", "six-headings") or not math.isfinite(a.speed_mps) or a.speed_mps <= 0
+    ):
+        parser.error("--speed-mps requires a moving course and a positive finite speed")
     if a.gyro_bias_dps and a.turn_profile != "gentle":
         parser.error("--gyro-bias-dps applies to the gentle turn profile")
     if a.turn_profile != "original" and a.program in ("stand", "walk"):
         parser.error("--turn-profile applies only to steering")
     if a.force_trace and a.program in ("stand", "walk"):
         parser.error("--force-trace applies to steering programs")
+    if not math.isfinite(a.walk_cadence) or a.walk_cadence <= 0 or (a.program != "walk" and a.walk_cadence != 1.0):
+        parser.error("--walk-cadence requires walk and a finite positive multiplier")
     if a.stiff and a.program != "walk":
         parser.error("--stiff applies to walk")
     if a.random and a.program in ("stand", "walk"):

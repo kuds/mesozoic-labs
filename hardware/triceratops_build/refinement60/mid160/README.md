@@ -4,6 +4,8 @@
 
 [Exhibit walk](media/walk.mp4) · [Right pivot](media/pivot-right.mp4) · [Six-command walk](media/six-headings.mp4) · [Full-size motor detail](media/detail.png)
 
+The [subsequent speed sweep](../speed_study/README.md) evaluates the edge of four-beat walking, the six-heading speed range and overloads in failed runs.
+
 ## What the longer leg changes
 
 ![Both neutral robots and the right foreleg at matched scales, with the X6 highlighted](media/detail.png)

@@ -10,14 +10,13 @@ from scipy.ndimage import gaussian_filter1d
 DATA = Path(__file__).resolve().parent
 
 
-def make_trajectory(crawl, kin, steps, params, shape):
-    """Blend a continuous trunk path into the original support plan, then solve full leg IK."""
+def exhibit_waypoints(crawl, kin, steps, params, shape):
+    """Blend a continuous trunk path into the four-beat stance and swing waypoints."""
     corners = crawl.CORNERS
     press = np.array([0.0, 0.0, params["stance_press_m"]])
     planted = np.array([kin.neutral_ankle[c] - press for c in corners])
     dt = params["control_dt"]
     t = params["stand_s"]
-    qg = {c: np.zeros(3) for c in corners}
     origins = [np.zeros(2)]
     times, body_path, feet_path = [0.0, t], [origins[0], origins[0]], [planted.copy(), planted.copy()]
     key_t, key_x = [0.0, t], [0.0, 0.0]
@@ -77,6 +76,13 @@ def make_trajectory(crawl, kin, steps, params, shape):
     fade = np.array([crawl.min_jerk((v - 3.7) / 2.7) for v in times]) if shape.get("warmup") else 1
     body_path[:, 0] += fade * shape["blend"] * (xref - body_path[:, 0])
     body_path[:, 1] *= 1 - fade * (1 - shape.get("lateral_scale", 1.0))
+    return times, body_path, np.asarray(feet_path), phases
+
+
+def make_trajectory(crawl, kin, steps, params, shape):
+    times, body_path, feet_path, phases = exhibit_waypoints(crawl, kin, steps, params, shape)
+    corners = crawl.CORNERS
+    qg = {c: np.zeros(3) for c in corners}
     targets = []
     for frame, (bb, ff) in enumerate(zip(body_path, feet_path)):
         if frame == 0:
@@ -99,6 +105,24 @@ def glance(t, crawl):
     return np.deg2rad([-9 * inspect, 3 * nod])
 
 
+def refined_recipe(plan, kin):
+    """Configure the refined exhibit trajectory and retarget the feet to the active model."""
+    steps, params = plan["steps"], plan["parameters"]
+    for step in steps[:2]:
+        step["body"][0] = 0.0
+    params["lift_m"] *= 0.8125
+    shape = {**plan["shape"], "lateral_scale": plan["shape"]["lateral_scale"] * 0.88}
+    # Plantar targets are specified relative to each reference ankle. Apply those same offsets
+    # to the active model, even when the two models happen to have identical pivot locations.
+    for step in steps:
+        corner = step["leg"]
+        reference_ankle = np.array(plan["reference_ankles_xy_m"][corner])
+        for key in ("from", "to"):
+            offset = np.array(step[key][:2]) - reference_ankle
+            step[key][:2] = (kin.neutral_ankle[corner][:2] + offset).tolist()
+    return steps, params, shape
+
+
 def exhibit_plan(crawl, model, gait):
     """Return the four-beat support plan, its controller clock and the walking parameters."""
     plan = json.loads((DATA / "reference_plan.json").read_text())
@@ -110,19 +134,8 @@ def exhibit_plan(crawl, model, gait):
         with np.load(DATA / "reference_targets.npz") as targets:
             return (steps, targets["t"], targets["targets"], phases), params, 1.0
     factor = 0.8
-    for step in steps[:2]:
-        step["body"][0] = 0.0
-    params["lift_m"] *= 0.8125
-    shape = {**plan["shape"], "lateral_scale": plan["shape"]["lateral_scale"] * 0.88}
     kin = crawl.Kin(model)
-    # Plantar targets are specified relative to each reference ankle. Apply those same offsets
-    # to the active model, even when the two models happen to have identical pivot locations.
-    for step in steps:
-        corner = step["leg"]
-        reference_ankle = np.array(plan["reference_ankles_xy_m"][corner])
-        for key in ("from", "to"):
-            offset = np.array(step[key][:2]) - reference_ankle
-            step[key][:2] = (kin.neutral_ankle[corner][:2] + offset).tolist()
+    steps, params, shape = refined_recipe(plan, kin)
     times, targets, _ = make_trajectory(crawl, kin, steps, params, shape)
     for event in phases:
         event["swing_start"] *= factor
@@ -130,3 +143,18 @@ def exhibit_plan(crawl, model, gait):
     for duration in ("swing_s", "shift_s", "stand_s"):
         params[duration] *= factor
     return (steps, times * factor, targets, phases), params, factor
+
+
+def retime_exhibit(motion, params, cadence):
+    """Keep each plantar waypoint and the physics clock fixed while changing footfall cadence."""
+    steps, times, targets, phases = motion
+    if not np.isfinite(cadence) or cadence <= 0:
+        raise ValueError("Walk cadence must be finite and positive")
+    if params["swing_s"] / cadence <= params["control_dt"]:
+        raise ValueError("Each swing must span at least one gait-judge sampling interval")
+    phases = [
+        {**phase, "swing_start": phase["swing_start"] / cadence, "swing_end": phase["swing_end"] / cadence}
+        for phase in phases
+    ]
+    params = {**params, **{key: params[key] / cadence for key in ("shift_s", "swing_s", "stand_s")}}
+    return (steps, times / cadence, targets, phases), params

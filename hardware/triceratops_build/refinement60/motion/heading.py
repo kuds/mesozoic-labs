@@ -67,12 +67,13 @@ def observe(e, commanded_deg, commanded_speed):
     )
 
 
-def evaluate(trace, program, initial_heading):
+def evaluate(trace, program, initial_heading, schedule=None):
     """Score each heading leg from its actual start position along its requested tangent."""
     t, xyz, yaw = trace["t"], trace["xyz"], trace["yaw_rad"]
     legs = []
-    for i, (start, requested, speed) in enumerate(PROGRAMS[program]):
-        end = PROGRAMS[program][i + 1][0] if i + 1 < len(PROGRAMS[program]) else DURATION[program]
+    schedule = PROGRAMS[program] if schedule is None else schedule
+    for i, (start, requested, speed) in enumerate(schedule):
+        end = schedule[i + 1][0] if i + 1 < len(schedule) else DURATION[program]
         if t[-1] <= start:
             break
         which = (t >= start - 1e-7) & (t <= end + 1e-7)

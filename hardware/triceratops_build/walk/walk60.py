@@ -178,8 +178,10 @@ class TrotController:
     """``act(obs) -> action`` for a ``TrikeEnv`` built with :func:`plant_config`. Resets itself at each episode's
     first step (the env's step count is 0)."""
 
-    def __init__(self, env: TrikeEnv, P: WalkParams | None = None):
+    def __init__(self, env: TrikeEnv, P: WalkParams | None = None, *, phase_offsets=None, support_shift=None):
         self.env, self.P = env, P or WalkParams()
+        self.phase_offsets = PHASE_OFFSET if phase_offsets is None else phase_offsets
+        self.support_shift = support_shift
         self.kin = Kinematics(env.cfg.model_path)
         self.dt = env.dt
         self.scale = env._action_scale.copy()
@@ -263,7 +265,7 @@ class TrotController:
             p = self.p[c]
             clock_stance, w = True, 0.0
             if phase is not None:
-                u = (phase - PHASE_OFFSET[c]) % 1.0
+                u = (phase - self.phase_offsets[c]) % 1.0
                 clock_stance = u < P.duty
                 w = (u - P.duty) / (1.0 - P.duty)
             if clock_stance:
@@ -305,8 +307,11 @@ class TrotController:
         # --- level frame to chassis frame, attitude correction on stance legs, inverse kinematics
         action = np.zeros(12)
         R_bl = R_lb.T if P.frame == "level" else np.eye(3)
+        shift = self.support_shift(phase, t_walk) if self.support_shift is not None and phase is not None else None
         for c in CORNERS:
             p = self.p[c].copy()
+            if shift is not None:
+                p[:2] -= shift
             if not self.in_swing[c]:
                 p[2] += P.k_roll * roll * p[1] - P.k_pitch * pitch * p[0]
             target = R_bl @ p

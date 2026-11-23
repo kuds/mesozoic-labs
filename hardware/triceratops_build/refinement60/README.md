@@ -6,6 +6,10 @@ The 128 mm model below established the gait and shoulder packaging for the 60 cm
 
 [Four-beat walk, with four foot loads](media/walk.mp4) · [Moving turns, with requested and actual headings](media/steering.mp4) · [Printable design sheet](media/design-sheet.pdf) · [Foreleg bench plan](../bench/BENCH_PLAN_FORELEG.md)
 
+## Walking speed and six-heading limits
+
+The [speed study](speed_study/README.md) compares both forelegs at higher exhibit cadences and at increasing heading commands. The [straight walk film](speed_study/media/walk.mp4) includes the transition from a regular four-beat walk to rollover. The [diagonal-gait film](speed_study/media/steering.mp4) shows why hitting six directions at speed can coexist with long foot slides. Two further tests measure whether the robot can maintain three planted stance feet during turns. [Live four-beat steering](speed_study/media/fourbeat-turns.mp4) · [Rehearsed six-heading speed comparison](speed_study/media/rehearsed-speeds.mp4)
+
 ## Recommended configuration for the first build
 
 Select the **160 mm upper foreleg**, 184 mm lower foreleg, X4/X4/X6 drives and gentle steering within the same 600 mm open-rib envelope. Over twelve matched moving courses the greatest foot impact fell from 424 to 303 N with every requested heading acquired on both lengths. Across six pivots the peak fell from 302 to 224 N. The walk had essentially the same speed and support margin. The 160 mm elbow needed 24% more RMS torque during that walk, and its moving rod clears the guard by 3.30 mm in the ideal geometry. Build and instrument one leg before authorizing a full chassis. The existing 128 mm model is the baseline and thermal fallback.
@@ -53,7 +57,7 @@ Both four-beat walks use a 96 mm stride. The revised walk lowers commanded swing
 
 The geometric margin measures the horizontal centre of mass against the ankle triangle during a single swing. In the original steering comparison, the separate heading course uses a 0.25 m/s diagonal gait with 10 ms of command delay. All six revised runs finished upright, and four acquired every heading within ±5° for one second. The other two missed the final return to straight. The faster course reached 355 N on one foot in the revised plant. [Matched gait and load results](evidence/gait-comparison.json)
 
-With the original steering profile, both designs acquired all six in-place pivots. A right pivot at seed 102 put **580 N on the right forefoot** of the revised plant versus **572 N** on the reference. This is the largest instantaneous modeled load across the tested routines. The largest 10 ms mean was 400 N versus 404 N. Include the [1 kHz revised pivot trace](evidence/pivot-right-102-refined.csv) in the guarded foreleg test. The simulations covered level ground. The shoulder opening needs physical guarding, and actual heading, traction and stopping require a caught test on the venue floor.
+With the original steering profile, both designs acquired all six in-place pivots. A right pivot at seed 102 put **580 N on the right forefoot** of the revised plant versus **572 N** on the reference. This was the largest instantaneous modeled load in the original nominal-speed comparison. The largest 10 ms mean was 400 N versus 404 N. Include the [1 kHz revised pivot trace](evidence/pivot-right-102-refined.csv) in the guarded foreleg test. The simulations covered level ground. The shoulder opening needs physical guarding, and actual heading, traction and stopping require a caught test on the venue floor.
 
 ## Run either foreleg model
 

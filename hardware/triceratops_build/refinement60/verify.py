@@ -35,6 +35,43 @@ def check_comparison_geometry(original, middle):
     np.testing.assert_array_equal(limits[0], limits[1])
 
 
+def check_rehearsed_walk(output):
+    report = output / "rehearsed-course.json"
+    subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "speed_study" / "choreography.py"),
+            "--traction",
+            "--cadences",
+            "1.5",
+            "--seeds",
+            "12",
+            "--jobs",
+            "2",
+            "--records",
+            str(output / "rehearsed"),
+            "--out",
+            str(report),
+        ],
+        check=True,
+    )
+    rows = json.loads(report.read_text())["runs"]
+    expected = {(upper, floor) for upper in (128, 160) for floor in ("nominal", "stiff")}
+    if {(r["upper_mm"], r["floor"]) for r in rows} != expected:
+        raise ValueError("Rehearsed trials must cover both lengths and both contact settings")
+    for row in rows:
+        if (
+            not row["commands_complete"]
+            or len(row["holds_s"]) != 6
+            or any(t is None for t in row["holds_s"])
+            or not row["upright"]
+            or row["min_support_margin_mm"] < 10
+            or not row["traction_gates"]["C6"]
+            or row["measured_forward_mm_s"] < 25
+        ):
+            raise ValueError(f"Rehearsed 1.50× course failed at {row['upper_mm']} mm on {row['floor']}")
+
+
 def verify(output):
     output.mkdir(parents=True, exist_ok=True)
     original = ROOT / "models" / "refined"
@@ -45,6 +82,7 @@ def verify(output):
             check=True,
         )
     check_comparison_geometry(original, middle)
+    check_rehearsed_walk(output)
     trials = [
         ("stand", "stand", []),
         ("walk", "walk", ["--seed", "11"]),
@@ -70,6 +108,29 @@ def verify(output):
     matched = [(original, name, mode, flags) for name, mode, flags in trials]
     matched.extend(
         [
+            (original, "128-exhibit-150", "walk", ["--seed", "11", "--walk-cadence", "1.5"]),
+            (middle, "160-exhibit-150", "walk", ["--seed", "11", "--walk-cadence", "1.5"]),
+            (
+                middle,
+                "160-directional-030",
+                "six-headings",
+                ["--seed", "103", "--turn-profile", "gentle", "--speed-mps", "0.30"],
+            ),
+            (
+                middle,
+                "160-staggered-008",
+                "six-headings",
+                [
+                    "--seed",
+                    "103",
+                    "--turn-profile",
+                    "gentle",
+                    "--steering-footfall",
+                    "four-beat",
+                    "--speed-mps",
+                    "0.08",
+                ],
+            ),
             (middle, "160-stand", "stand", []),
             (middle, "160-walk", "walk", ["--seed", "11"]),
             (middle, "160-right", "pivot-right", ["--seed", "102", "--turn-profile", "gentle"]),
@@ -101,6 +162,14 @@ def verify(output):
             if not row["pass_all"]:
                 raise ValueError(f"{name}: {row['rules']}")
         else:
+            if "--steering-footfall" in flags:
+                schedule = row["footfall_schedule"]
+                if len(set(schedule["offsets"].values())) != 4 or schedule["duty"] < 0.75:
+                    raise ValueError(f"{name}: four separate swing phases were not scheduled")
+            if "--speed-mps" in flags:
+                requested = float(flags[flags.index("--speed-mps") + 1])
+                if any(s["requested_speed_mps"] != requested for s in row["segments"]):
+                    raise ValueError(f"{name}: speed override is missing from heading measurements")
             headings = [item["requested_heading_deg"] for item in row["segments"]]
             expected = {
                 "course": [0, 35, -35, 0],
@@ -114,6 +183,12 @@ def verify(output):
                 or any(not item["completed"] or item["first_1s_in_5deg_band_s"] is None for item in row["segments"])
             ):
                 raise ValueError(f"{name}: heading acquisition or run completion failed")
+
+    for default, faster in (("walk", "128-exhibit-150"), ("160-walk", "160-exhibit-150")):
+        original_speed = json.loads((output / f"{default}.json").read_text())["speed_mps"]
+        fast_speed = json.loads((output / f"{faster}.json").read_text())["speed_mps"]
+        if fast_speed < 1.35 * original_speed:
+            raise ValueError(f"{faster}: cadence override failed to increase observed speed")
 
     reference_run = json.loads((output / "gentle-right.json").read_text())
     longer_run = json.loads((output / "160-right.json").read_text())
