@@ -3,7 +3,7 @@ import type {RobotVersionList} from '@site/src/components/RobotVersions';
 const repo = 'https://github.com/kuds/mesozoic-labs';
 const build = `${repo}/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build`;
 const concept = `${repo}/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study`;
-export const anatomicalStudy = `${concept}/models/README.md`;
+export const anatomicalStudy = `${repo}/blob/main/examples/triceratops_horridus/README.md`;
 
 export const triceratopsVersions: RobotVersionList = [
   {
@@ -59,7 +59,7 @@ export const triceratopsVersions: RobotVersionList = [
         label: 'Stance',
         title: 'Stand on four feet',
         description: 'With its joints set to their neutral positions, the 75 cm robot stood on all four feet for three seconds in MuJoCo.',
-        href: anatomicalStudy,
+        href: `${concept}/models/README.md`,
         linkLabel: 'Read the stance study',
       },
     ],

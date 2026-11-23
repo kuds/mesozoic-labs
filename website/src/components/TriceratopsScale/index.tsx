@@ -8,6 +8,7 @@ import styles from './styles.module.css';
 export default function TriceratopsScale() {
   const [matched, setMatched] = useState(false);
   const adult = useBaseUrl('/img/animals/triceratops-adult-profile.webp');
+  const walk = useBaseUrl('/videos/triceratops_horridus_anatomical_reference_walk.mp4');
   const robot = useBaseUrl('/img/animals/triceratops-60cm-profile.webp');
   const robotReport = triceratopsVersions.find(version => version.slug === '60-cm')?.source;
 
@@ -30,7 +31,7 @@ export default function TriceratopsScale() {
       <figure className={styles.figure}>
         <div className={styles.plate}>
           <div className={matched ? styles.matched : styles.actual}>
-            <img src={adult} width={1600} height={706} className={styles.adult} alt="Adult Triceratops in side profile" />
+            <img src={adult} width={1600} height={715} className={styles.adult} alt="Adult Triceratops in side profile" />
             <img src={robot} width={800} height={400} className={styles.robot} alt="Triceratops robot in side profile" />
             <div className={styles.ground} aria-hidden="true" />
             {!matched && (
@@ -42,8 +43,9 @@ export default function TriceratopsScale() {
           <div className={styles.labels}>
             <div>
               <strong>Adult anatomical model</strong>
-              <span>7.3 m overall length</span>
+              <span>7.19 m from brow horn to tail tip</span>
               <a href={anatomicalStudy}>Anatomical model notes</a>
+              <a href={walk}>Watch the adult walk in real time</a>
             </div>
             <div>
               <strong>Current robot design</strong>

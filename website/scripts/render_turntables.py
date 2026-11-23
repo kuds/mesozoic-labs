@@ -1,7 +1,7 @@
 """Render the rotating specimen plates used on the Animals pages.
 
-Run with the repository's MuJoCo dependencies and FFmpeg with libx264. Supply
---triceratops-xml for the archived anatomical study (see img/animals/SOURCES.md).
+Run with the repository's MuJoCo dependencies and FFmpeg with libx264. The adult
+Triceratops is loaded from examples/triceratops_horridus.
 """
 
 import argparse
@@ -27,8 +27,7 @@ def subjects(triceratops_xml):
         if path.stem == f"{species}_{version}":
             yield f"{species}-{version}", path
     yield "stegosaurus_stenops-anatomical", ROOT / "examples/stegosaurus_stenops/model.xml"
-    if triceratops_xml:
-        yield "triceratops-anatomical", triceratops_xml
+    yield "triceratops-anatomical", triceratops_xml or ROOT / "examples/triceratops_horridus/anatomical.xml"
 
 
 def studio(model):
@@ -187,7 +186,7 @@ def render(path, name):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--triceratops-xml", type=Path)
+    parser.add_argument("--triceratops-xml", type=Path, help="override the checked-in adult reference XML")
     parser.add_argument("names", nargs="*", help="render only the named specimen plates")
     args = parser.parse_args()
     models = dict(subjects(args.triceratops_xml))

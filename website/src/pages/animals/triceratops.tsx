@@ -18,12 +18,12 @@ export default function TriceratopsPage() {
           collection="Anatomy & robotics"
           modelLabel="Anatomical reference"
           title="Start with the animal"
-          description="The 7.3 m adult reference sets the proportions. The robot designs carry forward its four-legged stance, broad frill and three horns."
+          description="The adult model carries its head over flexed forelimbs. Rotate it to compare the smaller, outward-facing forefeet with the broader four-toed hindfeet."
           image="/img/animals/triceratops-anatomical.webp"
           alt="Anatomical Triceratops with a broad frill, three horns and four weight-bearing limbs"
-          caption="MuJoCo · Adult reference model"
+          caption="MuJoCo · Adult standing pose"
           source={anatomicalStudy}
-          sourceLabel="Anatomy & model notes"
+          sourceLabel="Anatomy and walking tests"
         />
         <TriceratopsScale />
         <RobotVersions speciesPath="/animals/triceratops" versions={triceratopsVersions} />
