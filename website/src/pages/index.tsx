@@ -5,7 +5,8 @@ import Layout from '@theme/Layout';
 import styles from './index.module.css';
 
 const study = 'https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build';
-const walkingReport = study + '/walk/REPORT_WALK60.md';
+const walkingReport = study + '/walk/results/walk60_2026-11-19/RESULTS.md';
+const rampResults = study + '/walk/results/sweep_walk60/summary_walk60.md';
 
 const featured = [
   {
@@ -104,7 +105,11 @@ export default function Home(): React.JSX.Element {
             <div className={styles.metadata}><time dateTime="2026-11-19">19 November 2026</time> · Simulation</div>
             <h3>Forty flat-floor trials</h3>
             <p>The 60 cm Triceratops trotted through four simulated floor conditions without falling. On a 5° ramp, its speed dropped by 27%.</p>
-            <a href={walkingReport} className={styles.textLink}>See the trial results</a>
+            <span>
+              <a href={walkingReport} className={styles.textLink}>See the trial results</a>
+              {' · '}
+              <a href={rampResults} className={styles.textLink}>See the ramp test</a>
+            </span>
           </section>
           <section aria-labelledby="roadmap">
             <SectionHeading id="roadmap">Build roadmap</SectionHeading>
