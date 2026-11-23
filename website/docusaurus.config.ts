@@ -1,9 +1,12 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import {consentHeadScript, measurementIdFor} from './src/components/CookieConsent/headScript';
 
-// Google Analytics Measurement ID - set via environment variable or replace with your ID
-const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-GGSQ47QSJN';
+// Google Analytics measurement ID, or null for a build without analytics:
+// GA_MEASUREMENT_ID if set, else the production ID only in the upstream
+// repository's GitHub Actions (see measurementIdFor).
+const GA_MEASUREMENT_ID = measurementIdFor(process.env);
 
 const config: Config = {
   title: 'Mesozoic Labs',
@@ -37,37 +40,21 @@ const config: Config = {
     gaMeasurementId: GA_MEASUREMENT_ID,
   },
 
-  // Google Analytics with Consent Mode.  Order inside this inline script is
-  // what makes consent work: the consent DEFAULT must be pushed onto the
-  // dataLayer before gtag('config') — gtag.js replays the queue in order,
-  // so a default set any later (e.g. from a React effect) would let the
-  // first page_view set analytics cookies before the visitor answered the
-  // cookie banner.
-  headTags: [
-    {
-      tagName: 'link',
-      attributes: {rel: 'preconnect', href: 'https://www.googletagmanager.com'},
-    },
-    {
-      tagName: 'script',
-      attributes: {},
-      innerHTML:
-        'window.dataLayer = window.dataLayer || [];' +
-        'function gtag(){dataLayer.push(arguments);}' +
-        'window.gtag = gtag;' +
-        "var mzConsent=null;try{mzConsent=localStorage.getItem('mesozoic_cookie_consent');}catch(e){}" +
-        "gtag('consent','default',{analytics_storage:mzConsent==='granted'?'granted':'denied',wait_for_update:500});" +
-        "gtag('js',new Date());" +
-        `gtag('config','${GA_MEASUREMENT_ID}',{anonymize_ip:true});`,
-    },
-    {
-      tagName: 'script',
-      attributes: {
-        async: 'true',
-        src: `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`,
-      },
-    },
-  ],
+  // Google Analytics with Consent Mode (basic).  The inline script sets all
+  // four consent signals to denied before anything else and requests
+  // gtag.js only once the visitor has accepted (see consentHeadScript), so
+  // nothing reaches Google before consent; that is also why there is no
+  // preconnect to googletagmanager.com.  A build without a measurement ID
+  // gets no analytics script, and the cookie banner stays hidden.
+  headTags: GA_MEASUREMENT_ID
+    ? [
+        {
+          tagName: 'script',
+          attributes: {},
+          innerHTML: consentHeadScript(GA_MEASUREMENT_ID),
+        },
+      ]
+    : [],
 
   // Sends page_view on SPA route changes (replaces the preset gtag plugin's
   // client module).
@@ -95,10 +82,10 @@ const config: Config = {
           customCss: './src/css/custom.css',
         },
         // NOTE: the preset's `gtag` plugin is intentionally NOT used — it
-        // injects its gtag('config') snippet before any siteConfig headTags,
-        // so a Consent Mode default could never precede it.  GA is loaded
-        // manually below (headTags) with consent-default-first ordering,
-        // and SPA page views are sent by src/clientModules/gtag.ts.
+        // loads gtag.js for every visitor and injects its gtag('config')
+        // snippet before any siteConfig headTags.  GA is loaded manually
+        // above (headTags) only after consent, and SPA page views are sent
+        // by src/clientModules/gtag.ts.
       } satisfies Preset.Options,
     ],
   ],

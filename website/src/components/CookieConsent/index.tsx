@@ -1,62 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import styles from './styles.module.css';
-
-const CONSENT_COOKIE_NAME = 'mesozoic_cookie_consent';
-const CONSENT_GRANTED = 'granted';
-const CONSENT_DENIED = 'denied';
-
-declare global {
-  interface Window {
-    gtag?: (...args: unknown[]) => void;
-    dataLayer?: unknown[];
-  }
-}
+import {
+  acceptAnalytics,
+  declineAnalytics,
+  isAnalyticsEnabled,
+  readStoredConsent,
+  resetConsent,
+} from './consent';
 
 export default function CookieConsent(): React.JSX.Element | null {
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
-    // Check if user has already made a choice
-    const consent = localStorage.getItem(CONSENT_COOKIE_NAME);
-
-    if (!consent) {
-      // No choice made yet, show the banner
+    // Ask only when this build loads analytics and no choice is stored (or
+    // storage is blocked).  A stored acceptance was already applied by the
+    // head script; a stored refusal needs nothing.
+    if (isAnalyticsEnabled() && readStoredConsent() === null) {
       setIsVisible(true);
-    } else if (consent === CONSENT_GRANTED) {
-      // User previously granted consent, enable analytics
-      enableAnalytics();
     }
-    // If denied, do nothing - analytics stay disabled
   }, []);
 
-  const enableAnalytics = () => {
-    // Update Google Analytics consent
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('consent', 'update', {
-        analytics_storage: 'granted',
-      });
-    }
-  };
-
-  const disableAnalytics = () => {
-    // Revoke Google Analytics consent
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('consent', 'update', {
-        analytics_storage: 'denied',
-      });
-    }
-  };
-
   const handleAccept = () => {
-    localStorage.setItem(CONSENT_COOKIE_NAME, CONSENT_GRANTED);
-    enableAnalytics();
+    acceptAnalytics();
     closeBanner();
   };
 
   const handleDecline = () => {
-    localStorage.setItem(CONSENT_COOKIE_NAME, CONSENT_DENIED);
-    disableAnalytics();
+    declineAnalytics();
     closeBanner();
   };
 
@@ -106,5 +77,5 @@ export default function CookieConsent(): React.JSX.Element | null {
 
 export function resetConsentStatus(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(CONSENT_COOKIE_NAME);
+  resetConsent();
 }

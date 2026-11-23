@@ -56,6 +56,10 @@ jobs:
       - name: Type-check website
         run: npx tsc --noEmit
 
+      # The cookie-consent and analytics code (node:test, no extra deps).
+      - name: Test website
+        run: npm test
+
       - name: Build website
         run: npm run build
         env:

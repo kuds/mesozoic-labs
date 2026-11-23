@@ -2356,7 +2356,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   the code 2026-09-30).** `.github/workflows/deploy.yml` runs on a push to
   `main` that touches `website/**`, a `summary.json` or the workflow itself
   (:3-15), and its `deploy` job needs only the `build` job (`npm ci`, `tsc`,
-  the site build) and the `main` ref (:72-78). A push with a hand-edited or
+  `npm test`, the site build) and the `main` ref (:76-82). A push with a hand-edited or
   stale `website/src/data/species.generated.json` therefore deploys while
   python-ci's `species_catalog --check` (`python-ci.yml:127-130`) fails on the
   same commit, and `main` has no required checks
