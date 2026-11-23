@@ -80,6 +80,14 @@ The choice is a simulation result about this setup, an input to the owner's deci
 - The moving pushrod, the dressed meshes' clearances and the shoulder crossmember (F19): geometry, not dynamics.
 - Measured masses, the real servo loops, the rubber of the foot; the policy observes the simulator's true velocity.
 
+## Checked end to end before any run
+
+On commit d11125e6: a 16,384-step run on each model (`train.py` with `run3_terrain.json`), then the gait report
+(`--quick`), the sweep (one episode per point) and `foot_loads.py` on each, and `judge_d22.py` on their output (the
+final-pair step check relaxed for the trial only). Every tool ran; provenance passed for both models; the script
+returned "no choice: neither length passes F1 and F2 on both seeds", as it should for untrained policies. Not a
+result.
+
 ## Expected cost
 
 Four Colab runs of about 3 hours each (run 3's took 3.0-3.1 h; the models are 0.06-0.11 kg heavier). Measurement
