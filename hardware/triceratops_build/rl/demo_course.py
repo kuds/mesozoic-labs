@@ -8,8 +8,8 @@
 2. **The demo, modelled.** A loop of segments (default: 90 s walking at 0.25 m/s, 30 s standing) repeated for
    ``--minutes`` (default: one pack's runtime on that loop), from 25 C in open air:
    - winding temperatures per drive (``telemetry/thermal.py``), calibrated from the maker's thermal-equilibrium
-     torque, for thermal time constants of 5, 8 and 15 min (fitted to the maker's overload figures; a range), with
-     the temperature that running the loop without a break settles to;
+     torque, for thermal time constants of 4, 8 and 15 min (fitted to the maker's overload figures; a range), with
+     the middle of the settled temperature cycle when the loop runs without a break;
    - battery runtime and pack currents (``telemetry/power.py``), from the pack on record (146.5 Wh, 80 % usable,
      12S at 42.0-49.2 V in use; 44.4 V nominal, 42.0 V as low charge) and a 30 W hotel load (25-40 W as a range).
      The peak current is given for the loop and for every measured segment.
@@ -154,17 +154,17 @@ def build_sequence(loop, minutes: float) -> list[tuple[str, float]]:
     """The loop's segments repeated until ``minutes``; zero-length entries are dropped, negative ones refused."""
     if any(s < 0 for _, s in loop):
         raise ValueError("loop durations must not be negative")
-    loop = [(n, float(s)) for n, s in loop if s > 0]
+    loop = [(n, float(s)) for n, s in loop if s >= 1e-3]  # under 1 ms: nothing to model
     if not loop or minutes <= 0:
         raise ValueError("the demo needs a loop of positive length and positive minutes")
-    seq, total = [], 0.0
-    while total < minutes * 60.0 - 1e-9:
-        for name, s in loop:
-            take = min(s, minutes * 60.0 - total)
-            if take <= 1e-9:
-                break
+    seq, total, end = [], 0.0, minutes * 60.0
+    while end - total > 1e-9:
+        for name, s in loop:  # every entry is at least 1 ms long, so each pass makes progress
+            take = min(s, end - total)
             seq.append((name, take))
             total += take
+            if end - total <= 1e-9:
+                break
     return seq
 
 
@@ -247,16 +247,23 @@ def run(make, label: str, loop, minutes: float | None, seed: int, segment_s: flo
             "traces": traces}
 
 
+def _settled(c) -> str:
+    return "no steady state (the winding heats without limit)" if c is None else \
+        f"the settled cycle centres on {c:.1f} C"
+
+
 def hottest(res: dict) -> dict:
-    """The hottest winding at each time constant: its peak over the demo and the loop's continuous temperature."""
+    """The hottest winding at each time constant: its peak over the demo, and the highest middle of the settled
+    cycle without a break (None if any drive runs away)."""
     from telemetry.thermal import tc_key
 
     out = {}
     for tc in res["time_constants_s"]:
         k = tc_key(tc)
         jn = max(res["temperatures"], key=lambda j: res["temperatures"][j][k]["peak_c"])
+        cont = [v[k]["continuous_c"] for v in res["temperatures"].values()]
         out[k] = {"joint": jn, "peak_c": res["temperatures"][jn][k]["peak_c"],
-                  "continuous_c": max(v[k]["continuous_c"] or float("inf") for v in res["temperatures"].values())}
+                  "continuous_c": None if any(c is None for c in cont) else max(cont)}
     return out
 
 
@@ -292,12 +299,13 @@ def chart(res: dict, out: Path, label: str) -> str:
     invalid = "" if res["valid"] else f"INVALID: segment(s) fell ({', '.join(res['fallen_segments'])}). "
     import textwrap
 
-    sub = (f"{invalid}Loop: {loop}, for {res['minutes']:.0f} min{' (one pack)' if res['minutes_is_one_pack'] else ''}. Battery: {b['runtime_minutes']:.0f} "
+    one_pack = " (one pack)" if res["minutes_is_one_pack"] else ""
+    sub = (f"{invalid}Loop: {loop}, for {res['minutes']:.0f} min{one_pack}. Battery: {b['runtime_minutes']:.0f} "
            f"min per pack at {b['mean_total_w']:.0f} W mean, incl. {b['hotel_w']:.0f} W hotel; peak pack current "
            f"{b['current_peak_a']['low_v']:.1f} A on the loop, {b['current_peak_all_segments_a']['low_v']:.1f} A in "
            f"any segment, at {res['pack']['v_low']} V.\nHottest winding: {hot[k]['joint']} {hot[k]['peak_c']:.1f} C "
            f"(time constant {shown / 60:g} min; {rng[0]:.1f}-{rng[-1]:.1f} C over {lo_tc:g}-{hi_tc:g} min); "
-           f"running the loop without a break settles at {hot[k]['continuous_c']:.0f} C.\nESTIMATES: a first-order "
+           f"without a break, {_settled(hot[k]['continuous_c'])}.\nESTIMATES: a first-order "
            "thermal model calibrated to the maker's thermal-equilibrium torque; leg drives only.")
     sub = "\n".join(textwrap.fill(par, 150) for par in sub.split("\n"))
     cs.frame(fig, f"Demo course: heat and battery, {label}", sub,
@@ -342,12 +350,12 @@ def main(argv=None) -> int:
     from telemetry.thermal import tc_key
 
     b = res["battery"]
+    hh = hottest(res)
     for tc in res["time_constants_s"]:
         k = tc_key(tc)
         hot = sorted(((v[k]["peak_c"], jn) for jn, v in res["temperatures"].items()), reverse=True)[:3]
-        cont = max(v[k]["continuous_c"] or float("inf") for v in res["temperatures"].values())
         print(f"hottest windings over {res['minutes']:.0f} min (time constant {tc / 60:g} min): "
-              + ", ".join(f"{jn} {T:.1f} C" for T, jn in hot) + f"; without a break: {cont:.1f} C")
+              + ", ".join(f"{jn} {T:.1f} C" for T, jn in hot) + f"; without a break, {_settled(hh[k]['continuous_c'])}")
     rt = ", ".join(f"{h} W hotel {m:.0f} min" for h, m in b["runtime_minutes_by_hotel_w"].items())
     print(f"battery: {b['runtime_minutes']:.0f} min at {b['mean_total_w']:.0f} W ({rt}); pack current at low "
           f"charge: mean {b['current_mean_a']['low_v']:.1f} A, RMS {b['current_rms_a']['low_v']:.1f} A, peak "

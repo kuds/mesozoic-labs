@@ -15,11 +15,14 @@ ESTIMATES, not measurements. Each drive is one thermal node, its winding, agains
   constant, the further above 100 C, since 90 min is then further from steady.
 - **The time constant** is ``R_th C`` at the reference resistance; the winding's resistance rises as it warms, so
   the response under load is somewhat slower than the label. It is not published as such, so it is a range. The
-  maker's overload figures fix it roughly; fitted with this model (23 Nov 2026):
-  - X4-36-L at 10.5 N m reaches 100 C in 5.4-12.4 min: 6.6-15.3 min; at 21 N m it lasts 44 s: 4.7 min
+  maker's overload figures fix it roughly; fitted with this model, calibrated at the 83 rpm equilibrium torque the
+  drive table uses (23 Nov 2026; two independent fits agree within 0.1 min):
+  - X4-36-L at 10.5 N m reaches 100 C in 5.4-12.4 min: 6.5-15.3 min; at 21 N m it lasts 44 s: 4.6-4.7 min
     (``hardware/trex_form_study/stage2/design/servo_model/reader2_hardware_facts.md``, the maker's figures);
   - X6-50-L at 20 N m reaches 100 C in 4 min 9 s: 8.1 min (``hardware/trex_form_study/designlab/data/actuators.json``).
-  Hence the default range 5, 8 and 15 min (``TIME_CONSTANTS_S``); every result is reported for each.
+  Calibrated at the X4-36-L's 0 rpm equilibrium torque (8.5 N m) instead, the X4 fits are 4.4-10.0 and 3.5 min.
+  Hence the default range 4, 8 and 15 min (``TIME_CONSTANTS_S``); every result is reported for each. Over a long
+  demo the result barely depends on it.
 - Not modelled: the housing as a second node, the drive electronics' own losses, iron losses, airflow inside a
   museum shell (worse than open air), and the controller's own thermal limits. Calibrate against a bench
   temperature-rise test when one exists (the bench plan).
@@ -35,7 +38,7 @@ import math
 from dataclasses import dataclass, field
 
 ALPHA_CU = 0.00393  # 1/K, copper's resistance temperature coefficient near 20 C
-TIME_CONSTANTS_S = (300.0, 480.0, 900.0)  # 5, 8 and 15 min: the maker-data fits above
+TIME_CONSTANTS_S = (240.0, 480.0, 900.0)  # 4, 8 and 15 min: the maker-data fits above
 
 
 def tc_key(time_constant_s: float) -> str:
@@ -128,8 +131,9 @@ def demo_temperatures(drives: dict[str, DriveThermal], segments: dict[str, list[
     """Per drive and time constant (keys ``tc_key``), from ``ambient_c``:
     - ``peak_c``, ``end_c``: over the demo's segments; ``minutes_to_limit``: when it first reaches ``limit_c`` (None
       if never); ``cooldown_minutes``: from the end to ``cooldown_to_c`` at zero load;
-    - ``continuous_c``: the temperature that repeating the demo without a break settles to, the steady state at the
-      demo's time-weighted mean squared torque (segments short against the time constant; None if it runs away);
+    - ``continuous_c``: repeating the demo without a break, the middle of the settled temperature cycle (the steady
+      state at the demo's time-weighted mean squared torque; segments short against the time constant); the cycle's
+      peaks are higher by the swing within a loop. None if it runs away (no steady state);
     - ``steady_at_thermal_eq_c``: the calibration's own steady state at ``thermal_eq_nm``.
     ``segments[name]``: that drive's (duration s, mean squared motor torque) list."""
     keys = [tc_key(tc) for tc in time_constants_s]

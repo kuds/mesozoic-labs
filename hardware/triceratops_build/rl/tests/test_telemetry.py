@@ -340,10 +340,10 @@ def test_thermal_calibration_reproduces_the_makers_figure_and_cools():
         assert n.run([(10 * tc, 7.5 ** 2)])[-1][1] == pytest.approx(ss, abs=0.2)
         assert n.run([(5 * tc, 0.0)], start_c=80.0)[-1][1] == pytest.approx(25.0 + 55.0 * math.exp(-5), abs=0.1)
     out = demo_temperatures({"x4": d}, {"x4": [(1200.0, 7.5 ** 2), (600.0, 0.0)]}, limit_c=60.0)
-    assert set(out["x4"]) == {"tau_300s", "tau_480s", "tau_900s"} and tc_key(610.5) == "tau_610.5s"
+    assert set(out["x4"]) == {"tau_240s", "tau_480s", "tau_900s"} and tc_key(610.5) == "tau_610.5s"
     r = out["x4"]["tau_480s"]
     assert r["peak_c"] > r["end_c"] > 25.0 and r["minutes_to_limit"] is not None and r["cooldown_minutes"] > 0
-    assert out["x4"]["tau_300s"]["peak_c"] > out["x4"]["tau_900s"]["peak_c"]  # a short time constant heats faster
+    assert out["x4"]["tau_240s"]["peak_c"] > out["x4"]["tau_900s"]["peak_c"]  # a short time constant heats faster
     # continuous: the steady state at the time-weighted mean square (2/3 of 7.5^2 here)
     assert r["continuous_c"] == pytest.approx(d.calibrate(480.0).steady_state_c(7.5 ** 2 * 2 / 3))
     assert 100.0 <= r["steady_at_thermal_eq_c"] < 102.0  # 90 min is about steady at an 8 min time constant
@@ -361,6 +361,7 @@ def test_thermal_default_range_brackets_the_makers_overload_figures():
     x4, x6 = DriveThermal("x4", 1.0, 0.2, 7.5), DriveThermal("x6", 1.0, 0.2, 12.0)
     lo, hi = min(TIME_CONSTANTS_S), max(TIME_CONSTANTS_S)
     assert minutes_to_100(x4, lo, 10.5) <= 5.4 and minutes_to_100(x4, hi, 10.5) >= 12.4 * 0.95  # 5.4-12.4 min
+    assert minutes_to_100(x4, lo, 21.0) <= 44 / 60 <= minutes_to_100(x4, hi, 21.0)  # 44 s
     assert minutes_to_100(x6, lo, 20.0) <= 4.15 <= minutes_to_100(x6, hi, 20.0)  # 4 min 9 s
 
 
@@ -411,11 +412,21 @@ def test_loads_balance_the_weight_standing():
 
 
 LINK_XML = """<mujoco><option gravity="0 0 -9.81" timestep="0.001"/><worldbody>
-<body name="link" pos="0 0 1">{joints}<geom type="sphere" size="0.01" pos="0 {L} 0" mass="2"/></body>
+<body name="base" pos="0 0 1"><geom type="sphere" size="0.02" pos="0.3 0 0" mass="10"/>
+<body name="link">{joints}<geom type="sphere" size="0.01" pos="0 {L} 0" mass="2"/></body></body>
 </worldbody>{actuators}</mujoco>"""
+GIMBAL_XML = """<mujoco><option gravity="0 0 -9.81" timestep="0.001"/><worldbody>
+<body name="base" pos="0 0 1"><geom type="sphere" size="0.02" pos="0.3 0 0" mass="10"/>
+<body name="yoke"><joint name="pitch" type="hinge" axis="0 1 0"/><inertial pos="0 0 0" mass="1e-4"
+diaginertia="1e-8 1e-8 1e-8"/>
+<body name="thigh"><joint name="roll" type="hinge" axis="1 0 0" damping="5"/>
+<geom type="sphere" size="0.01" pos="0 0.05 0" mass="2"/></body></body></body>
+</worldbody><actuator><position joint="roll" kp="2000"/></actuator></mujoco>"""
 
 
 def _link(joints, actuators="", L=0.05):
+    """A 2 kg link hinged under a heavy jointless base whose centre of mass (the reference cfrc_int is given at) is
+    away from the anchor, so an error in moving the moment to the anchor shows."""
     import mujoco
 
     m = mujoco.MjModel.from_xml_string(LINK_XML.format(joints=joints, actuators=actuators, L=L))
@@ -424,40 +435,51 @@ def _link(joints, actuators="", L=0.05):
 
 def test_loads_single_hinge_bending_is_analytic():
     """A 2 kg mass 0.05 m out along a hinge's own axis: the hinge carries no torque, the bearing 19.62 N and a
-    bending moment m g L = 0.981 N m (a sign error in the moment shift or the projection would show)."""
+    bending moment m g L = 0.981 N m. The reference point is the base's subtree centre of mass, 0.25 m away, so a
+    sign error in the moment shift shows (it reads 0.654 N m)."""
     import mujoco
 
     from telemetry.loads import LoadRecorder
 
     m, d = _link('<joint name="pitch" type="hinge" axis="0 1 0"/>')
     mujoco.mj_forward(m, d)
+    assert np.linalg.norm(d.subtree_com[m.body("base").id] - d.xanchor[0]) > 0.2
     rec = LoadRecorder(m, ["pitch"])
     rec(m, d)
     assert rec.force[0][0] == pytest.approx(19.62, abs=1e-3) and rec.moment[0][0] == pytest.approx(0.981, abs=1e-4)
-    # the same mass on a hinge across it (axis x): all of m g L is that hinge's torque, no bending
-    m, d = _link('<joint name="roll" type="hinge" axis="1 0 0"/>')
-    mujoco.mj_forward(m, d)
+    # the same mass on a hinge across it (axis x): m g L is that hinge's torque, not bending
+    m, d = _link('<joint name="roll" type="hinge" axis="1 0 0" damping="5"/>',
+                 '<actuator><position joint="roll" kp="2000"/></actuator>')
+    for _ in range(3000):
+        mujoco.mj_step(m, d)
     rec = LoadRecorder(m, ["roll"])
     rec(m, d)
-    assert rec.moment[0][0] < 0.05  # only the small inertial term of the free fall's first instant
+    assert rec.moment[0][0] < 0.02
 
 
-def test_loads_two_hinges_on_one_body_do_not_count_each_others_torque():
-    """Pitch (y) and roll (x) hinges on one body, the roll held by a stiff position servo against m g L: neither
-    joint reports the roll servo's torque as bending; both share the body's force."""
+def test_loads_two_hinges_on_one_body_are_a_serial_gimbal():
+    """Pitch (y) and roll (x) hinges on one body, the roll held by a stiff servo against m g L. MuJoCo chains them
+    in order, a serial gimbal: the pitch bearing carries the roll servo's torque as bending; the roll bearing carries
+    none here. The same hip built with an explicit near-massless yoke body gives the same figures."""
     import mujoco
 
     from telemetry.loads import LoadRecorder
 
     m, d = _link('<joint name="pitch" type="hinge" axis="0 1 0"/><joint name="roll" type="hinge" axis="1 0 0" '
                  'damping="5"/>', '<actuator><position joint="roll" kp="2000"/></actuator>')
+    g = mujoco.MjModel.from_xml_string(GIMBAL_XML)
+    gd = mujoco.MjData(g)
     for _ in range(3000):
         mujoco.mj_step(m, d)
-    rec = LoadRecorder(m, ["pitch", "roll"])
+        mujoco.mj_step(g, gd)
+    rec, grec = LoadRecorder(m, ["pitch", "roll"]), LoadRecorder(g, ["pitch", "roll"])
     rec(m, d)
+    grec(g, gd)
     assert abs(d.actuator_force[0]) == pytest.approx(0.981, rel=0.02)  # the servo holds m g L
     assert rec.force[0][0] == pytest.approx(19.62, rel=0.01) and rec.force[0][1] == rec.force[0][0]
-    assert rec.moment[0][0] < 0.02 and rec.moment[0][1] < 0.02
+    assert rec.moment[0][0] == pytest.approx(0.981, rel=0.02) and rec.moment[0][1] < 0.02
+    assert rec.moment[0] == pytest.approx(grec.moment[0], abs=0.01)  # the explicit gimbal agrees
+    assert rec.force[0] == pytest.approx(grec.force[0], rel=1e-3)
     s = rec.summary(19.62)
     assert s["joints"]["pitch"]["shares_body_with"] == ["roll"]
     ball_m, ball_d = _link('<joint name="ball" type="ball"/>')
@@ -465,7 +487,8 @@ def test_loads_two_hinges_on_one_body_do_not_count_each_others_torque():
     rec = LoadRecorder(ball_m, ["ball"])
     rec(ball_m, ball_d)
     assert rec.summary(19.62)["joints"]["ball"]["bending_nm"] is None
-    free_m, _ = _link('<freejoint name="base"/>')
+    free_m = mujoco.MjModel.from_xml_string('<mujoco><worldbody><body name="b"><freejoint name="base"/>'
+                                            '<geom type="sphere" size="0.1" mass="1"/></body></worldbody></mujoco>')
     with pytest.raises(ValueError, match="free joint"):
         LoadRecorder(free_m, ["base"])
 
@@ -497,9 +520,10 @@ def test_demo_loop_is_validated():
     import demo_course
 
     assert demo_course.build_sequence([("walk", 0.0), ("stand", 30.0)], 1.5) == [("stand", 30.0)] * 3
+    assert demo_course.build_sequence([("walk", 1e-10), ("stand", 30.0)], 1.0) == [("stand", 30.0)] * 2
     assert demo_course.build_sequence([("walk", 60.0), ("stand", 30.0)], 2.0) == [("walk", 60.0), ("stand", 30.0),
                                                                                    ("walk", 30.0)]
-    for loop in ([("walk", 0.0), ("stand", 0.0)], [("walk", -5.0), ("stand", 30.0)]):
+    for loop in ([("walk", 0.0), ("stand", 0.0)], [("walk", -5.0), ("stand", 30.0)], [("walk", 1e-10)]):
         with pytest.raises(ValueError):
             demo_course.build_sequence(loop, 1.0)
 
@@ -518,7 +542,7 @@ def test_demo_course_runs_end_to_end(tmp_path):
         res["segments"]["walk_0.25"]["mean_draw_w"]
     assert b["current_peak_all_segments_a"]["low_v"] >= b["current_peak_a"]["low_v"]
     assert b["current_rms_a"]["low_v"] >= b["current_mean_a"]["low_v"]
-    assert set(next(iter(res["temperatures"].values()))) == {"tau_300s", "tau_480s", "tau_900s"}
+    assert set(next(iter(res["temperatures"].values()))) == {"tau_240s", "tau_480s", "tau_900s"}
     h = res["loads_headline"]
     assert {"joint_force_p99_bw", "joint_force_max_bw", "bending_p99_nm", "bending_max_nm", "foot_max_bw"} <= set(h)
     worst = max(j["force_bw"]["p99"] for s in res["segments"].values() for j in s["loads"]["joints"].values())

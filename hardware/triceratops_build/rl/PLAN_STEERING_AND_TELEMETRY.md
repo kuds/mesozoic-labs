@@ -46,7 +46,7 @@ not wired into any T. rex code.
 |---|---|---|
 | `health.py` | An SB3 callback writing `train_health.jsonl`: the learning algorithm's own diagnostics (approx. KL, clip fraction, entropy, action std, value loss, explained variance, learning rate, gradient norm), per-rollout means of every reward term (by prefix: `reward_` by default, `r_` added by the build), and termination causes. A training-dashboard panel reads it. | SB3 logger, step `info` |
 | `checks.py` | Periodic checks during training, every N steps: named points (a step, a push, a slippery floor, a turn), a few deterministic episodes each, through a robot-supplied `run_point`, one line each in `checks_during_training.jsonl`. Not judged: the final checkpoint is what is judged. | `run_point`, point list |
-| `thermal.py` | A first-order winding-temperature model per drive, driven by the copper loss of its torque: the temperature over a long episode, the time to a limit, and cool-down. Calibrated from the maker's temperature-rise figure (`thermal_eq_nm`: 90 min to 100 °C, open air). The time constant is not published as such; as built, it is a 5-15 min range fitted to the maker's overload figures, labelled as such. | drive table, torque trace |
+| `thermal.py` | A first-order winding-temperature model per drive, driven by the copper loss of its torque: the temperature over a long episode, the time to a limit, and cool-down. Calibrated from the maker's temperature-rise figure (`thermal_eq_nm`: 90 min to 100 °C, open air). The time constant is not published as such; as built, it is a 4-15 min range fitted to the maker's overload figures, labelled as such. | drive table, torque trace |
 | `power.py` | Per drive and pack: electrical power (mechanical plus copper loss, with regeneration shown separately), peak and RMS pack current at the pack voltage, energy per metre, and runtime for a demo duty mix. Generalises the gait report's power section. | drive table, pack (Wh, V, usable share), hotel load |
 | `loads.py` | Distributions of joint torque and joint reaction force (bearing loads), and foot impact forces, per joint and per foot, for the bench plan and part sizing. | MuJoCo model and data per step |
 
@@ -55,14 +55,14 @@ controller for 15-20 simulated minutes. It reports heat, battery and loads in on
 
 *As built (`demo_course.py`, 23 Nov, revised after its review):* straight segments only (walking at 0.25 and 0.15
 m/s, standing), each simulated for 20 s and measured from 2 s, then a walk-stand loop modelled for one pack's runtime
-(106 min with the trot). Done beyond the plan: RMS pack current, energy per metre per segment, the largest braking
-event, runtime over the hotel-load range, the temperature without a break. Not done yet:
+(106 min with the trot). Done as the plan's `power.py` row asks: RMS pack current and energy per metre per segment;
+added: the largest braking event, runtime over the hotel-load range, the temperature cycle without a break. Not done yet:
 - turns and turning on the spot (they wait for a steering policy; the trot walks straight);
 - starts and stops (the first 2 s of each segment are not measured, about 10 transitions per 20 min);
 - joint-torque distributions (the heat model takes each drive's mean squared torque only);
 - foot impact rates (only percentiles and maxima of the contact forces are kept);
 - the head and tail servos in the battery figure.
-The thermal time constant is no longer an open guess: the maker's overload figures fit 5-15 min (`thermal.py`).
+The thermal time constant is no longer an open guess: the maker's overload figures fit about 4-15 min (`thermal.py`).
 
 ## Steering in the build env (inert by default)
 
