@@ -21,8 +21,8 @@ Exempt: docstrings and comments (prose may name an animal, "the T-Rex"),
 retired schema name ``mesozoic.trex-command-terrain/v1`` in the test that
 proves it refused, a hyphenated binomial (``compsognathus-longipes-sensors/v1``:
 a genus followed by ``-`` and its own epithet), a record's file name in
-capitals (``RAPTOR_SCALING_AND_ALTERNATIVES.md``), a genus in capitals that
-stands as a word in a rendered heading, and recorded history: each
+capitals (``TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md``), a genus in capitals
+that stands as a word in a rendered heading, and recorded history: each
 calibration's ``restamp_history`` (the identities and reasons it recorded) and
 a test string quoting one of those reasons verbatim.
 
@@ -73,7 +73,7 @@ RETIRED = re.compile(
     # ``MesozoicLabs/Dibothrosuchus-v0``); the display word ``Velociraptor`` and the binomials are spared.
     r"|(?:Velociraptor|Brachiosaurus|Dibothrosuchus)(?=Env|-v\d)|Compsognathus(?=Env|_?Robot|_?Biological|-v\d)"
     # Upper case, as a constant's name spells it (``TREX_STAGE1``, ``VELOCIRAPTOR_ARGS``), a record's file name
-    # (``RAPTOR_SCALING_AND_ALTERNATIVES.md``) aside.  A genus in capitals counts only joined to a word by ``_``
+    # (``TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md``) aside.  A genus in capitals counts only joined to a word by ``_``
     # or standing alone, since a rendered heading spells the animal so ("MESOZOIC LABS  /  COMPSOGNATHUS").
     r"|(?:(?<![A-Z0-9])(?:TREX|T_REX|RAPTOR|BRACHIO(?!SAURUS)|DIBO(?!THRO)|COMPSO(?!GNATHUS)|BIOLOGICAL)(?=_|\b)"
     rf"|(?<=_){_UPPER_GENERA}(?=_|\b)|(?<![A-Za-z0-9]){_UPPER_GENERA}(?=_)|^{_UPPER_GENERA}$)"
@@ -362,7 +362,7 @@ def test_the_pattern_catches_a_retired_identifier_at_any_boundary_and_spares_the
         "DIBOTHROSUCHUS_ELAPHROS",
         "BRACHIOSAURUS_ALTITHORAX_ANATOMICAL",
         "MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0",
-        "docs/RAPTOR_SCALING_AND_ALTERNATIVES.md",
+        "docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md",
         "MESOZOIC LABS  /  COMPSOGNATHUS",
     ):
         assert not retired_names(current), current

@@ -2664,6 +2664,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The wheel ships only the data files runtime code reads.**
+  `pyproject.toml`'s package data no longer globs `data/*.json` in every
+  package or names the anatomical Compsognathus recovery evidence
+  (`recovery_calibration_anatomical_r3.json.gz`). It lists
+  `compsognathus_longipes/data/model_parameters.json` (read by `model.py`) and
+  `shared/data/plant_manifest.generated.json` (the plant contract's bundled
+  manifest). The other files in each species' `data/` are evidence the docs
+  link to, read from a checkout. `include-package-data` is off, so that list
+  is the whole of it: a stale `*.egg-info` or setuptools-scm in the build
+  environment can no longer add every tracked file in a package. The wheel
+  goes from 9,052,735 B to 8,345,037 B.
+  `environments/shared/tests/test_package_data.py` pins the shipped set and
+  the setting.
+- **Issue templates:** the bug report asks for the model (species ID and
+  embodiment) and suggests MuJoCo 3.10.0 (the pinned version) and
+  mesozoic-labs 0.4.0.dev2 with the commit. The new-species proposal asks for
+  the binomial, the species ID and the embodiment (decision D-D33,
+  `docs/SPECIES_NAMING.md`).
+- **Docs:** `docs/hardware/README.md` gives the pull-request states as read on
+  23 Nov 2026 (#649 and #662 are now closed; all four October T. rex concept
+  PRs are closed unmerged). `docs/hardware/SIM_TO_REAL_PLAN.md` gains a dated
+  status note: `obs_functions.py` is gone, each env builds its observation in
+  `_get_obs`, and the current `species_manifest.toml` capability lines are
+  :40-58.
 - **Species display names are written in scientific form**: "Tyrannosaurus rex",
   "Velociraptor mongoliensis", "Brachiosaurus altithorax", "Dibothrosuchus elaphros",
   "Compsognathus longipes" and "Allosaurus fragilis" (genus capitalized, epithet
@@ -5113,6 +5137,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- `website/static/img/velociraptor_mongoliensis_anatomical_stance_ppo.gif`
+  (2,427,423 B). Nothing has referenced it since the homepage rewrite of
+  2026-11-20, and `results/velociraptor_mongoliensis/anatomical/ppo/stance.gif`
+  keeps the same file. The two apex GIFs stay by the owner's decision of 2026-09-30.
+- **`LocomotionMetrics`' gait symmetry, stride frequency and cost of
+  transport**, together with `quad_gait_symmetry`, `total_energy`,
+  `compute()`'s `body_mass` argument, and the `eval` and curriculum log lines
+  that printed them. They measured the wrong thing: in-phase hopping scored
+  symmetry 1.0, a double-support walk read 0 Hz, and the transport cost
+  divided the action penalty by distance. No gate, result schema or bundle
+  read them. The website's metric tables and its list of `eval` output
+  sections no longer include them.
+- **The retired `[curriculum.jax]` override table and the JAX array
+  dispatch.** Where the gate schema runs (CLI curriculum training, through
+  `thresholds_from_configs`), it now refuses a `[curriculum.jax]` sub-table by
+  name, whatever `advancement_enabled` is set to. Only the JAX/MJX trainer
+  applied that table, and D-D17 retired it. Unlike a top-level `[jax]`, which
+  the stage loader refuses on every path, the table is not refused at load
+  time, so the SB3 notebook, which never runs the gate schema, still loads
+  one. Its validation code is gone (`BACKEND_OVERRIDE_TABLES`,
+  `BACKEND_OVERRIDABLE_KEYS`, `_validate_backend_override_table`). No
+  committed stage config held the table, and `gate_config_view` never
+  projected it, so no gate digest moves. `reward_functions.py` and
+  `perturbation.py` are NumPy-only: both `_array_mod` helpers and their
+  `jax.numpy` branches are gone, `check_height_tilt_termination` returns
+  `tuple[bool, str | None]` directly, and the docstrings no longer describe
+  JAX tracing. Two comments in `action_filter.py` lose their JAX wording, and
+  its hashed tokens are unchanged. Two guard tests no longer name deleted
+  files: the retired-tuning scan drops the species `requirements*.txt` clause,
+  and the retired-identifier test's exempt record-name example is now
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`. The cleanup
+  plan's §4.9 takes dated amendments for the two items it had said to keep.
+  The digest golden, the plant manifest and the species catalog are current,
+  and the bit-exact reward captures match the base.
 - **The species `requirements.txt` files** of the Velociraptor, the T. rex and the
   Brachiosaurus. They asked for `mujoco>=3.0.0` and `stable-baselines3[extra]>=2.2.0`,
   against the package's `mujoco==3.10.0` and `train` extra, so an install from one got a
@@ -5202,6 +5260,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **An `--eval-freq` below `--n-envs` no longer turns evaluation off.** The
+  `EvalCallback` cadence was `eval_freq // n_envs` with no floor. Below
+  `--n-envs` that came to 0, which `EvalCallback` never reaches, so the stage
+  trained with no evaluation, no best model and no gate. The cadence is now at
+  least 1, as the checkpoint stride already was. `train` and `curriculum` also
+  reject a non-positive `--eval-freq` with a usage error.
+- **`--override` values get the type the stage TOML gives the same text.** A
+  value is parsed as a TOML value. `1.0` stays a float (it used to become the
+  int `1`, which gave the stage a different `hyperparameters_sha256` from the
+  TOML's own `1.0`), `true`/`false` are booleans, and quoted strings, arrays
+  and inline tables parse. A bare word such as `MlpPolicy` stays a string,
+  `True`/`FALSE` stay booleans and `.5` stays a number. A value TOML types as
+  a float is now a float, so write integers without a decimal point or
+  exponent (`curriculum.timesteps=1000000`, not `1e6`).
+- **`--override` can set nested keys** (`ppo.policy_kwargs.log_std_init=-1.5`,
+  in both the all-stages and the `STAGE.section` forms). `env.a.b=v` used to
+  write the flat key `'a.b'` into `env_kwargs`, which failed only at env
+  construction. Each step must be a table the stage config declares. The one
+  exception is an algorithm block's `policy_kwargs`, which is created when
+  absent. Any other step is refused, with an error naming the override, before
+  any stage is written.
+- **Success counts read each species' own success keys.** The curriculum's
+  supplementary and standalone evaluations and `LocomotionMetrics` checked
+  hard-coded key tuples. These missed Dibothrosuchus `snap_success` and
+  Allosaurus `course_complete`, and the curriculum's tuple also missed
+  Compsognathus `target_success`. As a result, the curriculum's evaluations
+  read those successes as 0, and `eval` reported no success rate at all for
+  Dibothrosuchus or Allosaurus. They now read `SpeciesConfig.success_keys`
+  (`train_curriculum`, `evaluate()` and `eval_policy_quality` pass them in),
+  and fall back to every species' keys when none is given.
 - **T. rex stance training no longer fails on a fresh `pip install -e ".[train]"`**
   (`environments/shared/mirror_kl_ppo.py`, `pyproject.toml`). The mirror-symmetric PPO
   guard refused any stable-baselines3 but 2.9.0, though pip resolves 2.9.2, whose sources

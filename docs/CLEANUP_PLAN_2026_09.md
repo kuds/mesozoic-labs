@@ -1448,7 +1448,9 @@ unchanged, with no rebase conflict.
   a shallow clone could not rule out a historical `jax` sub-table. *CU-7a (#572, 2026-09-30) departs from this bullet
   for the two merge helpers only: `apply_backend_overrides` and `has_backend_overrides` had no caller after D-D17
   and are deleted, while the validation stays; a full clone shows that no committed stage TOML ever held a
-  `[curriculum.jax]` table.*
+  `[curriculum.jax]` table.* *Amended 2026-11-23: the validation is deleted too, and `validate_gate_config` refuses a
+  `[curriculum.jax]` table by name instead. Only CLI curriculum training runs it (through `thresholds_from_configs`);
+  no reader of recorded blocks does, and neither does the SB3 notebook. `gate_config_view` still leaves the table out.*
 - **`command_frame.py`,** including its MJX refusal. PR-9 rewrites that file.
 - **All of SAC.**
 - **The frozen core,** the dual declarations, the `foot_contact_*` keys and params, and the byte-frozen files.
@@ -1461,7 +1463,9 @@ unchanged, with no rebase conflict.
 - **The generated JAX/MJX metric lines** in the README and on the website. Changing those is a separate catalog PR
   (decision 17).
 - **`obs_functions._array_mod`,** which is hashed. The NumPy-only simplification of the other two `_array_mod` copies
-  is digest-safe but optional, so defer it.
+  is digest-safe but optional, so defer it. *Amended 2026-11-23: `obs_functions.py` went with the core (§4.1's
+  amendment of 2026-11-21), and the other two copies are gone: `reward_functions.py` and `perturbation.py` are
+  NumPy-only.*
 
 ### 4.10 How to add a backend back
 

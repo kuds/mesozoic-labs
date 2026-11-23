@@ -137,7 +137,11 @@ static table here.
 
 ## Overriding Hyperparameters from the CLI
 
-Use `--override` to change TOML values without editing files — useful for hyperparameter sweeps. Keys use dot notation; values are auto-cast to `int`, `float`, or `str`:
+Use `--override` to change TOML values without editing files — useful for hyperparameter sweeps. Keys use dot
+notation. A value is read as a TOML value, so it has the type the same text has in the stage TOML: `1.0` is a float
+and `1` an int, `true` and `false` are booleans, and quoted strings and arrays work; a bare word such as
+`MlpPolicy` stays a string. Write the value as the TOML would, since the stage's `hyperparameters_sha256` tells
+`1` and `1.0` apart:
 
 ```bash
 # Override learning rate and entropy coefficient for all stages
@@ -156,6 +160,11 @@ Supported key prefixes:
 | `ppo.X` | `ppo_kwargs[X]` |
 | `sac.X` | `sac_kwargs[X]` |
 | `env.X` | `env_kwargs[X]` (reward weights, episode settings) |
+| `ppo.policy_kwargs.X` | `ppo_kwargs["policy_kwargs"][X]` (likewise for `sac`) |
+
+A longer key sets a key inside a nested table: `ppo.policy_kwargs.log_std_init=-1.5`, or
+`'ppo.policy_kwargs.net_arch=[64, 64]'` (quoted for the shell). Each step must be a table the stage config declares;
+only `policy_kwargs` is created when a stage has none, and any other step is refused before training starts.
 
 For stage-scoped overrides, prefix with the stage's legacy number or its id: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`, or `recovery.ppo.learning_rate=1e-4` on a `train --stage recovery` run. Plain `section.key=value` still applies to all stages.
 

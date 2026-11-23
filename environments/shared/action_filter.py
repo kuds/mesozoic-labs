@@ -38,7 +38,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-# NumPy arrays (jax.numpy ones work too); plain arithmetic only.
+# NumPy arrays; plain arithmetic only.
 Array = Any
 
 
@@ -59,7 +59,7 @@ def low_pass_alpha(cutoff_hz: float, control_dt: float) -> float:
 def apply_low_pass(previous: Array, current: Array, alpha: float) -> Array:
     """One filter update: blend ``current`` into the carried filter state.
 
-    Arithmetic only, so it also takes JAX arrays and traces.  Seeding —
+    Arithmetic only.  Seeding —
     returning ``current`` unblended on the first post-reset step — is the
     caller's job: ``BaseDinoEnv`` detects the episode boundary from its own
     ``_step_count``.

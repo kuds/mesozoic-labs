@@ -617,6 +617,7 @@ class TestEvaluateFunction:
             env_class=MagicMock(),
             height_label="Pelvis height",
             behavior_section_label="Hunting",
+            success_keys=["strike_success"],
         )
 
         with (
@@ -652,6 +653,7 @@ class TestEvaluateFunction:
             env_class=MagicMock(),
             height_label="Pelvis height",
             behavior_section_label="Hunting",
+            success_keys=["strike_success"],
         )
 
         with (
@@ -688,6 +690,7 @@ def _species_cfg():
         env_class=MagicMock(),
         height_label="Pelvis height",
         behavior_section_label="Hunting",
+        success_keys=["strike_success"],
     )
 
 
@@ -931,7 +934,9 @@ class TestEvaluateSeeding:
                 ),
             ):
                 evaluate(
-                    species_cfg=SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=NoisyEnv),
+                    species_cfg=SimpleNamespace(
+                        model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=NoisyEnv, success_keys=["strike_success"]
+                    ),
                     stage_configs={1: {"name": "balance", "env_kwargs": {}}},
                     model_path=str(tmp_path / "stage1_model.zip"),
                     n_episodes=4,

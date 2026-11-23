@@ -194,6 +194,38 @@ class TestBuildCoreCallbacks:
         assert plateau_callback.min_relative_variation == 0.02
         eval_env.close()
 
+    @pytest.mark.parametrize(("eval_freq", "n_envs", "expected"), [(2, 4, 1), (3, 4, 1), (4, 4, 1), (100, 4, 25)])
+    def test_the_eval_callback_cadence_is_at_least_one_call(self, tmp_path, monkeypatch, eval_freq, n_envs, expected):
+        """``eval_freq // n_envs`` floored to 0 below n_envs, and EvalCallback never evaluates at 0."""
+        pytest.importorskip("stable_baselines3")
+        import tempfile
+
+        from stable_baselines3.common.callbacks import CheckpointCallback
+        from stable_baselines3.common.vec_env import DummyVecEnv
+
+        from .tiny_env_helpers import tiny_env_class
+
+        scratch = tmp_path / "scratch"
+        scratch.mkdir()
+        monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+        eval_env = DummyVecEnv([tiny_env_class(info={"forward_vel": 0.0})])
+        try:
+            _, eval_callback, _ = _build_core_callbacks(
+                {"CheckpointCallback": CheckpointCallback},
+                eval_env,
+                tmp_path / "models",
+                tmp_path / "logs",
+                1,
+                n_envs,
+                eval_freq,
+                100,
+                0,
+                {"curriculum_kwargs": {"min_avg_reward": 100.0}},
+            )
+        finally:
+            eval_env.close()
+        assert eval_callback.eval_freq == expected
+
     def test_collapse_early_stop_params_are_configurable(self, tmp_path):
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback
@@ -1109,7 +1141,7 @@ class TestTrainCurriculumWalksTheManifest:
         )
         monkeypatch.setattr(plant_contract, "write_plant_identity", lambda path, identity: None)
 
-        species_cfg = SimpleNamespace(model_id=model_id, env_class=object)
+        species_cfg = SimpleNamespace(model_id=model_id, env_class=object, success_keys=[])
         with caplog.at_level(logging.INFO):
             train_base.train_curriculum(
                 species_cfg,
@@ -2978,7 +3010,7 @@ class TestOneStageBody:
         from environments.shared.config import load_all_stages
 
         train_base.train_curriculum(
-            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object, success_keys=["strike_success"]),
             load_all_stages(VELOCIRAPTOR_MONGOLIENSIS) if stage_configs is None else stage_configs,
             n_envs=1,
             seed=self.SEED,
@@ -3235,6 +3267,12 @@ class TestOneStageBody:
         self._run_curriculum(tmp_path)
         node = ["env", "env", "model", "entropy decay", "panel size", "shaping", "learn"]
         assert [event for event in events if event in node] == node * 3
+
+    def test_the_curriculum_callback_reads_the_species_success_keys(self, tmp_path, monkeypatch):
+        """Its supplementary and standalone evaluations read the species' success keys, not a hard-coded tuple
+        that missed snap_success and course_complete."""
+        self._curriculum(tmp_path, monkeypatch)
+        assert [kwargs["success_keys"] for kwargs in self.record["curriculum_kwargs"]] == [["strike_success"]] * 3
 
     def test_a_node_releases_the_previous_nodes_model_before_it_trains(self, tmp_path, monkeypatch):
         """An SB3 callback keeps the model it trained (``BaseCallback.model``), and a SAC model its replay

@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from environments.shared.metrics import LocomotionMetrics
+from environments.shared.metrics import FALLBACK_SUCCESS_KEYS, LocomotionMetrics
+from environments.shared.model_id import ModelId
 
 
 class TestLocomotionMetrics:
@@ -19,7 +20,6 @@ class TestLocomotionMetrics:
         assert np.isnan(result["mean_forward_velocity"])
         assert np.isnan(result["total_distance"])
         assert "mean_forward_velocity" in result
-        assert "cost_of_transport" in result
 
     def test_forward_velocity_stats(self, metrics):
         for _ in range(10):
@@ -35,25 +35,24 @@ class TestLocomotionMetrics:
         result = metrics.compute()
         assert result["total_distance"] == pytest.approx(1.0)  # 10 * 1.0 * 0.1
 
-    def test_cost_of_transport(self, metrics):
-        metrics.dt = 0.1
-        for _ in range(10):
+    def test_gait_symmetry_stride_frequency_and_cost_of_transport_are_not_reported(self, metrics):
+        """They measured the wrong thing (in-phase hopping scored symmetry 1.0, a double-support walk 0 Hz, and
+        the transport cost divided the action penalty by distance), and no gate or record read them."""
+        for step in range(20):
+            contact = float(step % 4 < 2)
             metrics.record_step(
-                {"forward_vel": 1.0, "reward_energy": -0.5},
-                reward=1.0,
+                {
+                    "forward_vel": 1.0,
+                    "reward_energy": -0.5,
+                    "l_foot_contact": contact,
+                    "r_foot_contact": contact,
+                    "rl_foot_contact": contact,
+                    "rr_foot_contact": contact,
+                }
             )
-        result = metrics.compute(body_mass=2.0)
-        # total_energy = 10 * 0.5 = 5.0
-        # distance = 10 * 1.0 * 0.1 = 1.0
-        # CoT = 5.0 / (2.0 * 9.81 * 1.0) ≈ 0.255
-        expected_cot = 5.0 / (2.0 * 9.81 * 1.0)
-        assert result["cost_of_transport"] == pytest.approx(expected_cot, rel=0.01)
-
-    def test_cost_of_transport_zero_distance(self, metrics):
-        for _ in range(5):
-            metrics.record_step({"forward_vel": 0.0, "reward_energy": -1.0}, reward=0.0)
-        result = metrics.compute()
-        assert result["cost_of_transport"] == float("inf")
+        removed = {"gait_symmetry", "quad_gait_symmetry", "stride_frequency", "cost_of_transport", "total_energy"}
+        assert not removed & set(metrics.compute())
+        assert not removed & set(LocomotionMetrics().compute())
 
     def test_pelvis_height_stats(self, metrics):
         for h in [0.5, 0.6, 0.5, 0.6]:
@@ -184,29 +183,6 @@ class TestLocomotionMetrics:
         assert "mean_foot_load_imbalance" not in result
 
 
-class TestGaitSymmetry:
-    """Test gait symmetry computation."""
-
-    def test_perfect_symmetry(self):
-        # Perfectly alternating contacts
-        left = np.array([1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0], dtype=float)
-        right = np.array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], dtype=float)
-        sym = LocomotionMetrics._compute_gait_symmetry(left, right)
-        assert sym == pytest.approx(1.0, abs=0.1)
-
-    def test_no_contacts(self):
-        left = np.zeros(10)
-        right = np.zeros(10)
-        sym = LocomotionMetrics._compute_gait_symmetry(left, right)
-        assert sym == 0.0
-
-    def test_single_foot_only(self):
-        left = np.array([1, 0, 1, 0, 1, 0], dtype=float)
-        right = np.zeros(6)
-        sym = LocomotionMetrics._compute_gait_symmetry(left, right)
-        assert sym == 0.0
-
-
 class TestAggregateEpisodes:
     """Test multi-episode aggregation."""
 
@@ -251,6 +227,60 @@ class TestSuccessRate:
             reports.append(m.compute())
         agg = LocomotionMetrics.aggregate_episodes(reports)
         assert agg["mean_success_rate"] == pytest.approx(0.75)
+
+
+#: Models whose success keys the old hard-coded tuples missed: snap_success and course_complete everywhere,
+#: target_success in the curriculum's supplementary and standalone evaluations.
+SPECIES_SUCCESS_CASES = [
+    (ModelId("dibothrosuchus_elaphros", "anatomical"), "snap_success"),
+    (ModelId("allosaurus_fragilis", "anatomical"), "course_complete"),
+    (ModelId("compsognathus_longipes", "anatomical"), "target_success"),
+    (ModelId("compsognathus_longipes", "robot"), "target_success"),
+]
+
+
+class TestSpeciesSuccessKeys:
+    """``LocomotionMetrics`` reads the species' ``success_keys``, and its fallback covers every species."""
+
+    @pytest.mark.parametrize(("model_id", "key"), SPECIES_SUCCESS_CASES, ids=lambda case: str(case))
+    def test_the_species_success_key_is_counted(self, model_id, key):
+        from environments.shared.species_registry import get_species_config
+
+        success_keys = get_species_config(model_id).success_keys
+        assert key in success_keys
+        reports = []
+        for success in (0.0, 1.0, 1.0, 0.0):
+            metrics = LocomotionMetrics(success_keys=success_keys)
+            metrics.record_step({"forward_vel": 0.0, key: 0.0})
+            metrics.record_step({"forward_vel": 0.0, key: success})
+            reports.append(metrics.compute())
+        assert [report["success_rate"] for report in reports] == [0.0, 1.0, 1.0, 0.0]
+        assert LocomotionMetrics.aggregate_episodes(reports)["mean_success_rate"] == pytest.approx(0.5)
+
+    def test_another_species_key_is_not_this_species_success(self):
+        metrics = LocomotionMetrics(success_keys=["snap_success"])
+        metrics.record_step({"forward_vel": 0.0, "snap_success": 0.0, "bite_success": 1.0})
+        assert metrics.compute()["success_rate"] == 0.0
+
+    def test_a_step_succeeds_when_any_of_the_species_keys_does(self):
+        """The T-Rex lists bite_success then strike_success: the first present key alone used to decide."""
+        metrics = LocomotionMetrics(success_keys=["bite_success", "strike_success"])
+        metrics.record_step({"forward_vel": 0.0, "bite_success": 0.0, "strike_success": 1.0})
+        assert metrics.compute()["success_rate"] == 1.0
+
+    def test_the_fallback_names_every_species_success_key(self):
+        """Read without a species, it must name every key a manifest model's env class lists, and no other."""
+        from environments.shared.species_names import model_ids
+        from environments.shared.species_registry import env_class
+
+        declared = {key for model_id in model_ids() for key in env_class(model_id).SUCCESS_KEYS}
+        assert declared == set(FALLBACK_SUCCESS_KEYS)
+
+    @pytest.mark.parametrize("key", FALLBACK_SUCCESS_KEYS)
+    def test_without_species_keys_the_fallback_is_read(self, key):
+        metrics = LocomotionMetrics()
+        metrics.record_step({"forward_vel": 0.0, key: 1.0})
+        assert metrics.compute()["success_rate"] == 1.0
 
 
 class TestDt:

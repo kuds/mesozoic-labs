@@ -12,23 +12,67 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 
 class TestCastValue:
-    """Test _cast_value auto-casting (covers cli.py's copy of the function)."""
+    """An override value is parsed as the TOML value it spells."""
 
     def test_int_string(self):
         assert _cast_value("42") == 42
+        assert isinstance(_cast_value("42"), int)
 
     def test_float_string(self):
         assert _cast_value("3.14") == pytest.approx(3.14)
 
-    def test_float_encoded_int(self):
-        assert _cast_value("128.0") == 128
-        assert isinstance(_cast_value("128.0"), int)
+    @pytest.mark.parametrize("raw", ["1.0", "128.0", "0.0", "-2.0"])
+    def test_a_float_with_an_integral_value_stays_a_float(self, raw):
+        """TOML's ``x = 1.0`` is a float, so ``--override ppo.x=1.0`` must be one too: the int this used to
+        return gave the stage a different hyperparameters_sha256 than the TOML's own value."""
+        value = _cast_value(raw)
+        assert isinstance(value, float) and value == float(raw)
 
     def test_plain_string(self):
         assert _cast_value("hello") == "hello"
 
+    def test_a_bare_word_that_is_not_toml_stays_the_raw_string(self):
+        assert _cast_value("MlpPolicy") == "MlpPolicy"
+        assert _cast_value("") == ""
+
     def test_scientific_notation(self):
         assert _cast_value("1e-4") == pytest.approx(1e-4)
+
+    @pytest.mark.parametrize(("raw", "expected"), [("true", True), ("false", False), ("True", True), ("FALSE", False)])
+    def test_booleans_in_any_case(self, raw, expected):
+        assert _cast_value(raw) is expected
+
+    @pytest.mark.parametrize(("raw", "expected"), [("'MlpPolicy'", "MlpPolicy"), ('"a b"', "a b"), ("'1.0'", "1.0")])
+    def test_quoted_strings_are_strings(self, raw, expected):
+        assert _cast_value(raw) == expected
+
+    def test_arrays_and_inline_tables(self):
+        assert _cast_value("[512, 256]") == [512, 256]
+        assert _cast_value("[1.0, 2]") == [1.0, 2]
+        assert _cast_value("{pi = [64, 64], vf = [64]}") == {"pi": [64, 64], "vf": [64]}
+
+    @pytest.mark.parametrize(("raw", "expected"), [(".5", 0.5), ("007", 7), ("5.", 5.0)])
+    def test_a_number_toml_refuses_is_still_a_number(self, raw, expected):
+        value = _cast_value(raw)
+        assert value == expected and type(value) is type(expected)
+
+    def test_an_override_types_its_value_as_the_stage_toml_does(self):
+        """``--override`` of a value with the TOML's own text leaves the stage's hyperparameters_sha256 unchanged."""
+        from environments.shared.config import hyperparameters_sha256, load_all_stages
+
+        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
+        stance = configs[1]["ppo_kwargs"]
+        # The committed values these overrides restate: a float with an integral value, and a nested one.
+        assert stance["ent_coef_end"] == 0.0 and isinstance(stance["ent_coef_end"], float)
+        assert stance["policy_kwargs"]["log_std_init"] == -2.30
+        digest = hyperparameters_sha256(configs[1], "ppo")
+
+        _apply_overrides(configs, ["1.ppo.ent_coef_end=0.0", "1.ppo.policy_kwargs.log_std_init=-2.30"])
+        assert hyperparameters_sha256(configs[1], "ppo") == digest
+
+        # The int the old cast produced is a different recipe.
+        _apply_overrides(configs, ["1.ppo.ent_coef_end=0"])
+        assert hyperparameters_sha256(configs[1], "ppo") != digest
 
 
 class TestApplyOverrides:
@@ -338,6 +382,37 @@ class TestMainDispatch:
         kwargs = self._run_curriculum(species_cfg, []).call_args.kwargs
         assert not {"gcs_bucket", "gcs_project"} & set(kwargs)
 
+    @pytest.mark.parametrize("command", ["train", "curriculum"])
+    @pytest.mark.parametrize("raw", ["0", "-50000", "1e4"])
+    def test_a_non_positive_eval_freq_is_a_usage_error(self, species_cfg, capsys, command, raw):
+        """``--eval-freq 0`` used to reach the trainer as an evaluation interval EvalCallback never reaches."""
+        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        with (
+            patch("environments.shared.config.load_all_stages", mock_load),
+            patch("environments.shared.train_base.train") as mock_train,
+            patch("environments.shared.train_base.train_curriculum") as mock_curriculum,
+            patch("sys.argv", ["prog", command, f"--eval-freq={raw}"]),
+            pytest.raises(SystemExit) as excinfo,
+        ):
+            main(species_cfg)
+        assert excinfo.value.code == 2
+        assert "argument --eval-freq: expected a positive number of steps, got" in capsys.readouterr().err
+        mock_train.assert_not_called()
+        mock_curriculum.assert_not_called()
+
+    def test_a_positive_eval_freq_reaches_both_trainers(self, species_cfg):
+        mock_train = MagicMock()
+        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        with (
+            patch("environments.shared.config.load_all_stages", mock_load),
+            patch("environments.shared.train_base.train", mock_train),
+            patch("sys.argv", ["prog", "train", "--timesteps", "1000", "--eval-freq", "1"]),
+        ):
+            main(species_cfg)
+        assert mock_train.call_args.kwargs["eval_freq"] == 1
+        assert self._run_curriculum(species_cfg, ["--eval-freq", "2048"]).call_args.kwargs["eval_freq"] == 2048
+        assert self._run_curriculum(species_cfg, []).call_args.kwargs["eval_freq"] == 50000
+
     def test_eval_command(self, species_cfg):
         """main() with 'eval' should call evaluate()."""
         mock_eval = MagicMock()
@@ -503,3 +578,110 @@ class TestApplyOverridesStageScoping:
         configs = self._configs()
         _apply_overrides(configs, ["env.alive_bonus=0.5"])
         assert all(configs[key]["env_kwargs"] == {"alive_bonus": 0.5} for key in configs)
+
+    def test_a_key_with_no_section_raises(self):
+        with pytest.raises(ValueError, match="'alive_bonus' names no key"):
+            _apply_overrides(self._configs(), ["alive_bonus=1.0"])
+
+
+class TestNestedOverrides:
+    """A dotted key deep-sets into a nested table, in the all-stages and the STAGE forms.
+
+    ``env.a.b=v`` used to fall to ``key.partition('.')`` and write the flat literal key ``'a.b'``
+    into env_kwargs, which failed only later, at env construction.  The committed stage TOMLs nest
+    tables only as ``[ppo.policy_kwargs]`` / ``[sac.policy_kwargs]`` (their ``[env]`` is flat), so a
+    nested key may enter a table the stage config already has, or create an algorithm block's
+    ``policy_kwargs``; anything else is refused at apply time, naming the override.
+    """
+
+    @staticmethod
+    def _configs():
+        return {
+            1: {
+                "env_kwargs": {"alive_bonus": 2.0, "zones": {"width": 1.0, "depth": 2.0}},
+                "ppo_kwargs": {"learning_rate": 1e-3, "policy_kwargs": {"net_arch": [256, 256], "log_std_init": -1.0}},
+                "sac_kwargs": {},
+            },
+            2: {
+                "env_kwargs": {"alive_bonus": 1.5, "zones": {"width": 3.0}},
+                "ppo_kwargs": {"learning_rate": 5e-4},
+                "sac_kwargs": {},
+            },
+        }
+
+    def test_all_stages_nested_env_key_deep_sets_into_the_table(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["env.zones.width=0.5"])
+        assert configs[1]["env_kwargs"]["zones"] == {"width": 0.5, "depth": 2.0}
+        assert configs[2]["env_kwargs"]["zones"] == {"width": 0.5}
+        assert all("zones.width" not in configs[stage]["env_kwargs"] for stage in configs)
+
+    def test_stage_scoped_nested_key_sets_that_stage_only(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["1.ppo.policy_kwargs.log_std_init=-1.5"])
+        assert configs[1]["ppo_kwargs"]["policy_kwargs"] == {"net_arch": [256, 256], "log_std_init": -1.5}
+        assert "policy_kwargs" not in configs[2]["ppo_kwargs"]
+
+    def test_manifest_stage_id_resolves_for_a_nested_key(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["stance.ppo.policy_kwargs.net_arch=[64, 64]"], TYRANNOSAURUS_REX)
+        assert configs[1]["ppo_kwargs"]["policy_kwargs"]["net_arch"] == [64, 64]
+        assert "policy_kwargs" not in configs[2]["ppo_kwargs"]
+
+    def test_policy_kwargs_is_created_where_the_stage_declares_none(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["ppo.policy_kwargs.log_std_init=-1.5", "sac.policy_kwargs.net_arch=[64]"])
+        assert configs[1]["ppo_kwargs"]["policy_kwargs"] == {"net_arch": [256, 256], "log_std_init": -1.5}
+        assert configs[2]["ppo_kwargs"]["policy_kwargs"] == {"log_std_init": -1.5}
+        assert configs[2]["sac_kwargs"] == {"policy_kwargs": {"net_arch": [64]}}
+
+    def test_a_table_the_stage_does_not_declare_is_refused_and_nothing_is_written(self):
+        configs = self._configs()
+        with pytest.raises(ValueError, match=r"'env\.a\.b' sets a key inside 'env\.a', a table stage 1's config"):
+            _apply_overrides(configs, ["env.a.b=1"])
+        assert configs == self._configs()
+
+    def test_an_all_stages_key_one_stage_cannot_take_writes_no_stage(self):
+        """Stage 2's zones has no ``depth`` table: the override is refused before stage 1 is written."""
+        configs = self._configs()
+        configs[1]["env_kwargs"]["zones"]["depth"] = {"min": 0.1}
+        with pytest.raises(ValueError, match=r"inside 'env\.zones\.depth', a table stage 2's config does not declare"):
+            _apply_overrides(configs, ["env.zones.depth.min=0.5"])
+        assert configs[1]["env_kwargs"]["zones"]["depth"] == {"min": 0.1}
+
+    def test_a_key_inside_a_value_that_is_not_a_table_is_refused(self):
+        with pytest.raises(
+            ValueError, match=r"'env\.alive_bonus\.x' sets a key inside 'env\.alive_bonus', which is not"
+        ):
+            _apply_overrides(self._configs(), ["env.alive_bonus.x=1"])
+        with pytest.raises(
+            ValueError, match=r"inside 'ppo\.policy_kwargs\.net_arch', which is not a table .*\[256, 256\]"
+        ):
+            _apply_overrides(self._configs(), ["1.ppo.policy_kwargs.net_arch.pi=[64]"])
+
+    def test_only_policy_kwargs_itself_is_created(self):
+        """A created policy_kwargs is empty, so a key below a table inside it is refused."""
+        with pytest.raises(ValueError, match=r"inside 'ppo\.policy_kwargs\.net_arch', a table stage 2's config"):
+            _apply_overrides(self._configs(), ["2.ppo.policy_kwargs.net_arch.pi=[64]"])
+        with pytest.raises(ValueError, match=r"inside 'env\.policy_kwargs', a table stage 1's config"):
+            _apply_overrides(self._configs(), ["env.policy_kwargs.x=1"])
+
+    def test_a_typoed_stage_with_a_nested_key_gets_the_stage_error(self):
+        with pytest.raises(ValueError, match="unknown stage 'stnce'.*available"):
+            _apply_overrides(self._configs(), ["stnce.ppo.policy_kwargs.net_arch=[64]"], TYRANNOSAURUS_REX)
+
+    def test_an_env_array_becomes_a_tuple_as_the_stage_loader_makes_it(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["env.prey_distance_range=[1.0, 2.5]", "ppo.policy_kwargs.net_arch=[32, 32]"])
+        assert configs[1]["env_kwargs"]["prey_distance_range"] == (1.0, 2.5)
+        assert configs[1]["ppo_kwargs"]["policy_kwargs"]["net_arch"] == [32, 32]
+
+    def test_the_committed_stage_configs_take_a_nested_policy_kwargs_key(self):
+        """Every stage of a real model: [ppo.policy_kwargs] is a table, and [env] has none to enter."""
+        from environments.shared.config import load_all_stages
+
+        configs = load_all_stages(TYRANNOSAURUS_REX)
+        _apply_overrides(configs, ["ppo.policy_kwargs.log_std_init=-1.25"], TYRANNOSAURUS_REX)
+        assert all(cfg["ppo_kwargs"]["policy_kwargs"]["log_std_init"] == -1.25 for cfg in configs.values())
+        with pytest.raises(ValueError, match="which is not a table"):
+            _apply_overrides(configs, ["env.max_episode_steps.x=1"], TYRANNOSAURUS_REX)

@@ -74,13 +74,21 @@ all = [
     "mesozoic-labs[train,viz,dev]",
 ]
 
+[tool.setuptools]
+# package-data below is the whole list of non-Python files the wheel ships. With include-package-data on, a stale
+# *.egg-info/SOURCES.txt or a VCS file finder (setuptools-scm) in the build env adds every tracked file in a package.
+include-package-data = false
+
 [tool.setuptools.packages.find]
 include = ["environments*", "configs*"]
 
 [tool.setuptools.package-data]
-"*" = ["assets/*.xml", "assets/meshes/*.stl", "data/*.json", "references/*"]
+"*" = ["assets/*.xml", "assets/meshes/*.stl", "references/*"]
 "environments.allosaurus_fragilis.anatomical" = ["assets/textures/*.png"]
-"environments.compsognathus_longipes" = ["data/recovery_calibration_anatomical_r3.json.gz"]
+# Only the data/ files runtime code reads (compsognathus_longipes/model.py, plant_contract/constants.py); the
+# rest of each species' data/ is evidence the docs link to, read from a checkout and not shipped.
+"environments.compsognathus_longipes" = ["data/model_parameters.json"]
+"environments.shared" = ["data/plant_manifest.generated.json"]
 "configs" = ["*.toml", "*.json", "*/*/*.toml", "*/*/*.json", "*/*/behaviors/*.toml"]
 
 [tool.pytest.ini_options]

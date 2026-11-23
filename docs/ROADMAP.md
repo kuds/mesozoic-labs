@@ -151,7 +151,8 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - Video recording of evaluation episodes via `WandbCallback(video_env=...)`
   - _Dependency: None_
 
-- [x] **Expanded evaluation metrics**
+- [x] **Expanded evaluation metrics** (gait symmetry, cost of transport and stride frequency removed in
+  November 2026: they measured the wrong thing, and nothing but log lines read them)
   - Gait symmetry (left/right contact balance; no phase difference is computed)
   - Cost of transport (energy / distance / weight)
   - Stride frequency and regularity
