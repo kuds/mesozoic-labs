@@ -402,7 +402,9 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
       tail and body posture, energy, drift and slip, joint stops, centre of
       mass and centroidal momentum, base wrenches, head rate; the recorder
       also captures the head-tip and tail-tip sites and the body dynamics
-      for them), rewritten after every evaluation;
+      for them), rewritten on the checkpoint cadence
+      (:attr:`ledger_flush_every_calls`) and at training end, or after every
+      evaluation when the callback is built without that cadence;
     * the **in-training v2 screen** (:attr:`evaluations_screen_v2`): on a
       stage that declares ``stance_quality/v2``'s keys and runs the
       recorder, ``evaluate_stance_v2_gate(..., in_training=True)`` on the
@@ -463,6 +465,12 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     #: empty when the model cannot be described or its evaluation runs no recorder.
     body_columns: tuple[str, ...] = ()
     _ledger: Any = None
+    #: The ``CheckpointCallback``'s ``save_freq`` (already divided by ``n_envs``): ``eval_episodes.csv`` is
+    #: rewritten on the calls a periodic checkpoint is saved on (this callback runs before the checkpoint's, so
+    #: the rows up to it are on disk first) and at training end (:meth:`flush_records`), as ``train_episodes.csv``
+    #: is.  A whole rewrite after every evaluation was about 3.7 GB to Drive over a 12M T. rex stance.  ``None``
+    #: rewrites it after every evaluation, as before.
+    ledger_flush_every_calls: int | None = None
     _balance_disabled = False
 
     def __init__(
@@ -477,13 +485,17 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         control_dt: float = 0.01,
         screen_thresholds: Any = None,
         ledger_dir: "str | Path | None" = None,
+        ledger_flush_every_calls: int | None = None,
         **kwargs: Any,
     ) -> None:
         if not _SB3_AVAILABLE:
             raise ImportError(
                 "stable-baselines3 is required for StageAwareEvalCallback. Install with: pip install stable-baselines3"
             )
+        if ledger_flush_every_calls is not None and int(ledger_flush_every_calls) < 1:
+            raise ValueError("ledger_flush_every_calls must be at least 1")
         super().__init__(eval_env, **kwargs)
+        self.ledger_flush_every_calls = None if ledger_flush_every_calls is None else int(ledger_flush_every_calls)
         self.stage = stage
         self.success_applicable = success_applicable
         self.settle_steps = int(settle_steps)
@@ -1512,15 +1524,31 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             if not self.success_applicable and self.verbose >= 1:
                 print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
+        # After this call's evaluation, so a checkpoint saved on this call has its evaluation's rows on disk.
+        flush_every = self.ledger_flush_every_calls
+        if flush_every and self.n_calls % flush_every == 0:
+            self.flush_records()
+
         return bool(continue_training)
+
+    def flush_records(self) -> bool:
+        """Rewrite ``eval_episodes.csv`` when it holds rows not yet written; ``True`` when it wrote.
+
+        Called on the checkpoint cadence, at training end (an early or gate
+        stop included: SB3 ends ``learn()`` through ``on_training_end``), and
+        by the trainer after the final save of an interrupt it saves, which
+        skips that hook (``train_base._flush_report_records``).
+        """
+        ledger = self.__dict__.get("_ledger")
+        if not self.report_extensions or ledger is None:
+            return False
+        return bool(ledger.write())
 
     def _on_training_end(self) -> None:
         parent = getattr(super(), "_on_training_end", None)
         if callable(parent):
             parent()
-        ledger = self.__dict__.get("_ledger")
-        if self.report_extensions and ledger is not None:
-            ledger.write()
+        self.flush_records()
 
     def _force_frac_width(self) -> int | None:
         """The force matrix's row width (the model's ``nu``) where the recorder runs; ``None`` elsewhere."""
@@ -1696,7 +1724,11 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         return [{name: values[row] for name, values in columns.items()} for row in range(count)]
 
     def _publish_ledger(self) -> None:
-        """Append this evaluation's rows to the ledger and rewrite ``eval_episodes.csv`` (every evaluation)."""
+        """Append this evaluation's rows to the ledger; rewrite ``eval_episodes.csv`` only without a flush cadence.
+
+        With :attr:`ledger_flush_every_calls` the file is rewritten on that
+        cadence instead (:meth:`_on_step`, :meth:`flush_records`).
+        """
         ledger = self.__dict__.get("_ledger")
         try:
             if ledger is not None:
@@ -1705,7 +1737,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._warn_ledger("an evaluation's rows could not be assembled")
         finally:
             self._current_eval_ledger_only = {}
-        if ledger is not None:
+        if ledger is not None and not self.ledger_flush_every_calls:
             ledger.write()
 
 

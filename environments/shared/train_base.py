@@ -1110,6 +1110,10 @@ def _build_core_callbacks(
         publish_dir=model_dir if handoff_staging_dir is not None else None,
     )
 
+    # The periodic checkpoint's stride in callback calls; the report-only
+    # records written on that cadence (eval_episodes.csv, train_episodes.csv,
+    # policy_probe.npz) are rewritten on the same calls.
+    checkpoint_stride = max(1, save_freq // n_envs)
     local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_{stage_label(stage)}_")
     eval_callback, plateau_callback = build_stage_evaluation_callbacks(
         eval_env,
@@ -1132,6 +1136,11 @@ def _build_core_callbacks(
         render=False,
         verbose=max(verbose, 1),
         callback_on_new_best=save_vecnorm_cb,
+        # eval_episodes.csv on the checkpoint cadence and at training end, not
+        # rewritten whole after every evaluation (about 31 MB by the end of a
+        # 12M T. rex stance); this callback runs before the CheckpointCallback,
+        # so a checkpoint's evaluation rows are on disk before it is saved.
+        ledger_flush_every_calls=checkpoint_stride,
     )
     callbacks.append(eval_callback)
     callbacks.append(plateau_callback)
@@ -1143,7 +1152,6 @@ def _build_core_callbacks(
     )
     callbacks.append(robust_callback)
 
-    checkpoint_stride = max(1, save_freq // n_envs)
     # On a Drive/GCS FUSE mount, stream the periodic checkpoint pair to fast
     # local scratch and publish it atomically (copy-to-temp + rename) — the
     # same treatment evaluations.npz gets above, and for the same reason: an
@@ -1599,7 +1607,9 @@ def _train_stage_body(
     eval_callback=...)``; the curriculum's ``CurriculumCallback``), then the
     stage-entry shaping.  A ``KeyboardInterrupt`` in ``learn()`` propagates
     before the final save unless ``save_on_interrupt``, under which it is
-    logged, the stage is saved, and ``interrupted`` is set.  ``announce``
+    logged, the stage is saved, the checkpoint-cadence records ``learn()``
+    did not write at its end are rewritten (:func:`_flush_report_records`),
+    and ``interrupted`` is set.  ``announce``
     logs ``train()``'s own lines (the environments being created, the model
     architecture, the start of training, "Training ended early"); without
     it the early end is logged as the curriculum logs it, naming the stage.
@@ -1925,6 +1935,15 @@ def _train_stage_body(
         gcs_tb_path,
     )
 
+    # Report only: learn() skipped on_training_end after the interrupt, so the
+    # checkpoint-cadence records (eval_episodes.csv, train_episodes.csv,
+    # policy_probe.npz) lack their rows since the newest periodic checkpoint.
+    # Written here, after the final pair is saved (a 12M T. rex stance's
+    # eval_episodes.csv takes seconds, a window in which a second Ctrl-C would
+    # otherwise cost the final pair), and before anything re-judges the stage.
+    if interrupted:
+        _flush_report_records(callbacks)
+
     # Report only: the in-run K3 panel's final panel reads the final weights
     # and statistics, so it runs here, with the final pair on disk, not in
     # learn() (about 85 s on a real stance policy, a window in which an
@@ -1949,6 +1968,33 @@ def _train_stage_body(
         learn_seconds=learn_seconds,
         interrupted=interrupted,
     )
+
+
+def _flush_report_records(callbacks: "list[Any]") -> None:
+    """Rewrite each callback's checkpoint-cadence record (``flush_records``) after an interrupt the trainer saved.
+
+    ``learn()`` calls no ``on_training_end`` when a ``KeyboardInterrupt``
+    leaves it, which is where ``eval_episodes.csv``, ``train_episodes.csv``
+    and ``policy_probe.npz`` are written last.  Called after the final save.
+    A second Ctrl-C here is logged, as one during the final K3 panel is, and
+    leaves the records not yet rewritten as their last periodic write left
+    them, each whole (the writes are atomic).  A failure is logged (report
+    only).
+    """
+    for callback in callbacks:
+        flush = getattr(callback, "flush_records", None)
+        if not callable(flush):
+            continue
+        try:
+            flush()
+        except KeyboardInterrupt:
+            logger.warning(
+                "Rewriting the report records after the interrupt was interrupted by the user; "
+                "the final checkpoint pair is saved."
+            )
+            return
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            logger.warning("A report record could not be rewritten after the interrupt.", exc_info=True)
 
 
 def _roll_final_k3_panels(callbacks: "list[Any]") -> None:

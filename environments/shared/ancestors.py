@@ -150,7 +150,6 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -782,13 +781,14 @@ def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) ->
     """Write ``<child_run_dir>/ancestors/<stage_id>/`` for a reused ancestor.
 
     Copies the ancestor stage's JSON records (:data:`ANCESTOR_COPIED_FILES`,
-    those that exist) and then writes ``ancestor.json`` atomically, last, so
-    an interrupted write leaves no record.  Never copies the checkpoint or
-    its sidecar.  Recording the same ancestor again is a no-op; an existing
+    those that exist), each atomically, and then writes ``ancestor.json``
+    atomically, last, so an interrupted write leaves no record and no
+    truncated copy.  Never copies the checkpoint or its sidecar.  Recording
+    the same ancestor again is a no-op; an existing
     record for the same node that differs in anything but its timestamp is
     an error, because a run cannot have two parents for one node.
     """
-    from .file_io import atomic_write_text
+    from .file_io import atomic_copy, atomic_write_text
     from .result_bundle import ANCESTOR_RECORD_NAME, ANCESTORS_DIRNAME
 
     _warn_on_heading_probe(ancestor)
@@ -810,7 +810,7 @@ def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) ->
     for name in ANCESTOR_COPIED_FILES:
         source = ancestor.stage_dir / name
         if source.is_file():
-            shutil.copyfile(source, target / name)
+            atomic_copy(source, target / name)
     atomic_write_text(record_path, json.dumps(record, indent=2, sort_keys=True) + "\n")
     logger.info(
         "Recorded certified ancestor %r from run %s under %s%s",

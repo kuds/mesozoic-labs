@@ -612,10 +612,24 @@ verification rejects a file it did not list.
 episodes. Each stage directory also holds `eval_episodes.csv`, one row per
 evaluation episode (`StageAwareEvalCallback` with
 `environments/shared/episode_ledger.py`), on every model. It is rewritten
-atomically after every evaluation and when training ends, so every row up
-to a checkpoint's step is on disk before a run can resume from that
-checkpoint (SB3's `best_model`, saved inside the evaluation just before
-the rewrite, is the one exception). A same-stage resume keeps the previous session's rows at or
+atomically on the checkpoint cadence (in the calls a periodic checkpoint is
+saved in, as `train_episodes.csv` is) and when training ends, an early or
+gate stop included. The callback runs before the checkpoint's, so every row
+up to a periodic checkpoint's step is on disk before a run can resume from
+that checkpoint. After an interrupt that `train()` or the curriculum saves
+(`save_on_interrupt`), `learn()` skips its end, so the trainer rewrites this
+file, `train_episodes.csv` and `policy_probe.npz` itself, after the final
+pair is saved (`train_base._flush_report_records`): a second Ctrl-C during
+those rewrites cannot cost the final pair. Until 2026-11-24 it was
+rewritten after every evaluation (the cost below); a crash now loses the
+rows of the evaluations since the newest periodic checkpoint, the rows a
+same-stage resume from that checkpoint drops anyway. So does an interrupt
+in the notebook, which does not save one (`save_on_interrupt=False`): its
+RESUME cell drops those rows too, but a stage judged or backfilled from its
+newest checkpoint instead of resumed lacks them in its training history.
+Mid-run, the file on Drive lags the evaluations by up to one checkpoint
+interval (100,000 steps on the notebook's cadence).
+A same-stage resume keeps the previous session's rows at or
 before the resumed step. It does so where it seeds `gate_progress.npz`:
 when the resume can seed the evaluation history from the stage's
 `evaluations.npz`. When that file is missing, unreadable or holds another
@@ -805,11 +819,14 @@ specification's +10%. The columns add about 1.6 to 2.0 KB to a row
 whose many exact zeros print short, and 1.95 to 1.97 KB on the inertness
 proof's trained toy policy, whose rows are 3.19 to 3.23 KB], so a T. rex
 row is about 3.2 KB: the file of a 12M stance at main's default cadence
-(9,600 rows) ends at about 31 MB and its rewrites at every evaluation write
+(9,600 rows) ends at about 31 MB and its rewrites at every evaluation wrote
 about 3.7 GB to Drive over the run; at the first r10 round's draft cadence
 (10 episodes every 131,072 steps, 910 rows) about 2.9 MB and 135 MB
 [inferred from the measured rows; a synthetic 910-row ledger measures
-2.94 MB].
+2.94 MB]. Since 2026-11-24 the file is rewritten on the checkpoint cadence
+instead, every 100,000 steps on the notebook's cadence against an
+evaluation every 50,000, which halves that total to about 1.9 GB [inferred:
+the same rows over half as many rewrites].
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 
@@ -840,8 +857,10 @@ reductions run once per episode. A `SubprocVecEnv`'s envs live in other
 processes: their rows keep the outcome columns and read NaN in the rest
 (one warning). A failure costs that env's episode (NaN, one warning), never
 the run. The file is rewritten on the checkpoint cadence (in the calls a
-periodic checkpoint is saved in) and at training end, and a same-stage
-resume keeps the previous session's rows at or before the resumed step.
+periodic checkpoint is saved in), at training end and, since 2026-11-24,
+after the final save of an interrupt the trainer saves (as
+`eval_episodes.csv` is), and a same-stage resume keeps the previous
+session's rows at or before the resumed step.
 On four T. rex envs the per-step copies cost 44 to 48 µs per vector step
 in a micro-benchmark, against a 4.8 to 5.2 ms physics step (about 0.9%);
 the short T. rex proof run clocked the whole callback, row closes and
@@ -926,8 +945,9 @@ session on the T. rex. SAC gets no bank and no rows.
 Per update the probe reads parameters and runs `torch.no_grad()` forward
 passes of the constant bank: no sampling, no gradient, and no parameter,
 optimizer, buffer or training-mode change. It cost 1.6 to 2.3 ms per update
-on the T. rex. The file is rewritten atomically on the checkpoint cadence
-and at training end. A same-stage resume keeps the previous session's rows
+on the T. rex. The file is rewritten atomically on the checkpoint cadence,
+at training end and after the final save of an interrupt the trainer saves
+(as `eval_episodes.csv` is). A same-stage resume keeps the previous session's rows
 at or before the resumed step when its bank equals this session's (the
 labels, seeds, steps, offsets and raw observations); otherwise it drops
 them with one warning.

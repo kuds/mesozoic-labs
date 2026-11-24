@@ -711,6 +711,12 @@ robustness, **LOW** = cosmetic / QoL.
   `undeclared bundle artifacts: ['trunk_run.json']` (all three verified
   against the library 2026-10-03; the masking executed the same day).
   Remedy: run the auto-disconnect cell (§9) by hand.
+  *Update (2026-11-24):* the zero-action cell no longer refreshes an
+  unchanged copy: `preflight` (`scripts/zero_action_baseline.py`) rewrites
+  `zero_action_baseline.json` only when the run has none or the baseline
+  differs in something other than `captured_at` (a new plant, env kwargs or
+  score), so on an unchanged plant it is not one of the files that differ;
+  `provenance.json` still is.
 - **LOW (operational)** — **a re-entry that is not a resume, under another
   trunk than the run's `trunk_run.json` records, is only warned (ROW-4/6;
   executed against the notebook cells 2026-10-03).** Since ROW-4/6's

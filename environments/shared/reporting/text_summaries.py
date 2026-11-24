@@ -1,4 +1,9 @@
-"""Human-readable stage and run summary text files."""
+"""Human-readable stage and run summary text files.
+
+Both are published with :func:`~environments.shared.file_io.atomic_write_text`:
+a reclaim mid-write leaves the previous file (or none), never a truncated
+summary that a later bundle save would hash into its manifest.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..file_io import atomic_write_text
 from ..model_id import ModelId
 from ..species_names import model_display_name
 from ..stage_manifest import stage_display_name
@@ -118,7 +124,7 @@ def write_stage_summary(
             lines.append(f"  - {failure}")
         lines.append("")
     summary_text = "\n".join(lines) + "\n"
-    summary_path.write_text(summary_text)
+    atomic_write_text(summary_path, summary_text)
     return summary_path
 
 
@@ -189,5 +195,5 @@ def write_training_summary(
     )
 
     summary_text = "\n".join(lines) + "\n"
-    summary_path.write_text(summary_text)
+    atomic_write_text(summary_path, summary_text)
     return summary_path

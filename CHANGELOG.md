@@ -2664,6 +2664,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`eval_episodes.csv` is rewritten on the checkpoint cadence, not after
+  every evaluation.** It was rewritten whole after each evaluation, about 3.7
+  GB to Drive over a 12M T. rex stance. It is now rewritten on the calls a
+  periodic checkpoint is saved on, before the checkpoint itself, as
+  `train_episodes.csv` already was, and at training end (normal end, early
+  stop or gate stop). After an interrupt that `train()` or the curriculum
+  saves, which skips `on_training_end`, the trainer rewrites it,
+  `train_episodes.csv` and `policy_probe.npz` once the final pair is saved, so
+  the two ledgers and the probe all end at the interrupt and a second Ctrl-C
+  cannot cost the final pair. A crash, or an interrupt in the notebook (which
+  does not save one), now loses the rows of the evaluations since the newest
+  checkpoint, which a same-stage resume from it drops anyway. Mid-run, the
+  file on Drive can be up to one checkpoint behind.
 - **The report tools share one output guard, and it covers every run.**
   `result_bundle.refuse_output_inside_run`, with
   `result_bundle.run_directory`, replaces the body of
@@ -5310,6 +5323,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **The TensorBoard sync to Drive publishes each event file atomically.**
+  `environments/shared/tb_sync.py` copied the local buffer over its Drive copy
+  with `shutil.copy` every 100,000 steps and at stage end. A runtime reclaimed
+  mid-copy could leave the only surviving event file truncated, because the
+  `/tmp` buffer dies with the runtime. Each file is now published with
+  `file_io.atomic_copy`, under a temporary name without `tfevents`
+  (`.tbsync.<random>.tmp`), so a temporary that a hard kill strands is never
+  loaded by TensorBoard as a second event file; the next sync removes it. The
+  periodic sync also skips a file whose size and modification time have not
+  changed since its last copy. The stage-end sync still copies every file.
+- **`collected_results.csv`, the summary texts, the zero-action records and
+  the `ancestors/` copies are written atomically.** `write_results_csv` (both
+  the result bundle's batch write and the CLI's appended
+  `curriculum_results.csv`, which is now read and rewritten whole),
+  `stage_summary.txt`, `training_summary.txt`, the zero-action preflight's
+  records and `record_ancestor`'s copies used plain writes. A truncated file
+  that was never rewritten was hashed into the manifest. They now go through
+  the `file_io` helpers, with the bytes they had.
+- **The zero-action preflight no longer rewrites unchanged records.** The SB3
+  notebook runs it every session. Each run wrote a new stamped record per
+  model and table into `zero_action_baselines/` (84 files in the T. rex folder
+  on Drive). It also rewrote the run's `zero_action_baseline.json` with a new
+  `captured_at`, which changed a declared file of a `partial` bundle. A record
+  that would differ from the newest one only in its time is no longer written.
+  The run's copy is rewritten only when it is missing or the baseline changed
+  (plant, env kwargs or score). The printed report says when a record was
+  unchanged.
 - **A same-stage resume no longer trains a judged node in place.** The D-A20
   guard, `config.refuse_occupied_stage_dir`, let every `resume_same_stage`
   load through. So `train --load <checkpoint>`, under its default load mode,
