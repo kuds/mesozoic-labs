@@ -2204,6 +2204,12 @@ def train(
         if handoff is not None and loaded.name.removesuffix(".zip") == handoff[0]:
             _warn_on_heading_probe_handoff(loaded.parent.parent, stage=entry.id)
     if load_path and task_load_mode == "resume_same_stage":
+        # A judged directory is refused for what it is (D-A20 as amended 2026-11-24) before the checkpoint's task
+        # is compared, so the message names the remedy, a fresh run directory, rather than another load mode. The
+        # default directory is a fresh timestamped one, so only an explicit one can be judged.
+        explicit_dir = output_dir if output_dir is not None else log_dir
+        if explicit_dir is not None:
+            refuse_occupied_stage_dir(Path(explicit_dir), task_load_mode=task_load_mode)
         # A same-stage resume continues the task its checkpoint records: a checkpoint trained on another task is
         # refused here, read off the archive, before the stage directory or stage_config.json is written (the load
         # in _create_or_load_model checks the loaded model again; one recording no fingerprint goes through the

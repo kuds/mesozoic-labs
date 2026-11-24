@@ -5342,19 +5342,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RUN_KIND`, is `"certify"` by default; `"screen"` (for screens, pilots and
   other experiments) writes the run under `<algo>_screen/`, which neither scan
   reaches. `QUICK_TEST` still wins (`<algo>_quick_test/`), and an unknown kind
-  is refused before anything is written. A run id now names one run of a
-  model, whatever its tree. A fresh runtime resets `RUN_KIND`, so the storage
-  cell refuses an explicit `RUN_ID` that names no run in the selected tree but
-  one in another, and names the knobs that reach it. It no longer opens a
-  certification run under a screen's id. `TRUNK_FROM` ids still resolve, and
-  `"auto"` still scans, in `<algo>/`, so a screen builds on certified
-  ancestors; a screen pins a screen trunk as `../<algo>_screen/<id>` (read
-  lexically) or by its absolute path. A certification run refuses, before
-  anything is written, a pinned `TRUNK_FROM` that resolves into
-  `<algo>_screen/` or `<algo>_quick_test/`, even when the run already exists
-  and recorded that trunk earlier; a screen or a quick test may pin either.
-  The folder is the kind's only record, as for quick tests (decision D-D16
-  (b)), so `provenance.json` and every digest are unchanged
+  is refused before anything is written. A `REPO_REF` whose library predates
+  `environments/shared/run_tree.py` is refused there too, naming the remedy
+  (`main` or a later commit), instead of failing on the import. A run id now
+  names one run of a model, whatever its tree. A fresh runtime resets
+  `RUN_KIND`, so the storage cell refuses an explicit `RUN_ID` that names no
+  run in the selected tree but one in another, and names the knobs that reach
+  it. It no longer opens a certification run under a screen's id. `TRUNK_FROM`
+  ids still resolve, and `"auto"` still scans, in `<algo>/`, so a screen
+  builds on certified ancestors; a screen pins a screen trunk as
+  `../<algo>_screen/<id>` (read lexically) or by its absolute path. A
+  certification run refuses, before anything is written, a pinned `TRUNK_FROM`
+  that resolves into `<algo>_screen/` or `<algo>_quick_test/`, even when the
+  run already exists and recorded that trunk earlier; a screen or a quick test
+  may pin either. The folder is the kind's only record, as for quick tests
+  (decision D-D16 (b)), so `provenance.json` and every digest are unchanged
   (`environments/shared/run_tree.py`;
   `environments/shared/tests/test_screen_run_tree.py`). Runs already on Drive
   stay where they are, and `run_exclusions.py` keeps the nine r10 stance
@@ -5459,12 +5461,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `REPO_REF = "main"`. `train_base.train` now refuses, before it writes
   anything, a resume whose `hyperparameters_sha256` differs from the one the
   node's `stage_config.json` records (the digest never covers the budget). The
-  refusal names the keys and says to pin `REPO_REF` to the recorded commit and
-  re-set `CRITIC_PHASE`, or to train in a fresh `RUN_ID`. A checkpoint trained
-  on another task is also refused before anything is written; the record used
-  to be rewritten first. A non-empty label other than the recorded one is
-  refused; a resume without a label keeps it. The RESUME cell warns when
-  `BEHAVIOR` is `"auto"`, when `provenance.json` records another target
+  refusal names the keys and says to restore the recorded recipe (`REPO_REF`
+  at the recorded commit, and `CRITIC_PHASE`) or to train in a fresh `RUN_ID`;
+  a resume at `main` whose recipe matches continues the node. A checkpoint
+  trained on another task is also refused before anything is written; the
+  record used to be rewritten first. A non-empty label other than the recorded
+  one is refused; a resume without a label keeps it. The RESUME cell warns
+  when `BEHAVIOR` is `"auto"`, when `provenance.json` records another target
   deliverable, and when the checkout is at another commit than the node
   recorded.
 - **The SB3 load preflight's throwaway test passes when run on its own.**

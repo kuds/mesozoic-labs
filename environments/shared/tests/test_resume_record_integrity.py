@@ -461,9 +461,10 @@ class TestAResumeKeepsTheRecipe:
         message = str(refused.value)
         recorded = json.loads((stage_dir / "stage_config.json").read_text())
         assert named in message and recorded["run"]["hyperparameters_sha256"] in message
-        assert f"pin REPO_REF to the commit the stage recorded ({recorded['git_commit']})" in message
+        assert f"set REPO_REF to the commit the stage recorded ({recorded['git_commit']})" in message
         assert "CRITIC_PHASE" in message and "fresh RUN_ID" in message
-        assert "A commit from before 2026-11-24 resumes without the trainer's resume protections" in message
+        assert "has no environments/shared/run_tree.py, so the current notebook cannot install it" in message
+        assert "resumes without the trainer's resume protections" in message
         assert _listing(stage_dir) == before
 
     @pytest.mark.parametrize("commit", ["a" * 40, None])
@@ -485,9 +486,9 @@ class TestAResumeKeepsTheRecipe:
         assert "Restoring the recipe cannot clear this" in message and "fresh RUN_ID" in message
         assert "CRITIC_PHASE" not in message
         if commit is None:
-            assert "pin REPO_REF to the commit the interrupted session ran at (the record names none)" in message
+            assert "set REPO_REF to the commit the interrupted session ran at (the record names none)" in message
         else:
-            assert f"pin REPO_REF to the commit the stage recorded ({commit})" in message
+            assert f"set REPO_REF to the commit the stage recorded ({commit})" in message
 
     def test_a_checkpoint_trained_on_another_task_is_refused_before_anything_is_written(self, tmp_path, monkeypatch):
         """The task fingerprint is read off the archive before the stage directory is written: an env or reward
@@ -908,8 +909,8 @@ class TestTheResumeCellWarns:
             assert "WARNING" not in out
             return
         assert f"recorded git_commit {'e' * 40} in its stage_config.json" in out
-        assert f"this checkout is at {'f' * 40}" in out and f"pin REPO_REF (section 1) to {'e' * 40}" in out
-        assert "a commit from before 2026-11-24 resumes without the trainer's record protections" in out
+        assert f"this checkout is at {'f' * 40}" in out and f"set REPO_REF (section 1) to {'e' * 40}" in out
+        assert "this notebook needs a commit that has environments/shared/run_tree.py (2026-11-24 or later)" in out
 
     def test_the_section_5_prose_states_the_rules(self):
         every = _all_cell_sources()
@@ -919,10 +920,11 @@ class TestTheResumeCellWarns:
             'refuses `ALGORITHM` other than `"ppo"`',
             "`hyperparameters_sha256`",
             # The step list itself names the recipe knobs a refusal would otherwise send the reader back for.
-            "1. Set `REPO_REF` (section 1) to the `git_commit` the node's `stage_config.json` records",
+            "1. Leave `REPO_REF` (section 1) at `main`: the trainer refuses the resume",
             "`RUN_LABEL` empty (the resume keeps the recorded label)",
             "`CRITIC_PHASE` (with any other recipe knob)",
-            "A commit from before 2026-11-24 resumes without these protections",
+            "resumes at `main` like any other",
+            "Opening the notebook itself at such a commit\nresumes it without these protections",
             "interrupt the run before the chain\nloop starts",
             "load lineage",
             '`BEHAVIOR` is `"auto"`',

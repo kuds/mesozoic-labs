@@ -54,7 +54,9 @@ a new run that loads a screen's weights lets one count:
     resumes either.  A stage trained further from a screen's
     weights carries that screen's training, whatever commit it ran at: a
     ``--load`` of a screen's final or periodic checkpoint, a resume of a
-    copied and re-judged stage directory, a widened copy.
+    copied stage directory (of a re-judged one only before 2026-11-24, when
+    D-A20 began refusing every load into a judged directory), a widened
+    copy.
 
 The handoff digests are the screens' own records: the three phase-critic runs'
 ``gate_verdict.json``, the three stance6 runs' offline judge files committed under

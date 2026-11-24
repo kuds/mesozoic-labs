@@ -926,7 +926,7 @@ def refuse_resume_recipe_change(
         differing = hyperparameter_diff(stage_config, algorithm, recorded)
         commit = recorded.get("git_commit")
         known = isinstance(commit, str) and commit.strip() not in ("", "unknown")
-        pin = f"pin REPO_REF to the commit the stage recorded ({commit})" if known else "pin REPO_REF to the commit"
+        pin = f"set REPO_REF to the commit the stage recorded ({commit})" if known else "set REPO_REF to the commit"
         if not known:
             pin += " the interrupted session ran at (the record names none)"
         if differing:
@@ -950,9 +950,10 @@ def refuse_resume_recipe_change(
         raise ResumeRefusedError(
             f"{directory} records stage {recorded.get('stage')!r} trained under hyperparameters_sha256 "
             f"{recorded_digest}, and this session's recipe digests to {current_digest} ({found}). {remedy} A "
-            "commit from before 2026-11-24 resumes without the trainer's resume protections (its resume rewrites "
-            "the record's identity and diagnostics.npz), so for a node recorded there a fresh RUN_ID keeps the "
-            "record whole. Nothing was written."
+            "commit from before 2026-11-24 has no environments/shared/run_tree.py, so the current notebook cannot "
+            "install it: open the notebook at that commit too, which resumes without the trainer's resume "
+            "protections (its resume rewrites the record's identity and diagnostics.npz), so for a node recorded "
+            "there a fresh RUN_ID keeps the record whole. Nothing was written."
         )
     given = label.strip() if isinstance(label, str) and label.strip() else None
     recorded_label = run_block.get("label")

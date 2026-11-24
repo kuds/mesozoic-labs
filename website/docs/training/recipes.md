@@ -458,16 +458,18 @@ refuses such a load into a directory holding the node's records. The trainer
 refuses, before it writes anything, a checkpoint trained on another task, a
 resume whose `hyperparameters_sha256` differs from the node's record, naming
 the keys, and a `RUN_LABEL` other than the recorded label (an empty one keeps
-it). A commit from before 2026-11-24 resumes without these protections (its
-trainer rewrites the record's identity and `diagnostics.npz`), so a node
-recorded there is better trained again in a fresh `RUN_ID`. The cell warns
+it). A node first trained at a commit from before 2026-11-24 resumes at
+`main` like any other: these checks compare it with its record, and the
+re-saved record keeps its first session. The cell warns
 when `BEHAVIOR` is `"auto"`, when the run's `provenance.json` records another
 target deliverable than `BEHAVIOR` resolves to, and when the checkout's
 commit is not the one the node records; it trains the same node either way,
 so to keep the run's target, interrupt the run before the chain loop starts,
 set `BEHAVIOR` and Run all again. It sits ahead of the chain loop, so a
-resume is: set `REPO_REF` to the `git_commit` the node's
-`stage_config.json` records, `RUN_ID` to the interrupted run and
+resume is: leave `REPO_REF` at `main` (pinning the `git_commit` the node's
+`stage_config.json` records works only for a commit that has
+`environments/shared/run_tree.py`, which the storage cell imports), set
+`RUN_ID` to the interrupted run and
 `RESUME_STAGE` to its node, with `RUN_LABEL` and `RETRAIN_FROM` empty,
 `RUN_KIND`, `QUICK_TEST`, `CRITIC_PHASE` and the other recipe knobs as the
 interrupted session had them, and `TRUNK_FROM` set to the value the run's `trunk_run.json` records

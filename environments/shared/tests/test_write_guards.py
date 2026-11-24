@@ -146,6 +146,41 @@ class TestAJudgedStageIsNeverResumedInPlace:
             )
         assert _digests(judged) == before and not (judged / "models").exists()
 
+    def test_a_judged_directory_is_named_before_a_checkpoint_of_another_task(self, tmp_path, monkeypatch):
+        """The task pre-check used to run first and tell a resume into a judged directory to use
+        initialize_next_stage, which the directory then refused too: the judged refusal names the real remedy."""
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import StageDirectoryOccupiedError, load_all_stages
+
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(
+            task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {"task_sha256": "1" * 64}
+        )
+        monkeypatch.setattr(
+            task_fingerprint, "read_checkpoint_task_fingerprint", lambda path: {"task_sha256": "0" * 64}
+        )
+        monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: None)
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
+        judged = tmp_path / "run" / "01_stance"
+        judged.mkdir(parents=True)
+        (judged / "stage_config.json").write_text("{}")
+        _write_verdict(judged, VELOCIRAPTOR_MONGOLIENSIS)
+        before = _digests(judged)
+
+        with pytest.raises(StageDirectoryOccupiedError, match="never trained further in place"):
+            train_base.train(
+                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
+                load_all_stages(VELOCIRAPTOR_MONGOLIENSIS),
+                1,
+                total_timesteps=1,
+                load_path=str(judged / "models" / "stage1_1000_steps.zip"),
+                task_load_mode="resume_same_stage",
+                output_dir=str(judged),
+                use_tensorboard=False,
+                verbose=0,
+            )
+        assert _digests(judged) == before and not (judged / "models").exists()
+
 
 class TestTheManualCellRefusesAJudgedNode:
     """The manual-node cell (section 7) refuses a target stage directory holding a gate verdict before anything is
@@ -606,9 +641,9 @@ class TestColabWithoutDriveKeepsItsRuntime:
         assert colab == ["flush", "sleep 5", "unassign"]
 
     @staticmethod
-    def _storage_cell(tmp_path, monkeypatch, *, in_colab, **earlier):
+    def _storage_cell(tmp_path, monkeypatch, *, in_colab, into=None, **earlier):
         """Execute the storage cell with Drive off, its provenance write recorded instead of run (*earlier*: names
-        an earlier pass left in the namespace)."""
+        an earlier pass left in the namespace; *into*: a dict to execute in, kept when the cell raises)."""
         from environments.shared import plant_contract, result_bundle
 
         identity = {"species": "tyrannosaurus_rex", "embodiment": "anatomical"}
@@ -636,6 +671,9 @@ class TestColabWithoutDriveKeepsItsRuntime:
             "RUN_ID": "",
             **earlier,
         }
+        if into is not None:
+            into.update(namespace)
+            namespace = into
         exec(compile(code_cell(NOTEBOOK_PATH, STORAGE_CELL_MARKER), "sb3_storage", "exec"), namespace)
         return namespace
 
@@ -690,11 +728,11 @@ class TestColabWithoutDriveKeepsItsRuntime:
         ("use_drive", "in_colab", "earlier", "on_drive"),
         [
             (True, True, {}, True),
-            (True, True, {"RUNS_ON_DRIVE": True}, True),
+            (True, True, {"_RUN_ON_VM_DISK": False}, True),
             (False, True, {}, False),
             (True, False, {}, False),
             # A later pass that mounts Drive leaves the earlier run on the VM's disk: the runtime is still kept.
-            (True, True, {"RUNS_ON_DRIVE": False}, False),
+            (True, True, {"_RUN_ON_VM_DISK": True}, False),
         ],
     )
     def test_runs_on_drive_is_false_once_a_run_was_kept_on_the_vm(self, use_drive, in_colab, earlier, on_drive, capsys):
@@ -702,6 +740,25 @@ class TestColabWithoutDriveKeepsItsRuntime:
         assert resolved is on_drive
         note = "an earlier pass of this cell kept a run on this VM's disk" in capsys.readouterr().out
         assert note == (use_drive and in_colab and not on_drive)
+
+    def test_a_pass_refused_before_its_run_directory_leaves_the_runtime_releasable(self, tmp_path, monkeypatch):
+        """Only a run directory created on the VM's disk keeps the runtime: a Drive-off pass that a refusal stopped
+        before the mkdir (here a RUN_ID with a path) wrote nothing, so a later pass with Drive mounted releases it."""
+        namespace: dict = {}
+        with pytest.raises(ValueError, match="is not a run id"):
+            self._storage_cell(tmp_path, monkeypatch, in_colab=True, into=namespace, RUN_ID="a/b")
+        assert namespace["RUNS_ON_DRIVE"] is False and "_RUN_ON_VM_DISK" not in namespace
+        assert (
+            self._resolve(
+                USE_GOOGLE_DRIVE=True,
+                IN_COLAB=True,
+                **{key: namespace[key] for key in ("_RUN_ON_VM_DISK",) if key in namespace},
+            )
+            is True
+        )
+
+        kept = self._storage_cell(tmp_path, monkeypatch, in_colab=True)
+        assert kept["_RUN_ON_VM_DISK"] is True and kept["RUNS_ON_DRIVE"] is False
 
     def test_later_cells_read_the_resolved_value_never_the_knob(self):
         """As RUN_ID (``test_later_cells_read_the_resolved_run_id_never_the_knob``): only the configuration cell binds
