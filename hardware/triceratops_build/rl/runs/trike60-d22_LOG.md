@@ -57,3 +57,20 @@ The runs that count, from 23:24 on:
 The rates come from the first 3-5 rollouts and point to about 3-5 hours per run, as in run 3. Stopped starts:
 fore128-s0 at 23:11:04 (2 vCPUs); fore160-s0 at 23:11:48 (the mixed folder) and 23:18:21 (2 vCPUs); fore128-s1 at
 23:14:16 and 23:18:43 (2 vCPUs).
+
+## Round 1 finished, 24 Nov 2026
+
+Each run had one session, from step 0, completed at 10,002,432 steps, with its final pair finite. Each record passes
+the record checks of `judge_d22.checks`. The final pairs were downloaded from Drive for measurement (sha256 below);
+the measurements use a `git archive` export of the run commit through `TRIKE_ENV_DIR`.
+
+| run | session (UTC) | hours | env steps/s | final pair, zip sha256 | vecnormalize sha256 |
+|---|---|---|---|---|---|
+| trike60-fore128-s0 | 23:24:48-04:32:27 | 5.13 | 542 | f7bbeb81… | cc645bd9… |
+| trike60-fore160-s0 | 23:25:22-03:06:47 | 3.69 | 753 | 0eb877a9… | 19981491… |
+| trike60-fore128-s1 | 23:25:22-03:55:44 | 4.51 | 617 | dc3090ac… | f7636250… |
+
+Box 6's quick test (not a judged measure) at 0.25 m/s with a 10 ms delay: fore160-s0 and fore128-s1 had no falls in
+5 episodes, at 0.242 and 0.244 m/s. The first start of the measurements (04:33) stopped at once, because the tools
+read `run_record.json` from the checkpoint folder and it was not there. Nothing was measured; it was restarted with
+the record in place.
