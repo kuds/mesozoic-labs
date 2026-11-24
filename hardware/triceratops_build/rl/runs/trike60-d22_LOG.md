@@ -74,3 +74,29 @@ Box 6's quick test (not a judged measure) at 0.25 m/s with a 10 ms delay: fore16
 5 episodes, at 0.242 and 0.244 m/s. The first start of the measurements (04:33) stopped at once, because the tools
 read `run_record.json` from the checkpoint folder and it was not there. Nothing was measured; it was restarted with
 the record in place.
+
+## Round 1 measured, 24 Nov 2026 (interim: figures per run, no choice until all eight)
+
+The measurements ran on 04:33-05:10 UTC with the run commit's tools (an export of f84a6919 through `TRIKE_ENV_DIR`).
+Each run's three outputs pass every check in `judge_d22.checks`, using the tree's `judge_d22.py`, which is byte-identical
+to the run commit's: the export has no git history to read the run commit's files from. Figures come from
+`judge_d22.measure` and `judge_run3.judge_seed`. Outputs: `analytics/results/<run>/`, `robustness/results/<run>/`,
+`analysis/results/d22/`.
+
+| run | F1 | F2 (worst drive) | T1 | T2 | T3 | T4 | T5 | L front (hind), N | H_all | H_front | H_elbow | N |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| fore128-s0 | pass | pass (left hind pitch 0.828) | pass | pass | fail | fail | fail | 122.9 (112.4) | 0.828 | 0.692 | 0.638 | 14 |
+| fore160-s0 | pass | **fail (left fore pitch 1.014)** | pass | pass | fail | fail | fail | 134.3 (125.7) | 1.014 | 1.014 | 0.738 | 11 |
+| fore128-s1 | pass | pass (right hind flexion 0.888) | pass | pass | fail | fail | fail | 119.5 (106.5) | 0.888 | 0.811 | 0.702 | 24 |
+| run 3 s0 (188 mm, reference) | pass | pass (0.836) | pass | pass | pass | pass | fail | 143.5 (135.2) | 0.836 | 0.823 | | 25 |
+| run 3 s1 (188 mm, reference) | pass | pass (0.801) | pass | pass | pass | pass | fail | 110.6 (122.9) | 0.801 | 0.722 | | 18 |
+
+- No foot-load episode fell; no run fell on the steps, the ramps or the 0.3 friction floor.
+- T3 and T4 fail on sideways drift, not falls. T3's limit is 0.30 m: the runs drifted 0.27-0.43 m (fore128-s0),
+  0.46-0.60 m (fore160-s0) and 0.28-0.58 m (fore128-s1), against run 3's 0.08-0.26 m. T4's limit is 0.20 m: they
+  drifted 0.43, 0.82 and 0.45 m, against run 3's 0.15 and 0.06 m.
+- T5 (pushes): falls at -1.25, -1.0, +1.0 and +1.25 m/s, out of 8 each: 8/0/0/6, 4/0/1/6 and 8/1/7/8.
+- **Consequence under the pre-registered order (D24):** 160 mm now cannot pass the walk gate (F1 and F2 on all
+  four seeds). The choice can only be 128 mm, if 128 mm passes F1 and F2 on seeds 2 and 3 as well, or none. The
+  remaining 160 mm runs still have to be trained and measured: `choose()` makes no choice if any of the eight is
+  missing or not judged.
