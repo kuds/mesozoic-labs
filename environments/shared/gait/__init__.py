@@ -27,6 +27,12 @@ Modules, bottom-up:
 * :mod:`~environments.shared.gait.stance_metrics` --
   ``episode_stance_metrics`` and the ``StanceEpisodeMetrics`` row every v2
   threshold key reads; pure numpy;
+* :mod:`~environments.shared.gait.locomotion_metrics` --
+  ``episode_locomotion_metrics`` and the ``LocomotionEpisodeMetrics`` row the
+  ``command_tracking/v1`` gait clause reads (GAIT_QUALITY_PLAN_2026_09.md
+  GQ-8 (a) and GQ-9 (a): alternation, simultaneous touchdowns, hop flight,
+  lead swaps, flight, limb duty, foot-on-foot and phantom support, and the
+  report-only Hildebrand limb phase); pure numpy;
 * :mod:`~environments.shared.gait.pad_telemetry` -- report-only per-foot
   pad telemetry on the same trace (each box pad's signed fore-aft centre of
   pressure, the gate's per-foot statistic, the digits' load share) for the

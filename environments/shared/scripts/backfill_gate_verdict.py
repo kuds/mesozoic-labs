@@ -232,6 +232,8 @@ def backfill_gate_verdict(
     disagreeing override; returns the written path.
     """
     from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
+    from environments.shared.curriculum.command_tracking_evidence import COMMAND_TRACKING_REPORT_JSON
+    from environments.shared.curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND, CommandTrackingResult
     from environments.shared.curriculum.gate_schema import gate_config_view, retired_gate_declarations
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
@@ -242,7 +244,9 @@ def backfill_gate_verdict(
         StanceHeadingResult,
     )
     from environments.shared.reporting import build_stage_results_from_eval_data, evaluate_stage_gate
+    from environments.shared.reporting.command_tracking_report import command_tracking_stage_result
     from environments.shared.reporting.gates import (
+        _admit_command_tracking_report,
         _admit_stance_heading_report,
         _current_task_sha256,
         stance_v2_report_refusals,
@@ -325,6 +329,8 @@ def backfill_gate_verdict(
         )
     stance_report: dict[str, Any] | None = None
     rederived_certificate: StanceHeadingResult | None = None
+    command_report: dict[str, Any] | None = None
+    rederived_command: CommandTrackingResult | None = None
     if gate_kind == STANCE_GATE_KIND:
         stance_report = _load_json(stage_path / "stance_gate_report.json", what="stance_gate_report.json")
         if not isinstance(stance_report, Mapping):
@@ -375,6 +381,25 @@ def backfill_gate_verdict(
                 f"{'; '.join(refusals)}. Re-judge the node through the notebook JUDGE branch / "
                 "generate_stage_artifacts, which rolls the six-heading certificate on the handoff pair"
             )
+    elif gate_kind == COMMAND_TRACKING_GATE_KIND:
+        report_path = stage_path / COMMAND_TRACKING_REPORT_JSON
+        loaded = _load_json(report_path, what=COMMAND_TRACKING_REPORT_JSON)
+        if not isinstance(loaded, Mapping):
+            raise BackfillError(f"{report_path} must hold a JSON object")
+        command_report = dict(loaded)
+        # The judge's own admission (D-D61): a report not bound to this gate,
+        # handoff choice, task and command, or not re-derivable from its
+        # records, is a REFUSAL naming why, never a FAIL verdict.  The
+        # re-derivation is kept: its numbers are what is copied.
+        refusals, rederived_command = _admit_command_tracking_report(
+            curriculum, command_report, stage=entry.reference, stage_dir=stage_path
+        )
+        if refusals:
+            raise BackfillError(
+                f"{report_path} cannot back a {gate_kind} verdict under the {gate} {entry.id!r} block: "
+                f"{'; '.join(refusals)}. Re-judge the node through the notebook JUDGE branch / "
+                "generate_stage_artifacts, which chooses the handoff by the gated statistic and rolls the panel on it"
+            )
 
     stage_config = {
         "name": record.get("name", ""),
@@ -401,7 +426,7 @@ def backfill_gate_verdict(
     selected = selected_evidence_metrics(stage_path, model_zip=model_zip, normalization=normalization_path)
     if selected is not None:
         stage_results.update(selected)
-    elif stance_report is None and not (stage_path / "evaluations.npz").is_file():
+    elif stance_report is None and command_report is None and not (stage_path / "evaluations.npz").is_file():
         raise BackfillError(
             f"{stage_path} holds neither {SELECTED_EVIDENCE_CSV} nor evaluations.npz, so there is no measurement "
             f"to judge {gate_kind!r} on"
@@ -413,12 +438,15 @@ def backfill_gate_verdict(
         stage=entry.reference,
         stance_report=stance_report,
         stage_dir=stage_path,
+        command_tracking_report=command_report,
     )
     if gate_kind == STANCE_GATE_V2_KIND:
         # The numbers the re-derived verdict was judged on (admitted above).
         stage_results.update(stance_v2_stage_result(stance_report))
     elif gate_kind == STANCE_HEADING_GATE_KIND:
         stage_results.update(stance_heading_stage_result(stance_report, rederived=rederived_certificate))
+    elif gate_kind == COMMAND_TRACKING_GATE_KIND:
+        stage_results.update(command_tracking_stage_result(command_report, rederived=rederived_command))
     stage_results["gate_kind"] = gate_kind
     stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
     stage_results["gate_passed"] = passed

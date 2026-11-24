@@ -103,6 +103,16 @@ class DiagnosticsCallback(_BaseCallback):
     ``term_count_<reason>``: every ``term_`` key but ``term_timesteps`` is
     read as a termination fraction (``visualization.termination_fraction_keys``,
     ``compare_run_diagnostics.Run.termination_shares``).
+
+    A live command stage (a stage ``[commands]`` table, decision D-D60) also
+    records :attr:`COMMAND_TRACKING_KEYS` as rollout means aligned with
+    ``timesteps``: ``tracking_in_tolerance`` is the fraction of the
+    rollout's training steps within the env's own tracking tolerances, the
+    tracking fraction over training that the ``command_tracking/v1`` chart
+    draws (decision D-D61).  Unlike the INFO_KEYS, these reach
+    ``diagnostics.npz`` and TensorBoard only from a run whose env emitted
+    them, so a ``command_mode = "none"`` stage writes exactly the keys it
+    wrote before.
     """
 
     #: Record the per-rollout episode and fall counts (the switch the in-suite inertness proof turns off).
@@ -193,6 +203,11 @@ class DiagnosticsCallback(_BaseCallback):
         *STANCE_INFO_KEYS,
     ]
 
+    #: The live command's per-step tracking keys (``BaseDinoEnv`` emits them only under a live command, D-D60):
+    #: the in-tolerance flag at the env's tolerances, the velocity and yaw-rate errors, and the tracking reward term.
+    #: Recorded only by a run whose env emitted them (above).
+    COMMAND_TRACKING_KEYS = ("tracking_in_tolerance", "tracking_error_v", "tracking_error_yaw", "reward_tracking")
+
     def __init__(
         self,
         log_dir=None,
@@ -220,6 +235,10 @@ class DiagnosticsCallback(_BaseCallback):
         self._history_timesteps: list[int] = []
         self._history = {k: [] for k in self.INFO_KEYS}
         self._history_rewards = {k: [] for k in self.REWARD_KEYS}
+        # The live command's tracking keys, and whether the env emitted any (only then are they recorded).
+        self._step_command = {k: [] for k in self.COMMAND_TRACKING_KEYS}
+        self._history_command = {k: [] for k in self.COMMAND_TRACKING_KEYS}
+        self._command_tracking_seen = False
         self._history_heading_std: list[float] = []
         self._history_terminations: dict[str, list[float]] = {}
         self._history_term_timesteps: list[int] = []
@@ -255,6 +274,9 @@ class DiagnosticsCallback(_BaseCallback):
             for key in self.REWARD_KEYS + self.INFO_KEYS:
                 if key in stance_info:
                     self._step_infos[key].append(float(stance_info[key]))
+            for key in self.COMMAND_TRACKING_KEYS:
+                if key in info:
+                    self._step_command[key].append(float(info[key]))
             if "termination_reason" in info:
                 self._rollout_terminations[info["termination_reason"]] += 1
         if self.record_rollout_counts:
@@ -273,6 +295,10 @@ class DiagnosticsCallback(_BaseCallback):
         for key, values in self._step_infos.items():
             if values:
                 self.logger.record(f"diagnostics/{key}", _sanitize(float(_np.mean(values))))
+        for key, values in self._step_command.items():
+            if values:
+                self._command_tracking_seen = True
+                self.logger.record(f"diagnostics/{key}", _sanitize(float(_np.mean(values))))
 
         has_info = any(self._step_infos[k] for k in self.INFO_KEYS)
         if has_info:
@@ -283,6 +309,8 @@ class DiagnosticsCallback(_BaseCallback):
             for key in self.REWARD_KEYS:
                 vals = self._step_infos[key]
                 self._history_rewards[key].append(_safe_mean(vals))
+            for key in self.COMMAND_TRACKING_KEYS:
+                self._history_command[key].append(_safe_mean(self._step_command[key]))
             # Track heading alignment std to distinguish spinning from stable heading
             heading_vals = self._step_infos.get("heading_alignment", [])
             self._history_heading_std.append(float(_np.std(heading_vals)) if len(heading_vals) > 1 else float("nan"))
@@ -292,6 +320,7 @@ class DiagnosticsCallback(_BaseCallback):
                 self._history_rollout_falls.append(int(sum(self._rollout_terminations.values())))
 
         self._step_infos = {k: [] for k in self.REWARD_KEYS + self.INFO_KEYS}
+        self._step_command = {k: [] for k in self.COMMAND_TRACKING_KEYS}
         if self.record_rollout_counts and getattr(self, "logger", None) is not None:
             # TensorBoard only: SB3's logger prints every recorded key at each dump.
             self.logger.record("terminations/rollout_episodes", self._rollout_episodes, exclude=("stdout", "log"))
@@ -489,6 +518,12 @@ class DiagnosticsCallback(_BaseCallback):
                 save_dict[key] = _np.array(arr)
         if len(self._history_heading_std) == len(self._history_timesteps):
             save_dict["heading_alignment_std"] = _np.array(self._history_heading_std)
+        if self._command_tracking_seen:
+            # Only a run whose env emitted a tracking key (a live command stage); NaN for a rollout without one.
+            for key in self.COMMAND_TRACKING_KEYS:
+                series = self._history_command[key]
+                if len(series) == len(self._history_timesteps):
+                    save_dict[key] = _np.array(series)
         for name, series in (
             ("action_abs_mean", self._history_action_abs_mean),
             ("action_std", self._history_action_std),

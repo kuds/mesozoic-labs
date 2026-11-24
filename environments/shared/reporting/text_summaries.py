@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND, WALK_PROFILE
 from ..model_id import ModelId
 from ..species_names import model_display_name
 from ..stage_manifest import stage_display_name
@@ -25,6 +26,52 @@ def _forward_velocity(results: dict[str, Any]) -> str:
     std_vel = results.get("std_forward_vel")
     std_text = f" +/- {std_vel:.2f}" if isinstance(std_vel, (int, float)) else ""
     return f"{mean_vel:.2f}{std_text} m/s"
+
+
+def _command_tracking_lines(results: dict[str, Any]) -> list[str]:
+    """A ``command_tracking/v1`` stage's family statistics (decision D-D61), or nothing for another kind.
+
+    The numbers are the ``command_*`` stage-result keys the judge re-derived
+    from an admitted report (``stage_artifacts._apply_stage_gate`` copies
+    nothing from a refused one); an unrecorded number prints as ``n/a``.
+    """
+    if results.get("gate_kind") != COMMAND_TRACKING_GATE_KIND or not results.get("command_profile"):
+        return []
+
+    def shown(key: str, spec: str = ".4f") -> str:
+        value = results.get(key)
+        if value is None or value == "" or isinstance(value, bool):
+            return "n/a"
+        if not isinstance(value, (int, float)):
+            return str(value)
+        if spec == "d":
+            return str(int(value)) if float(value).is_integer() else str(value)
+        return format(value, spec)
+
+    profile = results["command_profile"]
+    lines = [f"  Profile:      {profile} ({shown('command_n_episodes', 'd')} panel episodes)"]
+    if profile == WALK_PROFILE:
+        lines.append(
+            f"  Cruise:       {shown('command_cruise_successes', 'd')}/{shown('command_cruise_episodes', 'd')} "
+            f"successful; success LCB95 {shown('command_cruise_success_lcb')}, survival LCB95 "
+            f"{shown('command_cruise_survival_lcb')}"
+        )
+        lines.append(
+            f"  Stand:        {shown('command_stand_successes', 'd')}/{shown('command_stand_episodes', 'd')} "
+            f"holding the stop ({shown('command_stand_success_fraction', '.3f')}); falls "
+            f"{shown('command_stand_falls', 'd')}"
+        )
+    else:
+        lines.append(
+            f"  Follow:       {shown('command_follow_successes', 'd')}/{shown('command_follow_episodes', 'd')} "
+            f"successful; success LCB95 {shown('command_follow_success_lcb')}, survival LCB95 "
+            f"{shown('command_follow_survival_lcb')}"
+        )
+        if results.get("command_paired_delta_lcb") is not None:
+            lines.append(f"  Reference:    paired success difference LCB95 {shown('command_paired_delta_lcb')}")
+    if results.get("command_handoff_selected"):
+        lines.append(f"  Handoff:      {results['command_handoff_selected']} (chosen by the gated statistic)")
+    return lines
 
 
 def write_stage_summary(
@@ -123,6 +170,7 @@ def write_stage_summary(
         lines.append("Curriculum Gate")
         lines.append("-" * 40)
         lines.append(f"  Verdict:      {'PASS' if gate_passed else 'FAIL'}")
+        lines.extend(_command_tracking_lines(results_dict))
         for failure in results_dict.get("gate_failures") or []:
             lines.append(f"  - {failure}")
         lines.append("")

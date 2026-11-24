@@ -953,7 +953,15 @@ def test_edges_and_runs():
 
 # ── layering ─────────────────────────────────────────────────────────────────
 
-PURE_MODULES = ("__init__.py", "constants.py", "events.py", "stance_metrics.py", "pad_telemetry.py", "stance_track.py")
+PURE_MODULES = (
+    "__init__.py",
+    "constants.py",
+    "events.py",
+    "stance_metrics.py",
+    "locomotion_metrics.py",
+    "pad_telemetry.py",
+    "stance_track.py",
+)
 #: The contact reduction the recorder shares with the T. rex's opt-in CoP band moved out of gait/ so that env can
 #: import it.  constants (the contact threshold) and stance_metrics (the whole-foot CoP normalization) import it
 #: back, so it must be pure too (test_the_neutral_reduction_is_pure).
@@ -984,8 +992,8 @@ def _import_time_imports(path: Path) -> list[str]:
 
 @pytest.mark.parametrize("module", PURE_MODULES)
 def test_the_pure_modules_import_no_mujoco(module):
-    """The gate (pure) imports constants, events and stance_metrics: they import only the standard library,
-    numpy and each other.  So does pad_telemetry, which the evaluation callback reduces with (its layout
+    """The gates (pure) import constants, events, stance_metrics and locomotion_metrics: they import only the
+    standard library, numpy and each other.  So does pad_telemetry, which the evaluation callback reduces with (its layout
     builder imports mujoco in its body), and stance_track, which reads a robot's log as well as a simulation.
     The one import outside the package is the neutral reduction, itself pure (below)."""
     allowed_relative = {"." + name.removesuffix(".py") for name in PURE_MODULES if name != "__init__.py"}

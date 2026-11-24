@@ -492,11 +492,20 @@ class TestPublicationKeys:
         The committed blocks of every species (stance v1, reward_and_length,
         recovery) are validated as they stand; the pilot,
         ``stance_quality/v2`` -- registered by D-D23 before any stage adopts
-        it -- and the six-heading certificate (D-D32) get a minimal
+        it -- the six-heading certificate (D-D32) and ``command_tracking/v1``
+        (D-D61, both profiles at their provisional values, each with a biped's
+        and a quadruped's provisional gait clause) get a minimal
         schema-valid block each, so the loop still covers exactly
         ``GATE_KINDS`` whichever kinds the TOMLs happen to declare.
         """
         from environments.shared.config import load_all_stages
+        from environments.shared.curriculum.command_tracking_gate import (
+            COMMAND_TRACKING_GATE_KIND,
+            PROVISIONAL_BIPED_GAIT_THRESHOLDS,
+            PROVISIONAL_FOLLOW_THRESHOLDS,
+            PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS,
+            PROVISIONAL_WALK_THRESHOLDS,
+        )
         from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS
         from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
         from environments.shared.species_names import model_ids
@@ -524,6 +533,17 @@ class TestPublicationKeys:
             if kind not in seen:
                 assert validate_gate_config(1, {**block, "certification_seeds": 3}) == kind
                 seen.add(kind)
+        for profile_block in (PROVISIONAL_WALK_THRESHOLDS, PROVISIONAL_FOLLOW_THRESHOLDS):
+            for gait_block in (PROVISIONAL_BIPED_GAIT_THRESHOLDS, PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS):
+                block = {
+                    "gate_schema_version": GATE_SCHEMA_VERSION,
+                    "gate_kind": COMMAND_TRACKING_GATE_KIND,
+                    **profile_block,
+                    **gait_block,
+                    "certification_seeds": 3,
+                }
+                assert validate_gate_config(1, block) == COMMAND_TRACKING_GATE_KIND
+        seen.add(COMMAND_TRACKING_GATE_KIND)
         assert seen == set(GATE_KINDS)
 
     @pytest.mark.parametrize(

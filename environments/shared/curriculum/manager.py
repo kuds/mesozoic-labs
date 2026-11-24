@@ -15,6 +15,7 @@ import numpy as np
 from environments.shared.config import load_all_stages
 
 from ..model_id import ModelId
+from .command_tracking_gate import COMMAND_TRACKING_GATE_KIND
 from .gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, retired_gate_declarations, validate_gate_config
 from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import (
@@ -317,7 +318,11 @@ class CurriculumManager:
             ``stance_quality/v2`` and ``stance_quality_heading/v1`` too:
             their certificate is the post-stage floor-truth panel (the
             heading kind's, six of them) on the handoff pair — see
-            :meth:`_stance_v2_gate_refuses`.
+            :meth:`_stance_v2_gate_refuses`.  And always False for
+            ``command_tracking/v1`` (decision D-D61): its certificate is the
+            stage's command panel on the handoff chosen by the gated
+            statistic, rolled after the stage — see
+            :meth:`_command_tracking_gate_refuses`.
         """
         if rewards is not None and episode_lengths is not None:
             self.record_eval(rewards, episode_lengths, forward_velocities, stance_panel)
@@ -352,6 +357,10 @@ class CurriculumManager:
             # The six-heading certificate (D-D32) is v2 on a grid of turned
             # spawns: refused here for v2's reason, six times over.
             passes = self._stance_v2_gate_refuses(STANCE_HEADING_GATE_KIND)
+        elif threshold.gate_kind == COMMAND_TRACKING_GATE_KIND:
+            # Never the reward arm: the command panel is a post-stage
+            # certificate (D-D61), on seeds and a checkpoint this path never has.
+            passes = self._command_tracking_gate_refuses()
         elif retired := retired_gate_declarations({"gate_kind": threshold.gate_kind}):
             # A retired kind (task_success/v1, decision D-D59) is refused by
             # the schema before a threshold is built; a threshold built by hand
@@ -496,6 +505,43 @@ class CurriculumManager:
         )
         return False
 
+    def _command_tracking_gate_refuses(self) -> bool:
+        """Refuse ``command_tracking/v1`` here, naming where its verdict comes from instead (decision D-D61).
+
+        The verdict is a per-episode classification of the stage's own
+        command panel -- the reset seeds planned from the certification seed
+        3042 so that each walk family holds exactly its minimum, every
+        episode's command drawn by the stage's own command stream, its gait
+        clause measured on floor truth through the substep contact recorder
+        -- rolled deterministically on the handoff pair chosen by the gated
+        statistic on a separate selection panel.  The in-training
+        evaluation has none of that: ``EvalCallback`` rolls its own seeds on
+        whatever checkpoint is current, with no recorder and no family
+        construction, so nothing it records can be classified against the
+        gate's criteria.
+
+        So the verdict is produced once, after the stage, by
+        ``reporting.command_tracking_report.build_command_tracking_report``
+        judged through ``reporting.gates.evaluate_stage_gate`` --
+        ``generate_stage_artifacts`` on the notebook path, the post-training
+        judge in ``train_base.train_curriculum`` on the CLI path.  Returning
+        ``False`` never counts toward the consecutive-pass streak and never
+        falls through to the reward gate, which ``StageThreshold``'s
+        permissive reward defaults would pass on any evaluation.  The kind's
+        threshold keys are deliberately not copied onto ``StageThreshold``
+        (:func:`thresholds_from_configs`): nothing here reads them.
+        """
+        logger.error(
+            "Stage %d declares gate_kind %r, which the in-training curriculum cannot evaluate: its certificate is "
+            "the stage's command panel (seeds planned from 3042, families by construction, the gait clause on "
+            "floor truth) rolled on the handoff chosen by the gated statistic, and an in-training evaluation rolls "
+            "other seeds on another checkpoint with no recorder. Refusing to advance; the verdict comes after the "
+            "stage from the command-tracking report, through reporting.gates.evaluate_stage_gate.",
+            self._current_stage,
+            COMMAND_TRACKING_GATE_KIND,
+        )
+        return False
+
     def _stance_gate_passes(self, latest: dict[str, float]) -> bool:
         """Evaluate ``stance_quality/v1`` against one evaluation.
 
@@ -632,6 +678,11 @@ def thresholds_from_configs(
         # in-training screen a later tier adds reads them from here.  The
         # manager refuses the kind until then (_stance_v2_gate_refuses).
         # The six-heading certificate (D-D32) declares the same keys.
+        #
+        # command_tracking/v1's keys (D-D61) are NOT copied, like recovery's:
+        # the manager refuses the kind (_command_tracking_gate_refuses) and its
+        # verdict is the post-stage panel's, which reads them from the stage's
+        # [curriculum] block through command_tracking_gate.thresholds_from_curriculum.
         threshold_fields: dict[str, Any] = {"gate_kind": gate_kind}
         v2_keys = _STANCE_V2_COPIED_KEYS if gate_kind in FLOOR_TRUTH_STANCE_GATE_KINDS else ()
         for key in (

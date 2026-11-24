@@ -12,12 +12,64 @@ import math
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND, WALK_PROFILE
 from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from ..model_id import ModelId
 from .formatting import _optional_metric, parse_optional_bool
 
 logger = logging.getLogger(__name__)
+
+
+def command_tracking_columns(curriculum: Mapping[str, Any], results: Mapping[str, Any]) -> dict[str, Any]:
+    """The results-CSV columns a ``command_tracking/v1`` row adds (decision D-D61), and only such a row.
+
+    The profile, the certifying bars the row would otherwise not show (every
+    bar is also in its ``curriculum_*`` column), each judged family's
+    episode and success counts and bounds as the post-stage judgement
+    re-derived them (the ``command_*`` stage-result keys,
+    ``command_tracking_report.COMMAND_TRACKING_STAGE_RESULT_KEYS``), and the
+    handoff name the panel scored.  A walk row carries the cruise and stand
+    families, a follow row its one family and the paired reference bound.
+    """
+    profile = curriculum.get("profile")
+    row: dict[str, Any] = {
+        "command_profile": profile if isinstance(profile, str) else "",
+        "command_n_episodes": _optional_metric(results.get("command_n_episodes")),
+    }
+    if profile == WALK_PROFILE:
+        row.update(
+            {
+                "cruise_success_lcb_threshold": curriculum.get("min_cruise_success_lcb", ""),
+                "cruise_survival_lcb_threshold": curriculum.get("min_cruise_survival_lcb", ""),
+                "stand_success_fraction_threshold": curriculum.get("min_stand_success_fraction", ""),
+                "command_cruise_episodes": _optional_metric(results.get("command_cruise_episodes")),
+                "command_cruise_successes": _optional_metric(results.get("command_cruise_successes")),
+                "command_cruise_success_lcb": _optional_metric(results.get("command_cruise_success_lcb"), digits=4),
+                "command_cruise_survival_lcb": _optional_metric(results.get("command_cruise_survival_lcb"), digits=4),
+                "command_stand_episodes": _optional_metric(results.get("command_stand_episodes")),
+                "command_stand_successes": _optional_metric(results.get("command_stand_successes")),
+                "command_stand_success_fraction": _optional_metric(
+                    results.get("command_stand_success_fraction"), digits=4
+                ),
+                "command_stand_falls": _optional_metric(results.get("command_stand_falls")),
+            }
+        )
+    else:
+        row.update(
+            {
+                "follow_success_lcb_threshold": curriculum.get("min_follow_success_lcb", ""),
+                "follow_survival_lcb_threshold": curriculum.get("min_follow_survival_lcb", ""),
+                "command_follow_episodes": _optional_metric(results.get("command_follow_episodes")),
+                "command_follow_successes": _optional_metric(results.get("command_follow_successes")),
+                "command_follow_success_lcb": _optional_metric(results.get("command_follow_success_lcb"), digits=4),
+                "command_follow_survival_lcb": _optional_metric(results.get("command_follow_survival_lcb"), digits=4),
+                "command_paired_delta_lcb": _optional_metric(results.get("command_paired_delta_lcb"), digits=4),
+            }
+        )
+    selected = results.get("command_handoff_selected")
+    row["command_handoff_selected"] = selected if isinstance(selected, str) else ""
+    return row
 
 
 # Canonical metric column order for collected_results.csv.
@@ -301,6 +353,11 @@ def build_results_csv_rows(
             row["stance_eval_episodes"] = cur.get("min_eval_episodes", "")
             row["stance_heading_clean_seeds"] = _optional_metric(r.get("stance_heading_clean_seeds"))
             row["stance_heading_clean_seed_lcb"] = _optional_metric(r.get("stance_heading_clean_seed_lcb"), digits=4)
+        elif cur.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+            # command_tracking/v1 (D-D61): the profile, its certifying bars and
+            # each family's counts and bounds, so the row does not read as
+            # gated on a reward it never declares.  Only on such a row.
+            row.update(command_tracking_columns(cur, r))
         row["stage_passed"] = r.get("publication_gate_passed", "")
         row["publication_gate_passed"] = r.get("publication_gate_passed", "")
 

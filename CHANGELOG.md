@@ -8,6 +8,164 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The `command_tracking/v1` gate kind: walk and follow profiles** (decision
+  D-D61; no committed stage declares it, so no stage's gate digest moves).
+  - `curriculum/command_tracking_gate.py` judges a stage whose command is live
+    on a fixed panel of seeded, deterministic episodes. The string-valued
+    `profile` key selects `walk` (the walk node) or `follow` (the later
+    follow nodes). `thresholds_from_curriculum` reads a stage's `[curriculum]`
+    block strictly into `WalkThresholds` or `FollowThresholds`: every bar the
+    profile names is required, and an unknown key, the other profile's key or
+    a value outside its rule is refused. `gate_schema` registers the kind with
+    both profiles' keys and calls that reader at config load.
+  - Walk: a `cruise` episode (a non-zero reset command) succeeds when it
+    reaches the horizon, settles its initial heading error within
+    `1 s + |error| / yaw_rate_max` and holds it 1 s
+    (`behavior_evaluation.summarize_episode`'s event logic), keeps
+    `min_cruise_tracking_fraction` of its steps in tolerance after the
+    settle, and makes `min_cruise_speed_ratio` of the requested speed along
+    the requested heading after 2 s; the family passes on the exact
+    Clopper-Pearson bounds of survival and success. A `stand` episode (an
+    exactly zero command) succeeds when it reaches the horizon, settles its
+    stop and holds the stop criterion for `min_stand_hold_fraction` of its
+    steps after 1 s; the family passes when at most `max_stand_falls` fall
+    and `min_stand_success_fraction` succeed. A family short of its minimum,
+    or an episode whose schedule switches mid-episode, fails the gate. Two
+    provisional readings are looser than the design draft: the stand's hold
+    is a fraction of the steps after 1 s (0.60 to start, to be frozen near 1),
+    and the speed ratio starts at 0.50, not the draft's 0.9 × cruise.
+  - Follow: the behavior certificate's per-episode statistics under the
+    gate's own keys (a test pins its verdict to `judge_behavior_panel` on the
+    same rows), with an optional paired comparison against a reference
+    policy on the same seeds (`min_follow_reference_delta_lcb`, failing
+    closed without its reference panel). The pairing is on follow success on
+    the follow panel: a non-inferiority bound on the follow task, not a test
+    that straight walking was kept; the follow nodes also pair on the walk
+    panel's walk success when they land.
+  - The in-tolerance test is the env's, at the tolerances the stage's command
+    config resolves; a `gate_*_tolerance` key replaces one for the gate, and
+    every episode record carries the measurement it was reduced under, which
+    the gate checks.
+  - `command_tracking_panel.py`: `plan_command_panel` picks the panel's reset
+    seeds from the publication seed family (from 3042). A walk panel's
+    families are fixed by construction, because a seeded reset's command
+    draw is a pure function of the seed: the planner keeps the first
+    `min_cruise_episodes` cruise and `min_stand_episodes` stand seeds the
+    stage's own distribution draws. `roll_command_panel` rolls any action
+    callable (a policy, the zero-action statue, a scripted controller) and
+    returns the reduced records, the same records for the same seeds.
+  - The starting values (`PROVISIONAL_WALK_THRESHOLDS`,
+    `PROVISIONAL_FOLLOW_THRESHOLDS`) are copied from
+    `configs/behavior_certification.toml`, each naming its source, and are
+    provisional until a pilot freezes them; the gate never reads that file.
+  - A gait clause in both profiles (GAIT_QUALITY_PLAN_2026_09 GQ-8 (a),
+    GQ-9 (a), GQ-18), so tracking the command with a hop or a slide is judged
+    on the footfalls, not the pelvis. The panel runner records every episode
+    through the floor-truth recorder, and the new pure
+    `gait/locomotion_metrics.py`
+    (`episode_locomotion_metrics`) reduces it to the plan's metrics: flight,
+    hop flight, the alternation index and simultaneous fraction of the
+    merged left/right touchdowns (the new `gait.events.pair_touchdown_events`,
+    20 ms), lead swaps per stride, minimum limb duty, foot-on-foot and
+    phantom support, and the report-only Hildebrand limb phase, left/right
+    phase, stance-foot slip speed, lead amplitude and leg length. The record
+    carries them as `gait_metrics`, and the measurement names their version
+    (`floor-truth/v2+locomotion-gait/v2`). A lead swap counts only once the
+    feet's fore-aft offset has passed a dead band of 0.03 leg lengths
+    (`LEAD_DEAD_BAND_L`): under a plain sign change the offset of feet side
+    by side flickered about zero on the real plants, and the T. rex hop with
+    its feet landing 30 ms apart passed every required biped separator. The
+    required key `gait_limbs` (2 or 4) selects the required bars: a biped's
+    six separators
+    (`min_alternation_index`, `max_simultaneous_fraction`,
+    `max_hop_flight_fraction`, `min_lead_swaps_per_stride`,
+    `max_foot_contact_fraction`, `max_phantom_support_fraction`; the flight
+    cap optional) and a quadruped's three floors (`max_flight_fraction`,
+    `min_limb_duty`, `min_pair_alternation_index`). The provisional values
+    (`PROVISIONAL_BIPED_GAIT_THRESHOLDS`,
+    `PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS`) are the plan's §4.3 bars. The
+    stand family's gait is not judged, so stepping in place within the stop
+    tolerances passes it; the stand records' gait metrics are the
+    report-only signal. On the T. rex and the brachiosaurus a
+    scripted two-footed hop and a scripted slide fail the clause, so does the
+    T. rex hop with its feet landing 30 ms apart, and all five repository
+    reference walks pass it. Not refused, and recorded as open risks in
+    D-D61: a staggered hop whose feet swing their lead past the dead band
+    (only the optional flight cap refuses it), and a skid broken by brief
+    alternating lifts (slip is report-only under GQ-8 (a)); a slide with
+    every foot down fails. Also not refused: a flightless quadruped bound
+    whose pair feet land more than 20 ms apart clears the three required
+    floors (the optional `min_lead_swaps_per_stride` refuses it; pinned by a
+    test).
+  - `gate_schema.same_threshold` compares two strings that are not numbers
+    by equality, so a recorded `profile` agrees with the declared one.
+  - The post-stage judge: `reporting.command_tracking_report` rolls the
+    stage's panel on its handoff pair (frozen VecNormalize statistics,
+    deterministic, from seed 3042) and writes `command_tracking_report.json`,
+    its text form and `command_tracking_panel_selected.csv`
+    (`curriculum/command_tracking_evidence.py` writes the CSV and reads it
+    back strictly; `CommandTrackingEpisode.from_dict` and
+    `PanelMeasurement.from_dict` read a record back). `evaluate_stage_gate`
+    admits the report only when it is bound to the stage's gate, handoff
+    pair, handoff choice, task, horizon, control step and command, and
+    re-derives the verdict from its records; `evaluate_recorded_gate` reads
+    `None`. `generate_stage_artifacts`, the command-line curriculum's
+    post-training judge and the backfill tool judge through it. The
+    in-training curriculum manager refuses the kind, as it refuses the
+    floor-truth stance kinds.
+  - The handoff is chosen by the gated statistic, not by reward: at the end
+    of training (and on the notebook's JUDGE branch when the choice is
+    missing or stale) `robust_best_model`, `best_model` and the final pair
+    are each rolled on a selection panel from seed 2042 and ranked by
+    `handoff_selection_key` (passed, then the profile's success bound).
+    `models/handoff_choice.json` records the winner with every ranked
+    pair's digests; `select_handoff_checkpoint` honors it, and the judge
+    refuses a stage without a current choice. No choice is made on a
+    selection panel that shares a seed with the certification panel (a rare
+    stand family can run the planner's scan from 2042 into 3042), and the
+    judge refuses a choice whose recorded selection plan does.
+  - A follow profile's paired reference must have run the same task on each
+    seed: `paired_success_differences` refuses a pair whose records differ
+    in family, requested speed, planned event count, horizon or control
+    step, and the judge and publication check the reference rows' families
+    against the plan, as they do the policy rows'.
+  - Publication re-derives a recorded pass from the panel CSV alone, bound
+    to the certified pair, the task, the gate, the stage's command and the
+    planned panel. The verdict's `stage_result`, the summary stage row, the
+    results CSV and the stage summary carry each family's counts and bounds
+    (`command_*`), copied from an admitted report's re-derivation only.
+  - The species catalog renders the kind's gate and its headline: a walk
+    deliverable headlines its cruise success bound and stand success
+    fraction, a follow deliverable its success bound.
+  - Charts, drawn after the verdict by `generate_stage_artifacts` (with
+    graphs on) and by the command-line curriculum's judge
+    (`stage_artifacts.write_command_tracking_figures`, which never raises):
+    the chart episodes (the certification panel's first cruise seed and
+    first stand seed) are rolled again with their step rows on the pair the
+    report scored and written to `command_tracking_trace.csv`
+    (`reporting/command_tracking_trace.py`), each row with the gate's own
+    per-step test and whether the episode's record is the certified one.
+    `figures/command_tracking.png` (`visualization.plot_command_tracking`)
+    draws commanded against achieved speed, yaw rate and heading error over
+    those episodes, with the tolerances, the judged windows and the settle
+    deadline, and the tracking fraction over training against the profile's
+    tracking bar. `figures/command_gate_progress.png`
+    (`visualization.plot_command_gate_progress`) draws each gated statistic
+    of every handoff candidate on the selection panel, in the order training
+    saved them, and of the certified handoff, against its bar, beside the
+    certification panel's failing episodes per criterion. The figures
+    describe the judgement that drew them: stale trace and figures are
+    removed first (`remove_stale_command_tracking_outputs`, from the stage
+    directory's published `figures/` too, and on the notebook path whether
+    or not graphs are drawn), nothing is drawn without this judgement's report, each
+    trace row is stamped with the checkpoint it was rolled on (a trace of
+    another pair is not drawn), and the gate-progress title is the stage's
+    verdict. Report-only: nothing reads the trace or the figures.
+  - `DiagnosticsCallback` records the live command's tracking keys
+    (`tracking_in_tolerance`, `tracking_error_v`, `tracking_error_yaw`,
+    `reward_tracking`) as rollout means in `diagnostics.npz` and
+    TensorBoard, only for a run whose environment emits them; a stage
+    without commands records exactly what it did before.
 - **Live commands for manifest stages: the `[commands]` table, tracking in the
   base env and an independent command stream** (decision D-D60; no committed
   stage turns its command on, so no stage's task, gate or plant digest moves).

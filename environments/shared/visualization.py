@@ -914,3 +914,480 @@ def plot_gate_progress(
     if not show:
         plt.close(figure)
     return figure
+
+
+#: The ``command_tracking/v1`` figures ``generate_stage_artifacts`` draws into ``figures/`` (decision D-D61).
+COMMAND_TRACKING_FIGURE = "command_tracking.png"
+COMMAND_GATE_PROGRESS_FIGURE = "command_gate_progress.png"
+#: The tracking fraction over training: ``diagnostics.npz``'s rollout mean of the env's in-tolerance flag.
+_TRACKING_HISTORY_KEY = "tracking_in_tolerance"
+#: Each profile's bar on the per-episode in-tolerance fraction (after the settle), drawn against that history.
+_TRACKING_BAR_KEYS: dict[str, str] = {"walk": "min_cruise_tracking_fraction", "follow": "min_follow_tracking_fraction"}
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    """*value* when it is a JSON object, else an empty one (the figures read recorded files leniently)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _true_runs(times: Any, flags: Any) -> list[tuple[float, float]]:
+    """The ``(start, end)`` time spans of the consecutive steps whose flag is set (each step ends at its time)."""
+    spans: list[tuple[float, float]] = []
+    start = None
+    previous = 0.0
+    for time_s, flag in zip(times, flags):
+        if flag and start is None:
+            start = previous
+        if not flag and start is not None:
+            spans.append((start, previous))
+            start = None
+        previous = float(time_s)
+    if start is not None:
+        spans.append((start, previous))
+    return spans
+
+
+def _command_tracking_history(stage_dir: Path) -> "tuple[Any, Any] | None":
+    """``(timesteps, in-tolerance fraction)`` from the stage's ``diagnostics.npz``, or ``None`` when not recorded."""
+    import numpy as np
+
+    path = stage_dir / "diagnostics.npz"
+    if not path.is_file():
+        return None
+    with np.load(path) as data:
+        if _TRACKING_HISTORY_KEY not in data.files or "timesteps" not in data.files:
+            return None
+        timesteps = np.asarray(data["timesteps"], dtype=float)
+        fraction = np.asarray(data[_TRACKING_HISTORY_KEY], dtype=float)
+    if fraction.shape != timesteps.shape or not np.isfinite(fraction).any():
+        return None
+    return timesteps, fraction
+
+
+def plot_command_tracking(
+    stage_dir: "str | Path",
+    *,
+    curriculum_kwargs: "dict[str, Any] | None" = None,
+    model_id: ModelId | None = None,
+    save_path: "str | Path | None" = None,
+    show: bool = False,
+) -> Any:
+    """A ``command_tracking/v1`` stage's tracking: commanded against achieved over panel episodes, and over training.
+
+    One column per chart episode of ``command_tracking_trace.csv``
+    (``reporting.command_tracking_trace``: the panel's first episode whose
+    reset drew a cruise command and its first that drew a stand), each with
+
+    1. the commanded speed against the achieved speed along the requested
+       heading (and the planar speed), with the velocity tolerance (the
+       stop-speed tolerance on a stand) and the start of the window the
+       gate averages over (2 s for the speed ratio, 1 s for the hold);
+    2. the commanded against the achieved yaw rate, with the yaw-rate
+       tolerance (the stop yaw-rate tolerance on a stand);
+    3. the heading error, with the heading tolerance and the first event's
+       settle deadline (1 s + |initial error| / yaw_rate_max); on a stand,
+       the distance from the spawn instead;
+
+    and the steps the gate's per-step test holds shaded.  The tolerances
+    and each episode's verdict are the command-tracking report's; a title
+    says whether the re-rolled episode's record equals the certified one.
+    Only the trace rows rolled on the report's handoff checkpoint are drawn
+    (``command_tracking_trace.trace_rows_of``): a trace of another pair, or
+    a trace without a report, is left out.
+    The bottom panel is the tracking fraction over training, the training
+    rollouts' mean of the env's in-tolerance flag (``diagnostics.npz``'s
+    ``tracking_in_tolerance``, all steps of a stochastic policy, both
+    families), against the profile's per-episode tracking bar; "not
+    recorded" when the file holds none.
+
+    Returns the figure, or ``None`` when the stage has neither a trace nor a
+    tracking history.  Report-only; reads the stage directory and writes
+    *save_path* only.
+    """
+    import math
+    import textwrap
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    from .curriculum.command_tracking_evidence import COMMAND_TRACKING_REPORT_JSON
+    from .curriculum.command_tracking_gate import (
+        SETTLE_BASE_S,
+        SPEED_SETTLE_S,
+        STAND_FAMILY,
+        STAND_SETTLE_S,
+    )
+    from .file_io import read_json_object
+    from .reporting.command_tracking_trace import (
+        COMMAND_TRACKING_TRACE_CSV,
+        read_command_tracking_trace,
+        trace_episodes,
+        trace_rows_of,
+    )
+
+    stage_dir = Path(stage_dir)
+    report = read_json_object(stage_dir / COMMAND_TRACKING_REPORT_JSON) or {}
+    trace = read_command_tracking_trace(stage_dir / COMMAND_TRACKING_TRACE_CSV) or []
+    current = trace_rows_of(trace, report)
+    if len(current) != len(trace):
+        logger.warning(
+            "%s: %d of %d trace rows were not rolled on the report's handoff checkpoint; they are not drawn",
+            stage_dir / COMMAND_TRACKING_TRACE_CSV,
+            len(trace) - len(current),
+            len(trace),
+        )
+    episodes = trace_episodes(current)
+    history = _command_tracking_history(stage_dir)
+    if not episodes and history is None:
+        return None
+    measurement = _mapping(report.get("measurement"))
+    tolerances = _mapping(measurement.get("tolerances"))
+    yaw_rate_max = measurement.get("yaw_rate_max")
+    curriculum = dict(report.get("thresholds") or {})
+    curriculum.update(curriculum_kwargs or {})
+    evidence = {
+        int(entry["record"]["seed"]): entry
+        for entry in report.get("episode_evidence") or ()
+        if isinstance(entry, dict)
+        and isinstance(entry.get("record"), dict)
+        and isinstance(entry["record"].get("seed"), int)
+    }
+
+    def tolerance(name: str) -> float | None:
+        value = tolerances.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            return None
+        return float(value)
+
+    def column(rows: Sequence[Any], key: str) -> Any:
+        return np.asarray([float(row[key]) for row in rows], dtype=float)
+
+    columns = max(1, len(episodes))
+    panel_rows = 3 if episodes else 0
+    figure = plt.figure(figsize=(7.0 * columns, 2.6 * panel_rows + 3.0))
+    grid = figure.add_gridspec(panel_rows + 1, columns)
+    title = model_display_name(model_id) if model_id is not None else stage_dir.name
+    figure.suptitle(f"{title} – command tracking ({stage_dir.name})", fontsize=13, fontweight="bold")
+    for index, (seed, family, rows) in enumerate(episodes):
+        times = column(rows, "time_s")
+        commanded = column(rows, "desired_speed")
+        flags = [bool(row["in_tolerance"]) for row in rows]
+        stand = family == STAND_FAMILY
+        axes = [figure.add_subplot(grid[row, index]) for row in range(3)]
+        speed_axis, yaw_axis, third_axis = axes
+        speed_tolerance = tolerance("stop_speed_tolerance" if stand else "velocity_tolerance")
+        if speed_tolerance is not None:
+            low = np.zeros_like(commanded) if stand else commanded - speed_tolerance
+            speed_axis.fill_between(
+                times, low, commanded + speed_tolerance, color="0.88", step="post", linewidth=0, label="tolerance"
+            )
+        speed_axis.plot(times, commanded, color="0.2", linestyle="--", drawstyle="steps-post", label="commanded speed")
+        speed_axis.plot(times, column(rows, "speed_along_heading_mps"), color="C0", label="achieved, along the heading")
+        speed_axis.plot(
+            times, column(rows, "actual_speed"), color="C0", linewidth=0.8, alpha=0.45, label="achieved, planar"
+        )
+        window = STAND_SETTLE_S if stand else SPEED_SETTLE_S
+        speed_axis.axvline(window, color="0.5", linestyle=":", label=f"judged from {window:g} s")
+        speed_axis.set_ylabel("speed (m/s)")
+
+        commanded_yaw = column(rows, "command_yaw_rate")
+        yaw_tolerance = tolerance("stop_yaw_rate_tolerance" if stand else "yaw_rate_tolerance")
+        if yaw_tolerance is not None:
+            centre = np.zeros_like(commanded_yaw) if stand else commanded_yaw
+            yaw_axis.fill_between(
+                times,
+                centre - yaw_tolerance,
+                centre + yaw_tolerance,
+                color="0.88",
+                step="post",
+                linewidth=0,
+                label="tolerance",
+            )
+        yaw_axis.plot(times, commanded_yaw, color="0.2", linestyle="--", drawstyle="steps-post", label="commanded")
+        yaw_axis.plot(times, column(rows, "actual_yaw_rate"), color="C1", label="achieved")
+        yaw_axis.set_ylabel("yaw rate (rad/s)")
+
+        entry = evidence.get(seed) or {}
+        record = _mapping(entry.get("record"))
+        if stand:
+            third_axis.plot(times, column(rows, "course_progress_m"), color="C4", label="distance from the spawn")
+            third_axis.set_ylabel("m")
+        else:
+            heading_tolerance = tolerance("heading_tolerance")
+            if heading_tolerance is not None:
+                bound = math.degrees(heading_tolerance)
+                third_axis.axhspan(-bound, bound, color="0.88", linewidth=0, label="tolerance")
+            third_axis.plot(times, np.degrees(column(rows, "heading_error_rad")), color="C4", label="heading error")
+            initial = record.get("initial_heading_error_rad")
+            if isinstance(initial, (int, float)) and isinstance(yaw_rate_max, (int, float)) and yaw_rate_max > 0:
+                deadline = SETTLE_BASE_S + abs(float(initial)) / float(yaw_rate_max)
+                third_axis.axvline(deadline, color="0.5", linestyle=":", label=f"settle deadline {deadline:.2f} s")
+            third_axis.axhline(0.0, color="0.7", linewidth=0.8)
+            third_axis.set_ylabel("heading error (deg)")
+        third_axis.set_xlabel("time (s)")
+
+        if "success" in entry:
+            failed = sorted({str(reason).split(":", 1)[0] for reason in entry.get("reasons") or ()})
+            shown = ", ".join(failed[:4]) + (f" and {len(failed) - 4} more" if len(failed) > 4 else "")
+            verdict = "passed" if entry["success"] else f"failed: {shown}"
+        else:
+            verdict = "not in the report"
+        matches = rows[0]["record_matches_report"] if rows else False
+        provenance = "the certified episode" if matches else "re-rolled; its record is not the report's"
+        speed_axis.set_title(
+            f"{family} episode, seed {seed}, commanded {commanded[0]:.2f} m/s ({provenance})\n"
+            + textwrap.fill(verdict, width=90),
+            fontsize=9,
+        )
+        for axis in axes:
+            # Over the tolerance bands, so the steps the gate's per-step test holds stay visible.
+            for number, (start, end) in enumerate(_true_runs(times, flags)):
+                axis.axvspan(
+                    start, end, color="C2", alpha=0.15, linewidth=0, label="in tolerance" if number == 0 else None
+                )
+            axis.grid(alpha=0.3)
+            _safe_legend(axis, loc="upper right", fontsize=7)
+
+    training = figure.add_subplot(grid[panel_rows, :])
+    if history is not None:
+        timesteps, fraction = history
+        training.plot(timesteps / 1e6, fraction, color="C0", label="in-tolerance fraction of training steps")
+        bar_key = _TRACKING_BAR_KEYS.get(str(report.get("profile") or curriculum.get("profile")))
+        bar_value = curriculum.get(bar_key) if bar_key else None
+        if isinstance(bar_value, (int, float)) and not isinstance(bar_value, bool):
+            training.axhline(
+                float(bar_value),
+                color="C3",
+                linestyle="--",
+                label=f"{bar_key} {float(bar_value):.2f} (panel, after the settle)",
+            )
+        training.set_ylim(-0.05, 1.05)
+        training.set_xlabel("steps (millions)")
+        training.set_ylabel("in-tolerance fraction")
+        training.set_title("Tracking fraction over training (training rollouts, the env's tolerances)", fontsize=10)
+        training.grid(alpha=0.3)
+        _safe_legend(training, loc="lower right", fontsize=8)
+    else:
+        training.axis("off")
+        training.text(
+            0.5,
+            0.5,
+            "Tracking fraction over training: not recorded (diagnostics.npz holds no tracking_in_tolerance)",
+            ha="center",
+            va="center",
+            fontsize=10,
+            color="0.3",
+        )
+    figure.tight_layout()
+    if save_path is not None:
+        figure.savefig(save_path, dpi=120, bbox_inches="tight")
+        logger.info("Command tracking figure saved to: %s", save_path)
+    if not show:
+        plt.close(figure)
+    return figure
+
+
+#: The gated statistics of each profile the gate-progress view draws: ``(family, statistic, bar key, label)``.
+_COMMAND_GATE_STATISTICS: dict[str, tuple[tuple[str, str, str, str], ...]] = {
+    "walk": (
+        ("cruise", "survival_lcb", "min_cruise_survival_lcb", "cruise survival LCB95"),
+        ("cruise", "success_lcb", "min_cruise_success_lcb", "cruise success LCB95"),
+        ("stand", "success_fraction", "min_stand_success_fraction", "stand success fraction"),
+    ),
+    "follow": (
+        ("follow", "survival_lcb", "min_follow_survival_lcb", "follow survival LCB95"),
+        ("follow", "success_lcb", "min_follow_success_lcb", "follow success LCB95"),
+    ),
+}
+
+
+def _family_statistic(families: Any, family: str, statistic: str) -> float | None:
+    """One family's statistic from a ``CommandTrackingResult.as_dict()`` families list, or ``None``."""
+    import math
+
+    for block in families or ():
+        if isinstance(block, dict) and block.get("family") == family:
+            value = block.get(statistic)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                return None
+            return float(value)
+    return None
+
+
+def plot_command_gate_progress(
+    stage_dir: "str | Path",
+    *,
+    model_id: ModelId | None = None,
+    verdict: bool | None = None,
+    save_path: "str | Path | None" = None,
+    show: bool = False,
+) -> Any:
+    """A ``command_tracking/v1`` stage's gate-progress view: its gated statistics at each checkpoint against the bars.
+
+    One panel per gated statistic of the profile (walk: cruise survival and
+    success LCB95, stand success fraction; follow: survival and success
+    LCB95, and the paired difference against the reference when the gate
+    declares it).  Each panel has
+
+    * every handoff candidate the stage's choice ranked
+      (``models/handoff_choice.json``: ``robust_best_model``,
+      ``best_model``, the final pair) on the SELECTION panel, in the order
+      training saved them (each zip's ``num_timesteps``), a filled marker
+      for a candidate that passed and a ring for one that failed;
+    * the certified handoff on the CERTIFICATION panel
+      (``command_tracking_report.json``), a star;
+    * the gate's bar, dashed.
+
+    The last panel counts the certification panel's episodes failing each
+    criterion, per family: which clause holds the stage back.
+
+    The title states *verdict*, the stage's verdict (the judge's, which can
+    refuse a report that records a pass); without one it says what the
+    report records ("report records PASS"), never as the verdict.
+
+    Returns the figure, or ``None`` when the stage has no report.
+    Report-only; reads the stage directory and writes *save_path* only.
+    """
+    import math
+
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+
+    from .curriculum.checkpoints import HANDOFF_CHOICE_FILENAME
+    from .curriculum.command_tracking_evidence import COMMAND_TRACKING_REPORT_JSON
+    from .file_io import read_json_object
+    from .task_fingerprint import read_checkpoint_attribute
+
+    stage_dir = Path(stage_dir)
+    report = read_json_object(stage_dir / COMMAND_TRACKING_REPORT_JSON)
+    if report is None:
+        return None
+    profile = str(report.get("profile"))
+    thresholds = _mapping(report.get("thresholds"))
+    result = _mapping(report.get("result"))
+    choice = read_json_object(stage_dir / "models" / HANDOFF_CHOICE_FILENAME) or {}
+
+    candidates: list[tuple[str, int | None, dict[str, Any]]] = []
+    for entry in choice.get("candidates") or ():
+        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str):
+            continue
+        steps = read_checkpoint_attribute(stage_dir / "models" / f"{entry['name']}.zip", "num_timesteps")
+        candidates.append((entry["name"], int(steps) if isinstance(steps, (int, float)) else None, entry))
+    candidates.sort(key=lambda item: (item[1] is None, item[1] if item[1] is not None else 0))
+    checkpoint = _mapping(report.get("handoff")).get("checkpoint")
+    certified = (checkpoint if isinstance(checkpoint, str) else "").removesuffix(".zip") or "the handoff"
+
+    statistics = list(_COMMAND_GATE_STATISTICS.get(profile, ()))
+    paired_bar = thresholds.get("min_follow_reference_delta_lcb")
+    if profile == "follow" and paired_bar is not None:
+        statistics.append(("", "paired_delta_lcb", "min_follow_reference_delta_lcb", "paired success difference LCB95"))
+    panels = len(statistics) + 1
+    columns = 2
+    rows = math.ceil(panels / columns)
+    figure, axes = plt.subplots(rows, columns, figsize=(13, 3.8 * rows), squeeze=False)
+    title = model_display_name(model_id) if model_id is not None else stage_dir.name
+    if verdict is None:
+        stated = f"report records {'PASS' if report.get('passed') is True else 'FAIL'}"
+    else:
+        stated = "PASS" if verdict else "FAIL"
+    figure.suptitle(
+        f"{title} – {report.get('scored_gate_kind')} {profile} gate progress: {stated} ({stage_dir.name})",
+        fontsize=13,
+        fontweight="bold",
+    )
+    labels = [name if steps is None else f"{name}\n{steps:,} steps" for name, steps, _ in candidates]
+    names = [name for name, _, _ in candidates]
+    certified_x = names.index(certified) if certified in names else len(names)
+    if certified not in names:
+        labels.append(certified)
+    selection_start = choice.get("selection_seed_start")
+    for axis, (family, statistic, bar_key, label) in zip(axes.flat, statistics):
+        xs: list[int] = []
+        ys: list[float] = []
+        for x, (_name, _steps, entry) in enumerate(candidates):
+            value = _family_statistic(entry.get("families"), family, statistic)
+            if value is None:
+                axis.annotate("n/a", (x, 0.0), ha="center", fontsize=8, color="0.4")
+                continue
+            xs.append(x)
+            ys.append(value)
+            axis.plot(
+                [x],
+                [value],
+                marker="o",
+                markersize=8,
+                color="C0",
+                markerfacecolor="C0" if entry.get("passed") else "white",
+                linestyle="none",
+                label=f"selection panel (seeds from {selection_start})" if len(xs) == 1 else None,
+            )
+        if len(xs) > 1 and all(steps is not None for _, steps, _ in candidates):
+            axis.plot(xs, ys, color="C0", linewidth=1.0, alpha=0.5)
+        if statistic == "paired_delta_lcb":
+            value = result.get("paired_delta_lcb")
+            value = float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+        else:
+            value = _family_statistic(result.get("families"), family, statistic)
+        if value is not None:
+            axis.plot(
+                [certified_x],
+                [value],
+                marker="*",
+                markersize=14,
+                color="C3",
+                linestyle="none",
+                label=f"certified, {certified} (seeds from {report.get('seed_start')})",
+            )
+        bar = thresholds.get(bar_key)
+        if isinstance(bar, (int, float)) and not isinstance(bar, bool):
+            axis.axhline(float(bar), color="0.3", linestyle="--", linewidth=1.0, label=f"{bar_key} {float(bar):.2f}")
+        axis.set_xticks(range(len(labels)))
+        axis.set_xticklabels(labels, fontsize=8)
+        axis.set_xlim(-0.5, max(len(labels), 1) - 0.5)
+        axis.set_ylim(-1.05 if statistic == "paired_delta_lcb" else -0.05, 1.05)
+        axis.set_title(label, fontsize=10)
+        axis.grid(alpha=0.3)
+        _safe_legend(axis, loc="best", fontsize=7)
+
+    failures_axis = axes.flat[len(statistics)]
+    tallies = [
+        (f"{block.get('family')}: {criterion}", int(count), int(block.get("n_episodes") or 0))
+        for block in result.get("families") or ()
+        if isinstance(block, dict)
+        for criterion, count in sorted((block.get("criterion_failures") or {}).items())
+    ]
+    n_episodes = result.get("n_episodes")
+    if tallies:
+        positions = list(range(len(tallies)))
+        failures_axis.barh(positions, [count for _, count, _ in tallies], color="C3", alpha=0.7, height=0.6)
+        failures_axis.set_yticks(positions)
+        failures_axis.set_yticklabels([name for name, _, _ in tallies], fontsize=8)
+        failures_axis.invert_yaxis()
+        for position, (_, count, total) in zip(positions, tallies):
+            failures_axis.annotate(
+                f"{count} / {total}",
+                (count, position),
+                xytext=(4, 0),
+                textcoords="offset points",
+                va="center",
+                fontsize=8,
+            )
+        failures_axis.set_xlim(0, max(count for _, count, _ in tallies) * 1.25 + 0.5)
+        failures_axis.xaxis.set_major_locator(MaxNLocator(integer=True))
+        failures_axis.set_xlabel("episodes failing the criterion")
+        failures_axis.grid(axis="x", alpha=0.3)
+    else:
+        failures_axis.axis("off")
+        failures_axis.text(0.5, 0.5, "every episode passed every criterion", ha="center", va="center", color="0.3")
+    failures_axis.set_title(
+        f"Episodes failing each criterion (certification panel, {n_episodes} episodes)", fontsize=10
+    )
+    for axis in list(axes.flat)[panels:]:
+        axis.axis("off")
+    figure.tight_layout()
+    if save_path is not None:
+        figure.savefig(save_path, dpi=120, bbox_inches="tight")
+        logger.info("Command gate progress figure saved to: %s", save_path)
+    if not show:
+        plt.close(figure)
+    return figure

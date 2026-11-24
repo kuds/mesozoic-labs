@@ -54,6 +54,7 @@ from .constants import (
 from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
 from .critic_phase import CriticPhaseError, CriticPhaseSpec, pop_critic_phase, read_critic_phase
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
+from .curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
 from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, WARM_START_LOG_STD_KEY, declared_warm_start_log_std
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
@@ -1862,6 +1863,31 @@ def _train_stage_body(
             logger.warning("The final K3 panel was interrupted by the user; the final checkpoint pair is saved.")
             interrupted = True
 
+    # A command_tracking/v1 stage (decision D-D61) hands on the checkpoint its
+    # gated statistic chooses, not the reward-chosen one: each complete
+    # candidate (robust_best_model, best_model, the final pair) is rolled on
+    # the selection panel and models/handoff_choice.json records the winner,
+    # which select_handoff_checkpoint honors from here on.  Never after an
+    # interruption: an interrupted node is unjudged, and is chosen when judged.
+    if not interrupted and stage_configs[stage].get("curriculum_kwargs", {}).get("gate_kind") == (
+        COMMAND_TRACKING_GATE_KIND
+    ):
+        from .reporting.stage_artifacts import ensure_command_handoff_choice
+
+        try:
+            ensure_command_handoff_choice(
+                model_id=species_cfg.model_id,
+                stage=stage,
+                stage_config=stage_configs[stage],
+                model_dir=model_dir,
+                final_stem=final_path,
+            )
+        except KeyboardInterrupt:
+            if not save_on_interrupt:
+                raise
+            logger.warning("The handoff choice was interrupted by the user; the final checkpoint pair is saved.")
+            interrupted = True
+
     return _TrainedStage(
         model=model,
         train_env=train_env,
@@ -2611,6 +2637,81 @@ def _post_training_stance_verdict(
     return passed, failures, stage_result
 
 
+#: The same for a ``command_tracking/v1`` node (decision D-D61): the
+#: post-training judgement of the command panel rolled on the handoff its
+#: gated statistic chose, through the same report writer and judge
+#: ``generate_stage_artifacts`` uses.
+COMMAND_TRACKING_POST_TRAINING_JUDGED_BY = "train_base.train_curriculum/command_tracking_report"
+
+#: The gate kinds the in-training manager refuses and ``train_curriculum`` judges after the node's budget.
+POST_TRAINING_JUDGED_GATE_KINDS: frozenset[str] = frozenset(
+    {*FLOOR_TRUTH_STANCE_GATE_KINDS, COMMAND_TRACKING_GATE_KIND}
+)
+
+
+def _post_training_command_verdict(
+    model_id: ModelId,
+    stage: "int | str",
+    config: dict[str, Any],
+    *,
+    stage_dir: Path,
+    model_dir: Path,
+) -> "tuple[bool, list[str], dict[str, Any]]":
+    """Judge a ``command_tracking/v1`` node after its training: ``(passed, failures, stage_result)``.
+
+    The in-training manager refuses the kind (D-D61), so without this a CLI
+    curriculum could never advance such a node.  The command panel is rolled
+    on the handoff pair ``select_handoff_checkpoint`` picks -- the pair the
+    handoff choice made at the end of training chose by the gated statistic,
+    which the verdict is hash-bound to and the next node loads -- by the
+    same ``stage_artifacts._write_command_tracking_report`` the post-stage
+    pipeline calls, and judged through ``reporting.gates.evaluate_stage_gate``,
+    which refuses a report that is not bound to this gate, handoff choice,
+    task and command, and re-derives the verdict from its records.  Never
+    raises: a panel that could not be rolled or judged is a FAIL naming why.
+    After the verdict, ``stage_artifacts.write_command_tracking_figures``
+    draws the command-tracking trace and figures into the stage's
+    ``figures/``, as ``generate_stage_artifacts`` does for the notebook.
+    """
+    from .reporting.gates import evaluate_stage_gate
+    from .reporting.stage_artifacts import _write_command_tracking_report, admitted_command_tracking_stage_result
+
+    curriculum = config.get("curriculum_kwargs", {})
+    report = _write_command_tracking_report(
+        model_id=model_id, stage=stage, stage_config=config, stage_dir=stage_dir, model_dir=model_dir
+    )
+    try:
+        passed, failures = evaluate_stage_gate(
+            curriculum, {}, stage=stage, stage_dir=stage_dir, command_tracking_report=report
+        )
+    except Exception as exc:  # noqa: BLE001 - a verdict that cannot be formed is a FAIL, never a crash mid-curriculum
+        logger.warning("Stage %s %s verdict could not be formed", stage, COMMAND_TRACKING_GATE_KIND, exc_info=True)
+        passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
+    stage_result: dict[str, Any] = {
+        "stage": stage,
+        "gate_kind": curriculum.get("gate_kind"),
+        "gate_schema_version": curriculum.get("gate_schema_version"),
+        "gate_passed": passed,
+        "gate_failures": failures,
+        **admitted_command_tracking_stage_result(curriculum, report, stage=stage, stage_dir=stage_dir),
+    }
+    # After the verdict, as generate_stage_artifacts draws them: the trace and the two command figures in the
+    # stage's figures/ (never raises; nothing here is read by the verdict above).
+    from .reporting import stage_layout
+    from .reporting.stage_artifacts import write_command_tracking_figures
+
+    write_command_tracking_figures(
+        model_id=model_id,
+        stage=stage,
+        stage_config=config,
+        stage_dir=stage_dir,
+        figures_out=stage_layout.figures_dir(stage_dir),
+        report=report,
+        verdict=passed,
+    )
+    return passed, failures, stage_result
+
+
 @dataclasses.dataclass(frozen=True)
 class _ResolvedNode:
     """A node with a certified handoff another node may warm-start from.
@@ -3317,6 +3418,15 @@ def train_curriculum(
                 if cur_kwargs.get("gate_kind") == STANCE_HEADING_GATE_KIND
                 else STANCE_V2_POST_TRAINING_JUDGED_BY
             )
+        if not interrupted and cur_kwargs.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+            # The manager refuses command_tracking/v1 in-training too (D-D61):
+            # the command panel on the handoff the gated statistic chose,
+            # judged by evaluate_stage_gate.  Its own statement, not an elif
+            # of the stance branch: the kinds are disjoint.
+            passed, verdict_failures, verdict_stage_result = _post_training_command_verdict(
+                model_id, stage, config, stage_dir=stage_dir, model_dir=model_dir
+            )
+            verdict_judged_by = COMMAND_TRACKING_POST_TRAINING_JUDGED_BY
         if interrupted:
             logger.warning(
                 "Stage %s was interrupted before its budget ran out; no gate verdict recorded "
@@ -3374,12 +3484,12 @@ def train_curriculum(
             curriculum_cb,
             training_duration_seconds=stage_duration,
             plant_identity=plant_identity,
-            # A floor-truth stance node's verdict is the post-training
-            # judgement above, not the manager's (which refuses the kind);
-            # the row records it.
-            stage_passed=passed if cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS else None,
+            # A floor-truth stance or command-tracking node's verdict is the
+            # post-training judgement above, not the manager's (which refuses
+            # the kind); the row records it.
+            stage_passed=passed if cur_kwargs.get("gate_kind") in POST_TRAINING_JUDGED_GATE_KINDS else None,
             stance_result=(
-                verdict_stage_result if cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS else None
+                verdict_stage_result if cur_kwargs.get("gate_kind") in POST_TRAINING_JUDGED_GATE_KINDS else None
             ),
         )
 
@@ -3434,7 +3544,8 @@ def _record_stage_result(
     recorded outcome -- a ``stance_quality/v2`` or six-heading certificate
     node is judged after training, not by the manager -- and
     ``stance_result`` is that judgement's ``stage_result`` (its clean count
-    and bound; the certificate's grouped ones).
+    and bound; the certificate's grouped ones; a ``command_tracking/v1``
+    node's family counts and bounds, decision D-D61).
     """
     import numpy as _np
 
@@ -3536,6 +3647,12 @@ def _record_stage_result(
                 "stance_heading_clean_seed_lcb": judged.get("stance_heading_clean_seed_lcb", ""),
             }
         )
+    elif cur_kwargs.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        # command_tracking/v1 (D-D61): the profile, each family's counts and
+        # bounds -- reporting.csv_output's command columns, on such a row only.
+        from .reporting.csv_output import command_tracking_columns
+
+        result_row.update(command_tracking_columns(cur_kwargs, stance_result or {}))
     if plant_identity is not None:
         result_row.update({f"plant_{key}": value for key, value in plant_identity.to_dict().items()})
     append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)

@@ -1560,3 +1560,155 @@ def test_a_stance_heading_grid_off_the_certification_panel_or_contradicting_a_fl
         ResultBundleError, match=r"\(seed 3050, \+90 deg\) records clean=False but re-derives clean=True"
     ):
         _save_bundle(run_dir, stage_results, stage_configs)
+
+
+# ── command_tracking/v1 through a complete bundle (decision D-D61) ────────────
+
+
+def _make_command_tracking_gated(run_dir: Path, stage: int = 1) -> dict[str, Any]:
+    """Declare command_tracking/v1 (walk) on a stage of an otherwise complete bundle; returns the block.
+
+    The stage records its environment as ``save_stage_config`` does, under
+    ``reward_weights`` (the design's live walk command, the panel's horizon
+    and control step), while its ``env_kwargs`` keep the helper's command-free
+    block: a publication that read ``env_kwargs`` would find no command.
+    """
+    from environments.shared.config import env_kwargs_record
+
+    from .test_command_tracking_wiring import FRAME_SKIP, HORIZON, TASK_SHA256, WALK_CONFIG, WALK_CURRICULUM
+
+    config_path = run_dir / f"stage{stage}" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    block: dict[str, Any] = dict(WALK_CURRICULUM)
+    config["curriculum_kwargs"] = block
+    config["reward_weights"] = {
+        "max_episode_steps": HORIZON,
+        "frame_skip": FRAME_SKIP,
+        "command_mode": "heading_and_speed",
+        "command_config": env_kwargs_record({"command_config": WALK_CONFIG})["command_config"],
+    }
+    assert "command_config" not in config["env_kwargs"]
+    config["task_fingerprint"] = {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": TASK_SHA256}
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return block
+
+
+def _write_command_tracking_panel(
+    run_dir: Path, tmp_path: Path, stage: int = 1, overrides_by_seed: dict[str, Any] | None = None
+) -> Path:
+    """The panel CSV a synthetic walk report writes, rolled on the stage's certified pair; only the CSV is copied in."""
+    from environments.shared.curriculum.command_tracking_evidence import COMMAND_TRACKING_PANEL_CSV
+    from environments.shared.reporting.command_tracking_report import (
+        assemble_command_tracking_report,
+        write_command_tracking_report,
+    )
+
+    from .test_command_tracking_wiring import (
+        HORIZON,
+        MEASUREMENT,
+        PLAN,
+        TASK_SHA256,
+        WALK_CONFIG,
+        WALK_CURRICULUM,
+        _panel,
+    )
+
+    models = run_dir / f"stage{stage}" / "models"
+    report = assemble_command_tracking_report(
+        VELOCIRAPTOR_MONGOLIENSIS,
+        stage,
+        curriculum=WALK_CURRICULUM,
+        command_config=WALK_CONFIG,
+        plan=PLAN,
+        episodes=_panel(**(overrides_by_seed or {})),
+        measurement=MEASUREMENT,
+        horizon=HORIZON,
+        control_dt=0.01,
+        policy="best_model.pkl — VecNormalize stats applied (clip 10)",
+        normalization={"mode": "vecnormalize-frozen", "clip_obs": 10.0, "epsilon": 1e-8},
+        handoff={
+            "checkpoint": "best_model.pkl",
+            "checkpoint_sha256": sha256_file(models / "best_model.pkl"),
+            "normalization_sha256": sha256_file(models / "best_model_vecnorm.pkl"),
+        },
+        task_sha256=TASK_SHA256,
+        plant_identity={"plant": "test"},
+        checkpoint_plant_validated=True,
+    )
+    scratch = tmp_path / "scratch_command"
+    scratch.mkdir(parents=True, exist_ok=True)
+    written = write_command_tracking_report(scratch, report)
+    target = run_dir / f"stage{stage}" / COMMAND_TRACKING_PANEL_CSV
+    target.write_bytes(written["command_tracking_panel_csv"].read_bytes())
+    return target
+
+
+def test_a_command_tracking_pass_publishes_when_its_panel_re_derives_it(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """The publication arm is reached through validate_evaluation_evidence and re-derives the pass from the CSV, with
+    the stage's command read from ``reward_weights``; without the certification_panel role it is refused."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+    _write_command_tracking_panel(run_dir, tmp_path)
+
+    paths = _save_bundle(run_dir, stage_results, stage_configs)
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    assert provenance["seed_roles"]["certification_panel"] == 3042
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    del provenance["seed_roles"]["certification_panel"]
+    with pytest.raises(
+        ResultBundleError,
+        match=r"provenance seed_roles must declare certification_panel for a command_tracking/v1 pass",
+    ):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_command_tracking_pass_without_its_panel_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    """The reward rail never stands in for the panel: the helper's block-free reward stage would otherwise pass."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+
+    with pytest.raises(
+        ResultBundleError, match=r"command_tracking/v1.*command_tracking_panel_selected\.csv is missing"
+    ):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_command_tracking_panel_with_an_edited_success_flag_or_a_failing_panel_is_refused(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    from .test_command_tracking_wiring import PLAN
+
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+    path = _write_command_tracking_panel(run_dir, tmp_path)
+    _rewrite_grid(path, edit=lambda row: row.update(success="false") if row["seed"] == str(PLAN.seeds[0]) else None)
+    with pytest.raises(ResultBundleError, match=r"records success=False but re-derives success=True"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+    _write_command_tracking_panel(
+        run_dir, tmp_path, overrides_by_seed={f"seed_{PLAN.seeds[0]}": {"first_event_settled": False}}
+    )
+    with pytest.raises(ResultBundleError, match=r"publication gate fails command_tracking/v1"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_command_tracking_panel_is_read_against_the_recorded_command(tmp_path: Path, stable_provenance: None) -> None:
+    """A stage whose recorded environment carries no live command has nothing its panel could have tracked."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+    _write_command_tracking_panel(run_dir, tmp_path)
+    config_path = run_dir / "stage1" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    del config["reward_weights"]["command_config"]
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ResultBundleError, match=r"records no live command_config"):
+        _save_bundle(run_dir, stage_results, stage_configs)

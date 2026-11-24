@@ -41,8 +41,9 @@ revision that followed under the same decision), so every chain now ends at walk
 Direction-following and terrain traversal exist today as a separate pilot
 pipeline (see `docs/TRAIN_DIRECTION_AND_TERRAIN.md` in the repository) and
 are planned as manifest nodes under `locomotion` — `follow_direction` and
-`follow_direction_difficult_terrain`, with their own gate kind — so the leaf
-set on this page will grow; nothing on this page changes until then.
+`follow_direction_difficult_terrain`, judged by the `follow` profile of the
+`command_tracking/v1` gate kind — so the leaf set on this page will grow;
+nothing on this page changes until then.
 Follow-direction, driven by a commanded heading and speed, is the path after
 walk (decision D-D59). The machinery those nodes need exists since decision
 D-D60: a stage TOML may declare a `[commands]` table; every environment scores
@@ -50,7 +51,13 @@ a live command with a tracking reward and draws its schedule from a random
 stream of its own; and every stage holds the command inputs' normalization at
 identity, so a node that widens its parent's commands continues it exactly
 ([Hyperparameters](hyperparameters.md#commands)). No committed stage declares
-the table yet.
+the table yet. Since decision D-D61 the gate kind for a live command exists
+too: `command_tracking/v1`, whose `walk` profile judges the walk node on a
+panel of whole-episode cruise and stand commands and whose `follow` profile
+judges the follow nodes, each with a gait clause, and whose handoff is the
+checkpoint the gate itself prefers
+([Hyperparameters](hyperparameters.md#curriculum-thresholds)). No committed
+stage declares it yet.
 
 ## The stage manifest
 

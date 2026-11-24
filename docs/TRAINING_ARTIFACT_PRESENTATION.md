@@ -606,6 +606,52 @@ an `--out` inside the run directory (the nearest ancestor holding
 `provenance.json`): a result bundle's manifest hashes every file there, and
 verification rejects a file it did not list.
 
+### The command-tracking figures
+
+A `command_tracking/v1` stage (decision D-D61) also gets two figures, drawn
+after its verdict by `generate_stage_artifacts` and by the command-line
+curriculum's judge (`stage_artifacts.write_command_tracking_figures`, which
+never raises; each figure is in its own guard):
+
+- `figures/command_tracking.png` (`visualization.plot_command_tracking`):
+  one column per chart episode, the certification panel's first cruise
+  episode and first stand episode, rolled again with their step rows into
+  `command_tracking_trace.csv` (`reporting/command_tracking_trace.py`) on
+  the pair the report scored. Each column draws commanded against achieved
+  speed (along the requested heading, and planar), commanded against
+  achieved yaw rate and the heading error (on a stand, the distance from the
+  spawn), with the tolerances, the start of the window the gate judges and
+  the settle deadline, and shades the steps the gate's per-step test holds.
+  The column's title gives the episode's verdict from the report and says
+  whether the re-rolled episode's record is the certified one. The bottom
+  panel is the tracking fraction over training: `diagnostics.npz`'s
+  `tracking_in_tolerance`, the training rollouts' mean of the environment's
+  in-tolerance flag (`DiagnosticsCallback` records it, with
+  `tracking_error_v`, `tracking_error_yaw` and `reward_tracking`, only for a
+  run whose environment emits them), against the profile's tracking bar. It
+  mixes both families and every step of a stochastic policy, so it shows the
+  trend, not the gate's statistic.
+- `figures/command_gate_progress.png`
+  (`visualization.plot_command_gate_progress`): the kind's gate-progress
+  view. One panel per gated statistic (walk: the cruise survival and success
+  bounds and the stand success fraction; follow: the survival and success
+  bounds, and the paired difference when declared), each with every handoff
+  candidate's value on the selection panel (`models/handoff_choice.json`;
+  filled for a candidate that passed), in the order training saved them, the
+  certified handoff's value on the certification panel as a star, and the
+  bar; and a panel counting the certification episodes that failed each
+  criterion, per family. The title states the stage's verdict, which can
+  refuse a report that records a pass (a missing handoff choice, say); drawn
+  without one it reads "report records PASS" (or FAIL).
+
+The figures describe the judgement that drew them. The writer first removes
+the trace and both figures an earlier judgement left, and draws nothing
+when this judgement built no report (the panel could not be rolled, and the
+gate failed closed). Each trace row carries the checkpoint digest it was
+rolled on, and the tracking figure draws only the rows of the report's
+handoff, so a trace of another pair never appears as this one's. Nothing
+reads the trace or the figures: they are report-only.
+
 ## Evaluation episodes: `eval_episodes.csv`
 
 `gate_progress.npz` keeps one value per evaluation, a mean over its

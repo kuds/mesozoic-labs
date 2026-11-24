@@ -544,3 +544,114 @@ class TestStanceHeadingGateIsConsulted:
         legacy_loop = source.index("elif recorded_pass:")
         assert heading_arm < legacy_loop
         assert "_validate_stance_heading_panel_evidence(" in source[heading_arm:legacy_loop]
+
+
+class TestCommandTrackingGateIsConsulted:
+    """Plan §8 invariant 10 for the command-tracking certificate (``command_tracking/v1``, decision D-D61).
+
+    The kind's verdict is a post-stage panel on the handoff chosen by the
+    gated statistic.  These pin that the manager refuses it on any reward,
+    that a history never certifies it, that the judge's command arm is
+    consulted before the reward return and down to the exact binomial bound,
+    and that publication has its arm before the legacy reward loop.
+    """
+
+    @staticmethod
+    def _curriculum():
+        from .test_command_tracking_wiring import WALK_CURRICULUM
+
+        return dict(WALK_CURRICULUM)
+
+    def test_the_manager_never_advances_on_sky_high_reward(self, caplog):
+        mgr = _manager("command_tracking/v1")
+        with caplog.at_level(logging.ERROR, logger="environments.shared.curriculum.manager"):
+            for _ in range(5):
+                assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+        assert mgr.summary()["consecutive_passes"][1] == 0
+        assert "command_tracking/v1" in caplog.text
+
+    def test_a_schema_valid_command_config_still_refuses_end_to_end(self):
+        thresholds = thresholds_from_configs(
+            {1: {"curriculum_kwargs": dict(self._curriculum(), required_consecutive=1)}}
+        )
+        assert thresholds[1]["gate_kind"] == "command_tracking/v1"
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
+        for _ in range(3):
+            assert not mgr.should_advance(_SKY_HIGH_PANEL * 2, _FULL_PANEL * 2)
+
+    def test_the_judge_and_the_history_reader_never_certify_on_reward(self, tmp_path):
+        from environments.shared.reporting import evaluate_recorded_gate, evaluate_stage_gate
+
+        reward_history = [{"mean_reward": 1e9, "mean_episode_length": 1000.0, "n_episodes": 40}] * 5
+        assert evaluate_recorded_gate({**self._curriculum(), "min_avg_reward": 1.0}, reward_history) is None
+        results = {"mean_reward": 1e9, "mean_episode_length": 1000.0, "n_episodes": 40}
+        passed, failures = evaluate_stage_gate(self._curriculum(), results, stage=2, stage_dir=tmp_path)
+        assert not passed and "no command-tracking report" in failures[0]
+
+    def test_what_would_have_to_be_deleted_for_the_panel_bound_to_stop_being_consulted(self, tmp_path, monkeypatch):
+        """The call chain by AST, then at runtime: with the exact bound raising, judging an admitted report raises."""
+        from environments.shared.curriculum import command_tracking_gate
+        from environments.shared.reporting import evaluate_stage_gate, gates
+
+        from .test_command_tracking_wiring import _choose, _panel, _report, _stage_dir
+
+        module = ast.parse(inspect.getsource(gates))
+        functions = {node.name: node for node in module.body if isinstance(node, ast.FunctionDef)}
+        command_branch = reward_return = None
+        for node in ast.walk(functions["evaluate_stage_gate"]):
+            if isinstance(node, ast.If) and isinstance(node.test, ast.Compare):
+                names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
+                calls = {c.func.id for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+                if {"gate_kind", "COMMAND_TRACKING_GATE_KIND"} <= names:
+                    assert "_command_tracking_stage_gate" in calls and "_reward_and_length_stage_gate" not in calls
+                    command_branch = node.lineno
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Call):
+                func = node.value.func
+                if isinstance(func, ast.Name) and func.id == "_reward_and_length_stage_gate":
+                    reward_return = node.lineno
+        assert command_branch is not None and reward_return is not None and command_branch < reward_return
+
+        def calls_in(name: str) -> set[str]:
+            return {
+                c.func.id for c in ast.walk(functions[name]) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+            }
+
+        assert "_admit_command_tracking_report" in calls_in("_command_tracking_stage_gate")
+        assert "_admit_command_tracking_report" in calls_in("command_tracking_report_refusals")
+        assert "_rederive_command_tracking_verdict" in calls_in("_admit_command_tracking_report")
+        assert "evaluate_command_tracking_gate" in calls_in("_rederive_command_tracking_verdict")
+        gate_module = ast.parse(inspect.getsource(command_tracking_gate))
+        gate_functions = {node.name: node for node in gate_module.body if isinstance(node, ast.FunctionDef)}
+
+        def gate_calls(name: str) -> set[str]:
+            node = gate_functions[name]
+            return {c.func.id for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+
+        assert {"evaluate_walk_profile", "evaluate_follow_profile"} <= gate_calls("evaluate_command_tracking_gate")
+        assert "_lcb" in gate_calls("evaluate_walk_profile") and "_lcb" in gate_calls("evaluate_follow_profile")
+        assert "binomial_lcb" in gate_calls("_lcb")
+
+        stage_dir = _stage_dir(tmp_path)
+        _choose(stage_dir)
+        report = _report(stage_dir, _panel())
+        assert evaluate_stage_gate(
+            self._curriculum(), {}, stage=2, stage_dir=stage_dir, command_tracking_report=report
+        )[0]
+
+        def consulted(*args, **kwargs):
+            raise RuntimeError("consulted")
+
+        monkeypatch.setattr(command_tracking_gate, "binomial_lcb", consulted)
+        with pytest.raises(RuntimeError, match="consulted"):
+            evaluate_stage_gate(self._curriculum(), {}, stage=2, stage_dir=stage_dir, command_tracking_report=report)
+
+    def test_publication_has_a_command_arm_before_the_legacy_reward_loop(self):
+        from environments.shared.result_bundle import evidence
+
+        source = inspect.getsource(evidence.validate_evaluation_evidence)
+        command_arm = source.index("elif recorded_pass and gate_kind == COMMAND_TRACKING_GATE_KIND:")
+        legacy_loop = source.index("elif recorded_pass:")
+        assert command_arm < legacy_loop
+        assert "_validate_command_tracking_panel_evidence(" in source[command_arm:legacy_loop]

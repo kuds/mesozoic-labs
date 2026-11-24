@@ -203,6 +203,150 @@ rather than training it from an uncertified parent. Consult the generated
 model pages or the TOML files for current values rather than relying on a
 static table here.
 
+### Command-tracking gate (`command_tracking/v1`)
+
+A stage with a live command (a `[commands]` table, see [Commands](#commands))
+is judged by the `command_tracking/v1` gate kind (decision D-D61). No
+committed stage declares it yet: the walk node switches to it in the next
+phase, and the later follow nodes use it too. The gate is judged once, after
+the stage, on a fixed panel of deterministic episodes of the handoff
+checkpoint. The in-training curriculum manager refuses the kind, so such a
+stage never advances early and always trains its full `timesteps` budget.
+The string key `profile` selects the rules:
+
+- **`walk`**, the walk node's. Each panel episode belongs to the family its
+  reset command puts it in: **cruise** (a non-zero speed) or **stand** (an
+  exactly zero command for the whole episode). A cruise episode succeeds
+  when it reaches the horizon, settles its initial heading error within
+  `1 s + |error| / yaw_rate_max` and holds it for 1 s, keeps
+  `min_cruise_tracking_fraction` of its steps in tolerance after that
+  settle, makes `min_cruise_speed_ratio` of the requested speed along the
+  requested heading after 2 s, and passes the gait clause below. A stand
+  episode succeeds when it reaches the horizon, settles its stop and holds
+  the stop criterion (speed and yaw rate within the stop tolerances) for
+  `min_stand_hold_fraction` of its steps after 1 s. A family with fewer
+  episodes than its minimum fails the gate, and so does an episode whose
+  command changes mid-episode.
+- **`follow`**, the follow nodes': the behavior certificate's statistics
+  (survival and success bounds; the tracking, event, stop and turn settle
+  fractions; the stop and turn exposure minimums), the gait clause, and
+  optionally a paired comparison with a reference policy (the walker) on
+  the same seeds, which fails closed when the reference panel is missing.
+  It pairs follow success on the follow panel, so it bounds how much worse
+  than the walker the follower follows; it is not a test that straight
+  walking was kept.
+
+Every bar is a required `[curriculum]` key with no default in code, so the
+gate digest covers every number a verdict depends on. A block is checked
+when the config loads: an unknown key, the other profile's key or a value
+outside its range stops the run. Every starting value below is
+**provisional**, to be frozen from the first pilot's panel; a verdict reached
+under a provisional bar is judged again, not retrained, when the bar moves.
+
+| Walk key | Starting value | Meaning |
+|---|---|---|
+| `profile` | `"walk"` | Selects the walk profile |
+| `min_cruise_episodes` | 20 | Cruise episodes on the panel |
+| `min_stand_episodes` | 5 | Stand episodes on the panel |
+| `min_cruise_survival_lcb` | 0.80 | Lower 95% bound (exact Clopper-Pearson) on the cruise episodes reaching the horizon; at 20 episodes only 20 of 20 clears it |
+| `min_cruise_success_lcb` | 0.60 | Lower 95% bound on the cruise episodes that succeed; at 20 episodes 17 of 20 clears it |
+| `min_cruise_tracking_fraction` | 0.60 | A cruise episode's in-tolerance fraction after its heading settle |
+| `min_cruise_speed_ratio` | 0.50 | Mean speed along the requested heading after 2 s, per requested speed; a placeholder looser than the design draft's 0.9, since the tracking bar already bounds the speed error |
+| `min_stand_hold_fraction` | 0.60 | A stand episode's in-tolerance (stop criterion) fraction after 1 s; at 0.60 a stand may move for 40% of those steps, so the pilot is to freeze it near 1 |
+| `min_stand_success_fraction` | 0.60 | Fraction of stand episodes that succeed |
+| `max_stand_falls` | 0 | Stand episodes that may end before the horizon |
+
+| Follow key | Starting value | Meaning |
+|---|---|---|
+| `profile` | `"follow"` | Selects the follow profile |
+| `min_follow_episodes` | 20 | Valid episodes on the panel |
+| `min_follow_horizon_s` | 20.0 | An episode with a shorter horizon is not a valid sample |
+| `min_follow_survival_lcb` | 0.80 | Lower 95% bound on the episodes reaching the horizon |
+| `min_follow_success_lcb` | 0.60 | Lower 95% bound on the episodes that succeed |
+| `min_follow_tracking_fraction` | 0.60 | An episode's in-tolerance fraction |
+| `min_follow_event_settle_fraction` | 0.60 | An episode's fraction of command events that settle |
+| `min_follow_stop_settle_fraction` | 0.60 | Per episode, and over the episodes that meet a stop |
+| `min_follow_turn_settle_fraction` | 0.60 | Per episode, and over the episodes that meet a turn |
+| `min_follow_command_episodes` | 5 | Episodes that must meet a stop (a turn) when the schedule draws them |
+| `min_follow_course_fraction` and `follow_course_distance_m` | 0.50, the species' course distance | Optional, declared together: radial progress per course distance |
+| `min_follow_reference_delta_lcb` | none | Optional: lower bound on the mean per-seed success difference against the reference policy |
+
+The **gait clause** is required in both profiles, so an episode that tracks
+the command is also judged on its footfalls, not on the pelvis alone. The
+panel records every episode's floor contacts, and from 1 s on reduces them
+to alternation, simultaneous touchdowns, hop flight, lead swaps, limb duty
+and foot-on-foot and phantom support (stand episodes are not judged on
+gait). A lead swap counts only once the feet's fore-aft offset has passed
+3% of the leg length, so a two-footed hop with its feet side by side reads
+no lead swaps even when its feet land more than 20 ms apart (which reads as
+alternating footfalls). `gait_limbs` names the animal and the bars it must
+declare; an unmeasured metric fails its bar.
+
+| Gait key | Biped (`gait_limbs = 2`) | Quadruped (`gait_limbs = 4`) |
+|---|---|---|
+| `min_alternation_index` | required, 0.75 | refused |
+| `max_simultaneous_fraction` | required, 0.15 | optional |
+| `max_hop_flight_fraction` | required, 0.15 | optional |
+| `min_lead_swaps_per_stride` | required, 1.0 | optional |
+| `max_foot_contact_fraction` | required, 0.02 | optional |
+| `max_phantom_support_fraction` | required, 0.05 | optional |
+| `max_flight_fraction` | optional, 0.05 where the commanded speed is below Froude 0.5 | required, 0.05 |
+| `min_limb_duty` | optional | required, 0.20 |
+| `min_pair_alternation_index` | refused | required, 0.75 (the lower of the fore and hind pairs) |
+
+The bipeds are the velociraptor, the T-Rex, both Compsognathus models and the
+Allosaurus; the quadrupeds are the Brachiosaurus and the Dibothrosuchus, whose
+lateral-sequence or trot match is measured and reported but not judged.
+
+What the clause does not refuse: a hop that lands both feet together
+fails, as does a slide with every foot down (it makes no footfall), but a
+staggered hop whose feet swap their lead past the 3% band is refused only by
+the optional flight cap, and a skid broken by brief alternating lifts is not
+refused at all (slip is reported, not judged). On a quadruped, a bound whose
+two fore feet (and two hind feet) land more than 20 ms apart with no flight
+reads as alternating pairs and clears the three required floors; only the
+optional `min_lead_swaps_per_stride` refuses it. The stand family's gait is
+not judged, so stepping in place within the stop tolerances passes it; the
+stand episodes' recorded alternation and touchdown rate show it. Each
+episode record carries the left/right phase (about 0.5 on a walk, near 0 or
+1 on a hop) and the stance-foot slip speed for review. The
+in-tolerance test is the environment's own, at the tolerances the stage's
+`[commands]` table resolves; the optional keys `gate_velocity_tolerance`,
+`gate_yaw_rate_tolerance`, `gate_heading_tolerance`,
+`gate_stop_speed_tolerance` and `gate_stop_yaw_rate_tolerance` replace one
+for the gate only.
+
+After the stage, these files appear in the stage directory:
+
+- `models/handoff_choice.json`: the handoff checkpoint, chosen by the gate
+  rather than by reward. `robust_best_model`, `best_model` and the final
+  checkpoint are each rolled on a selection panel (seeds from 2042) and
+  ranked by passing, then by the profile's success bound. The certificate is
+  rolled on other seeds (from 3042), so the choice cannot pick a lucky draw
+  of the certification panel; when a rare stand family would make the two
+  panels share a seed, no choice is made and the stage fails its gate.
+- `command_tracking_report.json`, `command_tracking_report.txt` and
+  `command_tracking_panel_selected.csv`: the certification panel, one record
+  per episode with its classification. The verdict is derived again from
+  those records, and publication derives it again from the CSV.
+- `figures/command_tracking.png`: commanded against achieved speed, yaw rate
+  and heading error over the panel's first cruise and first stand episode
+  (rolled again from `command_tracking_trace.csv`, the same episodes the gate
+  judged), with the tolerances, the judged windows and the settle deadline,
+  and the tracking fraction over training (the training steps' mean
+  in-tolerance flag, which `diagnostics.npz` records for a stage with a live
+  command) against the profile's tracking bar.
+- `figures/command_gate_progress.png`: each gated statistic of every
+  candidate checkpoint on the selection panel, in the order training saved
+  them, and of the certified handoff, against its bar, beside the number of
+  certification episodes that failed each criterion. Its title is the
+  stage's verdict.
+
+The figures belong to the judgement that drew them: figures and a trace an
+earlier judgement left are removed first, and none are drawn when the panel
+could not be rolled. The command-line `curriculum` command writes the same
+report and figures after each such node's budget.
+
 ## Overriding Hyperparameters from the CLI
 
 Use `--override` to change TOML values without editing files — useful for hyperparameter sweeps. Keys use dot notation; values are auto-cast to `int`, `float`, or `str`:

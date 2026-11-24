@@ -39,6 +39,12 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
+from .command_tracking_gate import (
+    COMMAND_TRACKING_GATE_KIND,
+    COMMAND_TRACKING_REQUIRED_KEYS,
+    COMMAND_TRACKING_THRESHOLD_KEYS,
+    thresholds_from_curriculum,
+)
 from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import STANCE_GATE_KIND
 from .stance_gate_v2 import (
@@ -139,6 +145,25 @@ GATE_KINDS: dict[str, frozenset[str]] = {
             "required_consecutive",
         }
     ),
+    # The command-tracking gate (decision D-D61): a stage whose command is
+    # live is judged on a fixed panel of seeded episodes under one of two
+    # profiles, selected by the string-valued ``profile`` key.  ``walk``
+    # judges the walk node's cruise family (survival and success bounds:
+    # heading settle, in-tolerance fraction after settle, speed along the
+    # commanded heading) and its whole-episode stand family (the stop held,
+    # no fall), each with a minimum count; ``follow`` the behavior
+    # certificate's per-episode statistics under the gate's own keys, with
+    # an optional paired comparison against a reference policy.  Both judge
+    # each moving episode's floor-truth gait as well (the gait clause:
+    # ``gait_limbs`` and the biped's or the quadruped's required bars), so an
+    # episode that tracks the command is judged on its footfalls too.  The key set
+    # is the gate module's own (``COMMAND_TRACKING_THRESHOLD_KEYS``: both
+    # profiles' keys), and a stage may carry only its profile's
+    # (``thresholds_from_curriculum``, called below).  No committed stage
+    # declares it, so registering it moves no digest (gate_config_view
+    # projects declared keys only).  See
+    # :mod:`environments.shared.curriculum.command_tracking_gate`.
+    COMMAND_TRACKING_GATE_KIND: COMMAND_TRACKING_THRESHOLD_KEYS,
     # An explicit, recorded non-advancing mode for pilots and diagnostics.
     # Declaring it is the ONLY supported way to run a stage with no gate, and
     # it refuses to advance rather than passing by default.
@@ -211,6 +236,10 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
             "recovery_dwell_steps",
         }
     ),
+    # The profile alone at this level: which bars are required depends on
+    # it, so validate_gate_config enforces the profile's own required keys
+    # through the gate module's reader.
+    COMMAND_TRACKING_GATE_KIND: COMMAND_TRACKING_REQUIRED_KEYS,
     "none/v1": frozenset(),
 }
 
@@ -367,6 +396,23 @@ BACKEND_OVERRIDABLE_KEYS = frozenset(
 #: different gate kind" apart from "not a gate key at all".
 _ALL_THRESHOLD_KEYS = frozenset().union(*GATE_KINDS.values())
 
+#: Every ``[curriculum]`` key that is not a threshold: the schema declaration,
+#: schedule, collapse, retention, warm-start, diagnostic, provenance and
+#: publication keys, and the backend override table.  A gate module that reads
+#: its own thresholds strictly (``command_tracking_gate.thresholds_from_curriculum``)
+#: accepts these beside its keys and refuses anything else.
+NON_THRESHOLD_CURRICULUM_KEYS = frozenset(
+    _SCHEMA_KEYS
+    | _SCHEDULE_KEYS
+    | _COLLAPSE_KEYS
+    | _RETENTION_KEYS
+    | _WARM_START_KEYS
+    | _DIAGNOSTIC_KEYS
+    | _PROVENANCE_KEYS
+    | _PUBLICATION_KEYS
+    | BACKEND_OVERRIDE_TABLES
+)
+
 #: Gate kinds retired by a decision: the kind, mapped to the decision that
 #: removed it and what it was removed with.  A retired kind is no alias and
 #: no longer a key of :data:`GATE_KINDS`; every gate reader refuses it naming
@@ -472,15 +518,19 @@ def gate_config_sha256(view: Mapping[str, Any]) -> str:
 def same_threshold(declared: Any, frozen: Any) -> bool:
     """Whether a declared threshold and a recorded one state the same criterion.
 
-    Anything that will not compare as a number counts as a disagreement: the
-    fail-closed reading of "these two records cannot be shown to agree".
+    Numbers compare as floats, so ``100`` and ``100.0`` agree.  Two strings
+    that do not parse as numbers agree only when they are equal: the one
+    categorical threshold, ``command_tracking/v1``'s ``profile``, is a word.
+    Anything else that will not compare as a number counts as a
+    disagreement: the fail-closed reading of "these two records cannot be
+    shown to agree".
     """
     if declared is None or frozen is None:
         return declared is None and frozen is None
     try:
         return float(declared) == float(frozen)
     except (TypeError, ValueError):
-        return False
+        return isinstance(declared, str) and isinstance(frozen, str) and declared == frozen
 
 
 def gate_config_differences(recorded_thresholds: Mapping[str, Any], current_view: Mapping[str, Any]) -> list[str]:
@@ -616,26 +666,19 @@ def validate_gate_config(
             declares a ``warm_start_log_std`` that is not a finite number,
             declares a retired gate kind or ``[curriculum]`` key
             (:data:`RETIRED_GATE_KINDS`, :data:`RETIRED_CURRICULUM_KEYS`;
-            the message names the decision that retired it), or omits the
-            gate declaration entirely while advancement is enabled.
+            the message names the decision that retired it), declares a
+            ``command_tracking/v1`` block its profile's reader refuses
+            (``command_tracking_gate.thresholds_from_curriculum``: an
+            unknown profile, a missing profile bar, the other profile's key
+            or a value outside its rule), or omits the gate declaration
+            entirely while advancement is enabled.
     """
     # Before the unknown-key and unknown-kind checks, so a retired name is
     # refused with the decision that retired it rather than as a typo.
     retired = retired_gate_declarations(curriculum_kwargs)
     if retired:
         raise GateSchemaError(f"{_describe(stage)}: " + "; ".join(retired) + ".")
-    known = (
-        _SCHEMA_KEYS
-        | _SCHEDULE_KEYS
-        | _COLLAPSE_KEYS
-        | _RETENTION_KEYS
-        | _WARM_START_KEYS
-        | _DIAGNOSTIC_KEYS
-        | _PROVENANCE_KEYS
-        | _PUBLICATION_KEYS
-        | _ALL_THRESHOLD_KEYS
-        | BACKEND_OVERRIDE_TABLES
-    )
+    known = NON_THRESHOLD_CURRICULUM_KEYS | _ALL_THRESHOLD_KEYS
     unknown = sorted(set(curriculum_kwargs) - known)
     if unknown:
         raise GateSchemaError(
@@ -725,6 +768,14 @@ def validate_gate_config(
                     f"{_describe(stage)}: {declared_kind} threshold {key} must be a number of at least {floor:g}, "
                     f"not {raw!r}: {why}."
                 )
+
+    if declared_kind == COMMAND_TRACKING_GATE_KIND:
+        # The profile decides which bars are required and which keys belong, so the gate module's own strict
+        # reader is the check: refused at config load rather than by the post-stage judge after a training run.
+        try:
+            thresholds_from_curriculum(curriculum_kwargs)
+        except ValueError as exc:
+            raise GateSchemaError(f"{_describe(stage)}: {exc}.") from exc
 
     if declared_kind == STANCE_HEADING_GATE_KIND and "stance_probe_spawn_yaw_deg" in curriculum_kwargs:
         # The maintainer's decision of 2026-10-11 (D-D32): the certificate rolls every seed at every heading,

@@ -106,7 +106,10 @@ measurement definition, handoff pair and recorded task and can re-derive
 from its own rows (decision D-D23), re-derives a `stance_quality_heading/v1`
 verdict only from a `stance_heading_report.json` the judge admits the same
 way and for its protocol, six-heading grid and certification seeds (decision
-D-D32; a directory holding only a v2 report is refused), refuses
+D-D32; a directory holding only a v2 report is refused), re-derives a
+`command_tracking/v1` verdict only from a `command_tracking_report.json` the
+judge admits for the stage's gate, handoff pair, handoff choice, task and
+command (decision D-D61), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
 the panel). The verdict also records the gate it was judged under —
@@ -275,7 +278,27 @@ validator treats disagreements as conflicts.
   the role, and its policy rows (and, where a statue-relative criterion is
   declared, its statue rows) must be the complete, unique grid of those seeds
   at the six headings, each heading's stamped statue reference what its
-  statue rows reduce to.  The role is bound per
+  statue rows reduce to.  A recorded `command_tracking/v1` PASS (decision
+  D-D61) is re-derived from `command_tracking_panel_selected.csv` alone (one
+  row per episode record, every row stamped with the profile, the
+  measurement, the scored pair's digests, the task and gate digests, the
+  panel's first seed, horizon and control step): the rows must record the
+  certified pair, the task and gate digest of the block the stage records,
+  the stage's horizon and control step, and be exactly the panel the stage's
+  thresholds and command plan from the role, in order; a follow profile's
+  reference rows must be the parent checkpoint the stage entered on, on the
+  same seeds.  The stage directory also holds `command_tracking_report.json`
+  and its text form, which the post-stage judge admits, and
+  `models/handoff_choice.json`, the handoff chosen by the gated statistic on
+  a selection panel from seed 2042 that shares no seed with the
+  certification panel (the judge refuses a choice whose recorded selection
+  plan does), which `select_handoff_checkpoint` honors.
+  `command_tracking_trace.csv` (the step rows of the chart episodes, rolled
+  again after the verdict, each stamped with the checkpoint digest it was
+  rolled on) and
+  `figures/command_tracking.png` and `figures/command_gate_progress.png`
+  are report-only: publication neither binds nor reads them.  The role is
+  bound per
   evidence file, not through
   `evaluation_protocols` (its name deliberately lacks "evaluation"), and it
   may equal the publication seed;

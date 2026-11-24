@@ -9,8 +9,9 @@ from __future__ import annotations
 import logging
 import pickle
 import zipfile
+from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 import numpy as np
 
@@ -116,13 +117,187 @@ def select_handoff_checkpoint(model_dir: Path) -> tuple[str, str, str] | None:
     only when its matched VecNormalize stats exist, so obs normalization
     matches the policy weights. Returns ``(name, model_path_without_ext,
     vecnorm_path)`` or ``None`` when neither candidate is complete.
+
+    A stage whose gate chooses its handoff by the gated statistic
+    (``command_tracking/v1``, decision D-D61) records the choice in
+    ``models/handoff_choice.json`` (:data:`HANDOFF_CHOICE_FILENAME`); a
+    valid record (:func:`recorded_handoff_choice`: its schema, a pair in
+    *model_dir* whose two files hash to the digests it records) names the
+    pair returned, so every reader of the handoff -- the replays, the
+    selected evaluation, the stage gate, the next stage's load, reuse and
+    publication -- follows the one choice.  An invalid record is logged and
+    ignored, and the order above applies; the command-tracking judge
+    refuses a handoff that is not the recorded choice, or a choice whose
+    ranked pairs are no longer the stage's
+    (:func:`handoff_choice_candidates_problem`), so a stale record certifies
+    nothing.
     """
-    for candidate in ("robust_best_model", "best_model"):
+    choice, problem = recorded_handoff_choice(model_dir)
+    if choice is not None:
+        name = str(choice["selected"])
+        return name, str(model_dir / name), str(model_dir / f"{name}_vecnorm.pkl")
+    if problem is not None and (Path(model_dir) / HANDOFF_CHOICE_FILENAME).exists():
+        logger.warning("%s is ignored: %s", Path(model_dir) / HANDOFF_CHOICE_FILENAME, problem)
+    for candidate in REWARD_HANDOFF_NAMES:
         cand_zip = model_dir / f"{candidate}.zip"
         cand_vecnorm = model_dir / f"{candidate}_vecnorm.pkl"
         if cand_zip.exists() and cand_vecnorm.exists():
             return candidate, str(model_dir / candidate), str(cand_vecnorm)
     return None
+
+
+#: The pairs a stage hands on when no choice is recorded, in preference order: the risk-adjusted
+#: ``robust_best_model``, then SB3's mean-reward ``best_model`` (:func:`select_handoff_checkpoint`).
+REWARD_HANDOFF_NAMES: tuple[str, ...] = ("robust_best_model", "best_model")
+#: The suffix of a stage's final pair (``models/<stage_label>_final``), the third pair a choice ranks.
+FINAL_PAIR_SUFFIX = "_final"
+
+#: The record of a handoff chosen by the gated statistic, in the stage's ``models/`` (decision D-D61).
+HANDOFF_CHOICE_FILENAME = "handoff_choice.json"
+HANDOFF_CHOICE_SCHEMA = "mesozoic.handoff-choice/v1"
+
+
+def _file_sha256(path: Path) -> str:
+    """``result_bundle.hashing.sha256_file``'s portable ``sha256:<hex>`` digest (that package imports this one)."""
+    import hashlib
+
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1 << 20), b""):
+            digest.update(block)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def _is_stem(name: Any) -> TypeGuard[str]:
+    """A bare checkpoint stem: a non-empty string with no path part."""
+    return isinstance(name, str) and bool(name) and Path(name).name == name and name not in (".", "..")
+
+
+def _pair_digests(model_dir: Path, name: str) -> "tuple[str, str] | None":
+    """The digests of ``<name>.zip`` and ``<name>_vecnorm.pkl`` in *model_dir*; ``None`` when the pair is not complete."""
+    zip_path, vecnorm_path = model_dir / f"{name}.zip", model_dir / f"{name}_vecnorm.pkl"
+    if not (zip_path.is_file() and vecnorm_path.is_file()):
+        return None
+    return _file_sha256(zip_path), _file_sha256(vecnorm_path)
+
+
+def _selected_problem(record: Any, model_dir: Path) -> str | None:
+    """Why *record* does not name a pair in *model_dir* by its current digests, or ``None``."""
+    if not isinstance(record, dict) or record.get("schema") != HANDOFF_CHOICE_SCHEMA:
+        schema = record.get("schema") if isinstance(record, dict) else type(record).__name__
+        return f"its schema is {schema!r}, not {HANDOFF_CHOICE_SCHEMA!r}"
+    name = record.get("selected")
+    if not _is_stem(name):
+        return f"it selects {name!r}, not a checkpoint stem in {model_dir}"
+    try:
+        digests = _pair_digests(model_dir, name)
+    except OSError as exc:
+        return f"the selected pair cannot be read ({exc})"
+    if digests is None:
+        return f"the selected pair {name}.zip / {name}_vecnorm.pkl is not complete"
+    if digests != (record.get("checkpoint_sha256"), record.get("normalization_sha256")):
+        return (
+            f"the selected pair {name}.zip / {name}_vecnorm.pkl no longer hashes to the recorded digests "
+            "(it was rewritten after the choice)"
+        )
+    return None
+
+
+def recorded_handoff_choice(model_dir: "str | Path") -> "tuple[dict[str, Any] | None, str | None]":
+    """``(record, problem)``: the stage's handoff choice when it is valid, else ``None`` and why.
+
+    Valid means: ``models/handoff_choice.json`` is a JSON object of schema
+    :data:`HANDOFF_CHOICE_SCHEMA` whose ``selected`` is a bare checkpoint
+    stem in *model_dir* (no path), whose ``<selected>.zip`` and
+    ``<selected>_vecnorm.pkl`` both exist, and whose ``checkpoint_sha256``
+    and ``normalization_sha256`` are those two files' digests -- a pair
+    rewritten after the choice (a resumed stage's new ``robust_best_model``)
+    no longer is the pair that was chosen.  ``(None, None)`` when there is
+    no record at all.  Never raises.
+
+    Only the selected pair is hashed here (every reader of the handoff
+    calls this); whether the other pairs the choice ranked are still the
+    stage's is :func:`handoff_choice_candidates_problem`, which the
+    command-tracking judge and the code that makes the choice check.
+    """
+    from ..file_io import read_json_object
+
+    path = Path(model_dir) / HANDOFF_CHOICE_FILENAME
+    if not path.exists():
+        return None, None
+    record = read_json_object(path)
+    if record is None:
+        return None, "it cannot be read as a JSON object"
+    problem = _selected_problem(record, Path(model_dir))
+    if problem is not None:
+        return None, problem
+    return record, None
+
+
+def handoff_choice_candidates_problem(record: "dict[str, Any]", model_dir: "str | Path") -> str | None:
+    """Why *record* is no longer a choice among the pairs its stage holds, or ``None`` when it still is.
+
+    A choice is the best of the pairs it ranked, so it stands only while
+    those are still the stage's pairs.  Its ``candidates`` list names each
+    ranked pair (``name``, a bare stem, each once) with the digests of its
+    two files when it was ranked (``checkpoint_sha256``,
+    ``normalization_sha256``); the selected pair is among them under the
+    record's own digests; every ranked pair still hashes to its recorded
+    digests; and every complete pair in *model_dir* a choice ranks -- the
+    reward-chosen ones (:data:`REWARD_HANDOFF_NAMES`) and the final pair
+    (``*_final``) -- is among them.  So a pair rewritten after the choice
+    (training continued in the stage directory) or one that appeared after
+    it, never compared, makes the choice stale.  Never raises.
+    """
+    directory = Path(model_dir)
+    candidates = record.get("candidates") if isinstance(record, Mapping) else None
+    if not isinstance(candidates, list) or not candidates:
+        return "it records no candidates, so the pairs it was chosen among are unknown"
+    ranked: dict[str, tuple[Any, Any]] = {}
+    for entry in candidates:
+        name = entry.get("name") if isinstance(entry, Mapping) else None
+        if not _is_stem(name) or name in ranked:
+            return f"it records a candidate {name!r} that is not a distinct checkpoint stem"
+        ranked[name] = (entry.get("checkpoint_sha256"), entry.get("normalization_sha256"))
+    selected = record.get("selected")
+    if not _is_stem(selected) or ranked.get(selected) != (
+        record.get("checkpoint_sha256"),
+        record.get("normalization_sha256"),
+    ):
+        return f"its selected pair {selected!r} is not among its candidates under the digests it records"
+    try:
+        for name, digests in ranked.items():
+            if _pair_digests(directory, name) != digests:
+                return f"the candidate {name} no longer hashes to the digests it was ranked under"
+        present = {
+            stem
+            for stem in {path.name[: -len(".zip")] for path in directory.glob("*.zip")}
+            if (stem in REWARD_HANDOFF_NAMES or stem.endswith(FINAL_PAIR_SUFFIX))
+            and (directory / f"{stem}_vecnorm.pkl").is_file()
+        }
+    except OSError as exc:
+        return f"the stage's pairs cannot be read ({exc})"
+    unranked = sorted(present - set(ranked))
+    if unranked:
+        return f"the stage holds pairs the choice never ranked ({', '.join(unranked)})"
+    return None
+
+
+def write_handoff_choice(model_dir: "str | Path", record: "dict[str, Any]") -> Path:
+    """Write *record* as ``models/handoff_choice.json`` atomically; it must already be a valid choice.
+
+    Refuses (``ValueError``) a record :func:`recorded_handoff_choice` would
+    not honor once written, or one :func:`handoff_choice_candidates_problem`
+    would call stale, so a written choice is never silently ignored.  The
+    previous record is kept when the new one is refused.
+    """
+    from ..file_io import atomic_write_json
+
+    directory = Path(model_dir)
+    problem = _selected_problem(record, directory) or handoff_choice_candidates_problem(record, directory)
+    if problem is not None:
+        raise ValueError(f"the handoff choice is refused: {problem}")
+    return atomic_write_json(directory / HANDOFF_CHOICE_FILENAME, record)
 
 
 def publish_staged_pair(staged: "str | Path", destination: "str | Path", *, zip_last: bool) -> None:

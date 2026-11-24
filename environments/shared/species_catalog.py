@@ -26,6 +26,14 @@ import mujoco
 from environments.shared import record_fields
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.curriculum import StageThreshold
+from environments.shared.curriculum.command_tracking_gate import (
+    COMMAND_TRACKING_GATE_KIND,
+    COMMAND_TRACKING_THRESHOLD_KEYS,
+    FOLLOW_PROFILE,
+    GAIT_CRITERIA,
+    GAIT_LIMBS_KEY,
+    TOLERANCE_OVERRIDE_KEYS,
+)
 from environments.shared.curriculum.gate_schema import (
     FLOOR_TRUTH_STANCE_GATE_KINDS,
     GATE_KINDS,
@@ -186,6 +194,20 @@ def _reward_and_length_headline_specs(current_gate: dict[str, Any]) -> list[_Hea
     return specs
 
 
+def _command_tracking_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    # The command-tracking gate (D-D61) certifies exact binomial lower bounds
+    # on per-episode success: the walk profile's cruise family (with its
+    # stand family judged on a fraction beside it) and the follow profile's
+    # panel.  The profile key names which.  Null until the summary carries
+    # them (D-B15), as for the stance kinds.
+    if current_gate.get("profile") == FOLLOW_PROFILE:
+        return [("command_follow_success_lcb", "command-following episodes LCB95", "ratio")]
+    return [
+        ("command_cruise_success_lcb", "cruise episodes on the command LCB95", "ratio"),
+        ("command_stand_success_fraction", "stand episodes holding the stop", "percent"),
+    ]
+
+
 def _no_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     # none/v1 certifies nothing, so nothing headlines it.
     return []
@@ -196,6 +218,7 @@ _HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]
     STANCE_GATE_V2_KIND: _stance_v2_headline_specs,
     STANCE_HEADING_GATE_KIND: _stance_heading_headline_specs,
     RECOVERY_GATE_KIND: _recovery_headline_specs,
+    COMMAND_TRACKING_GATE_KIND: _command_tracking_headline_specs,
     "reward_and_length/v1": _reward_and_length_headline_specs,
     "none/v1": _no_headline_specs,
 }
@@ -499,6 +522,17 @@ _STANCE_V2_EXPORTED_KEYS = tuple(
 )
 
 
+#: The ``command_tracking/v1`` keys the catalog exports beside the shared
+#: ones on a stage that declares the kind (decision D-D61), and on no other:
+#: both profiles' keys, declared or null, so the published gate is the one the
+#: post-stage judge enforces.  Like the v2 keys, the first committed stage to
+#: declare the kind cannot regenerate the catalog without teaching the website
+#: adapter (``website/src/data/species.ts`` ``RawStage.advancement_gate``)
+#: these keys and its ``formatGate`` this arm, which
+#: ``test_website_adapter_declares_every_exported_key`` pins both ways.
+_COMMAND_TRACKING_EXPORTED_KEYS = tuple(sorted(COMMAND_TRACKING_THRESHOLD_KEYS - {"required_consecutive"}))
+
+
 def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
     """The stage's effective early-advancement gate as the catalog exports it."""
     gate = {
@@ -538,6 +572,10 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
         # floor-truth one actually enforced rather than a list that shows
         # only the shared rail and panel size.
         gate.update({key: curriculum.get(key) for key in _STANCE_V2_EXPORTED_KEYS})
+    if curriculum.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        # command_tracking/v1 (D-D61): its profile and every bar, declared or
+        # null, so the published gate is the panel the judge enforces.
+        gate.update({key: curriculum.get(key) for key in _COMMAND_TRACKING_EXPORTED_KEYS})
     return gate
 
 
@@ -1505,6 +1543,12 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
             "when absent, never the yaw-zero panel)"
         )
         return "; ".join(heading_criteria)
+    # A command_tracking/v1 verdict (D-D61) is produced once, post-stage, from
+    # command_tracking_report.json: the stage's command panel rolled on the
+    # handoff its gated statistic chose; the in-training manager refuses the
+    # kind, so no consecutive-passes tail, as for the stance kinds.
+    if gate.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        return _format_command_tracking_gate(gate)
     criteria: list[str] = []
     if gate["min_avg_reward"] is not None:
         criteria.append(f"reward ≥ {gate['min_avg_reward']:g}")
@@ -1520,6 +1564,58 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
         criteria.append(f"unsupported duty 95% upper bound ≤ {gate['max_unsupported_duty_ucb']:g}")
     criteria.append(f"≥ {gate['min_eval_episodes']} episodes/evaluation")
     criteria.append(f"{gate['required_consecutive']} consecutive passes")
+    return "; ".join(criteria)
+
+
+def _format_command_tracking_gate(gate: dict[str, Any]) -> str:
+    """The ``command_tracking/v1`` criteria as the catalog renders them: the profile's families, the gait clause, the source."""
+    if gate.get("profile") == FOLLOW_PROFILE:
+        criteria = [
+            f"command-following episodes success LCB95 ≥ {gate['min_follow_success_lcb']:g} and survival LCB95 ≥ "
+            f"{gate['min_follow_survival_lcb']:g} over ≥ {gate['min_follow_episodes']:g} episodes of ≥ "
+            f"{gate['min_follow_horizon_s']:g} s",
+            "an episode succeeds when it survives, stays in tolerance on ≥ "
+            f"{_format_percent(gate['min_follow_tracking_fraction'])} of its steps, settles ≥ "
+            f"{_format_percent(gate['min_follow_event_settle_fraction'])} of its commands, ≥ "
+            f"{_format_percent(gate['min_follow_stop_settle_fraction'])} of its stops and ≥ "
+            f"{_format_percent(gate['min_follow_turn_settle_fraction'])} of its turns (each where the schedule draws "
+            "them) and passes the gait clause",
+            f"≥ {gate['min_follow_command_episodes']:g} episodes exposed to each of stops and turns",
+        ]
+        if gate.get("min_follow_course_fraction") is not None:
+            criteria.append(
+                f"course ≥ {_format_percent(gate['min_follow_course_fraction'])} of "
+                f"{gate['follow_course_distance_m']:g} m"
+            )
+        if gate.get("min_follow_reference_delta_lcb") is not None:
+            criteria.append(f"paired Δ success vs the parent policy LCB95 ≥ {gate['min_follow_reference_delta_lcb']:g}")
+    else:
+        criteria = [
+            f"cruise episodes (a non-zero reset command) success LCB95 ≥ {gate['min_cruise_success_lcb']:g} and "
+            f"survival LCB95 ≥ {gate['min_cruise_survival_lcb']:g} over ≥ {gate['min_cruise_episodes']:g} episodes",
+            "a cruise episode succeeds when it reaches the horizon, settles its initial heading within 1 s + "
+            "|error| / yaw_rate_max and holds it 1 s, stays in tolerance on ≥ "
+            f"{_format_percent(gate['min_cruise_tracking_fraction'])} of its steps after the settle, makes ≥ "
+            f"{gate['min_cruise_speed_ratio']:g} × the commanded speed along the heading after 2 s and passes the "
+            "gait clause",
+            f"stand episodes (an exactly zero command) over ≥ {gate['min_stand_episodes']:g}: ≥ "
+            f"{_format_percent(gate['min_stand_success_fraction'])} hold the stop (it settles, and holds on ≥ "
+            f"{_format_percent(gate['min_stand_hold_fraction'])} of the steps after 1 s) and ≤ "
+            f"{gate['max_stand_falls']:g} fall",
+        ]
+    bars = [
+        f"{key} {'≥' if direction == 'min' else '≤'} {gate[key]:g}"
+        for key, _, direction in GAIT_CRITERIA
+        if gate.get(key) is not None
+    ]
+    criteria.append(f"gait clause ({GAIT_LIMBS_KEY} {gate.get(GAIT_LIMBS_KEY)}): " + ", ".join(bars))
+    overrides = [f"{key} {gate[key]:g}" for key, _ in TOLERANCE_OVERRIDE_KEYS if gate.get(key) is not None]
+    if overrides:
+        criteria.append("tolerances overridden for the gate: " + ", ".join(overrides))
+    criteria.append(
+        "handoff chosen by the gated statistic on a separate selection panel; verdict from "
+        "command_tracking_report.json on that pair (post-stage; fail-closed when absent)"
+    )
     return "; ".join(criteria)
 
 
