@@ -144,7 +144,8 @@ def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
 def test_notebook_preflight_leaves_a_complete_bundle_untouched(tmp_path, monkeypatch, status):
     """A complete bundle is immutable (consolidation PR-14a): the run keeps the copy it was sealed with, and the
     per-species record outside the run is still written. A ``partial`` or ``failed`` bundle is rebuilt by the
-    next node trained or judged in it, so its copy is refreshed as before."""
+    next node trained or judged in it, so its copy is refreshed when it differs apart from ``captured_at``, as the
+    sealed copy here does (an unchanged one is kept: ``test_drive_write_hygiene.py``)."""
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     (run_dir / "artifact_manifest.json").write_text(json.dumps({"status": status}))

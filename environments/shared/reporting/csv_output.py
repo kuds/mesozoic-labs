@@ -7,6 +7,7 @@ summary, and the per-episode evaluation-evidence writer."""
 from __future__ import annotations
 
 import csv as _csv
+import io
 import logging
 import math
 from pathlib import Path
@@ -77,6 +78,16 @@ def _compute_fieldnames(
     return fixed_columns + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
 
 
+def _csv_text(fieldnames: list[str], rows: Sequence[Mapping[str, Any]], *, header: bool = True) -> str:
+    """The text a ``csv.DictWriter`` (``extrasaction="ignore"``) writes for *rows* to a file opened ``newline=""``."""
+    buffer = io.StringIO(newline="")
+    writer = _csv.DictWriter(buffer, fieldnames=fieldnames, extrasaction="ignore")
+    if header:
+        writer.writeheader()
+    writer.writerows(rows)
+    return buffer.getvalue()
+
+
 def write_results_csv(
     rows: list[dict[str, Any]],
     path: str | Path,
@@ -108,6 +119,13 @@ def write_results_csv(
             new keys appear that were not in the original header the file
             is rewritten with the expanded column set.
 
+    Every write publishes the whole file with
+    :func:`~environments.shared.file_io.atomic_write_text` (an append reads
+    the file and rewrites it with the new rows after the old bytes), so a
+    reclaim mid-write leaves the previous file whole rather than a truncated
+    one that a later bundle save would hash; the bytes are those the plain
+    writes produced (UTF-8).
+
     Returns:
         Path to the written CSV file.
     """
@@ -123,67 +141,39 @@ def write_results_csv(
             logger.warning("No result rows to write — skipping CSV")
         return Path(path_str)
 
+    from ..file_io import atomic_write_text
+
     # ── Append mode ────────────────────────────────────────────────────
     if append:
         local_path = Path(path_str)
         local_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not local_path.exists():
-            fieldnames = _compute_fieldnames(rows, fixed_columns)
-            with open(local_path, "w", newline="") as f:
-                writer = _csv.DictWriter(
-                    f,
-                    fieldnames=fieldnames,
-                    extrasaction="ignore",
-                )
-                writer.writeheader()
-                writer.writerows(rows)
+            text = _csv_text(_compute_fieldnames(rows, fixed_columns), rows)
         else:
-            with open(local_path, "r", newline="") as f:
-                reader = _csv.DictReader(f)
-                existing_fieldnames: list[str] = list(reader.fieldnames or [])
-                existing_rows = list(reader)
+            with open(local_path, "r", newline="", encoding="utf-8") as f:
+                existing_text = f.read()
+            reader = _csv.DictReader(io.StringIO(existing_text, newline=""))
+            existing_fieldnames: list[str] = list(reader.fieldnames or [])
+            existing_rows = list(reader)
 
             new_keys = [k for row in rows for k in row if k not in existing_fieldnames]
             if new_keys:
                 # Rewrite with canonical column ordering so new keys land
                 # in the correct position.
                 all_rows = existing_rows + list(rows)
-                fieldnames = _compute_fieldnames(all_rows, fixed_columns)
-                with open(local_path, "w", newline="") as f:
-                    writer = _csv.DictWriter(
-                        f,
-                        fieldnames=fieldnames,
-                        extrasaction="ignore",
-                    )
-                    writer.writeheader()
-                    writer.writerows(existing_rows)
-                    writer.writerows(rows)
+                text = _csv_text(_compute_fieldnames(all_rows, fixed_columns), all_rows)
             else:
-                with open(local_path, "a", newline="") as f:
-                    writer = _csv.DictWriter(
-                        f,
-                        fieldnames=existing_fieldnames,
-                        extrasaction="ignore",
-                    )
-                    writer.writerows(rows)
+                # The old bytes, then the new rows: what an append wrote.
+                text = existing_text + _csv_text(existing_fieldnames, rows, header=False)
+        atomic_write_text(local_path, text, newline="")
 
         logger.info("Results CSV updated: %s", local_path)
         return local_path
 
     # ── Batch mode ─────────────────────────────────────────────────────
     local_path = Path(path_str)
-    local_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fieldnames = _compute_fieldnames(rows, fixed_columns)
-    with open(local_path, "w", newline="") as f:
-        writer = _csv.DictWriter(
-            f,
-            fieldnames=fieldnames,
-            extrasaction="ignore",
-        )
-        writer.writeheader()
-        writer.writerows(rows)
+    atomic_write_text(local_path, _csv_text(_compute_fieldnames(rows, fixed_columns), rows), newline="")
 
     logger.info("Results CSV written to: %s", path_str)
     return Path(path_str)

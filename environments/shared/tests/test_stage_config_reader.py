@@ -127,7 +127,7 @@ FORMER_READERS: dict[str, tuple[Callable[[Path], Any], Any, Any, Any]] = {
         [],
         [],
     ),
-    "config._recorded_edge_lineage": (config._recorded_edge_lineage, {}, _LINEAGE, _LINEAGE),
+    "config._recorded_kept_lineage": (config._recorded_kept_lineage, {}, _LINEAGE, _LINEAGE),
     "ancestors._recorded_load_lineage": (ancestors._recorded_load_lineage, {}, _LINEAGE, _LINEAGE),
     "result_bundle.reentry._run_block": (reentry._run_block, None, _NAN_RUN, _RUN),
     "reporting.gates._current_task_sha256": (gates._current_task_sha256, None, None, "t"),

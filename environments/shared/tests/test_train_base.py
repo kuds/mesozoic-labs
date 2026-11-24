@@ -2565,8 +2565,9 @@ class TestTrainRefusesAnUndeclaredParent:
 class TestTrainRefusesAnOccupiedStageDirectory:
     """Decision D-A20 at the launch path: train() refuses to write into a stage directory that
     already records a stage (``stage_config.json`` or ``gate_verdict.json``) unless the load is an
-    explicit same-stage resume — checked after the directory is resolved and before its config,
-    models directory or any environment is written."""
+    explicit same-stage resume of an unjudged stage — checked after the directory is resolved and
+    before its config, models directory or any environment is written (the judged case:
+    ``test_write_guards.py``)."""
 
     class ConfigReached(RuntimeError):
         """The guard passed: train() went on to write the stage config."""
@@ -2628,10 +2629,10 @@ class TestTrainRefusesAnOccupiedStageDirectory:
         assert sorted(p.name for p in occupied.iterdir()) == [occupancy_file]
 
     def test_an_explicit_same_stage_resume_is_accepted(self, tmp_path, monkeypatch):
+        # An interrupted, unjudged stage: a judged one is refused even to a resume (D-A20 as amended).
         occupied = tmp_path / "old-run"
         occupied.mkdir()
         (occupied / "stage_config.json").write_text("{}")
-        (occupied / "gate_verdict.json").write_text("{}")
 
         outcome = self._train(
             tmp_path,
@@ -2816,16 +2817,19 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
         from environments.shared.config import read_stage_duration
 
         self._run(tmp_path, monkeypatch)
-        final = tmp_path / "01_stance" / "models" / "stage1_final.zip"
-        self._run(tmp_path, monkeypatch, load_path=str(final), task_load_mode="resume_same_stage")
+        # A periodic checkpoint: a curated one (the final) is refused over the stage's records (2026-11-24).
+        periodic = tmp_path / "01_stance" / "models" / "stage1_10_steps.zip"
+        periodic.write_bytes(b"periodic")
+        self._run(tmp_path, monkeypatch, load_path=str(periodic), task_load_mode="resume_same_stage")
         assert read_stage_duration(tmp_path / "01_stance") == 14.0
 
     def test_a_session_that_stops_before_its_final_save_keeps_the_earlier_sum(self, tmp_path, monkeypatch):
         from environments.shared.config import read_stage_duration
 
         self._run(tmp_path, monkeypatch)
-        final = tmp_path / "01_stance" / "models" / "stage1_final.zip"
-        resume = {"load_path": str(final), "task_load_mode": "resume_same_stage"}
+        periodic = tmp_path / "01_stance" / "models" / "stage1_10_steps.zip"
+        periodic.write_bytes(b"periodic")
+        resume = {"load_path": str(periodic), "task_load_mode": "resume_same_stage"}
         with pytest.raises(KeyboardInterrupt):
             self._run(tmp_path, monkeypatch, interrupt=True, save_on_interrupt=False, **resume)
         assert read_stage_duration(tmp_path / "01_stance") == 7.0, "the re-saved config keeps the recorded sum"

@@ -579,6 +579,10 @@ def _is_resume_continuation(
       skip SB3's warmup and run gradient updates against a near-empty buffer;
       SAC keeps the old fresh-counter semantics (with a warning at the call
       site) until periodic checkpoints save and restore the buffer.
+
+    :func:`_refuse_non_continuation_resume` keeps every same-stage load that
+    is not a continuation (a SAC load, a curated checkpoint) out of a stage
+    directory that already holds the stage's training records.
     """
     if not load_path or task_load_mode != "resume_same_stage" or algorithm != "ppo":
         return False
@@ -589,6 +593,84 @@ def _is_resume_continuation(
         stem = stem[: -len(".zip")]
     match = _PERIODIC_CHECKPOINT_RE.match(stem)
     return match is not None and match.group(1) == stage_lbl
+
+
+def _stage_training_records(stage_dir: Path, stage_lbl: str) -> list[str]:
+    """The training records of stage *stage_lbl* that *stage_dir* holds, as paths relative to it, else ``[]``.
+
+    The files a session rewrites from its own history alone when nothing seeds it: ``evaluations.npz``, the
+    evaluation- and training-episode ledgers, and in ``models/`` the stage's periodic checkpoints
+    (``<stage_lbl>_<steps>_steps.zip``), its final checkpoint and the two best-model pairs.
+    """
+    from .eval_diagnostics import EVAL_LEDGER_FILENAME
+    from .policy_loading import _PERIODIC_CHECKPOINT_RE
+    from .rollout_ledger import TRAIN_LEDGER_FILENAME
+
+    found = [
+        name
+        for name in ("evaluations.npz", EVAL_LEDGER_FILENAME, TRAIN_LEDGER_FILENAME)
+        if (stage_dir / name).is_file()
+    ]
+    models = stage_dir / "models"
+    if models.is_dir():
+        for path in sorted(models.glob("*.zip")):
+            stem = path.name[: -len(".zip")]
+            match = _PERIODIC_CHECKPOINT_RE.match(stem)
+            periodic = match is not None and match.group(1) == stage_lbl
+            if periodic or stem in ("best_model", "robust_best_model", f"{stage_lbl}_final"):
+                found.append(f"models/{path.name}")
+    return found
+
+
+def _refuse_non_continuation_resume(
+    stage_dir: Path,
+    *,
+    load_path: "str | None",
+    task_load_mode: str,
+    stage_lbl: str,
+    algorithm: str,
+) -> None:
+    """Refuse a same-stage load that cannot continue a run into a directory holding the stage's records.
+
+    Only a PPO load of one of the stage's periodic checkpoints continues a run (:func:`_is_resume_continuation`).
+    Any other ``resume_same_stage`` load restarts the step counter and seeds nothing: SAC, because nothing
+    persists its replay buffer; a curated PPO checkpoint (``best_model.zip``, ``<label>_final.zip``), because
+    its name carries no cumulative step count.  Into the interrupted stage directory its first evaluation
+    would rewrite ``evaluations.npz``, ``gate_progress.npz`` and the episode ledgers with this session's rows
+    alone, replace both best-model pairs whatever they scored (the trackers start at ``-inf``) and number its
+    periodic checkpoints from the start again, over or under the earlier ones; the node would then be judged
+    on that tail.  Raises :class:`~environments.shared.config.ResumeRefusedError` before anything is written
+    when *stage_dir* holds any of :func:`_stage_training_records`.  A load into a fresh or empty directory
+    (the CLI's default, which mints one) trains a new record of the stage and is allowed.
+    """
+    if not load_path or task_load_mode != "resume_same_stage":
+        return
+    if _is_resume_continuation(load_path, task_load_mode=task_load_mode, stage_lbl=stage_lbl, algorithm=algorithm):
+        return
+    found = _stage_training_records(stage_dir, stage_lbl)
+    if not found:
+        return
+    from .config import ResumeRefusedError
+
+    if algorithm != "ppo":
+        why = (
+            f"a {algorithm.upper()} --load under resume_same_stage cannot continue them: nothing persists the "
+            "replay buffer, so the step counter restarts"
+        )
+    else:
+        why = (
+            f"this --load of {Path(load_path).name} under resume_same_stage cannot continue them: it is not one of "
+            f"the stage's periodic checkpoints ({stage_lbl}_<steps>_steps.zip), so it carries no cumulative step "
+            "count and the step counter restarts"
+        )
+    raise ResumeRefusedError(
+        f"{stage_dir} already holds stage {stage_lbl}'s training records ({', '.join(found)}), and {why}. "
+        "Nothing is seeded, so the first evaluation would rewrite the stage's evaluation history, ledgers and "
+        "best models from this session alone. Resume an interrupted PPO node from its newest periodic "
+        "checkpoint; otherwise train the node again in a fresh run directory (--output-dir, or a fresh RUN_ID "
+        "with TRUNK_FROM naming this run for its certified ancestors), or load the checkpoint into a new "
+        "directory. Nothing was written."
+    )
 
 
 #: Filesystem roots of the FUSE-mounted remote stores a run may write to:
@@ -1028,6 +1110,10 @@ def _build_core_callbacks(
         publish_dir=model_dir if handoff_staging_dir is not None else None,
     )
 
+    # The periodic checkpoint's stride in callback calls; the report-only
+    # records written on that cadence (eval_episodes.csv, train_episodes.csv,
+    # policy_probe.npz) are rewritten on the same calls.
+    checkpoint_stride = max(1, save_freq // n_envs)
     local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_{stage_label(stage)}_")
     eval_callback, plateau_callback = build_stage_evaluation_callbacks(
         eval_env,
@@ -1050,6 +1136,11 @@ def _build_core_callbacks(
         render=False,
         verbose=max(verbose, 1),
         callback_on_new_best=save_vecnorm_cb,
+        # eval_episodes.csv on the checkpoint cadence and at training end, not
+        # rewritten whole after every evaluation (about 31 MB by the end of a
+        # 12M T. rex stance); this callback runs before the CheckpointCallback,
+        # so a checkpoint's evaluation rows are on disk before it is saved.
+        ledger_flush_every_calls=checkpoint_stride,
     )
     callbacks.append(eval_callback)
     callbacks.append(plateau_callback)
@@ -1061,7 +1152,6 @@ def _build_core_callbacks(
     )
     callbacks.append(robust_callback)
 
-    checkpoint_stride = max(1, save_freq // n_envs)
     # On a Drive/GCS FUSE mount, stream the periodic checkpoint pair to fast
     # local scratch and publish it atomically (copy-to-temp + rename) — the
     # same treatment evaluations.npz gets above, and for the same reason: an
@@ -1489,6 +1579,7 @@ def _train_stage_body(
     save_on_interrupt: bool,
     announce: bool,
     k3_panel: "K3PanelConfig | None" = None,
+    before_learn: Callable[[], Any] | None = None,
 ) -> _TrainedStage:
     """Train one stage: the body :func:`train` and :func:`train_curriculum` share (cleanup CU-10b).
 
@@ -1516,13 +1607,19 @@ def _train_stage_body(
     eval_callback=...)``; the curriculum's ``CurriculumCallback``), then the
     stage-entry shaping.  A ``KeyboardInterrupt`` in ``learn()`` propagates
     before the final save unless ``save_on_interrupt``, under which it is
-    logged, the stage is saved, and ``interrupted`` is set.  ``announce``
+    logged, the stage is saved, the checkpoint-cadence records ``learn()``
+    did not write at its end are rewritten (:func:`_flush_report_records`),
+    and ``interrupted`` is set.  ``announce``
     logs ``train()``'s own lines (the environments being created, the model
     architecture, the start of training, "Training ended early"); without
     it the early end is logged as the curriculum logs it, naming the stage.
     ``k3_panel`` (``train()``'s launch option; ``None``: off) adds the in-run
     K3 noise panel (:mod:`~environments.shared.k3_panel`) on its own env of
-    the stage.
+    the stage.  ``before_learn`` is called once the model has loaded and the
+    callbacks are built, just before ``learn()``: ``train()`` records a
+    same-stage resume's session there
+    (:func:`~environments.shared.config.record_resume_session`), so a load
+    refused or failed before training records none.
     """
     config = stage_configs[stage]
 
@@ -1664,15 +1761,19 @@ def _train_stage_body(
         )
     elif load_path and task_load_mode == "resume_same_stage":
         if algorithm != "ppo":
+            # train() refused this load over the stage's training records (_refuse_non_continuation_resume), so the
+            # directory holds none for this session to overwrite; the curated PPO load below likewise.
             logger.warning(
                 "SAC --load is NOT a continuation: the replay buffer is not persisted, so the "
                 "step counter restarts and SB3's warmup re-collects experience before updates. "
-                "Best-model artifacts in a reused stage directory are unprotected."
+                "This session starts a new record of the stage."
             )
         else:
+            # Refused over the stage's training records too (_refuse_non_continuation_resume).
             logger.info(
                 "Loaded checkpoint has no cumulative step count in its name (curated checkpoint); "
-                "training runs with a fresh step counter rather than continuation semantics."
+                "training runs with a fresh step counter rather than continuation semantics, and this session "
+                "starts a new record of the stage."
             )
 
     from .policy_probe import bank_env_kwargs
@@ -1714,7 +1815,8 @@ def _train_stage_body(
         # Seed best-model trackers and the in-memory eval history from the
         # published record, so the first post-resume eval cannot overwrite a
         # better pre-interruption best_model / robust_best_model, and
-        # evaluations.npz keeps the whole run.  The default CLI resume mints
+        # evaluations.npz (with the records beside it, diagnostics.npz
+        # included) keeps the whole run.  The default CLI resume mints
         # a FRESH stage directory, so when the current one has no record yet,
         # fall back to the interrupted stage directory the checkpoint came
         # from (<stage_dir>/models/<ckpt> — two levels up).
@@ -1773,6 +1875,8 @@ def _train_stage_body(
     )
 
     callback_list = sb3["CallbackList"](callbacks)
+    if before_learn is not None:
+        before_learn()
 
     # Train
     if announce:
@@ -1831,6 +1935,15 @@ def _train_stage_body(
         gcs_tb_path,
     )
 
+    # Report only: learn() skipped on_training_end after the interrupt, so the
+    # checkpoint-cadence records (eval_episodes.csv, train_episodes.csv,
+    # policy_probe.npz) lack their rows since the newest periodic checkpoint.
+    # Written here, after the final pair is saved (a 12M T. rex stance's
+    # eval_episodes.csv takes seconds, a window in which a second Ctrl-C would
+    # otherwise cost the final pair), and before anything re-judges the stage.
+    if interrupted:
+        _flush_report_records(callbacks)
+
     # Report only: the in-run K3 panel's final panel reads the final weights
     # and statistics, so it runs here, with the final pair on disk, not in
     # learn() (about 85 s on a real stance policy, a window in which an
@@ -1855,6 +1968,33 @@ def _train_stage_body(
         learn_seconds=learn_seconds,
         interrupted=interrupted,
     )
+
+
+def _flush_report_records(callbacks: "list[Any]") -> None:
+    """Rewrite each callback's checkpoint-cadence record (``flush_records``) after an interrupt the trainer saved.
+
+    ``learn()`` calls no ``on_training_end`` when a ``KeyboardInterrupt``
+    leaves it, which is where ``eval_episodes.csv``, ``train_episodes.csv``
+    and ``policy_probe.npz`` are written last.  Called after the final save.
+    A second Ctrl-C here is logged, as one during the final K3 panel is, and
+    leaves the records not yet rewritten as their last periodic write left
+    them, each whole (the writes are atomic).  A failure is logged (report
+    only).
+    """
+    for callback in callbacks:
+        flush = getattr(callback, "flush_records", None)
+        if not callable(flush):
+            continue
+        try:
+            flush()
+        except KeyboardInterrupt:
+            logger.warning(
+                "Rewriting the report records after the interrupt was interrupted by the user; "
+                "the final checkpoint pair is saved."
+            )
+            return
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            logger.warning("A report record could not be rewritten after the interrupt.", exc_info=True)
 
 
 def _roll_final_k3_panels(callbacks: "list[Any]") -> None:
@@ -1952,7 +2092,11 @@ def train(
     evaluation history are seeded from the stage directory's existing
     ``evaluations.npz`` so a post-resume evaluation can only overwrite
     ``best_model``/``robust_best_model`` by genuinely beating the
-    pre-interruption best (review TC2).
+    pre-interruption best (review TC2).  The rollout diagnostics continue
+    the ``diagnostics.npz`` beside that record the same way, and the file a
+    resume rewrites is first copied aside as
+    ``diagnostics.prior_<UTC>.npz``
+    (:meth:`~environments.shared.diagnostics.DiagnosticsCallback.seed_prior_diagnostics`).
 
     ``allow_fresh_vecnorm`` is the explicit escape hatch for resuming a
     checkpoint whose VecNormalize sidecar is lost; by default that load
@@ -1962,8 +2106,24 @@ def train(
     or ``gate_verdict.json`` present) is refused with
     :class:`~environments.shared.config.StageDirectoryOccupiedError` before
     anything is written into it, unless the load is an explicit same-stage
-    resume (``load_path`` under ``resume_same_stage``): a new variant is a
-    new run directory (decision D-A20).
+    resume (``load_path`` under ``resume_same_stage``) of a stage that holds
+    no ``gate_verdict.json`` (a judged node is never trained further in
+    place; D-A20 as amended 2026-11-24): a new variant is a new run
+    directory (decision D-A20).  Such a resume is refused too, with
+    :class:`~environments.shared.config.ResumeRefusedError` and before
+    anything is written, when it cannot continue the recorded stage: a load
+    that is not a continuation (a SAC load, or a curated PPO checkpoint)
+    into a directory holding the stage's training records
+    (:func:`_refuse_non_continuation_resume`), and any resume whose
+    ``hyperparameters_sha256`` or non-empty ``label`` differs from the one
+    the directory's ``stage_config.json`` records
+    (:func:`~environments.shared.config.refuse_resume_recipe_change`).  A
+    checkpoint whose recorded task fingerprint differs is refused before
+    anything is written as well.  The re-saved record keeps the first
+    session's commit, library version, budget, label and load lineage, and
+    this session is listed under ``run.resume_sessions`` once its model has
+    loaded, just before ``learn()``
+    (:func:`~environments.shared.config.record_resume_session`).
 
     ``label`` is free text naming the run (``--label``); it is recorded in
     the stage config's ``run`` block beside the ``hyperparameters_sha256``
@@ -1995,13 +2155,22 @@ def train(
     stage_start = time.monotonic()
     _validate_post_eval_episodes(post_eval_episodes)
 
-    from .config import read_stage_duration, record_stage_duration, refuse_occupied_stage_dir, save_stage_config
+    from .config import (
+        read_recorded_stage_config,
+        read_stage_duration,
+        record_resume_session,
+        record_stage_duration,
+        refuse_occupied_stage_dir,
+        refuse_resume_recipe_change,
+        save_stage_config,
+    )
     from .policy_loading import _ensure_sb3
     from .stage_manifest import load_stage_manifest
     from .task_fingerprint import (
         read_checkpoint_task_fingerprint,
         stage_task_fingerprint,
         validate_declared_parent,
+        validate_recorded_task,
     )
 
     config = stage_configs[stage]
@@ -2034,6 +2203,20 @@ def train(
         handoff = _select_handoff_checkpoint(loaded.parent) if loaded.parent.name == "models" else None
         if handoff is not None and loaded.name.removesuffix(".zip") == handoff[0]:
             _warn_on_heading_probe_handoff(loaded.parent.parent, stage=entry.id)
+    if load_path and task_load_mode == "resume_same_stage":
+        # A judged directory is refused for what it is (D-A20 as amended 2026-11-24) before the checkpoint's task
+        # is compared, so the message names the remedy, a fresh run directory, rather than another load mode. The
+        # default directory is a fresh timestamped one, so only an explicit one can be judged.
+        explicit_dir = output_dir if output_dir is not None else log_dir
+        if explicit_dir is not None:
+            refuse_occupied_stage_dir(Path(explicit_dir), task_load_mode=task_load_mode)
+        # A same-stage resume continues the task its checkpoint records: a checkpoint trained on another task is
+        # refused here, read off the archive, before the stage directory or stage_config.json is written (the load
+        # in _create_or_load_model checks the loaded model again; one recording no fingerprint goes through the
+        # dated valve there).
+        recorded_task = read_checkpoint_task_fingerprint(load_path)
+        if recorded_task is not None and isinstance(task_fingerprint.get("task_sha256"), str):
+            validate_recorded_task(recorded_task, task_fingerprint, mode="resume_same_stage", artifact=str(load_path))
     # A phase checkpoint into a stage without [ppo] critic_phase: the warm-start drop's record, or its refusal,
     # before the stage directory exists.
     critic_phase_dropped = _critic_phase_drop_record(
@@ -2076,10 +2259,28 @@ def train(
         log_path = Path(log_dir)
 
     # D-A20: a directory that already records a stage is written into only
-    # by a same-stage resume of it.  The effective load mode is what
+    # by a same-stage resume of it, and never once it holds gate_verdict.json
+    # (D-A20 as amended 2026-11-24).  The effective load mode is what
     # save_stage_config records below (None when nothing is loaded), so a
     # from-scratch run under the default resume_same_stage is refused too.
     refuse_occupied_stage_dir(log_path, task_load_mode=task_load_mode if load_path else None)
+    # A same-stage resume continues the stage the directory records, so it must be able to: an algorithm that
+    # cannot continue a run is refused over that stage's records, and every resume over a recorded recipe or
+    # label other than this session's.  Both before anything is written.
+    _refuse_non_continuation_resume(
+        log_path,
+        load_path=load_path,
+        task_load_mode=task_load_mode,
+        stage_lbl=stage_label(stage),
+        algorithm=algorithm,
+    )
+    refuse_resume_recipe_change(
+        log_path,
+        config,
+        algorithm.upper(),
+        task_load_mode=task_load_mode if load_path else None,
+        label=label,
+    )
 
     log_path.mkdir(parents=True, exist_ok=True)
     model_dir = log_path / "models"
@@ -2090,6 +2291,11 @@ def train(
     # D-A15: a same-stage resume continues a recorded stage, so its duration
     # accumulates on the record's, read before the re-save below rewrites it.
     prior_duration = read_stage_duration(log_path) if (load_path and task_load_mode == "resume_same_stage") else None
+    # Whether this resume continues a record (the re-save keeps its identity): its session is appended once the
+    # model has loaded, so a load refused or failed before training lists none.
+    continues_record = (
+        bool(load_path) and task_load_mode == "resume_same_stage" and read_recorded_stage_config(log_path) is not None
+    )
     # Read before the re-save below rewrites the record a resume keeps it from.
     warm_start_record = _warm_start_record(
         log_path,
@@ -2150,6 +2356,11 @@ def train(
         save_on_interrupt=save_on_interrupt,
         announce=True,
         k3_panel=k3_panel,
+        before_learn=(
+            (lambda: record_resume_session(log_path, load_path=str(load_path), timesteps=total_timesteps))
+            if continues_record
+            else None
+        ),
     )
     model, train_env, eval_env, final_path = trained.model, trained.train_env, trained.eval_env, trained.final_path
     record_stage_duration(log_path, (prior_duration or 0.0) + (time.monotonic() - stage_start))

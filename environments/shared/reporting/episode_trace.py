@@ -560,33 +560,21 @@ def trace_rows(
     return fieldnames, rows
 
 
-def run_directory(path: "str | Path") -> Path | None:
-    """The run directory *path* lies in: its nearest ancestor (or itself) holding ``provenance.json``."""
-    resolved = Path(path).resolve()
-    for candidate in (resolved, *resolved.parents):
-        if (candidate / "provenance.json").is_file():
-            return candidate
-    return None
-
-
 def refuse_run_directory_output(out_dir: "str | Path", inputs: Sequence["str | Path | None"]) -> None:
-    """Refuse an *out_dir* inside the run directory of any of *inputs* (as ``plot_gate_progress.py`` does).
+    """Refuse an *out_dir* inside a run directory, or inside the stage directory of any of *inputs*.
 
-    A result bundle's manifest hashes every file under the run directory
+    :func:`~environments.shared.result_bundle.refuse_output_inside_run`, the
+    guard ``stance_gate_report.py`` shares, raising :class:`EpisodeTraceError`:
+    a result bundle's manifest hashes every file under the run directory
     (``result_bundle/manifest.py``) and verification rejects a file it did
     not list, so a trace written into a published run would make it fail.
     """
-    target = Path(out_dir).resolve()
-    for source in inputs:
-        if source is None:
-            continue
-        run = run_directory(Path(source).parent)
-        if run is not None and target.is_relative_to(run):
-            raise EpisodeTraceError(
-                f"refusing to write {target} inside the run directory {run}: the result bundle's manifest "
-                "(result_bundle/manifest.py) hashes every file there, and verification rejects a file it did not "
-                "list. Pass an output directory outside the run."
-            )
+    from ..result_bundle import ResultBundleError, refuse_output_inside_run
+
+    try:
+        refuse_output_inside_run(out_dir, inputs)
+    except ResultBundleError as exc:
+        raise EpisodeTraceError(str(exc)) from exc
 
 
 def write_episode_trace(

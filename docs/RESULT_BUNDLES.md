@@ -109,12 +109,17 @@ way and for its protocol, six-heading grid and certification seeds (decision
 D-D32; a directory holding only a v2 report is refused), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
-the panel). The verdict also records the gate it was judged under —
+the panel). It also refuses, `--force` or not and before it writes anything,
+a stage directory whose run holds a `complete` bundle, which a new or
+rewritten verdict would stop verifying. The verdict also records the gate it
+was judged under —
 `gate` (kind, schema version and the thresholds the kind consumes) and
 `gate_sha256`, its digest (decision D-A22) — which reuse rule 7 compares with
 the reusing run's gate; a verdict written before D-A22 lacks both and is not
 a trunk until re-backfilled with `--force` (`--gate current` after a threshold
-edit, for a `reward_and_length/v1` directory), and a copied verdict whose
+edit, for a `reward_and_length/v1` directory) — never, in a run whose bundle
+is `complete`, whose verdicts stay as published (decision D-B8 as amended
+2026-11-24) — and a copied verdict whose
 `gate_sha256` is not the digest of its `gate` block fails the audit.
 
 `ancestors/<stage_id>/ancestor.json` records `{schema, stage_id, stage_key,
@@ -126,11 +131,27 @@ id, a missing file, a verdict whose hashes disagree with the record's, or a
 task fingerprint that disagrees between `ancestor.json`, `gate_verdict.json`
 and `stage_config.json`. A stage that warm-started from a reused ancestor
 records `parent_run_id` in its `stage_config.json` run block, and the audit
-binds that lineage to the record's checkpoint hash. A same-stage resume of a
-node that entered from its parent keeps those edge keys and adds
-`resume_load_path` / `resume_checkpoint_sha256` (`config.RESUME_LINEAGE_KEYS`)
-for the periodic checkpoint it continued from, so a resumed-then-judged node
-still chains by digest. The run block also always records
+binds that lineage to the record's checkpoint hash. A same-stage resume keeps
+the load lineage its record holds (the edge keys of a node that entered from
+its parent, or a root's first load) and adds `resume_load_path` /
+`resume_checkpoint_sha256` (`config.RESUME_LINEAGE_KEYS`) for the periodic
+checkpoint it continued from, so a resumed-then-judged node still chains by
+digest; a root trained from scratch records its first resume's load under the
+lineage keys. Every same-stage resume into a directory whose
+`stage_config.json` is readable keeps the record's identity: the top-level
+`git_commit` and `library_version` and the run block's `timesteps` and
+`label` stay the first session's, and each resume session that reached
+training (its model loaded) appends its commit, library version, timesteps,
+continued-from checkpoint and UTC time to `run.resume_sessions`
+(`config.RESUME_SESSIONS_KEY`, `config.record_resume_session`; before
+2026-11-24 a resume rewrote all four with its own, the remaining budget as
+`timesteps`, and a root's lineage with its own load). A resume whose
+`hyperparameters_sha256`, or whose non-empty label, differs from the
+record's is refused before anything is written
+(`config.refuse_resume_recipe_change`), as are a checkpoint trained on
+another task and a load that cannot continue the run (a SAC load, or a
+curated PPO checkpoint) into a stage directory that already holds the
+stage's training records. The run block also always records
 `hyperparameters_sha256` and, when set, a `label`; `train_base.train` (the
 CLI `train` subcommand and the notebook's `train_stage`) and the CLI
 `curriculum` (each node it trains) add `duration_seconds` at the stage's final
@@ -300,7 +321,10 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   `replication.runs` has exactly `count` entries with distinct run ids and
   distinct training seeds, THIS run first, then its replicates — the sibling
   runs under the same `LOG_BASE/<species>/<embodiment>/<algo>/` directory that certified
-  the SAME recipe on another seed (decision D-B16; plan §4.5): a sibling
+  the SAME recipe on another seed (decision D-B16; plan §4.5; a screen the SB3
+  notebook trains with `RUN_KIND = "screen"` sits in `<algo>_screen/` and a
+  quick test in `<algo>_quick_test/`, so neither is a sibling of a certification
+  run, though the runs of one of those trees may count one another): a sibling
   counts when its stage directory for the node holds a passed, reusable
   `gate_verdict.json` with equal `task_sha256` and equal `gate_sha256`, its
   `stage_config.json` records the same plant identity and the same
@@ -309,8 +333,9 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   `hyperparameters_sha256` hashes — so a pre-D-A21 sibling is never skipped
   for the missing field alone), and its run block's `seed` differs.  A sibling whose
   verdict records no `gate_sha256` (judged before decision D-A22) is skipped
-  until re-judged with `backfill_gate_verdict.py --force`, consistent with
-  reuse rule 7.  A run that never counts (the maintainer's stance-landing
+  until re-judged with `backfill_gate_verdict.py --force` (never, for a
+  sibling whose bundle is `complete`), consistent with reuse rule 7.  A run
+  that never counts (the maintainer's stance-landing
   decision of 2026-11-06: the nine r10 T. rex stance screen runs, which trained
   the landed stance recipe on branch commits, listed in
   `environments/shared/run_exclusions.py` by those commits, their run ids and
@@ -389,7 +414,12 @@ before continuing.
 The Google Drive summary notebook audits canonical bundles first and uses its
 older CSV/text/NPZ reconstruction only as a historical fallback; it reads
 `summary.json` for both `canonical-valid` and `canonical-partial` bundles.
-Before promotion, run strict validation:
+Before promotion, run strict validation, on a run of the certification tree
+`<algo>/` only: a run's tree is its only record of its kind
+(`environments/shared/run_tree.py`; nothing in `provenance.json` names it, as
+decision D-D16 (b) left quick tests), a copy promoted into `results/` loses
+it, and the Drive summary notebook's strict promotion cell refuses a run under
+`<algo>_screen/` or `<algo>_quick_test/` before it validates:
 
 ```python
 from environments.shared.result_bundle import validate_result_bundle
@@ -407,7 +437,17 @@ manifest).
 The manifest hashes files present when the exporter runs, and promotion rejects
 undeclared files. If artifacts are added manually, regenerate the manifest
 before promotion. The SB3 notebook flushes Google Drive before an automatic
-runtime disconnect.
+runtime disconnect, and in Colab without Drive (`USE_GOOGLE_DRIVE = False`,
+whose runs live only on the VM's disk) it never disconnects automatically
+(`notebook_runtime.disconnect_runtime`): the release reads the storage
+cell's `RUNS_ON_DRIVE`, which stays False for the runtime once a run went to
+the VM's disk, never the knob. The report tools refuse an output directory
+inside a run (`result_bundle.refuse_output_inside_run`:
+`stance_gate_report.py --out-dir`, `episode_trace_report.py --out-dir`,
+`harnesses/recovery_offdist_panel.py --out`). `widen_checkpoint.py` refuses a
+target in a run whose bundle is `complete`, and
+`harnesses/freeze_recovery_gate.py` refuses such a run and a stage directory
+that holds `gate_verdict.json`, `--replace` or not.
 
 ## The cross-run table and offline judgements
 

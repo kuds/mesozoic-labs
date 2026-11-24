@@ -311,7 +311,13 @@ def seed_resume_eval_state(
       the training-episode ledger ``train_episodes.csv`` and the policy
       probe's ``policy_probe.npz``), each keeping its prior rows at or
       before ``max_timesteps`` (the probe holds them until it has built its
-      state bank in ``_on_training_start`` and found it equal to the prior one).
+      state bank in ``_on_training_start`` and found it equal to the prior one);
+    * the rollout diagnostics, from the ``diagnostics.npz`` beside
+      *prior_npz_path* (``DiagnosticsCallback.seed_prior_diagnostics``),
+      keeping its rows at or before ``max_timesteps`` on each of its clocks.
+      Seeded first, whatever the evaluation record holds: a resume whose
+      ``evaluations.npz`` is missing, unreadable or ragged still continues
+      the rollout history.
 
     A prior record whose per-eval episode count differs from this session's
     ``n_eval_episodes`` seeds only the scalar best trackers: mixing row
@@ -324,6 +330,12 @@ def seed_resume_eval_state(
     is then absent).
     """
     path = Path(prior_npz_path)
+    # diagnostics.npz is written beside evaluations.npz (both in the stage directory) on its own rollout clock, so
+    # it is seeded from the file next to the record whether or not the evaluation history below can be.
+    for callback in callbacks:
+        seed_diagnostics = getattr(callback, "seed_prior_diagnostics", None)
+        if callable(seed_diagnostics):
+            seed_diagnostics(path.with_name("diagnostics.npz"), max_timesteps=max_timesteps)
     if not path.exists():
         logger.warning(
             "Resume: no prior evaluation record at %s — best-model trackers and eval history "

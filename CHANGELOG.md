@@ -2664,6 +2664,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The Drive summary labels each run's kind.** Its rows gain `run_kind`:
+  `certify`, `screen` or `quick_test`, read off the tree the run sits in. A
+  run of `<algo>/` that `run_exclusions.py` names reads `screen` too, and
+  sweep rows have none. The column shows in the identity table, the pass/fail
+  pivot and the detailed and settings tables, and is written to
+  `runs_summary.csv`, so a screen's PASS is not read as a certification. Its
+  strict promotion cell refuses a run under `<algo>_screen/` or
+  `<algo>_quick_test/` before it validates.
+- **`eval_episodes.csv` is rewritten on the checkpoint cadence, not after
+  every evaluation.** It was rewritten whole after each evaluation, about 3.7
+  GB to Drive over a 12M T. rex stance. It is now rewritten on the calls a
+  periodic checkpoint is saved on, before the checkpoint itself, as
+  `train_episodes.csv` already was, and at training end (normal end, early
+  stop or gate stop). After an interrupt that `train()` or the curriculum
+  saves, which skips `on_training_end`, the trainer rewrites it,
+  `train_episodes.csv` and `policy_probe.npz` once the final pair is saved, so
+  the two ledgers and the probe all end at the interrupt and a second Ctrl-C
+  cannot cost the final pair. A crash, or an interrupt in the notebook (which
+  does not save one), now loses the rows of the evaluations since the newest
+  checkpoint, which a same-stage resume from it drops anyway. Mid-run, the
+  file on Drive can be up to one checkpoint behind.
+- **The report tools share one output guard, and it covers every run.**
+  `result_bundle.refuse_output_inside_run`, with
+  `result_bundle.run_directory`, replaces the body of
+  `episode_trace.refuse_run_directory_output`, which still raises
+  `EpisodeTraceError`. `stance_gate_report.py` and
+  `harnesses/recovery_offdist_panel.py` use the same guard. It refuses an
+  output directory inside any run directory, not only the checkpoint's. For a
+  checkpoint under `models/`, it also refuses that stage directory, which
+  covers a run without `provenance.json`.
+- **A verdict in a complete run is never re-judged in place** (decisions D-B6
+  and D-B8 as amended 2026-11-24). The notebook never judged into a complete
+  run, and `backfill_gate_verdict.py` now refuses one, so "edit a threshold,
+  re-judge, never retrain" holds only for runs whose bundle is not complete.
+  After a gate edit, reuse rule 7 refuses such a verdict and a trunked run
+  trains the node itself. A pre-D-A22 replication sibling in a complete run is
+  never counted. The rule-7 and replication messages and the re-judge docs say
+  so.
+- **A resumed stage's `stage_config.json` keeps its first session's identity
+  and load.** A resume used to rebuild the record from the new session:
+  `git_commit` and `library_version` became the resume's, `run.timesteps`
+  became the remaining budget, `run.label` became whatever `RUN_LABEL` held,
+  and a root's first `--load` was replaced by the resumed checkpoint. Now all
+  of these stay the first session's, and the continued-from checkpoint goes
+  under `run.resume_load_path`. Each resume session that reached training
+  appends its commit, library version, timesteps, checkpoint and UTC time to
+  `run.resume_sessions` (`config.record_resume_session`, called once the model
+  has loaded). `run_exclusions` rules (b) and (d) read every resume session
+  too, and the bundle evidence's "short of its run budget" check now compares
+  against the stage's own budget.
 - **The wheel ships only the data files runtime code reads.**
   `pyproject.toml`'s package data no longer globs `data/*.json` in every
   package or names the anatomical Compsognathus recovery evidence
@@ -5281,6 +5331,145 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **A screen or pilot no longer shares the certification run tree.** The SB3
+  notebook wrote branch screens, walking pilots and certification runs into
+  `LOG_BASE/<species>/<embodiment>/<algo>/`. That is the tree `TRUNK_FROM =
+  "auto"` scans and seed-replicate discovery counts in, and neither reads a
+  run's commit, branch or `RUN_LABEL`. A screen whose task, gate, plant and
+  recipe digests equal a landed recipe's could count as a certification run's
+  replicate or become its auto trunk, and the hand-kept list in
+  `run_exclusions.py` was the only guard. A new configuration knob,
+  `RUN_KIND`, is `"certify"` by default; `"screen"` (for screens, pilots and
+  other experiments) writes the run under `<algo>_screen/`, which neither scan
+  reaches. `QUICK_TEST` still wins (`<algo>_quick_test/`), and an unknown kind
+  is refused before anything is written. A `REPO_REF` whose library predates
+  `environments/shared/run_tree.py` is refused there too, naming the remedy
+  (`main` or a later commit), instead of failing on the import. A run id now
+  names one run of a model, whatever its tree. A fresh runtime resets
+  `RUN_KIND`, so the storage cell refuses an explicit `RUN_ID` that names no
+  run in the selected tree but one in another, and names the knobs that reach
+  it. It no longer opens a certification run under a screen's id. `TRUNK_FROM`
+  ids still resolve, and `"auto"` still scans, in `<algo>/`, so a screen
+  builds on certified ancestors; a screen pins a screen trunk as
+  `../<algo>_screen/<id>` (read lexically) or by its absolute path. A
+  certification run refuses, before anything is written, a pinned `TRUNK_FROM`
+  that resolves into `<algo>_screen/` or `<algo>_quick_test/`, even when the
+  run already exists and recorded that trunk earlier; a screen or a quick test
+  may pin either. The folder is the kind's only record, as for quick tests
+  (decision D-D16 (b)), so `provenance.json` and every digest are unchanged
+  (`environments/shared/run_tree.py`;
+  `environments/shared/tests/test_screen_run_tree.py`). Runs already on Drive
+  stay where they are, and `run_exclusions.py` keeps the nine r10 stance
+  screens out of every count. Nothing refuses a certification run that loads,
+  resumes or widens a screen's checkpoint; `docs/KNOWN_ISSUES.md` records
+  that, and the older pilots that still sit in `<algo>/`.
+- **The TensorBoard sync to Drive publishes each event file atomically.**
+  `environments/shared/tb_sync.py` copied the local buffer over its Drive copy
+  with `shutil.copy` every 100,000 steps and at stage end. A runtime reclaimed
+  mid-copy could leave the only surviving event file truncated, because the
+  `/tmp` buffer dies with the runtime. Each file is now published with
+  `file_io.atomic_copy`, under a temporary name without `tfevents`
+  (`.tbsync.<random>.tmp`), so a temporary that a hard kill strands is never
+  loaded by TensorBoard as a second event file; the next sync removes it. The
+  periodic sync also skips a file whose size and modification time have not
+  changed since its last copy. The stage-end sync still copies every file.
+- **`collected_results.csv`, the summary texts, the zero-action records and
+  the `ancestors/` copies are written atomically.** `write_results_csv` (both
+  the result bundle's batch write and the CLI's appended
+  `curriculum_results.csv`, which is now read and rewritten whole),
+  `stage_summary.txt`, `training_summary.txt`, the zero-action preflight's
+  records and `record_ancestor`'s copies used plain writes. A truncated file
+  that was never rewritten was hashed into the manifest. They now go through
+  the `file_io` helpers, with the bytes they had.
+- **The zero-action preflight no longer rewrites unchanged records.** The SB3
+  notebook runs it every session. Each run wrote a new stamped record per
+  model and table into `zero_action_baselines/` (84 files in the T. rex folder
+  on Drive). It also rewrote the run's `zero_action_baseline.json` with a new
+  `captured_at`, which changed a declared file of a `partial` bundle. A record
+  that would differ from the newest one only in its time is no longer written.
+  The run's copy is rewritten only when it is missing or the baseline changed
+  (plant, env kwargs or score). The printed report says when a record was
+  unchanged.
+- **A same-stage resume no longer trains a judged node in place.** The D-A20
+  guard, `config.refuse_occupied_stage_dir`, let every `resume_same_stage`
+  load through. So `train --load <checkpoint>`, under its default load mode,
+  could write into a stage directory holding `gate_verdict.json`. It re-saved
+  the config, rewrote the final pair and, whenever a later evaluation beat the
+  seeded best, rewrote the handoff pair the verdict hashes, which left the
+  verdict not matching its checkpoint. A directory with a verdict is now
+  refused under every load mode (decision D-A20 as amended 2026-11-24).
+  Training a judged node further is a new attempt, in a fresh run directory.
+  The notebook's manual-node cell passed `MANUAL_LOAD_MODE =
+  "resume_same_stage"` through to that guard and then rewrote the verdict, so
+  a PASS could become a FAIL. It now refuses a judged target before it writes
+  anything.
+- **No tool writes into a complete run any more.** Adding or rewriting a file
+  in a run whose bundle is `complete` stopped its manifest verifying. The
+  audit then read canonical-conflict, the Drive summary dropped the run, it
+  could not be promoted, and the bundle writer refused every later save.
+  `backfill_gate_verdict` now refuses such a stage directory before it reads
+  or writes anything, `--force` or not. `widen_checkpoint` refuses a
+  `--to-stage-dir` in such a run. `harnesses/freeze_recovery_gate.py` refuses
+  such a run, and a stage directory that holds `gate_verdict.json`,
+  `--replace` or not: a judged recovery node's verdict was judged against the
+  resolution there. A manifest that cannot be read is refused too, with the
+  remedy.
+- **`stance_gate_report.py --out-dir` is refused inside a run.** A fresh-seed
+  audit written into the stage directory replaced the stage's own
+  `stance_gate_report.json`, its gate evidence. Any file added to a published
+  run also stops its manifest verifying. The tool now refuses an `--out-dir`
+  inside a run directory, or inside the stage directory of `--model` or
+  `--vecnorm`, before it loads or rolls anything.
+  `harnesses/recovery_offdist_panel.py --out` takes the same guard.
+- **Colab without Drive no longer deletes the run when it ends.** With
+  `USE_GOOGLE_DRIVE = False`, the runs live on the VM's disk.
+  `AUTO_DISCONNECT` then released the runtime seconds after a gate failure or
+  the last cell, which deleted them. The storage cell now resolves
+  `RUNS_ON_DRIVE`, which stays False for the rest of the runtime once a run
+  went to the VM's disk. The chain loop's gate-failure halt and the final cell
+  pass it instead of the knob, which can change after the run was placed.
+  `notebook_runtime.disconnect_runtime` and `halt` never release a Colab
+  runtime without Drive and say to download the results first. The storage
+  cell prints a warning that the results live only on the VM's disk.
+- **Only a continuation resumes a node in place.** Only a PPO load of one of
+  the stage's periodic checkpoints continues a run. A SAC `resume_same_stage`
+  load (nothing saves its replay buffer) and a curated PPO checkpoint
+  (`best_model.zip`, `<label>_final.zip`: no step count in the name) restarted
+  the step counter and seeded nothing. In the interrupted stage directory the
+  first evaluation then rewrote `evaluations.npz`, `gate_progress.npz` and the
+  episode ledgers from the new session alone and replaced both best-model
+  pairs whatever they scored, and the node was judged on that tail. The SB3
+  notebook's RESUME cell now refuses `ALGORITHM` other than `"ppo"` before
+  anything is written, and `train_base.train` refuses such a load into a
+  directory that holds the stage's `evaluations.npz`, an episode ledger, its
+  periodic or final checkpoints or a best-model pair
+  (`config.ResumeRefusedError`). A load into a fresh directory, the CLI
+  default, still trains.
+- **A same-stage resume continues `diagnostics.npz` instead of rewriting it.**
+  On a PPO continuation `seed_resume_eval_state` seeds `DiagnosticsCallback`
+  from the `diagnostics.npz` beside the evaluation record
+  (`seed_prior_diagnostics`). Each of its three clocks keeps its rows at or
+  before the resumed step, a series the prior file lacks reads NaN, and a file
+  a seeded session wrote seeds again. The stage figures and
+  `compare_run_diagnostics.py` cover the whole stage. A session's first
+  rewrite of an existing file copies it aside as
+  `diagnostics.prior_<UTC>.npz`, so a resume that cannot seed loses no row
+  either. The KNOWN_ISSUES entry is resolved.
+- **A same-stage resume is refused when it would change the stage's recipe,
+  task or label.** The task fingerprint caught env and reward edits but not a
+  `[ppo]` or shaping edit, and a resume in a fresh Colab runtime installs
+  `REPO_REF = "main"`. `train_base.train` now refuses, before it writes
+  anything, a resume whose `hyperparameters_sha256` differs from the one the
+  node's `stage_config.json` records (the digest never covers the budget). The
+  refusal names the keys and says to restore the recorded recipe (`REPO_REF`
+  at the recorded commit, and `CRITIC_PHASE`) or to train in a fresh `RUN_ID`;
+  a resume at `main` whose recipe matches continues the node. A checkpoint
+  trained on another task is also refused before anything is written; the
+  record used to be rewritten first. A non-empty label other than the recorded
+  one is refused; a resume without a label keeps it. The RESUME cell warns
+  when `BEHAVIOR` is `"auto"`, when `provenance.json` records another target
+  deliverable, and when the checkout is at another commit than the node
+  recorded.
 - **The SB3 load preflight's throwaway test passes when run on its own.**
   `test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_writes_nothing`
   checks that the temporary directory it gives the preflight is empty

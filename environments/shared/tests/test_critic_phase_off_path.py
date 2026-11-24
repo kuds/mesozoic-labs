@@ -39,6 +39,9 @@ STOCK = {
     "rollout_buffer": "stable_baselines3.common.buffers.RolloutBuffer",
     "vec_normalize": "stable_baselines3.common.vec_env.vec_normalize.VecNormalize",
 }
+#: What later changes record that main at 4c9d5e9b did not, none of it the critic phase's: a same-stage resume into
+#: the directory it continues lists its session under ``run.resume_sessions`` (2026-11-24, config.record_resume_session).
+ADDED_SINCE_GOLDEN: dict[str, dict[str, list[str]]] = {"S3": {"run_keys": ["resume_sessions"]}}
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +102,10 @@ def test_the_off_path_records_main_s_structure(off_run, golden):
     if stable_baselines3.__version__ != golden["environment"]["stable_baselines3"]:
         pytest.skip(f"the golden's archive keys are SB3 {golden['environment']['stable_baselines3']}'s")
     for name, scenario in golden["scenarios"].items():
-        assert off_run["scenarios"][name]["structure"] == scenario["structure"], name
+        expected = dict(scenario["structure"])
+        for field, added in ADDED_SINCE_GOLDEN.get(name, {}).items():
+            expected[field] = sorted([*expected[field], *added])
+        assert off_run["scenarios"][name]["structure"] == expected, name
 
 
 def test_the_current_plant_trains_identically_with_the_switch_absent_or_false(off_run, tmp_path_factory):

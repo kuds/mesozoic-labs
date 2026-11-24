@@ -4,9 +4,16 @@ Writing TensorBoard events straight to a FUSE mount (Google Drive on Colab,
 or ``/gcs/...``) is slow, and an event file held open all stage loses its
 un-uploaded tail when the runtime is reclaimed (review CO5).  These helpers
 let the SB3 trainer buffer events on local disk and sync them to the mount
-on the checkpoint cadence and at the end of a stage.  The ``gcs`` in
-``_sync_tb_to_gcs`` and ``gcs_tb_path`` is historical: both serve a Drive
-mount the same way.
+on the checkpoint cadence and at the end of a stage.  Each file is
+published with :func:`~environments.shared.file_io.atomic_copy`, so a
+reclaim mid-sync leaves the previous complete copy on the mount (the local
+buffer is gone with the runtime, so that copy is the only one left).  Its
+temporary is named ``.tbsync.<random>.tmp``, without ``tfevents``, so one a
+hard kill strands is never read by TensorBoard as an event file; the next
+sync removes it.  The periodic sync skips a file whose size and
+modification time are unchanged since its last successful copy; the
+stage-end sync copies every file.  The ``gcs`` in ``_sync_tb_to_gcs`` and
+``gcs_tb_path`` is historical: both serve a Drive mount the same way.
 
 Extracted from :mod:`environments.shared.train_base` for reuse and
 testability.  That module re-exports these names so existing
@@ -22,6 +29,13 @@ import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+#: The start of the sync's temporary names on the mount.  TensorBoard reads
+#: every file whose name contains ``tfevents`` as an event file, so the
+#: default ``.<name>.`` of :func:`~environments.shared.file_io.atomic_copy`
+#: would make a temporary stranded by a hard kill (a reclaim, which runs no
+#: cleanup) a second, partial copy of the run's events.
+_TB_TEMP_PREFIX = ".tbsync."
 
 
 def _is_gcs_path(path: str | Path) -> bool:
@@ -71,32 +85,62 @@ def _mirror_remote_run_dirs(local_tb_dir: Path, remote_tb_path: str | Path) -> l
     return sorted(mirrored)
 
 
-def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path, cleanup: bool = True) -> None:
+def _sync_tb_to_gcs(
+    local_tb_dir: Path,
+    gcs_tb_path: str | Path,
+    cleanup: bool = True,
+    synced: dict[str, tuple[int, int]] | None = None,
+) -> None:
     """Copy locally-buffered TensorBoard events to the remote FUSE mount.
 
-    Uses :func:`shutil.copy` (not ``copy2``) because GCS FUSE does not
-    support the ``os.utime`` / ``os.chmod`` calls that ``copy2`` makes
-    to preserve file metadata, which causes ``OSError`` on FUSE mounts.
+    Each file is published with :func:`~environments.shared.file_io.atomic_copy`
+    (a byte copy to a temporary file beside it, then ``os.replace``), the
+    repository's rule for every write to a mount: a reclaim mid-copy leaves
+    the previous complete copy, never a truncated event file.  It was a plain
+    :func:`shutil.copy` over the old copy, and the local buffer does not
+    survive the reclaim.  Never ``shutil.copy2``, whose metadata calls GCS
+    FUSE does not support.  The temporaries are named ``.tbsync.<random>.tmp``
+    (:data:`_TB_TEMP_PREFIX`), and each sync first removes any that an
+    earlier sync's hard kill stranded under *gcs_tb_path*.
 
     Args:
         local_tb_dir: The local buffer directory.
         gcs_tb_path: Destination directory on the remote FUSE mount.
         cleanup: Remove the local buffer after copying.  Pass ``False``
             for mid-training syncs where the writer still holds the files.
+        synced: Each file's ``(st_size, st_mtime_ns)`` as of its last
+            successful copy, by its path relative to the buffer, updated
+            here: a file whose size and modification time are unchanged is
+            skipped.  ``None`` (the stage-end sync) copies every file.  A
+            growing event file is still copied whole each time it changed.
     """
+    from .file_io import atomic_copy
+
     gcs_dest = Path(gcs_tb_path)
     if not local_tb_dir.exists():
         return
     gcs_dest.mkdir(parents=True, exist_ok=True)
-    n_copied = 0
+    for stranded in gcs_dest.rglob(f"{_TB_TEMP_PREFIX}*.tmp"):
+        try:
+            stranded.unlink(missing_ok=True)
+        except OSError:  # litter only: TensorBoard never reads it, and the copy below must still run
+            logger.debug("Could not remove the stranded TensorBoard temporary %s", stranded, exc_info=True)
+    n_copied = n_unchanged = 0
     for src_file in local_tb_dir.rglob("*"):
         if src_file.is_file():
             rel = src_file.relative_to(local_tb_dir)
-            dest = gcs_dest / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src_file, dest)
+            # Read before the copy: a write that lands during it changes the
+            # signature, so the next sync copies the file again.
+            stat = src_file.stat()
+            signature = (stat.st_size, stat.st_mtime_ns)
+            if synced is not None and synced.get(str(rel)) == signature:
+                n_unchanged += 1
+                continue
+            atomic_copy(src_file, gcs_dest / rel, temp_prefix=_TB_TEMP_PREFIX)
+            if synced is not None:
+                synced[str(rel)] = signature
             n_copied += 1
-    logger.info("Synced %d TensorBoard files to %s", n_copied, gcs_dest)
+    logger.info("Synced %d TensorBoard files to %s (%d unchanged)", n_copied, gcs_dest, n_unchanged)
     if cleanup:
         shutil.rmtree(local_tb_dir, ignore_errors=True)
 
@@ -135,12 +179,14 @@ class PeriodicTbSyncCallback(_BaseCallback):
         self.gcs_tb_path = gcs_tb_path
         self.sync_freq = sync_freq
         self._last_sync_step = 0
+        # What each sync copied (see _sync_tb_to_gcs's `synced`), so an unchanged file is not uploaded again.
+        self._synced: dict[str, tuple[int, int]] = {}
 
     def _on_step(self) -> bool:
         if self.num_timesteps - self._last_sync_step >= self.sync_freq:
             self._last_sync_step = self.num_timesteps
             try:
-                _sync_tb_to_gcs(self.local_tb_dir, self.gcs_tb_path, cleanup=False)
+                _sync_tb_to_gcs(self.local_tb_dir, self.gcs_tb_path, cleanup=False, synced=self._synced)
             except Exception:
                 logger.warning("Periodic TensorBoard sync to the remote mount failed.", exc_info=True)
         return True

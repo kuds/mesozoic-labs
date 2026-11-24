@@ -425,7 +425,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(model_id, algorith
         N_ENVS=1,
         PLANT_IDENTITY=current_plant_identity(model_id),
         EVALUATION_SEED=3042,
-        USE_GOOGLE_DRIVE=False,
+        RUNS_ON_DRIVE=False,
         AUTO_DISCONNECT=False,
     )
     exec(compile(cell("def train_stage("), "sb3_training_infrastructure", "exec"), namespace)
