@@ -8,6 +8,7 @@ import logging
 import math
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 from environments.shared.stance_diagnostics import (
     STANCE_INFO_KEYS,
@@ -103,6 +104,12 @@ class DiagnosticsCallback(_BaseCallback):
     ``term_count_<reason>``: every ``term_`` key but ``term_timesteps`` is
     read as a termination fraction (``visualization.termination_fraction_keys``,
     ``compare_run_diagnostics.Run.termination_shares``).
+
+    A same-stage continuation keeps the prior session's history
+    (:meth:`seed_prior_diagnostics`, which ``seed_resume_eval_state`` calls),
+    and the first rewrite of a session that finds a ``diagnostics.npz``
+    already there copies it aside first, as ``diagnostics.prior_<UTC>.npz``:
+    a rewrite never loses rows, seeded or not.
     """
 
     #: Record the per-rollout episode and fall counts (the switch the in-suite inertness proof turns off).
@@ -252,6 +259,8 @@ class DiagnosticsCallback(_BaseCallback):
         # Throttle for diagnostics.npz rewrites (see _on_rollout_end).
         self.save_interval_seconds = save_interval_seconds
         self._last_save_time: float | None = None
+        # Whether this session has set aside a diagnostics.npz it found before its first rewrite (_save_diagnostics).
+        self._prior_copied = False
 
     if not _SB3_AVAILABLE:
 
@@ -491,10 +500,158 @@ class DiagnosticsCallback(_BaseCallback):
         for key, series in self._history_algo.items():
             series.append(float(metrics[key]) if key in metrics else float("nan"))
 
+    def seed_prior_diagnostics(self, path: "str | Path", *, max_timesteps: int | None = None) -> int:
+        """Continue a prior session's ``diagnostics.npz``: keep its rows at or before *max_timesteps*.
+
+        ``seed_resume_eval_state`` calls this before ``learn()`` with the file
+        beside the evaluation record it seeds from.  A same-stage
+        continuation keeps the checkpoint's step counter, so the prior rows
+        and this session's share one axis and the next save rewrites the
+        whole stage's history, not this session's alone.  Each clock
+        (``timesteps``, ``term_timesteps``, ``algo_timesteps``) keeps its
+        own rows up to the resumed step: later rows were recorded by the
+        policy the resume discards (the copy :meth:`_save_diagnostics` sets
+        aside keeps them).  A series this session records that the prior
+        file lacks, or holds misaligned or non-numeric, reads NaN on the
+        seeded rows, as a newly seen algorithm metric does; a count series
+        (``rollout_episodes``, ``rollout_falls``,
+        ``rollout_term_count_<reason>``) keeps integers only while every
+        kept row is finite, so a file a seeded session wrote, NaN rows
+        included, seeds again.  A series the prior file holds that this
+        session does not record is left out of the rewrite (the copy keeps
+        it).  A missing or unreadable file, or one whose clocks are not
+        finite numbers, seeds nothing and leaves the callback as it was.
+        Returns the rows kept on the ``timesteps`` clock.
+        """
+        source = Path(path)
+        if _np is None or not source.is_file():
+            return 0
+        try:
+            with _np.load(source, allow_pickle=False) as data:
+                arrays = {key: _np.asarray(data[key]) for key in data.files}
+            state = self._prior_diagnostics_state(arrays, max_timesteps)
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            logger.warning(
+                "Resume: could not read %s; the rollout diagnostics start with this session's rows.",
+                source,
+                exc_info=True,
+            )
+            return 0
+        for name, value in state.items():
+            setattr(self, name, value)
+        keep = len(state["_history_timesteps"])
+        length = len(arrays.get("timesteps", ()))
+        logger.info(
+            "Resume: continued %s with %d rollout row(s) at or before step %s (%d of its rows dropped).",
+            source,
+            keep,
+            "the end" if max_timesteps is None else f"{max_timesteps:,}",
+            length - keep,
+        )
+        return keep
+
+    def _prior_diagnostics_state(self, arrays: dict, max_timesteps: int | None) -> dict[str, Any]:
+        """The history attributes :meth:`seed_prior_diagnostics` sets from a prior file's *arrays*.
+
+        Built whole before any attribute is set, so a file that fails part way seeds nothing.  Raises
+        ``ValueError`` on a clock that is not a one-dimensional array of finite numbers.
+        """
+
+        def numeric(name: str) -> Any:
+            values = arrays.get(name)
+            if values is None or values.ndim != 1 or values.dtype.kind not in "biuf":
+                return None
+            return values
+
+        def clock(name: str) -> tuple[list[int], int]:
+            values = numeric(name)
+            if values is None:
+                return [], 0
+            if not _np.isfinite(values).all():
+                raise ValueError(f"the {name} clock holds a non-finite step")
+            steps = [int(value) for value in values]
+            keep = len(steps) if max_timesteps is None else sum(1 for value in steps if value <= max_timesteps)
+            return steps[:keep], len(steps)
+
+        def series(name: str, length: int, keep: int, *, whole: bool = False) -> list:
+            values = numeric(name)
+            if values is None or len(values) != length:
+                return [float("nan")] * keep
+            kept = values[:keep]
+            # A count reads as integers only while every kept row is known; a seeded file's NaN rows stay NaN.
+            if whole and _np.isfinite(kept).all():
+                return [int(value) for value in kept]
+            return [float(value) for value in kept]
+
+        state: dict[str, Any] = {}
+        steps, length = clock("timesteps")
+        keep = len(steps)
+        state["_history_timesteps"] = steps
+        state["_history"] = {key: series(key, length, keep) for key in self.INFO_KEYS}
+        state["_history_rewards"] = {key: series(key, length, keep) for key in self.REWARD_KEYS}
+        state["_history_heading_std"] = series("heading_alignment_std", length, keep)
+        state["_history_action_abs_mean"] = series("action_abs_mean", length, keep)
+        state["_history_action_std"] = series("action_std", length, keep)
+        if self.record_rollout_counts:
+            state["_history_rollout_episodes"] = series("rollout_episodes", length, keep, whole=True)
+            state["_history_rollout_falls"] = series("rollout_falls", length, keep, whole=True)
+
+        term_steps, term_length = clock("term_timesteps")
+        term_keep = len(term_steps)
+        state["_history_term_timesteps"] = term_steps
+        reasons = [key[len("term_") :] for key in arrays if key.startswith("term_") and key != "term_timesteps"]
+        state["_history_terminations"] = {
+            reason: series(f"term_{reason}", term_length, term_keep) for reason in reasons if term_keep
+        }
+        if self.record_rollout_counts:
+            # A reason the prior file counted nothing for reads NaN, not 0: its rows are unknown, not empty.
+            state["_history_rollout_term_counts"] = {
+                reason: series(f"rollout_term_count_{reason}", term_length, term_keep, whole=True)
+                for reason in state["_history_terminations"]
+            }
+
+        algo_steps, algo_length = clock("algo_timesteps")
+        algo_keep = len(algo_steps)
+        state["_history_algo_timesteps"] = algo_steps
+        state["_history_algo"] = {
+            key[len("algo_") :]: series(key, algo_length, algo_keep)
+            for key in arrays
+            if key.startswith("algo_") and key != "algo_timesteps" and algo_keep
+        }
+        return state
+
     def _save_diagnostics(self) -> None:
-        """Persist accumulated diagnostics to an npz file in the stage dir."""
+        """Persist accumulated diagnostics to an npz file in the stage dir.
+
+        The session's first rewrite of a ``diagnostics.npz`` already there (a
+        resume into the directory it continues, seeded or not) copies that
+        file aside first, as ``diagnostics.prior_<UTC>.npz`` beside it; the
+        file is never deleted.  A copy that fails skips this rewrite with a
+        warning, so the prior file stays, and the next save tries again.
+        """
         if self._log_dir is None:
             return
+        if not self._prior_copied:
+            target = self._log_dir / "diagnostics.npz"
+            if target.is_file():
+                from datetime import datetime, timezone
+
+                from .file_io import atomic_copy
+
+                stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                aside = self._log_dir / f"diagnostics.prior_{stamp}.npz"
+                try:
+                    atomic_copy(target, aside)
+                except Exception:  # noqa: BLE001 - a report must not sink a run
+                    logger.warning(
+                        "Could not copy %s aside to %s; it is not rewritten until the copy succeeds.",
+                        target,
+                        aside,
+                        exc_info=True,
+                    )
+                    return
+                logger.info("Copied the prior session's %s aside to %s before rewriting it.", target, aside.name)
+            self._prior_copied = True
         save_dict = {"timesteps": _np.array(self._history_timesteps)}
         for key in self.INFO_KEYS:
             save_dict[key] = _np.array(self._history[key])

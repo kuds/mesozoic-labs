@@ -1921,23 +1921,26 @@ robustness, **LOW** = cosmetic / QoL.
   warning when its sidecar is missing, as the selected replay does, or have
   `record_stage_video` refuse a named `vecnorm_path` that does not exist; no
   cleanup PR owns it yet. (2026-10 CU-8b scouting)
-- **LOW** — **a same-stage resume does not continue `diagnostics.npz`
-  (reproduced 2026-10-13).** `DiagnosticsCallback` starts its rollout
-  history empty in every session (`diagnostics.py:206-217`) and rewrites
-  `diagnostics.npz` from that history alone (`:464`), and nothing seeds it on
-  a resume: `seed_resume_eval_state` (`curriculum/checkpoints.py:272`) seeds
-  the evaluation history and `gate_progress.npz`, not this file.
-  A resume into the stage directory it continues overwrites the prior
-  session's rollout diagnostics at its first save; one into a fresh
-  directory holds the resumed session's rows only. The stage report's
-  training-diagnostics figures (`visualization.py`) and
-  `scripts/compare_run_diagnostics.py` then start at the resumed checkpoint.
-  Report-only: no gate, verdict or digest reads it. Fix: seed the
-  callback from the `diagnostics.npz` beside the `evaluations.npz` being
-  seeded, dropping rows after the resumed checkpoint, as
-  `StageGatePlateauCallback.seed_prior_gate_progress` does for
-  `gate_progress.npz`; no cleanup PR owns it yet. (2026-10 review of the
-  `gate_progress.npz` resume fix)
+- ~~**LOW** — **a same-stage resume does not continue `diagnostics.npz`
+  (reproduced 2026-10-13).**~~ **FIXED** (2026-11-24): a PPO continuation
+  seeds `DiagnosticsCallback` from the `diagnostics.npz` beside the
+  `evaluations.npz` it seeds (`DiagnosticsCallback.seed_prior_diagnostics`,
+  which `seed_resume_eval_state` calls first, so a missing or ragged
+  evaluation record does not stop it). Each of the file's three clocks keeps
+  its rows at or before the resumed step, and a series the prior file lacks
+  reads NaN on them. A session's first rewrite of a `diagnostics.npz` already
+  there copies it aside as `diagnostics.prior_<UTC>.npz`, so a resume that
+  cannot seed (an unreadable file, or a SAC or curated `--load` into a
+  directory that holds no training records yet) loses no row either, and a
+  file a seeded session wrote, its back-filled NaN rows included, seeds
+  again. The stage figures
+  (`visualization.py`) and `scripts/compare_run_diagnostics.py` read
+  `diagnostics.npz` by name and now cover the whole stage
+  (`tests/test_resume_record_integrity.py`). As it was: the callback started
+  its rollout history empty in every session and nothing seeded it, so a
+  resume into the stage directory it continued overwrote the prior session's
+  rows at its first save. (2026-10 review of the `gate_progress.npz` resume
+  fix)
 - **LOW** — **a result-bundle JSON file that is not UTF-8 escapes as a raw
   `UnicodeDecodeError` instead of the reader's own refusal (reproduced
   2026-10-01).** These readers read with `encoding="utf-8"` but catch only

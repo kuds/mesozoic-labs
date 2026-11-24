@@ -405,20 +405,41 @@ one node outside the chain and records its verdict without enforcing it; it
 never feeds the chain. The resume cell (`RESUME_STAGE`) continues an
 interrupted node from its newest intact periodic checkpoint under
 `resume_same_stage` and evaluates nothing (the loop's JUDGE branch evaluates
-the node from disk); the re-saved `stage_config.json` keeps the edge's
-lineage keys and records the continued-from checkpoint under
-`resume_load_path` / `resume_checkpoint_sha256`, so a resumed-then-judged
-node still chains by digest and stays reusable. It sits ahead of the chain
-loop, so a resume is: set `RUN_ID` to the interrupted run and `RESUME_STAGE`
-to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` set to the value the
-run's `trunk_run.json` records (unless the run's `ancestors/` records came
-through another trunk than the file names: then remove the file and pin by
-the nearest ancestor record, as `docs/KNOWN_ISSUES.md` describes; a run
-opened before that file
-existed is pinned by hand to the run the interrupted session resolved, `""`
-only when it trained every node itself), then Run all; the loop judges the
-node after the resume trains it, before it consults any trunk, so a node
-trained here although that trunk run certifies it is resumed the same way.
+the node from disk); the re-saved `stage_config.json` keeps the load lineage
+the record holds (an entered node's edge, or a root's first load) and
+records the continued-from checkpoint under `resume_load_path` /
+`resume_checkpoint_sha256`, so a resumed-then-judged node still chains by
+digest and stays reusable. The record also keeps the first session's
+`git_commit`, `library_version`, `run.timesteps` and `run.label`, and each
+resume session's commit, library version, timesteps and continued-from
+checkpoint are appended to `run.resume_sessions` once its model has loaded
+(a resume refused or failed before training adds none). Only a PPO node is
+resumed: SAC restarts its step counter on a load (its replay buffer is not
+saved), so the cell refuses an `ALGORITHM` other than `"ppo"`, and `train`
+refuses such a load into a directory holding the node's records. The trainer
+refuses, before it writes anything, a checkpoint trained on another task, a
+resume whose `hyperparameters_sha256` differs from the node's record, naming
+the keys, and a `RUN_LABEL` other than the recorded label (an empty one keeps
+it). A commit from before 2026-11-24 resumes without these protections (its
+trainer rewrites the record's identity and `diagnostics.npz`), so a node
+recorded there is better trained again in a fresh `RUN_ID`. The cell warns
+when `BEHAVIOR` is `"auto"`, when the run's `provenance.json` records another
+target deliverable than `BEHAVIOR` resolves to, and when the checkout's
+commit is not the one the node records; it trains the same node either way,
+so to keep the run's target, interrupt the run before the chain loop starts,
+set `BEHAVIOR` and Run all again. It sits ahead of the chain loop, so a
+resume is: set `REPO_REF` to the `git_commit` the node's
+`stage_config.json` records, `RUN_ID` to the interrupted run and
+`RESUME_STAGE` to its node, with `RUN_LABEL` and `RETRAIN_FROM` empty,
+`CRITIC_PHASE` and the other recipe knobs as the interrupted session had
+them, and `TRUNK_FROM` set to the value the run's `trunk_run.json` records
+(unless the run's `ancestors/` records came through another trunk than the
+file names: then remove the file and pin by the nearest ancestor record, as
+`docs/KNOWN_ISSUES.md` describes; a run opened before that file existed is
+pinned by hand to the run the interrupted session resolved, `""` only when
+it trained every node itself), then Run all; the loop judges the node after
+the resume trains it, before it consults any trunk, so a node trained here
+although that trunk run certifies it is resumed the same way.
 Once the run holds an `ancestors/` record, the resume cell refuses a resume
 under another trunk than `trunk_run.json` names, and a resume of a node the
 run holds as such a record (the record stays that node in the run: the loop
@@ -518,6 +539,17 @@ Refusals:
   directory, its `plant_identity.json` and any earlier node already exist.
   The curriculum has no resume mode, so it always needs a fresh
   `--output-dir`.
+- A same-stage resume is refused, before `train` writes anything, when it
+  cannot continue the stage the directory records: a `--load` that is not a
+  continuation into a directory that already holds that stage's training
+  records (`evaluations.npz`, an episode ledger, its periodic or final
+  checkpoints, a best-model pair), that is a SAC load (its replay buffer is
+  not saved, so its step counter restarts) or a curated PPO checkpoint
+  (`best_model.zip`, `<label>_final.zip`: no step count in the name); a
+  checkpoint trained on another task; and any resume whose
+  `hyperparameters_sha256` or `--label` differs from the directory's
+  `stage_config.json`. Such a `--load` into a fresh directory (the default
+  without `--output-dir`) trains.
 - Non-advancing nodes (no legacy number — recovery) are skipped by the CLI
   curriculum with a log line in Phase A and trained on their own with
   `train --stage recovery`.
@@ -560,9 +592,10 @@ The `run` block of each `stage_config.json` records:
 |---|---|
 | `load_path`, `load_mode`, `parent_checkpoint_sha256`, `parent_task_sha256` | Where the node's initial weights came from; a from-scratch root writes none of them. |
 | `parent_run_id` | Present only when the parent was a certified ancestor reused from another run. |
-| `resume_load_path`, `resume_checkpoint_sha256` | The periodic checkpoint a same-stage resume continued from; the edge keys above are kept. |
-| `hyperparameters_sha256` | A digest over the stage's `[ppo]` or `[sac]` block plus its `warmup_` / `ramp_` shaping keys, key-order independent, untouched by env kwargs or gate thresholds. Always written. |
-| `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. |
+| `resume_load_path`, `resume_checkpoint_sha256` | The periodic checkpoint the latest same-stage resume continued from, when the record already held a load: the keys above stay that load (an entered node's edge, or a root's first load). A root trained from scratch records its first resume's load under the keys above instead. |
+| `resume_sessions` | One entry per same-stage resume into this directory that reached training, oldest first: its `git_commit`, `library_version`, `timesteps` (the steps it was set to train), `resume_load_path`, `resume_checkpoint_sha256` and `resumed_at`. The top-level `git_commit` and `library_version` and the run block's `timesteps` and `label` stay the first session's. |
+| `hyperparameters_sha256` | A digest over the stage's `[ppo]` or `[sac]` block plus its `warmup_` / `ramp_` shaping keys, key-order independent, untouched by env kwargs, gate thresholds and the budget. Always written; a same-stage resume under another digest is refused. |
+| `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. A same-stage resume keeps it; another non-empty label is refused. |
 | `duration_seconds` | Seconds from `train_base.train`'s start (for a `curriculum` node, from the point the node is trained rather than reused) to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` and `curriculum` subcommands (every node a curriculum trains, one a Ctrl-C ended included) and the notebook's `train_stage`. `curriculum_results.csv`'s `training_duration_seconds` is the time `learn()` alone took. |
 
 `gate_verdict.json` (schema `mesozoic.gate-verdict/v2`) records the species

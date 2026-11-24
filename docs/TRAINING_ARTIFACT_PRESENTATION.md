@@ -872,9 +872,18 @@ deliberately not `term_count_<reason>`: every `term_` key but
 `term_timesteps` is read as a termination fraction
 (`visualization.termination_fraction_keys`,
 `scripts/compare_run_diagnostics.py`). TensorBoard gets
-`terminations/rollout_episodes` and `terminations/rollout_falls`. Like the
-rest of `diagnostics.npz`, the counts start again on a same-stage resume
-(`docs/KNOWN_ISSUES.md`).
+`terminations/rollout_episodes` and `terminations/rollout_falls`. A
+same-stage continuation keeps the prior session's rows of
+`diagnostics.npz` at or before the resumed step on each of its three
+clocks (`timesteps`, `term_timesteps`, `algo_timesteps`;
+`DiagnosticsCallback.seed_prior_diagnostics`), the counts included; a
+series the prior file lacks reads NaN on those rows (a count too: unknown,
+not zero). A session's first rewrite of a `diagnostics.npz` already there
+copies it aside first, as `diagnostics.prior_<UTC>.npz` beside it, so a
+resume that cannot seed (an unreadable file, or a SAC or curated `--load`
+into a directory that holds no training records yet) loses no row either; the
+figures and `scripts/compare_run_diagnostics.py` read `diagnostics.npz` by
+name.
 `diagnostics.npz` also gains `reward_action_jerk`, the action-jerk reward
 term every stance stage pays (`action_jerk_weight`): the env emitted it,
 but nothing recorded it. It reaches TensorBoard

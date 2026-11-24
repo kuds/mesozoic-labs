@@ -23,14 +23,17 @@ never count:
 A run is excluded when ANY of four records names one of them, so neither a
 missing ``provenance.json`` (a stage directory copied into a run folder without
 it, which ``ancestors.run_id_for`` names by its directory), nor a same-stage
-resume on ``main`` (which rewrites ``stage_config.json`` with ``main``'s commit
-while ``provenance.json`` keeps the original), nor a new run that loads a
-screen's weights lets one count:
+resume on another commit (before 2026-11-24 a resume rewrote
+``stage_config.json``'s ``git_commit`` with its own commit while
+``provenance.json`` kept the original; since then the record keeps the first
+session's and lists each resume session's under ``run.resume_sessions``), nor
+a new run that loads a screen's weights lets one count:
 
 (a) the run's ``provenance.json`` records a ``repository_commit`` in
     :data:`EXCLUDED_COMMITS`;
 (b) a stage directory's ``stage_config.json`` records a top-level
-    ``git_commit`` in :data:`EXCLUDED_COMMITS`;
+    ``git_commit``, or a ``run.resume_sessions`` entry a ``git_commit``, in
+    :data:`EXCLUDED_COMMITS`;
 (c) a stage directory's ``gate_verdict.json`` hashes a handoff checkpoint in
     :data:`EXCLUDED_HANDOFF_SHA256` (``checkpoint_sha256``, in its
     ``sha256:`` form);
@@ -43,7 +46,12 @@ screen's weights lets one count:
     path (``load_path``, ``resume_load_path``, ``widened_from_path``) with a
     component in :data:`EXCLUDED_RUN_IDS` (a load from a screen's run
     folder), or a parent run id (``parent_run_id``,
-    ``widened_from_run_id``) in it.  A stage trained further from a screen's
+    ``widened_from_run_id``) in it; each ``run.resume_sessions`` entry's
+    ``resume_load_path`` and ``resume_checkpoint_sha256`` are read the same
+    way, so an earlier resume session's load is not hidden by a later
+    one's, and a same-stage resume keeps the load lineage the record held
+    (since 2026-11-24), so a root's first ``--load`` is not hidden by its
+    resumes either.  A stage trained further from a screen's
     weights carries that screen's training, whatever commit it ran at: a
     ``--load`` of a screen's final or periodic checkpoint, a resume of a
     copied and re-judged stage directory, a widened copy.
@@ -292,14 +300,45 @@ def excluded_lineage_reason(run_block: Any) -> str | None:
     return None
 
 
-def excluded_stage_config_reason(stage_config: Any) -> str | None:
-    """Rules (b) and (d) on a parsed ``stage_config.json``: its recorded commit, or a load from a screen."""
-    if not isinstance(stage_config, Mapping):
-        return None
+def _resume_sessions(stage_config: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """The ``run.resume_sessions`` entries a parsed ``stage_config.json`` records (``config.RESUME_SESSIONS_KEY``)."""
+    run_block = stage_config.get("run")
+    sessions = run_block.get("resume_sessions") if isinstance(run_block, Mapping) else None
+    return [session for session in sessions if isinstance(session, Mapping)] if isinstance(sessions, list) else []
+
+
+def _excluded_recorded_commit_reason(stage_config: Mapping[str, Any]) -> str | None:
+    """Rule (b): the top-level ``git_commit`` (the first session's), then each resume session's."""
     reason = excluded_commit_reason(stage_config.get("git_commit"))
     if reason is not None:
         return reason
-    return excluded_lineage_reason(stage_config.get("run"))
+    for index, session in enumerate(_resume_sessions(stage_config)):
+        reason = excluded_commit_reason(session.get("git_commit"))
+        if reason is not None:
+            return f"run.resume_sessions[{index}]: {reason}"
+    return None
+
+
+def _excluded_recorded_lineage_reason(stage_config: Mapping[str, Any]) -> str | None:
+    """Rule (d): the run block's load lineage, then each resume session's continued-from checkpoint."""
+    reason = excluded_lineage_reason(stage_config.get("run"))
+    if reason is not None:
+        return reason
+    for index, session in enumerate(_resume_sessions(stage_config)):
+        reason = excluded_lineage_reason(session)
+        if reason is not None:
+            return reason.replace("run.", f"run.resume_sessions[{index}].", 1)
+    return None
+
+
+def excluded_stage_config_reason(stage_config: Any) -> str | None:
+    """Rules (b) and (d) on a parsed ``stage_config.json``: its recorded commits, or a load from a screen."""
+    if not isinstance(stage_config, Mapping):
+        return None
+    reason = _excluded_recorded_commit_reason(stage_config)
+    if reason is not None:
+        return reason
+    return _excluded_recorded_lineage_reason(stage_config)
 
 
 def excluded_provenance_reasons(provenance: Any) -> list[str]:
@@ -340,7 +379,7 @@ def excluded_stage_reason(stage_dir: "str | Path") -> str | None:
     """Rules (b), (c) and (d) on one stage directory: its recorded commit, its verdict's handoff, its load lineage."""
     path = Path(stage_dir)
     stage_config = _read_object(path / "stage_config.json")
-    reason = excluded_commit_reason(stage_config.get("git_commit")) if stage_config is not None else None
+    reason = _excluded_recorded_commit_reason(stage_config) if stage_config is not None else None
     if reason is not None:
         return f"{path.name}/stage_config.json: {reason}"
     verdict = _read_object(path / "gate_verdict.json")
@@ -348,7 +387,7 @@ def excluded_stage_reason(stage_dir: "str | Path") -> str | None:
         reason = excluded_handoff_reason(verdict.get("checkpoint_sha256"))
         if reason is not None:
             return f"{path.name}/gate_verdict.json: {reason}"
-    reason = excluded_lineage_reason(stage_config.get("run")) if stage_config is not None else None
+    reason = _excluded_recorded_lineage_reason(stage_config) if stage_config is not None else None
     if reason is not None:
         return f"{path.name}/stage_config.json {reason}"
     return None

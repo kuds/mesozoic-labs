@@ -195,7 +195,10 @@ block you edited. The task digest a verdict is bound to covers the effective
 
 A variant is a new run directory: writing into a stage directory that already
 holds `stage_config.json` or `gate_verdict.json` is refused unless the load is
-an explicit same-stage resume. It is also a trunk for everything it holds:
+an explicit same-stage resume, and a resume is refused too when its
+`hyperparameters_sha256` differs from the one the directory's
+`stage_config.json` records (it names the differing keys), so an edited recipe
+never continues an old node. A variant is also a trunk for everything it holds:
 `--trunk-from` follows a run's own stage directories first and, for a node
 it only reused, its `ancestors/<stage_id>/` record to the run that certified
 the node, so a variant that reused stance hands stance on to a later run as

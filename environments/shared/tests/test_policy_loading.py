@@ -670,7 +670,8 @@ CALL_TIME_READS = {
     "environments/shared/train_base.py": {
         "_ensure_sb3": 5,
         "_resolve_vecnorm_sidecar": 1,
-        "_PERIODIC_CHECKPOINT_RE": 1,
+        # _is_resume_continuation, and _stage_training_records (the SAC resume refusal's periodic checkpoints).
+        "_PERIODIC_CHECKPOINT_RE": 2,
     },
     "environments/shared/evaluation.py": {"_ensure_sb3": 2, "_resolve_vecnorm_sidecar": 1},
     "environments/shared/reporting/stage_artifacts.py": {"_ensure_sb3": 2},

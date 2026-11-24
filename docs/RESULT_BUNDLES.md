@@ -126,11 +126,27 @@ id, a missing file, a verdict whose hashes disagree with the record's, or a
 task fingerprint that disagrees between `ancestor.json`, `gate_verdict.json`
 and `stage_config.json`. A stage that warm-started from a reused ancestor
 records `parent_run_id` in its `stage_config.json` run block, and the audit
-binds that lineage to the record's checkpoint hash. A same-stage resume of a
-node that entered from its parent keeps those edge keys and adds
-`resume_load_path` / `resume_checkpoint_sha256` (`config.RESUME_LINEAGE_KEYS`)
-for the periodic checkpoint it continued from, so a resumed-then-judged node
-still chains by digest. The run block also always records
+binds that lineage to the record's checkpoint hash. A same-stage resume keeps
+the load lineage its record holds (the edge keys of a node that entered from
+its parent, or a root's first load) and adds `resume_load_path` /
+`resume_checkpoint_sha256` (`config.RESUME_LINEAGE_KEYS`) for the periodic
+checkpoint it continued from, so a resumed-then-judged node still chains by
+digest; a root trained from scratch records its first resume's load under the
+lineage keys. Every same-stage resume into a directory whose
+`stage_config.json` is readable keeps the record's identity: the top-level
+`git_commit` and `library_version` and the run block's `timesteps` and
+`label` stay the first session's, and each resume session that reached
+training (its model loaded) appends its commit, library version, timesteps,
+continued-from checkpoint and UTC time to `run.resume_sessions`
+(`config.RESUME_SESSIONS_KEY`, `config.record_resume_session`; before
+2026-11-24 a resume rewrote all four with its own, the remaining budget as
+`timesteps`, and a root's lineage with its own load). A resume whose
+`hyperparameters_sha256`, or whose non-empty label, differs from the
+record's is refused before anything is written
+(`config.refuse_resume_recipe_change`), as are a checkpoint trained on
+another task and a load that cannot continue the run (a SAC load, or a
+curated PPO checkpoint) into a stage directory that already holds the
+stage's training records. The run block also always records
 `hyperparameters_sha256` and, when set, a `label`; `train_base.train` (the
 CLI `train` subcommand and the notebook's `train_stage`) and the CLI
 `curriculum` (each node it trains) add `duration_seconds` at the stage's final

@@ -2664,6 +2664,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A resumed stage's `stage_config.json` keeps its first session's identity
+  and load.** A resume used to rebuild the record from the new session:
+  `git_commit` and `library_version` became the resume's, `run.timesteps`
+  became the remaining budget, `run.label` became whatever `RUN_LABEL` held,
+  and a root's first `--load` was replaced by the resumed checkpoint. Now all
+  of these stay the first session's, and the continued-from checkpoint goes
+  under `run.resume_load_path`. Each resume session that reached training
+  appends its commit, library version, timesteps, checkpoint and UTC time to
+  `run.resume_sessions` (`config.record_resume_session`, called once the model
+  has loaded). `run_exclusions` rules (b) and (d) read every resume session
+  too, and the bundle evidence's "short of its run budget" check now compares
+  against the stage's own budget.
 - **The wheel ships only the data files runtime code reads.**
   `pyproject.toml`'s package data no longer globs `data/*.json` in every
   package or names the anatomical Compsognathus recovery evidence
@@ -5281,6 +5293,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **Only a continuation resumes a node in place.** Only a PPO load of one of
+  the stage's periodic checkpoints continues a run. A SAC `resume_same_stage`
+  load (nothing saves its replay buffer) and a curated PPO checkpoint
+  (`best_model.zip`, `<label>_final.zip`: no step count in the name) restarted
+  the step counter and seeded nothing. In the interrupted stage directory the
+  first evaluation then rewrote `evaluations.npz`, `gate_progress.npz` and the
+  episode ledgers from the new session alone and replaced both best-model
+  pairs whatever they scored, and the node was judged on that tail. The SB3
+  notebook's RESUME cell now refuses `ALGORITHM` other than `"ppo"` before
+  anything is written, and `train_base.train` refuses such a load into a
+  directory that holds the stage's `evaluations.npz`, an episode ledger, its
+  periodic or final checkpoints or a best-model pair
+  (`config.ResumeRefusedError`). A load into a fresh directory, the CLI
+  default, still trains.
+- **A same-stage resume continues `diagnostics.npz` instead of rewriting it.**
+  On a PPO continuation `seed_resume_eval_state` seeds `DiagnosticsCallback`
+  from the `diagnostics.npz` beside the evaluation record
+  (`seed_prior_diagnostics`). Each of its three clocks keeps its rows at or
+  before the resumed step, a series the prior file lacks reads NaN, and a file
+  a seeded session wrote seeds again. The stage figures and
+  `compare_run_diagnostics.py` cover the whole stage. A session's first
+  rewrite of an existing file copies it aside as
+  `diagnostics.prior_<UTC>.npz`, so a resume that cannot seed loses no row
+  either. The KNOWN_ISSUES entry is resolved.
+- **A same-stage resume is refused when it would change the stage's recipe,
+  task or label.** The task fingerprint caught env and reward edits but not a
+  `[ppo]` or shaping edit, and a resume in a fresh Colab runtime installs
+  `REPO_REF = "main"`. `train_base.train` now refuses, before it writes
+  anything, a resume whose `hyperparameters_sha256` differs from the one the
+  node's `stage_config.json` records (the digest never covers the budget). The
+  refusal names the keys and says to pin `REPO_REF` to the recorded commit and
+  re-set `CRITIC_PHASE`, or to train in a fresh `RUN_ID`. A checkpoint trained
+  on another task is also refused before anything is written; the record used
+  to be rewritten first. A non-empty label other than the recorded one is
+  refused; a resume without a label keeps it. The RESUME cell warns when
+  `BEHAVIOR` is `"auto"`, when `provenance.json` records another target
+  deliverable, and when the checkout is at another commit than the node
+  recorded.
 - **The SB3 load preflight's throwaway test passes when run on its own.**
   `test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_writes_nothing`
   checks that the temporary directory it gives the preflight is empty

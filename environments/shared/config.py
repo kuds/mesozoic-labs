@@ -29,6 +29,7 @@ import logging
 import math
 import tomllib
 from collections.abc import Mapping
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -553,6 +554,45 @@ def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Pat
     return path
 
 
+def record_resume_session(stage_dir: str | Path, *, load_path: str, timesteps: int | None) -> Path:
+    """Append this session to ``run.resume_sessions`` (:data:`RESUME_SESSIONS_KEY`) in ``stage_config.json``.
+
+    ``train_base.train`` calls it for a ``resume_same_stage`` load into a directory whose record the session
+    continues (:func:`save_stage_config` kept that record's identity and its earlier sessions), once the model
+    has loaded and just before ``learn()``: a resume refused or failed before it trains leaves no entry.  The
+    entry records this checkout's ``git_commit`` and ``library_version``, *timesteps* (the steps the session was
+    set to train; one stopped early trained fewer), the checkpoint it continued from as
+    ``resume_load_path`` and ``resume_checkpoint_sha256`` (the path and digest a load records) and
+    ``resumed_at``, the UTC time.  Atomic, like :func:`record_stage_duration`; a directory without a
+    readable ``stage_config.json`` object (:func:`read_recorded_stage_config`) is an error.
+    """
+    from .file_io import atomic_write_text
+
+    data = read_recorded_stage_config(stage_dir)
+    if data is None:
+        raise FileNotFoundError(f"cannot record the resume session: no readable stage_config.json in {stage_dir}")
+    path = Path(stage_dir) / STAGE_CONFIG_FILENAME
+    lineage = _checkpoint_lineage(load_path, "resume_same_stage")
+    run_block = data.get("run")
+    if not isinstance(run_block, dict):
+        run_block = {}
+    sessions = run_block.get(RESUME_SESSIONS_KEY)
+    run_block[RESUME_SESSIONS_KEY] = [
+        *(sessions if isinstance(sessions, list) else []),
+        {
+            "git_commit": get_git_commit(),
+            "library_version": get_library_version(),
+            "timesteps": timesteps,
+            "resume_load_path": lineage["load_path"],
+            "resume_checkpoint_sha256": lineage["parent_checkpoint_sha256"],
+            "resumed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        },
+    ]
+    data["run"] = run_block
+    atomic_write_text(path, json.dumps(data, indent=2) + "\n")
+    return path
+
+
 #: Files whose presence means a stage directory is already a RECORDED stage
 #: (decision D-A20): its config was written by an earlier session, or a gate
 #: has judged it.  Writing a fresh stage into such a directory silently
@@ -605,14 +645,16 @@ def refuse_occupied_stage_dir(stage_dir: str | Path, *, task_load_mode: str | No
 #: A ``--load`` and a same-run curriculum handoff never write it.
 LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
 
-#: A same-stage resume of a stage that ENTERED from its parent keeps that
-#: edge in the :data:`LOAD_LINEAGE_KEYS` (the reuse rule's chain-by-digest
-#: check, ``ancestors._check_chain``, and the audit read those) and records
-#: the periodic checkpoint it continued from under these two keys instead:
-#: the path as given to the trainer and that file's sha256.  Neither is a
-#: lineage key — the resume continues the recorded stage, it does not
-#: re-parent it — so a resumed-then-judged node stays reusable on top of
-#: the parent it was trained from (BEHAVIOR_RECIPES_PLAN §4.7 branch 3).
+#: A same-stage resume of a stage whose record holds a load keeps that load
+#: in the :data:`LOAD_LINEAGE_KEYS` (the edge a stage ENTERED on, which the
+#: reuse rule's chain-by-digest check, ``ancestors._check_chain``, and the
+#: audit read; or a root's first load, which ``run_exclusions`` rule (d)
+#: reads) and records the periodic checkpoint it continued from under these
+#: two keys instead: the path as given to the trainer and that file's
+#: sha256.  Neither is a lineage key — the resume continues the recorded
+#: stage, it does not re-parent it — so a resumed-then-judged node stays
+#: reusable on top of the parent it was trained from (BEHAVIOR_RECIPES_PLAN
+#: §4.7 branch 3).
 RESUME_LINEAGE_KEYS = ("resume_load_path", "resume_checkpoint_sha256")
 
 #: Run-block keys a WIDENED root records its parent under
@@ -630,8 +672,8 @@ RESUME_LINEAGE_KEYS = ("resume_load_path", "resume_checkpoint_sha256")
 #: ``parent_run_id`` to an ``ancestors/`` record — a widened checkpoint is
 #: the same policy under a wider interface, not a warm-start across an edge.
 #: These keys are provenance the audit ignores; no reader consumes them
-#: (``_recorded_load_lineage``, ``_recorded_edge_lineage`` and the audit read
-#: only :data:`LOAD_LINEAGE_KEYS`).  The archive carries the same parent
+#: (``ancestors._recorded_load_lineage``, ``_recorded_kept_lineage`` and the
+#: audit read only :data:`LOAD_LINEAGE_KEYS`).  The archive carries the same parent
 #: hashes under its ``mesozoic_widen_lineage`` attribute.
 WIDEN_LINEAGE_KEYS = (
     "widened_from_path",
@@ -760,7 +802,9 @@ def hyperparameter_diff(
     and ``shaping.<key>`` (``shaping.warmup_timesteps``); a key present on
     one side only differs; a recorded ``"algorithm"`` other than the
     current one differs as ``algorithm``.  ``[]`` when nothing differs — in
-    which case the two digests agree.
+    which case the two digests agree.  Named by :func:`ignored_hyperparameter_edits`
+    (a reused ancestor) and :func:`refuse_resume_recipe_change` (a same-stage
+    resume).
     """
     current = _hyperparameter_view(
         algorithm,
@@ -801,6 +845,101 @@ def ignored_hyperparameter_edits(config: dict[str, Any], algorithm: str, ancesto
     if recorded is None:
         return ["<unreadable stage_config.json>"]
     return hyperparameter_diff(config, algorithm, recorded)
+
+
+#: The ``run`` block key under which a same-stage resume over a recorded stage appends its own session
+#: (:func:`record_resume_session`, once its model has loaded): one entry per resume session that reached
+#: training, oldest first, each ``{"git_commit", "library_version", "timesteps", "resume_load_path",
+#: "resume_checkpoint_sha256", "resumed_at"}``.  The top-level ``git_commit`` and ``library_version`` and the
+#: run block's ``timesteps`` and ``label`` stay the first session's (:func:`save_stage_config`).
+RESUME_SESSIONS_KEY = "resume_sessions"
+
+
+class ResumeRefusedError(RuntimeError):
+    """A same-stage resume that cannot continue the stage its directory records, refused before anything is written."""
+
+
+def refuse_resume_recipe_change(
+    stage_dir: str | Path,
+    stage_config: dict[str, Any],
+    algorithm: str,
+    *,
+    task_load_mode: str | None,
+    label: str | None = None,
+) -> None:
+    """Refuse a same-stage resume that would continue *stage_dir*'s recorded stage under another recipe or label.
+
+    Checks only a ``resume_same_stage`` load (*task_load_mode* is the effective mode, as
+    :func:`refuse_occupied_stage_dir` takes it) into a directory whose ``stage_config.json`` is readable: a
+    fresh or empty directory, an unreadable record and every other load return.  Raises
+    :class:`ResumeRefusedError`:
+
+    * when the record's ``run.hyperparameters_sha256`` differs from this session's
+      (:func:`hyperparameters_sha256` over *stage_config*: the algorithm, its kwargs table and the stage-entry
+      shaping keys; never the budget, so training the rest of it does not differ), naming the differing keys
+      (:func:`hyperparameter_diff`).  The load's task fingerprint check catches an env or reward edit; only
+      this catches an algorithm block or shaping edit.  When no recorded key differs, the record's digest was
+      computed another way (another commit's digest definition, or an edited record), and the refusal says
+      that only the recorded commit or a fresh ``RUN_ID`` trains the node.  A record without the digest
+      (before decision D-A21) is not checked;
+    * when *label* is a non-empty string other than the record's ``run.label``, or the record has none.  The
+      label names the stage's training run and the bundle publishes it as the deliverable's label, so a
+      resume keeps it: one without a label inherits it (:func:`save_stage_config`).
+
+    ``train_base.train`` calls it before it writes anything.
+    """
+    if task_load_mode != "resume_same_stage":
+        return
+    directory = Path(stage_dir)
+    recorded = read_recorded_stage_config(directory)
+    if recorded is None:
+        return
+    recorded_run = recorded.get("run")
+    run_block: Mapping[str, Any] = recorded_run if isinstance(recorded_run, Mapping) else {}
+    recorded_digest = run_block.get("hyperparameters_sha256")
+    current_digest = hyperparameters_sha256(stage_config, algorithm)
+    if isinstance(recorded_digest, str) and recorded_digest.strip() and recorded_digest != current_digest:
+        differing = hyperparameter_diff(stage_config, algorithm, recorded)
+        commit = recorded.get("git_commit")
+        known = isinstance(commit, str) and commit.strip() not in ("", "unknown")
+        pin = f"pin REPO_REF to the commit the stage recorded ({commit})" if known else "pin REPO_REF to the commit"
+        if not known:
+            pin += " the interrupted session ran at (the record names none)"
+        if differing:
+            found = f"differing: {', '.join(differing)}"
+            remedy = (
+                "A same-stage resume continues the recorded stage, so it trains under the recipe that stage "
+                f"recorded: restore it (in the notebook, {pin} and set CRITIC_PHASE and the other recipe knobs as the "
+                "interrupted session had them; on the command line, the same --override values), or train the node "
+                "again in a fresh RUN_ID (--output-dir)."
+            )
+        else:
+            # Nothing to restore: the recorded blocks are this session's, so the digest beside them is not theirs.
+            found = (
+                "the recorded algorithm and shaping blocks match this session's, so the recorded digest was "
+                "computed another way: under another commit's digest definition, or in an edited record"
+            )
+            remedy = (
+                f"Restoring the recipe cannot clear this: {pin}, whose digest definition wrote the record, or train "
+                "the node again in a fresh RUN_ID (--output-dir)."
+            )
+        raise ResumeRefusedError(
+            f"{directory} records stage {recorded.get('stage')!r} trained under hyperparameters_sha256 "
+            f"{recorded_digest}, and this session's recipe digests to {current_digest} ({found}). {remedy} A "
+            "commit from before 2026-11-24 resumes without the trainer's resume protections (its resume rewrites "
+            "the record's identity and diagnostics.npz), so for a node recorded there a fresh RUN_ID keeps the "
+            "record whole. Nothing was written."
+        )
+    given = label.strip() if isinstance(label, str) and label.strip() else None
+    recorded_label = run_block.get("label")
+    if given is not None and given != recorded_label:
+        held = f"the run label {recorded_label!r}" if isinstance(recorded_label, str) else "no run label"
+        raise ResumeRefusedError(
+            f"{directory} records {held}, and this resume passes label {given!r}. A same-stage resume keeps the "
+            "label the stage recorded (decision D-A21; the bundle publishes it as the deliverable's label): pass "
+            'no label (RUN_LABEL = "", no --label) to keep it, or train the node again under the new label in a '
+            "fresh RUN_ID (--output-dir). Nothing was written."
+        )
 
 
 def _checkpoint_lineage(
@@ -847,17 +986,21 @@ def _checkpoint_lineage(
     return lineage
 
 
-def _recorded_edge_lineage(stage_dir: Path) -> dict[str, Any]:
-    """The ``initialize_next_stage`` lineage *stage_dir*'s ``stage_config.json`` records, else ``{}``.
+def _recorded_kept_lineage(stage_dir: Path) -> dict[str, Any]:
+    """The load lineage *stage_dir*'s ``stage_config.json`` records, which a same-stage resume keeps, else ``{}``.
 
     Read by :func:`save_stage_config` before it rewrites the run block on a
-    same-stage resume.  A missing or unreadable config, a run block without
-    a load, or one that records a ``resume_same_stage`` load (a root, or a
-    plain ``--load``) all read as "no edge to keep".
+    same-stage resume: the edge an entered stage records
+    (``initialize_next_stage``), or the load a root's first session
+    recorded (a ``--load`` into a fresh directory; for a root trained from
+    scratch, the load of its first resume).  A missing or unreadable config,
+    or a run block without a ``load_path``, reads as "nothing to keep".
     """
     record = read_recorded_stage_config(stage_dir)
     run_block = record.get("run") if record is not None else None
-    if not isinstance(run_block, dict) or run_block.get("load_mode") != "initialize_next_stage":
+    if not isinstance(run_block, dict) or not isinstance(run_block.get("load_path"), str):
+        return {}
+    if not run_block["load_path"].strip():
         return {}
     return {key: run_block[key] for key in LOAD_LINEAGE_KEYS if key in run_block}
 
@@ -921,13 +1064,28 @@ def save_stage_config(
     them (the audit reads absence as "no parent").
 
     A ``resume_same_stage`` load into a directory whose existing
-    ``stage_config.json`` records an ``initialize_next_stage`` entry keeps
-    that edge's lineage keys verbatim (the resume continues the recorded
-    stage on top of the same parent; the reuse rule chains on
-    ``parent_checkpoint_sha256`` and the audit cross-checks it) and records
-    the checkpoint it continued from under the :data:`RESUME_LINEAGE_KEYS`.
-    Any other resume — a root, a plain ``--load`` — records the load under
-    the lineage keys as before.
+    ``stage_config.json`` records a load keeps that load's lineage keys
+    verbatim and records the checkpoint it continued from under the
+    :data:`RESUME_LINEAGE_KEYS`: the ``initialize_next_stage`` edge of an
+    entered stage (the resume continues the recorded stage on top of the
+    same parent; the reuse rule chains on ``parent_checkpoint_sha256`` and
+    the audit cross-checks it), or a root's first load (a ``--load`` from
+    another run's folder stays readable to ``run_exclusions`` rule (d)).  A
+    resume over a record without a load (a root trained from scratch, before
+    its first resume), over an unreadable record or into a fresh directory
+    records the load under the lineage keys, as before.
+
+    A ``resume_same_stage`` load into a directory whose ``stage_config.json``
+    is readable also keeps that record's identity: the top-level
+    ``git_commit`` and ``library_version``, and the run block's
+    ``timesteps`` (the first session's budget) and ``label`` (a resume
+    without a *label* inherits it; ``train_base.train`` refuses another one
+    first, :func:`refuse_resume_recipe_change`), and carries over its
+    ``run.resume_sessions`` (:data:`RESUME_SESSIONS_KEY`).  This session is
+    appended to that list by :func:`record_resume_session`, which
+    ``train_base.train`` calls once the model has loaded, so a resume refused
+    or failed before it trains adds no entry.  A resume into a fresh
+    directory (the CLI's default) records its own session as the first.
 
     Returns:
         Path to the written JSON file.
@@ -992,15 +1150,32 @@ def save_stage_config(
     if isinstance(label, str) and label.strip():
         run_block["label"] = label.strip()
     lineage = _checkpoint_lineage(load_path, load_mode, parent_run_id=parent_run_id)
-    edge = _recorded_edge_lineage(stage_dir) if load_mode == "resume_same_stage" else {}
-    if edge:
-        # A same-stage resume continues the stage that entered from its
-        # parent: keep the edge, record the continued-from checkpoint apart.
-        run_block.update(edge)
+    resuming_record = bool(load_path) and load_mode == "resume_same_stage"
+    kept = _recorded_kept_lineage(stage_dir) if resuming_record else {}
+    if kept:
+        # A same-stage resume continues the recorded stage: keep the load it
+        # recorded (the edge it entered on, or a root's first load), record
+        # the continued-from checkpoint apart.
+        run_block.update(kept)
         run_block["resume_load_path"] = lineage["load_path"]
         run_block["resume_checkpoint_sha256"] = lineage["parent_checkpoint_sha256"]
     else:
         run_block.update(lineage)
+    recorded = read_recorded_stage_config(stage_dir) if resuming_record else None
+    if recorded is not None:
+        # The resume continues the recorded stage: its first session's identity and its earlier sessions stay
+        # (record_resume_session appends this one once its model has loaded).
+        recorded_block = recorded.get("run")
+        recorded_run: Mapping[str, Any] = recorded_block if isinstance(recorded_block, Mapping) else {}
+        for key in ("git_commit", "library_version"):
+            if isinstance(recorded.get(key), str):
+                data[key] = recorded[key]
+        for key in ("timesteps", "label"):
+            if key in recorded_run:
+                run_block[key] = recorded_run[key]
+        prior_sessions = recorded_run.get(RESUME_SESSIONS_KEY)
+        if isinstance(prior_sessions, list):
+            run_block[RESUME_SESSIONS_KEY] = list(prior_sessions)
     data["run"] = run_block
     if plant_identity is not None:
         data["plant_identity"] = plant_identity.to_dict()

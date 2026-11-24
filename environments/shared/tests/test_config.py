@@ -1092,9 +1092,13 @@ class TestSaveStageConfigLoadLineage:
         with pytest.raises(AncestorReuseError, match="a certified node is reusable only on top of the parent"):
             _check_chain(tmp_path / "run", entry=locomotion, parent_model_sha256=sha256_file(periodic))
 
-    def test_only_a_same_stage_resume_of_an_entered_stage_keeps_the_edge(self, tmp_path):
-        """A root's resume, a resume over an unreadable record, and a fresh ``initialize_next_stage``
-        entry all record the load under the lineage keys as before, with no resume keys."""
+    def test_a_resume_records_its_load_as_lineage_only_over_a_record_without_one(self, tmp_path):
+        """A from-scratch root's first resume, a resume over an unreadable record, and a fresh
+        ``initialize_next_stage`` entry record the load under the lineage keys, with no resume keys.
+        Re-pinned 2026-11-24 (the resume-path cleanup): a resume over a record that holds a load keeps
+        it, a root's as an entered stage's edge, and records its own under the resume keys; before, a
+        resume of a resumed root replaced the root's lineage with its newest checkpoint, which hid a
+        root's first ``--load`` from ``run_exclusions`` rule (d)."""
         from environments.shared.result_bundle import sha256_file
 
         periodic = _sb3_style_zip(tmp_path / "stage1_100_steps.zip", {})
@@ -1104,9 +1108,11 @@ class TestSaveStageConfigLoadLineage:
         assert run["load_path"] == str(periodic) and run["load_mode"] == "resume_same_stage"
         assert run["parent_checkpoint_sha256"] == sha256_file(periodic)
         assert not set(RESUME_LINEAGE_KEYS) & set(run)
-        # A resume of a resumed root keeps recording the newest checkpoint as the load.
-        run = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
-        assert run["load_mode"] == "resume_same_stage" and not set(RESUME_LINEAGE_KEYS) & set(run)
+        # A resume of a resumed root keeps the load its record holds and records its own apart.
+        later = _sb3_style_zip(tmp_path / "stage1_200_steps.zip", {})
+        run = self._run_block(tmp_path, load_path=str(later), load_mode="resume_same_stage")
+        assert run["load_path"] == str(periodic) and run["parent_checkpoint_sha256"] == sha256_file(periodic)
+        assert run["resume_load_path"] == str(later) and run["resume_checkpoint_sha256"] == sha256_file(later)
         # An unreadable record reads as "no edge".
         (tmp_path / "run" / "stage_config.json").write_text("{not json")
         run = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
