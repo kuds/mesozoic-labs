@@ -158,9 +158,11 @@ REWARD_SEED, REWARD_ACTION_SEED = 1042, 7
 #: for a class that declares ``SUCCESS_KEYS``, the success probe's effector are the env class's ``REWARD_PROBE``:
 #: ``(amplitude, kind, name)``, or ``(amplitude,)`` and no success probe for a class without success keys
 #: (decision D-D59 removed the hunt's).  The only effector kind, ``"root_displacement"``
-#: (:data:`SUCCESS_PROBE_KINDS`), translates the free root in the plane along the episode's reference heading
-#: (``_reference_heading_2d``) by the value of the env attribute *name*, in metres (the Allosaurus' course
-#: length), after which the probe takes one zero-action step.
+#: (:data:`SUCCESS_PROBE_KINDS`), translates the free root in the plane along the episode's forward reference
+#: (``_forward_reference_2d``: ``_reference_heading_2d`` under command_mode "none", the commanded heading under a live
+#: command) by the value of the env attribute *name*, in metres (the Allosaurus' course length), after which the
+#: probe takes one zero-action step.  The state probes score a live stage as its ``step()`` does: the tracking term
+#: and the stand block included (:func:`_posed_reward`, decision D-D62).
 SUCCESS_PROBE_KINDS = ("root_displacement",)
 REWARD_NOISE_STEPS, REWARD_KICK_STEPS = 300, 200
 #: State probes: (name, root dz as a fraction of the healthy_z_range width, root pitch about world y as
@@ -634,9 +636,9 @@ def _capture(env: Any, parts: list[_Part]) -> list[tuple[str, Any, list[Any]]]:
                 reward, obs = 0.0, np.zeros(0, dtype=np.float32)
             else:
                 obs = env._get_obs()
-                reward, info = env._get_reward_info(zero)
+                reward, info = _posed_reward(env, zero)
                 terminated, term_info = env._is_terminated()
-                info = {**info, **term_info}
+                info = {**info, **term_info, **_posed_command_info(env)}
             rows.append((reward, info, terminated, False, obs, env.data.qpos.copy(), env.data.qvel.copy()))
             actions = 0
         try:
@@ -649,6 +651,33 @@ def _capture(env: Any, parts: list[_Part]) -> list[tuple[str, Any, list[Any]]]:
             env.max_episode_steps = horizon
         captured.append((part, record, rows))
     return captured
+
+
+def _posed_reward(env: Any, action: Any) -> tuple[Any, dict[str, Any]]:
+    """A state probe's reward and reward info, scored as ``step()`` scores the state it ends on (decision D-D62).
+
+    Under command_mode "none" that is ``_get_reward_info``, which is what
+    ``_reward_with_command_tracking`` returns there, so no "none" line moves.
+    Under a live command it is ``_reward_with_command_tracking`` (the species
+    reward plus the tracking term and its metrics) inside the stand block
+    (``_stand_block``, the stand weights at a zero command), with the heading
+    the step's yaw rate is measured from set to the posed heading: a posed
+    state is scored without a physics step, so it turns at 0 rad/s.
+    """
+    if getattr(env, "direction_controller", None) is None:
+        reward, info = env._get_reward_info(action)
+        return reward, info
+    env._heading_before = env._heading()
+    with env._stand_block():
+        reward, info = env._reward_with_command_tracking(action)
+    return reward, info
+
+
+def _posed_command_info(env: Any) -> dict[str, Any]:
+    """The command keys ``step()`` adds to a live step's info (its metrics and dwell); none under "none"."""
+    if getattr(env, "direction_controller", None) is None:
+        return {}
+    return {**env._command_metrics, "tracking_dwell_s": env._tracking_dwell_s}
 
 
 def _pose(
@@ -700,7 +729,9 @@ def _pose(
         half = (env.max_tilt_angle + 0.2) / 2
         mujoco.mju_mulQuat(qpos[3:7], np.array([np.cos(half), np.sin(half), 0.0, 0.0]), qpos[3:7].copy())
     if displace is not None:
-        qpos[0:2] += float(getattr(env, displace)) * np.asarray(env._reference_heading_2d, dtype=np.float64)
+        # Along the episode's forward reference: the spawn heading under command_mode "none", the commanded heading
+        # under a live command (BaseDinoEnv._forward_reference_2d; the Allosaurus course runs along it).
+        qpos[0:2] += float(getattr(env, displace)) * np.asarray(env._forward_reference_2d(), dtype=np.float64)
 
 
 def _is_float(value: Any) -> bool:

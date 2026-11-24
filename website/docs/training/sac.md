@@ -74,7 +74,7 @@ sidecar, a node whose parent has no certified checkpoint stops the run, and
 each trained node writes `gate_verdict.json` beside its handoff:
 
 1. **`stance`** (stance; root, historical stage 1): stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
-2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): walk and run forward (increase `forward_vel_weight`, add gait rewards)
+2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): follow a forward command with heading hold, and stand still on the exactly zero command of about 15% of episodes (a live `[commands]` table with a stand block and a cruise ramp; the tracking term replaces the forward, heading and sideways weights; judged after training by `command_tracking/v1`, decision D-D62)
 
 The `recovery` node is PPO-only on the T-Rex, whose `recovery.toml` does
 not inherit stance's `[sac]`; both Compsognathus models do. Every node is a

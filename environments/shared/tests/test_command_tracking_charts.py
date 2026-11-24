@@ -65,6 +65,7 @@ from environments.shared.reporting.command_tracking_trace import (
     trace_rows,
     write_command_tracking_trace,
 )
+from environments.shared.tests.stage_toml_helpers import replace_commands_table
 
 from .test_command_tracking_wiring import (
     COMPSOGNATHUS_LONGIPES,
@@ -388,6 +389,25 @@ class TestTheCommandTrackingFigure:
         write_command_tracking_trace(directory, rows)
         assert plot_command_tracking(directory) is None
 
+    def test_the_training_panel_marks_the_cruise_ramp_its_recorded_task_declares(self, tmp_path):
+        """The training rollouts run the ramp's commanded speeds, not the end state the bar is judged on: the window
+        the recorded task's ramp spans is shaded and the title says so; a task without a ramp draws neither."""
+        pytest.importorskip("matplotlib")
+        from environments.shared.visualization import plot_command_tracking
+
+        directory = _charted_stage(tmp_path)
+        unramped = plot_command_tracking(directory).axes[-1]
+        assert "cruise ramp" not in unramped.get_title() and not unramped.patches
+        config = {"cruise_ramp_start_fraction": 0.25, "cruise_ramp_timesteps": 40_000}
+        (directory / "stage_config.json").write_text(
+            json.dumps({"task_fingerprint": {"command": {"schema": "x", "config": config}}}), encoding="utf-8"
+        )
+        training = plot_command_tracking(directory).axes[-1]
+        assert "training rollouts at the cruise ramp's commanded speeds" in training.get_title()
+        (shade,) = training.patches
+        assert shade.get_label() == "cruise ramp: commanded speeds 0.25 to 1 x the end state"
+        assert shade.get_x() == 0.0 and shade.get_width() == pytest.approx(0.04)  # millions of steps
+
     def test_without_a_history_it_says_not_recorded_and_without_either_it_draws_nothing(self, tmp_path):
         pytest.importorskip("matplotlib")
         from environments.shared.visualization import plot_command_tracking
@@ -671,7 +691,7 @@ def live_stage(tmp_path_factory) -> dict[str, Any]:
     directory = root / COMPSOGNATHUS_LONGIPES.species / COMPSOGNATHUS_LONGIPES.embodiment
     shutil.copytree(COMPSOGNATHUS_LONGIPES.path(REPOSITORY_ROOT / "configs"), directory)
     path = directory / load_stage_manifest(COMPSOGNATHUS_LONGIPES).by_id("locomotion").config_file
-    path.write_text(path.read_text() + "\n" + WALK_COMMANDS.strip() + "\n")
+    replace_commands_table(path, WALK_COMMANDS)
     config = load_stage_config(COMPSOGNATHUS_LONGIPES, "locomotion", config_path=str(path))
     config["env_kwargs"]["max_episode_steps"] = 150
     curriculum = {k: v for k, v in config["curriculum_kwargs"].items() if k in NON_THRESHOLD_CURRICULUM_KEYS}

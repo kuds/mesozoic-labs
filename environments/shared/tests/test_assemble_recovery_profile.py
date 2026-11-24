@@ -32,8 +32,14 @@ ASSEMBLER = "environments/shared/scripts/assemble_recovery_profile.py"
 EDITED_SINCE_MEASUREMENT = {
     # Decision D-D60 added the live-command code (the tracking reward, metrics and dwell, set_direction and the
     # independent command stream) to BaseDinoEnv; none of it runs under the recovery stage's command_mode "none",
-    # whose task fingerprint, reset stream and digests are unchanged.
-    "environments/shared/base_env.py": "110708a4bd87eadd80c5f06774770fc4b93c60030b6c532e9c53d764ebbaf5ee",
+    # whose task fingerprint, reset stream and digests are unchanged.  Decision D-D62 added the live walk's rules
+    # (the command's forward reference and drift anchor, the stand block, the idle gate, set_command_config), each
+    # keyed on a live command: under "none" the recovery's rollouts replay byte for byte
+    # (test_none_stage_rollout_golden.py) and its task_sha256 is unchanged.
+    "environments/shared/base_env.py": "0dbe7a19618c1b094221d22c2086634a5028e3815468cc58ec4f9aec5f1f894a",
+    # Decision D-D62: the species reward reads BaseDinoEnv's forward reference and drift anchor, which under the
+    # recovery's command_mode "none" are the spawn arrays it read before (the same golden proves it).
+    "environments/compsognathus_longipes/base_env.py": "303d40f3aa13f5cf65159eb180061b7214f941eff4d9c47c531d1b4e8ee12ba8",
 }
 
 

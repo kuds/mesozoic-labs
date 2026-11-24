@@ -12,8 +12,11 @@ across all dinosaur species. Subclasses override species-specific methods:
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Iterator
+from contextlib import contextmanager
+from dataclasses import replace
 from typing import Any
 
 import gymnasium as gym
@@ -206,7 +209,13 @@ class BaseDinoEnv(gym.Env, ABC):
     # home_reset policy interface.  A live mode seeds each episode's schedule
     # from its own stream (``_command_rng``), never from np_random, and step()
     # adds the command-tracking reward, metrics and dwell
-    # (``_reward_with_command_tracking``).
+    # (``_reward_with_command_tracking``).  Under a live mode the reward
+    # terms read their forward reference and drift anchor from the command
+    # (``_forward_reference_2d``, ``_drift_anchor_2d``), the idle penalty
+    # is not paid at an exactly zero command, and a step taken under an
+    # exactly zero command runs with the command config's stand weights
+    # (``_stand_block``; decision D-D62).  Under "none" all of these are the
+    # spawn's anchors and the constructor's weights, exactly as before.
     _command: "np.ndarray"
 
     # Optional zero-argument callable invoked after EVERY physics substep in
@@ -385,6 +394,20 @@ class BaseDinoEnv(gym.Env, ABC):
         free_joints = np.flatnonzero(self.model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
         self._root_body_id = int(self.model.jnt_bodyid[free_joints[0]])
         self._command = _zero_command()
+        # Live modes only (decision D-D62).  The config the stage declares,
+        # which the task fingerprint records and command_manifest() reports
+        # whatever the cruise ramp has swapped in (set_command_config); the
+        # episode's first command state (the course a live Allosaurus walks);
+        # and the drift anchor of the current command event (the root's
+        # planar position when the event began) with that event's id.
+        self._declared_command_config = command_config
+        self._reset_command_state: DirectionCommandState | None = None
+        self._command_anchor_2d: np.ndarray = self._initial_pos_2d.copy()
+        self._command_anchor_event = -1
+        # The stand block: the command config's stand weights by attribute
+        # name, checked against this env's reward weights once its whole
+        # constructor has run (_check_stand_weights); empty under "none".
+        self._stand_weights: dict[str, float] = {}
 
         # Define action space (normalized to [-1, 1])
         self.action_space = gym.spaces.Box(
@@ -408,6 +431,132 @@ class BaseDinoEnv(gym.Env, ABC):
         self._viewer = None
         self._renderer = None
         self._camera = None
+
+        if command_config is not None and command_config.stand_weights:
+            self._stand_weights = self._check_stand_weights(command_config.stand_weight_map())
+
+    #: The stand block may name a constructor parameter that is a reward
+    #: weight: one named ``*_weight``, the alive bonus, or the alive bonus's
+    #: support-conditioned fraction (a stance term on three species).  Every
+    #: one is read inside step(), where the block holds; a parameter read at
+    #: construction or at reset (the reset noise, the push schedule, a
+    #: horizon) could not be swapped per step.
+    _STAND_WEIGHT_NAMES = frozenset({"alive_bonus", "support_conditioned_alive_fraction"})
+
+    def _check_stand_weights(self, weights: dict[str, float]) -> dict[str, float]:
+        """*weights* (the command config's stand block) checked against this env: each a reward weight it holds.
+
+        Refused, naming the weight: a name that is not a constructor
+        parameter of this env class with a numeric default and an attribute
+        of the same name; a name that is not a reward weight
+        (:data:`_STAND_WEIGHT_NAMES` or ``*_weight``); a fraction above 1;
+        and a non-zero ``idle_penalty_weight``, which the env never pays at a
+        zero command (:meth:`_speed_terms`).
+        """
+        parameters = inspect.signature(type(self)).parameters
+        owner = type(self).__name__
+        for name, value in weights.items():
+            parameter = parameters.get(name)
+            default = None if parameter is None else parameter.default
+            numeric = isinstance(default, (int, float)) and not isinstance(default, bool)
+            if not numeric or not hasattr(self, name):
+                raise ValueError(
+                    f"stand_weights names {name!r}, which is not a numeric reward kwarg of {owner} "
+                    "(a constructor parameter the env holds as an attribute of the same name)"
+                )
+            if not (name.endswith("_weight") or name in self._STAND_WEIGHT_NAMES):
+                raise ValueError(
+                    f"stand_weights names {name!r}: the stand block swaps reward weights (*_weight, "
+                    f"{', '.join(sorted(self._STAND_WEIGHT_NAMES))}), not other parameters"
+                )
+            if name.endswith("_fraction") and value > 1.0:
+                raise ValueError(f"stand_weights[{name!r}] must lie in [0, 1], got {value!r}")
+            if name == "idle_penalty_weight" and value != 0.0:
+                raise ValueError(
+                    "stand_weights['idle_penalty_weight'] must be 0: the idle penalty is never paid at a zero "
+                    "command, the stand the command asks for"
+                )
+        return dict(weights)
+
+    def _rewards_follow_command(self) -> bool:
+        """Whether the reward and termination rules follow the live command (decision D-D62): under a live mode.
+
+        The switch every command-following rule reads: the forward reference
+        and the drift anchor (:meth:`_forward_reference_2d`,
+        :meth:`_drift_anchor_2d`), the zero-command test the idle penalty and
+        the stand block key on (:meth:`_live_zero_command`) and the
+        Allosaurus' course.  False under command_mode "none"; the recipe env
+        (``behavior_env.SpeciesBehaviorMixin``), whose tasks predate these
+        rules, returns False under its live command too.
+        """
+        return self.direction_controller is not None
+
+    def _live_zero_command(self) -> bool:
+        """Whether a live command is exactly zero: the command the current action was chosen under is a stop.
+
+        Always False under command_mode "none", whose command is zero too:
+        nothing keyed on this changes a "none" stage.
+        """
+        return self._rewards_follow_command() and not np.any(self._command)
+
+    def _stand_block_weights(self) -> dict[str, float]:
+        """The weights this step runs under in place of the constructor's: the stand block at a live zero command."""
+        if not self._stand_weights or not self._live_zero_command():
+            return {}
+        return self._stand_weights
+
+    @contextmanager
+    def _stand_block(self) -> Iterator[dict[str, float]]:
+        """Hold the stand weights in place of the constructor's while the command is a live zero (decision D-D62).
+
+        Each stand weight is written over the attribute of its name and the
+        value it held before restored on exit, so every term computed inside
+        reads it: a term computed only while its weight is positive (a
+        stance-only term a walk's ``[env]`` leaves at 0) is computed, its
+        per-substep records included, since :meth:`step` holds the block
+        from before the physics substeps to the end of the step.  The weights
+        are chosen once, from the command the action was chosen under.
+        Yields the weights held (empty: nothing changes).
+        """
+        weights = self._stand_block_weights()
+        saved = {name: getattr(self, name) for name in weights}
+        try:
+            for name, value in weights.items():
+                setattr(self, name, value)
+            yield weights
+        finally:
+            for name, value in saved.items():
+                setattr(self, name, value)
+
+    def _forward_reference_2d(self) -> np.ndarray:
+        """The unit horizontal direction the forward, heading and lateral reward terms read as forward.
+
+        Under command_mode "none" (or before a live env's first reset) it is
+        the spawn heading, ``_reference_heading_2d`` itself.  Under a live
+        mode it is the unit vector of the desired world heading of the
+        command the action was chosen under, a stop's included (a stop keeps
+        its last requested heading): the walk's forward is the commanded
+        heading, which the initial heading offset turns away from the spawn.
+        """
+        state = self._command_state
+        if not self._rewards_follow_command() or state is None:
+            return self._reference_heading_2d
+        heading = state.desired_heading
+        return np.array([np.cos(heading), np.sin(heading)], dtype=np.float64)
+
+    def _drift_anchor_2d(self) -> np.ndarray:
+        """The planar point the drift terms measure displacement from.
+
+        Under command_mode "none" (or before a live env's first reset) it is
+        the spawn position, ``_initial_pos_2d`` itself.  Under a live mode it
+        is the root's planar position when the current command event began:
+        the spawn position for the episode's first event, so a whole-episode
+        stand holds the spawn as "none" does, and a later stop asks the animal
+        to stand where it stopped.
+        """
+        if not self._rewards_follow_command() or self._command_state is None:
+            return self._initial_pos_2d
+        return self._command_anchor_2d
 
     @staticmethod
     def _quat_to_tilt(quat: np.ndarray) -> float:
@@ -667,10 +816,13 @@ class BaseDinoEnv(gym.Env, ABC):
     def _progress_terms(
         self, info: dict[str, Any], vel_2d: np.ndarray, forward_ref_2d: np.ndarray, root_pos_2d: np.ndarray
     ) -> tuple[Any, Any, Any]:
-        """Forward velocity along *forward_ref_2d*, the backward penalty and the drift of *root_pos_2d* from spawn.
+        """Forward velocity along *forward_ref_2d*, the backward penalty and the drift of *root_pos_2d*.
 
-        Records ``forward_vel``, ``reward_forward``, ``backward_vel``, ``reward_backward``, ``drift_distance`` and
-        ``reward_drift`` in that order; returns ``(reward_forward, reward_backward, reward_drift)``.
+        The drift is measured from :meth:`_drift_anchor_2d` (the spawn under
+        command_mode "none").  Records ``forward_vel``, ``reward_forward``,
+        ``backward_vel``, ``reward_backward``, ``drift_distance`` and
+        ``reward_drift`` in that order; returns ``(reward_forward,
+        reward_backward, reward_drift)``.
         """
         reward_forward, forward_vel = _reward_forward_velocity_pure(
             vel_2d, forward_ref_2d, self.forward_vel_max, self.forward_vel_weight
@@ -683,7 +835,7 @@ class BaseDinoEnv(gym.Env, ABC):
         info["backward_vel"] = backward_vel
         info["reward_backward"] = reward_backward
         reward_drift, drift_dist = _reward_drift_penalty_pure(
-            root_pos_2d, self._initial_pos_2d, self.drift_penalty_weight
+            root_pos_2d, self._drift_anchor_2d(), self.drift_penalty_weight
         )
         info["drift_distance"] = drift_dist
         info["reward_drift"] = reward_drift
@@ -724,14 +876,18 @@ class BaseDinoEnv(gym.Env, ABC):
         """Speed penalty above ``speed_penalty_threshold`` and idle penalty below ``idle_velocity_threshold``.
 
         Records ``abs_speed``, ``reward_speed`` and ``reward_idle`` in that order (the idle speed is not
-        recorded); returns ``(reward_speed, reward_idle)``.
+        recorded); returns ``(reward_speed, reward_idle)``.  The idle penalty is 0.0 at a live zero command
+        (:meth:`_live_zero_command`, decision D-D62): standing still is what that command asks for.  Under
+        command_mode "none" it is paid as before.
         """
         reward_speed, abs_speed = _reward_speed_penalty_pure(
             vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
         )
         info["abs_speed"] = abs_speed
         info["reward_speed"] = reward_speed
-        reward_idle, _ = _reward_idle_penalty_pure(vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold)
+        reward_idle: Any = 0.0
+        if not self._live_zero_command():
+            reward_idle, _ = _reward_idle_penalty_pure(vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold)
         info["reward_idle"] = reward_idle
         return reward_speed, reward_idle
 
@@ -1204,6 +1360,10 @@ class BaseDinoEnv(gym.Env, ABC):
         self._tracking_dwell_s = 0.0
         self._command_metrics = {}
         self._command_state = self.direction_controller.reset(self._command_rng(), self._heading())
+        # The episode's first request, and the drift anchor of its event: the spawn (decision D-D62).
+        self._reset_command_state = self._command_state
+        self._command_anchor_2d = self._initial_pos_2d.copy()
+        self._command_anchor_event = self._command_state.event_id
         return self._command_state.normalized.copy()
 
     def _command_rng(self) -> np.random.Generator:
@@ -1237,9 +1397,16 @@ class BaseDinoEnv(gym.Env, ABC):
         )
 
     def _update_command(self) -> np.ndarray:
-        """Advance a live mode's controller to this step's time and heading; return the new command."""
+        """Advance a live mode's controller to this step's time and heading; return the new command.
+
+        A new command event moves the drift anchor to the root's planar
+        position now, where the event begins (:meth:`_drift_anchor_2d`).
+        """
         assert self.direction_controller is not None
         self._command_state = self.direction_controller.update(self._step_count * self.dt, self._heading())
+        if self._command_state.event_id != self._command_anchor_event:
+            self._command_anchor_2d = self.data.qpos[0:2].copy()
+            self._command_anchor_event = self._command_state.event_id
         return self._command_state.normalized.copy()
 
     def _heading(self) -> float:
@@ -1304,10 +1471,44 @@ class BaseDinoEnv(gym.Env, ABC):
 
         Mirrors :meth:`perturbation_manifest`: the task fingerprint carries it
         as its ``command`` section (``compute_task_fingerprint(command_manifest=...)``).
+        It describes the task the stage declares, the config the env was built
+        with (the cruise ramp's end state), whatever :meth:`set_command_config`
+        has swapped in since; ``command_config`` is the config drawn from now.
         """
         if self.direction_controller is None:
             return None
-        return self.direction_controller.manifest()
+        if self.direction_controller.config is self._declared_command_config:
+            return self.direction_controller.manifest()
+        assert self._declared_command_config is not None
+        return DirectionCommandController(self._declared_command_config).manifest()
+
+    def set_command_config(self, config: DirectionCommandConfig) -> None:
+        """Draw the live command from *config*, the declared one with other commanded speeds (the cruise ramp).
+
+        *config* may differ from the config the env was built with only in
+        ``cruise_speed`` and ``speed_range`` (``DirectionCommandConfig.ramped``
+        builds it): the stop probability, the heading offset, the scales, the
+        tracking parameters and the stand weights stay the stage's, so the
+        stand episodes, the observation scaling and the reward terms do not
+        move.  It takes effect at the controller's next draw (the next reset
+        for a whole-episode walk; :meth:`DirectionCommandController.replace_config`).
+        Called by ``curriculum.cruise_ramp.CruiseRampCallback`` through
+        ``env_method`` on every training worker; the evaluation envs keep the
+        declared config.
+        """
+        if self.direction_controller is None:
+            raise RuntimeError('set_command_config needs a live command_mode, not "none"')
+        declared = self._declared_command_config
+        assert declared is not None
+        if not isinstance(config, DirectionCommandConfig):
+            raise TypeError("config must be a DirectionCommandConfig")
+        if replace(config, cruise_speed=declared.cruise_speed, speed_range=declared.speed_range) != declared:
+            raise ValueError(
+                "set_command_config may change only cruise_speed and speed_range of the declared command config"
+            )
+        validate_command_task(self.command_mode, config)
+        self.command_config = config
+        self.direction_controller.replace_config(config)
 
     def _filter_action(self, action: np.ndarray) -> np.ndarray:
         """Low-pass the commanded action (action_filter_cutoff_hz > 0 only).
@@ -1328,7 +1529,21 @@ class BaseDinoEnv(gym.Env, ABC):
         return self._action_filter_state.copy()
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        """Execute one environment step."""
+        """Execute one environment step.
+
+        A step taken under an exactly zero live command whose config declares
+        stand weights runs, physics substeps to the end, with the stand block
+        in place of the constructor's weights (:meth:`_stand_block`, decision
+        D-D62); every other step, every step under command_mode "none"
+        included, runs with the constructor's.
+        """
+        if self._stand_weights and self._live_zero_command():
+            with self._stand_block():
+                return self._step_body(action)
+        return self._step_body(action)
+
+    def _step_body(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+        """One environment step, under the reward weights :meth:`step` holds."""
         if self.direction_controller is not None:
             if self._command_state is None:
                 raise RuntimeError("reset must be called before step")

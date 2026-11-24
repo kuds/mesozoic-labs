@@ -9,7 +9,8 @@ no task fingerprint, no recorded stage config, and the env never loads the band'
           full_price_load_share of the two limbs' floor load; 1 from min_load_share up; linear between
           (info <s>_cop_band_guard; <s>_cop_band_counted is 1 only at g_k = 1)
     q_k = g_k * exp(-(u_k / tolerance)^2)
-    reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps and only while the command is zero
+    reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps (a live walk pays it at a zero
+    command through its stand block, decision D-D62)
 
 The whole-foot CoP is the judge's K2b reading for the step (every floor contact of the limb over the step's
 substeps, span half-lengths), computed with the recorder's reduction fused into one pass per step, in the neutral
@@ -41,6 +42,7 @@ import pytest
 
 from environments.shared import symmetry as SY
 from environments.shared.config import load_stage_config, save_stage_config
+from environments.shared.direction_commands import stand_weights_of
 from environments.shared.floor_contact import reduction
 from environments.shared.floor_contact.morphology import Morphology
 from environments.shared.floor_contact.step_cop import StepCopReading
@@ -301,10 +303,14 @@ def test_off_it_moves_no_task_fingerprint_and_no_recorded_config(tmp_path, off_k
     explicit_off = {**off_kwargs, "stance_cop_band_weight": 0, "stance_cop_band_upper": 0.9}
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, "stance", env_kwargs=explicit_off) == base
     assert not set(OPTION_KEYS) & set(base["env"])
-    # Every stage that leaves it off keeps its committed fingerprint with the keys written out at off values.
+    # Every stage that leaves it off keeps its committed fingerprint with the keys written out at off values.  The
+    # walk pays it through its stand block (decision D-D62), which turns it on there.
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
-        if env_kwargs.get("stance_cop_band_weight", 0.0) == 0.0:
+        stand = stand_weights_of(env_kwargs.get("command_config"))
+        if entry.id == "locomotion":
+            assert stand["stance_cop_band_weight"] > 0.0 and env_kwargs.get("stance_cop_band_weight", 0.0) == 0.0
+        if env_kwargs.get("stance_cop_band_weight", 0.0) == 0.0 and stand.get("stance_cop_band_weight", 0.0) == 0.0:
             written = {**env_kwargs, "stance_cop_band_weight": 0.0, "stance_cop_band_tolerance": 0.5}
             committed = stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference)
             assert stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference, env_kwargs=written) == committed, entry.id
@@ -424,7 +430,9 @@ def test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_stat
         env.close()
 
 
-def test_the_gates_pay_nothing_at_or_before_the_settle_and_under_a_command(off_kwargs):
+def test_the_gate_pays_nothing_at_or_before_the_settle_whatever_the_command(off_kwargs):
+    """The settle gates the band; the command no longer does (decision D-D62): a live walk pays the band at a zero
+    command through its stand block (environments/shared/tests/test_walk_command_mechanism.py)."""
     env, base = _settled({**off_kwargs, **ON})
     try:
         edits = OPENED_ANKLES
@@ -437,7 +445,10 @@ def test_the_gates_pay_nothing_at_or_before_the_settle_and_under_a_command(off_k
         _pose(env, base, edits)
         env._command = np.array([0.0, 0.1, 0.0], dtype=env._command.dtype)
         _, info = env._get_reward_info(np.zeros(15))
-        assert info["reward_stance_cop_band"] == 0.0 and info["stance_cop_band_quality"] < 1.0
+        assert info["stance_cop_band_quality"] < 1.0
+        assert info["reward_stance_cop_band"] == pytest.approx(
+            -env.stance_cop_band_weight * (1.0 - info["stance_cop_band_quality"]), rel=1e-12
+        )
     finally:
         env.close()
 
@@ -495,7 +506,7 @@ def test_on_the_env_computes_the_pure_functions_values_byte_for_byte(off_kwargs,
             before = len(kept)
             _, _, terminated, truncated, info = env.step(rng.uniform(-0.2, 0.2, 15))
             assert len(kept) == before + 1  # one reading a step, the one the reward took
-            gate = env._step_count > env.stance_width_settle_steps and not np.any(env._command)
+            gate = env._step_count > env.stance_width_settle_steps
             rows.append((info, _pure_info(kept[-1], gate, kwargs)))
             if terminated or truncated:
                 break

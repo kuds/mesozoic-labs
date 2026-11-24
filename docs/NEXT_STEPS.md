@@ -215,7 +215,13 @@ checkpoint named below, certified or not, fails the plant check, cannot be
 widened and cannot seed a warm start or a trunk reuse; every session below
 starts from a fresh stance on the new revisions, whose statue-derived rails
 were re-measured (the velociraptor stance rail 2000 → 1950, the
-dibothrosuchus 1560 → 1500).* Section 2 labels each
+dibothrosuchus 1560 → 1500).* *2026-11-24 (decision D-D62): the walk is now
+command-driven on all seven models: it follows a forward cruise command with
+a small initial heading offset and holds a stop on about 15% of its episodes,
+under the `command_tracking/v1` walk gate, whose bars are provisional and not
+yet shown attainable (D-D62 (16)). A walk session needs a stance retrained on
+the current interface first (its warm start begins command-blind), and the
+follow-direction nodes that widen the walk come in later changes.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.

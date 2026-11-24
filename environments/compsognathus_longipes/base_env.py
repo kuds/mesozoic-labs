@@ -239,9 +239,14 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         position = self.data.xpos[self.pelvis_id]
         velocity = self.data.qvel[:2]
-        # Forward, lateral and heading are read against the episode's
-        # reference heading, the spawn's own forward (BaseDinoEnv.reset).
-        reference = self._reference_heading_2d
+        # Forward, lateral and heading are read against the episode's forward
+        # reference: the spawn's own forward under command_mode "none"
+        # (BaseDinoEnv.reset), the commanded heading under a live command; the
+        # drift against the drift anchor, the spawn or the command event's
+        # start (BaseDinoEnv._forward_reference_2d and _drift_anchor_2d,
+        # decision D-D62).
+        reference = self._forward_reference_2d()
+        anchor = self._drift_anchor_2d()
         forward = float(np.dot(velocity, reference))
         lateral = float(np.dot(velocity, [-reference[1], reference[0]]))
         quaternion = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
@@ -268,7 +273,7 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
             "reward_home_pose": -self.home_pose_weight * float(np.mean(np.square(joint_error))),
             "reward_smoothness": smoothness,
             "reward_spin": -self.spin_penalty_weight * float(np.dot(self.data.qvel[3:6], self.data.qvel[3:6])),
-            "reward_drift": -self.drift_penalty_weight * float(np.linalg.norm(position[:2] - self._initial_pos_2d)),
+            "reward_drift": -self.drift_penalty_weight * float(np.linalg.norm(position[:2] - anchor)),
             "reward_lateral": -self.lateral_penalty_weight * lateral**2,
             "reward_heading": self.heading_weight * heading,
             "reward_gait": gait,
@@ -285,7 +290,7 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
             "l_foot_contact": left,
             "pelvis_angular_vel": float(np.linalg.norm(self.data.qvel[3:6])),
             "pelvis_yaw_vel": float(abs(self.data.qvel[5])),
-            "drift_distance": float(np.linalg.norm(position[:2] - self._initial_pos_2d)),
+            "drift_distance": float(np.linalg.norm(position[:2] - anchor)),
         }
         info.update(derive_stance_info(info))
         return reward, info

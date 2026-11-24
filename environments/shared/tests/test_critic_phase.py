@@ -22,8 +22,11 @@ MAIN_RECIPE_DIGESTS = {
     ("stance", "SAC"): "sha256:c6eb8d73dfdde463350306ba49070b031cbe327407cfdaf6aee270eb52d8fd26",
     ("recovery", "PPO"): "sha256:de9c9af0411e29a3a00e01f7fe096b1a2d0d12b2e64bbcbbbafe57c4c4e7eb65",
     ("recovery", "SAC"): "sha256:09b1e8034671fa666c74e2e4faac98fa751288a4ead8dc3473d1c702b7116b31",
-    ("locomotion", "PPO"): "sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c",
-    ("locomotion", "SAC"): "sha256:49ef875a97a5105b442714fe18795a5a5277b765476f92b79616469ab1d1a799",
+    # The walk's moved with decision D-D62, and only by its [curriculum] losing the forward-velocity ramp
+    # (ramp_timesteps 2000000, ramp_start_value 0.2), a shaping key of the recipe: with the two restored, the walk
+    # gives main's sha256:fde660ac...33f6980c (PPO) and sha256:49ef875a...ab1d1a799 (SAC).
+    ("locomotion", "PPO"): "sha256:1703f55481fc4a88d2b89ceb5aa693a881d54ff990b0d94c9b4240993bc33e38",
+    ("locomotion", "SAC"): "sha256:02e78fc9e0e5686bf689ea202fd6050722987cda43e3177cc1df60f94d620bcc",
 }
 
 

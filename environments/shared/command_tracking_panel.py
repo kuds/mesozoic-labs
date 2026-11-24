@@ -61,8 +61,9 @@ from typing import Any
 
 import numpy as np
 
-from .command_frame import COMMAND_MODE_NONE, COMMAND_STREAM_DOMAIN
+from .command_frame import COMMAND_MODE_NONE
 from .constants import PUBLICATION_SEED_START
+from .curriculum.command_evaluation import episode_command_family
 from .curriculum.command_tracking_gate import (
     COMMAND_TRACKING_GATE_KIND,
     CRUISE_FAMILY,
@@ -77,7 +78,7 @@ from .curriculum.command_tracking_gate import (
     reduce_command_episode,
     thresholds_from_curriculum,
 )
-from .direction_commands import DirectionCommandConfig, DirectionCommandController
+from .direction_commands import DirectionCommandConfig
 
 #: The most seeds :func:`plan_command_panel` examines before it leaves a family short.
 MAX_PANEL_SCAN = 10_000
@@ -92,12 +93,12 @@ def reset_command_family(command_config: DirectionCommandConfig, seed: int) -> s
 
     The env's own reset draw, replayed: the controller seeded from
     ``SeedSequence([seed, 0, COMMAND_STREAM_DOMAIN])`` as ``BaseDinoEnv``'s
-    command stream seeds it on a seeded reset.  The requested speed does not
-    depend on the spawn heading, so the heading passed here is immaterial.
+    command stream seeds it on a seeded reset
+    (:func:`~environments.shared.curriculum.command_evaluation.episode_command_family`
+    at episode 0).  The requested speed does not depend on the spawn
+    heading, so the heading passed here is immaterial.
     """
-    rng = np.random.default_rng(np.random.SeedSequence([int(seed), 0, COMMAND_STREAM_DOMAIN]))
-    state = DirectionCommandController(command_config).reset(rng, 0.0)
-    return STAND_FAMILY if state.desired_speed == 0.0 else CRUISE_FAMILY
+    return episode_command_family(command_config, int(seed), 0)
 
 
 @dataclass(frozen=True)

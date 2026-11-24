@@ -27,11 +27,19 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
     MODEL_PATH: Path
     HEIGHT_LABEL = "Pelvis height"
     SUCCESS_KEYS = ("course_complete",)
-    #: The walking course: the pelvis completes it once its displacement along
-    #: the spawn heading reaches this length less COURSE_TOLERANCE_M, with a
-    #: foot bearing weight.  Until policy interface r2 a massless mocap target
-    #: sat this far ahead of the spawn, and the course ended within the
-    #: tolerance of it.
+    #: The walking course: the pelvis completes it once its displacement from
+    #: the spawn along the course direction reaches this length less
+    #: COURSE_TOLERANCE_M, with a foot bearing weight.  Under command_mode
+    #: "none" the course runs along the spawn heading while forward_vel_weight
+    #: is positive, and completing it ends the episode as a success.  Under a
+    #: live command (decision D-D62) it runs along the commanded heading at
+    #: reset whatever forward_vel_weight is, a stand episode has none, and
+    #: completing it is an event that does not end the episode: the
+    #: command_tracking/v1 walk gate judges a cruise episode over its whole
+    #: horizon (decision D-D61), so a course that ended it would fail every
+    #: cruise episode that completed it.  Until policy interface r2 a massless
+    #: mocap target sat this far ahead of the spawn, and the course ended
+    #: within the tolerance of it.
     COURSE_LENGTH_M = 8.0
     COURSE_TOLERANCE_M = 0.35
     supported_training_backends = ("stable-baselines3",)
@@ -58,10 +66,13 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         command_config: DirectionCommandConfig | None = None,
     ):
         # Gymnasium consumes max_episode_steps for its TimeLimit wrapper.
-        # Keep the native walking horizon long enough to reach the course end.
+        # Keep the native walking horizon long enough to reach the course end:
+        # a forward-velocity walk, or any live command (whose walk zeroes the
+        # forward-velocity term, which tracking subsumes; decision D-D62).
         if max_episode_steps is None:
-            max_episode_steps = 3000 if forward_vel_weight > 0 else 1000
+            max_episode_steps = 3000 if forward_vel_weight > 0 or command_mode != "none" else 1000
         self.drift_penalty_weight = drift_penalty_weight
+        self._live_course_complete = False
         super().__init__(
             model_path=str(self.MODEL_PATH),
             render_mode=render_mode,
@@ -125,17 +136,21 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         )
 
     def _reset_episode_state(self) -> None:
-        """Nothing per-episode to clear.
+        """Clear whether a live command's course is complete; nothing else is per-episode.
 
-        The course is the spawn's drift anchor and reference heading, which
-        reset() sets before this hook, and no reward term keeps an action
-        history or gait state.
+        The course starts at the spawn's drift anchor and runs along its
+        reference heading (or, under a live command, the commanded heading
+        drawn after this hook), which reset() sets before this hook, and no
+        reward term keeps an action history or gait state.
         """
+        self._live_course_complete = False
 
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         pelvis = self.data.xpos[self.pelvis_id]
-        delta = pelvis[:2] - self._initial_pos_2d
-        forward = float(self.data.qvel[:2] @ self._reference_heading_2d)
+        # The spawn's anchors under command_mode "none", the command's under a
+        # live one (BaseDinoEnv._drift_anchor_2d and _forward_reference_2d).
+        delta = pelvis[:2] - self._drift_anchor_2d()
+        forward = float(self.data.qvel[:2] @ self._forward_reference_2d())
         drift = float(np.linalg.norm(delta))
         right, left = self._aggregated_foot_contact_forces()
         supported = max(right, left) > self._contact_threshold
@@ -173,6 +188,8 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         contact, reason = self._check_floor_contact(self._body_ground_geoms, self.floor_geom_id)
         if contact:
             return True, {**info, "termination_reason": reason}
+        if self._rewards_follow_command():
+            return self._live_course(info)
         if self.forward_vel_weight > 0:
             # The course ends at a line across the spawn heading, not at a
             # point: lateral offset neither prevents nor causes completion.
@@ -182,4 +199,45 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
                 and max(self._aggregated_foot_contact_forces()) > self._contact_threshold
             ):
                 return True, {**info, "termination_reason": "course_complete", "course_complete": 1.0, "success": True}
+        return False, info
+
+    def _course_direction_2d(self) -> np.ndarray | None:
+        """The unit direction the course runs along, or ``None`` when the episode has no course.
+
+        Under command_mode "none": the spawn heading while forward_vel_weight
+        is positive.  Under a live command: the desired heading of the
+        episode's first request (the commanded heading at reset), unless that
+        request is a stop: a stand episode has no course.
+        """
+        if not self._rewards_follow_command():
+            return self._reference_heading_2d if self.forward_vel_weight > 0 else None
+        state = self._reset_command_state
+        if state is None or not state.heading_active:
+            return None
+        return np.array([np.cos(state.desired_heading), np.sin(state.desired_heading)], dtype=np.float64)
+
+    def _live_course(self, info: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        """A live command's course, which never ends the episode: ``(False, info)`` with the course keys.
+
+        ``course_complete`` is 1.0 on the step the pelvis first passes the
+        line across the course direction (:meth:`_course_direction_2d`) at
+        COURSE_LENGTH_M less COURSE_TOLERANCE_M from the spawn with a foot
+        bearing weight, the success event the model's SUCCESS_KEYS name, and
+        ``success`` is True from that step on, so an episode that completed
+        the course and reached its horizon ends a success; a fall after it
+        does not, as the fall's own branch carries no ``success``.  A stand
+        episode has no course.
+        """
+        if self._live_course_complete:
+            return False, {**info, "success": True}
+        course = self._course_direction_2d()
+        if course is None:
+            return False, info
+        along = float((self.data.xpos[self.pelvis_id, :2] - self._initial_pos_2d) @ course)
+        if (
+            along >= self.COURSE_LENGTH_M - self.COURSE_TOLERANCE_M
+            and max(self._aggregated_foot_contact_forces()) > self._contact_threshold
+        ):
+            self._live_course_complete = True
+            return False, {**info, "course_complete": 1.0, "success": True}
         return False, info

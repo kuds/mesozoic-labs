@@ -5,7 +5,8 @@ A bipedal dinosaur locomotion environment.  The scene holds the animal and the
 floor alone: the prey sphere and its observation channels (direction and
 distance) left in physics r6 / policy interface r15 with the hunt (decision
 D-D59), and the forward reference of the progress and heading terms is the
-spawn's own heading (``_reference_heading_2d``, set by BaseDinoEnv.reset).
+spawn's own heading (``_reference_heading_2d``, set by BaseDinoEnv.reset), or
+under a live command the commanded heading (decision D-D62).
 
 Observation space (bipedal-heading-free/v1 since policy interface r15; heading-free
 since r13, the maintainer's decision of 2026-11-06; the life-size plant of
@@ -67,7 +68,7 @@ Reward components:
     - Floor impact (summed foot force above a body-weight multiple, the excess
       capped) and airborne substeps, read per physics substep (off by default)
     - Spin penalty (penalize pelvis angular velocity)
-    - Heading alignment (facing the spawn's heading, ``_reference_heading_2d``)
+    - Heading alignment (facing the forward reference: the spawn's heading, or the commanded one)
     - Lateral velocity penalty (anti crab-walk)
     - Speed penalty (penalise absolute speed above threshold)
 """
@@ -346,9 +347,12 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         self._init_gait_state()
 
         # The progress and heading terms' forward reference and the drift
-        # penalty's anchor are BaseDinoEnv's _reference_heading_2d (the unit
-        # forward of the spawn's root quaternion) and _initial_pos_2d (the
-        # spawn's position), both set by BaseDinoEnv.__init__ and every reset.
+        # penalty's anchor are BaseDinoEnv's _forward_reference_2d and
+        # _drift_anchor_2d: under command_mode "none" the spawn's
+        # _reference_heading_2d (the unit forward of the spawn's root
+        # quaternion) and _initial_pos_2d (the spawn's position), both set by
+        # BaseDinoEnv.__init__ and every reset; under a live command the
+        # command's heading and its event's start (decision D-D62).
 
         super().__init__(
             model_path=model_path,
@@ -635,11 +639,12 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         pelvis_pos = self.data.xpos[self.pelvis_id]
-        # The forward reference: the spawn's heading, fixed for the episode.
-        forward_ref_2d = self._reference_heading_2d
+        # The forward reference: the spawn's heading under command_mode "none",
+        # the commanded heading under a live command (BaseDinoEnv._forward_reference_2d).
+        forward_ref_2d = self._forward_reference_2d()
         vel_2d = self.data.qvel[0:2]
 
-        # 1-1c. Forward velocity (along the reference heading), backward velocity penalty and drift penalty
+        # 1-1c. Forward velocity (along the forward reference), backward velocity penalty and drift penalty
         reward_forward, reward_backward, reward_drift = self._progress_terms(
             info, vel_2d, forward_ref_2d, pelvis_pos[:2]
         )

@@ -951,27 +951,69 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
 
     @pytest.mark.parametrize(
         "model_id",
-        [DIBOTHROSUCHUS_ELAPHROS, BRACHIOSAURUS_ALTITHORAX, VELOCIRAPTOR_MONGOLIENSIS],
+        [DIBOTHROSUCHUS_ELAPHROS, BRACHIOSAURUS_ALTITHORAX, VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX],
         ids=lambda m: f"{m.species}-{m.embodiment}",
     )
     def test_locomotion_warmup_covers_the_stage_entry_window(self, model_id):
-        """The D-B5 bound the trex behavior stage carried (until decision D-D59 removed it), applied to locomotion."""
+        """The D-B5 bound the trex behavior stage carried (until decision D-D59 removed it), applied to locomotion:
+        the stage-entry warm-up plus the walk's entry ramp, the cruise ramp since decision D-D62 (the walk trains no
+        forward-velocity ramp under its live command).  The T. rex walk declares it since D-D62 (the forward walk
+        declared none)."""
         from environments.shared.config import load_all_stages
 
-        cur = load_all_stages(model_id)[2]["curriculum_kwargs"]
+        config = load_all_stages(model_id)[2]
+        cur = config["curriculum_kwargs"]
+        ramp = config["env_kwargs"]["command_config"].cruise_ramp_timesteps
         warmup = collapse_settings_from_config(dict(cur))["peak_warmup_timesteps"]
-        assert warmup >= cur["warmup_timesteps"] + cur["ramp_timesteps"]
+        assert ramp > 0 and "ramp_timesteps" not in cur
+        assert warmup >= cur["warmup_timesteps"] + ramp
 
-    def test_the_velociraptor_mongoliensis_locomotion_warmup_keeps_the_scaled_standing_plateau_from_arming(self):
+    def test_every_walk_backstop_follows_the_one_rule_of_decision_d_d62(self):
+        """One backstop rule across the seven live walks (decision D-D62).  A walk that carries the backstop
+        (velociraptor, T. rex, brachiosaurus, dibothrosuchus) declares the D-B5 peak warm-up as exactly its stage-entry
+        warm-up plus its cruise ramp; the Compsognathus pair and the Allosaurus carry none, by recorded decision.  The
+        floor sits above a stander's evaluation mix only where a walk as steady as the model's reference walk
+        evaluates above that mix (the velociraptor, its species test derives it); elsewhere it stays where the model
+        had it (the T. rex's 0.45 of its statue, the quadrupeds' absolute 100) and the warm-up alone keeps a standing
+        plateau from arming it (their species tests replay the plateau)."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.species_names import model_ids
+
+        armed = {VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS}
+        seen = set()
+        for model_id in model_ids():
+            config = load_all_stages(model_id)[2]
+            cur = dict(config["curriculum_kwargs"])
+            settings = collapse_settings_from_config(cur)
+            if model_id not in armed:
+                assert settings["peak_floor"] == float("inf"), f"{model_id} walk arms a backstop"
+                assert settings["peak_warmup_timesteps"] == 0.0
+                continue
+            seen.add(model_id)
+            ramp = config["env_kwargs"]["command_config"].cruise_ramp_timesteps
+            assert settings["peak_warmup_timesteps"] == cur["warmup_timesteps"] + ramp, model_id
+            # The 40-episode statue mean is the stander's evaluation mix to within its family-mix noise.
+            above_the_statue = settings["peak_floor"] > cur.get("collapse_peak_floor_reference", float("inf"))
+            assert above_the_statue == (model_id == VELOCIRAPTOR_MONGOLIENSIS), model_id
+        assert seen == armed
+
+    def test_the_velociraptor_mongoliensis_locomotion_floor_keeps_the_scaled_standing_plateau_from_arming(self):
         """The velociraptor's walk warm-starts from a quiet stance (2026-11-06), so it evaluates at its standing level
-        from step 0, the shape of run 20260923_020654.  That run's locomotion series, scaled to this stage's 798.4
-        statue (physics r6; 796.6 on r5, 796.0 on r4), stops at 1.45M under the relative floor alone (359.3, which the
-        plateau clears) and runs on behind the committed D-B5 warm-up."""
-        scale = 798.4 / 2246.9
+        from step 0, the shape of run 20260923_020654.  That run's locomotion series, scaled to this stage's 891.3
+        statue (the live walk of decision D-D62 on physics r6; the forward walk's was 798.4), peaks at the statue
+        level, under the floor of 2.4 x 891.3 = 2139.1 that the walk sets above a stander's evaluation mix, so it
+        never arms the backstop, with the committed D-B5 warm-up or without it (the forward walk's 0.45 x 798.4 =
+        359.3 floor sat under the plateau, and only the warm-up kept it from stopping at 1.45M).  The species test
+        environments/velociraptor_mongoliensis/tests/test_locomotion_collapse_backstop.py derives the floor."""
+        scale = 891.3 / 2246.9
         trace = [value * scale for value in self.LOCOMOTION_20260923]
         settings = self._settings(VELOCIRAPTOR_MONGOLIENSIS, 2)
-        assert settings["peak_floor"] == pytest.approx(359.28)
-        stopped_at, _ = self._drive(trace, {**settings, "peak_warmup_timesteps": 0.0})
+        assert settings["peak_floor"] == pytest.approx(2.4 * 891.3)
+        assert max(trace) < settings["peak_floor"]
+        for warmup in (0.0, settings["peak_warmup_timesteps"]):
+            stopped_at, cb = self._drive(trace, {**settings, "peak_warmup_timesteps": warmup})
+            assert stopped_at is None and not cb._peak_score >= settings["peak_floor"]
+        # The forward walk's floor rule on the same trace: the plateau clears 0.45 x 891.3 and, without the
+        # warm-up, the lunge-and-fall stops the run at 1.45M, the failure the D-B5 warm-up was added for.
+        stopped_at, _ = self._drive(trace, {**settings, "peak_floor": 0.45 * 891.3, "peak_warmup_timesteps": 0.0})
         assert stopped_at == 1_450_000
-        stopped_at, cb = self._drive(trace, settings)
-        assert stopped_at is None and not cb._peak_score >= settings["peak_floor"]

@@ -112,7 +112,8 @@ Species notes:
   (decision D-D59; `results/README.md`). Checkpoints from policy interface r11 or earlier fail the plant
   check and cannot seed a warm start or `--trunk-from`: r11 declared the model SB3-only (note 23), and r12 removed the
   food and made the observation heading-free (`configs/plant_versions.toml`).
-- **Reference walk speed.** The reference walk is slower than the locomotion gate's minimum speed. It shows what the
+- **Reference walk speed.** The reference walk (about 0.35 m/s) sits at the slow end of the walk's commanded cruise
+  range (0.375-0.75 m/s), and it fails the walk gate's tracking bars even at a command it matches. It shows what the
   plant can do mechanically, not a gait that would pass the gate.
 
 ## Task and rewards
@@ -121,8 +122,23 @@ The trained tasks are the stance and the walk; the food reach, the hunt that fol
 decision D-D59. Its reward terms, its `food_reached` termination and its constructor arguments (with the replay-camera
 widening they switched on) are gone from the code, and the model declares no success key. The food target and its
 observation channels went with it in policy interface r12 (physics r7), so the scene holds only the animal and the
-floor. The forward and heading terms measure along the heading the animal spawns with. The head-tip site and its
-position sensor stay.
+floor. Under the stance the forward and heading terms measure along the heading the animal spawns with. The head-tip
+site and its position sensor stay.
+
+**The walk follows a live command** (decision D-D62); the stance runs no command. Each walk episode draws one request
+at reset and holds it for the whole 10 s episode: a forward cruise at 0.375-0.75 m/s along a heading up to 0.26 rad
+(15 degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero command, which asks the animal to
+stand still. The command is the observation's last three values. A Gaussian term pays tracking the commanded velocity
+and yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms, which the walk sets to 0, and the
+terms that read a forward direction measure along the commanded heading. On a zero command a stand block
+(`[commands.stand_weights]`, 10 weights) pays the stance's reward weights, so zero means stand still, not march in
+place. The commanded speeds ramp from 0.25 of their end values to the full range over the first 2M training steps. The
+standing-idle penalty is not paid on a zero command. After training the walk is judged on its `command_tracking/v1`
+panel: the cruise family's survival and success bounds, the stand family's hold and the quadruped gait clause (pair
+alternation, limb duty, the flight cap) and the lead-swap bar. The bars are provisional, and no controller has yet
+been shown to clear them; the reference walk reads tracking quality 0.32 a step at a command it matches, the
+gait-symmetry term pays a standing statue its whole weight, and the reference walk's hind-pair alternation is close to
+its bar (decision D-D62 (16)).
 
 The observation reads no world heading: it uses the torso's projected gravity and its velocity in a gravity-aligned
 heading frame, beside the joint positions and velocities, the torso gyro and accelerometer, one touch channel per foot
@@ -134,8 +150,10 @@ The main reward groups:
 
 - **Survival and posture:** an alive bonus, a fall penalty, and penalties on tilt and nosedive with a torso-height
   term.
-- **Progress:** forward velocity and heading along the spawn heading, with penalties on backward, sideways and
-  drifting motion, spin, speed above a threshold and standing idle.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity and heading along the spawn heading (the commanded heading on the walk), with
+  penalties on backward, sideways and drifting motion, spin, speed above a threshold and standing idle; the walk sets
+  the forward, heading and sideways weights to 0.
 - **Gait quality:** penalties on torso and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs.
 - **Effort:** an energy penalty on actuator use.

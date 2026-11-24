@@ -170,6 +170,31 @@ def _validate_post_eval_episodes(post_eval_episodes: int | None) -> None:
         )
 
 
+def _command_evaluation_plan(stage_config: dict[str, Any], seed: "int | None") -> Any:
+    """A live-command stage's in-training evaluation plan; ``None`` under command_mode "none".
+
+    The evaluation env (seeded :func:`eval_env_seed`) is reseeded with that
+    seed before every evaluation, so every evaluation rolls the same
+    episodes and stand count, and ``robust_best_model`` is scored by family
+    (:mod:`~environments.shared.curriculum.command_evaluation`, decision
+    D-D62).  A live stage needs the run's *seed*.
+    """
+    from .command_frame import COMMAND_MODE_NONE
+    from .curriculum.command_evaluation import command_evaluation_plan
+
+    env_kwargs = stage_config.get("env_kwargs", {})
+    if str(env_kwargs.get("command_mode", COMMAND_MODE_NONE)) == COMMAND_MODE_NONE:
+        return None
+    if seed is None:
+        raise ValueError(
+            "a live-command stage's in-training evaluation is reseeded with the run's evaluation seed at every "
+            "evaluation; pass the run's seed"
+        )
+    return command_evaluation_plan(
+        env_kwargs["command_config"], eval_env_seed(seed), _eval_episodes_for_stage(stage_config)
+    )
+
+
 def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
     """Episodes per evaluation, never fewer than the stage's gate requires.
 
@@ -973,7 +998,11 @@ def _build_core_callbacks(
     budget, which a ``--timesteps`` override or a shortened resume budget
     silently mis-timed (review TC9).  ``None`` keeps the TOML fallback for
     callers that predate the parameter.  ``seed`` is the run's seed, which
-    ``progress.json`` records (``None``: not recorded).
+    ``progress.json`` records (``None``: not recorded); on a live-command
+    stage the evaluation env is reseeded with its :func:`eval_env_seed`
+    before every evaluation and the robust pair is scored by command family
+    (:func:`_command_evaluation_plan`, decision D-D62), so a live stage
+    needs it.
     ``policy_probe_env_factory(horizon)`` builds a bare env of the stage
     with that ``max_episode_steps`` and any scheduled pushes off
     (``policy_probe.bank_env_kwargs``), the policy probe's state-bank env
@@ -1031,6 +1060,28 @@ def _build_core_callbacks(
         publish_dir=model_dir if handoff_staging_dir is not None else None,
     )
 
+    # A live-command stage's evaluations all roll one command panel, and its robust pair is scored by family
+    # (decision D-D62); None under command_mode "none".
+    command_evaluation = _command_evaluation_plan(stage_config, seed)
+    if command_evaluation is not None:
+        counts = command_evaluation.family_counts()
+        logger.info(
+            "In-training evaluation: the same %d episodes at every evaluation (evaluation env reseeded with %d): "
+            "%d cruise, %d stand; robust_best_model scores each family's mean - std, weighted %.2f / %.2f",
+            len(command_evaluation.families),
+            command_evaluation.seed,
+            counts["cruise"],
+            counts["stand"],
+            *command_evaluation.family_weights().values(),
+        )
+        if not counts["stand"] or not counts["cruise"]:
+            logger.warning(
+                "In-training evaluation: seed %d draws no %s episode in its %d; best_model and robust_best_model "
+                "rank the other family alone (the selection and certification panels still roll both)",
+                command_evaluation.seed,
+                "stand" if not counts["stand"] else "cruise",
+                len(command_evaluation.families),
+            )
     local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_{stage_label(stage)}_")
     eval_callback, plateau_callback = build_stage_evaluation_callbacks(
         eval_env,
@@ -1052,12 +1103,14 @@ def _build_core_callbacks(
         render=False,
         verbose=max(verbose, 1),
         callback_on_new_best=save_vecnorm_cb,
+        command_evaluation=command_evaluation,
     )
     callbacks.append(eval_callback)
     callbacks.append(plateau_callback)
     callbacks.append(PublishEvalArtifactsCallback(eval_callback, publish_dir=log_path))
     # Risk-adjusted (mean - std) checkpoint alongside SB3's mean-reward
-    # best_model; next-stage loading prefers it when present.
+    # best_model; next-stage loading prefers it when present.  On a live
+    # stage it reads the evaluation callback's plan and scores by family.
     robust_callback = RobustBestModelCallback(
         eval_callback, model_dir=model_dir, verbose=verbose, staging_dir=handoff_staging_dir
     )
@@ -1352,8 +1405,12 @@ def _stage_entry_shaping_callbacks(
     target_fwd_weight = stage_config["env_kwargs"].get("forward_vel_weight", 1.0)
     # Ramping forward_vel_weight only makes sense when the stage USES it:
     # recovery mirrors stance and sets it to 0.0, and ramping 0.1 -> 0.0
-    # would inject a walk incentive the task fingerprint says is absent.
-    if target_fwd_weight > 0.0:
+    # would inject a walk incentive the task fingerprint says is absent.  A
+    # stage with a live command gets none: its entry ramp is the cruise ramp
+    # (_cruise_ramp_callback, decision D-D62), and load_stage_config refuses
+    # the forward ramp's [curriculum] keys there.
+    live = stage_config["env_kwargs"].get("command_config") is not None
+    if target_fwd_weight > 0.0 and not live:
         shaping.append(
             RewardRampCallback(
                 attr_name="forward_vel_weight",
@@ -1363,6 +1420,46 @@ def _stage_entry_shaping_callbacks(
             )
         )
     return shaping
+
+
+def _cruise_ramp_callback(
+    stage_config: dict[str, Any],
+    *,
+    task_load_mode: str,
+    load_path: str | None,
+) -> Any:
+    """The stage's cruise ramp (decision D-D62), or ``None`` for a stage whose command config declares none.
+
+    Unlike the stage-entry shaping, the ramp is part of the task (its spec is
+    in the command config the fingerprint records), so it runs on every load
+    mode: from ramp step 0 on a fresh stage or a load across the node's edge,
+    and on a ``resume_same_stage`` load from the position the checkpoint
+    records (``curriculum.cruise_ramp.resume_ramp_steps``, which refuses a
+    checkpoint without one).  A ramp on a stage warm-started from a parent
+    whose task fingerprint has a ``command`` section is refused: that parent
+    was trained at the full cruise, and the warm start keeps its command
+    columns so the child continues it exactly (decision D-D60 (5)); such a
+    stage states ``cruise_ramp_timesteps = 0`` in its ``[commands]``.
+    """
+    config = stage_config.get("env_kwargs", {}).get("command_config")
+    if config is None or not config.has_cruise_ramp:
+        return None
+    from .curriculum import CruiseRampCallback, CruiseRampError
+    from .curriculum.cruise_ramp import resume_ramp_steps
+    from .task_fingerprint import read_checkpoint_task_fingerprint
+
+    start = 0
+    if load_path and task_load_mode == "initialize_next_stage":
+        parent = read_checkpoint_task_fingerprint(load_path)
+        if parent is not None and parent.get("command") is not None:
+            raise CruiseRampError(
+                f"the stage declares a cruise ramp, but its parent {load_path} already tracked a command: the warm "
+                "start continues it exactly at the full cruise, so state cruise_ramp_timesteps = 0 (and no start "
+                "fraction) in the stage's [commands]"
+            )
+    elif load_path:
+        start = resume_ramp_steps(load_path, config)
+    return CruiseRampCallback(config, start_ramp_steps=start)
 
 
 def _save_final_and_sync_tb(
@@ -1790,6 +1887,14 @@ def _train_stage_body(
             load_path=load_path,
         )
     )
+    # The cruise ramp (decision D-D62) is the task's, on every load mode; its
+    # first fraction is set on the training workers now, before learn()'s
+    # first reset draws the first commands.  The evaluation env keeps the
+    # stage's declared (end-state) command config.
+    cruise_ramp = _cruise_ramp_callback(config, task_load_mode=task_load_mode, load_path=load_path)
+    if cruise_ramp is not None:
+        callbacks.append(cruise_ramp)
+        cruise_ramp.prime(train_env)
 
     callback_list = sb3["CallbackList"](callbacks)
 

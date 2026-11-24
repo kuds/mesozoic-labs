@@ -52,8 +52,84 @@ export interface AdvancementGate {
   /** stance_quality/v2 per-episode criteria the stage declares (the six-heading certificate's too), in report
    * order; empty on every other gate kind. */
   stanceEpisodeCriteria: StanceEpisodeCriterion[];
+  /** command_tracking/v1 bars (decision D-D61): the profile's families, the gait clause and the gate's tolerance
+   * overrides as the stage declares them; null on every other gate kind. */
+  commandTracking: CommandTrackingGate | null;
   minEvaluationEpisodes: number;
   requiredConsecutive: number;
+}
+
+/**
+ * The command_tracking/v1 gait clause's bars, in the order the gate scores them and the catalog renders them
+ * (command_tracking_gate.GAIT_CRITERIA, which test_website_command_criteria_follow_the_gate pins this list to).
+ */
+export const COMMAND_GAIT_CRITERIA = [
+  'min_alternation_index',
+  'min_pair_alternation_index',
+  'max_simultaneous_fraction',
+  'max_hop_flight_fraction',
+  'min_lead_swaps_per_stride',
+  'max_foot_contact_fraction',
+  'max_phantom_support_fraction',
+  'max_flight_fraction',
+  'min_limb_duty',
+] as const;
+
+/** The command_tracking/v1 per-gate tolerance overrides, in command_tracking_gate.TOLERANCE_OVERRIDE_KEYS order. */
+export const COMMAND_TOLERANCE_OVERRIDES = [
+  'gate_velocity_tolerance',
+  'gate_yaw_rate_tolerance',
+  'gate_heading_tolerance',
+  'gate_stop_speed_tolerance',
+  'gate_stop_yaw_rate_tolerance',
+] as const;
+
+export type CommandGaitCriterionKey = (typeof COMMAND_GAIT_CRITERIA)[number];
+export type CommandToleranceOverrideKey = (typeof COMMAND_TOLERANCE_OVERRIDES)[number];
+
+/** One declared gait-clause bar: its TOML key (min_* a floor, max_* a ceiling) and its value. */
+export interface CommandGaitCriterion {
+  key: CommandGaitCriterionKey;
+  bar: number;
+}
+
+/** One declared gate tolerance override: its TOML key and its value. */
+export interface CommandToleranceOverride {
+  key: CommandToleranceOverrideKey;
+  value: number;
+}
+
+/**
+ * A command_tracking/v1 stage's declared bars. The walk profile (every committed walk since decision D-D62) fills
+ * the cruise and stand fields, the follow profile the follow fields; the other profile's read null.
+ */
+export interface CommandTrackingGate {
+  profile: string;
+  minCruiseEpisodes: number | null;
+  minStandEpisodes: number | null;
+  minCruiseSurvivalLcb: number | null;
+  minCruiseSuccessLcb: number | null;
+  minCruiseTrackingFraction: number | null;
+  minCruiseSpeedRatio: number | null;
+  minStandHoldFraction: number | null;
+  minStandSuccessFraction: number | null;
+  maxStandFalls: number | null;
+  minFollowEpisodes: number | null;
+  minFollowCommandEpisodes: number | null;
+  minFollowHorizonS: number | null;
+  minFollowSurvivalLcb: number | null;
+  minFollowSuccessLcb: number | null;
+  minFollowTrackingFraction: number | null;
+  minFollowEventSettleFraction: number | null;
+  minFollowStopSettleFraction: number | null;
+  minFollowTurnSettleFraction: number | null;
+  minFollowCourseFraction: number | null;
+  followCourseDistanceM: number | null;
+  minFollowReferenceDeltaLcb: number | null;
+  /** 2 (a biped's clause) or 4 (a quadruped's). */
+  gaitLimbs: number | null;
+  gaitCriteria: CommandGaitCriterion[];
+  toleranceOverrides: CommandToleranceOverride[];
 }
 
 /**
@@ -333,6 +409,44 @@ interface RawStage {
     max_window_peak_floor_force_bw?: number | null;
     max_foot_cop_fore_aft?: number | null;
     min_foot_load_share_statue_ratio?: number | null;
+    // command_tracking/v1 (species_catalog._COMMAND_TRACKING_EXPORTED_KEYS): exported, declared or null, on a
+    // stage that declares the kind and on no other, so optional here. Its gait clause shares
+    // max_foot_contact_fraction and max_phantom_support_fraction with the stance keys above.
+    profile?: string | null;
+    min_cruise_episodes?: number | null;
+    min_stand_episodes?: number | null;
+    min_cruise_survival_lcb?: number | null;
+    min_cruise_success_lcb?: number | null;
+    min_cruise_tracking_fraction?: number | null;
+    min_cruise_speed_ratio?: number | null;
+    min_stand_hold_fraction?: number | null;
+    min_stand_success_fraction?: number | null;
+    max_stand_falls?: number | null;
+    min_follow_episodes?: number | null;
+    min_follow_command_episodes?: number | null;
+    min_follow_horizon_s?: number | null;
+    min_follow_survival_lcb?: number | null;
+    min_follow_success_lcb?: number | null;
+    min_follow_tracking_fraction?: number | null;
+    min_follow_event_settle_fraction?: number | null;
+    min_follow_stop_settle_fraction?: number | null;
+    min_follow_turn_settle_fraction?: number | null;
+    min_follow_course_fraction?: number | null;
+    follow_course_distance_m?: number | null;
+    min_follow_reference_delta_lcb?: number | null;
+    gait_limbs?: number | null;
+    min_alternation_index?: number | null;
+    min_pair_alternation_index?: number | null;
+    max_simultaneous_fraction?: number | null;
+    max_hop_flight_fraction?: number | null;
+    min_lead_swaps_per_stride?: number | null;
+    max_flight_fraction?: number | null;
+    min_limb_duty?: number | null;
+    gate_velocity_tolerance?: number | null;
+    gate_yaw_rate_tolerance?: number | null;
+    gate_heading_tolerance?: number | null;
+    gate_stop_speed_tolerance?: number | null;
+    gate_stop_yaw_rate_tolerance?: number | null;
   };
   video: {
     path: string;
@@ -525,6 +639,52 @@ function adaptStanceEpisodeCriteria(gate: RawStage['advancement_gate']): StanceE
   return criteria;
 }
 
+/** A command_tracking/v1 stage's declared bars, the gait clause and the overrides in gate order; null on a stage of
+ * any other kind. */
+function adaptCommandTrackingGate(gate: RawStage['advancement_gate']): CommandTrackingGate | null {
+  if (gate.gate_kind !== 'command_tracking/v1') return null;
+  if (gate.profile === undefined || gate.profile === null) {
+    throw new Error('Generated catalog has a command_tracking/v1 gate without its profile');
+  }
+  const gaitCriteria: CommandGaitCriterion[] = [];
+  for (const key of COMMAND_GAIT_CRITERIA) {
+    const bar = gate[key];
+    if (bar !== undefined && bar !== null) gaitCriteria.push({key, bar});
+  }
+  const toleranceOverrides: CommandToleranceOverride[] = [];
+  for (const key of COMMAND_TOLERANCE_OVERRIDES) {
+    const value = gate[key];
+    if (value !== undefined && value !== null) toleranceOverrides.push({key, value});
+  }
+  return {
+    profile: gate.profile,
+    minCruiseEpisodes: gate.min_cruise_episodes ?? null,
+    minStandEpisodes: gate.min_stand_episodes ?? null,
+    minCruiseSurvivalLcb: gate.min_cruise_survival_lcb ?? null,
+    minCruiseSuccessLcb: gate.min_cruise_success_lcb ?? null,
+    minCruiseTrackingFraction: gate.min_cruise_tracking_fraction ?? null,
+    minCruiseSpeedRatio: gate.min_cruise_speed_ratio ?? null,
+    minStandHoldFraction: gate.min_stand_hold_fraction ?? null,
+    minStandSuccessFraction: gate.min_stand_success_fraction ?? null,
+    maxStandFalls: gate.max_stand_falls ?? null,
+    minFollowEpisodes: gate.min_follow_episodes ?? null,
+    minFollowCommandEpisodes: gate.min_follow_command_episodes ?? null,
+    minFollowHorizonS: gate.min_follow_horizon_s ?? null,
+    minFollowSurvivalLcb: gate.min_follow_survival_lcb ?? null,
+    minFollowSuccessLcb: gate.min_follow_success_lcb ?? null,
+    minFollowTrackingFraction: gate.min_follow_tracking_fraction ?? null,
+    minFollowEventSettleFraction: gate.min_follow_event_settle_fraction ?? null,
+    minFollowStopSettleFraction: gate.min_follow_stop_settle_fraction ?? null,
+    minFollowTurnSettleFraction: gate.min_follow_turn_settle_fraction ?? null,
+    minFollowCourseFraction: gate.min_follow_course_fraction ?? null,
+    followCourseDistanceM: gate.follow_course_distance_m ?? null,
+    minFollowReferenceDeltaLcb: gate.min_follow_reference_delta_lcb ?? null,
+    gaitLimbs: gate.gait_limbs ?? null,
+    gaitCriteria,
+    toleranceOverrides,
+  };
+}
+
 function adaptHeadlineMetric(metric: RawHeadlineMetric): HeadlineMetric {
   return {
     key: metric.key,
@@ -667,6 +827,7 @@ function adaptSpecies(raw: RawSpecies): Species {
         minAverageRewardStatueRatio: stage.advancement_gate.min_avg_reward_statue_ratio ?? null,
         maxHopOrFallEpisodes: stage.advancement_gate.max_hop_or_fall_episodes ?? null,
         stanceEpisodeCriteria: adaptStanceEpisodeCriteria(stage.advancement_gate),
+        commandTracking: adaptCommandTrackingGate(stage.advancement_gate),
         minEvaluationEpisodes: stage.advancement_gate.min_eval_episodes,
         requiredConsecutive: stage.advancement_gate.required_consecutive,
       },

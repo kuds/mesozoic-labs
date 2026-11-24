@@ -75,7 +75,7 @@ beside its handoff. The nodes, by id and recipe label, are the same for PPO
 and SAC:
 
 1. **`stance`** (stance; root, historical stage 1): stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
-2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): walk and run forward (increase `forward_vel_weight`, add gait rewards)
+2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): follow a forward command with heading hold, and stand still on the exactly zero command of about 15% of episodes (a live `[commands]` table with a stand block and a cruise ramp; the tracking term replaces the forward, heading and sideways weights; judged after training by `command_tracking/v1`, decision D-D62)
 
 T-Rex, Compsognathus and the Compsognathus robot add a third, non-advancing
 node, **`recovery`** (recover; `warm_start_from = "stance"`): balance under

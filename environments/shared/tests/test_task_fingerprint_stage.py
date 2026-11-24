@@ -137,13 +137,17 @@ def test_every_form_of_the_helper_is_the_committed_digest(model_id, stage_id):
     by_reference = helper(model_id, reference)
     in_memory = helper(model_id, reference, stage_config=_stage_configs(model_id)[reference], plant_identity=identity)
     as_mapping = helper(model_id, stage_id, plant_identity=identity.to_dict())
+    env_kwargs = load_stage_config(model_id, reference).get("env_kwargs", {})
     derived = task_fingerprint.derive_stage_task_fingerprint(
         model_id=model_id,
         stage=reference,
         backend="stable-baselines3",
-        env_kwargs=load_stage_config(model_id, reference).get("env_kwargs", {}),
+        env_kwargs=env_kwargs,
         plant_identity=identity.to_dict(),
+        # The walk's live command (decision D-D62) is a section of its task; "none" stages derive none.
+        command_manifest=task_fingerprint.stage_command_manifest(model_id, env_kwargs),
     )
+    assert (derived.get("command") is not None) == (stage_id == "locomotion")
     assert by_id == by_reference == in_memory == as_mapping == derived
     assert derived["task_sha256"] == GOLDEN_TASKS[(model_id, stage_id)]
     assert derived["stage"] == reference and derived["backend"] == task_fingerprint.FINGERPRINT_BACKEND

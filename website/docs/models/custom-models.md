@@ -241,10 +241,15 @@ stating what "success" means for that checkpoint:
 [[species.custom_dino.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"                 # a recipe label, or a deliverable stage id
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: ..."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The locomotion checkpoint the handoff choice selected clears the command_tracking/v1 walk panel: ..."
 ```
+
+Every committed walk states its deliverable this way since its node follows a live
+command (decision D-D62); `configs/species_manifest.toml` holds the full
+definitions. A walk that is still command-free and gated by
+`reward_and_length/v1` should say so in its definition instead.
 
 `deliverable` resolves exactly as the training notebook's `BEHAVIOR` knob
 does: a recipe label names its deepest deliverable in manifest order (`"stance"`

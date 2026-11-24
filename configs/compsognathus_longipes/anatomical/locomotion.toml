@@ -3,31 +3,95 @@
 # validation limits, and the next-run protocol. State observations are privileged.
 [stage]
 name = "locomotion"
-description = "Move forward while remaining upright and avoiding body-floor contact"
+description = "Walk: follow a forward command with heading hold, and stand still on a zero command"
+
+# The walk (decision D-D62): every episode draws one whole-episode command at reset ([commands]), a forward cruise
+# about a heading near the spawn's or, on about 15% of episodes, an exactly zero command, the stand.  The reward is
+# BaseDinoEnv's command-tracking term ([commands] tracking_weight) plus the [env] terms below on every cruise step;
+# on a stand step the stand block ([commands.stand_weights]) pays the stance's weights in their place.
 
 [env]
-frame_skip = 10
-max_episode_steps = 1000
-reset_noise_scale = 0.01
-forward_vel_max = 0.25
-fall_penalty = -25.0
-energy_penalty_weight = 0.02
-smoothness_weight = 0.02
-spin_penalty_weight = 0.02
-# lateral_penalty_weight and heading_weight read the episode's reference heading, the spawn's
-# own forward (BaseDinoEnv.reset). Until the target left the scene they read the bearing to a
-# target spawned 5.0 m ahead with no lateral offset:
-# the same axis on this plant, which spawns at the origin facing +x.
-lateral_penalty_weight = 0.1
-max_tilt_angle = 0.7
-forward_vel_weight = 8.0
+# Kept terms: alive, posture, nosedive, energy, smoothness, tail and the gait terms, at the forward walk's weights.
 alive_bonus = 0.5
 posture_weight = 0.4
 height_weight = 0.4
 home_pose_weight = 0.02
-drift_penalty_weight = 0.0
-heading_weight = 0.2
+energy_penalty_weight = 0.02
+smoothness_weight = 0.02
+spin_penalty_weight = 0.02
 gait_symmetry_weight = 0.0
+fall_penalty = -25.0
+# Terms the command-tracking term subsumes (D-D62): 0.  Under the live command they read the commanded heading
+# and the command event's start (BaseDinoEnv._forward_reference_2d, _drift_anchor_2d); this model has no backward
+# term (its forward term is clipped symmetrically).
+forward_vel_weight = 0.0               # Was 8.0: tracking pays the commanded speed along the commanded heading
+heading_weight = 0.0                   # Was 0.2: tracking pays the commanded yaw rate, which holds the heading
+lateral_penalty_weight = 0.0           # Was 0.1: tracking pays the commanded zero lateral speed
+drift_penalty_weight = 0.0             # Was 0.0; the stand block pays the stance's position hold
+forward_vel_max = 0.25                 # Scales only the forward term, 0 above; kept so its diagnostics and the
+                                       # behavior recipes, which inherit this [env] (train_behaviors.read_recipe),
+                                       # keep the scale they had.
+# Stand-block term settings: the stance's, from the stance.toml line named, where it differs from the constructor
+# default.  The stand block swaps weights only (D-D62 (2)), so a stand term's settings are this table's; every term
+# they set is at weight 0 above, so no cruise-step reward reads them (test_walk_stand_block.py checks both).
+support_force_aggregation = "mean"     # stance.toml:91 (bilateral support, alive conditioning, foot load gate; default "min")
+foot_terms_min_support_force = 2.45    # stance.toml:112 (flatness and width load gate; default 0.0)
+# The episode.
+frame_skip = 10
+max_episode_steps = 1000
+reset_noise_scale = 0.01
+max_tilt_angle = 0.7
+
+[commands]
+mode = "heading_and_speed"
+# Command scaling: the follow_direction pilot recipe's (behaviors/follow_direction.toml), so the walk and the follow
+# nodes that widen it share one scaling.
+cruise_speed = 0.08                    # m/s, the recipe's cruise
+speed_scale = 0.12                     # The recipe's: the command's v_x is normalised by it
+lateral_speed_scale = 0.12
+yaw_rate_scale = 0.6
+# The walk's distribution: one command event per episode, drawn at reset from the controller's own stream.
+speed_range = [0.04, 0.08]              # [0.5, 1] x cruise_speed
+stop_probability = 0.15                # Whole-episode stands: no switch comes within the horizon to draw another
+initial_heading_offset_max = 0.26      # rad: the requested heading is the spawn's turned by U(-0.26, 0.26) (15 deg)
+turn_increment_max = 0.0               # No turns
+switch_interval_s = 600.0              # Longer than the 20 s horizon (1000 steps x 0.02 s), so no scheduled switch
+switch_jitter_s = 0.0
+turn_slowdown = true
+yaw_rate_max = 0.3
+# The tracking term: the Gaussian of D-D60, sigmas and tolerances at their speed_scale defaults.  2.5, the pilot
+# recipes' weight, on every model.
+tracking_weight = 2.5
+# The cruise ramp (D-D62 (5)): training commands start at 0.25 x these speeds and reach them at 2M steps; the
+# evaluation env and the gate panels run the end state.  The ramp is the same fixed 2M steps on every walk, here
+# 2M of the 3M budget (67%, against 12.5-33% on the other walks), so this walk trains only its last 1M steps at
+# the commanded speeds it is certified on, and its entropy decay (ent_coef_decay_timesteps = 2M below) ends with
+# the ramp.  Recorded as a decision, not scaled to the budget (D-D62 (5)); the alternatives are a ramp of at most
+# a quarter of timesteps or a larger budget.
+cruise_ramp_start_fraction = 0.25
+cruise_ramp_timesteps = 2000000
+
+[commands.stand_weights]
+# The stand block (D-D62 (2)): paid in place of the [env] weights on every step under an exactly zero command.
+# Each is the stance's weight, from the stance.toml line named, wherever it differs from the [env] above (a weight
+# both share is paid anyway); test_walk_stand_block.py pins each one and lists every deliberate difference.
+lateral_penalty_weight = 0.1           # stance.toml:26
+alive_bonus = 1.0                      # stance.toml:29
+posture_weight = 1.0                   # stance.toml:30
+height_weight = 1.0                    # stance.toml:31
+home_pose_weight = 0.15                # stance.toml:32
+drift_penalty_weight = 0.5             # stance.toml:33
+bilateral_support_weight = 0.5         # stance.toml:103
+support_conditioned_alive_fraction = 0.2  # stance.toml:109
+foot_flatness_weight = 0.5             # stance.toml:118
+stance_width_weight = 0.1              # stance.toml:127
+leg_home_pose_weight = 0.5             # stance.toml:139
+support_geom_coverage_weight = 0.2     # stance.toml:147
+floor_impact_weight = 0.25             # stance.toml:164
+airborne_substep_weight = 0.2          # stance.toml:166
+action_saturation_weight = 0.3         # stance.toml:181
+action_jerk_weight = 0.5               # stance.toml:184
+
 
 [ppo]
 learning_rate = 0.00003
@@ -64,14 +128,40 @@ ent_coef = "auto"
 net_arch = [128, 128]
 
 [curriculum]
-gate_schema_version = 1
-gate_kind = "reward_and_length/v1"
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "command_tracking/v1"       # environments/shared/curriculum/gate_schema.py.  Judged once, after the
+                                        # stage, on the command-tracking panel (command_tracking_report.json); the
+                                        # in-training manager never advances on it (decision D-D61).
 timesteps = 3000000
-min_avg_reward = 500.0
-min_avg_episode_length = 900
-min_avg_forward_vel = 0.08
-min_eval_episodes = 20
-required_consecutive = 3
+# The walk profile: PROVISIONAL_WALK_THRESHOLDS (environments/shared/curriculum/command_tracking_gate.py), each the
+# bar of configs/behavior_certification.toml named on its line.  PROVISIONAL: to be frozen from the first walk
+# pilot's panel; a verdict minted under a provisional bar is re-judged, never retrained, when the bar moves (D-B7/D-B8).
+profile = "walk"
+min_cruise_episodes = 20                # episodes_per_family = 20
+min_stand_episodes = 5                  # minimum_command_episodes = 5
+min_cruise_survival_lcb = 0.80          # minimum_survival_lcb = 0.80: at 20 episodes only 20/20 clears it
+min_cruise_success_lcb = 0.60           # minimum_success_lcb = 0.60: 17/20 clears it, 16/20 does not
+min_cruise_tracking_fraction = 0.60     # minimum_tracking_fraction = 0.60, read after the settle
+min_cruise_speed_ratio = 0.50           # minimum_course_fraction = 0.50, as speed along the commanded heading
+min_stand_hold_fraction = 0.60          # minimum_tracking_fraction = 0.60, the stop criterion at a zero command
+min_stand_success_fraction = 0.60       # minimum_stop_settle_fraction = 0.60
+max_stand_falls = 0                     # The walk design (D-D61): a stand episode does not fall
+# The biped gait clause: PROVISIONAL_BIPED_GAIT_THRESHOLDS (GAIT_QUALITY_PLAN_2026_09.md §4.3 A, GQ-8 (a)),
+# PROVISIONAL, each with the per-episode ranges it separates on the 2026-09-28 replays.
+gait_limbs = 2
+min_alternation_index = 0.75            # Walkers 0.857-1.0, hops 0-0.058
+max_simultaneous_fraction = 0.15        # Walkers 0-0.043, hops 0.811-1.0
+max_hop_flight_fraction = 0.15          # Walkers 0-0.069, hops 0.323-0.49
+min_lead_swaps_per_stride = 1.0         # Walkers 1.38-2.16, hops 0-0.05; the reference walks 1.58-2.02 (gait v2)
+max_foot_contact_fraction = 0.02        # 0 on every walker and hop but the robot's stacked feet (0.949-0.966)
+max_phantom_support_fraction = 0.05     # 0 on every walker and hop but the robot's (0.526-0.592)
+# The flight cap: Froude = v^2 / (g L) = 0.08^2 / (9.81 x 0.240) = 0.003 at the cruise (0.0007 at the range's 0.04 m/s
+# floor), with L = 0.240 m the gait module's leg length (gait.locomotion_metrics: the spawn root's height above the
+# spawn foot sites, the mean of seeds 3042-3044, 0.239-0.240).  Below Froude 0.5 a biped walks, so the walk declares
+# the cap: PROVISIONAL_BIPED_FLIGHT_FRACTION (§4.3 A: walkers 0-0.007, hops 0.324-0.497).
+max_flight_fraction = 0.05
+#
+# Training-loop keys, read by no gate: the stage-entry warm-up (no collapse backstop is declared on this model).
 # Make the shared stage-entry settings explicit. Avoid a fourfold entropy-bonus
 # increase from the generic 0.02 default when leaving the supported stance.
 # The shared warm-up uses this entropy setting for both PPO and SAC.

@@ -71,6 +71,19 @@ def test_observation_is_heading_free_and_targetless():
         np.testing.assert_allclose(env._get_obs(), before, rtol=0.0, atol=1e-6)
 
 
+def _forward_walk_kwargs():
+    """The forward walk before decision D-D62, under command_mode "none": the stance's [env] with the forward weight
+    and the 30 s horizon on, and no drift hold.  Its course ends the episode along the spawn heading; the committed
+    walk's live course (an event along the commanded heading) is tested in test_walk_command_mechanism.py."""
+    return {
+        **load_stage_config(MODEL, "stance")["env_kwargs"],
+        "forward_vel_weight": 1.5,
+        "drift_penalty_weight": 0.0,
+        "max_episode_steps": 3000,
+        "reset_noise_scale": 0,
+    }
+
+
 def _carry_along_course(env, along, lateral=0.0):
     """Translate the root to *along* / *lateral* metres from the drift anchor in the spawn-heading frame.
 
@@ -82,9 +95,12 @@ def _carry_along_course(env, along, lateral=0.0):
     mujoco.mj_forward(env.model, env.data)
 
 
-@pytest.mark.parametrize(("stage", "should_finish"), [("stance", False), ("locomotion", True)])
+@pytest.mark.parametrize(("stage", "should_finish"), [("stance", False), ("forward_walk", True)])
 def test_course_end_only_ends_supported_walking(stage, should_finish):
-    kwargs = {**load_stage_config(MODEL, stage)["env_kwargs"], "reset_noise_scale": 0}
+    if stage == "forward_walk":
+        kwargs = _forward_walk_kwargs()
+    else:
+        kwargs = {**load_stage_config(MODEL, stage)["env_kwargs"], "reset_noise_scale": 0}
     with gym.make(MODEL.gym_id, **kwargs) as wrapped:
         env = wrapped.unwrapped
         zero = np.zeros(env.model.nu, dtype=np.float32)
@@ -114,7 +130,7 @@ def test_course_end_only_ends_supported_walking(stage, should_finish):
 
 def test_the_course_runs_along_the_spawn_heading():
     """A turned spawn turns the course: the same displacement completes it along, never against or across."""
-    kwargs = {**load_stage_config(MODEL, "locomotion")["env_kwargs"], "reset_noise_scale": 0}
+    kwargs = _forward_walk_kwargs()
     with gym.make(MODEL.gym_id, **kwargs) as wrapped:
         env = wrapped.unwrapped
         wrapped.reset(seed=0)
@@ -139,7 +155,7 @@ def test_a_turned_spawn_moves_the_course_line_with_it():
     and moved off the origin turns and moves the line.  A millimetre short of it nothing ends at any lateral
     offset, a millimetre past it the supported walk completes, and the point 8 m along world +x, where the r1
     target sat for an unturned spawn at the origin, completes nothing."""
-    kwargs = {**load_stage_config(MODEL, "locomotion")["env_kwargs"], "reset_noise_scale": 0}
+    kwargs = _forward_walk_kwargs()
     with gym.make(MODEL.gym_id, **kwargs) as wrapped:
         env = wrapped.unwrapped
         key = env._reset_keyframe_id

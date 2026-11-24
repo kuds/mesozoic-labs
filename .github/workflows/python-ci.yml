@@ -67,8 +67,8 @@ on:
     types: [opened, synchronize, reopened, labeled]
     paths: *ci-paths
   # Nightly run of the whole workflow on `main`. In it the SB3 job runs what
-  # pull-request and push runs leave out: the every-species and
-  # four-notebook-parameter sets, and the six compsognathus_longipes/robot
+  # pull-request and push runs leave out: the every-species (behavior and
+  # walk) and four-notebook-parameter sets, and the six compsognathus_longipes/robot
   # parametrisations of test_compsognathus_longipes_training.py's trainer-handoff,
   # warm-start and freeze-rehearsal tests (the SB3 job's "Decide the SB3
   # depth" step; consolidation PR-3, and decision 10 (a) in CU-14a). GitHub
@@ -433,7 +433,8 @@ jobs:
       # three times in the `test` matrix, and because every real-PPO smoke ran
       # for all six species and all four notebook parameters on every PR. Pull
       # requests and pushes now keep ONE real-PPO smoke per body of work in the
-      # notebook and behavior steps, on the compsognathus_longipes/robot parameter
+      # notebook and behavior steps (and the robot's PPO and SAC pair in the walk
+      # step, decision D-D62), on the compsognathus_longipes/robot parameter
       # (the costliest plant to build), and the integration step skips the six
       # robot parametrisations of test_compsognathus_longipes_training's
       # twelve training runs and keeps the six anatomical ones (decision 10
@@ -476,6 +477,22 @@ jobs:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.sb3-behaviors
 
+      # Decision D-D62: every model's committed walk, under PPO and SAC, trains
+      # a few hundred steps from a stance the test builds, reloads, and is
+      # judged by the command_tracking/v1 post-stage judge on a one-cruise,
+      # one-stand panel (a FAIL). One model and algorithm per test, 10-60 s
+      # each; at reduced depth only the compsognathus_longipes/robot pair runs,
+      # as in the behavior step above (consolidation PR-3).
+      - name: Validate all-species walk training
+        run: |
+          pytest \
+            environments/shared/tests/test_walk_species_training.py \
+            ${{ steps.depth.outputs.full != 'true' && '-k compsognathus_longipes-robot' || '' }} \
+            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        env:
+          MUJOCO_GL: osmesa
+          COVERAGE_FILE: .coverage.sb3-walks
+
       # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
       # test_behavior_env, test_phase_c_interface) run in the `test` matrix and are
       # not repeated here. At reduced depth -k also leaves out the robot's six
@@ -515,6 +532,7 @@ jobs:
             environments/shared/tests/test_stance_gate_report.py \
             environments/shared/tests/test_train_base.py \
             environments/shared/tests/test_train_wiring.py \
+            environments/shared/tests/test_walk_command_mechanism.py \
             environments/shared/tests/test_widen_checkpoint.py \
             -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_longipes_training and compsognathus_longipes-robot)' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0

@@ -3337,19 +3337,21 @@ def never_live_walkers(tmp_path_factory):
     root = tmp_path_factory.mktemp("never-live-walkers")
     cfg = get_species_config(TYRANNOSAURUS_REX)
     identity = current_plant_identity(TYRANNOSAURUS_REX)
-    stance, locomotion = (
+    stance, committed = (
         load_stage_config(TYRANNOSAURUS_REX, 1),
         load_stage_config(TYRANNOSAURUS_REX, 2),
     )
-    live_kwargs = dict(
-        locomotion["env_kwargs"], command_mode="heading_and_speed", command_config=DirectionCommandConfig()
-    )
+    # The never-live walk: the committed walk's [env] under command_mode "none" (the committed walk runs a live
+    # command since decision D-D62); "live" is the same [env] under the default command config.
+    none_kwargs = {k: v for k, v in committed["env_kwargs"].items() if k not in ("command_mode", "command_config")}
+    locomotion = dict(committed, env_kwargs=none_kwargs)
+    live_kwargs = dict(none_kwargs, command_mode="heading_and_speed", command_config=DirectionCommandConfig())
     probe_env = cfg.env_class(**live_kwargs)
     manifest = probe_env.command_manifest()
     probe_env.close()
     fingerprints = {
         "stance": stage_task_fingerprint(TYRANNOSAURUS_REX, 1, plant_identity=identity),
-        "locomotion": stage_task_fingerprint(TYRANNOSAURUS_REX, 2, plant_identity=identity),
+        "locomotion": stage_task_fingerprint(TYRANNOSAURUS_REX, 2, env_kwargs=none_kwargs, plant_identity=identity),
         "live": stage_task_fingerprint(
             TYRANNOSAURUS_REX,
             2,

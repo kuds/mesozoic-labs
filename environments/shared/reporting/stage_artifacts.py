@@ -2220,6 +2220,7 @@ def generate_stage_artifacts(
                     model_id=model_id,
                     save_path=figures_out / "gate_progress.png",
                     show=False,
+                    live_command=str(stage_config.get("env_kwargs", {}).get("command_mode", "none")) != "none",
                 )
             except ImportError:
                 logger.warning("Skipping the gate progress figure (matplotlib not installed).")

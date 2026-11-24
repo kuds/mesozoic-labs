@@ -12,6 +12,13 @@ number may carry, ``stage_manifest.LEGACY_STAGE_IDS``), warm-started from
 locomotion, labelled :data:`LADDER_LEAF_LABEL` and configured by a copy of
 the model's ``locomotion.toml``.  It is a stand-in for a third advancing
 stage, not the removed hunt: no hunt reward, label or gate is restored.
+
+In the copy the walk and the appended node are command-free advancing nodes
+(``stage_toml_helpers.command_free_walk``): the committed walk runs a live
+command and is judged after its stage on its ``command_tracking/v1`` panel
+(decision D-D62), and a node warm-started from a live walk may not ramp its
+cruise in, while the mechanics these tests pin need an in-training advancing
+gate on every node of the ladder.
 """
 
 from __future__ import annotations
@@ -20,6 +27,8 @@ import shutil
 from pathlib import Path
 
 import pytest
+
+from environments.shared.tests.stage_toml_helpers import command_free_walk
 
 #: The recipe label of the appended node (``hunt`` is retired, decision D-D59).
 LADDER_LEAF_LABEL = "sprint"
@@ -51,7 +60,9 @@ def install_three_stage_ladder(configs_root: Path, monkeypatch: pytest.MonkeyPat
     shutil.copytree(source, configs_root, dirs_exist_ok=True)
     for manifest in sorted(configs_root.glob("*/*/stages.toml")):
         model_dir = manifest.parent
-        shutil.copyfile(model_dir / "locomotion.toml", model_dir / f"{LADDER_LEAF_ID}.toml")
+        walk = command_free_walk((model_dir / "locomotion.toml").read_text())
+        (model_dir / "locomotion.toml").write_text(walk)
+        (model_dir / f"{LADDER_LEAF_ID}.toml").write_text(walk)
         with manifest.open("a", encoding="utf-8") as handle:
             handle.write(_LEAF_ENTRY)
     monkeypatch.setattr(stage_manifest_module, "_CONFIGS_DIR", configs_root)

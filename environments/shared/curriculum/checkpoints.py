@@ -9,13 +9,14 @@ from __future__ import annotations
 import logging
 import pickle
 import zipfile
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 import numpy as np
 
 from . import sb3_compat
+from .command_evaluation import CommandEvaluationPlan, family_robust_score, family_statistics
 from .command_identity import hold_vec_normalize_command_identity
 from .hop_watch import HopRegimeWatchCallback
 from .posture_watch import PostureDriftWatchCallback, PostureTrendWatchCallback
@@ -40,6 +41,17 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
     its matching VecNormalize stats) whenever the score improves, so
     next-stage training and gating can prefer consistently-good policies
     over great-on-average ones with a fat failure tail.
+
+    On a live-command stage (its evaluation callback carries a
+    :class:`~environments.shared.curriculum.command_evaluation.CommandEvaluationPlan`
+    as ``command_evaluation``, decision D-D62) the score is family-aware
+    instead (:func:`~environments.shared.curriculum.command_evaluation.family_robust_score`):
+    ``mean - risk_coef * std`` within the cruise and the stand episodes,
+    combined at the stage's family probabilities, the families read from each
+    episode's command (``evaluations_command_families``).  Pooled over both
+    families, the gap between a stand episode's return and a cruise
+    episode's would read as risk, and a checkpoint that stood worse would
+    score higher.  Under command_mode "none" the score is the pooled one.
 
     Place after the ``EvalCallback`` in the callback list.
 
@@ -74,6 +86,46 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         self.best_score = -np.inf
         self._last_seen_n = 0
 
+    @property
+    def command_evaluation(self) -> "CommandEvaluationPlan | None":
+        """The live stage's evaluation plan its evaluation callback rolls (``None``: a command-free stage).
+
+        Only a :class:`CommandEvaluationPlan` counts: SB3's own ``EvalCallback`` has no plan, and
+        ``StageAwareEvalCallback`` holds ``None`` under command_mode "none".
+        """
+        plan = getattr(self.eval_callback, "command_evaluation", None)
+        return plan if isinstance(plan, CommandEvaluationPlan) else None
+
+    def score(self, returns: Any, families: "Sequence[str] | None" = None) -> float:
+        """One evaluation's risk-adjusted score: pooled ``mean - risk_coef * std``, or family-aware on a live stage.
+
+        On a live stage *families* (each episode's command family, aligned
+        with *returns*) is required.
+        """
+        values = np.asarray(returns, dtype=float)
+        plan = self.command_evaluation
+        if plan is None:
+            return float(values.mean() - self.risk_coef * values.std())
+        if families is None:
+            raise ValueError("a live-command stage's robust score needs each evaluation episode's command family")
+        return family_robust_score(values, families, plan.family_weights(), risk_coef=self.risk_coef)
+
+    def prior_score(self, returns: Any) -> "float | None":
+        """The score of a prior session's evaluation (a same-stage resume): ``None`` when it cannot be scored.
+
+        A prior evaluation of a live stage is scored on this session's plan
+        (the evaluation env reseeded with the run's evaluation seed rolls the
+        same families at every evaluation); one with another episode count is
+        not this plan's and is not scored.
+        """
+        plan = self.command_evaluation
+        if plan is None:
+            return self.score(returns)
+        values = np.asarray(returns, dtype=float).reshape(-1)
+        if values.size != len(plan.families):
+            return None
+        return self.score(values, plan.families)
+
     def _on_step(self) -> bool:
         results = getattr(self.eval_callback, "evaluations_results", None) or []
         n = len(results)
@@ -82,7 +134,18 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         self._last_seen_n = n
 
         latest = np.asarray(results[-1], dtype=float)
-        score = float(latest.mean() - self.risk_coef * latest.std())
+        families = None
+        if self.command_evaluation is not None:
+            recorded = getattr(self.eval_callback, "evaluations_command_families", None) or []
+            if len(recorded) != n or len(recorded[-1]) != latest.size:
+                raise RuntimeError(
+                    f"RobustBestModel: evaluation {n} of a live-command stage has {latest.size} returns but its "
+                    f"evaluation callback recorded {len(recorded)} evaluation(s) of command families"
+                    + (f", the last with {len(recorded[-1])}" if recorded else "")
+                    + "; the family-aware score needs each episode's family (decision D-D62)"
+                )
+            families = list(recorded[-1])
+        score = self.score(latest, families)
         if score <= self.best_score:
             return True
         self.best_score = score
@@ -98,14 +161,25 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
             vec_env.save(str(path) + "_vecnorm.pkl")
         if staging_dir is not None:
             publish_staged_pair(path, self.model_dir / "robust_best_model", zip_last=True)
-        logger.info(
-            "RobustBestModel: new best risk-adjusted score %.1f (mean %.1f - %.1f*std %.1f) at step %d",
-            score,
-            latest.mean(),
-            self.risk_coef,
-            latest.std(),
-            self.num_timesteps,
-        )
+        if families is None:
+            logger.info(
+                "RobustBestModel: new best risk-adjusted score %.1f (mean %.1f - %.1f*std %.1f) at step %d",
+                score,
+                latest.mean(),
+                self.risk_coef,
+                latest.std(),
+                self.num_timesteps,
+            )
+        else:
+            logger.info(
+                "RobustBestModel: new best family-aware risk-adjusted score %.1f at step %d (%s)",
+                score,
+                self.num_timesteps,
+                "; ".join(
+                    f"{family} {count} ep: mean {mean:.1f} - {self.risk_coef:.1f}*std {std:.1f}"
+                    for family, (count, mean, std) in family_statistics(latest, families).items()
+                ),
+            )
         return True
 
 
@@ -467,7 +541,10 @@ def seed_resume_eval_state(
 
     * ``eval_callback.best_mean_reward`` and ``RobustBestModelCallback``'s
       ``best_score`` — computed over the FULL prior record, so a best model
-      saved at any pre-crash point stays protected;
+      saved at any pre-crash point stays protected (on a live-command stage
+      the robust score is the family-aware one on this session's command
+      panel, :meth:`RobustBestModelCallback.prior_score`, which is the prior
+      session's when the resume keeps the run's seed, decision D-D62);
     * ``eval_callback.evaluations_*`` — the in-memory history SB3 re-saves
       on every evaluation, so the npz keeps the whole run's record.  Entries
       newer than ``max_timesteps`` (the resumed checkpoint's step count) are
@@ -529,10 +606,21 @@ def seed_resume_eval_state(
     eval_callback.best_mean_reward = best_mean
     for callback in callbacks:
         if isinstance(callback, RobustBestModelCallback):
-            callback.best_score = max(
-                float(np.asarray(row, dtype=float).mean() - callback.risk_coef * np.asarray(row, dtype=float).std())
-                for row in results
-            )
+            # A live stage's prior evaluations are scored by family on this session's plan
+            # (RobustBestModelCallback.prior_score), which is the prior session's when the resume keeps the
+            # run's seed; a row of another episode count is not scored.
+            scores = [score for score in (callback.prior_score(row) for row in results) if score is not None]
+            if len(scores) < len(results):
+                logger.warning(
+                    "Resume: %d of %d prior evaluations at %s do not hold this session's %d-episode command panel; "
+                    "the robust tracker is seeded from the other %d",
+                    len(results) - len(scores),
+                    len(results),
+                    path,
+                    len(callback.command_evaluation.families) if callback.command_evaluation is not None else 0,
+                    len(scores),
+                )
+            callback.best_score = max(scores) if scores else -np.inf
 
     if max_timesteps is not None:
         keep = sum(1 for value in timesteps if value <= max_timesteps)

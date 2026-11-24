@@ -209,7 +209,14 @@ def prepare_behavior_checkpoint(
     identity, so the constant-zero mean this preparation also checks would not
     tell it apart: zeroing its columns would erase what it learned, unseen. A
     command-trained walker continues as a manifest node, whose warm start keeps
-    its command columns.
+    its command columns. Since decision D-D62 every committed walk is such a
+    walker, so a recipe starts only from a command-free walker on the current
+    interface, which no committed config trains (every walk declares
+    ``[commands]`` and ``--override commands.*`` is refused): the terrain
+    recipes have no parent a committed path produces until a follow or terrain
+    node with a command exists or a command-free walk config is added, and the
+    follow_direction pilots are superseded by the planned follow nodes (plan
+    section 4.6).
     """
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
     behavior = _identity(task_fingerprint)
@@ -246,7 +253,12 @@ def prepare_behavior_checkpoint(
             f"command_mode {command_mode!r}): preparation zeroes the command columns of a walker that never saw a "
             "command, which would erase what this one learned. Prepare a behavior from a command-free locomotion "
             "checkpoint; a command-trained walker continues as a manifest node, whose warm start keeps its command "
-            "columns (decision D-D60)"
+            "columns (decision D-D60). Every committed walk tracks a live command since decision D-D62, so a "
+            "recipe starts only from a command-free walker on the current plant interface, and no committed config "
+            "trains one: until a follow or terrain node with a command exists, or a command-free walk config is "
+            "added, the terrain recipes have no parent a committed path produces, and the follow_direction pilots "
+            "are superseded by the follow nodes planned to continue the walk (docs/BEHAVIOR_RECIPES_PLAN.md "
+            "section 4.6 and decision D-D62)"
         )
     venv = _venv(env, current.observation_dim, current.action_dim)
     normalizer = _normalizer(vecnorm_path, venv, plant_identity=current)

@@ -342,13 +342,14 @@ class TestCatastrophicForgettingMitigation:
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_stage2_has_reward_ramp_config(self, model_id):
-        """Stage 2 must have reward ramp config to gradually introduce forward_vel_weight."""
+        """Stage 2 must introduce its locomotion signal gradually: the walk's cruise ramp (decision D-D62), which
+        replaced the forward_vel_weight ramp under its live command, starts the commanded speeds at a fraction."""
         stages = load_all_stages(model_id)
         cur = stages[2].get("curriculum_kwargs", {})
-        assert "ramp_timesteps" in cur, f"{model_id} Stage 2 missing ramp_timesteps"
-        assert cur["ramp_timesteps"] > 0
-        assert "ramp_start_value" in cur, f"{model_id} Stage 2 missing ramp_start_value"
-        assert 0 < cur["ramp_start_value"] < 1.0
+        assert "ramp_timesteps" not in cur and "ramp_start_value" not in cur, f"{model_id} Stage 2 is live"
+        command = stages[2]["env_kwargs"]["command_config"]
+        assert command.cruise_ramp_timesteps > 0, f"{model_id} Stage 2 missing cruise_ramp_timesteps"
+        assert 0 < command.cruise_ramp_start_fraction < 1.0
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_stage2_has_warmup_for_catastrophic_forgetting(self, model_id):

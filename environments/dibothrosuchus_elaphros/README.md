@@ -124,8 +124,22 @@ Species notes:
 The trained tasks are the stance and the walk; the snap, the hunt that followed the walk, was removed by decision
 D-D59. Its reward terms, its `snap_success` termination and its constructor arguments are gone from the code, and the
 model declares no success key. The prey sphere, its observation channels and the fixed snout box `snout_snap` the
-snap used went with it in policy interface r11 (physics r4), so the scene holds only the animal and the floor. The
-forward and heading terms measure along the heading the animal spawns with.
+snap used went with it in policy interface r11 (physics r4), so the scene holds only the animal and the floor. Under
+the stance the forward and heading terms measure along the heading the animal spawns with.
+
+**The walk follows a live command** (decision D-D62); the stance runs no command. Each walk episode draws one request
+at reset and holds it for the whole 10 s episode: a forward cruise at 0.45-0.9 m/s along a heading up to 0.26 rad (15
+degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero command, which asks the animal to stand
+still. The command is the observation's last three values. A Gaussian term pays tracking the commanded velocity and
+yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms, which the walk sets to 0, and the terms
+that read a forward direction measure along the commanded heading. On a zero command a stand block
+(`[commands.stand_weights]`, 11 weights) pays the stance's reward weights, so zero means stand still, not march in
+place. The commanded speeds ramp from 0.25 of their end values to the full range over the first 2M training steps. The
+standing-idle penalty is not paid on a zero command. After training the walk is judged on its `command_tracking/v1`
+panel: the cruise family's survival and success bounds, the stand family's hold and the quadruped gait clause (pair
+alternation, limb duty, the flight cap) and the lead-swap bar. The bars are provisional, and no controller has yet
+been shown to clear them; no controller in the repository walks inside the commanded speed range (the reference walk
+reaches 0.16 m/s), and the gait-symmetry term pays a standing statue its whole weight (decision D-D62 (16)).
 
 The observation reads no world heading: it uses the trunk's projected gravity and its velocity in a gravity-aligned
 heading frame, beside the joint positions and velocities, the trunk gyro and accelerometer, one touch channel per foot
@@ -137,8 +151,10 @@ The main reward groups:
 
 - **Survival and posture:** an alive bonus, a fall penalty, and penalties on tilt and nosedive with a trunk-height
   term.
-- **Progress:** forward velocity and heading along the spawn heading, with penalties on backward, sideways and
-  drifting motion, spin, speed above a threshold and standing idle.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity and heading along the spawn heading (the commanded heading on the walk), with
+  penalties on backward, sideways and drifting motion, spin, speed above a threshold and standing idle; the walk sets
+  the forward, heading and sideways weights to 0.
 - **Gait quality:** penalties on trunk and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs (front right with rear left, front left with rear right).
 - **Effort:** an energy penalty on actuator use.

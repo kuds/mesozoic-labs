@@ -63,12 +63,15 @@ _STAGE_NAMES = [
 ]
 #: The lines of one stage's reward capture (CU-11), in order.
 _REWARD_NAMES = ["summary", "poses", "shape_sha256", "rounded_values_sha256"]
-#: Stages in which the model's success probe ends the episode, with its reason; None for a model with no success
-#: probe, as it declares no SUCCESS_KEYS (decision D-D59 removed the strike, the bite, the food reach and the snap,
-#: and the target-free revision the Compsognathus target reach).  The Allosaurus' probe moves its root the course
-#: length along the spawn heading ("root_displacement"), which ends its locomotion stage alone.
+#: Stages in which the model's success probe ends the episode, with its reason ("-": the probe's step ends nothing);
+#: None for a model with no success probe, as it declares no SUCCESS_KEYS (decision D-D59 removed the strike, the
+#: bite, the food reach and the snap, and the target-free revision the Compsognathus target reach).  The Allosaurus'
+#: probe moves its root the course length along the episode's forward reference ("root_displacement").  Its walk
+#: runs the live course of decision D-D62 (4), which completes as an event and ends nothing (the forward walk's
+#: course terminated it with "course_complete"), so no stage's probe step ends the episode;
+#: test_the_allosaurus_success_probe_completes_the_live_course checks the event itself.
 _SUCCESS: dict[ModelId, dict[str, str] | None] = {
-    ModelId("allosaurus_fragilis", "anatomical"): {"locomotion": "course_complete"},
+    ModelId("allosaurus_fragilis", "anatomical"): {"locomotion": "-"},
     ModelId("brachiosaurus_altithorax", "anatomical"): None,
     ModelId("compsognathus_longipes", "anatomical"): None,
     ModelId("compsognathus_longipes", "robot"): None,
@@ -324,6 +327,32 @@ def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
             assert steps["success"] == ["1", success], (model_id, stage, steps["success"])
         assert steps["too_high"] == ["1", "too_high"] and steps["high_tilt"] == ["1", "too_high"], steps
         assert steps["tilt"] == ["1", "excessive_tilt"] and steps["truncation"] == ["3", "truncated"], steps
+
+
+def test_the_allosaurus_success_probe_completes_the_live_course() -> None:
+    """The success probe still reaches the end it probes on the live walk (decision D-D62 (4)): the root moved the
+    course length along the reset command's heading completes the course on the probe's one zero-action step,
+    as an event (``course_complete`` 1.0, ``success`` from then on) that ends nothing, on the golden's own seed; and
+    the stance, command-free, has no course to complete."""
+    import mujoco
+
+    from environments.shared.config import build_env
+
+    model_id = ModelId("allosaurus_fragilis", "anatomical")
+    for stage, completes in (("locomotion", True), ("stance", False)):
+        env = build_env(model_id, stage)
+        try:
+            env.reset(seed=digest_snapshot.REWARD_SEED)
+            if completes:
+                assert np.any(env._command), "the golden's seed draws a cruise episode, which has a course"
+            digest_snapshot._pose(env, displace=type(env).REWARD_PROBE[2])
+            mujoco.mj_forward(env.model, env.data)
+            _, _, terminated, truncated, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+        finally:
+            env.close()
+        assert not terminated and not truncated and "termination_reason" not in info, (stage, info)
+        assert info["course_complete"] == (1.0 if completes else 0.0), stage
+        assert info.get("success", False) is completes, stage
 
 
 def test_golden_state_probes_reach_every_branch_they_cover() -> None:

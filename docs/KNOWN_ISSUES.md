@@ -931,6 +931,13 @@ robustness, **LOW** = cosmetic / QoL.
   brachiosaurus and dibothrosuchus floors stay absolute. On Brachiosaurus physics
   r6 the stage-1 statue returned 1749.61 ± 0.15 over seeds 3042–3081. The
   recalibrated minimum reward is 1050 and the absolute peak floor is 1310.
+  **Update 2026-11-24 (decision D-D62):** the walks follow a live command, and
+  the forward-velocity ramp keys left them, so the locomotion D-B5 bound is
+  now `warmup_timesteps + cruise_ramp_timesteps`: 2.8M on dibothrosuchus
+  (800k + 2M, from 3.3M) and 3.0M on brachiosaurus (1M + 2M, from 4.0M),
+  with the velociraptor's 2.3M unchanged and a new 2.3M on the T-Rex walk
+  (D-D62 (12), (15)). The velociraptor walk's floor is 2.4 x its live-walk
+  statue's 891.3 (D-D62 (15)); the two quadruped walks keep the absolute 100.
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`
@@ -1192,9 +1199,21 @@ robustness, **LOW** = cosmetic / QoL.
   command (the behavior env inherits them; the nine pilot captures re-run
   exactly), and a stage TOML can declare the command task in a `[commands]`
   table, so a manifest node can train what a pilot trains. No committed stage
-  declares one yet; the second trainer, the recipe dialect and the second gate
+  declared one then; the second trainer, the recipe dialect and the second gate
   stay. `prepare_behavior_checkpoint` refuses a walker trained on live
-  commands.
+  commands. **Update (2026-11-24, decision D-D62):** every committed walk now
+  declares `[commands]`, so no recipe can start from a walker trained since;
+  the pilot `follow_direction` recipes are superseded by the planned follow
+  nodes, and the terrain recipes need a command-free walker on the current
+  plant interface. No such walker exists: that interface is the revision of
+  `configs/plant_versions.toml` note 24 (2026-11-23), in this same unreleased
+  series, every committed walk declares `[commands]`, and
+  `--override commands.*` is refused, so no committed path produces one. Until a follow or terrain node
+  with a command exists, or a command-free walk config is added (a
+  `locomotion.toml` without `[commands]` and with a gate the in-training
+  manager runs), the 63 terrain recipes have no parent a user can produce.
+  The refusal is right: a command-trained walker under a command-free recipe
+  sees a zero command, which its walk was trained to stand still on.
 - **HIGH (terrain blocker)** — **every certified walker survives the plane and
   falls on a flat heightfield (measured 2026-09-25).** An eval-only run (seed
   1, nothing trained or written under `logs/`) of the `robust_best_model` pair
@@ -1536,7 +1555,12 @@ robustness, **LOW** = cosmetic / QoL.
   0.54 of the weight in one step. Fix: re-attach the shaping on a
   continuation, offset by the counter (not on a curated `--load`, which
   `_is_resume_continuation` tells apart), or at least warn. No cleanup PR
-  owns it. (2026-08 gap review TC8)
+  owns it. (2026-08 gap review TC8) Since decision D-D62 no committed stage
+  builds `RewardRampCallback`: every walk follows a live command and ramps
+  its commanded speeds instead, and that cruise ramp does resume, from the
+  position every checkpoint records (`curriculum/cruise_ramp.py`). The
+  forward-velocity ramp and the warm-up remainder still behave as above for
+  a command-free stage, and the warm-up remainder for the walk too.
 
 - **MEDIUM** — **certification is judged on one fixed 40-seed block, and the
   held-out confirmation panel the stance design calls for does not exist

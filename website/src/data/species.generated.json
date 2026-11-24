@@ -95,9 +95,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause (no flight cap: its cruise reaches Froude 0.82); on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "deliverable_metrics": [
@@ -117,9 +117,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause (no flight cap: its cruise reaches Froude 0.82); on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "stages": [
@@ -201,7 +201,7 @@
           "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
-          "description": "Learn forward walking/running",
+          "description": "Walk: follow a forward command with heading hold, and stand still on a zero command",
           "config_path": "configs/velociraptor_mongoliensis/anatomical/locomotion.toml",
           "timesteps": 8000000,
           "deliverable": true,
@@ -209,11 +209,11 @@
           "recipe": "walk",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "command_tracking/v1",
             "pending_gate_kind": null,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": 750,
-            "min_avg_forward_velocity": 2.1,
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
@@ -222,7 +222,44 @@
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
             "min_eval_episodes": 10,
-            "required_consecutive": 3
+            "required_consecutive": 3,
+            "follow_course_distance_m": null,
+            "gait_limbs": 2,
+            "gate_heading_tolerance": null,
+            "gate_stop_speed_tolerance": null,
+            "gate_stop_yaw_rate_tolerance": null,
+            "gate_velocity_tolerance": null,
+            "gate_yaw_rate_tolerance": null,
+            "max_flight_fraction": null,
+            "max_foot_contact_fraction": 0.02,
+            "max_hop_flight_fraction": 0.15,
+            "max_phantom_support_fraction": 0.05,
+            "max_simultaneous_fraction": 0.15,
+            "max_stand_falls": 0,
+            "min_alternation_index": 0.75,
+            "min_cruise_episodes": 20,
+            "min_cruise_speed_ratio": 0.5,
+            "min_cruise_success_lcb": 0.6,
+            "min_cruise_survival_lcb": 0.8,
+            "min_cruise_tracking_fraction": 0.6,
+            "min_follow_command_episodes": null,
+            "min_follow_course_fraction": null,
+            "min_follow_episodes": null,
+            "min_follow_event_settle_fraction": null,
+            "min_follow_horizon_s": null,
+            "min_follow_reference_delta_lcb": null,
+            "min_follow_stop_settle_fraction": null,
+            "min_follow_success_lcb": null,
+            "min_follow_survival_lcb": null,
+            "min_follow_tracking_fraction": null,
+            "min_follow_turn_settle_fraction": null,
+            "min_lead_swaps_per_stride": 1.0,
+            "min_limb_duty": null,
+            "min_pair_alternation_index": null,
+            "min_stand_episodes": 5,
+            "min_stand_hold_fraction": 0.6,
+            "min_stand_success_fraction": 0.6,
+            "profile": "walk"
           },
           "video": {
             "path": "/videos/velociraptor_mongoliensis_anatomical_ppo_stage2_best.mp4",
@@ -287,9 +324,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "deliverable_metrics": [
@@ -319,9 +356,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "stages": [
@@ -435,7 +472,7 @@
           "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
-          "description": "Learn forward walking/running",
+          "description": "Walk: follow a forward command with heading hold, and stand still on a zero command",
           "config_path": "configs/tyrannosaurus_rex/anatomical/locomotion.toml",
           "timesteps": 8000000,
           "deliverable": true,
@@ -443,11 +480,11 @@
           "recipe": "walk",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "command_tracking/v1",
             "pending_gate_kind": null,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": 750,
-            "min_avg_forward_velocity": 1.0,
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
@@ -456,7 +493,44 @@
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
             "min_eval_episodes": 10,
-            "required_consecutive": 3
+            "required_consecutive": 3,
+            "follow_course_distance_m": null,
+            "gait_limbs": 2,
+            "gate_heading_tolerance": null,
+            "gate_stop_speed_tolerance": null,
+            "gate_stop_yaw_rate_tolerance": null,
+            "gate_velocity_tolerance": null,
+            "gate_yaw_rate_tolerance": null,
+            "max_flight_fraction": 0.05,
+            "max_foot_contact_fraction": 0.02,
+            "max_hop_flight_fraction": 0.15,
+            "max_phantom_support_fraction": 0.05,
+            "max_simultaneous_fraction": 0.15,
+            "max_stand_falls": 0,
+            "min_alternation_index": 0.75,
+            "min_cruise_episodes": 20,
+            "min_cruise_speed_ratio": 0.5,
+            "min_cruise_success_lcb": 0.6,
+            "min_cruise_survival_lcb": 0.8,
+            "min_cruise_tracking_fraction": 0.6,
+            "min_follow_command_episodes": null,
+            "min_follow_course_fraction": null,
+            "min_follow_episodes": null,
+            "min_follow_event_settle_fraction": null,
+            "min_follow_horizon_s": null,
+            "min_follow_reference_delta_lcb": null,
+            "min_follow_stop_settle_fraction": null,
+            "min_follow_success_lcb": null,
+            "min_follow_survival_lcb": null,
+            "min_follow_tracking_fraction": null,
+            "min_follow_turn_settle_fraction": null,
+            "min_lead_swaps_per_stride": 1.0,
+            "min_limb_duty": null,
+            "min_pair_alternation_index": null,
+            "min_stand_episodes": 5,
+            "min_stand_hold_fraction": 0.6,
+            "min_stand_success_fraction": 0.6,
+            "profile": "walk"
           },
           "video": {
             "path": "/videos/tyrannosaurus_rex_anatomical_ppo_stage2_best.mp4",
@@ -521,9 +595,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "deliverable_metrics": [
@@ -543,9 +617,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "stages": [
@@ -598,7 +672,7 @@
           "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
-          "description": "Learn coordinated quadrupedal walking",
+          "description": "Walk: follow a forward command with heading hold, and stand still on a zero command",
           "config_path": "configs/brachiosaurus_altithorax/anatomical/locomotion.toml",
           "timesteps": 16000000,
           "deliverable": true,
@@ -606,11 +680,11 @@
           "recipe": "walk",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "command_tracking/v1",
             "pending_gate_kind": null,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": 750,
-            "min_avg_forward_velocity": 0.75,
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
@@ -619,7 +693,44 @@
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
             "min_eval_episodes": 10,
-            "required_consecutive": 3
+            "required_consecutive": 3,
+            "follow_course_distance_m": null,
+            "gait_limbs": 4,
+            "gate_heading_tolerance": null,
+            "gate_stop_speed_tolerance": null,
+            "gate_stop_yaw_rate_tolerance": null,
+            "gate_velocity_tolerance": null,
+            "gate_yaw_rate_tolerance": null,
+            "max_flight_fraction": 0.05,
+            "max_foot_contact_fraction": null,
+            "max_hop_flight_fraction": null,
+            "max_phantom_support_fraction": null,
+            "max_simultaneous_fraction": null,
+            "max_stand_falls": 0,
+            "min_alternation_index": null,
+            "min_cruise_episodes": 20,
+            "min_cruise_speed_ratio": 0.5,
+            "min_cruise_success_lcb": 0.6,
+            "min_cruise_survival_lcb": 0.8,
+            "min_cruise_tracking_fraction": 0.6,
+            "min_follow_command_episodes": null,
+            "min_follow_course_fraction": null,
+            "min_follow_episodes": null,
+            "min_follow_event_settle_fraction": null,
+            "min_follow_horizon_s": null,
+            "min_follow_reference_delta_lcb": null,
+            "min_follow_stop_settle_fraction": null,
+            "min_follow_success_lcb": null,
+            "min_follow_survival_lcb": null,
+            "min_follow_tracking_fraction": null,
+            "min_follow_turn_settle_fraction": null,
+            "min_lead_swaps_per_stride": 1.0,
+            "min_limb_duty": 0.2,
+            "min_pair_alternation_index": 0.75,
+            "min_stand_episodes": 5,
+            "min_stand_hold_fraction": 0.6,
+            "min_stand_success_fraction": 0.6,
+            "profile": "walk"
           },
           "video": {
             "path": "/videos/brachiosaurus_altithorax_anatomical_ppo_stage2_best.mp4",
@@ -684,9 +795,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "deliverable_metrics": [
@@ -706,9 +817,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "stages": [
@@ -751,7 +862,7 @@
           "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
-          "description": "Learn a coordinated erect-limbed diagonal-pair walk",
+          "description": "Walk: follow a forward command with heading hold, and stand still on a zero command",
           "config_path": "configs/dibothrosuchus_elaphros/anatomical/locomotion.toml",
           "timesteps": 12000000,
           "deliverable": true,
@@ -759,11 +870,11 @@
           "recipe": "walk",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "command_tracking/v1",
             "pending_gate_kind": null,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": 750,
-            "min_avg_forward_velocity": 0.9,
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
@@ -772,7 +883,44 @@
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
             "min_eval_episodes": 10,
-            "required_consecutive": 3
+            "required_consecutive": 3,
+            "follow_course_distance_m": null,
+            "gait_limbs": 4,
+            "gate_heading_tolerance": null,
+            "gate_stop_speed_tolerance": null,
+            "gate_stop_yaw_rate_tolerance": null,
+            "gate_velocity_tolerance": null,
+            "gate_yaw_rate_tolerance": null,
+            "max_flight_fraction": 0.05,
+            "max_foot_contact_fraction": null,
+            "max_hop_flight_fraction": null,
+            "max_phantom_support_fraction": null,
+            "max_simultaneous_fraction": null,
+            "max_stand_falls": 0,
+            "min_alternation_index": null,
+            "min_cruise_episodes": 20,
+            "min_cruise_speed_ratio": 0.5,
+            "min_cruise_success_lcb": 0.6,
+            "min_cruise_survival_lcb": 0.8,
+            "min_cruise_tracking_fraction": 0.6,
+            "min_follow_command_episodes": null,
+            "min_follow_course_fraction": null,
+            "min_follow_episodes": null,
+            "min_follow_event_settle_fraction": null,
+            "min_follow_horizon_s": null,
+            "min_follow_reference_delta_lcb": null,
+            "min_follow_stop_settle_fraction": null,
+            "min_follow_success_lcb": null,
+            "min_follow_survival_lcb": null,
+            "min_follow_tracking_fraction": null,
+            "min_follow_turn_settle_fraction": null,
+            "min_lead_swaps_per_stride": 1.0,
+            "min_limb_duty": 0.2,
+            "min_pair_alternation_index": 0.75,
+            "min_stand_episodes": 5,
+            "min_stand_hold_fraction": 0.6,
+            "min_stand_success_fraction": 0.6,
+            "profile": "walk"
           },
           "video": null
         }
@@ -827,9 +975,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "deliverable_metrics": [
@@ -859,9 +1007,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "stages": [
@@ -965,7 +1113,7 @@
           "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
-          "description": "Move forward while remaining upright and avoiding body-floor contact",
+          "description": "Walk: follow a forward command with heading hold, and stand still on a zero command",
           "config_path": "configs/compsognathus_longipes/anatomical/locomotion.toml",
           "timesteps": 3000000,
           "deliverable": true,
@@ -973,11 +1121,11 @@
           "recipe": "walk",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "command_tracking/v1",
             "pending_gate_kind": null,
-            "min_avg_reward": 500.0,
-            "min_avg_episode_length": 900,
-            "min_avg_forward_velocity": 0.08,
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
@@ -985,8 +1133,45 @@
             "min_paired_success_delta_lcb": null,
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
-            "min_eval_episodes": 20,
-            "required_consecutive": 3
+            "min_eval_episodes": 10,
+            "required_consecutive": 3,
+            "follow_course_distance_m": null,
+            "gait_limbs": 2,
+            "gate_heading_tolerance": null,
+            "gate_stop_speed_tolerance": null,
+            "gate_stop_yaw_rate_tolerance": null,
+            "gate_velocity_tolerance": null,
+            "gate_yaw_rate_tolerance": null,
+            "max_flight_fraction": 0.05,
+            "max_foot_contact_fraction": 0.02,
+            "max_hop_flight_fraction": 0.15,
+            "max_phantom_support_fraction": 0.05,
+            "max_simultaneous_fraction": 0.15,
+            "max_stand_falls": 0,
+            "min_alternation_index": 0.75,
+            "min_cruise_episodes": 20,
+            "min_cruise_speed_ratio": 0.5,
+            "min_cruise_success_lcb": 0.6,
+            "min_cruise_survival_lcb": 0.8,
+            "min_cruise_tracking_fraction": 0.6,
+            "min_follow_command_episodes": null,
+            "min_follow_course_fraction": null,
+            "min_follow_episodes": null,
+            "min_follow_event_settle_fraction": null,
+            "min_follow_horizon_s": null,
+            "min_follow_reference_delta_lcb": null,
+            "min_follow_stop_settle_fraction": null,
+            "min_follow_success_lcb": null,
+            "min_follow_survival_lcb": null,
+            "min_follow_tracking_fraction": null,
+            "min_follow_turn_settle_fraction": null,
+            "min_lead_swaps_per_stride": 1.0,
+            "min_limb_duty": null,
+            "min_pair_alternation_index": null,
+            "min_stand_episodes": 5,
+            "min_stand_hold_fraction": 0.6,
+            "min_stand_success_fraction": 0.6,
+            "profile": "walk"
           },
           "video": null
         }
@@ -1041,9 +1226,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "deliverable_metrics": [
@@ -1073,9 +1258,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity (reward_and_length/v1)",
-          "definition": "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
         }
       ],
       "stages": [
@@ -1150,7 +1335,7 @@
           "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
-          "description": "Move forward while remaining upright and avoiding body-floor contact",
+          "description": "Walk: follow a forward command with heading hold, and stand still on a zero command",
           "config_path": "configs/compsognathus_longipes/robot/locomotion.toml",
           "timesteps": 3000000,
           "deliverable": true,
@@ -1158,11 +1343,11 @@
           "recipe": "walk",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "command_tracking/v1",
             "pending_gate_kind": null,
-            "min_avg_reward": 500.0,
-            "min_avg_episode_length": 900,
-            "min_avg_forward_velocity": 0.04,
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
@@ -1170,8 +1355,45 @@
             "min_paired_success_delta_lcb": null,
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
-            "min_eval_episodes": 20,
-            "required_consecutive": 3
+            "min_eval_episodes": 10,
+            "required_consecutive": 3,
+            "follow_course_distance_m": null,
+            "gait_limbs": 2,
+            "gate_heading_tolerance": null,
+            "gate_stop_speed_tolerance": null,
+            "gate_stop_yaw_rate_tolerance": null,
+            "gate_velocity_tolerance": null,
+            "gate_yaw_rate_tolerance": null,
+            "max_flight_fraction": 0.05,
+            "max_foot_contact_fraction": 0.02,
+            "max_hop_flight_fraction": 0.15,
+            "max_phantom_support_fraction": 0.05,
+            "max_simultaneous_fraction": 0.15,
+            "max_stand_falls": 0,
+            "min_alternation_index": 0.75,
+            "min_cruise_episodes": 20,
+            "min_cruise_speed_ratio": 0.5,
+            "min_cruise_success_lcb": 0.6,
+            "min_cruise_survival_lcb": 0.8,
+            "min_cruise_tracking_fraction": 0.6,
+            "min_follow_command_episodes": null,
+            "min_follow_course_fraction": null,
+            "min_follow_episodes": null,
+            "min_follow_event_settle_fraction": null,
+            "min_follow_horizon_s": null,
+            "min_follow_reference_delta_lcb": null,
+            "min_follow_stop_settle_fraction": null,
+            "min_follow_success_lcb": null,
+            "min_follow_survival_lcb": null,
+            "min_follow_tracking_fraction": null,
+            "min_follow_turn_settle_fraction": null,
+            "min_lead_swaps_per_stride": 1.0,
+            "min_limb_duty": null,
+            "min_pair_alternation_index": null,
+            "min_stand_episodes": 5,
+            "min_stand_hold_fraction": 0.6,
+            "min_stand_success_fraction": 0.6,
+            "profile": "walk"
           },
           "video": null
         }
@@ -1185,7 +1407,7 @@
       "display_name": "Allosaurus Fragilis (Anatomical)",
       "tagline": "Jurassic Tridactyl Theropod",
       "gait": "Bipedal",
-      "specialty": "Level-ground walk along an eight-metre course",
+      "specialty": "Level-ground walk along a commanded heading, over an eight-metre course",
       "environment": {
         "entrypoint": "environments.allosaurus_fragilis.anatomical.env:AllosaurusFragilisAnatomicalEnv",
         "observation_dim": 41,
@@ -1226,9 +1448,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "course_complete",
-          "label": "Walking course completion",
-          "definition": "During the forward walking task, the pelvis moves 7.65 m along its spawn heading (the eight-metre course less 0.35 m) while supported by at least one foot."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed. Its course_complete event, the pelvis 7.65 m along the reset's commanded heading (the eight-metre course less 0.35 m) with a foot loaded, is recorded as a cruise episode's success key and is no gate criterion; a stand episode has no course."
         }
       ],
       "deliverable_metrics": [
@@ -1248,9 +1470,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "forward_velocity_gate",
-          "label": "Gated forward velocity",
-          "definition": "The walking policy meets the configured forward-speed, reward and episode-length minima in successive evaluations."
+          "key": "command_tracking",
+          "label": "Walk command tracking (command_tracking/v1)",
+          "definition": "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed. Its course_complete event, the pelvis 7.65 m along the reset's commanded heading (the eight-metre course less 0.35 m) with a foot loaded, is recorded as a cruise episode's success key and is no gate criterion; a stand episode has no course."
         }
       ],
       "stages": [
@@ -1293,7 +1515,7 @@
           "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
-          "description": "Walk forward on the feet along an eight-metre course.",
+          "description": "Walk: follow a forward command with heading hold, and stand still on a zero command",
           "config_path": "configs/allosaurus_fragilis/anatomical/locomotion.toml",
           "timesteps": 6000000,
           "deliverable": true,
@@ -1301,11 +1523,11 @@
           "recipe": "walk",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "command_tracking/v1",
             "pending_gate_kind": null,
-            "min_avg_reward": 900.0,
-            "min_avg_episode_length": 550,
-            "min_avg_forward_velocity": 0.25,
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
@@ -1314,7 +1536,44 @@
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
             "min_eval_episodes": 10,
-            "required_consecutive": 3
+            "required_consecutive": 3,
+            "follow_course_distance_m": null,
+            "gait_limbs": 2,
+            "gate_heading_tolerance": null,
+            "gate_stop_speed_tolerance": null,
+            "gate_stop_yaw_rate_tolerance": null,
+            "gate_velocity_tolerance": null,
+            "gate_yaw_rate_tolerance": null,
+            "max_flight_fraction": 0.05,
+            "max_foot_contact_fraction": 0.02,
+            "max_hop_flight_fraction": 0.15,
+            "max_phantom_support_fraction": 0.05,
+            "max_simultaneous_fraction": 0.15,
+            "max_stand_falls": 0,
+            "min_alternation_index": 0.75,
+            "min_cruise_episodes": 20,
+            "min_cruise_speed_ratio": 0.5,
+            "min_cruise_success_lcb": 0.6,
+            "min_cruise_survival_lcb": 0.8,
+            "min_cruise_tracking_fraction": 0.6,
+            "min_follow_command_episodes": null,
+            "min_follow_course_fraction": null,
+            "min_follow_episodes": null,
+            "min_follow_event_settle_fraction": null,
+            "min_follow_horizon_s": null,
+            "min_follow_reference_delta_lcb": null,
+            "min_follow_stop_settle_fraction": null,
+            "min_follow_success_lcb": null,
+            "min_follow_survival_lcb": null,
+            "min_follow_tracking_fraction": null,
+            "min_follow_turn_settle_fraction": null,
+            "min_lead_swaps_per_stride": 1.0,
+            "min_limb_duty": null,
+            "min_pair_alternation_index": null,
+            "min_stand_episodes": 5,
+            "min_stand_hold_fraction": 0.6,
+            "min_stand_success_fraction": 0.6,
+            "profile": "walk"
           },
           "video": null
         }

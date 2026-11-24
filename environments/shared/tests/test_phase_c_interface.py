@@ -119,6 +119,7 @@ from environments.shared.task_fingerprint import (
     TaskFingerprintError,
     compute_task_fingerprint,
     derive_stage_task_fingerprint,
+    stage_command_manifest,
     stage_task_fingerprint,
 )
 from environments.shared.tests import reset_golden
@@ -586,9 +587,12 @@ def test_a_live_mode_seeds_at_reset_and_changes_only_the_command_segment(env_cla
     """The controller is seeded once per reset from the command stream (decision D-D60: nothing is drawn from the
     reset stream), the observation carries its normalised command, step() rewards before it advances and returns
     the next command; physics and termination match the same seeds under "none", and the reward and info differ
-    exactly by the base env's tracking term, metrics and dwell."""
+    exactly by the base env's tracking term, metrics and dwell.  The last holds with the reward rules that follow a
+    live command held off (``_rewards_follow_command``, as the recipe env holds them): decision D-D62 reads the
+    forward reference and the drift anchor from the command, and test_walk_command_mechanism.py tests those."""
     config = DirectionCommandConfig(switch_interval_s=0.05, straight_probability=0.0, turn_increment_max=0.6)
     live = env_class(command_mode="heading_and_speed", command_config=config)
+    live._rewards_follow_command = lambda: False
     none = env_class()
     rng = np.random.default_rng(5)
     actions = rng.uniform(-0.05, 0.05, (12, *live.action_space.shape)).astype(np.float32)
@@ -659,18 +663,25 @@ def _fingerprint(**overrides):
 
 
 def test_committed_stages_carry_no_command_keys_and_no_command_section():
-    """(i): under the committed TOMLs every stage's env section is command-free."""
+    """(i): under the committed TOMLs every stance and recovery env section is command-free; the walk (locomotion)
+    runs its live command since decision D-D62, so its section keeps both keys and its payload a command section."""
     for model_id in model_ids():
         identity = current_plant_identity(model_id, verify_generated=False).to_dict()
         for stage_key, stage_config in load_all_stages(model_id).items():
-            assert not COMMAND_ENV_KEYS_SET & set(stage_config["env_kwargs"]), (model_id, stage_key)
+            live = stage_config["name"] == "locomotion"
             payload = derive_stage_task_fingerprint(
                 model_id=model_id,
                 stage=stage_key,
                 backend="stable-baselines3",
                 env_kwargs=stage_config["env_kwargs"],
                 plant_identity=identity,
+                command_manifest=stage_command_manifest(model_id, stage_config["env_kwargs"]),
             )
+            if live:
+                assert COMMAND_ENV_KEYS_SET <= set(stage_config["env_kwargs"]), (model_id, stage_key)
+                assert COMMAND_ENV_KEYS_SET <= set(payload["env"]) and "command" in payload, (model_id, stage_key)
+                continue
+            assert not COMMAND_ENV_KEYS_SET & set(stage_config["env_kwargs"]), (model_id, stage_key)
             assert not COMMAND_ENV_KEYS_SET & set(payload["env"]), (model_id, stage_key)
             assert "command" not in payload, (model_id, stage_key)
 
@@ -776,10 +787,13 @@ _COMPSOGNATHUS_LONGIPES_PUSH_KEYS = (
     "perturbation_duration",
     "perturbation_direction",
 )
+#: Every committed command-free stage: a record written before PR-9 ran command_mode "none", and since decision
+#: D-D62 the walk (locomotion) runs a live command, whose record holds its command config.
 _STAGES = [
     pytest.param(model_id, entry.id, id=f"{model_id.species}-{model_id.embodiment}-{entry.id}")
     for model_id in model_ids()
     for entry in load_stage_manifest(model_id).stages
+    if entry.id != "locomotion"
 ]
 
 

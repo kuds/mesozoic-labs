@@ -54,7 +54,7 @@ configs/
 Each model directory also holds its behavior recipes under `behaviors/`, and the
 Compsognathus models their `recovery_calibration.json`.
 
-Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage may also declare a `[commands]` table, its live command task (see [Commands](#commands)); no committed stage declares one yet. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover` or `walk`; a label equals a stage id only when it resolves to that stage, as `stance` does, `stand`, the stance label until decision D-D38, is refused naming `stance`, and `hunt`, removed with the hunt nodes by decision D-D59, is refused naming `walk`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
+Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage may also declare a `[commands]` table, its live command task (see [Commands](#commands)); every model's `locomotion` (walk) declares one since decision D-D62, and no stance or recovery does. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover` or `walk`; a label equals a stage id only when it resolves to that stage, as `stance` does, `stand`, the stance label until decision D-D38, is refused naming `stance`, and `hunt`, removed with the hunt nodes by decision D-D59, is refused naming `walk`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
@@ -85,20 +85,34 @@ and advancement gates read from the same configs.
 Every observation ends with a 3-wide body-relative command (forward speed,
 lateral speed and yaw rate, each pre-scaled to [-1, 1]). A stage without a
 `[commands]` table runs `command_mode = "none"`: the command is constant zero,
-nothing is drawn for it and nothing scores it. Every committed stage runs this
-way today. A stage turns its command on with a `[commands]` table (decision
-D-D60), for example:
+nothing is drawn for it and nothing scores it. Every stance and recovery runs
+this way. A stage turns its command on with a `[commands]` table (decision
+D-D60), as every model's walk does since decision D-D62. The T-Rex walk's,
+shortened:
 
 ```toml
 [commands]
-mode = "heading_and_speed"       # or "heading", which holds cruise_speed
-cruise_speed = 0.5
-speed_range = [0.25, 0.5]
-stop_probability = 0.15          # drawn at reset: with no turns and a long switch interval, a whole-episode stand
+mode = "heading_and_speed"             # or "heading", which holds cruise_speed
+cruise_speed = 1.05                    # the scaling of the model's behaviors/follow_direction.toml
+speed_scale = 1.5
+lateral_speed_scale = 1.0
+yaw_rate_scale = 0.6
+speed_range = [0.525, 1.05]            # [0.5, 1] x cruise_speed
+stop_probability = 0.15                # drawn at reset: with no turns and no switch, a whole-episode stand
+initial_heading_offset_max = 0.26      # rad, about the spawn heading
 turn_increment_max = 0.0
-switch_interval_s = 100.0
-initial_heading_offset_max = 0.26
-tracking_weight = 2.0
+switch_interval_s = 600.0              # longer than the horizon
+switch_jitter_s = 0.0
+turn_slowdown = true
+yaw_rate_max = 0.3
+tracking_weight = 2.5
+cruise_ramp_start_fraction = 0.25
+cruise_ramp_timesteps = 2000000
+
+[commands.stand_weights]               # paid in place of the [env] weights at an exactly zero command
+drift_penalty_weight = 0.3             # stance.toml:8
+alive_bonus = 1.0                      # stance.toml:12
+# ... 24 more, each the stance's weight where it differs from the walk's [env]
 ```
 
 - **Keys.** `mode` is required and must be a live mode; every other key is a
@@ -144,7 +158,44 @@ tracking_weight = 2.0
   zeroed, and the policy is proven unchanged on zero commands and blind to
   live ones before the first update. A live parent keeps its command weights
   and statistics, so a node that widens its parent's command distribution
-  continues it exactly.
+  continues it exactly. A walk therefore starts command-blind and learns to
+  read the command. Its stance must be one trained on the current plant
+  interface with the command slice held at identity: an older stance fails
+  the plant check, and one whose saved statistics' command slice is off
+  identity (saved before decision D-D60) is refused by a live stage, so such
+  a stance is retrained first.
+- **Stand block.** `[commands.stand_weights]` names reward weights (the
+  constructor's `*_weight` kwargs, `alive_bonus` and
+  `support_conditioned_alive_fraction`) that the environment pays in place of
+  their `[env]` values on every step taken under an exactly zero command, so
+  zero means stand still rather than march in place; a small non-zero command
+  runs the `[env]` weights. Only weights swap: a stand term's tolerances and
+  references are the stage's `[env]` values. The walk cannot `extends` the
+  stance (one level deep, and the follow nodes will extend the walk), so each
+  walk restates the stance's weights that differ from its own `[env]`, each
+  citing its `stance.toml` line (`test_walk_stand_block.py` pins them). The
+  idle penalty is never paid at a zero command. The block is part of the
+  command task, so it is in the task fingerprint of a live stage only.
+- **Cruise ramp.** `cruise_ramp_start_fraction` and `cruise_ramp_timesteps`
+  (both or neither) scale the training workers' commanded speeds
+  (`cruise_speed` and `speed_range`) from the start fraction to 1 over that
+  many steps, in 10,000-step blocks, because the tracking reward pays almost
+  nothing far from the commanded speed and a walk starts from a standing
+  policy. The stand fraction, the heading offsets, the sigmas and the
+  tolerances never change, and the evaluation env and the gate panels run
+  the declared end state. Every checkpoint records the ramp's position, and
+  a same-stage resume continues from it (PPO and SAC alike). A stage with
+  `[commands]` refuses the forward-velocity ramp keys `ramp_start_value` and
+  `ramp_timesteps`.
+- **The walk.** Every model's walk draws one request at reset and holds it
+  for the whole episode: a forward cruise at `speed_range` along a heading up
+  to `initial_heading_offset_max` off the spawn heading, or, with
+  `stop_probability` 0.15, an exactly zero command for the whole episode. The
+  tracking term subsumes the forward, heading, sideways and drift terms,
+  which the walk's `[env]` sets to 0; under a live command the terms that
+  read a forward direction measure along the commanded heading. Each model's
+  scaling and speeds are on its [model page](/docs/models/velociraptor_mongoliensis/anatomical)
+  and in `docs/BEHAVIOR_RECIPES_PLAN.md` section 4.6.
 
 ## PPO Parameters
 
@@ -183,7 +234,7 @@ Stage transitions are controlled by the `[curriculum]` section in each config:
 | `timesteps` | Maximum configured stage budget before advancing |
 | `min_avg_reward` | Minimum evaluation-window mean reward for early advancement |
 | `min_avg_episode_length` | Minimum evaluation-window mean episode length for early advancement |
-| `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only) |
+| `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only; no committed stage declares it since the walk moved to `command_tracking/v1`, decision D-D62) |
 | `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold`, and required by the floor-truth stance gates (the bound's power is a function of the declared n) |
 | `required_consecutive` | Consecutive evaluations that must satisfy every enabled criterion |
 
@@ -206,9 +257,12 @@ static table here.
 ### Command-tracking gate (`command_tracking/v1`)
 
 A stage with a live command (a `[commands]` table, see [Commands](#commands))
-is judged by the `command_tracking/v1` gate kind (decision D-D61). No
-committed stage declares it yet: the walk node switches to it in the next
-phase, and the later follow nodes use it too. The gate is judged once, after
+is judged by the `command_tracking/v1` gate kind (decision D-D61). Every
+model's walk declares it with the `walk` profile and the starting values
+below (decision D-D62), and the later follow nodes will use it too. The bars
+are provisional, and no controller has yet been shown to clear the walk's:
+the repository's reference walks fail its tracking bars even at a command
+they match (decision D-D62 (16)). The gate is judged once, after
 the stage, on a fixed panel of deterministic episodes of the handoff
 checkpoint. The in-training curriculum manager refuses the kind, so such a
 stage never advances early and always trains its full `timesteps` budget.
@@ -324,7 +378,15 @@ After the stage, these files appear in the stage directory:
   ranked by passing, then by the profile's success bound. The certificate is
   rolled on other seeds (from 3042), so the choice cannot pick a lucky draw
   of the certification panel; when a rare stand family would make the two
-  panels share a seed, no choice is made and the stage fails its gate.
+  panels share a seed, no choice is made and the stage fails its gate. The
+  two reward-chosen candidates come from the in-training evaluation, which
+  on a live-command stage is reseeded before every evaluation so that every
+  evaluation rolls the same commands and the same number of stand episodes;
+  `best_model` is the best mean of that fixed panel, and `robust_best_model`
+  scores the cruise and the stand episodes apart (each family's mean minus
+  its standard deviation, weighted by the stop probability), since a stand
+  episode earns several times a cruise episode and, pooled, the gap would
+  read as risk (decision D-D62 (20)).
 - `command_tracking_report.json`, `command_tracking_report.txt` and
   `command_tracking_panel_selected.csv`: the certification panel, one record
   per episode with its classification. The verdict is derived again from
@@ -434,11 +496,12 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 
 | Symptom | Most likely cause | What to change |
 |---|---|---|
-| Forward velocity stuck near zero | `forward_vel_weight` too low or `alive_bonus` dominant | Raise `env.forward_vel_weight` to `1.0–2.0`, reduce `env.alive_bonus` |
-| Crab-walks sideways | No lateral or heading constraint | Set `env.lateral_penalty_weight` to `0.1`, raise `env.heading_weight` |
-| Walks forward but falls frequently | Balance reward zeroed too aggressively | Keep `env.posture_weight ≥ 0.3`, re-enable mild `env.alive_bonus` (`0.3–0.5`) |
+| Stands still on cruise commands (tracking near zero, stand episodes held) | The kept terms pay a standing animal (on the quadrupeds the gait-symmetry term pays a statue its whole weight) and the tracking Gaussian pays little far from the commanded speed | Check that the cruise ramp is declared (`[commands] cruise_ramp_start_fraction`, `cruise_ramp_timesteps`); see decision D-D62 (16) before re-weighting |
+| Marches in place on a zero command | A stance weight missing from the stand block | Compare `[commands.stand_weights]` with `stance.toml` (`test_walk_stand_block.py`) |
+| Crab-walks or turns off the commanded heading | The tracking term tolerates the error | Raise `[commands] tracking_weight` within 2.0–2.5, or narrow the lateral and yaw sigmas |
+| Walks but falls frequently | Balance reward zeroed too aggressively | Keep `env.posture_weight ≥ 0.3` and the walk's `env.alive_bonus` |
 | Unrealistic "ice-skating" gait | Symmetry and smoothness under-weighted | Raise `env.gait_symmetry_weight`, raise `env.smoothness_weight` |
-| Max forward speed exceeds physical reasonableness | Reward uncapped | Set `env.forward_vel_max` (e.g. `3.0` for the Velociraptor, `1.5` for the Brachiosaurus) |
+| Walks at the commanded speed but fails the gate's tracking bars | The tracking term and the gate read the pelvis every step, and a gait sways within its stride | Decision D-D62 (16) (a): the reference walks fail them too; it is an open design question, not a setting |
 
 ### Algorithm-specific notes
 

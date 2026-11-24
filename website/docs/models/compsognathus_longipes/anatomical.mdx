@@ -26,6 +26,8 @@ that lifts for less than half of a 20 ms control step, can still pass it, so a t
 softened near the standing pose (a soft-cubic residual that keeps both ends of each joint's range), so the small
 exploration noise PPO starts with no longer topples the standing animal.
 
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance and recovery run no command. Each walk episode draws one request at reset and holds it for its whole 20 s: a forward cruise at 0.04-0.08 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (16 weights) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the biped gait clause with its flight cap), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet been shown to clear them: the tracking width (0.02 m/s) lies under the estimated lateral sway of a stepping gait on this plant, and no walking controller exists to measure it (decision D-D62 (16)). The later follow nodes will widen this distribution as the walk's exact continuation.
+
 <SpeciesCatalog species={MODEL} />
 
 ## Training

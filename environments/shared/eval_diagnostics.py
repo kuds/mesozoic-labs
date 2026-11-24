@@ -18,6 +18,7 @@ from typing import Any, NamedTuple
 
 import numpy as np
 
+from .curriculum.command_evaluation import CommandEvaluationPlan, info_command_family
 from .curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from .curriculum.stance_gate import required_duty_episodes
 from .gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
@@ -406,6 +407,20 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     Each group is reduced in its own guard, after the pad capture's: a
     failure costs that group's values (NaN), never the pad and rail fields,
     another group, or the run.
+
+    On a **live-command stage** (*command_evaluation*, a
+    :class:`~environments.shared.curriculum.command_evaluation.CommandEvaluationPlan`;
+    decision D-D62) the evaluation env is reseeded with the plan's seed before
+    every evaluation, so every evaluation rolls the same episodes: the seeded
+    reset restarts the command stream, and the families (cruise or stand) of
+    the evaluation's episodes are the plan's at every evaluation, where an
+    env seeded once would draw a new stand count each time and SB3's
+    ``best_model`` would rank the draw.  Each episode's family, read from its
+    first step's command (``desired_speed`` exactly zero: stand), is kept in
+    :attr:`evaluations_command_families`, aligned with ``evaluations_results``,
+    for the family-aware ``robust_best_model`` score; an evaluation whose
+    families differ from the plan's is logged.  Under command_mode "none"
+    (*command_evaluation* ``None``) nothing of this runs.
     """
 
     #: Declared at class scope so an instance built without ``__init__`` (the
@@ -449,6 +464,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     body_columns: tuple[str, ...] = ()
     _ledger: Any = None
     _balance_disabled = False
+    #: A live-command stage's evaluation plan (``None``: a command-free stage, nothing reseeded or recorded).
+    command_evaluation: "CommandEvaluationPlan | None" = None
 
     def __init__(
         self,
@@ -461,6 +478,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         control_dt: float = 0.01,
         screen_thresholds: Any = None,
         ledger_dir: "str | Path | None" = None,
+        command_evaluation: "CommandEvaluationPlan | None" = None,
         **kwargs: Any,
     ) -> None:
         if not _SB3_AVAILABLE:
@@ -469,6 +487,17 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             )
         super().__init__(eval_env, **kwargs)
         self.stage = stage
+        self.command_evaluation = command_evaluation
+        if command_evaluation is not None and len(command_evaluation.families) != self.n_eval_episodes:
+            raise ValueError(
+                f"the command evaluation plan holds {len(command_evaluation.families)} episodes but the evaluation "
+                f"rolls {self.n_eval_episodes}"
+            )
+        # Per evaluation of a live stage, each episode's command family, aligned with `evaluations_results`
+        # (empty on a command-free stage), and during an evaluation each sub-env's current episode's family.
+        self.evaluations_command_families: list[list[str]] = []
+        self._current_eval_command_families: list[str] = []
+        self._episode_command_families: dict[int, str] = {}
         self.settle_steps = int(settle_steps)
         self.model_id = model_id
         self.horizon = int(horizon)
@@ -1312,6 +1341,9 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # it -- and settling is the capability stage 1a exists to certify.
         step_index = self._episode_steps.get(env_index, 0)
         self._episode_steps[env_index] = step_index + 1
+        if self.command_evaluation is not None and step_index == 0:
+            # The first step's command is the reset's draw, which fixes a walk episode's family.
+            self._episode_command_families[env_index] = info_command_family(info)
         self._capture_action(locals_, env_index, after_settle=step_index >= self.settle_steps)
         if step_index >= self.settle_steps:
             stance = derive_stance_info(info)
@@ -1339,6 +1371,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._current_eval_unsupported_duties.append(unsupported / measured if measured else float("nan"))
             self._current_eval_bilateral_duties.append(bilateral / measured if measured else float("nan"))
             self.__dict__.setdefault("_current_eval_termination_causes", []).append(self.termination_cause(info))
+            if self.command_evaluation is not None:
+                self._current_eval_command_families.append(self._episode_command_families.pop(env_index))
             self._reward_term_episodes += 1
             self._prev_action.pop(env_index, None)
             self._prev_prev_action.pop(env_index, None)
@@ -1409,6 +1443,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.__dict__.setdefault("evaluations_screen_v2", []).append(None)
             self.__dict__.setdefault("evaluations_actuator_force_frac", []).append([])
             self.__dict__.setdefault("evaluations_reward_terms_split", []).append({})
+            if self.command_evaluation is not None:
+                # A placeholder, like the series above; a resumed robust tracker scores the prior record on the
+                # plan itself (RobustBestModelCallback.prior_score).
+                self.evaluations_command_families.append([])
 
     def seed_prior_record(self, directory: "str | Path", *, max_timesteps: int | None = None) -> int:
         """Keep the prior session's ``eval_episodes.csv`` rows at or before *max_timesteps* (a same-stage resume).
@@ -1460,8 +1498,15 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
 
     def _on_step(self) -> bool:
         evaluation_due = self.eval_freq > 0 and self.n_calls % self.eval_freq == 0
+        plan = self.command_evaluation
         if evaluation_due:
             self._reset_forward_velocity_capture()
+            if plan is not None:
+                # The next reset (evaluate_policy's first) is seeded: the command stream restarts at episode 0, so
+                # this evaluation rolls the plan's episodes, as every other evaluation of the run does.
+                self.eval_env.seed(plan.seed)
+                self._episode_command_families.clear()
+                self._current_eval_command_families = []
             self._begin_pad_capture()
 
         try:
@@ -1479,6 +1524,17 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.__dict__.setdefault("evaluations_termination_causes", []).append(
                 list(self.__dict__.get("_current_eval_termination_causes", []))
             )
+            if plan is not None:
+                families = list(self._current_eval_command_families)
+                self.evaluations_command_families.append(families)
+                if families != list(plan.families):
+                    logger.warning(
+                        "Evaluation at step %d rolled command families %s, not the plan's %s (seed %d)",
+                        self.num_timesteps,
+                        dict(Counter(families)),
+                        plan.family_counts(),
+                        plan.seed,
+                    )
             self._publish_action_statistics()
             self._publish_pad_telemetry()
             self._publish_leg_dc()

@@ -96,6 +96,28 @@ def test_the_off_path_never_imports_the_phase_module_and_builds_the_stock_classe
         assert not [key for key in recorded if "critic_phase" in key or "warm_start" in key], name
 
 
+def _d_d62_moves(expected: dict[str, Any], actual: dict[str, Any]) -> dict[str, Any]:
+    """The S2 entries decision D-D62 moved, each checked to have moved only as the live walk moves it."""
+    from environments.shared.curriculum.command_tracking_gate import COMMAND_TRACKING_THRESHOLD_KEYS
+    from environments.shared.curriculum.cruise_ramp import MODEL_CRUISE_RAMP_ATTRIBUTE
+
+    moved = {key: actual.get(key) for key in set(expected) | set(actual) if expected.get(key) != actual.get(key)}
+    if "curriculum_keys" in moved:
+        dropped = set(expected["curriculum_keys"]) - set(actual["curriculum_keys"])
+        added = set(actual["curriculum_keys"]) - set(expected["curriculum_keys"])
+        forward_walk = {"min_avg_reward", "min_avg_episode_length", "min_avg_forward_vel", "required_consecutive"}
+        assert dropped <= forward_walk | {"ramp_timesteps", "ramp_start_value"}, dropped
+        # The walk gate's bars, and the D-B5 peak warm-up the T. rex walk declares since the live walk (the forward
+        # walk declared none; decision D-D62 (15)).
+        assert added and added <= COMMAND_TRACKING_THRESHOLD_KEYS | {"collapse_peak_warmup_timesteps"}, added
+    if "archive_data_keys" in moved:
+        assert set(actual["archive_data_keys"]) - set(expected["archive_data_keys"]) == {MODEL_CRUISE_RAMP_ATTRIBUTE}
+        assert set(expected["archive_data_keys"]) <= set(actual["archive_data_keys"])
+    if "model_files" in moved:
+        assert sorted(actual["model_files"]) == sorted([*expected["model_files"], "handoff_choice.json"])
+    return moved
+
+
 def test_the_off_path_records_main_s_structure(off_run, golden):
     import stable_baselines3
 
@@ -104,7 +126,17 @@ def test_the_off_path_records_main_s_structure(off_run, golden):
     for name, scenario in golden["scenarios"].items():
         # Everything but the observation width the current plant's buffer holds (63 on the golden's r10 plant).
         expected = {**scenario["structure"], "buffer_obs_shape": [CURRENT_OBSERVATION_WIDTH]}
-        assert off_run["scenarios"][name]["structure"] == expected, name
+        actual = dict(off_run["scenarios"][name]["structure"])
+        if name == "S2":
+            # The walk (S2) runs the live command of decision D-D62, which moves four entries and nothing else: its
+            # [curriculum] holds the command_tracking/v1 walk gate in place of the forward walk's reward gate and
+            # forward-velocity ramp (so the recipe digest moves with it), every checkpoint records the cruise ramp's
+            # position, and the stage hands on the pair its gated statistic chose (models/handoff_choice.json).
+            moved = _d_d62_moves(expected, actual)
+            assert set(moved) == {"curriculum_keys", "hyperparameters_sha256", "archive_data_keys", "model_files"}
+            expected = {key: value for key, value in expected.items() if key not in moved}
+            actual = {key: value for key, value in actual.items() if key not in moved}
+        assert actual == expected, name
 
 
 def test_the_current_plant_trains_identically_with_the_switch_absent_or_false(off_run, tmp_path_factory):

@@ -4,8 +4,8 @@ Designed in the 2026-10-19 night continuation and screened from scratch as stanc
 (docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md §17.5 and §18.1, decision D-D39).
 It is off by default, and off it changes nothing: no reward, no info key, no trajectory, no task fingerprint
 and no recorded stage config.  On, it is -w (1 - exp(-(s/tol)^2)), s the right foot site's lead over the left along
-the gravity-aligned pelvis heading, paid only after stance_width_settle_steps and only while the command is zero,
-and exactly mirror-invariant.
+the gravity-aligned pelvis heading, paid only after stance_width_settle_steps (a live walk pays it at a zero
+command through its stand block, decision D-D62), and exactly mirror-invariant.
 
 Every test starts from the stance stage's env kwargs with the two stagger keys removed, so "off" means off whether
 or not the committed stance.toml turns the term on.
@@ -23,6 +23,7 @@ import pytest
 
 from environments.shared import symmetry as SY
 from environments.shared.config import load_stage_config, save_stage_config
+from environments.shared.direction_commands import stand_weights_of
 from environments.shared.model_id import ModelId
 from environments.shared.reward_functions import reward_stance_stagger
 from environments.shared.stage_manifest import load_stage_manifest
@@ -115,9 +116,13 @@ def test_off_it_moves_no_task_fingerprint_and_no_recorded_config(tmp_path, off_k
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, "stance", env_kwargs=explicit_off) == base
     assert not set(OPTION_KEYS) & set(base["env"])
     # Every stage that leaves it off keeps its committed fingerprint with the keys written out at off values.
+    # The walk pays it through its stand block (decision D-D62), which turns it on there.
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
-        if env_kwargs.get("stance_stagger_weight", 0.0) == 0.0:
+        stand = stand_weights_of(env_kwargs.get("command_config"))
+        if entry.id == "locomotion":
+            assert stand["stance_stagger_weight"] > 0.0 and env_kwargs.get("stance_stagger_weight", 0.0) == 0.0
+        if env_kwargs.get("stance_stagger_weight", 0.0) == 0.0 and stand.get("stance_stagger_weight", 0.0) == 0.0:
             written = {**env_kwargs, "stance_stagger_weight": 0.0, "stance_stagger_tolerance_m": 0.07}
             committed = stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference)
             assert stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference, env_kwargs=written) == committed, entry.id
@@ -163,7 +168,8 @@ def test_invalid_values_fail_fast(kwargs, message):
 def test_on_it_matches_the_formula_on_a_constructed_state(off_kwargs):
     """A built stance: the right hip swung forward and the left back, the pelvis yawed; the step counter past the
     settle and the command zero.  The stagger is the heading-frame lead (yaw does not move it) and the term is
-    -w (1 - exp(-(s/tol)^2)); at the settle step, or with a live command, it pays nothing but still reports s."""
+    -w (1 - exp(-(s/tol)^2)); at the settle step it pays nothing but still reports s, and a command does not gate
+    it (decision D-D62)."""
     env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **SCREENED)
     try:
         free = [j for j in range(env.model.njnt) if env.model.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE]
@@ -189,14 +195,15 @@ def test_on_it_matches_the_formula_on_a_constructed_state(off_kwargs):
             assert info["stance_stagger_quality"] == pytest.approx(math.exp(-((stagger / 0.045) ** 2)), rel=1e-12)
             assert info["reward_stance_stagger"] == pytest.approx(_expected(stagger), rel=1e-12)
             staggers.append(stagger)
-            # The gate: not at the settle step itself, and not under a live command.
+            # The gate: not at the settle step itself.  The command no longer gates the term (decision D-D62): a
+            # live walk pays it at a zero command through its stand block (test_walk_command_mechanism.py).
             env._step_count = settle
             _, info = env._get_reward_info(np.zeros(15))
             assert info["reward_stance_stagger"] == 0.0 and info["foot_stagger_m"] == stagger
             env._step_count = settle + 1
             env._command = np.array([0.0, 0.1, 0.0], dtype=env._command.dtype)
             _, info = env._get_reward_info(np.zeros(15))
-            assert info["reward_stance_stagger"] == 0.0 and info["stance_stagger_quality"] < 1.0
+            assert info["reward_stance_stagger"] == pytest.approx(_expected(stagger), rel=1e-12)
         assert abs(staggers[0]) > 0.03  # a real stagger, well into the term's slope
         assert staggers[1] == pytest.approx(staggers[0], abs=1e-9)
         assert staggers[2] == pytest.approx(staggers[0], abs=1e-9)

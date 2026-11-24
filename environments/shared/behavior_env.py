@@ -52,10 +52,20 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
 
     The tracking reward, metrics, info keys and dwell are ``BaseDinoEnv``'s,
     live under the ``heading_and_speed`` mode this env always runs (decision
-    D-D60).  The env adds terrain, the course diagnostics and two things that
+    D-D60).  The env adds terrain, the course diagnostics and three things that
     keep every recipe's task as it was: its own command stream (run seed,
-    episode seed and episode index, reported in the reset info) and its
-    ``tracking_weight`` kwarg, recorded in the task's env section.
+    episode seed and episode index, reported in the reset info), its
+    ``tracking_weight`` kwarg, recorded in the task's env section, and the
+    reward rules before the live walk (decision D-D62,
+    :meth:`_rewards_follow_command` is False): its terms read the spawn's
+    heading and position, never the command's, its idle term is computed at
+    a zero command too and the Allosaurus' course is the "none" one.  A
+    recipe zeroes every forward, heading, lateral, drift and idle weight, so
+    the live rules would move no recipe reward, only diagnostics such as
+    ``forward_vel`` and ``drift_distance`` (and the Allosaurus' course
+    events), which the pilot rollout golden pins.  A recipe's command config
+    may declare no stand block and no cruise ramp: the recipe pipeline runs
+    neither (the follow nodes that supersede it will).
     """
 
     model_id: ModelId
@@ -81,6 +91,11 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         if not np.isfinite(course_distance) or course_distance <= 0:
             raise ValueError("course_distance must be finite and positive")
         commands = commands or DirectionCommandConfig()
+        if commands.stand_weights or commands.has_cruise_ramp:
+            raise ValueError(
+                "a behavior recipe's commands declare no stand_weights and no cruise ramp: the recipe pipeline runs "
+                "neither (decision D-D62)"
+            )
         unrecorded_weight = DirectionCommandConfig.UNRECORDED_VALUES["tracking_weight"]
         if commands.tracking_weight != unrecorded_weight:
             raise ValueError(
@@ -322,6 +337,10 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 terminated = True
                 info["termination_reason"] = "terrain_boundary"
         return terminated, info
+
+    def _rewards_follow_command(self) -> bool:
+        """Always False: a recipe task keeps the reward rules before the live walk (see the class docstring)."""
+        return False
 
     def _ground_height_at(self, xy: np.ndarray) -> float:
         if self.terrain is None:

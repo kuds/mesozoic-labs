@@ -252,7 +252,8 @@ class TestRegistration:
         assert not COMMAND_TRACKING_THRESHOLD_KEYS & gate_schema.NON_THRESHOLD_CURRICULUM_KEYS
 
     def test_registration_moves_no_committed_stage_gate_view(self):
-        """No committed stage declares the kind, and each one's view is its own kind's projection, unchanged."""
+        """Only the walk (locomotion) declares the kind, since decision D-D62, and each other stage's view is its own
+        kind's projection, unchanged by the registration."""
         from environments.shared.config import load_all_stages
         from environments.shared.species_names import model_ids
 
@@ -261,6 +262,10 @@ class TestRegistration:
         for model_id in model_ids():
             for stage, cfg in load_all_stages(model_id).items():
                 curriculum = cfg["curriculum_kwargs"]
+                if cfg["name"] == "locomotion":
+                    assert curriculum["gate_kind"] == COMMAND_TRACKING_GATE_KIND, (model_id, stage)
+                    assert curriculum["profile"] == "walk", (model_id, stage)
+                    continue
                 assert curriculum.get("gate_kind") != COMMAND_TRACKING_GATE_KIND, (model_id, stage)
                 assert not set(curriculum) & (COMMAND_TRACKING_THRESHOLD_KEYS - others), (model_id, stage)
                 kind = curriculum.get("gate_kind")

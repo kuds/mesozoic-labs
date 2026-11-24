@@ -242,7 +242,19 @@ manifest stages hold them at identity instead, decision D-D60). Preparation
 refuses a walker that trained on live commands, one whose task fingerprint has
 a `command` section, before it reads the walker's files: zeroing its command
 columns would erase what it learned, and a command-trained walker continues as
-a manifest node instead (decision D-D60). The
+a manifest node instead (decision D-D60). Since decision D-D62 every committed
+walk trains on a live command, so a recipe starts only from a command-free
+walker on the current plant interface, and no committed path produces one:
+that interface is this unreleased series' own (`configs/plant_versions.toml`
+note 24), every committed walk declares `[commands]`, and
+`--override commands.*` is refused. Until a follow or terrain node with a
+command exists, or a command-free walk config is added (a `locomotion.toml`
+without `[commands]`, under a gate the in-training manager runs), the terrain
+recipes have no parent a user can produce. The refusal is right: a
+command-trained walker under a command-free recipe sees a zero command, on
+which its walk was trained to stand still. The `follow_direction` pilots are
+superseded by the follow nodes planned to continue the walk
+([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) section 4.6). The
 normalization file is a plain SB3 `VecNormalize`. A bundle trained before
 consolidation PR-8 neither resumes nor adapts: `--resume` and `--adapt`
 refuse it, and its normalization file, which names

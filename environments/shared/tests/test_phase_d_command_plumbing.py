@@ -30,8 +30,9 @@ from __future__ import annotations
 import functools
 import json
 import math
+import re
 import shutil
-from dataclasses import asdict, fields, replace
+from dataclasses import fields, replace
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +41,7 @@ import pytest
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.command_frame import COMMAND_STREAM_DOMAIN, COMMAND_WIDTH
-from environments.shared.config import build_env, load_stage_config, save_stage_config
+from environments.shared.config import FORWARD_VELOCITY_RAMP_KEYS, build_env, load_stage_config, save_stage_config
 from environments.shared.direction_commands import (
     DirectionCommandConfig,
     DirectionCommandController,
@@ -59,6 +60,7 @@ from environments.shared.task_fingerprint import (
     stage_task_fingerprint,
 )
 from environments.shared.tests import pilot_rollout_golden, reset_golden
+from environments.shared.tests.stage_toml_helpers import replace_commands_table
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
@@ -104,12 +106,14 @@ def _model_dir(tmp_path: Path, model_id: ModelId) -> Path:
 
 
 def _with_table(path: Path, text: str) -> Path:
-    path.write_text(path.read_text() + "\n" + text.strip() + "\n")
-    return path
+    """*path* with its own [commands] (the committed walk's, decision D-D62) replaced by *text*, and without the
+    forward-velocity ramp a live stage refuses."""
+    return replace_commands_table(path, text)
 
 
 def _live_config(tmp_path: Path, model_id: ModelId, stage: str = "locomotion", text: str = WALK_COMMANDS) -> dict:
-    """*stage*'s committed config with a [commands] table appended, loaded from a copy of its directory."""
+    """*stage*'s committed config with its [commands] table replaced by *text* (or *text* added, on a stage with
+    none), loaded from a copy of its directory."""
     directory = _model_dir(tmp_path, model_id)
     entry = load_stage_manifest(model_id).by_id(stage)
     return load_stage_config(model_id, stage, config_path=str(_with_table(directory / entry.config_file, text)))
@@ -126,7 +130,8 @@ def test_a_commands_table_builds_the_stage_command_kwargs(tmp_path):
     env_kwargs = dict(config["env_kwargs"])
     assert env_kwargs.pop("command_mode") == "heading_and_speed"
     command_config = env_kwargs.pop("command_config")
-    assert env_kwargs == committed["env_kwargs"], "the table adds the two command kwargs and nothing else"
+    committed_env = {k: v for k, v in committed["env_kwargs"].items() if k not in ("command_mode", "command_config")}
+    assert env_kwargs == committed_env, "the table sets the two command kwargs and nothing else"
     assert command_config == DirectionCommandConfig(
         cruise_speed=0.5,
         speed_range=(0.25, 0.5),
@@ -136,17 +141,28 @@ def test_a_commands_table_builds_the_stage_command_kwargs(tmp_path):
         initial_heading_offset_max=0.26,
         tracking_weight=2.0,
     )
-    assert {key: config[key] for key in ("ppo_kwargs", "sac_kwargs", "curriculum_kwargs")} == {
-        key: committed[key] for key in ("ppo_kwargs", "sac_kwargs", "curriculum_kwargs")
+    assert {key: config[key] for key in ("ppo_kwargs", "sac_kwargs")} == {
+        key: committed[key] for key in ("ppo_kwargs", "sac_kwargs")
+    }
+    # The forward-velocity ramp is dropped: a live stage's entry ramp is the cruise ramp (decision D-D62).
+    assert config["curriculum_kwargs"] == {
+        key: value for key, value in committed["curriculum_kwargs"].items() if key not in FORWARD_VELOCITY_RAMP_KEYS
     }
 
 
-def test_every_committed_stage_runs_command_mode_none():
-    """No committed manifest stage declares [commands] in this phase (the walk turns its command on later)."""
+def test_every_stance_and_recovery_runs_command_mode_none_and_every_walk_a_live_command():
+    """Every stance and recovery declares no [commands] (command_mode "none"); every locomotion node, the walk,
+    declares the live walk command (decision D-D62)."""
     for model_id in MODEL_IDS:
-        for entry in load_stage_manifest(model_id).stages:
+        stages = {entry.id: entry for entry in load_stage_manifest(model_id).stages}
+        assert set(stages) <= {"stance", "recovery", "locomotion"}, (model_id, sorted(stages))
+        for stage_id, entry in stages.items():
             env_kwargs = load_stage_config(model_id, entry.reference)["env_kwargs"]
-            assert "command_mode" not in env_kwargs and "command_config" not in env_kwargs, (model_id, entry.id)
+            if stage_id == "locomotion":
+                assert env_kwargs["command_mode"] == "heading_and_speed", model_id
+                assert isinstance(env_kwargs["command_config"], DirectionCommandConfig), model_id
+            else:
+                assert "command_mode" not in env_kwargs and "command_config" not in env_kwargs, (model_id, stage_id)
 
 
 def test_save_stage_config_records_every_field_and_the_frozen_config_rebuilds_exactly(tmp_path):
@@ -158,7 +174,7 @@ def test_save_stage_config_records_every_field_and_the_frozen_config_rebuilds_ex
     recorded = json.loads(path.read_text())["reward_weights"]
     command_config = config["env_kwargs"]["command_config"]
     assert recorded["command_mode"] == "heading_and_speed"
-    assert recorded["command_config"] == json.loads(json.dumps(asdict(command_config)))
+    assert recorded["command_config"] == json.loads(json.dumps(command_config.field_record()))
     assert set(recorded["command_config"]) == {field.name for field in fields(DirectionCommandConfig)}
     assert DirectionCommandConfig(**recorded["command_config"]) == command_config
     # The recorded block re-derives the stage's task: a JSON object hashes as the dataclass it was saved from.
@@ -255,32 +271,37 @@ def _snapshot_stage_digests() -> dict[tuple[str, str, str], str]:
 
 
 def test_every_committed_stage_keeps_its_snapshot_fingerprint():
-    """The command plumbing moved no "none" stage: each stage's task_sha256 is the digest snapshot's line."""
+    """The command plumbing moved no "none" stage: each stance's and recovery's task_sha256 is the digest snapshot's
+    line.  The walk runs its live command since decision D-D62; its line is test_task_fingerprint_stage.py's."""
     snapshot = _snapshot_stage_digests()
     seen = set()
     for model_id in MODEL_IDS:
         for entry in load_stage_manifest(model_id).stages:
+            if entry.id == "locomotion":
+                continue
             fingerprint = stage_task_fingerprint(model_id, entry.reference)
             key = (model_id.species, model_id.embodiment, entry.id)
             assert fingerprint["task_sha256"] == snapshot[key], key
             assert "command" not in fingerprint and "command_mode" not in fingerprint["env"]
             assert stage_command_manifest(model_id, load_stage_config(model_id, entry.reference)["env_kwargs"]) is None
             seen.add(key)
-    assert seen == set(snapshot)
+    assert seen == {key for key in snapshot if key[2] != "locomotion"}
 
 
 def test_a_live_stage_fingerprints_with_the_command_manifest_its_env_reports(tmp_path):
     config = _live_config(tmp_path, TYRANNOSAURUS_REX)
     live = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", stage_config=config)
-    none = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion")
+    committed = load_stage_config(TYRANNOSAURUS_REX, "locomotion")
+    none_kwargs = {k: v for k, v in committed["env_kwargs"].items() if k not in ("command_mode", "command_config")}
+    none = stage_task_fingerprint(
+        TYRANNOSAURUS_REX, "locomotion", stage_config={**committed, "env_kwargs": none_kwargs}
+    )
     controller = DirectionCommandController(config["env_kwargs"]["command_config"])
     assert live["command"] == json.loads(json.dumps(controller.manifest()))
     assert live["env"]["command_mode"] == "heading_and_speed" and live["task_sha256"] != none["task_sha256"]
     assert {key: value for key, value in live["env"].items() if not key.startswith("command_")} == none["env"]
     env = get_species_config(TYRANNOSAURUS_REX).env_class(**config["env_kwargs"])
-    plain = get_species_config(TYRANNOSAURUS_REX).env_class(
-        **load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"]
-    )
+    plain = get_species_config(TYRANNOSAURUS_REX).env_class(**none_kwargs)
     try:
         check_env_command_manifest(env.command_manifest(), live, artifact="the live env")
         check_env_command_manifest(plain.command_manifest(), none, artifact="the none env")
@@ -328,19 +349,22 @@ def test_the_digest_snapshot_fingerprints_a_live_stage_as_training_does(tmp_path
         for line in (REPOSITORY_ROOT / digest_snapshot.GOLDEN).read_text().splitlines()
         if line.startswith(f"stage\t{model_id.species}\t{model_id.embodiment}\tlocomotion\t")
     }
+    # The committed walk is live (decision D-D62): its lines are the helper's, in the golden's order (the golden's
+    # values are test_task_fingerprint_stage.py's and the digest check's to compare).
     committed, _, errors = _harness_stage_lines(
-        model_id, "locomotion", load_stage_config(model_id, "locomotion"), tmp_path / "none"
+        model_id, "locomotion", load_stage_config(model_id, "locomotion"), tmp_path / "committed"
     )
-    assert errors == 0 and committed == golden, "the committed stage's lines are the golden's"
+    assert errors == 0 and list(committed) == list(golden)
+    assert committed["task_sha256"] == stage_task_fingerprint(model_id, "locomotion")["task_sha256"]
 
     config = _live_config(tmp_path / "configs", model_id)
     live, lines, errors = _harness_stage_lines(model_id, "locomotion", config, tmp_path / "live")
     assert errors == 0, [line for line in lines if "\tERROR\t" in line]
     expected = stage_task_fingerprint(model_id, "locomotion", stage_config=config)
     assert "command" in expected
-    assert live["task_sha256"] == expected["task_sha256"] != golden["task_sha256"]
-    assert list(live) == list(golden), "every stage line, in the golden's order"
-    assert live["gate_sha256"] == golden["gate_sha256"], "the table changes the task, not the gate"
+    assert live["task_sha256"] == expected["task_sha256"] != committed["task_sha256"]
+    assert list(live) == list(committed), "every stage line, in the golden's order"
+    assert live["gate_sha256"] == committed["gate_sha256"], "the table changes the task, not the gate"
 
     def no_helper(*args: Any, **kwargs: Any) -> None:
         raise AssertionError("the harness derived the command section through the helper")
@@ -502,12 +526,77 @@ def test_the_golden_was_captured_before_the_move():
             assert len(episode["portable"]) == min(pilot_rollout_golden.PORTABLE_STEPS, episode["length"]), key
 
 
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=str)
+def test_the_replay_holds_only_the_walk_stand_term_settings_at_their_capture_values(model_id):
+    """The keys the replay builds as at the capture (``WALK_STAND_SETTINGS_SINCE_CAPTURE``) are exactly the walk
+    ``[env]`` settings decision D-D62 copied from the stance for its stand block (each line cites
+    ``# stance.toml:N``), and each reaches a pilot through ``read_recipe``.  Their terms are at weight 0 in the walk's
+    ``[env]`` (test_walk_stand_block.py), so a pilot pays nothing for them; every other inherited key is as captured,
+    which the replay's task digest proves."""
+    from environments.shared.train_behaviors import read_recipe
+
+    path = model_id.path(REPOSITORY_ROOT / "configs") / "locomotion.toml"
+    cited, table = set(), None
+    for line in path.read_text().splitlines():
+        if line.startswith("["):
+            table = line.strip()
+        elif table == "[env]" and re.match(r"^\w+\s*=[^#]*#\s*stance\.toml:\d+", line):
+            cited.add(line.split("=", 1)[0].strip())
+    restored = pilot_rollout_golden.WALK_STAND_SETTINGS_SINCE_CAPTURE.get((model_id.species, model_id.embodiment), ())
+    assert set(restored) == cited and len(restored) == len(cited)
+    recipe = model_id.path(REPOSITORY_ROOT / "configs") / "behaviors" / "follow_direction.toml"
+    _, _, _, env_kwargs = read_recipe(recipe, model_id)
+    assert cited <= set(env_kwargs)
+
+
+@pytest.mark.parametrize(
+    ("model_id", "recipe"),
+    [
+        (ModelId("velociraptor_mongoliensis", "anatomical"), "follow_direction"),
+        (ModelId("tyrannosaurus_rex", "anatomical"), "follow_direction_speed"),
+        (ModelId("compsognathus_longipes", "anatomical"), "follow_direction"),
+    ],
+    ids=str,
+)
+def test_the_inherited_walk_stand_term_settings_move_no_recipe_reward(model_id, recipe):
+    """D-D62 (14): a recipe built through ``read_recipe`` / ``create_behavior_env`` with the walk's stand-term
+    settings and one built without them (as the pilot golden replays it) step identically: the same reward, the
+    same observation and the same flags on every step of a seeded random-action rollout, falls and resets included.
+    Only those terms' own diagnostics, at weight 0 in the recipe, may differ."""
+    from environments.shared.train_behaviors import create_behavior_env, read_recipe
+
+    path = model_id.path(REPOSITORY_ROOT / "configs") / "behaviors" / f"{recipe}.toml"
+    parsed, commands, terrain, env_kwargs = read_recipe(path, model_id)
+    settings = pilot_rollout_golden.WALK_STAND_SETTINGS_SINCE_CAPTURE[(model_id.species, model_id.embodiment)]
+    assert set(settings) <= set(env_kwargs) and not set(settings) & set(parsed.get("env", {}))
+    without = {key: value for key, value in env_kwargs.items() if key not in settings}
+    envs = [
+        create_behavior_env(model_id, commands=commands, terrain=terrain, run_seed=0, **kwargs)
+        for kwargs in (env_kwargs, without)
+    ]
+    try:
+        nu = int(np.prod(envs[0].action_space.shape))
+        actions = np.random.default_rng(20261124).uniform(-0.3, 0.3, size=(150, nu)).astype(np.float32)
+        observations = [env.reset(seed=3042)[0] for env in envs]
+        assert np.array_equal(*observations)
+        for action in actions:
+            steps = [env.step(action) for env in envs]
+            (obs_a, reward_a, term_a, trunc_a, _), (obs_b, reward_b, term_b, trunc_b, _) = steps
+            assert reward_a == reward_b and (term_a, trunc_a) == (term_b, trunc_b)
+            assert np.array_equal(obs_a, obs_b)
+            if term_a or trunc_a:
+                assert np.array_equal(*(env.reset()[0] for env in envs))
+    finally:
+        for env in envs:
+            env.close()
+
+
 TRACKING_KEYS = {"reward_tracking", "tracking_dwell_s", "tracking_in_tolerance", "command_event_id", "desired_heading"}
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=str)
 def test_a_none_stage_scores_no_tracking(model_id):
-    env = build_env(model_id, "locomotion")
+    env = build_env(model_id, "stance")
     try:
         env.reset(seed=3)
         _, reward, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -515,6 +604,13 @@ def test_a_none_stage_scores_no_tracking(model_id):
         assert not hasattr(env, "tracking_weight") and env._command_metrics == {}
     finally:
         env.close()
+
+
+def _none_twin(model_id: ModelId, stage: str = "locomotion") -> BaseDinoEnv:
+    """*stage*'s committed env under command_mode "none": the walk's [env] without its live command (decision D-D62),
+    the "none" twin a live env is compared with."""
+    env: BaseDinoEnv = build_env(model_id, stage, command_mode="none", command_config=None)
+    return env
 
 
 def _live_env(model_id: ModelId, stage: str = "locomotion", **config: Any) -> BaseDinoEnv:
@@ -528,7 +624,7 @@ def _live_env(model_id: ModelId, stage: str = "locomotion", **config: Any) -> Ba
 def test_a_live_stage_scores_the_command_config_tracking_term(model_id):
     """reward = the species reward + tracking_weight * gaussian(errors; sigmas), the parameters the config's."""
     env = _live_env(model_id, tracking_weight=1.7, tracking_velocity_sigma=0.4, tracking_yaw_rate_sigma=0.2)
-    plain = build_env(model_id, "locomotion")
+    plain = _none_twin(model_id)
     try:
         assert (env.tracking_weight, env.tracking_velocity_sigma, env.tracking_yaw_rate_sigma) == (1.7, 0.4, 0.2)
         env.reset(seed=3)
@@ -573,7 +669,7 @@ def test_the_dwell_counts_seconds_in_tolerance_and_restarts_on_a_new_target():
 
 
 def test_set_direction_and_step_need_a_live_command_and_a_reset():
-    plain = build_env(TYRANNOSAURUS_REX, "locomotion")
+    plain = build_env(TYRANNOSAURUS_REX, "stance")
     live = _live_env(TYRANNOSAURUS_REX)
     try:
         with pytest.raises(RuntimeError, match="live command_mode"):
@@ -638,7 +734,7 @@ def test_a_live_command_leaves_every_reset_draw_as_none_draws_it(model_id, stage
     """A seeded reset, then unseeded resets with zero-action steps between: the same qpos, qvel, push schedule and
     generator state as the "none" twin, and the same observation but for the command; the commands vary."""
     live = _live_env(model_id, stage, stop_probability=0.2, speed_range=(0.1, 0.4), initial_heading_offset_max=0.3)
-    none = build_env(model_id, stage)
+    none = _none_twin(model_id, stage)
     zero = np.zeros(none.action_space.shape, dtype=np.float32)
     commands = []
     try:

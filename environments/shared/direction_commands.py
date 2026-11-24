@@ -14,7 +14,8 @@ differently or are updated at different frequencies.
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, replace
 from typing import Any, ClassVar
 
 import numpy as np
@@ -44,6 +45,44 @@ def wrap_angle(angle: float) -> float:
     return (_finite(angle, "angle") + math.pi) % (2.0 * math.pi) - math.pi
 
 
+def _stand_weight_pairs(value: Any) -> tuple[tuple[str, float], ...]:
+    """*value* (a mapping or ``(name, weight)`` pairs) as pairs sorted by name; every name once, every weight >= 0."""
+    if isinstance(value, Mapping):
+        items = list(value.items())
+    else:
+        try:
+            items = [tuple(item) for item in value]
+        except TypeError as exc:
+            raise ValueError("stand_weights must be a table of reward weights by name") from exc
+    pairs: dict[str, float] = {}
+    for item in items:
+        if len(item) != 2:
+            raise ValueError("stand_weights must be a table of reward weights by name")
+        name, weight = item
+        if not isinstance(name, str) or not name.isidentifier():
+            raise ValueError(f"a stand_weights name must be a reward kwarg name, got {name!r}")
+        if name in pairs:
+            raise ValueError(f"stand_weights names {name!r} twice")
+        if isinstance(weight, bool):
+            raise ValueError(f"stand_weights[{name!r}] must be a number, got {weight!r}")
+        number = _finite(weight, f"stand_weights[{name!r}]")
+        if number < 0.0:
+            raise ValueError(f"stand_weights[{name!r}] must be at least 0, got {number!r}")
+        pairs[name] = number
+    return tuple(sorted(pairs.items()))
+
+
+def stand_weights_of(command_config: Any) -> dict[str, float]:
+    """The stand block of a command config or of its record (``{name: weight}``); empty for ``None``."""
+    if command_config is None:
+        return {}
+    if isinstance(command_config, DirectionCommandConfig):
+        return command_config.stand_weight_map()
+    if isinstance(command_config, Mapping):
+        return dict(_stand_weight_pairs(command_config.get("stand_weights", ())))
+    raise TypeError(f"a command config is a DirectionCommandConfig or its record, not {type(command_config).__name__}")
+
+
 #: Speeds the tracking defaults scale with: a ``speed_scale`` of 1.5 m/s keeps them as stated.
 TRACKING_REFERENCE_SPEED_SCALE = 1.5
 
@@ -71,6 +110,24 @@ class DirectionCommandConfig:
     sigma or tolerance scales with ``speed_scale``
     (:meth:`tracking_parameters`), so a small animal cannot pass a walk
     command while standing.
+
+    ``stand_weights`` is the stand block (decision D-D62): reward weights,
+    by constructor kwarg name, that ``BaseDinoEnv`` pays in place of the
+    constructor's on a step whose command is exactly zero, so that a zero
+    command means "stand".  Given as a mapping (a TOML
+    ``[commands.stand_weights]`` table) or as ``(name, weight)`` pairs, it
+    is held as pairs sorted by name; each weight is finite and at least 0.
+    Which names an env accepts is the env's to say
+    (``BaseDinoEnv`` refuses a name that is not one of its reward weights).
+
+    ``cruise_ramp_start_fraction`` and ``cruise_ramp_timesteps`` are the
+    cruise ramp (decision D-D62): training starts the commanded speeds
+    (``cruise_speed`` and ``speed_range``) at the start fraction of these
+    values and raises them linearly to 1 over the ramp's timesteps
+    (``curriculum.cruise_ramp.CruiseRampCallback``).  The config holds the
+    ramp's end state, which is the task the stage is certified on; the
+    environment never reads the two fields.  Both off (1.0 and 0) or both
+    on (a start fraction in (0, 1) and a positive budget).
 
     The fields after ``minimum_turn_speed_fraction`` came after the command
     manifest's first schema.  Each is recorded (:meth:`task_record`, which
@@ -104,6 +161,9 @@ class DirectionCommandConfig:
     tracking_heading_tolerance: float = math.pi / 12.0
     tracking_stop_speed_tolerance: float | None = None
     tracking_stop_yaw_rate_tolerance: float = 0.15
+    stand_weights: Any = ()
+    cruise_ramp_start_fraction: float = 1.0
+    cruise_ramp_timesteps: int = 0
 
     UNRECORDED_VALUES: ClassVar[dict[str, Any]] = {
         "initial_heading_offset_max": 0.0,
@@ -115,6 +175,9 @@ class DirectionCommandConfig:
         "tracking_heading_tolerance": math.pi / 12.0,
         "tracking_stop_speed_tolerance": None,
         "tracking_stop_yaw_rate_tolerance": 0.15,
+        "stand_weights": (),
+        "cruise_ramp_start_fraction": 1.0,
+        "cruise_ramp_timesteps": 0,
     }
 
     def __post_init__(self) -> None:
@@ -170,14 +233,71 @@ class DirectionCommandConfig:
             if not 0.0 <= bounds[0] <= bounds[1] <= self.speed_scale:
                 raise ValueError("speed_range must satisfy 0 <= low <= high <= speed_scale")
             object.__setattr__(self, "speed_range", bounds)
+        object.__setattr__(self, "stand_weights", _stand_weight_pairs(self.stand_weights))
+        fraction = _finite(self.cruise_ramp_start_fraction, "cruise_ramp_start_fraction")
+        object.__setattr__(self, "cruise_ramp_start_fraction", fraction)
+        timesteps = self.cruise_ramp_timesteps
+        if isinstance(timesteps, bool) or not isinstance(timesteps, (int, np.integer)) or timesteps < 0:
+            raise ValueError("cruise_ramp_timesteps must be a whole number of timesteps, at least 0")
+        object.__setattr__(self, "cruise_ramp_timesteps", int(timesteps))
+        if not 0.0 < fraction <= 1.0:
+            raise ValueError("cruise_ramp_start_fraction must lie in (0, 1]")
+        if (fraction < 1.0) != (self.cruise_ramp_timesteps > 0):
+            raise ValueError(
+                "a cruise ramp needs both a cruise_ramp_start_fraction below 1 and a positive "
+                "cruise_ramp_timesteps; with neither the commanded speeds start at their end state"
+            )
 
     def task_record(self) -> dict[str, Any]:
-        """Every field, except one that holds its :attr:`UNRECORDED_VALUES` value (see the class docstring)."""
+        """Every field, except one that holds its :attr:`UNRECORDED_VALUES` value (see the class docstring).
+
+        A recorded ``stand_weights`` is an object, ``{name: weight}``.
+        """
         record = asdict(self)
         for name, value in self.UNRECORDED_VALUES.items():
             if record[name] == value:
                 del record[name]
+        if "stand_weights" in record:
+            record["stand_weights"] = dict(self.stand_weights)
         return record
+
+    def field_record(self) -> dict[str, Any]:
+        """Every field, as a JSON record holds it: a range as a list and the stand weights as an object.
+
+        ``DirectionCommandConfig(**config.field_record())`` rebuilds the
+        config exactly (``config.env_kwargs_record`` records a stage's
+        config this way).
+        """
+        record = asdict(self)
+        record["speed_range"] = None if self.speed_range is None else list(self.speed_range)
+        record["stand_weights"] = dict(self.stand_weights)
+        return record
+
+    def stand_weight_map(self) -> dict[str, float]:
+        """The stand block as ``{name: weight}``; empty when the config declares none."""
+        return dict(self.stand_weights)
+
+    @property
+    def has_cruise_ramp(self) -> bool:
+        """Whether training ramps the commanded speeds in (``cruise_ramp_timesteps > 0``)."""
+        return self.cruise_ramp_timesteps > 0
+
+    def ramped(self, fraction: float) -> "DirectionCommandConfig":
+        """This config with ``cruise_speed`` and ``speed_range`` scaled by *fraction* in (0, 1].
+
+        Every other field is kept, so the stop probability, the heading
+        offset, the scales and the tracking parameters (whose speed defaults
+        follow ``speed_scale``, not the cruise) are the end state's: a
+        ramped config draws its stops on the same seeds as the end state,
+        and each cruise speed is *fraction* of the end state's, to rounding.
+        """
+        fraction = _finite(fraction, "fraction")
+        if not 0.0 < fraction <= 1.0:
+            raise ValueError("a ramp fraction must lie in (0, 1]")
+        speed_range = None
+        if self.speed_range is not None:
+            speed_range = (fraction * self.speed_range[0], fraction * self.speed_range[1])
+        return replace(self, cruise_speed=fraction * self.cruise_speed, speed_range=speed_range)
 
     def tracking_parameters(self) -> dict[str, Any]:
         """The tracking reward's weight and sigmas and the metrics' tolerances, each ``None`` resolved.
@@ -292,6 +412,17 @@ class DirectionCommandController:
         self._desired_heading = 0.0
         self._desired_speed = 0.0
         self._external_override = False
+
+    def replace_config(self, config: DirectionCommandConfig) -> None:
+        """Draw from *config* from the next draw on (a speed, a turn or an interval); the current request stands.
+
+        The cruise ramp's swap (``BaseDinoEnv.set_command_config``, which
+        checks what may differ).  A whole-episode walk draws only at reset,
+        so the swap takes effect at the next episode.
+        """
+        if not isinstance(config, DirectionCommandConfig):
+            raise TypeError("config must be a DirectionCommandConfig")
+        self.config = config
 
     @property
     def schedule_seed(self) -> int | None:

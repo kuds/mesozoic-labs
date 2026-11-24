@@ -1,30 +1,95 @@
 [stage]
 name = "locomotion"
-description = "Learn coordinated quadrupedal walking"
+description = "Walk: follow a forward command with heading hold, and stand still on a zero command"
+
+# The walk (decision D-D62): every episode draws one whole-episode command at reset ([commands]), a forward cruise
+# about a heading near the spawn's or, on about 15% of episodes, an exactly zero command, the stand.  The reward is
+# BaseDinoEnv's command-tracking term ([commands] tracking_weight) plus the [env] terms below on every cruise step;
+# on a stand step the stand block ([commands.stand_weights]) pays the stance's weights in their place.
 
 [env]
-forward_vel_weight = 4.4               # Sweep winner (5223 reward): 4.44 — slightly higher than 4.0, keeps speed as dominant signal.
-forward_vel_max = 0.89                 # Sweep winner: 0.89 — tighter speed cap encourages quality over raw speed. Still above 0.75 graduation target.
+# Kept terms: alive, posture, nosedive, energy, smoothness, tail and the gait terms, at the forward walk's weights.
 alive_bonus = 0.26                     # Sweep winner: 0.264 — modest increase from 0.2 stabilizes early training without the 0.3 collapse seen 03-22.
 fall_penalty = -50.0                   # Reduced from -100: overly harsh penalty caused conservative policies that avoid movement. Align with T-Rex/Velociraptor.
 energy_penalty_weight = 0.004          # Sweep winner: 0.00384 — lighter than 0.005, top-3 trials all clustered 0.0035–0.004.
 tail_stability_weight = 0.11           # Sweep winner: 0.113 — slightly lower than 0.15, less pressure on tail lets locomotion dominate.
 gait_stability_weight = 0.065          # Sweep winner: 0.0645 — slight increase from 0.05.
 gait_symmetry_weight = 2.2             # Sweep winner: 2.224 — confirmed: >2.0 is safe and beneficial. Top-3 all in 2.2–2.4 range.
+                                       # Measured on the walk (2026-11-24): the zero-action statue collects all of
+                                       # it on every cruise step (its diagonal pairs land in the settle and never
+                                       # lift, so the alternation ratio holds at 1: 2195.5 of a 2214.8 cruise
+                                       # episode), the reference walk's lateral sequence 0.71-0.77 of it.
 smoothness_weight = 0.05               # Penalize jerky actions for smoother movement
 posture_weight = 0.29                  # Sweep winner: 0.286 — close to current 0.3, marginal reduction.
 nosedive_weight = 1.0                  # Sweep winner: 0.991 — strong increase confirmed by top-3 (0.75–1.0). Nosedive was a real problem.
 natural_pitch = -0.15                  # Slight upward neck angle target (radians).
 height_weight = 0.14                   # Sweep winner: 0.140 — reduced from 0.2. Less height pressure lets agent find natural gait posture.
-heading_weight = 0.07                  # Sweep winner: 0.069 — heading was already good at 0.98, less signal needed.
-lateral_penalty_weight = 0.11          # Sweep winner: 0.113 — essentially unchanged from 0.1.
-idle_penalty_weight = 0.26             # Sweep winner: 0.256 — slight reduction from 0.3, consistent direction.
+idle_penalty_weight = 0.26             # Sweep winner: 0.256. Paid on cruise steps only: never at a zero command (D-D62 (3)).
 idle_velocity_threshold = 0.1          # Speed (m/s) at which idle penalty reaches zero. Below this, agent is penalised for inaction.
+# Terms the command-tracking term subsumes (D-D62): 0.  Under the live command they read the commanded heading
+# and the command event's start (BaseDinoEnv._forward_reference_2d, _drift_anchor_2d).
+forward_vel_weight = 0.0               # Was 4.4: tracking pays the commanded speed along the commanded heading
+backward_vel_penalty_weight = 0.0      # Was 0.0 (the constructor default)
+heading_weight = 0.0                   # Was 0.07: tracking pays the commanded yaw rate, which holds the heading
+lateral_penalty_weight = 0.0           # Was 0.11: tracking pays the commanded zero lateral speed
+drift_penalty_weight = 0.0             # Was 0.0 (the constructor default), as in the stance
+forward_vel_max = 0.89                 # Scales only the forward and backward terms, 0 above; kept so their
+                                       # diagnostics and the behavior recipes, which inherit this [env]
+                                       # (train_behaviors.read_recipe), keep the scale they had (the sweep's 0.89).
+# Stand-block term settings: none.  Every setting of a stand term is the stance's already (test_walk_stand_block.py
+# lists the settings that differ on purpose).
+# The episode.
 max_episode_steps = 1000
 reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
                                        # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
                                        # inherited a 5x narrower reset distribution by accident.
 healthy_z_range = [0.85, 3.5]          # Lowered fall floor from the env default 1.0: settled stance is ~1.13 m and normal gait bob dips to ~1.10 m, so a 1.0 floor fired spurious "fallen" terminations mid-gait (short 642/1000-step episodes, high variance). 0.85 keeps real falls detectable while letting the gait breathe.
+
+[commands]
+mode = "heading_and_speed"
+# Command scaling: the follow_direction pilot recipe's (behaviors/follow_direction.toml), so the walk and the follow
+# nodes that widen it share one scaling.
+cruise_speed = 0.75                    # m/s, the recipe's cruise
+speed_scale = 1.0                      # The recipe's: the command's v_x is normalised by it
+lateral_speed_scale = 1.0
+yaw_rate_scale = 0.6
+# The walk's distribution: one command event per episode, drawn at reset from the controller's own stream.
+speed_range = [0.375, 0.75]            # [0.5, 1] x cruise_speed
+stop_probability = 0.15                # Whole-episode stands: no switch comes within the horizon to draw another
+initial_heading_offset_max = 0.26      # rad: the requested heading is the spawn's turned by U(-0.26, 0.26) (15 deg)
+turn_increment_max = 0.0               # No turns
+switch_interval_s = 600.0              # Longer than the 10 s horizon (1000 steps x 0.01 s), so no scheduled switch
+switch_jitter_s = 0.0
+turn_slowdown = true
+yaw_rate_max = 0.3
+# The tracking term: the Gaussian of D-D60, sigmas and tolerances at their speed_scale defaults.  2.5, the pilot
+# recipes' weight, on every model.
+tracking_weight = 2.5
+# Measured on this plant (2026-11-24): the reference walk (scripts/reference_walk.py, its root servo steered to the
+# commanded heading) under a command it matches (0.35 m/s) earns 0.80 a step of the 2.5 and is in tolerance on 27-30%
+# of its steps, though a one-stride trailing mean of its velocity tracks the command at 0.99: within the stride its
+# lateral speed swings 0.13 m/s RMS against the 0.167 m/s sigma.  It earns 2.62 a step there to the statue's 2.25
+# (+17%), its gait_symmetry (1.58) worth twice its tracking.  On the committed commands it earns 2.42 a step steered
+# and 2.03 unsteered, to the statue's 2.21: it walks its own speed, slower than most cruise commands.
+# The cruise ramp (D-D62 (5)): training commands start at 0.25 x these speeds and reach them at 2M steps; the
+# evaluation env and the gate panels run the end state.
+cruise_ramp_start_fraction = 0.25
+cruise_ramp_timesteps = 2000000
+
+[commands.stand_weights]
+# The stand block (D-D62 (2)): paid in place of the [env] weights on every step under an exactly zero command.
+# Each is the stance's weight, from the stance.toml line named, wherever it differs from the [env] above (a weight
+# both share is paid anyway); test_walk_stand_block.py pins each one and lists every deliberate difference.
+speed_penalty_weight = 0.3             # stance.toml:10
+alive_bonus = 1.75                     # stance.toml:12
+energy_penalty_weight = 0.075          # stance.toml:13
+gait_stability_weight = 0.1            # stance.toml:14
+gait_symmetry_weight = 0.0             # stance.toml:15
+smoothness_weight = 0.0                # stance.toml:16
+tail_stability_weight = 0.0            # stance.toml:17
+posture_weight = 1.5                   # stance.toml:18
+nosedive_weight = 0.3                  # stance.toml:19
+height_weight = 0.0                    # stance.toml:20
 
 [ppo]
 learning_rate = 6e-5                    # Sweep winner: 6.03e-5 — slightly higher than 5e-5, better gradient signal without catastrophic forgetting.
@@ -65,34 +130,69 @@ net_arch = [512, 256]            # Larger first layer to match PPO's tapered arc
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
+gate_kind = "command_tracking/v1"       # environments/shared/curriculum/gate_schema.py.  Judged once, after the
+                                        # stage, on the command-tracking panel (command_tracking_report.json); the
+                                        # in-training manager never advances on it (decision D-D61).
 timesteps = 16000000                   # Reverted to 16M: 20M run (03-22) showed late-training collapse (2396→809). 16M was sufficient for the only S2 pass.
-min_avg_reward = 100.0
-collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
-                                        # early-stop backstop to an unrelated advancement threshold. Set to
-                                        # the value that fallback produced, so behaviour is unchanged.
-min_avg_episode_length = 750
-min_avg_forward_vel = 0.75             # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Realistic walking speed for a heavy sauropod.
-required_consecutive = 3
+# The walk profile: PROVISIONAL_WALK_THRESHOLDS (environments/shared/curriculum/command_tracking_gate.py), each the
+# bar of configs/behavior_certification.toml named on its line.  PROVISIONAL: to be frozen from the first walk
+# pilot's panel; a verdict minted under a provisional bar is re-judged, never retrained, when the bar moves (D-B7/D-B8).
+profile = "walk"
+min_cruise_episodes = 20                # episodes_per_family = 20
+min_stand_episodes = 5                  # minimum_command_episodes = 5
+min_cruise_survival_lcb = 0.80          # minimum_survival_lcb = 0.80: at 20 episodes only 20/20 clears it
+min_cruise_success_lcb = 0.60           # minimum_success_lcb = 0.60: 17/20 clears it, 16/20 does not
+min_cruise_tracking_fraction = 0.60     # minimum_tracking_fraction = 0.60, read after the settle
+min_cruise_speed_ratio = 0.50           # minimum_course_fraction = 0.50, as speed along the commanded heading
+min_stand_hold_fraction = 0.60          # minimum_tracking_fraction = 0.60, the stop criterion at a zero command
+min_stand_success_fraction = 0.60       # minimum_stop_settle_fraction = 0.60
+max_stand_falls = 0                     # The walk design (D-D61): a stand episode does not fall
+# The quadruped gait clause: PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS (GAIT_QUALITY_PLAN_2026_09.md §4.3 B, GQ-9 (a)),
+# PROVISIONAL, each with the per-episode ranges it separates (the July brachiosaurus bound, the dibothrosuchus skid).
+gait_limbs = 4
+max_flight_fraction = 0.05              # The July bound 0.013-0.041, the skid 0.15-0.46
+min_limb_duty = 0.20                    # The July bound 0.25-0.42, the skid 0-0.12
+min_pair_alternation_index = 0.75       # The July bound's fore 0.18-0.87 and hind 0.19-0.53, the skid 0-0.53;
+                                        # the reference walk 0.79-0.92 on this walk's panel (its hind pair; fore 1.0)
+# Optional on a quadruped (D-D61): the lower of the fore and hind pairs' lead swaps a stride, counted through the
+# 0.03 leg-length dead band (gait.locomotion_metrics, locomotion-gait/v2).  A flightless bound whose pair feet land
+# more than 20 ms apart clears the three floors above.  This bar refuses such a bound only while each pair's feet
+# stay side by side, within the dead band; a bound whose pair feet swing their lead past the band reads about two
+# lead swaps a stride and clears it as well, so the bar narrows that gap and does not close it (an open risk).
+min_lead_swaps_per_stride = 1.0         # The brachiosaurus reference walk reads 1.88 (locomotion-gait/v2, D-D61),
+                                        # 1.67-1.82 on this walk's panel (the 20 cruise episodes from 3042, reset
+                                        # noise 0.05; 1.44-1.87 steered to the commanded heading).  Each pair's
+                                        # touchdown phase (the right foot's in the left foot's stride) reads 0.47-0.54
+                                        # on the reference walk and 0.92-0.96 on the gait tests' synthetic staggered
+                                        # bounds (40-80 ms), whatever their lead does; no module computes it for a
+                                        # quadruped (measured with gait.locomotion_metrics' phase helpers).
+# Froude = v^2 / (g L) = 0.75^2 / (9.81 x 1.163) = 0.05 at the cruise (0.01 at the range's 0.375 m/s floor), with
+# L = 1.163 m the gait module's leg length (gait.locomotion_metrics: the spawn root's height above the spawn foot
+# sites, the mean of seeds 3042-3044, 1.162-1.163).  A quadruped's flight cap is one of its required floors whatever
+# its Froude number.  The reference walk (0.35 m/s, Froude 0.010) reads flight 0 and limb duty 0.59-0.61 on the walk
+# panel's 20 cruise episodes.
+#
+# Training-loop keys, read by no gate: the collapse backstop and the stage-entry warm-up.
+collapse_peak_floor = 100.0             # Absolute: the value the backstop took from the forward walk's 100.0
+                                        # min_avg_reward rail, which the command-tracking gate does not carry.
+                                        # The statue reads 2214.8 a cruise episode and 4149.8 a stand one on this
+                                        # walk (2505 an evaluation at the 15% stand rate), so a standing plateau
+                                        # arms the backstop once past the warm-up below.  The stand count's spread
+                                        # alone never stops it (0 of 400 simulated 16M runs; no evaluation under
+                                        # 0.79 of the peak), and a floor above the stander (2795 at 9 stands of
+                                        # 30) would not arm on a walk as steady as the reference either (2681).
+collapse_peak_warmup_timesteps = 3000000 # Evaluations before this step cannot SET the peak: the D-B5 bound,
+                                         # warmup_timesteps + [commands] cruise_ramp_timesteps (1M + 2M; 4.0M with
+                                         # the forward-weight ramp's 3M). The evaluation env runs the end-state
+                                         # command from step 0 (the cruise ramp swaps only the training workers),
+                                         # so a warm-started policy still standing evaluates at its standing level,
+                                         # far above the absolute floor, and the backstop would arm at 1.0M on it,
+                                         # the shape that stopped dibothrosuchus run 20260923_020654 at 1.45M of
+                                         # 12M. 3.0M leaves 13M of the 16M budget protected. The floor stays
+                                         # absolute until the plant settles (KNOWN_ISSUES, the collapse-floor entry).
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (20 evals x 50k) before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops (~500k steps) so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives until entropy decay (floor ~6M) stabilises the gait.
-collapse_peak_warmup_timesteps = 4000000 # Evaluations before this step cannot SET the peak: the D-B5 bound
-                                         # warmup_timesteps + ramp_timesteps (1M + 3M) the T-Rex hunt stage used before D-D59 removed it,
-                                         # conservative because the clip/entropy warm-up and the forward-weight
-                                         # ramp both run from stage step 0, so shaping ends at 3.0M. EvalCallback scores at the full forward_vel_weight from
-                                         # step 0, so a warm-started policy still standing evals at the locomotion
-                                         # statue (2282.0 +/- 11.2, 40/40 full horizon, seed 3042, on physics r7 /
-                                         # policy interface r12, whose forward and heading terms read the spawn
-                                         # heading; physics r6 along the food direction 2281.6 +/- 11.4; physics r5
-                                         # 2201.3 +/- 200.6, where two episodes lost 724 and 1088 of
-                                         # gait_symmetry's 2200 to a briefly unloaded foot),
-                                         # 23x the floor above, and the backstop would arm at 1.0M on it -- the
-                                         # shape that stopped dibothrosuchus run 20260923_020654 at 1.45M of 12M.
-                                         # 4.0M leaves 12M of the 16M budget protected. The floor stays absolute
-                                         # until the plant settles (KNOWN_ISSUES, the collapse-floor entry).
 warmup_timesteps = 1000000              # Sweep winner: 1M — 3x longer warmup was the biggest signal. Gives critic much more time to adapt to new reward landscape before policy changes accelerate.
 warmup_clip_range = 0.035               # Sweep winner: 0.0335 — more clip room during warmup lets policy adjust faster once critic is ready.
 warmup_ent_coef = 0.018                 # Sweep winner: 0.0175 — slightly lower than 0.02, less random during warmup since critic has longer to stabilize.
-ramp_timesteps = 3000000                # Sweep confirmed: 3M ramp across all top trials. Keep as-is.
-ramp_start_value = 0.16                 # Sweep winner: 0.158 — gentler ramp start reduces early speed pressure, letting gait quality develop first.

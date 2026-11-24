@@ -124,11 +124,23 @@ def inert_opt_in_env_kwargs(env_class: Any, effective: Mapping[str, Any]) -> lis
     constructor parameter (a typo, a later rename) would read as always off
     and keep a live option out of the fingerprint, so it raises
     :class:`TaskFingerprintError` instead.
+
+    A live command's stand block (``command_config.stand_weights``, decision
+    D-D62) turns an option on as well: a switch the block pays at another
+    value than its off value is on, so a stance-only term that a walk's
+    ``[env]`` leaves at 0 but its stand block pays hashes its kwargs (its
+    tolerances, which the block runs at the ``[env]`` values).  Under
+    ``command_mode = "none"`` there is no command config and nothing changes.
     """
     declared = getattr(env_class, "OPT_IN_TASK_KWARGS", ())
     if not declared:
         return []
+    from .direction_commands import DirectionCommandConfig, stand_weights_of
+
     parameters = inspect.signature(env_class).parameters
+    # A config of another type is refused where the command section is derived (stage_command_manifest).
+    config = effective.get("command_config")
+    stand = stand_weights_of(config) if isinstance(config, (DirectionCommandConfig, Mapping)) else {}
     names: list[str] = []
     for switch, off_value, kwargs in declared:
         if unknown := [name for name in (switch, *kwargs) if name not in parameters]:
@@ -137,7 +149,7 @@ def inert_opt_in_env_kwargs(env_class: Any, effective: Mapping[str, Any]) -> lis
                 "not a constructor parameter: an undeclared switch would read as always off and keep a live "
                 "option out of the task fingerprint"
             )
-        if effective.get(switch, off_value) == off_value:
+        if effective.get(switch, off_value) == off_value and stand.get(switch, off_value) == off_value:
             names.extend(kwargs)
     return names
 

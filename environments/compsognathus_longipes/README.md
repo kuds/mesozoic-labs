@@ -139,8 +139,22 @@ Species notes:
 
 The trained tasks are the stance, recovery from pushes and the walk. The target reach, the hunt that followed the
 walk, was removed by decision D-D59, and with it the target marker, its terms and its kwargs: the scene holds the
-animal and the floor, and the species declares no success event. Forward, sideways and heading are measured against
-the episode's reference heading, the spawn's own forward.
+animal and the floor, and the species declares no success event. Under the stance and recovery, forward, sideways and
+heading are measured against the episode's reference heading, the spawn's own forward.
+
+**The walk follows a live command** (decision D-D62); the stance and recovery run no command. Each walk episode draws
+one request at reset and holds it for the whole 20 s episode: a forward cruise at 0.04-0.08 m/s (the robot 0.02-0.04
+m/s) along a heading up to 0.26 rad (15 degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero
+command, which asks the animal to stand still. The command is the observation's last three values. A Gaussian term
+pays tracking the commanded velocity and yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms,
+which the walk sets to 0, and the terms that read a forward direction measure along the commanded heading. On a zero
+command a stand block (`[commands.stand_weights]`, 16 weights on the anatomical model, 6 on the robot) pays the
+stance's reward weights, so zero means stand still, not march in place. The commanded speeds ramp from 0.25 of their
+end values to the full range over the first 2M training steps. After training the walk is judged on its
+`command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
+gait clause with its flight cap. The bars are provisional, and no controller has yet been shown to clear them; the
+tracking width (0.02 m/s, the robot 0.01 m/s) lies under the estimated lateral sway of a stepping gait on these
+plants, and neither has a walking controller to measure it (decision D-D62 (16)).
 
 Both observations read no world heading (`bipedal-heading-free/v1`): the joint positions and velocities, projected
 gravity, the pelvis gyro, the pelvis velocity in a gravity-aligned heading frame, the pelvis accelerometer, one force
@@ -158,11 +172,12 @@ The main reward groups:
 
 - **Survival and posture:** an alive bonus paid while the feet carry weight, upright posture, pelvis height, the home
   joint pose and a fall penalty.
-- **Progress:** forward velocity and heading alignment.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity and heading alignment, which the walk sets to 0.
 - **Stability:** drift, sideways-velocity and spin penalties, and an optional gait-symmetry term.
-- **Stance quality** (anatomical stance and recovery): support under both feet, level pads and the settled stance
-  width on loaded feet, the home leg pose and every support geom loaded, and penalties on floor impacts, airborne
-  physics substeps, commands held at their limits and action jerk.
+- **Stance quality** (anatomical stance and recovery, and the anatomical walk's zero command): support under both
+  feet, level pads and the settled stance width on loaded feet, the home leg pose and every support geom loaded, and
+  penalties on floor impacts, airborne physics substeps, commands held at their limits and action jerk.
 - **Effort:** energy and action smoothness.
 
 The weights are the `CompsognathusLongipesEnv` constructor defaults in `base_env.py` and, for the stance-quality

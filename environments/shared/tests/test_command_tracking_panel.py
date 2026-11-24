@@ -52,6 +52,7 @@ from environments.shared.model_id import ModelId
 from environments.shared.paths import REPOSITORY_ROOT
 from environments.shared.species_registry import env_class
 from environments.shared.stage_manifest import load_stage_manifest
+from environments.shared.tests.stage_toml_helpers import replace_commands_table
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
@@ -76,11 +77,12 @@ HORIZON_STEPS = 300
 
 
 def _live_stage_config(tmp_path: Path) -> dict[str, Any]:
-    """T. rex's committed locomotion stage with a [commands] table appended, loaded from a copy in *tmp_path*."""
+    """T. rex's committed locomotion stage with its [commands] table replaced by WALK_COMMANDS, loaded from a copy in
+    *tmp_path*."""
     directory = tmp_path / TYRANNOSAURUS_REX.species / TYRANNOSAURUS_REX.embodiment
     shutil.copytree(TYRANNOSAURUS_REX.path(REPOSITORY_ROOT / "configs"), directory)
     path = directory / load_stage_manifest(TYRANNOSAURUS_REX).by_id("locomotion").config_file
-    path.write_text(path.read_text() + "\n" + WALK_COMMANDS.strip() + "\n")
+    replace_commands_table(path, WALK_COMMANDS)
     config = load_stage_config(TYRANNOSAURUS_REX, "locomotion", config_path=str(path))
     config["env_kwargs"]["max_episode_steps"] = HORIZON_STEPS
     return config
@@ -245,15 +247,20 @@ class TestRoll:
         assert [episode.as_dict() for episode in again.episodes] == [episode.as_dict() for episode in rollout.episodes]
 
     def test_a_stage_without_a_live_command_is_refused(self, statue):
-        committed = load_stage_config(TYRANNOSAURUS_REX, "locomotion")
+        committed = load_stage_config(TYRANNOSAURUS_REX, "stance")
         assert committed["env_kwargs"].get("command_mode", "none") == "none"
         with pytest.raises(CommandPanelError, match='command_mode "none"'):
             roll_command_panel(TYRANNOSAURUS_REX, committed, predict=statue, thresholds=SMALL_WALK)
 
     def test_a_stage_without_the_kind_needs_explicit_thresholds(self, stage_config, statue):
-        assert stage_config["curriculum_kwargs"]["gate_kind"] != "command_tracking/v1"
+        """The live stage with another kind's [curriculum] (the stance's; the committed walk declares the kind)."""
+        other = {
+            **stage_config,
+            "curriculum_kwargs": load_stage_config(TYRANNOSAURUS_REX, "stance")["curriculum_kwargs"],
+        }
+        assert other["curriculum_kwargs"]["gate_kind"] != "command_tracking/v1"
         with pytest.raises(CommandPanelError, match="pass the thresholds"):
-            roll_command_panel(TYRANNOSAURUS_REX, stage_config, predict=statue)
+            roll_command_panel(TYRANNOSAURUS_REX, other, predict=statue)
 
     def test_a_malformed_plan_is_refused_before_anything_rolls(self, stage_config, statue, rollout, command_config):
         cases = [

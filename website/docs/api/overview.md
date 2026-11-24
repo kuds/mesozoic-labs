@@ -222,7 +222,7 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 
 | Metric key | Description | Species |
 |---|---|---|
-| `mean_heading_alignment` | cos θ between the body's heading and its spawn heading ∈ [-1, 1] | All but the Allosaurus |
+| `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command | All but the Allosaurus |
 | `mean_contact_asymmetry` | Left/right contact imbalance ∈ [0, 1] | All |
 | `success_rate` | Episode-level indicator: 1 if any of the model's success keys fired, otherwise 0; absent for a model that declares none | Allosaurus (`course_complete`) |
 

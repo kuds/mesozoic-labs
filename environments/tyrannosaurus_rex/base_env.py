@@ -32,7 +32,8 @@ The six toe hinges are passive (spring-loaded at the home pose); they stay
 in qpos/qvel so the observation still senses toe posture.
 
 Reward components:
-    - Forward velocity (along the reference heading, the spawn's forward)
+    - Forward velocity (along the forward reference: the spawn's forward,
+      or under a live command the commanded heading)
     - Backward velocity penalty
     - Drift penalty (horizontal displacement from spawn)
     - Alive bonus
@@ -56,7 +57,7 @@ Reward components:
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
     - Spin penalty (penalize pelvis angular velocity)
-    - Heading alignment (facing the reference heading)
+    - Heading alignment (facing the forward reference)
     - Lateral velocity penalty (anti crab-walk)
     - Speed penalty (penalise absolute speed above threshold)
 """
@@ -555,9 +556,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self._init_gait_state()
 
         # The progress, drift and heading terms read the episode anchors
-        # BaseDinoEnv sets: _initial_pos_2d (the drift anchor) and
-        # _reference_heading_2d (the spawn's unit forward), both taken once
-        # per reset, so "forward" stays fixed for the whole episode.
+        # BaseDinoEnv keeps: under command_mode "none" the spawn's
+        # (_initial_pos_2d, the drift anchor, and _reference_heading_2d, the
+        # spawn's unit forward), both taken once per reset, so "forward" stays
+        # fixed for the whole episode; under a live command the command's
+        # (_forward_reference_2d and _drift_anchor_2d, decision D-D62).
 
         super().__init__(
             model_path=model_path,
@@ -578,8 +581,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             command_mode=command_mode,
             command_config=command_config,
         )
-        # Build the CoP band's reader now, so a model it cannot describe fails here.
-        if self.stance_cop_band_weight > 0.0:
+        # Build the CoP band's reader now, so a model it cannot describe fails
+        # here, whether [env] or a live stage's stand block pays the band.
+        if self.stance_cop_band_weight > 0.0 or self._stand_weights.get("stance_cop_band_weight", 0.0) > 0.0:
             self._cop_band()
 
     def _cop_band(self) -> Any:
@@ -1016,10 +1020,13 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         pelvis_pos = self.data.xpos[self.pelvis_id]
-        forward_ref_2d = self._reference_heading_2d
+        # The forward reference: the spawn's heading under command_mode
+        # "none", the commanded heading under a live command
+        # (BaseDinoEnv._forward_reference_2d).
+        forward_ref_2d = self._forward_reference_2d()
         vel_2d = self.data.qvel[0:2]
 
-        # 1-1c. Forward velocity along the reference heading, backward velocity penalty and drift penalty
+        # 1-1c. Forward velocity along the forward reference, backward velocity penalty and drift penalty
         reward_forward, reward_backward, reward_drift = self._progress_terms(
             info, vel_2d, forward_ref_2d, pelvis_pos[:2]
         )
@@ -1244,8 +1251,14 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # info keys exist only then).  A Gaussian bonus on the whole-body
         # centre of mass's offset from the foot-site midpoint along the
         # heading frame's left axis (_com_lateral_offset), paid only after the
-        # settle (step > stance_width_settle_steps), only while the command is
-        # zero and only while both feet carry foot_terms_min_support_force.
+        # settle (step > stance_width_settle_steps) and only while both feet
+        # carry foot_terms_min_support_force.  Until decision D-D62 it was
+        # also paid only while the command was zero; the stand block
+        # (BaseDinoEnv._stand_block) generalizes that gate to every species:
+        # a live stage pays a standing term at a zero command through its
+        # [commands] stand_weights, and under command_mode "none" (every
+        # stance) the command is always zero, so dropping the test changed
+        # no stance reward.
         # The 2026-10 stances that failed the pad rails leaned onto one pad's
         # edge with both feet down, which the support and width terms price
         # as a sound stance.  The offset flips sign under the left-right
@@ -1266,9 +1279,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             reward_lateral_lean, lateral_lean_quality = _reward_lateral_lean_pure(
                 np.asarray(com_lateral_offset), self.lateral_lean_tolerance_m, self.lateral_lean_weight
             )
-            lean_gate = (
-                self._step_count > self.stance_width_settle_steps and not np.any(self._command) and all(feet_supported)
-            )
+            lean_gate = self._step_count > self.stance_width_settle_steps and all(feet_supported)
             info["com_lateral_offset_m"] = com_lateral_offset
             info["lateral_lean_quality"] = float(lateral_lean_quality)
             info["reward_lateral_lean"] = float(reward_lateral_lean) if lean_gate else 0.0
@@ -1278,10 +1289,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # Gaussian PENALTY on the fore-aft stagger of the two foot sites along
         # the pelvis heading (_foot_stagger), centred on 0 (the statue's
         # window mean |stagger| is 2.0 mm), paid only after the settle (step >
-        # stance_width_settle_steps) and only while the command is zero.  Not
+        # stance_width_settle_steps); a live stage pays it at a zero command
+        # through its stand block (8g).  Not
         # gated on support: a penalty that a lifted foot escaped would pay the
         # policy to unload a foot.  -w (1 - exp(-(s/tol)^2)); the stagger
-        # enters squared and both gates are mirror-invariant, so the term is
+        # enters squared and the gate is mirror-invariant, so the term is
         # exactly mirror-invariant.  Designed in the 2026-10-19 night
         # continuation and screened from scratch as stance4's arm LTS (w 0.30,
         # tol 0.045 m; docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md
@@ -1293,7 +1305,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             reward_stance_stagger, stagger_quality = _reward_stance_stagger_pure(
                 np.asarray(foot_stagger), self.stance_stagger_tolerance_m, self.stance_stagger_weight
             )
-            stagger_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
+            stagger_gate = self._step_count > self.stance_width_settle_steps
             info["foot_stagger_m"] = foot_stagger
             info["stance_stagger_quality"] = float(stagger_quality)
             info["reward_stance_stagger"] = float(reward_stance_stagger) if stagger_gate else 0.0
@@ -1316,8 +1328,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # bounded door: a lighter foot whose CoP is back in band pays 1 - g of
         # the per-foot maximum, less than a loaded foot u out of band when
         # g > exp(-(u / tolerance)^2) (at the defaults from share 0.30 for
-        # u 0.3, never at 0.25 or below).  Paid only after the settle and only
-        # while the command is zero, like the stagger term.  -w mean_feet
+        # u 0.3, never at 0.25 or below).  Paid only after the settle, like
+        # the stagger term (and like it a stand-block term of a live stage,
+        # 8g).  -w mean_feet
         # (1 - q); every reading is fore-aft, the guard is per foot and the
         # mean is symmetric, so the term is exactly mirror-invariant.
         # Defaults (spans of 70 mm): band [-0.6, +0.4] (the split diagnosis'
@@ -1375,7 +1388,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 exponents.append(-(scaled * scaled))
             gaussian = np.exp(exponents).tolist()
             band_quality = [guard * value if guard > 0.0 else 0.0 for guard, value in zip(guards, gaussian)]
-            band_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
+            band_gate = self._step_count > self.stance_width_settle_steps
             for index, label in enumerate(("r", "l")):
                 foot_cop, foot_loaded, pad_cop, pad_loaded, _limb, digit_share = feet[index]
                 info[f"{label}_cop_band_foot_cop"] = foot_cop if foot_loaded else 0.0

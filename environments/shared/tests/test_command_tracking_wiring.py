@@ -104,6 +104,7 @@ from environments.shared.result_bundle.evidence import (
 )
 from environments.shared.result_bundle.gate_verdict import _PERSISTED_STAGE_RESULT_KEYS
 from environments.shared.result_bundle.hashing import sha256_file
+from environments.shared.tests.stage_toml_helpers import replace_commands_table
 
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 TASK_SHA256 = "sha256:" + "c3" * 32
@@ -1242,10 +1243,14 @@ class TestReaders:
         assert "paired Δ success vs the parent policy LCB95 ≥ 0" in text and "cruise" not in text
 
     def test_a_non_command_stage_exports_exactly_what_it_did(self):
+        """The stance (its kind is not command_tracking/v1) exports none of the kind's keys; the walk, which declares
+        the kind since decision D-D62, exports its profile and gait clause."""
         from environments.shared.config import load_stage_config
 
-        curriculum = load_stage_config(COMPSOGNATHUS_LONGIPES, "locomotion")["curriculum_kwargs"]
+        curriculum = load_stage_config(COMPSOGNATHUS_LONGIPES, "stance")["curriculum_kwargs"]
         assert "profile" not in self._gate(curriculum) and "gait_limbs" not in self._gate(curriculum)
+        walk = self._gate(load_stage_config(COMPSOGNATHUS_LONGIPES, "locomotion")["curriculum_kwargs"])
+        assert walk["profile"] == "walk" and walk["gait_limbs"] == 2
 
     def test_the_headline_reads_the_summary_row(self):
         from environments.shared.species_catalog import _deliverable_headline
@@ -1384,7 +1389,7 @@ def trained_stage(tmp_path_factory):
     shutil.copytree(COMPSOGNATHUS_LONGIPES.path(REPOSITORY_ROOT / "configs"), directory)
     entry = load_stage_manifest(COMPSOGNATHUS_LONGIPES).by_id("locomotion")
     path = directory / entry.config_file
-    path.write_text(path.read_text() + "\n" + WALK_COMMANDS.strip() + "\n")
+    replace_commands_table(path, WALK_COMMANDS)
     config = load_stage_config(COMPSOGNATHUS_LONGIPES, "locomotion", config_path=str(path))
     config["env_kwargs"]["max_episode_steps"] = 75  # 1.5 s at the compsognathus's 0.02 s step
     config["ppo_kwargs"].update(n_steps=64, batch_size=64, n_epochs=1)

@@ -114,13 +114,24 @@ Species notes:
 
 ## Task and rewards
 
-The stance stage holds an upright posture on the feet. The locomotion stage walks an 8 m course straight ahead along
-the heading the animal has at reset. The environment reports `course_complete` when the pelvis has advanced 7.65 m
-along that heading (the course length less a 0.35 m tolerance) while at least one foot bears weight; that ends the
-episode. The finish is a line across the heading, so a sideways offset neither prevents nor causes it. Until policy
-interface r2 an invisible target sat 8 m ahead and the course ended within 0.35 m of it; the scene now holds only the
-animal and the floor. The stance deliverable is judged on supported standing instead; the catalog entry gives its
-definition.
+The stance stage holds an upright posture on the feet. The locomotion stage, the walk, follows a live command
+(decision D-D62); the stance runs none. Each walk episode draws one request at reset and holds it for the whole 30 s
+episode: a forward cruise at 0.175-0.35 m/s along a heading up to 0.26 rad (15 degrees) off the spawn heading, or, in
+about 15% of episodes, an exactly zero command, which asks the animal to stand still. A Gaussian term pays tracking
+the commanded velocity and yaw rate (weight 2.5) and replaces the forward term, which the walk sets to 0; on a zero
+command a stand block pays the stance's drift hold. The commanded speeds ramp from 0.25 of their end values to the
+full range over the first 2M training steps. A cruise episode has an 8 m course along its commanded heading at reset:
+the environment reports `course_complete` on the step the pelvis has advanced 7.65 m along it (the course length less
+a 0.35 m tolerance) while at least one foot bears weight, and `success` from then on. It is an event, not a
+termination, and no gate criterion; a stand episode has no course. After training the walk is judged on its
+`command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
+gait clause with its flight cap. The bars are provisional, and no controller has yet been shown to clear them: the
+reference walk sways within its stride, so at a command it matches it reads tracking quality 0.14 a step and fails the
+tracking bars (decision D-D62 (16)). Under command_mode "none" the course runs along the spawn heading while the
+forward weight is positive and ends the episode. The finish is a line across the heading, so a sideways offset neither
+prevents nor causes it. Until policy interface r2 an invisible target sat 8 m ahead and the course ended within 0.35 m
+of it; the scene now holds only the animal and the floor. The stance deliverable is judged on supported standing
+instead; the catalog entry gives its definition.
 
 The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
 frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot and the command, 41 values
@@ -132,15 +143,17 @@ The main reward groups:
 
 - **Support and posture:** an alive bonus and an upright-posture term at standing height, both paid only while a foot
   bears weight, and a fall penalty.
-- **Progress** (locomotion): forward velocity along the spawn heading.
-- **Drift** (stance): a penalty on horizontal displacement from the starting point.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity along the spawn heading (the commanded heading on the walk), which the walk sets to
+  0.
+- **Drift** (stance, and the walk's zero command): a penalty on horizontal displacement from the starting point.
 - **Effort:** an energy penalty on the squared action.
 
 The weights are the `AllosaurusFragilisEnv` constructor defaults in [`base_env.py`](base_env.py), overridden by the
 `[env]` table of each stage TOML in
 [`configs/allosaurus_fragilis/anatomical/`](../../configs/allosaurus_fragilis/anatomical/). An episode ends on a
 non-finite state, a pelvis height out of range or excessive tilt, any body part other than the feet touching the floor,
-or a completed course. The thresholds are in `base_env.py`.
+or, under command_mode "none", a completed course. The thresholds are in `base_env.py`.
 
 ## Files
 

@@ -16,6 +16,8 @@ This 85.5 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stand
 
 Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes. Since policy interface r17 (decision D-D59) it reads no prey either, as the prey has left the scene. T-Rex trains on Stable-Baselines3 only.
 
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance and recovery run no command. Each walk episode draws one request at reset and holds it for its whole 10 s: a forward cruise at 0.525-1.05 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (26 weights, the standing lean, foot stagger and center-of-pressure terms among them) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the biped gait clause with its flight cap), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet been shown to clear them: the reference walk sways within its stride, so at a command it matches it reads tracking quality 0.14 a step and fails the tracking bars (decision D-D62 (16)). The later follow nodes will widen this distribution as the walk's exact continuation.
+
 <SpeciesCatalog species={MODEL} />
 
 ## Curriculum
@@ -97,7 +99,7 @@ After each training stage the `eval` command reports:
 | `stride_frequency` | Step frequency (Hz) |
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
-| `mean_heading_alignment` | cos θ between the body's heading and its spawn heading ∈ [-1, 1] |
+| `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command |
 
 ## Reference walk
 

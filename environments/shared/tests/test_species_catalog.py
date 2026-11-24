@@ -19,6 +19,7 @@ from environments.shared.curriculum.stance_gate_v2 import EPISODE_CRITERION_KEYS
 from environments.shared.model_id import ModelId
 from environments.shared.result_schema import certified_deliverables
 from environments.shared.species_catalog import (
+    _COMMAND_TRACKING_EXPORTED_KEYS,
     _HEADLINE_BY_GATE_KIND,
     _STANCE_V2_EXPORTED_KEYS,
     CATALOG_PAGE_DIR,
@@ -27,6 +28,7 @@ from environments.shared.species_catalog import (
     DEFAULT_OUTPUT_PATH,
     DEFAULT_PLANT_MANIFEST_PATH,
     DEFAULT_README_PATH,
+    DEFAULT_STAGE_THRESHOLD,
     REPOSITORY_ROOT,
     CatalogError,
     _build_deliverable_metrics,
@@ -345,6 +347,45 @@ def test_catalog_labels_published_videos_with_artifact_provenance() -> None:
     assert all(video["verification_status"] == "unverified" for video in videos)
 
 
+def _command_walk_gate(*, biped: bool, flight_cap: bool) -> dict[str, Any]:
+    """A live walk's exported gate (decisions D-D61 and D-D62): the shared keys, nulls for every kind it does not
+    declare, the walk profile's PROVISIONAL_WALK_THRESHOLDS, the follow profile's keys null, and the animal's
+    gait clause (the biped's six separators, its 0.05 flight cap below Froude 0.5; the quadruped's three floors
+    and the optional lead-swap bar)."""
+    from environments.shared.curriculum.command_tracking_gate import (
+        PROVISIONAL_BIPED_FLIGHT_FRACTION,
+        PROVISIONAL_BIPED_GAIT_THRESHOLDS,
+        PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS,
+        PROVISIONAL_WALK_THRESHOLDS,
+    )
+
+    gait = dict(PROVISIONAL_BIPED_GAIT_THRESHOLDS if biped else PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS)
+    if biped and flight_cap:
+        gait["max_flight_fraction"] = PROVISIONAL_BIPED_FLIGHT_FRACTION
+    if not biped:
+        gait["min_lead_swaps_per_stride"] = 1.0
+    return (
+        {
+            "gate_kind": "command_tracking/v1",
+            "pending_gate_kind": None,
+            "min_avg_reward": None,
+            "min_avg_episode_length": None,
+            "min_avg_forward_velocity": None,
+            "min_full_horizon_fraction": None,
+            "max_unsupported_duty": None,
+            "max_unsupported_duty_ucb": None,
+            "min_recovery_success_lcb": None,
+            "min_paired_success_delta_lcb": None,
+            "recovery_t_recover_steps": None,
+            "recovery_dwell_steps": None,
+            "min_eval_episodes": DEFAULT_STAGE_THRESHOLD.min_eval_episodes,
+            "required_consecutive": DEFAULT_STAGE_THRESHOLD.required_consecutive,
+        }
+        | {key: None for key in _COMMAND_TRACKING_EXPORTED_KEYS}
+        | {"profile": "walk", **PROVISIONAL_WALK_THRESHOLDS, **gait}
+    )
+
+
 def test_catalog_exports_effective_early_advancement_gates() -> None:
     catalog = build_catalog()
     models = _models(catalog)
@@ -536,8 +577,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             assert stance["min_full_horizon_fraction"] == 0.95
             assert stance["max_unsupported_duty"] == stance["max_unsupported_duty_ucb"] == 0.02
             assert stance["min_eval_episodes"] == 40
-            assert walk["gate_kind"] == "reward_and_length/v1"
-            assert stance["min_avg_forward_velocity"] is None and walk["min_avg_forward_velocity"] == 0.25
+            # The live walk of decision D-D62: command_tracking/v1's walk profile and the biped clause with its cap.
+            assert walk == _command_walk_gate(biped=True, flight_cap=True)
+            assert stance["min_avg_forward_velocity"] is None
             continue
         if model_id.species == "compsognathus_longipes":
             stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
@@ -559,10 +601,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 assert first["max_unsupported_duty"] == 0.02
                 assert first["max_unsupported_duty_ucb"] == 0.02
             assert first["min_full_horizon_fraction"] == 0.95
-            assert second["min_avg_forward_velocity"] == (0.04 if model_id.embodiment == "robot" else 0.08)
-            assert second["min_avg_episode_length"] == 900
             assert first["min_eval_episodes"] == 40
-            assert second["min_eval_episodes"] == 20
+            # The live walk (D-D62): its reward_and_length/v1 keys left with the gate, min_eval_episodes 20 among
+            # them, so the export reads the default the kind never consults.
+            assert second == _command_walk_gate(biped=True, flight_cap=True)
             # The semantic recovery row is published without renumbering the
             # advancing curriculum or turning its pilot verdict into a handoff.
             assert [stage.id for stage in load_stage_manifest(model_id).advancing_stages] == ["stance", "locomotion"]
@@ -604,19 +646,12 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             **stage_one_stance[model_id],
             **recovery_null,
         }
-        # Stage 2 stays on reward_and_length/v1, so its stance fields export as
-        # nulls.
-        assert stage_two | {"min_avg_forward_velocity": None} == {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": None,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": 750,
-            "min_avg_forward_velocity": None,
-            "min_eval_episodes": 10,
-            "required_consecutive": 3,
-            **stance_null,
-            **recovery_null,
-        }
+        # Stage 2 is the live walk of decision D-D62 on command_tracking/v1's walk profile: its stance and recovery
+        # fields export as nulls, and the reward_and_length/v1 floors it no longer declares as nulls too.
+        quadruped = model_id in {BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS}
+        assert stage_two == _command_walk_gate(biped=not quadruped, flight_cap=model_id != VELOCIRAPTOR_MONGOLIENSIS), (
+            model_id
+        )
 
     # The recovery stage exports its frozen recovery_quality/v1 gate (P5,
     # 2026-08-28): the certifying criteria the resolution was frozen at, no
@@ -645,19 +680,18 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
     assert tyrannosaurus_rex_recovery["video"] is None
 
-    # Trex stage 2 gates a 1.0 m/s walk, re-derived from the plant (Froude
-    # 0.14-0.16; the copied raptor 2.0 was this plant's walk-run boundary and
-    # passed 0/109 evals on run 20260821_142144 — 2026-08 review §5.3).
     # Stages addressed by legacy NUMBER, not list index: trex's list gained
     # a recovery row at position 2, and "stage 2" must keep meaning
-    # locomotion (the no-silent-renumbering invariant).
+    # locomotion (the no-silent-renumbering invariant). The forward walk's
+    # velocity floors (velociraptor 2.1, T-Rex 1.0, brachiosaurus 0.75 m/s)
+    # left with reward_and_length/v1 (decision D-D62): each walk's cruise
+    # speed now lives in its [commands] table, which the gate does not export.
     def _gate(model_id: ModelId, number: int) -> dict:
         return next(stage["advancement_gate"] for stage in models[model_id]["stages"] if stage["number"] == number)
 
-    # 2.1 since physics r5: r4's 2.0 Froude-matched to the life-size hip height (x 1.042).
-    assert _gate(VELOCIRAPTOR_MONGOLIENSIS, 2)["min_avg_forward_velocity"] == 2.1
-    assert _gate(TYRANNOSAURUS_REX, 2)["min_avg_forward_velocity"] == 1.0
-    assert _gate(BRACHIOSAURUS_ALTITHORAX, 2)["min_avg_forward_velocity"] == 0.75
+    for model_id in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX):
+        assert _gate(model_id, 2)["min_avg_forward_velocity"] is None
+        assert _gate(model_id, 2)["profile"] == "walk"
     # The success-rate floor and the task-success bound left the export with the gate (decision D-D59).
     for entry in models.values():
         for stage in entry["stages"]:
@@ -673,20 +707,29 @@ def test_catalog_scopes_success_semantics_to_training_backends() -> None:
     # 11 and 10 (plant_versions note 23, the frozen MJX core removed), so each
     # catalog carries its SB3 semantics alone: the proximity proxies the MJX
     # path scored are gone with it. Since decision D-D59 removed the hunts,
-    # the six models that had one state the walk's gated forward velocity as
-    # their backend success metric, word for word the walk deliverable's.
+    # the six models that had one stated the walk's gated forward velocity as
+    # their backend success metric, and the Allosaurus its walking course;
+    # since decision D-D62 every model states its live walk's command-tracking
+    # gate, word for word the walk deliverable's.
     for model_id in model_ids():
         metrics = models[model_id]["success_metrics"]
         assert [metric["backends"] for metric in metrics] == [["stable-baselines3"]], model_id
-        if model_id == ALLOSAURUS_FRAGILIS:
-            assert metrics[0]["key"] == "course_complete"
-            continue
         walk = next(metric for metric in models[model_id]["deliverable_metrics"] if metric["deliverable"] == "walk")
         assert {key: metrics[0][key] for key in ("key", "label", "definition")} == {
             key: walk[key] for key in ("key", "label", "definition")
         }, model_id
-        assert metrics[0]["key"] == "forward_velocity_gate"
-        assert "prey" not in metrics[0]["definition"]
+        assert metrics[0]["key"] == "command_tracking"
+        assert "command_tracking/v1" in metrics[0]["label"]
+        definition = metrics[0]["definition"]
+        assert "about 15% of its episodes are stand episodes" in definition and "D-D62" in definition
+        for retired in ("prey", "reward_and_length/v1", "forward velocity"):
+            assert retired not in definition, (model_id, retired)
+        # summary.json carries the walk's counts and bounds since decision D-D61 (reporting.summaries), which
+        # the catalog headlines; the stance's "not exported" sentence does not describe the walk.
+        assert "exported to summary.json from the admitted command_tracking_report.json" in definition, model_id
+        assert "not exported to summary.json" not in definition, model_id
+        # The Allosaurus' course stays a recorded event along the commanded heading, never a gate criterion.
+        assert ("course_complete" in definition) == (model_id == ALLOSAURUS_FRAGILIS)
     for model_id in model_ids():
         assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["success_metrics"])
         assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["deliverable_metrics"]), (
@@ -1071,16 +1114,21 @@ def test_default_paths_are_inside_repository() -> None:
 
 def test_current_gate_kinds_follow_the_manifest() -> None:
     # The trex hunt, the one stage on task_success/v1 (plan §4.4, WS-B2), left
-    # with every other hunt by decision D-D59, and the kind with it.
+    # with every other hunt by decision D-D59, and the kind with it.  Every
+    # walk moved from reward_and_length/v1 to command_tracking/v1 with its live
+    # command (decision D-D62), so a published walk verdict earned under the
+    # forward walk's gate renders as a retired gate's.
     assert current_gate_kinds(TYRANNOSAURUS_REX) == {
         "stance": "stance_quality_heading/v1",
         "recovery": "recovery_quality/v1",
-        "locomotion": "reward_and_length/v1",
+        "locomotion": "command_tracking/v1",
     }
     assert current_gate_kinds(VELOCIRAPTOR_MONGOLIENSIS) == {
         "stance": "stance_quality_heading/v1",
-        "locomotion": "reward_and_length/v1",
+        "locomotion": "command_tracking/v1",
     }
+    for model_id in model_ids():
+        assert current_gate_kinds(model_id)["locomotion"] == "command_tracking/v1", model_id
 
 
 def test_published_verdicts_carry_gate_provenance(tmp_path: Path, monkeypatch: Any) -> None:
@@ -1323,10 +1371,23 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
             "unit": "percent",
         },
     ]
-    # A failed deliverable keeps its gate-kind headline: the walk's velocity.
-    assert by_id["locomotion"]["gate_kind"] == "reward_and_length/v1"
+    # A failed deliverable keeps its gate-kind headline: since decision D-D62 the walk's command_tracking/v1
+    # statistics, the cruise family's success bound and the stand family's hold fraction, null until the
+    # summary carries them (D-A9, deferred by D-B15); the forward walk's velocity headline left with its gate.
+    assert by_id["locomotion"]["gate_kind"] == "command_tracking/v1"
     assert by_id["locomotion"]["headline"] == [
-        {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 3.47, "unit": "m/s"}
+        {
+            "key": "command_cruise_success_lcb",
+            "label": "cruise episodes on the command LCB95",
+            "value": None,
+            "unit": "ratio",
+        },
+        {
+            "key": "command_stand_success_fraction",
+            "label": "stand episodes holding the stop",
+            "value": None,
+            "unit": "percent",
+        },
     ]
     # The ladder velocity is untouched by the per-deliverable rows, and no stage-3 headline exists (D-D59).
     assert "stage3_success_rate" not in result
@@ -2122,7 +2183,8 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
     assert (
         "1 — stance (certified, primary; gate stance_quality_heading/v1; 1 run of 2 seeds; provisional; "
         "seeds clean at all six headings LCB95 not recorded; seeds clean at all six headings not recorded) · "
-        "2 — walk (not certified; gate reward_and_length/v1; 1 run of 1 seed; avg. forward velocity 3.47 m/s)"
+        "2 — walk (not certified; gate command_tracking/v1; 1 run of 1 seed; cruise episodes on the command LCB95 "
+        "not recorded; stand episodes holding the stop not recorded)"
     ) in rendered
     # Count and bar are always rendered (D-B11); only a count below the bar says provisional.
     replicated = {**v4_result["deliverables"][0], "replication_count": 2, "provisional": False}
@@ -2285,18 +2347,24 @@ def test_website_gate_formatter_mirrors_python() -> None:
     Both renderers are pinned against one phrase list, so a criterion added
     to one and not the other fails here whichever side moved.  The branch
     order pin (none/v1, then recovery_quality/v1, then stance_quality/v2,
-    then the six-heading certificate, then the generic path) keeps the
+    then the six-heading certificate, then command_tracking/v1, then the generic path) keeps the
     frozen-verdict sentence on the recovery row, the floor-truth report
     sentence on the v2 stance row, and the consecutive-passes tail off all
     three, on both sides.  The stance_quality/v2 rails are rendered as
     "reward rail" so the generic path's "reward ≥ " stays unique to it.
     task_success/v1's branch and the generic path's success-rate criterion
     left with the gate and min_success_rate (decision D-D59), on both sides.
+    The command_tracking/v1 branch, which every walk takes since decision
+    D-D62, delegates to ``_format_command_tracking_gate`` and
+    ``formatCommandTrackingGate``, whose phrases and order are pinned the same way.
     """
     python_source = (REPOSITORY_ROOT / "environments/shared/species_catalog.py").read_text(encoding="utf-8")
     python_body = python_source.split("def _format_advancement_gate(", 1)[1].split("\ndef ", 1)[0]
     tsx_source = _website_source("components/SpeciesCatalog/index.tsx")
     tsx_body = "function formatGate(" + _ts_block(tsx_source, "function formatGate(")
+    # The command_tracking/v1 branch delegates to one function on each side (decisions D-D61 and D-D62).
+    python_command = python_source.split("def _format_command_tracking_gate(", 1)[1].split("\ndef ", 1)[0]
+    tsx_command = _ts_block(tsx_source, "function formatCommandTrackingGate(")
 
     phrases = [
         "non-advancing pilot (gate_kind none/v1); never advances",
@@ -2334,6 +2402,47 @@ def test_website_gate_formatter_mirrors_python() -> None:
         for phrase in phrases
     }
     assert {phrase: sides for phrase, sides in missing.items() if sides} == {}
+    command_phrases = [
+        # The walk profile (every committed walk since decision D-D62).
+        "cruise episodes (a non-zero reset command) success LCB95 ≥ ",
+        " and survival LCB95 ≥ ",
+        " over ≥ ",
+        "a cruise episode succeeds when it reaches the horizon, settles its initial heading within 1 s + ",
+        "|error| / yaw_rate_max and holds it 1 s, stays in tolerance on ≥ ",
+        " of its steps after the settle, makes ≥ ",
+        " × the commanded speed along the heading after 2 s and passes the ",
+        "stand episodes (an exactly zero command) over ≥ ",
+        " hold the stop (it settles, and holds on ≥ ",
+        " of the steps after 1 s) and ≤ ",
+        " fall",
+        # The follow profile.
+        "command-following episodes success LCB95 ≥ ",
+        " episodes of ≥ ",
+        "an episode succeeds when it survives, stays in tolerance on ≥ ",
+        " of its steps, settles ≥ ",
+        " of its commands, ≥ ",
+        " of its stops and ≥ ",
+        " of its turns (each where the schedule draws ",
+        " episodes exposed to each of stops and turns",
+        "course ≥ ",
+        "paired Δ success vs the parent policy LCB95 ≥ ",
+        # Both.
+        "gait clause (",
+        "tolerances overridden for the gate: ",
+        "handoff chosen by the gated statistic on a separate selection panel; verdict from ",
+        "command_tracking_report.json on that pair (post-stage; fail-closed when absent)",
+    ]
+    missing = {
+        phrase: [side for side, body in (("python", python_command), ("tsx", tsx_command)) if phrase not in body]
+        for phrase in command_phrases
+    }
+    assert {phrase: sides for phrase, sides in missing.items() if sides} == {}
+    for body in (python_command, tsx_command):
+        # The follow branch first, then the walk's; the gait clause, the overrides and the source close both.
+        follow, walk = body.index("command-following episodes"), body.index("cruise episodes (a non-zero")
+        assert follow < walk < body.index("gait clause (") < body.index("tolerances overridden")
+        assert body.index("tolerances overridden") < body.index("handoff chosen by the gated statistic")
+        assert " consecutive passes" not in body and "episodes/evaluation" not in body
 
     for body in (python_body, tsx_body):
         for retired in ("task_success/v1", "task success", "min_success_rate", "minSuccessRate"):
@@ -2342,10 +2451,11 @@ def test_website_gate_formatter_mirrors_python() -> None:
         recovery_branch = body.index("recovery_quality/v1")
         stance_v2_branch = body.index("stance_quality/v2")
         heading_branch = body.index("stance_quality_heading/v1")
+        command_branch = body.index("command_tracking/v1")
         # Anchored on a phrase ONLY the generic path emits: "reward ≥ " would
         # resolve inside a branch that rendered its rail with the same words.
         generic_path = body.index("avg. velocity ≥ ")
-        assert none_branch < recovery_branch < stance_v2_branch < heading_branch < generic_path
+        assert none_branch < recovery_branch < stance_v2_branch < heading_branch < command_branch < generic_path
         # The certificate's sentences belong to its own branch.
         assert heading_branch < body.index("seeds clean at all six headings") < generic_path
         assert heading_branch < body.index("verdict from the six-heading stance_heading_report.json") < generic_path
@@ -2373,6 +2483,25 @@ def test_website_stance_criteria_follow_the_gate() -> None:
     source = _website_source("data/species.ts")
     block = source.split("export const STANCE_V2_EPISODE_CRITERIA = [", 1)[1].split("] as const;", 1)[0]
     assert re.findall(r"'([a-z0-9_]+)'", block) == list(EPISODE_CRITERION_KEYS)
+
+
+def test_website_command_criteria_follow_the_gate() -> None:
+    """species.ts lists the command_tracking/v1 gait bars and tolerance overrides in the gate's own order.
+
+    The site renders a command stage's gait clause from ``COMMAND_GAIT_CRITERIA`` and its overrides from
+    ``COMMAND_TOLERANCE_OVERRIDES`` as the catalog renders them from ``command_tracking_gate.GAIT_CRITERIA`` and
+    ``TOLERANCE_OVERRIDE_KEYS``, so each pair must be one list (decision D-D62: every walk declares the kind).
+    """
+    from environments.shared.curriculum.command_tracking_gate import GAIT_CRITERIA, TOLERANCE_OVERRIDE_KEYS
+
+    source = _website_source("data/species.ts")
+    gait = source.split("export const COMMAND_GAIT_CRITERIA = [", 1)[1].split("] as const;", 1)[0]
+    overrides = source.split("export const COMMAND_TOLERANCE_OVERRIDES = [", 1)[1].split("] as const;", 1)[0]
+    assert re.findall(r"'([a-z0-9_]+)'", gait) == [key for key, _, _ in GAIT_CRITERIA]
+    assert re.findall(r"'([a-z0-9_]+)'", overrides) == [key for key, _ in TOLERANCE_OVERRIDE_KEYS]
+    adapter = _ts_block(source, "function adaptCommandTrackingGate(")
+    assert "gate.gate_kind !== 'command_tracking/v1'" in adapter
+    assert "commandTracking: adaptCommandTrackingGate(stage.advancement_gate)" in source
 
 
 def test_website_replication_formatter_mirrors_python() -> None:

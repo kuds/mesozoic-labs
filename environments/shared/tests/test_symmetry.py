@@ -674,7 +674,10 @@ def test_the_state_mirror_is_an_involution(stance_kwargs):
 
 # ---------------------------------------------------------------------------------------------------- gait history
 def _locomotion_kwargs(model_id: ModelId, **overrides) -> dict:
-    return {**load_stage_config(model_id, "locomotion")["env_kwargs"], **overrides}
+    """The walk's [env] kwargs under command_mode "none": the mirror refuses the walk's live command (decision
+    D-D62), and these tests exercise its reward terms (the quadrupeds' gait symmetry)."""
+    env_kwargs = load_stage_config(model_id, "locomotion")["env_kwargs"]
+    return {**{k: v for k, v in env_kwargs.items() if k not in ("command_mode", "command_config")}, **overrides}
 
 
 def _smooth_steps(env, n: int, seed: int, amplitude: float = 0.3) -> np.random.Generator:

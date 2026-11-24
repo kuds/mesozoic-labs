@@ -527,7 +527,8 @@ def test_a_command_trained_walker_is_refused_before_anything_loads(parent, tmp_p
     """Decision D-D60: a walker whose task fingerprint has a ``command`` section learned its command columns, and
     its sidecar holds the command slice at identity (mean 0), so the constant-zero mean check would pass it and the
     preparation would zero what it learned, unseen.  It is refused by its task, before the sidecar or the policy
-    is read."""
+    is read.  Since decision D-D62 every committed walk trains such a walker, so the refusal names what the pilot
+    pipeline still accepts and where its follow_direction pilots went: the plan's follow nodes."""
     from environments.shared import behavior_checkpoint
 
     model_path, vecnorm_path, *_ = parent
@@ -551,10 +552,19 @@ def test_a_command_trained_walker_is_refused_before_anything_loads(parent, tmp_p
         BehaviorCheckpointError,
         match=rf"trained on live commands \(its task fingerprint has a 'command' section, command_mode "
         rf"'{command_mode}'\).*command-free locomotion checkpoint.*D-D60",
-    ):
+    ) as excinfo:
         prepare_behavior_checkpoint(
             live_walker, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
         )
+    message = str(excinfo.value)
+    for fragment in (
+        "Every committed walk tracks a live command since decision D-D62",
+        "no committed config trains one",
+        "until a follow or terrain node with a command exists, or a command-free walk config is added",
+        "the follow_direction pilots are superseded by the follow nodes",
+        "docs/BEHAVIOR_RECIPES_PLAN.md section 4.6 and decision D-D62",
+    ):
+        assert fragment in message, message
 
 
 def test_a_command_free_walker_saved_at_identity_prepares_as_one_saved_before(parent, tmp_path):

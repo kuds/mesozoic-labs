@@ -40,7 +40,6 @@ import logging
 import math
 import tomllib
 from collections.abc import Mapping
-from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -206,6 +205,11 @@ COMMANDS_MODE_KEY = "mode"
 #: start's command-free-parent rule (it zeroes the command columns of a
 #: parent whose fingerprint has no command section).
 COMMAND_FREE_STAGE_ID = "stance"
+#: The ``[curriculum]`` keys of the forward-velocity reward ramp
+#: (``curriculum.RewardRampCallback``), refused on a live stage: under a live
+#: command the cruise ramp (``[commands] cruise_ramp_*``, decision D-D62)
+#: replaces it, and ``train_base`` builds no forward-velocity ramp there.
+FORWARD_VELOCITY_RAMP_KEYS = ("ramp_start_value", "ramp_timesteps")
 
 
 def _stage_command_kwargs(path: Path, stage_id: "str | None", table: Any) -> dict[str, Any]:
@@ -479,6 +483,12 @@ def load_stage_config(
         if stage_id is None:
             stage_id = _resolved_stage_id(model_id, stage)
         env_kwargs.update(_stage_command_kwargs(path, stage_id, raw["commands"]))
+        if ramp_keys := [key for key in FORWARD_VELOCITY_RAMP_KEYS if key in curriculum_raw]:
+            raise ValueError(
+                f"{path}: [curriculum] {ramp_keys}: a stage with a live command trains no forward-velocity "
+                "ramp; its commanded speeds ramp in through [commands] cruise_ramp_start_fraction and "
+                "cruise_ramp_timesteps (decision D-D62)"
+            )
 
     return {
         "name": stage_meta.get("name", f"stage{stage}"),
@@ -757,8 +767,10 @@ def env_kwargs_record(env_kwargs: Mapping[str, Any]) -> dict[str, Any]:
     """*env_kwargs* as a JSON record holds them: a tuple as a list, a live command config as an object.
 
     The command config (decision D-D60) is recorded field by field, every
-    field, so ``DirectionCommandConfig(**record["command_config"])`` rebuilds
-    it exactly, and a recorded block re-derives the stage's task fingerprint
+    field (``DirectionCommandConfig.field_record``: the speed range as a
+    list, the stand weights as an object), so
+    ``DirectionCommandConfig(**record["command_config"])`` rebuilds it
+    exactly, and a recorded block re-derives the stage's task fingerprint
     (``task_fingerprint._effective_env_kwargs`` reads the object back as the
     dataclass).  Every other value is kept as given.
     """
@@ -767,7 +779,7 @@ def env_kwargs_record(env_kwargs: Mapping[str, Any]) -> dict[str, Any]:
     record: dict[str, Any] = {}
     for key, value in env_kwargs.items():
         if isinstance(value, DirectionCommandConfig):
-            value = {name: list(item) if isinstance(item, tuple) else item for name, item in asdict(value).items()}
+            value = value.field_record()
         record[key] = list(value) if isinstance(value, tuple) else value
     return record
 

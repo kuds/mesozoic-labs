@@ -134,8 +134,22 @@ The trained tasks are the stance, recovery from pushes and the walk; the bite, t
 removed by decision D-D59. Its reward terms, its `bite_success` termination and its constructor arguments are gone from
 the code, and the model declares no success key. The scene holds no prey: the prey sphere and the head-contact box the
 bite read were removed with it in physics r12 and policy interface r17, and checkpoints of policy interface r16 or
-earlier no longer load. The forward, drift and heading terms measure from the spawn: the pelvis's starting position
-and the unit forward of its starting orientation.
+earlier no longer load. Under the stance and recovery the forward, drift and heading terms measure from the spawn: the
+pelvis's starting position and the unit forward of its starting orientation.
+
+**The walk follows a live command** (decision D-D62); the stance and recovery run no command. Each walk episode draws
+one request at reset and holds it for the whole 10 s episode: a forward cruise at 0.525-1.05 m/s along a heading up to
+0.26 rad (15 degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero command, which asks the
+animal to stand still. The command is the observation's last three values. A Gaussian term pays tracking the commanded
+velocity and yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms, which the walk sets to 0, and
+the terms that read a forward direction measure along the commanded heading. On a zero command a stand block
+(`[commands.stand_weights]`, 26 weights; the standing lean, foot stagger and center-of-pressure terms are paid through
+it) pays the stance's reward weights, so zero means stand still, not march in place. The commanded speeds ramp from
+0.25 of their end values to the full range over the first 2M training steps. After training the walk is judged on its
+`command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
+gait clause with its flight cap (Froude 0.12 at cruise). The bars are provisional, and no controller has yet been
+shown to clear them; the reference walk sways within its stride, so at a command it matches it reads tracking quality
+0.14 a step and fails the tracking bars (decision D-D62 (16)).
 
 The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
 frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot (pad and toes) and the
@@ -147,11 +161,13 @@ The main reward groups:
 
 - **Survival and posture:** an alive bonus, posture, nosedive and height terms, head clearance and neck posture, and a
   fall penalty.
-- **Progress:** forward velocity along the spawn's forward direction, with optional backward, drift, sideways, spin
-  and speed penalties.
-- **Stance quality** (stance and recovery): support and load balance between the feet, the home leg and tail poses,
-  flat soles and a steady stance width, sideways lean, foot stagger, each foot's center of pressure, and penalties on
-  floor impacts and airborne physics substeps.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity along the spawn's forward direction (the commanded heading on the walk), with
+  optional backward, drift, sideways, spin and speed penalties; the walk sets the forward, heading and sideways
+  weights to 0.
+- **Stance quality** (stance and recovery, and the walk's zero command): support and load balance between the feet,
+  the home leg and tail poses, flat soles and a steady stance width, sideways lean, foot stagger, each foot's center
+  of pressure, and penalties on floor impacts and airborne physics substeps.
 - **Effort:** energy, smoothness, jerk and actuator saturation, and tail stability.
 
 The weights are the `TyrannosaurusRexEnv` constructor defaults in `base_env.py`, where most stance terms are off,

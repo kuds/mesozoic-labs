@@ -297,10 +297,14 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         policy_probe: Any = None,
         rollout_ledger: Any = None,
         verbose: int = 0,
+        live_command: bool = False,
     ):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for TrainingProgressCallback.")
         super().__init__(verbose)
+        # A live-command stage reports no zero-action reward: the run's zero_action_baseline.json is the stance's
+        # statue, another task's reference (decision D-D62).
+        self.live_command = bool(live_command)
         self.eval_callback = eval_callback
         self.plateau_callback = plateau_callback
         self.stage_dir = Path(stage_dir)
@@ -441,7 +445,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         }
 
     def _zero_action_reward(self) -> float | None:
-        if self.model_id is None:
+        """The run's zero-action (statue) reward for the model; ``None`` without one, or on a live-command stage."""
+        if self.model_id is None or self.__dict__.get("live_command", False):
             return None
         cached = self.__dict__.get("_zero_action_cache")
         if cached is None:
@@ -634,4 +639,5 @@ def build_training_progress_callback(
         policy_probe=policy_probe,
         rollout_ledger=rollout_ledger,
         verbose=verbose,
+        live_command=str((stage_config.get("env_kwargs", {}) or {}).get("command_mode", "none")) != "none",
     )

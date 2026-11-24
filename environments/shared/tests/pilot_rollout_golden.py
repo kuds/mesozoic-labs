@@ -252,8 +252,36 @@ def digest(value: Any) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+#: The walk ``[env]`` settings decision D-D62 added after the capture, by (species, embodiment): the stance's
+#: settings of the walk's stand-block terms, each cited ``# stance.toml:N`` in the model's locomotion.toml.
+#: ``read_recipe`` builds a recipe on the walk's ``[env]``, so the pilots of these models inherit them; each term is
+#: at weight 0 in the walk's ``[env]`` and the recipe env runs no stand block, so they move no pilot reward or
+#: trajectory, only the pilot's task digest and those terms' diagnostic info keys.  The replay builds each pilot with
+#: them as at the capture (absent, so at the constructor default), which keeps it a pin on the pipeline's code: its
+#: task digest comparison proves that no other inherited key moved (``test_phase_d_command_plumbing.py`` checks the
+#: keys are exactly the cited ones).
+WALK_STAND_SETTINGS_SINCE_CAPTURE: dict[tuple[str, str], tuple[str, ...]] = {
+    ("velociraptor_mongoliensis", "anatomical"): ("foot_contact_saturation_force", "leg_home_pose_tolerance"),
+    ("tyrannosaurus_rex", "anatomical"): (
+        "foot_contact_saturation_force",
+        "foot_load_balance_min_support_force",
+        "leg_home_pose_tolerance",
+        "leg_home_pose_broad_fraction",
+        "stance_width_reference",
+        "foot_terms_min_support_force",
+        "tail_home_pose_tolerance",
+        "head_clearance_target",
+        "head_clearance_tolerance",
+        "neck_posture_reference",
+        "leg_home_pose_reference",
+    ),
+    ("compsognathus_longipes", "anatomical"): ("support_force_aggregation", "foot_terms_min_support_force"),
+}
+
+
 def build_pilot_env(species: str, embodiment: str, recipe: str, run_seed: int) -> Any:
-    """The env ``train_behaviors.main`` builds, unwrapped: ``read_recipe`` then ``create_behavior_env``.
+    """The env ``train_behaviors.main`` builds, unwrapped: ``read_recipe`` then ``create_behavior_env``, on the walk
+    ``[env]`` of the capture (:data:`WALK_STAND_SETTINGS_SINCE_CAPTURE` left out unless the recipe states them).
 
     Training wraps it in ``Monitor(EpisodeManifestRecorder(...))``; neither wrapper changes a reward, a
     flag or an observation, and ``Monitor`` adds a wall-clock ``episode`` entry to the last step's info.
@@ -264,7 +292,10 @@ def build_pilot_env(species: str, embodiment: str, recipe: str, run_seed: int) -
 
     model_id = ModelId(species, embodiment)
     path = model_id.path(REPOSITORY_ROOT / "configs") / "behaviors" / f"{recipe}.toml"
-    _, commands, terrain, env_kwargs = read_recipe(path, model_id)
+    parsed, commands, terrain, env_kwargs = read_recipe(path, model_id)
+    for key in WALK_STAND_SETTINGS_SINCE_CAPTURE.get((species, embodiment), ()):
+        if key not in parsed.get("env", {}):
+            env_kwargs.pop(key, None)
     return create_behavior_env(model_id, commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
 
 

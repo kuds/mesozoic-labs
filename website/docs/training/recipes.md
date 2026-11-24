@@ -50,14 +50,41 @@ D-D60: a stage TOML may declare a `[commands]` table; every environment scores
 a live command with a tracking reward and draws its schedule from a random
 stream of its own; and every stage holds the command inputs' normalization at
 identity, so a node that widens its parent's commands continues it exactly
-([Hyperparameters](hyperparameters.md#commands)). No committed stage declares
-the table yet. Since decision D-D61 the gate kind for a live command exists
-too: `command_tracking/v1`, whose `walk` profile judges the walk node on a
-panel of whole-episode cruise and stand commands and whose `follow` profile
-judges the follow nodes, each with a gait clause, and whose handoff is the
-checkpoint the gate itself prefers
-([Hyperparameters](hyperparameters.md#curriculum-thresholds)). No committed
-stage declares it yet.
+([Hyperparameters](hyperparameters.md#commands)). Since decision D-D61 the
+gate kind for a live command exists too: `command_tracking/v1`, whose `walk`
+profile judges the walk node on a panel of whole-episode cruise and stand
+commands and whose `follow` profile judges the follow nodes, each with a gait
+clause, and whose handoff is the checkpoint the gate itself prefers
+([Hyperparameters](hyperparameters.md#curriculum-thresholds)).
+
+**The walk is the first live-command stage** (decision D-D62). On every
+model, `locomotion` follows a narrow command distribution: each episode draws
+one request at reset and keeps it, a forward cruise between half and all of
+the model's cruise speed along a heading up to 15 degrees off the spawn
+heading, or, in about 15% of episodes, an exactly zero command, a
+whole-episode stand. Its reward is the tracking term beside the forward
+walk's alive, posture, effort and gait terms; a stand block pays the
+stance's weights at a zero command, so zero means stand still; and a cruise
+ramp raises the training commands from a quarter of the end speeds over the
+first 2M steps. It is judged after training by the `walk` profile, and its
+handoff is the pair the gate prefers (`models/handoff_choice.json`). The
+stance and recovery run no command, and their task and gate digests did not
+move. Because a walk warm-starts from a stance with its command inputs
+zeroed, the stance it starts from must be one trained on the current plant
+interface; and since a recipe of the pilot pipeline starts only from a
+command-free walker, the pilot `follow_direction` recipes are superseded by
+the follow nodes planned to continue the walk. No committed config trains a
+command-free walker on the current interface (every walk declares a
+`[commands]` table, and `--override commands.*` is refused), so until a
+follow or terrain node with a command exists, or a command-free walk config
+is added, the terrain recipes have no parent a committed path produces.
+
+During training, the walk's evaluation env is reseeded before every
+evaluation, so each evaluation rolls the same commands and the same number of
+stand episodes, and `robust_best_model` scores the cruise and the stand
+episodes apart (each family's mean minus its standard deviation, weighted
+0.85 / 0.15 by the stop probability): a stand episode earns several times a
+cruise episode, and pooled, that gap would read as risk.
 
 ## The stage manifest
 
@@ -391,7 +418,9 @@ TRUNK_FROM = "20260901_120000"
 The chain is `stance -> locomotion`. The loop reuses the trunk's stance if
 its verdict passed, its task digest and plant match, and it entered from no
 parent; then trains `locomotion` here, warm-started from the reused stance
-handoff. The run directory gains `ancestors/stance/`, the trained
+handoff (a walk warm-started from a stance begins blind to its command and
+learns to read it), and judges it after its budget on its `command_tracking/v1`
+panel. The run directory gains `ancestors/stance/`, the trained
 `02_locomotion/` records `parent_run_id`, and the bundle publishes
 `locomotion` as its one deliverable (`target_deliverable = "2"`, its stage
 key), with `provenance.ancestors` carrying stance — certified through the

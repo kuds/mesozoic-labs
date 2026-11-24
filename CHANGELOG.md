@@ -8,8 +8,171 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The walk follows a live command on all seven models** (decision D-D62;
+  every locomotion task and gate digest moves, no stance or recovery one
+  does). Each `configs/<species>/<embodiment>/locomotion.toml` declares a
+  `[commands]` table and is the first stage with a live command; the stance
+  and recovery keep `command_mode = "none"`, and the later follow nodes are
+  to widen the walk's distribution as its exact continuation.
+  - The distribution, the same on every model but the scaling:
+    `mode = "heading_and_speed"`; `cruise_speed`, `speed_scale`,
+    `lateral_speed_scale` and `yaw_rate_scale` from the model's pilot
+    `behaviors/follow_direction.toml`, so the walk and the follow nodes share
+    one scaling; `speed_range = [0.5, 1] x cruise_speed`;
+    `stop_probability = 0.15`, drawn at reset, so about 15% of episodes are
+    whole-episode stands under an exactly zero command;
+    `initial_heading_offset_max = 0.26` rad (15 degrees about the spawn
+    heading); `turn_increment_max = 0` and `switch_interval_s = 600`, longer
+    than every horizon, so the reset's request is the episode's only one;
+    `turn_slowdown` on, `yaw_rate_max = 0.3` and `tracking_weight = 2.5`.
+    `test_walk_command_distribution.py` measures it on 400 seeds per model.
+  - The reward: the Gaussian tracking term of decision D-D60 plus the forward
+    walk's kept terms (alive, posture, nosedive, energy, smoothness, tail,
+    height, the quadrupeds' gait terms and idle penalty, the Compsognathus'
+    spin penalty). The terms tracking subsumes are 0 in `[env]`: forward,
+    backward, heading, lateral and drift by each model's names.
+    `forward_vel_max` is kept.
+  - The stand block, `[commands.stand_weights]`: the stance's reward weights,
+    paid in place of the `[env]` ones on every step under an exactly zero
+    command, so zero means stand still, not march in place (velociraptor 17
+    weights, T. rex 26, brachiosaurus 10, dibothrosuchus 11, Compsognathus 16,
+    the robot 6, Allosaurus 1). Each restates a `stance.toml` line, cited in
+    a comment, where it differs from the walk's `[env]`; the stance-only
+    settings of those terms (tolerances, references, force floors) are
+    declared in the walk's `[env]` at the stance's values, inert at weight 0
+    on cruise steps. `test_walk_stand_block.py` pins every weight and setting
+    to its `stance.toml` line or a listed deliberate difference, and proves
+    the cited settings move no cruise-step reward and do move the stand
+    reward.
+  - The cruise ramp: `cruise_ramp_start_fraction = 0.25` and
+    `cruise_ramp_timesteps = 2000000` in `[commands]`.
+  - The gate: `command_tracking/v1`, `profile = "walk"`, the
+    `PROVISIONAL_WALK_THRESHOLDS` and the model's gait clause, each value
+    naming its source (`PROVISIONAL_BIPED_GAIT_THRESHOLDS` on the five
+    bipeds, with `max_flight_fraction = 0.05` on the four below Froude 0.5 at
+    cruise: T. rex 0.12, Compsognathus 0.003, the robot 0.0008, Allosaurus
+    0.007, and none on the velociraptor at 0.82;
+    `PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS` and the optional
+    `min_lead_swaps_per_stride = 1.0` on both quadrupeds). The bars are
+    provisional: no controller in the repository has been shown to clear
+    them (decision D-D62 (16) lists the open risks).
+  - `docs/BEHAVIOR_RECIPES_PLAN.md` section 4.6 tabulates the per-model
+    values with the zero-action statue on the committed walk: every model's
+    statue FAILS the walk gate on the cruise family's success bound (0 of
+    20), and holds the stand family on 5 of 5 seeds but the brachiosaurus'
+    4 of 5 and the Allosaurus' none (its passive statue falls).
+- **The live walk's shared mechanism, each part inert under `"none"`**
+  (decision D-D62 (1)-(8)).
+  - `DirectionCommandConfig` gains `stand_weights` (held as sorted
+    `(name, weight)` pairs; `stand_weight_map()`), `cruise_ramp_start_fraction`
+    and `cruise_ramp_timesteps` (both or neither; `has_cruise_ramp`,
+    `ramped(fraction)`), each recorded in the command manifest only off its
+    `UNRECORDED_VALUES` value, and `field_record()`;
+    `DirectionCommandController.replace_config`.
+  - `BaseDinoEnv`: `_rewards_follow_command()`, `_live_zero_command()`,
+    `_forward_reference_2d()` (the unit desired heading of the command the
+    action was chosen under; the spawn heading under `"none"`),
+    `_drift_anchor_2d()` (where the current command event began; the spawn
+    under `"none"`), the `_stand_block()` context, which `step()` holds over
+    the whole step, physics substeps to termination (`_step_body`), and
+    `set_command_config(config)`, which may change only `cruise_speed` and
+    `speed_range`. Every species reward reads the forward reference and the
+    drift anchor. `_speed_terms` pays no idle penalty at a live zero command.
+    The env refuses a stand weight it cannot swap.
+  - The Allosaurus course under a live command runs along the reset's
+    commanded heading whatever `forward_vel_weight` is, and completing it is
+    an event (`course_complete` on the crossing step, `success` from then
+    on), not a termination, since the walk gate judges a cruise episode over
+    its whole horizon; a stand episode has no course. Under `"none"` it is
+    unchanged.
+  - `curriculum/cruise_ramp.py`: `CruiseRampCallback` swaps a ramped config
+    into every training worker (`env_method("set_command_config")`) in
+    10,000-step blocks, records its position in every checkpoint
+    (`mesozoic_cruise_ramp`), and resumes from it (`resume_ramp_steps`, PPO
+    continuations and SAC or curated checkpoints alike). `train_base` builds
+    it on every load mode, primes the workers before `learn()`'s first
+    reset, and refuses it on a stage warm-started from a parent that already
+    tracked a command. Evaluation, the selection and certification panels
+    and the probe envs keep the declared end state.
+  - The digest harness's state probes score a live stage as its `step()`
+    does (tracking term inside the stand block).
+- **The none-stage rollout golden** (`environments/shared/tests/none_stage_rollout_golden.py`,
+  `fixtures/none_stage_rollout_golden.json`, `test_none_stage_rollout_golden.py`):
+  every stance and recovery, 3 seeds x 300 steps under the zero action and
+  a seeded random action, captured on `857b6dd` (decision D-D61's tree)
+  before any D-D62 change; the live walk leaves it byte-identical. Where the
+  numerics environment differs, the first two steps of each rollout are
+  compared within 1e-9.
+- **A smoke run of every model's committed walk under PPO and SAC**
+  (`test_walk_species_training.py`, the SB3 job's new "Validate all-species
+  walk training" step; the robot pair at reduced depth, every model at full
+  depth). Each test builds a stance from scratch (64 steps), warm-starts the
+  committed walk from it through `train_base.train` for 256 steps (the
+  algorithm blocks shrunk to the budget), and checks the entry's
+  command-blindness proof, the cruise ramp's record, the handoff chosen by
+  the gated statistic, the reload with the command slice at identity, that
+  the trained policy now reads the command, and that the post-stage judge
+  writes `command_tracking_report.json` and a FAIL `gate_verdict.json` on a
+  one-cruise, one-stand panel (the test's only gate-key change).
+- **Tests of the shared mechanism on the committed walks**
+  (`test_walk_command_mechanism.py`, now also in the SB3 integration step):
+  the forward reference along the reset's commanded heading and a later
+  request, the whole stand block in force exactly at a zero command and
+  never at a small non-zero one, the Allosaurus course along each reset
+  heading, and a same-stage resume continuing the cruise ramp from its
+  checkpoint's position (PPO and SAC); with the mechanism's own tests on
+  synthetic configs. `tests/stage_toml_helpers.py` replaces a committed
+  `[commands]` table (`replace_commands_table`) and builds a command-free
+  walk for the curriculum-mechanics ladders (`command_free_walk`).
+- **Species walk tests**: `test_locomotion_collapse_backstop.py` for the
+  velociraptor and the T. rex, `test_locomotion_walk.py` for the
+  brachiosaurus and the dibothrosuchus (the backstop against run
+  20260923_020654's series and the family mix, the statue's family rewards on
+  the real plant, and the quadruped reference walks through the walk panel's
+  gait clause).
+- **The website renders the walk gate**: `website/src/data/species.ts`
+  declares every exported `command_tracking/v1` key
+  (`AdvancementGate.commandTracking`, `CommandTrackingGate`,
+  `COMMAND_GAIT_CRITERIA` and `COMMAND_TOLERANCE_OVERRIDES` in the gate's
+  order), and `SpeciesCatalog`'s `formatGate` renders the kind through
+  `formatCommandTrackingGate`, phrase for phrase the catalog's
+  `_format_command_tracking_gate` (`test_website_gate_formatter_mirrors_python`,
+  `test_website_command_criteria_follow_the_gate`).
+- **A live-command stage's in-training evaluation rolls one command panel
+  and scores its robust pair by family** (decision D-D62 (20); keyed on
+  `command_mode`, so the stance and recovery evaluations are unchanged). A
+  stand episode earns several times a cruise episode, and the evaluation env,
+  seeded once, drew a new stand count in every 30-episode evaluation, so
+  `best_model` ranked the draw and `robust_best_model`'s pooled
+  `mean - std` read the family gap as risk, preferring a checkpoint that
+  stood worse.
+  - `StageAwareEvalCallback(command_evaluation=...)` reseeds the evaluation
+    env with the run's `eval_env_seed` before every evaluation of a live
+    stage, so every evaluation rolls the same commands from the same reset
+    draws (the default seed 42: 26 cruise and 4 stand episodes), and keeps
+    each episode's family, read from its first step's command, in
+    `evaluations_command_families`.
+  - `RobustBestModelCallback` scores a live stage by family: `mean - std`
+    within the cruise and within the stand episodes, weighted 1 - p and p
+    by the stop probability and renormalized over the families present; a
+    same-stage resume scores the prior record on the plan
+    (`RobustBestModelCallback.score` / `prior_score`). An evaluation recorded
+    without its families is refused.
+  - New `curriculum/command_evaluation.py`: `CommandEvaluationPlan`,
+    `command_evaluation_plan`, `episode_command_family` (the command stream
+    replayed at any episode index; `command_tracking_panel.reset_command_family`
+    is its episode 0), `info_command_family`, `family_statistics` and
+    `family_robust_score`; `train_base._command_evaluation_plan` builds the
+    plan of a live stage and logs its family counts, warning when a family is
+    absent.
+  - Tests in `test_walk_command_mechanism.py`: the plan replays the env's
+    stream on every committed walk; the family score prefers the better
+    stander where the pooled score does not; the resume; and a trained walk
+    whose two evaluations both restart the stream at the plan's seed and
+    roll the plan's families (a mutation that drops the reseed fails it).
 - **The `command_tracking/v1` gate kind: walk and follow profiles** (decision
-  D-D61; no committed stage declares it, so no stage's gate digest moves).
+  D-D61; no committed stage declared it then, so no stage's gate digest
+  moved; every walk declares it since D-D62).
   - `curriculum/command_tracking_gate.py` judges a stage whose command is live
     on a fixed panel of seeded, deterministic episodes. The string-valued
     `profile` key selects `walk` (the walk node) or `follow` (the later
@@ -2591,6 +2754,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every locomotion task and gate digest moved; no stance or recovery one
+  did** (decision D-D62). `configs/digest_snapshot.generated.txt` moved 90
+  lines and added or removed none: on each of the seven walks its
+  `task_sha256`, `gate_sha256`, both `stage_config_view_sha256` lines and its
+  three reward lines (49); the walk's `hyperparameters_sha256` (PPO and
+  SAC) on the velociraptor, the T. rex, the brachiosaurus and the
+  dibothrosuchus, whose `[curriculum]` lost the forward-velocity ramp keys
+  (8); and the `task_sha256` of all 11 behavior recipes of the
+  velociraptor, the T. rex and the anatomical Compsognathus, which inherit
+  the walk's `[env]` stand-term settings and move no recipe reward (33). A
+  certified stance or recovery stays a valid ancestor (`--trunk-from`
+  reuses it), and the none-stage golden proves both bit for bit.
+- **A walk checkpoint trained before this change cannot resume or be
+  re-judged as the walk**: its task digest is the forward walk's, so
+  `resume_same_stage` refuses it, and its gate kind is gone from the stage.
+  Train the walk again from a certified stance.
+- **A walk trains from a stance trained after Phases C and D**: one on the
+  current plant interface (an older checkpoint fails the plant check) whose
+  saved statistics hold the command slice at identity (a sidecar saved
+  before decision D-D60 is refused by a live stage). The warm start zeroes
+  the stance's command columns and proves the policy command-blind before
+  the first update, so a walk starts blind to its command and learns to
+  read it.
+- **The pilot `follow_direction` recipes are superseded by the planned
+  follow nodes**, which will continue the walk as manifest nodes.
+  `prepare_behavior_checkpoint` refuses a command-trained parent (decision
+  D-D60), so no recipe starts from the new walker: a recipe needs a
+  command-free walker on the current interface, and no committed path
+  produces one (the interface is this unreleased series' own, every walk
+  declares `[commands]`, and `--override commands.*` is refused). Until a
+  follow or terrain node with a command exists, or a command-free walk config
+  is added, the 63 terrain recipes have no parent a user can produce.
+  Nothing was deleted: all 77 recipes still read, and the refusal message
+  says so and points to plan section 4.6 and decision D-D62.
+- **Overrides and keys a walk refuses**: the walk's `command_tracking/v1`
+  refuses `curriculum.min_avg_reward`, `min_avg_episode_length` and
+  `min_avg_forward_vel`, so a command-line run that opened a two-stage
+  reward ladder with unscoped `--override curriculum.min_avg_*` keys now
+  fails at load; scope them to the stance (`stance.curriculum.*`). A stage
+  with `[commands]` refuses `ramp_start_value` and `ramp_timesteps` (the
+  forward-velocity ramp), naming the cruise ramp instead. The walk is judged
+  after its budget, never early, so a curriculum run trains its whole
+  `timesteps`.
+- **The walk deliverable's metric key is `command_tracking`**
+  (`configs/species_manifest.toml`, every model's walk deliverable and
+  success metric, the Allosaurus' `course_complete` metric included); a
+  consumer that read `forward_velocity_gate` reads the new key.
+- **`widen_checkpoint` widens a `command_tracking/v1` parent only from the
+  pair its `models/handoff_choice.json` chose**, and refuses one whose
+  choice is missing, invalid or stale; rerun the stage's judge to record a
+  choice.
 - **A sidecar saved before the command slice was held at identity (decision
   D-D60) loads with identity re-imposed into a command-free stage, and is
   refused by a live one.** `curriculum.load_vecnorm_stats` (every stage load:
@@ -3104,6 +3318,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The walk's reports stop comparing it with the stance statue and show its
+  stand terms** (decision D-D62). `plot_gate_progress` draws no zero-action
+  line on a live-command stage (its new `live_command` argument, or the
+  recorded task's command section when it is not given), and
+  `progress.json`'s `zero_action_reward` is null there
+  (`TrainingProgressCallback(live_command=...)`), as the baseline watch
+  already skipped it: the run's `zero_action_baseline.json` is the stance's
+  statue. The reward decomposition treats a term as active when the stage's
+  stand block names its weight, so the walk's stand-block terms (17 on the
+  velociraptor, 26 on the T. rex and 16 on the anatomical Compsognathus,
+  among others) are drawn. The command-tracking figure shades the cruise ramp's window on
+  its training panel and says the training rollouts run the ramp's
+  commanded speeds.
+- **The walk definitions in `configs/species_manifest.toml` say what
+  summary.json carries**: the families' counts and bounds are exported from
+  the admitted `command_tracking_report.json` (decision D-D61), and the
+  catalog headlines them; they no longer repeat the stance's "not exported"
+  sentence (`test_species_catalog` pins it). The catalog was regenerated.
+- **Documented, not changed** (decision D-D62 (5), (16)): the cruise ramp
+  is a fixed 2M steps on every walk, 67% of the Compsognathus pair's 3M
+  budget (the two TOMLs and the Allosaurus' say so), and its benefit depends
+  on the per-step tracking risk (16)(a), since at the ramp's start the
+  statue earns more tracking than a reference-quality walk.
+- New test `test_the_inherited_walk_stand_term_settings_move_no_recipe_reward`
+  (`test_phase_d_command_plumbing.py`): a velociraptor, T. rex and anatomical
+  Compsognathus recipe built with and without the walk's stand-term settings
+  step identically (reward, observation, flags), the claim of D-D62 (14) the
+  pilot golden's `WALK_STAND_SETTINGS_SINCE_CAPTURE` rests on.
+- **The seven `locomotion.toml` files describe the live walk** (decision
+  D-D62). Every `[stage] description` reads "Walk: follow a forward command
+  with heading hold, and stand still on a zero command". In `[env]` the
+  subsumed weights are 0 (velociraptor and T. rex forward 2.0, heading 0.3,
+  lateral 0.1; brachiosaurus 4.4, 0.07, 0.11; dibothrosuchus 3.0, 0.1, 0.1;
+  both Compsognathus 8.0, 0.2, 0.1; Allosaurus forward 1.5) and the stand
+  terms' stance settings are declared. In `[curriculum]` the gate is
+  `command_tracking/v1`; `min_avg_reward`, `min_avg_episode_length`,
+  `min_avg_forward_vel`, the Compsognathus' `min_eval_episodes`,
+  `required_consecutive` and the forward-velocity ramp keys are gone; the
+  D-B5 peak warm-up is `warmup_timesteps + cruise_ramp_timesteps`
+  (velociraptor 2.3M unchanged, T. rex 2.3M new, brachiosaurus 4.0M -> 3.0M,
+  dibothrosuchus 3.3M -> 2.8M); the statue references are re-measured on
+  the live walk (velociraptor 798.4 -> 891.3, T. rex 1094.8 -> 1248.9); and
+  the velociraptor's `collapse_peak_floor_fraction` 0.45 -> 2.4 (floor
+  2139.1, above a standing policy's evaluation mix, which arms 0.45 on every
+  simulated run). One backstop rule covers the seven walks (D-D62 (15),
+  `test_every_walk_backstop_follows_the_one_rule_of_decision_d_d62`). The
+  Allosaurus walk states its `[env]`, `[ppo]` and `[sac]` (the values it
+  inherited) instead of extending the stance, so a follow node can extend
+  it.
+- **T. rex's standing lean, foot stagger and center-of-pressure terms no
+  longer read the command**: their zero-command gates became the stand
+  block. Under `"none"` (every stance and recovery, whose command is always
+  zero) they pay exactly what they paid; a live stage pays them wherever
+  their weight is positive, and the walk pays them through its stand block.
+- **`task_fingerprint.inert_opt_in_env_kwargs`** treats an
+  `OPT_IN_TASK_KWARGS` option the stand block pays as on, so its kwargs are
+  hashed although the walk's `[env]` switch is 0.
+- **The recipe env keeps the rules before decision D-D62** under its live
+  command (`behavior_env.SpeciesBehaviorMixin._rewards_follow_command()` is
+  False: the spawn's forward reference and drift anchor, the idle term at a
+  stop, the Allosaurus' `"none"` course), and refuses a recipe command with
+  a stand block or a cruise ramp; the D-D60 pilot rollout golden replays
+  exactly, with the walk's new stand-term settings held at their capture
+  values (`WALK_STAND_SETTINGS_SINCE_CAPTURE`).
+- **`train_base`** builds no forward-velocity `RewardRampCallback` for a
+  stage with a live command; `RewardRampCallback` stays for a command-free
+  stage, and no committed stage uses it now.
+- **The baseline watch is skipped on a live-command stage**
+  (`curriculum.baseline_watch.build_baseline_progress_callback` returns
+  None): its baseline is the stance statue the notebook captures, which a
+  walk's mix of stand and cruise episodes would be compared across tasks
+  with. Stance and recovery keep it.
+- **`configs/species_manifest.toml`**: every walk deliverable and every
+  model's success metric is `command_tracking` ("Walk command tracking
+  (command_tracking/v1)"), word for word between the two tables, with the
+  model's gait clause; the Allosaurus' `course_complete` is described as an
+  event along the commanded heading, and its specialty reads "Level-ground
+  walk along a commanded heading, over an eight-metre course". The catalog
+  (`README.md`, `docs/SPECIES_CATALOG.md`, `website/src/data/species.generated.json`)
+  is regenerated and headlines a walk deliverable by its cruise success
+  bound and stand hold fraction.
+- **`scripts/widen_checkpoint.py`** reads the parent stage's recorded gate
+  kind and, for `command_tracking/v1`, widens the pair
+  `select_handoff_checkpoint` honors from `handoff_choice.json`, a chosen
+  `*_final` pair included (widened once, as the target's final pair).
+- **`prepare_behavior_checkpoint`'s refusal of a command-trained parent**
+  now says that every committed walk is command-trained, that a recipe
+  starts only from a command-free walker, and that the follow_direction
+  pilots are superseded by the planned follow nodes (plan section 4.6,
+  decision D-D62).
+- **The notebook's `BEHAVIOR = "walk"` help** (`notebooks/sb3_training.ipynb`,
+  the configuration guide and the knob comment) describes the
+  command-driven walk; `test_sb3_notebook_pins.py` pins the phrases and that
+  every committed walk matches them.
+- **`test_curriculum_cli_end_to_end.py`** opens the stance's gate with
+  stage-scoped overrides and expects the walk's post-stage
+  command-tracking FAIL; the pins that every committed stage runs
+  `"none"` now read "every stance and recovery is `"none"`, every walk
+  live"; tests that used the committed walk as a command-free stage use the
+  stance or the walk's `"none"` twin.
+- **Docs**: the species READMEs, the website model pages and
+  `website/docs/training/` (hyperparameters, recipes, PPO and SAC) describe
+  the command-driven walk, its stand block, cruise ramp and gate, and the
+  open risks; `website/docs/models/custom-models.md`'s manifest example uses
+  the `command_tracking` key; decision D-D62 records the design, the
+  per-model values and the measurements.
 - **A live command no longer draws from the reset stream** (decision D-D60,
   replacing D-C5's one draw). `BaseDinoEnv._command_rng` seeds each episode's
   schedule from a `SeedSequence` of the reset seed (`np_random_seed`), the

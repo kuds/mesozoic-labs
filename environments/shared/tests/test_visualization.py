@@ -1,5 +1,7 @@
 """Tests for the training visualization utilities."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -164,6 +166,42 @@ class TestPlotDiagnosticsGraphs:
 
         assert (tmp_path / "behavioral_metrics.png").exists()
         assert len(fig2.axes) == 4
+
+    def test_the_reward_decomposition_shows_a_live_stages_stand_block_terms(self, tmp_path):
+        """A term the walk's ``[env]`` leaves at 0 is paid on its stand episodes when the stand block names its
+        weight (decision D-D62), so the decomposition draws it; a term neither pays stays hidden."""
+        matplotlib.use("Agg")
+
+        from environments.shared.direction_commands import DirectionCommandConfig
+        from environments.shared.visualization import plot_diagnostics_graphs
+
+        np.savez(
+            str(tmp_path / "diagnostics.npz"),
+            timesteps=np.array([50000, 100000]),
+            reward_energy=np.array([-0.1, -0.2]),
+            reward_tail_home_pose=np.array([0.02, 0.03]),
+            reward_neck_home_pose=np.array([0.01, 0.01]),
+        )
+        command = DirectionCommandConfig(stop_probability=0.15, stand_weights={"tail_home_pose_weight": 0.25})
+        env_kwargs = {"energy_penalty_weight": 0.03, "tail_home_pose_weight": 0.0, "neck_home_pose_weight": 0.0}
+
+        def drawn(**extra: Any) -> set[str]:
+            stage_configs: dict[int | str, dict[str, Any]] = {
+                2: {"name": "Locomotion", "env_kwargs": {**env_kwargs, **extra}}
+            }
+            fig1, _ = plot_diagnostics_graphs(
+                [(2, tmp_path)],
+                stage_configs,
+                model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+                algorithm="ppo",
+                save_dir=tmp_path,
+                show=False,
+            )
+            return {line.get_label() for line in fig1.axes[3].get_lines()}
+
+        live = drawn(command_mode="heading_and_speed", command_config=command)
+        assert {"S2 energy", "S2 tail_home_pose"} <= live and "S2 neck_home_pose" not in live
+        assert "S2 tail_home_pose" not in drawn(), "without a stand block a zero-weight term stays hidden"
 
     def test_handles_empty_diagnostics(self, tmp_path):
         matplotlib.use("Agg")

@@ -3836,13 +3836,16 @@ class TestCommandSliceIdentity:
                 for node in ast.walk(function)
             )
 
-    def test_every_committed_stage_is_command_mode_none_in_phase_c(self):
-        """The flag is False on every committed config today; Phase D flips it per stage, not the notebook."""
+    def test_every_stance_and_recovery_is_command_mode_none_and_every_walk_live(self):
+        """The flag is per stage, set by the stage's config, not by the notebook: every stance and recovery runs
+        command_mode "none", and every walk (locomotion) the live walk command since decision D-D62."""
         from environments.shared.config import load_all_stages
 
         for model_id in MODELS_WITH_MANIFESTS:
             for reference, config in load_all_stages(model_id).items():
-                assert config.get("env_kwargs", {}).get("command_mode", "none") == "none", (model_id, reference)
+                mode = config.get("env_kwargs", {}).get("command_mode", "none")
+                expected = "heading_and_speed" if config["name"] == "locomotion" else "none"
+                assert mode == expected, (model_id, reference)
 
 
 class TestDeliverableAwareCells:
@@ -4118,6 +4121,39 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             for line in source.splitlines():
                 if "# @param {" in line:
                     assert "type" in json.loads(line.split("# @param ", 1)[1])
+
+    def test_the_walk_help_describes_the_command_driven_walk(self):
+        """Decision D-D62: walk is the first live-command stage on every model, so ``BEHAVIOR``'s help in the
+        configuration guide and on the knob itself names its command, its stand episodes and its post-stage
+        command-tracking judge; and every committed walk is what the help says (one forward cruise or an exactly
+        zero command a reset, about 15% stands, a heading within 0.26 rad, speeds in [0.5, 1] x cruise, ramped in
+        from a quarter over 2M steps, command_tracking/v1's walk profile)."""
+        from environments.shared.config import load_all_stages
+
+        sources = _all_cell_sources()
+        guide = sources[_cell_index(sources, "- `BEHAVIOR`: the deliverable")]
+        walk_help = guide.split('`"walk"` is stance → locomotion', 1)[1].split('`"hunt"`', 1)[0]
+        for phrase in (
+            "the command-driven walk (decision D-D62)",
+            "a forward cruise at 0.5-1 × the model's cruise speed on a heading within ±15° of the spawn's",
+            "on about 15% of episodes, an exactly zero command (stand still)",
+            "from a quarter of them over the first 2M steps",
+            "(`command_tracking/v1`, walk profile)",
+        ):
+            assert phrase in walk_help, phrase
+        knob = _cell(CONFIG_CELL_MARKER).split('#   "walk"', 1)[1].split("BEHAVIOR =", 1)[0]
+        for phrase in ("follow a forward cruise command with heading hold", "about 15% of episodes (D-D62)"):
+            assert phrase in " ".join(line.lstrip("# ").strip() for line in knob.splitlines()), phrase
+        assert "(command_tracking/v1)" in knob
+        for model_id in MODELS_WITH_MANIFESTS:
+            walk = load_all_stages(model_id)[2]
+            command = walk["env_kwargs"]["command_config"]
+            assert walk["env_kwargs"]["command_mode"] == "heading_and_speed", model_id
+            assert command.stop_probability == 0.15 and command.initial_heading_offset_max == 0.26, model_id
+            assert command.speed_range == (0.5 * command.cruise_speed, command.cruise_speed), model_id
+            assert (command.cruise_ramp_start_fraction, command.cruise_ramp_timesteps) == (0.25, 2_000_000)
+            assert walk["curriculum_kwargs"]["gate_kind"] == "command_tracking/v1"
+            assert walk["curriculum_kwargs"]["profile"] == "walk"
 
     def test_the_direction_terrain_mode_is_gone_from_every_cell(self):
         knobs = r"\bBEHAVIOR_(LOAD_MODE|CHECKPOINT|VECNORMALIZE|SEED|STEPS|EVAL_ONLY|EVAL_EPISODES|RECORD_VIDEO|VIDEO_FPS|RUN_ID)\b"

@@ -667,9 +667,14 @@ class TestPortedStanceTerms:
             "airborne_substep_weight",
         }
         assert names <= set(stage_task_fingerprint(model_id, "stance")["env"])
-        # Every stage but the stance (the strike hunt left with decision D-D59).
-        for stage in ("locomotion",):
-            assert not names & set(stage_task_fingerprint(model_id, stage)["env"]), stage
+        # The walk pays them only through its stand block (decision D-D62): its [env] leaves each switch at 0, and the
+        # block turns them on, so every kwarg they list is hashed there too.  A stage that left them off would hash
+        # none (test_walk_command_mechanism.py covers the rule).
+        walk = stage_task_fingerprint(model_id, "locomotion")
+        assert names <= set(walk["env"]), "the stand block turns the options on in the walk"
+        assert {name: walk["env"][name] for name in names if name.endswith("_weight")} == dict.fromkeys(
+            ("tail_home_pose_weight", "neck_home_pose_weight", "floor_impact_weight", "airborne_substep_weight"), 0.0
+        )
 
 
 class TestNeckHomePose:

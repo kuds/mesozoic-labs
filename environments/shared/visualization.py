@@ -18,6 +18,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+from .direction_commands import stand_weights_of
 from .model_id import ModelId
 from .species_names import model_display_name
 from .stage_manifest import stage_display_name
@@ -292,13 +293,18 @@ def plot_diagnostics_graphs(
     _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"]
 
     def _signal_active(reward_key: str, stage_num: "int | str") -> bool:
-        """Return True if *reward_key* has a non-zero weight in this stage's config."""
+        """Return True if *reward_key* has a non-zero weight in this stage's config.
+
+        A live stage's stand block counts (decision D-D62): a term its ``[env]``
+        leaves at 0 is paid on the stand episodes when the block names its weight.
+        """
         env_kw = stage_configs.get(stage_num, {}).get("env_kwargs", {})
         weight_keys = _REWARD_KEY_TO_CONFIG_WEIGHTS.get(reward_key, ())
         if not weight_keys:
             # Unknown reward key — show it to be safe.
             return True
-        return any(abs(env_kw.get(wk, 0.0)) > 0 for wk in weight_keys)
+        stand = stand_weights_of(env_kw.get("command_config"))
+        return any(abs(env_kw.get(wk, 0.0)) > 0 or abs(stand.get(wk, 0.0)) > 0 for wk in weight_keys)
 
     # -----------------------------------------------------------
     # Figure 1: Locomotion Health Metrics
@@ -798,6 +804,15 @@ def _gate_progress_groups(keys: Sequence[str]) -> dict[str, list[str]]:
     return {name: groups[name] for name in GATE_PROGRESS_PANELS if groups[name]}
 
 
+def _records_a_live_command(stage_dir: "str | Path") -> bool:
+    """Whether *stage_dir*'s recorded ``stage_config.json`` task has a command section (a live-command stage)."""
+    from .config import read_recorded_stage_config
+
+    record = read_recorded_stage_config(stage_dir) or {}
+    fingerprint = record.get("task_fingerprint")
+    return isinstance(fingerprint, dict) and isinstance(fingerprint.get("command"), dict)
+
+
 def plot_gate_progress(
     stage_dir: "str | Path",
     *,
@@ -805,12 +820,17 @@ def plot_gate_progress(
     model_id: ModelId | None = None,
     save_path: "str | Path | None" = None,
     show: bool = False,
+    live_command: bool | None = None,
 ) -> Any:
     """One figure of a stage's ``gate_progress.npz``: a panel per group it holds, against millions of steps.
 
     1. ``mean_reward``, with the run's zero-action (statue) reward when its
-       ``zero_action_baseline.json`` covers the model, and
-       ``full_horizon_fraction`` on a twin axis;
+       ``zero_action_baseline.json`` covers the model and the stage runs no
+       live command, and ``full_horizon_fraction`` on a twin axis (that
+       baseline is the stance's statue, so on a live-command stage, whose
+       *live_command* is true or, when ``None``, whose recorded
+       ``stage_config.json`` task has a command section, it would compare
+       the walk with another task; decision D-D62);
     2. the signed per-foot pad and whole-foot centres of pressure
        (``<label>_sole_cop_fore_aft``, ``<label>_foot_cop_fore_aft``), with
        each declared bar at plus and minus;
@@ -856,7 +876,9 @@ def plot_gate_progress(
         if name == "reward":
             axis.plot(steps, rows["mean_reward"], label="mean reward", color="C0")
             statue = None
-            if model_id is not None:
+            if live_command is None:
+                live_command = _records_a_live_command(stage_dir)
+            if model_id is not None and not live_command:
                 from .curriculum.baseline_watch import read_zero_action_baseline
 
                 statue = read_zero_action_baseline(Path(stage_dir).parent, model_id)
@@ -964,6 +986,24 @@ def _command_tracking_history(stage_dir: Path) -> "tuple[Any, Any] | None":
     return timesteps, fraction
 
 
+def _recorded_cruise_ramp(stage_dir: "str | Path") -> "tuple[float, int] | None":
+    """The cruise ramp ``(start_fraction, timesteps)`` *stage_dir*'s recorded task declares; ``None`` without one."""
+    from .config import read_recorded_stage_config
+
+    record = read_recorded_stage_config(stage_dir) or {}
+    fingerprint = record.get("task_fingerprint")
+    command = fingerprint.get("command") if isinstance(fingerprint, dict) else None
+    config = command.get("config") if isinstance(command, dict) else None
+    if not isinstance(config, dict):
+        return None
+    start, timesteps = config.get("cruise_ramp_start_fraction"), config.get("cruise_ramp_timesteps")
+    if isinstance(start, bool) or not isinstance(start, (int, float)):
+        return None
+    if isinstance(timesteps, bool) or not isinstance(timesteps, int) or timesteps <= 0:
+        return None
+    return float(start), int(timesteps)
+
+
 def plot_command_tracking(
     stage_dir: "str | Path",
     *,
@@ -998,7 +1038,12 @@ def plot_command_tracking(
     rollouts' mean of the env's in-tolerance flag (``diagnostics.npz``'s
     ``tracking_in_tolerance``, all steps of a stochastic policy, both
     families), against the profile's per-episode tracking bar; "not
-    recorded" when the file holds none.
+    recorded" when the file holds none.  The training rollouts run the
+    cruise ramp's commanded speeds (decision D-D62), not the end state the
+    panel and the bar are judged on, so when the recorded
+    ``stage_config.json`` task declares a ramp its window is shaded: there a
+    standing policy reads partly in tolerance at the ramp's slow commands,
+    and a walker's fraction can fall as the commands rise.
 
     Returns the figure, or ``None`` when the stage has neither a trace nor a
     tracking history.  Report-only; reads the stage directory and writes
@@ -1161,10 +1206,26 @@ def plot_command_tracking(
                 linestyle="--",
                 label=f"{bar_key} {float(bar_value):.2f} (panel, after the settle)",
             )
+        ramp = _recorded_cruise_ramp(stage_dir)
+        title = "Tracking fraction over training (training rollouts, the env's tolerances)"
+        if ramp is not None:
+            start_fraction, ramp_timesteps = ramp
+            training.axvspan(
+                0.0,
+                ramp_timesteps / 1e6,
+                color="0.6",
+                alpha=0.15,
+                linewidth=0,
+                label=f"cruise ramp: commanded speeds {start_fraction:g} to 1 x the end state",
+            )
+            title = (
+                "Tracking fraction over training (training rollouts at the cruise ramp's commanded speeds, "
+                "the env's tolerances)"
+            )
         training.set_ylim(-0.05, 1.05)
         training.set_xlabel("steps (millions)")
         training.set_ylabel("in-tolerance fraction")
-        training.set_title("Tracking fraction over training (training rollouts, the env's tolerances)", fontsize=10)
+        training.set_title(title, fontsize=10)
         training.grid(alpha=0.3)
         _safe_legend(training, loc="lower right", fontsize=8)
     else:
