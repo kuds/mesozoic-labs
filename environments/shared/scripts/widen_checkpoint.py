@@ -74,7 +74,9 @@ never re-trained:
 Refusals (exit 1, nothing written): a parent ``gate_verdict.json`` that did
 not pass; an algorithm that disagrees with the archive; an occupied or
 non-empty target directory, one not named as the stage's directory
-(``stage_dir_candidates``), or one inside the parent's run directory; an
+(``stage_dir_candidates``), one inside the parent's run directory, or one
+in a run whose result bundle is complete (it is immutable, and a new stage
+directory in it stops its manifest verifying); an
 explicit ``--model`` that is not a handoff checkpoint; a missing identity
 without ``--allow-legacy-plant``; a missing or unstamped sidecar (or, under
 the legacy allowance, one recording another model / width); any
@@ -973,7 +975,7 @@ def widen_checkpoint(
         PlantIdentity,
         current_plant_identity,
     )
-    from environments.shared.result_bundle import sha256_file
+    from environments.shared.result_bundle import ResultBundleError, read_bundle_status, sha256_file
     from environments.shared.species_registry import get_species_config
     from environments.shared.stage_manifest import (
         StageManifestError,
@@ -1091,6 +1093,21 @@ def widen_checkpoint(
         refuse_occupied_stage_dir(target, task_load_mode=None)
     except StageDirectoryOccupiedError as exc:
         raise WidenError(str(exc)) from exc
+    # A complete bundle is immutable: a widened root written into its run is a file set its manifest never
+    # listed, so the bundle would stop verifying. The target's run is its parent directory.
+    try:
+        target_bundle = read_bundle_status(target.parent)
+    except ResultBundleError as exc:
+        raise WidenError(
+            f"the bundle status of {target.parent} is unknown, so nothing is written there: {exc}. Restore a "
+            "readable artifact_manifest.json there (the bundle writer refuses to rebuild over this one too), or "
+            "widen into a fresh run directory (a new run id)."
+        ) from exc
+    if target_bundle == "complete":
+        raise WidenError(
+            f"{target.parent} holds a complete result bundle, which is immutable: a widened root is written into "
+            "a fresh run directory of its own (a new run id), never into a published run"
+        )
     if target.exists():
         if not target.is_dir():
             raise WidenError(f"{target} exists and is not a directory")

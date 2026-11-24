@@ -2060,8 +2060,10 @@ def train(
     or ``gate_verdict.json`` present) is refused with
     :class:`~environments.shared.config.StageDirectoryOccupiedError` before
     anything is written into it, unless the load is an explicit same-stage
-    resume (``load_path`` under ``resume_same_stage``): a new variant is a
-    new run directory (decision D-A20).  Such a resume is refused too, with
+    resume (``load_path`` under ``resume_same_stage``) of a stage that holds
+    no ``gate_verdict.json`` (a judged node is never trained further in
+    place; D-A20 as amended 2026-11-24): a new variant is a new run
+    directory (decision D-A20).  Such a resume is refused too, with
     :class:`~environments.shared.config.ResumeRefusedError` and before
     anything is written, when it cannot continue the recorded stage: a load
     that is not a continuation (a SAC load, or a curated PPO checkpoint)
@@ -2205,7 +2207,8 @@ def train(
         log_path = Path(log_dir)
 
     # D-A20: a directory that already records a stage is written into only
-    # by a same-stage resume of it.  The effective load mode is what
+    # by a same-stage resume of it, and never once it holds gate_verdict.json
+    # (D-A20 as amended 2026-11-24).  The effective load mode is what
     # save_stage_config records below (None when nothing is loaded), so a
     # from-scratch run under the default resume_same_stage is refused too.
     refuse_occupied_stage_dir(log_path, task_load_mode=task_load_mode if load_path else None)

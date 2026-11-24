@@ -32,7 +32,9 @@ D-A21) has it DERIVED from its recorded blocks
 is never skipped for the missing field alone; a sibling whose verdict
 records no ``gate_sha256`` (judged before D-A22) IS skipped, consistent with
 reuse rule 7 and decision D-B6, and joins the count once re-judged
-(``scripts/backfill_gate_verdict.py --force``).
+(``scripts/backfill_gate_verdict.py --force``), which never happens to a
+sibling whose result bundle is ``complete``: the tool refuses to write into
+one (D-B8 as amended 2026-11-24), so such a sibling stays skipped.
 
 Some runs never count (the maintainer's stance-landing decision of 2026-11-06,
 :mod:`environments.shared.run_exclusions`): the r10 T. rex stance screen runs,
@@ -191,7 +193,8 @@ def discover_replicates(
             _skip(
                 sibling,
                 "its verdict records no gate_sha256 (judged before decision D-A22); re-judge it with "
-                "scripts/backfill_gate_verdict.py --force before it can count as a replicate (decision D-B6)",
+                "scripts/backfill_gate_verdict.py --force before it can count as a replicate (decision D-B6); "
+                "the tool refuses a sibling whose result bundle is complete, so such a sibling never counts",
             )
             continue
         if recorded_gate != gate_sha256:

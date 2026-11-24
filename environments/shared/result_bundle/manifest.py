@@ -8,6 +8,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import logging
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
@@ -15,6 +16,7 @@ from . import hashing
 from .constants import (
     ARTIFACT_MANIFEST_SCHEMA_VERSION,
     DEFAULT_MANIFEST_NAME,
+    DEFAULT_PROVENANCE_NAME,
 )
 from .errors import ResultBundleError
 
@@ -88,6 +90,51 @@ def read_bundle_status(run_dir: str | Path, *, manifest_name: str = DEFAULT_MANI
     if status not in {"partial", "failed", "complete"}:
         raise ResultBundleError(f"invalid artifact manifest status in {manifest_path}: {status!r}")
     return str(status)
+
+
+def run_directory(path: str | Path) -> Path | None:
+    """The run directory *path* lies in: its nearest ancestor (or itself) holding ``provenance.json``.
+
+    *path* is resolved first and need not exist; ``None`` when no ancestor holds the file.
+    """
+    resolved = Path(path).resolve()
+    for candidate in (resolved, *resolved.parents):
+        if (candidate / DEFAULT_PROVENANCE_NAME).is_file():
+            return candidate
+    return None
+
+
+def refuse_output_inside_run(out_dir: str | Path, inputs: Sequence[str | Path | None] = ()) -> None:
+    """Refuse a report tool's *out_dir* inside a run directory, or inside the stage directory of any of *inputs*.
+
+    The manifest hashes every file under a run directory (:func:`run_directory`)
+    and verification rejects a file it did not list, so a report written into a
+    published run makes it fail.  *inputs* are the checkpoint files the tool
+    reads (``None`` entries are skipped); one inside a ``models/`` directory
+    also protects that directory's stage directory, by the layout, for a run
+    without ``provenance.json``: a report there can replace the stage's own
+    evidence (``stance_gate_report.json`` is what the gate judge and
+    ``backfill_gate_verdict.py`` read).  Reads only; raises
+    :class:`ResultBundleError`.
+    """
+    target = Path(out_dir).resolve()
+    run = run_directory(target)
+    if run is not None:
+        raise ResultBundleError(
+            f"refusing to write {target} inside the run directory {run}: the result bundle's manifest "
+            "(result_bundle/manifest.py) hashes every file there, and verification rejects a file it did not "
+            "list. Pass an output directory outside the run."
+        )
+    for source in inputs:
+        if source is None:
+            continue
+        models = Path(source).resolve().parent
+        if models.name == "models" and target.is_relative_to(models.parent):
+            raise ResultBundleError(
+                f"refusing to write {target} inside the stage directory {models.parent} of {source}: a report "
+                "there can replace the stage's own evidence, which the gate judge reads. Pass an output directory "
+                "outside the run."
+            )
 
 
 def build_artifact_manifest(

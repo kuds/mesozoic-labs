@@ -109,12 +109,17 @@ way and for its protocol, six-heading grid and certification seeds (decision
 D-D32; a directory holding only a v2 report is refused), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
-the panel). The verdict also records the gate it was judged under —
+the panel). It also refuses, `--force` or not and before it writes anything,
+a stage directory whose run holds a `complete` bundle, which a new or
+rewritten verdict would stop verifying. The verdict also records the gate it
+was judged under —
 `gate` (kind, schema version and the thresholds the kind consumes) and
 `gate_sha256`, its digest (decision D-A22) — which reuse rule 7 compares with
 the reusing run's gate; a verdict written before D-A22 lacks both and is not
 a trunk until re-backfilled with `--force` (`--gate current` after a threshold
-edit, for a `reward_and_length/v1` directory), and a copied verdict whose
+edit, for a `reward_and_length/v1` directory) — never, in a run whose bundle
+is `complete`, whose verdicts stay as published (decision D-B8 as amended
+2026-11-24) — and a copied verdict whose
 `gate_sha256` is not the digest of its `gate` block fails the audit.
 
 `ancestors/<stage_id>/ancestor.json` records `{schema, stage_id, stage_key,
@@ -325,8 +330,9 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   `hyperparameters_sha256` hashes — so a pre-D-A21 sibling is never skipped
   for the missing field alone), and its run block's `seed` differs.  A sibling whose
   verdict records no `gate_sha256` (judged before decision D-A22) is skipped
-  until re-judged with `backfill_gate_verdict.py --force`, consistent with
-  reuse rule 7.  A run that never counts (the maintainer's stance-landing
+  until re-judged with `backfill_gate_verdict.py --force` (never, for a
+  sibling whose bundle is `complete`), consistent with reuse rule 7.  A run
+  that never counts (the maintainer's stance-landing
   decision of 2026-11-06: the nine r10 T. rex stance screen runs, which trained
   the landed stance recipe on branch commits, listed in
   `environments/shared/run_exclusions.py` by those commits, their run ids and
@@ -423,7 +429,17 @@ manifest).
 The manifest hashes files present when the exporter runs, and promotion rejects
 undeclared files. If artifacts are added manually, regenerate the manifest
 before promotion. The SB3 notebook flushes Google Drive before an automatic
-runtime disconnect.
+runtime disconnect, and in Colab without Drive (`USE_GOOGLE_DRIVE = False`,
+whose runs live only on the VM's disk) it never disconnects automatically
+(`notebook_runtime.disconnect_runtime`): the release reads the storage
+cell's `RUNS_ON_DRIVE`, which stays False for the runtime once a run went to
+the VM's disk, never the knob. The report tools refuse an output directory
+inside a run (`result_bundle.refuse_output_inside_run`:
+`stance_gate_report.py --out-dir`, `episode_trace_report.py --out-dir`,
+`harnesses/recovery_offdist_panel.py --out`). `widen_checkpoint.py` refuses a
+target in a run whose bundle is `complete`, and
+`harnesses/freeze_recovery_gate.py` refuses such a run and a stage directory
+that holds `gate_verdict.json`, `--replace` or not.
 
 ## The cross-run table and offline judgements
 

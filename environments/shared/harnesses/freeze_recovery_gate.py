@@ -11,7 +11,11 @@ re-loaded at the current task is never left on disk claiming to be frozen.
 
 Freezing a gate is explicit: the harness CLI or opt-in notebook runs it
 before recovery training, and an existing resolution is replaced only
-when ``--replace`` or ``replace=True`` says so.
+when ``--replace`` or ``replace=True`` says so.  Nothing is frozen, with
+``--replace`` or without, into a stage directory that holds
+``gate_verdict.json`` (its verdict was judged against the resolution
+there) or whose run holds a ``complete`` result bundle (immutable: a new
+or rewritten file stops its manifest verifying).
 
 **Where the numbers come from.**  Everything numeric here carries its
 derivation record: the judge is the P3 calibration (first-runs record
@@ -56,7 +60,7 @@ from typing import Any, Callable, Mapping
 
 import numpy as np
 
-from environments.shared.config import build_env, load_stage_config
+from environments.shared.config import JUDGED_STAGE_FILE, build_env, load_stage_config
 from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.curriculum.gate_resolver import (
     LEGACY_RECOVERY_JUDGE_MODEL_ID,
@@ -629,6 +633,34 @@ def roll_policy_panel(
         env.close()
 
 
+def _refuse_a_judged_or_published_stage(stage_dir: Path) -> None:
+    """Refuse a freeze into a judged stage directory or into a run whose result bundle is complete (``--replace``
+    does not lift either); raises ``ValueError`` and reads only."""
+    from environments.shared.result_bundle import ResultBundleError, read_bundle_status
+
+    if (stage_dir / JUDGED_STAGE_FILE).is_file():
+        raise ValueError(
+            f"{stage_dir} holds {JUDGED_STAGE_FILE}: a judged node's gate resolution is the one its verdict was "
+            "judged against, so it is never re-frozen (--replace does not apply). A new resolution belongs to a "
+            "new attempt, in a fresh run directory."
+        )
+    run_path = stage_dir.resolve().parent
+    try:
+        status = read_bundle_status(run_path)
+    except ResultBundleError as exc:
+        raise ValueError(
+            f"the bundle status of run {run_path} is unknown, so nothing is frozen there: {exc}. Restore a readable "
+            "artifact_manifest.json there (the bundle writer refuses to rebuild over this one too), or freeze into "
+            "a fresh run directory."
+        ) from exc
+    if status == "complete":
+        raise ValueError(
+            f'run {run_path} holds a complete result bundle (artifact_manifest.json records status "complete"), '
+            f"and a complete bundle is immutable: a gate resolution written into {stage_dir.name} would stop its "
+            "manifest verifying. Nothing was frozen (--replace does not apply); freeze into a fresh run directory."
+        )
+
+
 def freeze_recovery_gate(
     stage_dir: "str | Path",
     *,
@@ -654,13 +686,18 @@ def freeze_recovery_gate(
     controller — so it is refused.
 
     An existing ``gate_resolution.json`` is never overwritten implicitly:
-    re-freezing is a decision, so it requires ``replace=True``.
+    re-freezing is a decision, so it requires ``replace=True``.  Whatever
+    *replace*, a stage directory holding ``gate_verdict.json`` (a judged
+    node: its verdict was judged against the resolution there) or whose run,
+    its parent directory, holds a ``complete`` result bundle is refused
+    before anything is rolled or written.
     """
     if bool(policy_zip) != bool(vecnorm):
         raise ValueError("policy_zip and vecnorm must be supplied together (the brace null needs both)")
     if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 1:
         raise ValueError("recovery episodes must be a positive integer")
     stage_dir = Path(stage_dir)
+    _refuse_a_judged_or_published_stage(stage_dir)
     existing = stage_dir / "gate_resolution.json"
     if existing.is_file() and not replace:
         raise ValueError(
@@ -853,7 +890,14 @@ def main(argv: "list[str] | None" = None) -> None:
         default="auto",
         help="forward pass for the checkpoint; 'numpy' skips PPO.load entirely (see §9)",
     )
-    parser.add_argument("--replace", action="store_true", help="overwrite an existing frozen resolution")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help=(
+            "overwrite an existing frozen resolution (never in a stage directory holding gate_verdict.json, or in "
+            "a run whose result bundle is complete)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     result = freeze_recovery_gate(

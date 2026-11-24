@@ -61,8 +61,9 @@ COMPLETION_CELL_MARKER = 'print("Training complete!")'
 #: bound to the interpreter that saved them"; the cell's body moved into the library with cleanup CU-6).
 PREFLIGHT_CELL_MARKER = '# SB3 archive load preflight (KNOWN_ISSUES "Training / RL": SB3 archives are bound to the interpreter that saved them)'
 
-#: The knobs every ``halt`` / ``disconnect_runtime`` call passes by name, read when it runs (consolidation PR-14b).
-DISCONNECT_KNOBS = (("in_colab", "IN_COLAB"), ("auto", "AUTO_DISCONNECT"), ("flush_drive", "USE_GOOGLE_DRIVE"))
+#: The values every ``halt`` / ``disconnect_runtime`` call passes by name, read when it runs (consolidation PR-14b):
+#: two knobs and the storage cell's resolved ``RUNS_ON_DRIVE``, never the ``USE_GOOGLE_DRIVE`` knob (2026-11-24).
+DISCONNECT_KNOBS = (("in_colab", "IN_COLAB"), ("auto", "AUTO_DISCONNECT"), ("flush_drive", "RUNS_ON_DRIVE"))
 
 #: Every model (each has a committed stage manifest; the notebook's SPECIES and EMBODIMENT menus).
 MODELS_WITH_MANIFESTS = model_ids()
@@ -2761,9 +2762,11 @@ class TestEscapeHatch:
     def test_the_manual_cell_records_but_never_enforces_the_verdict(self):
         src = _cell(MANUAL_CELL_MARKER)
         tree = ast.parse(src)
-        assert not [node for node in ast.walk(tree) if isinstance(node, ast.Raise)], (
-            "the manual cell never raises on a verdict (its one refusal, a complete run, is a helper call before any write)"
-        )
+        # Its one raise refuses a judged node before any write (D-A20 as amended 2026-11-24; executed in
+        # test_write_guards.py), never a verdict: its other refusal, a complete run, is a helper call.
+        raises = [node for node in ast.walk(tree) if isinstance(node, ast.Raise)]
+        judged = _the_if(tree, src, lambda test: test == "read_gate_verdict(_manual_dir) is not None", "judged refusal")
+        assert raises == [judged.body[0]], "the manual cell never raises on a verdict"
         assert not _calls(tree, "disconnect_runtime") and not _calls(tree, "halt"), (
             "the manual cell never releases the runtime"
         )

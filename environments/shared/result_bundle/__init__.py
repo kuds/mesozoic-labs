@@ -24,7 +24,7 @@ them:
 * :mod:`~environments.shared.result_bundle.provenance` — capture and update
   run provenance
 * :mod:`~environments.shared.result_bundle.manifest` — write and verify the
-  artifact manifest
+  artifact manifest, and refuse a report tool's output inside a run directory
 * :mod:`~environments.shared.result_bundle.evidence` — cross-check the summary
   against the CSV and per-episode evaluation evidence
 * :mod:`~environments.shared.result_bundle.audit` — the whole-bundle audit run
@@ -74,6 +74,8 @@ from .manifest import (
     build_artifact_manifest,
     manifest_disagreements,
     read_bundle_status,
+    refuse_output_inside_run,
+    run_directory,
     verify_artifact_manifest,
     write_artifact_manifest,
 )
@@ -124,10 +126,12 @@ __all__ = [
     "record_trunk_run",
     "refuse_complete_run_session",
     "refuse_judging_off_the_resolved_parent",
+    "refuse_output_inside_run",
     "refuse_trunk_other_than_recorded",
     "refuse_trunk_over_unjudged_widened_root",
     "refuse_widened_seed_mismatch",
     "refuse_write_into_complete_run",
+    "run_directory",
     "sha256_file",
     "trunk_from_value",
     "unjudged_stage_dir",

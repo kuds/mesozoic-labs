@@ -592,25 +592,30 @@ def record_resume_session(stage_dir: str | Path, *, load_path: str, timesteps: i
     atomic_write_text(path, json.dumps(data, indent=2) + "\n")
     return path
 
+#: The occupancy file that ends a stage: a judged node is never trained
+#: further in place, not even by a same-stage resume (D-A20 as amended
+#: 2026-11-24; D-D16 had the notebook's RESUME cell refuse it first).
+JUDGED_STAGE_FILE = "gate_verdict.json"
 
 #: Files whose presence means a stage directory is already a RECORDED stage
 #: (decision D-A20): its config was written by an earlier session, or a gate
 #: has judged it.  Writing a fresh stage into such a directory silently
 #: overwrites that record, so :func:`refuse_occupied_stage_dir` refuses it
-#: unless the load is an explicit same-stage resume.
-STAGE_DIR_OCCUPANCY_FILES = (STAGE_CONFIG_FILENAME, "gate_verdict.json")
+#: unless the load is an explicit same-stage resume of an unjudged stage.
+STAGE_DIR_OCCUPANCY_FILES = (STAGE_CONFIG_FILENAME, JUDGED_STAGE_FILE)
 
 
 class StageDirectoryOccupiedError(RuntimeError):
-    """A stage directory already holds a recorded stage and the load is not a same-stage resume."""
+    """A stage directory already holds a recorded stage and the load may not write into it."""
 
 
 def refuse_occupied_stage_dir(stage_dir: str | Path, *, task_load_mode: str | None) -> None:
     """Refuse to write a fresh stage into a directory that already records one (D-A20).
 
     Raises :class:`StageDirectoryOccupiedError` when *stage_dir* holds any
-    of :data:`STAGE_DIR_OCCUPANCY_FILES` and *task_load_mode* is not
-    ``"resume_same_stage"``.  A same-stage resume continues the stage the
+    of :data:`STAGE_DIR_OCCUPANCY_FILES`, unless it holds only
+    ``stage_config.json`` and *task_load_mode* is ``"resume_same_stage"``.
+    A same-stage resume of an unjudged stage continues the stage the
     directory records, so it is the one load that may re-save its config
     there; every other write — from scratch, or entering from a parent under
     ``initialize_next_stage`` — is a new variant, and a variant is a new run.
@@ -618,11 +623,29 @@ def refuse_occupied_stage_dir(stage_dir: str | Path, *, task_load_mode: str | No
     exactly as ``save_stage_config`` records ``load_mode``, so a
     ``resume_same_stage`` default without a checkpoint does not slip past
     the guard.  Never raises for a missing or empty directory.
+
+    A directory holding :data:`JUDGED_STAGE_FILE` is refused under every
+    load mode, the same-stage resume included: the resume would rewrite the
+    final pair, and the handoff pair the verdict hashes whenever a later
+    evaluation beat the seeded best, so the verdict would no longer match
+    its checkpoint (decision D-A20 as amended 2026-11-24).  Training a judged
+    node further is a new attempt, in a fresh run directory.
     """
     directory = Path(stage_dir)
     found = [name for name in STAGE_DIR_OCCUPANCY_FILES if (directory / name).is_file()]
-    if not found or task_load_mode == "resume_same_stage":
+    judged = JUDGED_STAGE_FILE in found
+    if not found or (task_load_mode == "resume_same_stage" and not judged):
         return
+    if judged:
+        raise StageDirectoryOccupiedError(
+            f"{directory} already records a judged stage ({', '.join(found)} present; load mode "
+            f"{task_load_mode!r}); refusing to overwrite it. A judged node is never trained further in place, not "
+            "even by a same-stage resume (--load-mode resume_same_stage, the notebook's MANUAL_LOAD_MODE): its "
+            "final pair, and the handoff pair the verdict hashes, would no longer match the verdict. Training it "
+            "further is a new attempt in a fresh run directory (a new --output-dir for train or curriculum, a "
+            "--to-stage-dir in a new run for widen_checkpoint, a new RUN_ID in the notebook); curriculum "
+            "--trunk-from or the notebook's TRUNK_FROM can name this run there to reuse its certified nodes."
+        )
     raise StageDirectoryOccupiedError(
         f"{directory} already records a stage ({', '.join(found)} present) and this is not a "
         f"same-stage resume (load mode {task_load_mode!r}); refusing to overwrite it. Give a new "

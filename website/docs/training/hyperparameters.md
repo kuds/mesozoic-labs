@@ -191,11 +191,14 @@ block you edited. The task digest a verdict is bound to covers the effective
    trunked run then trains the node itself. The remedy is a re-judge under
    the current gate — the notebook JUDGE branch / `generate_stage_artifacts`,
    or `backfill_gate_verdict.py --force --gate current` for a
-   `reward_and_length/v1` directory — never a retrain.
+   `reward_and_length/v1` directory — never a retrain, except for a run
+   whose bundle is `complete`: it is immutable and never re-judged in place,
+   so the trunked run's own training of the node is the remedy there.
 
 A variant is a new run directory: writing into a stage directory that already
 holds `stage_config.json` or `gate_verdict.json` is refused unless the load is
-an explicit same-stage resume, and a resume is refused too when its
+an explicit same-stage resume of a stage that holds no verdict (a judged node
+is never trained further in place), and a resume is refused too when its
 `hyperparameters_sha256` differs from the one the directory's
 `stage_config.json` records (it names the differing keys), so an edited recipe
 never continues an old node. A variant is also a trunk for everything it holds:

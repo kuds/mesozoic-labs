@@ -69,11 +69,14 @@ between 5 and 6, and rule 9 by the maintainer's stance-landing decision of
    path (edit a threshold, re-judge, never retrain; decision D-B8), so a
    re-judged directory is reusable under the gate it was re-judged under,
    and ``generate_stage_artifacts`` logs a warning at judge time when the
-   two blocks differ.  The verdict must agree with itself — ``gate_sha256``
-   is the digest of ``gate`` — which the reader enforces, so a verdict
-   edited after judging is refused by rule 2.  Checked here, after the
-   task and before the chain, because it is cheaper than hashing the
-   handoff pair and validating the plant;
+   two blocks differ.  Neither path writes into a run whose result bundle
+   is ``complete`` (a complete bundle is immutable; D-B8 as amended
+   2026-11-24): such a verdict is never re-judged in place, and when this
+   rule refuses it the reusing run trains the node itself.  The verdict
+   must agree with itself — ``gate_sha256`` is the digest of ``gate`` —
+   which the reader enforces, so a verdict edited after judging is refused
+   by rule 2.  Checked here, after the task and before the chain, because
+   it is cheaper than hashing the handoff pair and validating the plant;
 4. the chain: a non-root node's candidate must record, in its
    ``stage_config.json`` run block, an ``initialize_next_stage`` load whose
    ``parent_checkpoint_sha256`` equals the digest of the checkpoint the
@@ -595,7 +598,8 @@ def _find_certified_ancestor(
         raise AncestorReuseError(
             f"{stage_dir}/gate_verdict.json records no gate_sha256 (judged before decision D-A22), so the gate "
             "it certifies under is unknown: re-judge it (the notebook JUDGE branch / generate_stage_artifacts, "
-            "or scripts/backfill_gate_verdict.py --force [--gate current]) before it can be reused"
+            "or scripts/backfill_gate_verdict.py --force [--gate current]) before it can be reused; neither writes "
+            "into a run whose result bundle is complete, so a verdict there stays as published and is never reused"
         )
     current_view = gate_config_view(current_gate_config)
     current_digest = gate_config_sha256(current_view)
@@ -618,7 +622,8 @@ def _find_certified_ancestor(
             f"{current_digest} ({current_view['gate_kind']}) now; differing thresholds: {named}; a certified "
             "checkpoint proves only the gate it was judged against — re-judge it under the current gate (the "
             "notebook JUDGE branch / generate_stage_artifacts, or scripts/backfill_gate_verdict.py --force "
-            "--gate current) to reuse it"
+            "--gate current) to reuse it; neither writes into a run whose result bundle is complete, so a verdict "
+            "there stays as published and is reusable only under the gate it was judged against"
         )
 
     # (4) The chain: the candidate descends from the checkpoint resolved for

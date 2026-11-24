@@ -2565,8 +2565,9 @@ class TestTrainRefusesAnUndeclaredParent:
 class TestTrainRefusesAnOccupiedStageDirectory:
     """Decision D-A20 at the launch path: train() refuses to write into a stage directory that
     already records a stage (``stage_config.json`` or ``gate_verdict.json``) unless the load is an
-    explicit same-stage resume — checked after the directory is resolved and before its config,
-    models directory or any environment is written."""
+    explicit same-stage resume of an unjudged stage — checked after the directory is resolved and
+    before its config, models directory or any environment is written (the judged case:
+    ``test_write_guards.py``)."""
 
     class ConfigReached(RuntimeError):
         """The guard passed: train() went on to write the stage config."""
@@ -2628,10 +2629,10 @@ class TestTrainRefusesAnOccupiedStageDirectory:
         assert sorted(p.name for p in occupied.iterdir()) == [occupancy_file]
 
     def test_an_explicit_same_stage_resume_is_accepted(self, tmp_path, monkeypatch):
+        # An interrupted, unjudged stage: a judged one is refused even to a resume (D-A20 as amended).
         occupied = tmp_path / "old-run"
         occupied.mkdir()
         (occupied / "stage_config.json").write_text("{}")
-        (occupied / "gate_verdict.json").write_text("{}")
 
         outcome = self._train(
             tmp_path,

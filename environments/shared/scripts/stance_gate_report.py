@@ -51,6 +51,14 @@ gate -- it is the separately reported audit, a recorded manual step::
         --vecnorm path/to/robust_best_model_vecnorm.pkl \\
         --seed 7042 --out-dir path/to/scratch/fresh_audit
 
+``--out-dir`` is never inside a run: an ``--out-dir`` inside a run directory
+(the nearest ancestor holding ``provenance.json``), or inside the stage
+directory of ``--model`` or ``--vecnorm``, is refused before anything is
+loaded or rolled (``result_bundle.refuse_output_inside_run``, shared with
+``episode_trace_report.py``).  A run's result bundle hashes every file under
+it, and the stage's ``stance_gate_report.json`` is its gate evidence, which a
+fresh-seed audit written there would replace.
+
 Thresholds come from the stage TOML, so the report re-anchors automatically
 when the gate is retuned.  ``--episodes`` defaults to the stage's own
 ``min_eval_episodes``, because that is the panel size the bound's power is
@@ -192,7 +200,8 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         help="Also write stance_gate_report.{txt,json} (stance_heading_report.{txt,json} and the grid CSV for a "
-        "stage that declares the six-heading certificate) to this directory",
+        "stage that declares the six-heading certificate) to this directory, which may not lie inside a run "
+        "directory or the checkpoint's stage directory",
     )
     parser.add_argument(
         "--filter-actions",
@@ -329,6 +338,14 @@ def main() -> int:
     # silently produced a full-size panel while reading as an override.
     if args.episodes is not None and args.episodes < 1:
         parser.error(f"--episodes must be at least 1, got {args.episodes}")
+    if args.out_dir:
+        # Before anything is loaded or rolled: a refused destination costs nothing.
+        from environments.shared.result_bundle import ResultBundleError, refuse_output_inside_run
+
+        try:
+            refuse_output_inside_run(args.out_dir, [args.model, args.vecnorm])
+        except ResultBundleError as exc:
+            raise SystemExit(str(exc)) from exc
 
     stage_config = load_stage_config(model_id, args.stage, config_path=args.config)
     # The six-heading certificate (D-D32) is the verdict of a stage that declares it; a filtered rollout is a

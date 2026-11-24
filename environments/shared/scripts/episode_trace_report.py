@@ -26,10 +26,12 @@ summary records both:
   raw mean still says what the policy would have commanded.
 
 The output goes to ``--out-dir`` (default ``episode_trace_<checkpoint stem>``
-in the current directory), never into the run: a result bundle's manifest
-hashes every file under the run directory, so an ``--out-dir`` inside the
-run directory of the checkpoint or its statistics (the nearest ancestor
-holding ``provenance.json``) is refused.
+in the current directory), never into a run: a result bundle's manifest
+hashes every file under the run directory, so an ``--out-dir`` inside a run
+directory (the nearest ancestor holding ``provenance.json``), or inside the
+stage directory of the checkpoint or its statistics, is refused
+(``result_bundle.refuse_output_inside_run``, shared with
+``stance_gate_report.py``).
 
 Usage::
 

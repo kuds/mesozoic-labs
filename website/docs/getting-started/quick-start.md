@@ -87,10 +87,14 @@ requires an exact task match, so a parent's checkpoint must be loaded with
 `--load-mode initialize_next_stage`, which in turn refuses a checkpoint whose
 recorded stage is not the node's declared parent. A stage directory that
 already holds `stage_config.json` or `gate_verdict.json` is refused unless the
-load is `--load <checkpoint> --load-mode resume_same_stage`, so a new attempt is
-a new run directory. Hand-chained `train` runs are unjudged — `train` writes no
-`gate_verdict.json` — so they cannot serve as a later run's `--trunk-from`
-until re-judged with
+load is `--load <checkpoint> --load-mode resume_same_stage` and the directory
+holds no `gate_verdict.json` (a judged node is never trained further in place),
+so a new attempt is a new run directory. Such a resume is itself refused when it
+cannot continue the recorded stage: a SAC or curated-checkpoint load over the
+stage's records, a checkpoint trained on another task, or another
+`hyperparameters_sha256` or `--label` (the recipes page lists the refusals). Hand-chained `train` runs are
+unjudged — `train` writes no `gate_verdict.json` — so they cannot serve as a
+later run's `--trunk-from` until re-judged with
 `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>`. The curriculum walks
 to its `--target` (a recipe label, a deliverable's stage id or a legacy
 number; default the last advancing stage), so `curriculum --target walk`

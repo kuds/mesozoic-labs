@@ -773,26 +773,35 @@ robustness, **LOW** = cosmetic / QoL.
   ROW-4/6's `result_bundle.refuse_judging_off_the_resolved_parent` covers
   only a node the loop judges ahead of a trunk (decision 6 (b)); calling it
   in the JUDGE branch would close the rest, and is a separate change.
-- **MEDIUM (operational)** — **`train --load <checkpoint>` (default
-  `--load-mode resume_same_stage`) writes into a stage directory that already
-  holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
-  `config.refuse_occupied_stage_dir` (`config.py:568-591`, called at
-  `train_base.py:1588`) lets any same-stage resume through. Against a
-  directory holding `stage_config.json` and a passed `gate_verdict.json`, it
-  returns for `resume_same_stage` and raises only for `initialize_next_stage`
-  or no load. `train()` has no complete-bundle refusal either. Read from the
-  code, such a resume re-saves `stage_config.json` and always rewrites the
-  final pair. It rewrites the handoff pair the verdict hashes whenever a
-  post-resume evaluation beats the seeded best. When that happens the verdict
-  no longer matches its checkpoint, reuse rule 5 refuses the node, and a
-  `complete` bundle stops verifying. The SB3 notebook refuses this since D-D16
-  (its RESUME cell trains nothing for a node that holds a verdict); the CLI
-  and the library do not, and the website's recipes and quick-start pages
-  state the resume exception without the judged case. Workaround: never point
-  `--output-dir` at a judged stage directory; a new attempt is a new run
-  directory. Plan: D-D16 left the library guard open because it amends D-A20;
-  pending in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2. (#558
-  reviews)
+- **LOW (operational)** — **`train --output-dir` or `curriculum
+  --output-dir` into a run whose bundle is `complete` is not refused when the
+  stage directory holds no verdict.** Neither `train_base.train` nor
+  `train_base.train_curriculum` has a complete-bundle refusal
+  (`train_base.py` reads no bundle status): a new stage directory, or an
+  unjudged one, written into a `complete` run adds files its manifest never
+  listed, so the bundle stops verifying. `curriculum` also writes the run's
+  `plant_identity.json` first, and then every node the run does not hold as
+  its own stage directory (a trunked run whose stance is only an
+  `ancestors/` record trains the next node there). The notebook refuses this
+  before it writes
+  (`result_bundle.refuse_complete_run_session` in the resolve cell,
+  `refuse_write_into_complete_run` in the chain, RESUME and manual cells).
+  Workaround: never point `--output-dir` into a run whose bundle is
+  complete; a new attempt is a new run directory.
+  **Fixed on 2026-11-24 (the D-A20 amendment; the cleanup plan's §2 row 5):**
+  the judged case this entry was opened for (guard executed 2026-09-26: `train
+  --load <checkpoint>`, default `--load-mode resume_same_stage`, into a
+  directory holding `gate_verdict.json` re-saved `stage_config.json`, always
+  rewrote the final pair, and rewrote the handoff pair the verdict hashes
+  whenever a post-resume evaluation beat the seeded best). The D-A20 guard
+  `config.refuse_occupied_stage_dir` now refuses a directory that holds
+  `gate_verdict.json` under every load mode, the same-stage resume included,
+  so the CLI and the library refuse it as the RESUME cell has since D-D16;
+  the notebook's manual-node cell, which let `MANUAL_LOAD_MODE =
+  "resume_same_stage"` through to that guard and then rewrote the verdict,
+  refuses a judged target before it writes anything. The website's recipes and
+  quick-start pages state the judged case. `test_write_guards.py` pins all
+  three. (#558 reviews)
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -813,7 +822,9 @@ robustness, **LOW** = cosmetic / QoL.
   question for it. The recipes, kept as history until cleanup CU-17, are in
   this file at commit `20ab100` (`0.3.9`). What stays true for a same-plant
   directory: a moved rail or a statue re-measure is a RE-JUDGE of every
-  certified trunk, never a retrain (decisions D-B7/D-B8; stance's
+  certified trunk, never a retrain, except in a run whose bundle is
+  `complete`, which is never re-judged in place (a trunked run then trains
+  the node; D-B8 as amended 2026-11-24) (decisions D-B7/D-B8; stance's
   `min_avg_reward` rail moved 1940.0 → 2100.0 on 2026-08-10, the day
   `20260810_145546` ran); `--gate current` re-aggregates a
   `reward_and_length/v1` directory's evidence rows under the checkout's block,
@@ -866,7 +877,9 @@ robustness, **LOW** = cosmetic / QoL.
   `evaluation_selected.csv` (20/30 clears 0.5 at 0.5006; 19/30 does not),
   update the TOML comment and plan §4.4, and re-judge — never retrain — any
   verdict minted under the provisional bar (a moved threshold is a re-judge
-  under D-B7/D-B8).
+  under D-B7/D-B8). A verdict in a run whose bundle is `complete` cannot be
+  re-judged in place, so a trunked run trains that node instead (D-B8 as
+  amended 2026-11-24).
 - **LOW (calibration owed)** — **`collapse_peak_warmup_timesteps =
   1_000_000` on the T-Rex behavior stage is a judgment, not a measurement
   (decision D-B5).** Stance's 1.0M was measured by replaying run

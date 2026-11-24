@@ -1222,9 +1222,12 @@ Two flags make the rollout a probe, and the summary records them:
   satdiag's counterfactual of holding `tail_3_pitch_act` at 0.
 
 The trace writes to `--out-dir` (default `episode_trace_<checkpoint stem>`
-in the current directory) and refuses one inside the run directory of the
-checkpoint or its statistics (the nearest ancestor holding
-`provenance.json`), as `plot_gate_progress.py` does: a result bundle's
+in the current directory) and refuses one inside a run directory (the
+nearest ancestor holding `provenance.json`) or inside the stage directory of
+the checkpoint or its statistics (`result_bundle.refuse_output_inside_run`,
+which `stance_gate_report.py` and `harnesses/recovery_offdist_panel.py`
+share; `plot_gate_progress.py` has its own, narrower guard: it refuses an
+`--out` inside the run of the stage directory it plots): a result bundle's
 manifest hashes every file under the run. It changes no gate, reward,
 observation, action, task, checkpoint selection or plant, and the digest
 snapshot does not move. It traces the training heading only, not the

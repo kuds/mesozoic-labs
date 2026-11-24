@@ -216,7 +216,10 @@ reason naming it:
    retrain). The re-judge paths are the notebook's JUDGE branch
    (`generate_stage_artifacts`, for a directory holding no verdict — remove
    a refused one first) and `backfill_gate_verdict.py --force [--gate
-   current]` below.
+   current]` below. Neither writes into a run whose bundle is `complete`,
+   which is immutable: such a verdict stays as published, and when rule 7
+   refuses it a trunked run trains the node itself (decision D-B8 as
+   amended 2026-11-24).
 
 A candidate the rule refuses is not an error: `curriculum --trunk-from` and
 the notebook loop log the refusal and train the node in the new run, so
@@ -279,7 +282,10 @@ a report whose recorded `thresholds` are not the ones being judged under
 (under either `--gate`): a stance directory whose rail moved is re-judged
 through the notebook's JUDGE branch, which measures a fresh panel. The tool
 refuses when the evidence is missing, and cannot backfill
-`recovery_quality/v1`.
+`recovery_quality/v1`. It refuses, before it writes anything and `--force` or
+not, a stage directory whose run holds a `complete` bundle: that bundle is
+immutable, and a verdict added or rewritten in it would stop its manifest
+verifying.
 
 ## In the notebook
 
@@ -402,8 +408,11 @@ alone, on these models as on every other. The old
 
 Two escape hatches remain. The manual single-node cell (`MANUAL_NODE`) trains
 one node outside the chain and records its verdict without enforcing it; it
-never feeds the chain. The resume cell (`RESUME_STAGE`) continues an
-interrupted node from its newest intact periodic checkpoint under
+never feeds the chain. It refuses, before it writes anything, a run whose
+bundle is `complete` and a node that already holds a gate verdict, whatever
+`MANUAL_LOAD_MODE` says: a judged node is never trained further in place,
+so a new attempt is a fresh `RUN_ID`. The resume cell (`RESUME_STAGE`)
+continues an interrupted node from its newest intact periodic checkpoint under
 `resume_same_stage` and evaluates nothing (the loop's JUDGE branch evaluates
 the node from disk); the re-saved `stage_config.json` keeps the load lineage
 the record holds (an entered node's edge, or a root's first load) and
@@ -533,7 +542,9 @@ Refusals:
   parent's checkpoint cannot be loaded under it.
 - A stage directory that already holds `stage_config.json` or
   `gate_verdict.json` is refused unless the load is an explicit
-  `--load <checkpoint> --load-mode resume_same_stage`. `train` checks this
+  `--load <checkpoint> --load-mode resume_same_stage` of a stage that holds no
+  `gate_verdict.json`: a judged node is never trained further in place, under
+  any load mode (decision D-A20 as amended 2026-11-24). `train` checks this
   before it writes anything; the curriculum checks each node when the walk
   reaches it, before that stage directory is written to — by then the run
   directory, its `plant_identity.json` and any earlier node already exist.
@@ -682,7 +693,7 @@ thresholds. That one fact decides what an edit does to a trunked run:
 |---|---|---|
 | Algorithm block (`[ppo]`, `[sac]`, `warmup_` / `ramp_` shaping) | unchanged | Reuses the old certified checkpoint unless the node is the run's target or `--retrain-from` / `RETRAIN_FROM` covers it. The reuse prints a warning naming the differing keys (`ppo.learning_rate`, `shaping.warmup_timesteps`) and pointing at the retrain knob — never a refusal. |
 | Environment block (`[env]`, pushes, plant) | changes | Rule 3 refuses the old checkpoint; the node and everything below it retrain. Older checkpoints stay valid in the runs that certified them. |
-| Gate thresholds | unchanged | Rule 7 refuses the old verdict, naming the thresholds that differ (`gate_sha256` no longer matches). Re-judge the directory under the current gate — the notebook JUDGE branch / `generate_stage_artifacts`, or `backfill_gate_verdict.py --force --gate current` for a `reward_and_length/v1` directory — never retrain; until then a trunked run trains the node itself. |
+| Gate thresholds | unchanged | Rule 7 refuses the old verdict, naming the thresholds that differ (`gate_sha256` no longer matches). Re-judge the directory under the current gate — the notebook JUDGE branch / `generate_stage_artifacts`, or `backfill_gate_verdict.py --force --gate current` for a `reward_and_length/v1` directory — never retrain; until then a trunked run trains the node itself. A run whose bundle is `complete` is never re-judged in place, so for its verdict the trunked run's training is the only route. |
 
 Two variants of one node are two runs: writing into a stage directory that
 already records a node is refused, so give each variant a fresh

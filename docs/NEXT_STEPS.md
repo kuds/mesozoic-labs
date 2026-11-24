@@ -526,7 +526,9 @@ one), and a FAIL there blocks the handoff, reuse and publication. The fresh
 audit is the same grid on 7042–7081 and stays a recorded manual step:
 `stance_gate_report.py --species tyrannosaurus_rex --embodiment anatomical --model … --vecnorm …
 --seed 7042 --out-dir <a scratch directory>` (never the stage directory: the judge refuses that
-grid as the gate's evidence). The r9 statue scores 39/40 seeds clean at
+grid as the gate's evidence, and since 2026-11-24 the tool refuses an
+`--out-dir` inside a run directory or the checkpoint's stage directory
+before it rolls anything). The r9 statue scores 39/40 seeds clean at
 every heading (seed 3081), as at 0°, so the hop-or-fall rail's allowance is
 the same per heading.*
 
@@ -837,7 +839,8 @@ bundle counts the first, and re-running the first run's publication cell
 counts the second in its own record. Then the fresh-seed audit of each
 handoff pair (`stance_gate_report.py --species tyrannosaurus_rex
 --embodiment anatomical --model … --vecnorm … --seed 7042 --out-dir
-<scratch>`, never the stage directory), and a docs PR with the outcome.
+<scratch>`, never the stage directory, which the tool refuses, as any
+directory inside a run), and a docs PR with the outcome.
 The robust-best rule can hand off a shallow early checkpoint (a known
 limit); the audit and the handoff's step count are the guards. Later
 sessions on the certified stance (`recover`, `walk`, `hunt`) leave

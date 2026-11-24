@@ -1360,7 +1360,8 @@ class TestHyperparameterDigestAndLabel:
 
 class TestRefuseOccupiedStageDir:
     """Decision D-A20: a stage directory holding ``stage_config.json`` or ``gate_verdict.json``
-    is a recorded stage; only an explicit same-stage resume may write into it again."""
+    is a recorded stage; only an explicit same-stage resume of an unjudged stage may write into it
+    again (a judged one is refused under every load mode: ``test_write_guards.py``)."""
 
     def test_the_occupancy_files_are_the_config_and_the_verdict(self):
         assert STAGE_DIR_OCCUPANCY_FILES == ("stage_config.json", "gate_verdict.json")
@@ -1376,9 +1377,13 @@ class TestRefuseOccupiedStageDir:
         message = str(excinfo.value)
         assert issubclass(StageDirectoryOccupiedError, RuntimeError)
         assert str(tmp_path) in message and occupancy_file in message and repr(task_load_mode) in message
-        # Both ways forward are named: a fresh run directory, or an explicit same-stage resume.
+        # Both ways forward are named: a fresh run directory, or an explicit same-stage resume (an
+        # unjudged stage only: a judged one is never resumed in place, D-A20 as amended 2026-11-24).
         assert "--output-dir" in message and "RUN_ID" in message
-        assert "--load <checkpoint> --load-mode resume_same_stage" in message and "RESUME" in message
+        if occupancy_file == "stage_config.json":
+            assert "--load <checkpoint> --load-mode resume_same_stage" in message and "RESUME" in message
+        else:
+            assert "never trained further in place" in message and "RESUME" not in message
 
     def test_both_files_are_named_when_both_are_present(self, tmp_path):
         for name in STAGE_DIR_OCCUPANCY_FILES:
@@ -1386,9 +1391,8 @@ class TestRefuseOccupiedStageDir:
         with pytest.raises(StageDirectoryOccupiedError, match="stage_config.json, gate_verdict.json"):
             refuse_occupied_stage_dir(str(tmp_path), task_load_mode="initialize_next_stage")
 
-    @pytest.mark.parametrize("occupancy_file", STAGE_DIR_OCCUPANCY_FILES)
-    def test_a_same_stage_resume_is_allowed(self, tmp_path, occupancy_file):
-        (tmp_path / occupancy_file).write_text("{}")
+    def test_a_same_stage_resume_of_an_unjudged_stage_is_allowed(self, tmp_path):
+        (tmp_path / "stage_config.json").write_text("{}")
         assert refuse_occupied_stage_dir(tmp_path, task_load_mode="resume_same_stage") is None
 
     @pytest.mark.parametrize("task_load_mode", [None, "resume_same_stage", "initialize_next_stage"])

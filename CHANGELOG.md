@@ -2664,6 +2664,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The report tools share one output guard, and it covers every run.**
+  `result_bundle.refuse_output_inside_run`, with
+  `result_bundle.run_directory`, replaces the body of
+  `episode_trace.refuse_run_directory_output`, which still raises
+  `EpisodeTraceError`. `stance_gate_report.py` and
+  `harnesses/recovery_offdist_panel.py` use the same guard. It refuses an
+  output directory inside any run directory, not only the checkpoint's. For a
+  checkpoint under `models/`, it also refuses that stage directory, which
+  covers a run without `provenance.json`.
+- **A verdict in a complete run is never re-judged in place** (decisions D-B6
+  and D-B8 as amended 2026-11-24). The notebook never judged into a complete
+  run, and `backfill_gate_verdict.py` now refuses one, so "edit a threshold,
+  re-judge, never retrain" holds only for runs whose bundle is not complete.
+  After a gate edit, reuse rule 7 refuses such a verdict and a trunked run
+  trains the node itself. A pre-D-A22 replication sibling in a complete run is
+  never counted. The rule-7 and replication messages and the re-judge docs say
+  so.
 - **A resumed stage's `stage_config.json` keeps its first session's identity
   and load.** A resume used to rebuild the record from the new session:
   `git_commit` and `library_version` became the resume's, `run.timesteps`
@@ -5293,6 +5310,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **A same-stage resume no longer trains a judged node in place.** The D-A20
+  guard, `config.refuse_occupied_stage_dir`, let every `resume_same_stage`
+  load through. So `train --load <checkpoint>`, under its default load mode,
+  could write into a stage directory holding `gate_verdict.json`. It re-saved
+  the config, rewrote the final pair and, whenever a later evaluation beat the
+  seeded best, rewrote the handoff pair the verdict hashes, which left the
+  verdict not matching its checkpoint. A directory with a verdict is now
+  refused under every load mode (decision D-A20 as amended 2026-11-24).
+  Training a judged node further is a new attempt, in a fresh run directory.
+  The notebook's manual-node cell passed `MANUAL_LOAD_MODE =
+  "resume_same_stage"` through to that guard and then rewrote the verdict, so
+  a PASS could become a FAIL. It now refuses a judged target before it writes
+  anything.
+- **No tool writes into a complete run any more.** Adding or rewriting a file
+  in a run whose bundle is `complete` stopped its manifest verifying. The
+  audit then read canonical-conflict, the Drive summary dropped the run, it
+  could not be promoted, and the bundle writer refused every later save.
+  `backfill_gate_verdict` now refuses such a stage directory before it reads
+  or writes anything, `--force` or not. `widen_checkpoint` refuses a
+  `--to-stage-dir` in such a run. `harnesses/freeze_recovery_gate.py` refuses
+  such a run, and a stage directory that holds `gate_verdict.json`,
+  `--replace` or not: a judged recovery node's verdict was judged against the
+  resolution there. A manifest that cannot be read is refused too, with the
+  remedy.
+- **`stance_gate_report.py --out-dir` is refused inside a run.** A fresh-seed
+  audit written into the stage directory replaced the stage's own
+  `stance_gate_report.json`, its gate evidence. Any file added to a published
+  run also stops its manifest verifying. The tool now refuses an `--out-dir`
+  inside a run directory, or inside the stage directory of `--model` or
+  `--vecnorm`, before it loads or rolls anything.
+  `harnesses/recovery_offdist_panel.py --out` takes the same guard.
+- **Colab without Drive no longer deletes the run when it ends.** With
+  `USE_GOOGLE_DRIVE = False`, the runs live on the VM's disk.
+  `AUTO_DISCONNECT` then released the runtime seconds after a gate failure or
+  the last cell, which deleted them. The storage cell now resolves
+  `RUNS_ON_DRIVE`, which stays False for the rest of the runtime once a run
+  went to the VM's disk. The chain loop's gate-failure halt and the final cell
+  pass it instead of the knob, which can change after the run was placed.
+  `notebook_runtime.disconnect_runtime` and `halt` never release a Colab
+  runtime without Drive and say to download the results first. The storage
+  cell prints a warning that the results live only on the VM's disk.
 - **Only a continuation resumes a node in place.** Only a PPO load of one of
   the stage's periodic checkpoints continues a run. A SAC `resume_same_stage`
   load (nothing saves its replay buffer) and a curated PPO checkpoint
