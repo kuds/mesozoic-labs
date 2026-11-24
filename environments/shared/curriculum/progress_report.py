@@ -238,12 +238,32 @@ def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> list[int]:
     return sorted(steps)
 
 
-def _first_evaluation_scoring(results: Sequence[Any], timesteps: Sequence[Any], best: float, score: Any) -> int | None:
-    """The step of the first evaluation whose ``score(rewards)`` equals *best* (the one its checkpoint was saved at)."""
+def _first_evaluation_scoring(
+    results: Sequence[Any],
+    timesteps: Sequence[Any],
+    best: float,
+    score: Any,
+    families: "Sequence[Any] | None" = None,
+) -> int | None:
+    """The step of the first evaluation whose ``score(rewards)`` equals *best* (the one its checkpoint was saved at).
+
+    With *families* (a live stage's, one entry per evaluation, decision
+    D-D62) each evaluation is scored ``score(rewards, families[index])``,
+    the family-aware robust score; an evaluation without an entry, or one
+    *score* cannot score, matches nothing.
+    """
     if not math.isfinite(best):
         return None
-    for rewards, step in zip(results, timesteps):
-        if score(np.asarray(rewards, dtype=float)) == best:
+    for index, (rewards, step) in enumerate(zip(results, timesteps)):
+        values = np.asarray(rewards, dtype=float)
+        if families is None:
+            value = score(values)
+        else:
+            try:
+                value = score(values, families[index])
+            except (IndexError, KeyError, TypeError, ValueError):
+                continue
+        if value == best:
             return int(step)
     return None
 
@@ -553,9 +573,20 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         if robust is not None:
             risk = float(getattr(robust, "risk_coef", 1.0))
             score = float(getattr(robust, "best_score", -math.inf))
-            out["robust_best_model_timesteps"] = _first_evaluation_scoring(
-                results, timesteps, score, lambda r: float(r.mean() - risk * r.std())
-            )
+            if getattr(robust, "command_evaluation", None) is None:
+                out["robust_best_model_timesteps"] = _first_evaluation_scoring(
+                    results, timesteps, score, lambda r: float(r.mean() - risk * r.std())
+                )
+            else:
+                # A live stage (decision D-D62): each evaluation scored by the tracker's own family-aware rule on the
+                # families it rolled, the number it compared with its best.
+                out["robust_best_model_timesteps"] = _first_evaluation_scoring(
+                    results,
+                    timesteps,
+                    score,
+                    robust.score,
+                    getattr(source, "evaluations_command_families", None) or [],
+                )
             out["robust_best_score"] = _number(score)
         return out
 

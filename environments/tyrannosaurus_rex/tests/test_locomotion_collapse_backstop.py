@@ -3,10 +3,12 @@
 The walk warm-starts from a quiet stance, and the evaluation env runs the end-state command from step 0 (the
 cruise ramp swaps only the training workers), so its first evaluations stand at the statue's level until it walks:
 the shape that stopped the dibothrosuchus run ``20260923_020654`` at 1.45M.  Under the live walk an evaluation is
-also a mix of the two command families, its stand count drawn per evaluation (the evaluation env is seeded once).
-The statue's family rewards below were measured on the committed walk with the zero action
-(``zero_action_baseline.score`` on seeds 3042-3081 for the 37 cruise episodes, the first 10 stand seeds from 3042 for
-the stand family; physics r12, 2026-11-24).
+also a mix of the two command families.  Since decision D-D62 (20) the evaluation env is reseeded with the run's
+evaluation seed before every evaluation, so a run has one stand count k of its 30 episodes, fixed by that seed (4 at
+the default seed 42), and a stander's level holds; the tests that draw k afresh at every evaluation keep those
+per-evaluation draws as a superset of the real variance.  The statue's family rewards below were measured on the
+committed walk with the zero action (``zero_action_baseline.score`` on seeds 3042-3081 for the 37 cruise episodes,
+the first 10 stand seeds from 3042 for the stand family; physics r12, 2026-11-24).
 """
 
 from __future__ import annotations
@@ -107,8 +109,32 @@ def test_the_shape_with_the_family_mix_stops_without_the_warmup_and_runs_on_behi
         assert _drive(trace, _settings())[0] is None
 
 
+@pytest.mark.parametrize("stands", [4, 10])
+def test_a_stander_at_its_runs_fixed_stand_count_never_stops(stands):
+    """A run's stand count k is fixed by its evaluation seed (decision D-D62 (20)), so a stander's level holds: at the
+    default seed's k = 4 and at k = 10 it arms the backstop (the floor is under the cruise statue) once the peak may
+    be set, and holding steady it never reads as a collapse, with or without the warm-up."""
+    from environments.shared.curriculum.command_evaluation import command_evaluation_plan
+    from environments.shared.train_base import eval_env_seed
+
+    walk = _walk()
+    plan = command_evaluation_plan(walk["env_kwargs"]["command_config"], eval_env_seed(42), EVAL_EPISODES)
+    assert plan.family_counts()["stand"] == 4
+    evaluations = walk["curriculum_kwargs"]["timesteps"] // EVAL_FREQ
+    level = STATUE_CRUISE[0] + (STATUE_STAND[0] - STATUE_CRUISE[0]) * stands / EVAL_EPISODES
+    trace = [level] * evaluations
+    for settings in (_settings(), _settings(peak_warmup_timesteps=0.0)):
+        stopped_at, cb = _drive(trace, settings)
+        assert stopped_at is None
+        assert cb._peak_score == pytest.approx(level) and level >= settings["peak_floor"]
+
+
 def test_the_family_mix_alone_never_stops_a_standing_walk():
-    """A statue-level policy over the whole 8M budget: the stand count's spread is no collapse, with or without."""
+    """A statue-level policy over the whole 8M budget: the stand count's spread is no collapse, with or without.
+
+    Each evaluation draws its own stand count, a superset of the real variance (one k per run, fixed by its
+    evaluation seed, decision D-D62 (20)).
+    """
     walk = _walk()
     stop_probability = walk["env_kwargs"]["command_config"].stop_probability
     evaluations = walk["curriculum_kwargs"]["timesteps"] // EVAL_FREQ

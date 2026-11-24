@@ -562,7 +562,8 @@ class TestQuadrupedMetrics:
     def test_a_flightless_bound_whose_pairs_land_apart_clears_the_required_floors(self):
         """Known limit, pinned: each pair's feet land 40 ms apart (past the 20 ms merge) with no flight, the feet of a
         pair side by side.  It reads as alternating pairs, so it clears every required GQ-9 (a) floor; the Hildebrand
-        phase reads a trot's 0.5.  Only the optional lead-swap bar refuses it (a pair side by side never swaps)."""
+        phase reads a trot's 0.5.  The optional lead-swap bar refuses it, but only because a pair side by side never
+        swaps: the next test swings the same pairs' feet and clears that bar too."""
         staggered = (0.5, 0.54, 0.0, 0.04)
         gait = metrics(gait_trace(cyclic(staggered, 0.6), foot_x=swing(BOUND), speed=0.3))
         assert gait["flight_fraction"] == 0.0 and gait["min_limb_duty"] == pytest.approx(0.6)
@@ -577,6 +578,26 @@ class TestQuadrupedMetrics:
         # With flight the same staggered bound fails the required flight cap.
         flying = metrics(gait_trace(cyclic(staggered, 0.4), foot_x=swing(BOUND), speed=0.3))
         assert "max_flight_fraction" in failing_keys(flying, QUADRUPED)
+
+    def test_a_flightless_bound_whose_pair_feet_swing_their_lead_clears_every_quadruped_bar(self):
+        """Known limit, pinned (decision D-D62 (16) (f)): the same staggered bound with each foot swinging on its own
+        touchdown phase.  A pair's feet 40 ms apart swing their fore-aft offset with a lead amplitude of 0.049 m, past
+        the dead band's 0.015 m on this 0.5 m leg, so the lead swaps twice a stride and the optional lead-swap bar is
+        cleared as well: the bar narrows the flightless-bound gap and does not close it."""
+        staggered = (0.5, 0.54, 0.0, 0.04)
+        gait = metrics(gait_trace(cyclic(staggered, 0.6), foot_x=swing(staggered), speed=0.3))
+        assert gait["flight_fraction"] == 0.0 and gait["min_limb_duty"] == pytest.approx(0.6)
+        assert gait["pair_alternation_index"] == 1.0 and gait["simultaneous_fraction"] == 0.0
+        assert gait["lead_amplitude_m"] > LEAD_DEAD_BAND_L * gait["leg_length_m"]
+        assert gait["lead_swaps_per_stride"] == pytest.approx(2.0)
+        assert gait["fore_lead_swaps_per_stride"] == pytest.approx(2.0)
+        assert gait["hind_lead_swaps_per_stride"] == pytest.approx(2.0)
+        assert abs(gait["ipsilateral_phase"] - 0.5) < 0.02
+        assert failing_keys(gait, QUADRUPED) == set()
+        with_lead_swaps = gait_clause_from_curriculum(
+            {**PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS, "min_lead_swaps_per_stride": 1.0}
+        )
+        assert failing_keys(gait, with_lead_swaps) == set()
 
     def test_a_slide(self):
         slide = metrics(gait_trace(np.ones((STEPS, 4), dtype=bool), speed=0.3))

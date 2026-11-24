@@ -159,9 +159,10 @@ GATE_KINDS: dict[str, frozenset[str]] = {
     # episode that tracks the command is judged on its footfalls too.  The key set
     # is the gate module's own (``COMMAND_TRACKING_THRESHOLD_KEYS``: both
     # profiles' keys), and a stage may carry only its profile's
-    # (``thresholds_from_curriculum``, called below).  No committed stage
-    # declares it, so registering it moves no digest (gate_config_view
-    # projects declared keys only).  See
+    # (``thresholds_from_curriculum``, called below).  Registering it moved
+    # no digest (gate_config_view projects declared keys only, and no
+    # committed stage declared it then); every committed walk declares it,
+    # under the walk profile, since decision D-D62.  See
     # :mod:`environments.shared.curriculum.command_tracking_gate`.
     COMMAND_TRACKING_GATE_KIND: COMMAND_TRACKING_THRESHOLD_KEYS,
     # An explicit, recorded non-advancing mode for pilots and diagnostics.

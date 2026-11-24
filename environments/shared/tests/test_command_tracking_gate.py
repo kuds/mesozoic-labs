@@ -1010,14 +1010,17 @@ class TestFollowProfile:
         [
             {"family": "stand", "desired_speed": 0.0},
             {"desired_speed": 0.25},
+            {"initial_heading_error_rad": 0.2},
             {"planned_event_count": 9},
             {"horizon": 1500, "length": 1500},
             {"dt": 0.025},
         ],
-        ids=["stand_on_the_same_seeds", "speed", "event_count", "horizon", "dt"],
+        ids=["stand_on_the_same_seeds", "speed", "initial_heading_error", "event_count", "horizon", "dt"],
     )
     def test_the_paired_reference_must_run_the_same_task_on_each_seed(self, change):
-        """Same seeds are not enough: a pair whose reference ran another reset draw or clock is refused."""
+        """Same seeds are not enough: a pair whose records differ in a recorded reset-draw field or the clock is
+        refused (the family, requested speed, initial heading error, planned event count, horizon and control
+        step)."""
         thresholds = replace(FOLLOW, min_follow_reference_delta_lcb=-0.1)
         panel = _follow_panel()
         other = [replace(episode, **change) for episode in panel]
@@ -1027,6 +1030,11 @@ class TestFollowProfile:
         assert any("ran another task than the policy's on 20 seeds" in failure for failure in result.failures), (
             result.failures
         )
+        # The refusal names every field the pairing compares.
+        assert any(
+            "family, requested speed, initial heading error, planned event count, horizon and control step" in failure
+            for failure in result.failures
+        ), result.failures
         # One mismatched seed is enough to refuse the whole pairing.
         one = list(panel)
         one[5] = other[5]

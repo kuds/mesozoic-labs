@@ -16,7 +16,12 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 import numpy as np
 
 from . import sb3_compat
-from .command_evaluation import CommandEvaluationPlan, family_robust_score, family_statistics
+from .command_evaluation import (
+    CommandEvaluationPlan,
+    family_robust_score,
+    family_statistics,
+    recorded_command_families,
+)
 from .command_identity import hold_vec_normalize_command_identity
 from .hop_watch import HopRegimeWatchCallback
 from .posture_watch import PostureDriftWatchCallback, PostureTrendWatchCallback
@@ -110,13 +115,16 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
             raise ValueError("a live-command stage's robust score needs each evaluation episode's command family")
         return family_robust_score(values, families, plan.family_weights(), risk_coef=self.risk_coef)
 
-    def prior_score(self, returns: Any) -> "float | None":
+    def prior_score(self, returns: Any, families: "Sequence[str] | None" = None) -> "float | None":
         """The score of a prior session's evaluation (a same-stage resume): ``None`` when it cannot be scored.
 
-        A prior evaluation of a live stage is scored on this session's plan
-        (the evaluation env reseeded with the run's evaluation seed rolls the
-        same families at every evaluation); one with another episode count is
-        not this plan's and is not scored.
+        A prior evaluation of a live stage is scored on the families its
+        record carries (*families*, ``evaluations.npz``'s
+        ``command_families``), as the tracker scored it when it was rolled;
+        a record without them (written before they were kept) is scored on
+        this session's plan, which a resume that keeps the run's seed rolled
+        at every evaluation.  One with another episode count than the plan's
+        is not this panel's and is not scored.
         """
         plan = self.command_evaluation
         if plan is None:
@@ -124,7 +132,8 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         values = np.asarray(returns, dtype=float).reshape(-1)
         if values.size != len(plan.families):
             return None
-        return self.score(values, plan.families)
+        recorded = None if families is None or len(families) != values.size else list(families)
+        return self.score(values, plan.families if recorded is None else recorded)
 
     def _on_step(self) -> bool:
         results = getattr(self.eval_callback, "evaluations_results", None) or []
@@ -542,11 +551,16 @@ def seed_resume_eval_state(
     * ``eval_callback.best_mean_reward`` and ``RobustBestModelCallback``'s
       ``best_score`` — computed over the FULL prior record, so a best model
       saved at any pre-crash point stays protected (on a live-command stage
-      the robust score is the family-aware one on this session's command
-      panel, :meth:`RobustBestModelCallback.prior_score`, which is the prior
-      session's when the resume keeps the run's seed, decision D-D62);
+      the robust score is the family-aware one on the families the record
+      carries, or on this session's command panel for a record written
+      before they were kept, :meth:`RobustBestModelCallback.prior_score`,
+      decision D-D62);
     * ``eval_callback.evaluations_*`` — the in-memory history SB3 re-saves
-      on every evaluation, so the npz keeps the whole run's record.  Entries
+      on every evaluation, so the npz keeps the whole run's record (on a
+      live stage with each evaluation's command families,
+      ``evaluations_command_families``: the record's, or the plan's for a
+      record written before they were kept, so the republished record
+      carries them for every row).  Entries
       newer than ``max_timesteps`` (the resumed checkpoint's step count) are
       dropped from the HISTORY so the republished timesteps stay monotonic
       when the crash — or a fallback to an older checkpoint — postdates the
@@ -593,6 +607,8 @@ def seed_resume_eval_state(
             results = [np.asarray(row) for row in data["results"]]
             ep_lengths = [np.asarray(row) for row in data["ep_lengths"]]
             successes = [np.asarray(row) for row in data["successes"]] if "successes" in data else None
+            # Each evaluation's command families (a live stage's record, decision D-D62); None without them.
+            families = recorded_command_families(data)
     except (OSError, KeyError, ValueError, zipfile.BadZipFile) as exc:
         logger.warning("Could not seed resume eval state from %s: %s", path, exc)
         return 0
@@ -606,10 +622,17 @@ def seed_resume_eval_state(
     eval_callback.best_mean_reward = best_mean
     for callback in callbacks:
         if isinstance(callback, RobustBestModelCallback):
-            # A live stage's prior evaluations are scored by family on this session's plan
-            # (RobustBestModelCallback.prior_score), which is the prior session's when the resume keeps the
-            # run's seed; a row of another episode count is not scored.
-            scores = [score for score in (callback.prior_score(row) for row in results) if score is not None]
+            # A live stage's prior evaluations are scored by family (RobustBestModelCallback.prior_score): on the
+            # families the record carries, else on this session's plan; a row of another episode count is not
+            # scored.
+            scores = [
+                score
+                for score in (
+                    callback.prior_score(row, None if families is None else families[index])
+                    for index, row in enumerate(results)
+                )
+                if score is not None
+            ]
             if len(scores) < len(results):
                 logger.warning(
                     "Resume: %d of %d prior evaluations at %s do not hold this session's %d-episode command panel; "
@@ -637,6 +660,8 @@ def seed_resume_eval_state(
             ep_lengths = ep_lengths[:keep]
             if successes is not None:
                 successes = successes[:keep]
+            if families is not None:
+                families = families[:keep]
 
     expected_episodes = getattr(eval_callback, "n_eval_episodes", None)
     if expected_episodes is not None and any(len(row) != expected_episodes for row in results):
@@ -667,6 +692,14 @@ def seed_resume_eval_state(
     seed_prior = getattr(eval_callback, "seed_prior_history", None)
     if callable(seed_prior):
         seed_prior(seeded)
+    plan = getattr(eval_callback, "command_evaluation", None)
+    if isinstance(plan, CommandEvaluationPlan):
+        # A live stage's families, aligned with the seeded results, so the next save of evaluations.npz carries
+        # them for every row: the record's, or the plan's (what the robust tracker scored them on) for a record
+        # written before they were kept.
+        eval_callback.evaluations_command_families = (
+            [list(row) for row in families] if families is not None else [list(plan.families) for _ in results]
+        )
     # gate_progress.npz is published beside evaluations.npz (both to the stage
     # directory), so the prior session's file is the one next to the record.
     gate_rows = 0

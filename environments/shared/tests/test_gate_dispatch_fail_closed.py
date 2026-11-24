@@ -563,12 +563,33 @@ class TestCommandTrackingGateIsConsulted:
         return dict(WALK_CURRICULUM)
 
     def test_the_manager_never_advances_on_sky_high_reward(self, caplog):
+        """The normal path of every walk: refused at every evaluation, said once per stage at INFO, never an ERROR."""
         mgr = _manager("command_tracking/v1")
-        with caplog.at_level(logging.ERROR, logger="environments.shared.curriculum.manager"):
+        with caplog.at_level(logging.DEBUG, logger="environments.shared.curriculum.manager"):
             for _ in range(5):
                 assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
         assert mgr.summary()["consecutive_passes"][1] == 0
-        assert "command_tracking/v1" in caplog.text
+        refusals = [record for record in caplog.records if "command_tracking/v1" in record.getMessage()]
+        assert [record.levelno for record in refusals] == [logging.INFO], "one record over five evaluations"
+        assert "command_tracking_report.json" in refusals[0].getMessage()
+        assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+    def test_the_refusal_is_said_once_per_stage(self, caplog):
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            stage_thresholds={
+                stage: {"gate_kind": "command_tracking/v1", "min_eval_episodes": 1, "required_consecutive": 1}
+                for stage in (1, 2)
+            },
+        )
+        with caplog.at_level(logging.INFO, logger="environments.shared.curriculum.manager"):
+            for _ in range(3):
+                assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+            mgr.advance()
+            for _ in range(3):
+                assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+        refusals = [record.getMessage() for record in caplog.records if "command_tracking/v1" in record.getMessage()]
+        assert [message.split(" declares", 1)[0] for message in refusals] == ["Stage 1", "Stage 2"]
 
     def test_a_schema_valid_command_config_still_refuses_end_to_end(self):
         thresholds = thresholds_from_configs(

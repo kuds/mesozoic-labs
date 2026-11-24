@@ -155,7 +155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RobustBestModelCallback` scores a live stage by family: `mean - std`
     within the cruise and within the stand episodes, weighted 1 - p and p
     by the stop probability and renormalized over the families present; a
-    same-stage resume scores the prior record on the plan
+    same-stage resume scores the prior record on the families it carries
+    (`evaluations.npz`'s `command_families`, see Fixed), or on the plan for
+    a record written before they were kept
     (`RobustBestModelCallback.score` / `prior_score`). An evaluation recorded
     without its families is refused.
   - New `curriculum/command_evaluation.py`: `CommandEvaluationPlan`,
@@ -258,8 +260,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     alternating lifts (slip is report-only under GQ-8 (a)); a slide with
     every foot down fails. Also not refused: a flightless quadruped bound
     whose pair feet land more than 20 ms apart clears the three required
-    floors (the optional `min_lead_swaps_per_stride` refuses it; pinned by a
-    test).
+    floors. The optional `min_lead_swaps_per_stride` refuses it only while
+    each pair's feet stay side by side within the dead band; a bound whose
+    pair feet swing their lead past the band reads about 2.0 lead swaps a
+    stride and clears every quadruped bar, that one included, so the bar
+    narrows the gap and does not close it (both pinned by a test; decision
+    D-D62 (16) (f)).
   - `gate_schema.same_threshold` compares two strings that are not numbers
     by equality, so a recorded `profile` agrees with the declared one.
   - The post-stage judge: `reporting.command_tracking_report` rolls the
@@ -287,11 +293,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     selection panel that shares a seed with the certification panel (a rare
     stand family can run the planner's scan from 2042 into 3042), and the
     judge refuses a choice whose recorded selection plan does.
-  - A follow profile's paired reference must have run the same task on each
-    seed: `paired_success_differences` refuses a pair whose records differ
-    in family, requested speed, planned event count, horizon or control
-    step, and the judge and publication check the reference rows' families
-    against the plan, as they do the policy rows'.
+  - A follow profile's paired reference must agree with the policy, seed by
+    seed, on the recorded reset-draw fields: `paired_success_differences`
+    refuses a pair whose records differ in family, requested speed, initial
+    heading error, planned event count, horizon or control step, and the
+    judge and publication check the reference rows' families against the
+    plan, as they do the policy rows'. A schedule difference no record shows
+    (another `turn_increment_max`, other command-adapter gains) is bound only
+    by the reference being rolled on the stage's own env and bound to its
+    parent checkpoint, not by the pairing.
   - Publication re-derives a recorded pass from the panel CSV alone, bound
     to the certified pair, the task, the gate, the stage's command and the
     planned panel. The verdict's `stage_result`, the summary stage row, the
@@ -2265,11 +2275,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - T. rex `[env]` options: `lateral_lean_weight` (0.0, off) and
     `lateral_lean_tolerance_m` (0.015) pay a Gaussian on the whole-body
     centre of mass's lateral offset over the foot-site midpoint, in the
-    heading frame, after `stance_width_settle_steps`, under a zero command
-    and with both feet loaded (calibrated at 0.25 and 0.015 m, the values
-    the screen used; a bonus raises the statue's return by about 200, so
-    `collapse_peak_floor_reference` is re-measured, and `reward_lateral_lean`
-    joins the diagnostics reward keys, before a stage enables it);
+    heading frame, after `stance_width_settle_steps` and with both feet
+    loaded (until decision D-D62 also only under a zero command, a gate the
+    walk's stand block replaced: see Changed; calibrated at 0.25 and
+    0.015 m, the values the screen used; a bonus raises the statue's return
+    by about 200, so `collapse_peak_floor_reference` is re-measured, and
+    `reward_lateral_lean` joins the diagnostics reward keys, before a stage
+    enables it);
     `leg_home_pose_reference = "settled"` (default `"keyframe"`) centres
     `leg_home_pose` on the statue's settled leg pose, mirror-symmetrised
     (`_LEG_SETTLED_QPOS`, physics r9, at the stance's reset noise; re-measured
@@ -2815,10 +2827,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"none"` stage re-imposes mean 0 / variance 1 on both destinations and logs
   a warning naming the file, which changes nothing the policy computes, while
   a live stage raises `command_frame.CommandNormalizationError` before either
-  destination changes. A live stage (none is committed yet) therefore needs a
-  parent saved under the rule. A Python caller of `load_vecnorm_stats` must
-  now pass `command_mode=`, the reading stage's mode (no default), as must a
-  caller of `train_base._load_vecnorm_into_envs` or
+  destination changes. A live stage (every committed walk is one since
+  decision D-D62) therefore needs a parent saved under the rule. A Python
+  caller of `load_vecnorm_stats` must now pass `command_mode=`, the reading
+  stage's mode (no default), as must a caller of
+  `train_base._load_vecnorm_into_envs` or
   `train_base._post_training_eval_panels`, so no load of a live stage's
   statistics can fall into the command-free branch.
 - **A run that targets the hunt is refused; target walk** (decision D-D59).
@@ -6778,6 +6791,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **A follow profile's paired reference must also share each seed's initial
+  heading error** (decision D-D61 (3); gate code only, no digest moves, and
+  no committed stage declares the follow profile).
+  `command_tracking_gate.paired_success_differences` (through
+  `_same_paired_task`) now compares the recorded
+  `initial_heading_error_rad` of each seed's two records, within 1e-9, beside
+  the family, requested speed, planned event count, horizon and control
+  step, so a reference rolled under a command config that draws another
+  initial heading offset on the same seeds, families, speeds and event
+  counts is refused; before, it paired. The refusal names every field it
+  compares ("family, requested speed, initial heading error, planned event
+  count, horizon and control step"). Two policies rolled on the stage's own
+  env record the same error on every seed (the panel runner measures it
+  from the heading at reset, before the first action), so a genuine pair is
+  unchanged. A schedule difference no record shows (another
+  `turn_increment_max`, other command-adapter gains) is still bound only by
+  the reference being rolled on the stage's own env and bound to its parent
+  checkpoint, not by the pairing. `test_command_tracking_gate.py`'s
+  parametrized pairing test gains the case.
+- **A live walk's handoff reports score the robust pair as its tracker did**
+  (decision D-D62). `handoff_in_training.json` and `progress.json` recomputed
+  `robust_best_model`'s score with the pooled `mean - std`. On a live walk
+  they reported the wrong rule, a pooled `selection_score` (1571.8 against the
+  tracker's 2563.05 on a CLI dibothrosuchus SAC walk), the wrong
+  `first_scoring_timesteps` and `step_agrees` false, even when the tracker
+  chose correctly. `progress.json`'s `robust_best_model_timesteps` read null.
+  - A live stage's `evaluations.npz` now carries each evaluation's episode
+    families as a `command_families` key aligned with `results`.
+    `StageAwareEvalCallback` adds the key to the file SB3 has just written,
+    before it is published
+    (`curriculum.command_evaluation.EVALUATION_COMMAND_FAMILIES_KEY`,
+    `recorded_command_families`). It is an extra key of the record, not a
+    sidecar: every reader reads the record's keys by name, and the families
+    travel with the file. A same-stage resume seeds them with the rest of the
+    history and scores the prior record on them. A record written before the
+    families were kept is read as the plan's
+    (`RobustBestModelCallback.prior_score(returns, families)`).
+  - On a live stage, `stage_artifacts._handoff_in_training` scores
+    `robust_best_model` with the tracker's `family_robust_score` on the
+    recorded families, weighted at the stage's stop probability. The rule
+    reads `family-weighted mean - 1.0 x std (cruise 0.85, stand 0.15)`, and
+    the score is the tracker's number bit for bit. A live record without its
+    families gives an `error`. `progress.json`'s robust best step uses the
+    tracker's own `score`. A command-free stage's sidecar and progress are
+    byte-identical to before.
+  - Tests: the none-stage sidecar bytes are pinned. A tracker driven over a
+    recorded file agrees with the sidecar exactly, where the pooled rule picks
+    another step. The tiny live `train_base.train` walk in
+    `test_walk_command_mechanism.py` checks the published families, the
+    sidecar against the tracker at the checkpoint's own step, and
+    `progress.json`. Further tests cover the resume and the writer's failure
+    path.
+- **The reward decomposition draws `reward_tracking` on a live stage**
+  (`visualization.plot_diagnostics_graphs`). It is the walk's dominant term,
+  up to 2.5 a step, and was recorded only as a command-tracking series. It is
+  drawn when the command config's `tracking_weight` is above 0, as a heavier
+  black line, a colour no other term uses (its tab10 index would wrap onto
+  `reward_tail`'s). A command-free stage draws the same lines in the same
+  colours.
+- **The command-tracking figure's cruise-ramp shading stops at the run's last
+  recorded rollout** (`plot_command_tracking`). A 50k-step quick test under a
+  2M ramp no longer sits in the first 2.5% of a 2M axis, and the label says
+  "ramp to 2.0M continues past the run".
+- **The in-training manager no longer logs an ERROR at every evaluation of
+  every walk** (`CurriculumManager._command_tracking_gate_refuses`, about 160
+  lines on an 8M walk). It says once per stage, at INFO, that the verdict
+  comes from the post-stage `command_tracking_report.json`, and it still
+  refuses to advance.
 - **T. rex stance training no longer fails on a fresh `pip install -e ".[train]"`**
   (`environments/shared/mirror_kl_ppo.py`, `pyproject.toml`). The mirror-symmetric PPO
   guard refused any stable-baselines3 but 2.9.0, though pip resolves 2.9.2, whose sources

@@ -486,10 +486,12 @@ class TestJudge:
             stage_thresholds={1: {"gate_kind": COMMAND_TRACKING_GATE_KIND, "required_consecutive": 1}},
             total_stages=1,
         )
-        with caplog.at_level(logging.ERROR):
+        with caplog.at_level(logging.INFO):
             assert manager.should_advance([1e6] * 20, [1000.0] * 20) is False
         assert any(
-            "command_tracking/v1" in record.getMessage() and "after the" in record.getMessage()
+            "command_tracking/v1" in record.getMessage()
+            and "after the" in record.getMessage()
+            and record.levelno == logging.INFO
             for record in caplog.records
         )
 

@@ -230,19 +230,23 @@ collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; 
                                         # such a floor would never arm on a walker (decision D-D62).
 statue_constants_physics_revision = 12  # The T-Rex PHYSICS revision the reference was measured on.
 collapse_peak_warmup_timesteps = 2300000 # Evaluations before this step cannot SET the peak: the D-B5 bound,
-                                         # warmup_timesteps + [commands] cruise_ramp_timesteps (300k + 2M), as on
-                                         # the velociraptor, dibothrosuchus and brachiosaurus walks; added with the
-                                         # live walk (D-D62), the forward walk declared none. The walk warm-starts
-                                         # from a quiet stance and the evaluation env runs the end-state command
-                                         # from step 0 (the cruise ramp swaps only the training workers), so it
-                                         # evaluates at its standing level until it walks, the shape that stopped
-                                         # dibothrosuchus run 20260923_020654 at 1.45M. That run's locomotion series
-                                         # scaled to the 1248.9 statue stops at 1.45M under the pair alone and runs
-                                         # on behind this warm-up; the same holds with this walk's family mix (each
-                                         # 30-episode evaluation holding Binomial(30, 0.15) stand episodes: 400 of
-                                         # 400 draws stop without it, 0 with it), while a statue-level policy never
-                                         # stops over the whole 8M budget either way (0 of 400 draws). 2.3M leaves
-                                         # 71% of the budget protected (test_locomotion_collapse_backstop.py).
+                                         # warmup_timesteps + [commands] cruise_ramp_timesteps (300k + 2M), as on the
+                                         # velociraptor, dibothrosuchus and brachiosaurus walks; added with the live
+                                         # walk (D-D62), the forward walk declared none. The walk warm-starts from a
+                                         # quiet stance and the evaluation env runs the end-state command from step 0
+                                         # (the cruise ramp swaps only the training workers), so it evaluates at its
+                                         # standing level until it walks, the shape that stopped dibothrosuchus run
+                                         # 20260923_020654 at 1.45M. That run's locomotion series scaled to the
+                                         # 1248.9 statue stops at 1.45M under the pair alone and runs on behind this
+                                         # warm-up; the same holds with this walk's family mix, simulated with each
+                                         # 30-episode evaluation drawing its own Binomial(30, 0.15) stand count (400
+                                         # of 400 draws stop without it, 0 with it), while a statue-level policy
+                                         # never stops over the whole 8M budget either way (0 of 400 draws). Those
+                                         # per-evaluation draws are a superset of the real variance: since D-D62 (20)
+                                         # the evaluation env is reseeded before every evaluation, so a run has one
+                                         # stand count k, fixed by its evaluation seed (4 at the default seed 42),
+                                         # and a stander's level holds. 2.3M leaves 71% of the budget protected
+                                         # (test_locomotion_collapse_backstop.py).
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives.

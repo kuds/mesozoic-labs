@@ -1,13 +1,16 @@
 """The velociraptor walk's collapse backstop under the live command (decision D-D62): a floor above the stander.
 
-Under the live walk an in-training evaluation is a mix of the two command families: the evaluation env is seeded
-once, so each of its 30 episodes is a stand with probability ``stop_probability`` (0.15) and the stand count is drawn
-per evaluation.  The zero-action statue earns the stand block on its stand episodes, about eleven times its cruise
-episodes' reward, so a policy that only stands evaluates anywhere from its cruise level to well above the statue's
-40-episode reference.  The walk's floor (``collapse_peak_floor_fraction`` x ``collapse_peak_floor_reference``)
-therefore stands above every evaluation a stander reads with at most 9 of its 30 episodes stands, so a standing
-plateau does not arm the backstop and the statue's cruise episodes alone come nowhere near it, while a walk that
-tracks its command clears it.
+Under the live walk an in-training evaluation is a mix of the two command families: each of its 30 episodes is a
+stand with probability ``stop_probability`` (0.15).  Since decision D-D62 (20) the evaluation env is reseeded with
+the run's evaluation seed before every evaluation, so a run has one stand count k, fixed by that seed (4 at the
+default seed 42, whose evaluation seed is 1042), and a stander's evaluations hold one level.  The zero-action statue
+earns the stand block on its stand episodes, about eleven times its cruise episodes' reward, so a policy that only
+stands evaluates, depending on the run's k, anywhere from its cruise level to well above the statue's 40-episode
+reference.  The walk's floor (``collapse_peak_floor_fraction`` x ``collapse_peak_floor_reference``) therefore stands
+above every evaluation a stander reads with at most 9 of its 30 episodes stands, so a standing plateau arms the
+backstop only on the 0.97% of seeds that draw k >= 10, where a level that holds never reads as a collapse, and the
+statue's cruise episodes alone come nowhere near it, while a walk that tracks its command clears it.  The tests that
+draw k afresh at every evaluation keep those per-evaluation draws as a superset of the real variance.
 
 The statue's family rewards below were measured on the committed walk with the zero action (physics r6,
 2026-11-24): the 37 cruise episodes of seeds 3042-3081 (``zero_action_baseline.score``), 499.76 +/- 0.93 (497.92 to
@@ -125,10 +128,12 @@ def test_the_walk_keeps_the_d_b5_peak_warmup():
 
 
 def test_a_stander_reaches_the_floor_only_by_a_median_of_ten_stand_evaluations():
-    """The union bound over the windows past the warm-up: a stander arms on well under 1% of runs.
+    """The binomial tail of 10 or more stands, and the union bound over the windows past the warm-up.
 
-    A window's median reaches the floor only when 3 of its 5 evaluations hold 10 or more stands; each does with
-    the binomial tail probability of the walk's own stop probability.
+    With one k per run, fixed by its evaluation seed (decision D-D62 (20)), a stander arms the floor on the seeds whose
+    k reaches 10: the tail, 0.97% of seeds.  Under the superset that draws k afresh at every evaluation,
+    a window's median reaches the floor only when 3 of its 5 evaluations hold 10 or more stands, each with that tail
+    probability, so a stander arms on well under 1% of runs.
     """
     walk = _walk()
     stop_probability = walk["env_kwargs"]["command_config"].stop_probability
@@ -148,8 +153,33 @@ def test_a_stander_reaches_the_floor_only_by_a_median_of_ten_stand_evaluations()
     assert windows * median_tail < 0.002
 
 
+@pytest.mark.parametrize("stands", [4, STANDS_BELOW_THE_FLOOR + 1])
+def test_a_stander_at_its_runs_fixed_stand_count_never_stops(stands):
+    """A run's stand count k is fixed by its evaluation seed (decision D-D62 (20)), so a stander's level holds.
+
+    At the default seed's k = 4 the level stays under the floor; at k = 10 (a seed in about 1%) it arms the backstop,
+    and holding steady it never reads as a collapse, with or without the warm-up.
+    """
+    from environments.shared.curriculum.command_evaluation import command_evaluation_plan
+    from environments.shared.train_base import eval_env_seed
+
+    walk = _walk()
+    plan = command_evaluation_plan(walk["env_kwargs"]["command_config"], eval_env_seed(42), EVAL_EPISODES)
+    assert plan.family_counts()["stand"] == 4
+    evaluations = walk["curriculum_kwargs"]["timesteps"] // EVAL_FREQ
+    trace = [_stander_evaluation(stands)] * evaluations
+    for settings in (_settings(), _settings(peak_warmup_timesteps=0.0)):
+        stopped_at, cb = _drive(trace, settings)
+        assert stopped_at is None
+        assert (cb._peak_score >= settings["peak_floor"]) == (stands > STANDS_BELOW_THE_FLOOR)
+
+
 def test_a_standing_walk_never_arms_the_backstop():
-    """A statue-level policy over the whole 8M budget, each evaluation's stand count drawn: never armed, never stopped."""
+    """A statue-level policy over the whole 8M budget, each evaluation's stand count drawn: never armed, never stopped.
+
+    Drawing k afresh at every evaluation is a superset of the real variance (one k per run, fixed by its evaluation
+    seed, decision D-D62 (20)).
+    """
     walk = _walk()
     stop_probability = walk["env_kwargs"]["command_config"].stop_probability
     evaluations = walk["curriculum_kwargs"]["timesteps"] // EVAL_FREQ

@@ -291,7 +291,7 @@ def _write_stance_gate_report(
             episodes=report_episodes,
         )
         # Beside the certificate, after it returned, whatever it returned: never read by the gate.
-        _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip")
+        _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip", stage_config)
         return heading_report
     report: dict[str, Any] | None = None
     try:
@@ -332,7 +332,7 @@ def _write_stance_gate_report(
         logger.warning("Stance gate report failed for stage %s", stage, exc_info=True)
         report = None
     # Beside the report, after its attempt returned, whatever it returned: never read by the gate.
-    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip")
+    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip", stage_config)
     return report
 
 
@@ -340,7 +340,8 @@ def _write_stance_gate_report(
 #: score; beside the certificate, never inside it (``_write_handoff_sidecar``).
 HANDOFF_SIDECAR_FILENAME = "handoff_in_training.json"
 #: Each handoff's selection rule: ``RobustBestModelCallback``'s ``mean - risk_coef x std`` at the ``risk_coef``
-#: train_base uses (its default, 1.0), and SB3's mean for ``best_model``.
+#: train_base uses (its default, 1.0), and SB3's mean for ``best_model``.  On a live-command stage the robust
+#: rule is the tracker's family-aware one instead (:func:`_handoff_in_training`, decision D-D62).
 _HANDOFF_SELECTION_RULES: dict[str, tuple[str, float]] = {
     "robust_best_model": ("mean - 1.0 x std", 1.0),
     "best_model": ("mean", 0.0),
@@ -358,7 +359,33 @@ _HANDOFF_KEYS: tuple[str, ...] = (
 )
 
 
-def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip: "str | Path") -> dict[str, Any]:
+def _live_stop_probability(stage_config: "Mapping[str, Any] | None") -> float | None:
+    """A live-command stage's stop probability (its stand family's weight); ``None`` under command_mode "none".
+
+    Read from the stage config's ``env_kwargs``: the ``command_config`` a
+    loaded stage holds, or the record a recorded one keeps.  Raises
+    ``LookupError`` for a live stage whose config holds no stop probability.
+    """
+    from ..command_frame import COMMAND_MODE_NONE
+
+    env_kwargs = (stage_config or {}).get("env_kwargs") or {}
+    if str(env_kwargs.get("command_mode", COMMAND_MODE_NONE)) == COMMAND_MODE_NONE:
+        return None
+    command = env_kwargs.get("command_config")
+    value = (
+        command.get("stop_probability") if isinstance(command, Mapping) else getattr(command, "stop_probability", None)
+    )
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise LookupError("the live-command stage's config records no command stop_probability")
+    return float(value)
+
+
+def _handoff_in_training(
+    stage_dir: "str | Path",
+    selected_name: str,
+    model_zip: "str | Path",
+    stage_config: "Mapping[str, Any] | None" = None,
+) -> dict[str, Any]:
     """Which in-training evaluation the handoff checkpoint was saved at, and its score there.  Never raises.
 
     ``timesteps`` is the checkpoint's own ``num_timesteps`` (SB3 stores it
@@ -373,6 +400,18 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
     (``progress_report._first_evaluation_scoring``, ``progress.json``'s
     reading), and ``step_agrees`` whether it is the checkpoint's step.
 
+    On a live-command stage (*stage_config*'s ``command_mode`` is not
+    ``"none"``, decision D-D62) ``robust_best_model`` is scored by the
+    tracker's family-aware rule
+    (:func:`~environments.shared.curriculum.command_evaluation.family_robust_score`)
+    on the families each evaluation rolled, which the record carries
+    (``evaluations.npz``'s ``command_families``), weighted at the stage's
+    stop probability: the number ``RobustBestModelCallback`` compared, bit
+    for bit, named ``family-weighted mean - 1.0 x std (cruise 0.85, stand
+    0.15)``.  A live record without its families scores nothing (an
+    ``error``).  Under command_mode "none", or without *stage_config*, the
+    block is the pooled one, exactly as before.
+
     On any failure (a truncated zip, a zip without ``data``, no
     ``evaluations.npz``, no evaluation at the checkpoint's step) it returns
     the same keys, ``None`` where unknown, plus ``"error"``.
@@ -382,6 +421,12 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
     try:
         import numpy as np
 
+        from ..curriculum.command_evaluation import (
+            family_robust_score,
+            family_selection_rule,
+            family_weights,
+            recorded_command_families,
+        )
         from ..curriculum.progress_report import _first_evaluation_scoring
         from ..task_fingerprint import read_checkpoint_attribute
 
@@ -391,15 +436,37 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
         timesteps = int(recorded)
         out["timesteps"] = timesteps
         rule = _HANDOFF_SELECTION_RULES.get(str(selected_name))
+        stop_probability = _live_stop_probability(stage_config)
         with np.load(Path(stage_dir) / "evaluations.npz") as record:
             steps = [int(value) for value in record["timesteps"]]
             results = [np.asarray(row, dtype=float) for row in record["results"]]
+            families = None if stop_probability is None else recorded_command_families(record)
         if timesteps not in steps:
             raise LookupError(f"evaluations.npz holds no evaluation at the checkpoint's {timesteps:,} steps")
         rewards = results[steps.index(timesteps)]
         mean, std = float(rewards.mean()), float(rewards.std())
         out.update(mean_reward=mean, std_reward=std, episodes=int(rewards.size))
-        if rule is not None:
+        if rule is not None and stop_probability is not None and str(selected_name) == "robust_best_model":
+            # A live stage: the tracker's family-aware score of each evaluation, on the families it rolled.
+            risk = rule[1]
+            if families is None:
+                raise LookupError(
+                    "evaluations.npz records no command families, and a live-command stage's robust score is "
+                    "family-aware (decision D-D62)"
+                )
+            weights = family_weights(stop_probability)
+
+            def family_score(values: Any, labels: Any) -> float:
+                return family_robust_score(values, labels, weights, risk_coef=risk)
+
+            scores = [family_score(row, labels) for row, labels in zip(results, families)]
+            out["selection_rule"] = family_selection_rule(stop_probability, risk)
+            out["selection_score"] = scores[steps.index(timesteps)]
+            out["first_scoring_timesteps"] = _first_evaluation_scoring(
+                results, steps, max(scores), family_score, families
+            )
+            out["step_agrees"] = out["first_scoring_timesteps"] == timesteps
+        elif rule is not None:
             name, risk = rule
 
             def score(values: Any) -> float:
@@ -415,17 +482,24 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
     return out
 
 
-def _write_handoff_sidecar(stage_dir: "str | Path", selected_name: str, model_zip: "str | Path") -> None:
+def _write_handoff_sidecar(
+    stage_dir: "str | Path",
+    selected_name: str,
+    model_zip: "str | Path",
+    stage_config: "Mapping[str, Any] | None" = None,
+) -> None:
     """Write ``handoff_in_training.json`` beside the certificate and log one line; never raises.
 
     Called after the certificate attempt has returned, on every stance
-    path, and never read by ``_apply_stage_gate``: the certificate's bytes,
-    its verdict and ``gate_verdict.json`` are what they are without it.
+    path and on the command-tracking path (with the stage's config, whose
+    command mode says how ``robust_best_model`` was scored), and never read
+    by ``_apply_stage_gate``: the certificate's bytes, its verdict and
+    ``gate_verdict.json`` are what they are without it.
     """
     try:
         from ..file_io import atomic_write_json
 
-        block = _handoff_in_training(stage_dir, selected_name, model_zip)
+        block = _handoff_in_training(stage_dir, selected_name, model_zip, stage_config)
         atomic_write_json(Path(stage_dir) / HANDOFF_SIDECAR_FILENAME, block)
 
         def shown(value: Any, spec: str = "") -> str:
@@ -599,7 +673,7 @@ def _write_command_tracking_report(
     except Exception:  # noqa: BLE001 - the report must not sink the run; its absence fails the gate
         logger.warning("Command-tracking report failed for stage %s; the stage fails its gate", stage, exc_info=True)
         report = None
-    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip")
+    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip", stage_config)
     return report
 
 

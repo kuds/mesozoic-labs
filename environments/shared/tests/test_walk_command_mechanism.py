@@ -1141,6 +1141,87 @@ def test_a_resumed_robust_tracker_scores_the_prior_record_on_the_plan(tmp_path):
     assert fresh.best_score == -np.inf
 
 
+def test_a_resume_scores_and_seeds_the_families_the_record_carries(tmp_path):
+    """A record that carries its families (``evaluations.npz``'s ``command_families``) is scored on them, not on this
+    session's plan, and seeds them with the rest of the history (trimmed at the resumed step like the results), so
+    the next save carries them for every row; a record without them is read as the plan's."""
+    pytest.importorskip("stable_baselines3")
+    from types import SimpleNamespace
+
+    from environments.shared.curriculum import seed_resume_eval_state
+    from environments.shared.curriculum.command_evaluation import (
+        EVALUATION_COMMAND_FAMILIES_KEY,
+        CommandEvaluationPlan,
+    )
+
+    plan_families = ("cruise",) * 26 + ("stand",) * 4
+    rolled = ["cruise"] * 25 + ["stand"] * 5  # another panel than this session's plan
+    plan = CommandEvaluationPlan(seed=1042, families=plan_families, stop_probability=0.15)
+    good = [_CRUISE_RETURN] * 25 + [_GOOD_STAND_RETURN] * 5
+    poor = [_CRUISE_RETURN + 50.0] * 25 + [_POOR_STAND_RETURN] * 5
+    record = tmp_path / "evaluations.npz"
+    np.savez(
+        record,
+        timesteps=[100, 200],
+        results=[good, poor],
+        ep_lengths=[[1] * 30, [1] * 30],
+        **{EVALUATION_COMMAND_FAMILIES_KEY: np.array([rolled, rolled])},
+    )
+    eval_callback = SimpleNamespace(command_evaluation=plan, evaluations_command_families=[], n_eval_episodes=30)
+    callback = _robust_callback(tmp_path, plan, [], [])
+    callback.eval_callback = eval_callback
+    assert seed_resume_eval_state(eval_callback, [callback], record, max_timesteps=100) == 1
+    assert callback.best_score == max(callback.score(good, rolled), callback.score(poor, rolled))
+    assert callback.best_score != max(callback.score(good, plan_families), callback.score(poor, plan_families))
+    assert eval_callback.evaluations_command_families == [rolled], "the record's, trimmed at the resumed step"
+    # Without the key (a record written before the families were kept): scored, and seeded, as the plan's.
+    old = tmp_path / "old" / "evaluations.npz"
+    old.parent.mkdir()
+    np.savez(old, timesteps=[100, 200], results=[good, poor], ep_lengths=[[1] * 30, [1] * 30])
+    eval_callback = SimpleNamespace(command_evaluation=plan, evaluations_command_families=[], n_eval_episodes=30)
+    fresh = _robust_callback(tmp_path, plan, [], [])
+    fresh.eval_callback = eval_callback
+    assert seed_resume_eval_state(eval_callback, [fresh], old) == 2
+    assert fresh.best_score == max(fresh.score(good, plan_families), fresh.score(poor, plan_families))
+    assert eval_callback.evaluations_command_families == [list(plan_families)] * 2
+
+
+def test_a_live_evaluation_adds_its_families_to_the_record_and_a_failure_costs_only_the_key(tmp_path, caplog):
+    pytest.importorskip("stable_baselines3")
+    import logging
+
+    from environments.shared.curriculum.command_evaluation import (
+        EVALUATION_COMMAND_FAMILIES_KEY,
+        recorded_command_families,
+    )
+    from environments.shared.eval_diagnostics import StageAwareEvalCallback
+
+    prefix = tmp_path / "evaluations"
+    np.savez(prefix, timesteps=[100, 200], results=[[1.0, 2.0], [3.0, 4.0]], ep_lengths=[[5, 5], [5, 5]])
+    writer = object.__new__(StageAwareEvalCallback)
+    writer.log_path = str(prefix)
+    writer.evaluations_command_families = [["cruise", "stand"], ["cruise", "stand"]]
+    writer._persist_command_families()
+    with np.load(tmp_path / "evaluations.npz") as data:
+        assert sorted(data.files) == sorted(["timesteps", "results", "ep_lengths", EVALUATION_COMMAND_FAMILIES_KEY])
+        assert data["results"].tolist() == [[1.0, 2.0], [3.0, 4.0]], "every key SB3 wrote is kept"
+        assert recorded_command_families(data) == [["cruise", "stand"], ["cruise", "stand"]]
+    # Families that do not align with the results are not written; the record keeps what SB3 wrote.
+    np.savez(prefix, timesteps=[100], results=[[1.0, 2.0]], ep_lengths=[[5, 5]])
+    with caplog.at_level(logging.WARNING):
+        writer._persist_command_families()
+    assert "Could not record the evaluations' command families" in caplog.text
+    with np.load(tmp_path / "evaluations.npz") as data:
+        assert EVALUATION_COMMAND_FAMILIES_KEY not in data.files
+    # A key that is not one walk-family label per return is no record of the families.
+    for results, families in (
+        (np.ones((1, 2)), np.ones((1, 2))),  # not labels
+        (np.ones((1, 2)), np.array([["cruise", "hop"]])),  # a label outside the walk's two families
+        (np.ones((1, 3)), np.array([["cruise", "stand"]])),  # not one per return
+    ):
+        assert recorded_command_families({"results": results, EVALUATION_COMMAND_FAMILIES_KEY: families}) is None
+
+
 def test_a_live_stage_reseeds_every_evaluation_and_scores_its_robust_pair_by_family(tmp_path):
     """Trained through ``train_base.train`` on the committed walk (episodes cut to 4 steps so an evaluation of
     30 is cheap): both evaluations roll the plan's families, from the plan's seed, and the robust tracker holds
@@ -1211,6 +1292,29 @@ def test_a_live_stage_reseeds_every_evaluation_and_scores_its_robust_pair_by_fam
         max(robust.score(row, plan.families) for row in eval_callback.evaluations_results)
     )
     assert (tmp_path / "run").exists()
+
+    # The record carries each evaluation's families, and every reader of it scores the robust pair as the tracker
+    # did: the handoff sidecar bit for bit at the step it saved, and progress.json's robust best step.
+    from environments.shared.curriculum.command_evaluation import recorded_command_families
+    from environments.shared.reporting.stage_artifacts import _handoff_in_training
+    from environments.shared.task_fingerprint import read_checkpoint_attribute
+
+    (record,) = (tmp_path / "run").rglob("evaluations.npz")
+    stage_dir = record.parent
+    with np.load(record) as data:
+        assert recorded_command_families(data) == [list(plan.families)] * 2
+        steps = [int(value) for value in data["timesteps"]]
+    scores = [robust.score(row, plan.families) for row in eval_callback.evaluations_results]
+    saved_at = steps[scores.index(robust.best_score)]
+    robust_zip = stage_dir / "models" / "robust_best_model.zip"
+    assert read_checkpoint_attribute(robust_zip, "num_timesteps") == saved_at
+    block = _handoff_in_training(stage_dir, "robust_best_model", robust_zip, config)
+    assert block["selection_score"] == robust.best_score, "bit for bit"
+    assert (block["first_scoring_timesteps"], block["step_agrees"]) == (saved_at, True)
+    assert block["selection_rule"] == "family-weighted mean - 1.0 x std (cruise 0.85, stand 0.15)"
+    progress = json.loads((stage_dir / "progress.json").read_text(encoding="utf-8"))["checkpoints"]
+    assert progress["robust_best_model_timesteps"] == saved_at
+    assert progress["robust_best_score"] == pytest.approx(robust.best_score, rel=1e-5)
 
 
 # ---------------------------------------------------------------------------

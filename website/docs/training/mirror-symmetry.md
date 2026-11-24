@@ -137,9 +137,13 @@ leg_home_pose_reference = "settled"   # default "keyframe"
 - **The standing lean term** (`lateral_lean_weight`) rewards keeping the
   body's centre of mass over the middle of the feet, left to right. It is a
   bonus of up to `lateral_lean_weight` per step, which falls to about 37% of
-  that at an offset of `lateral_lean_tolerance_m`. It is paid only after the
-  stance settle (`stance_width_settle_steps`), only while the command is
-  zero and only while both feet carry load (`foot_terms_min_support_force`).
+  that at an offset of `lateral_lean_tolerance_m`. It is paid after the
+  stance settle (`stance_width_settle_steps`) while both feet carry load
+  (`foot_terms_min_support_force`). On a stance, which runs no command
+  (`command_mode = "none"`), every step's command is zero. The walk, which
+  follows a live command, leaves it at 0 in its `[env]` and pays it at a
+  zero command through its `[commands.stand_weights]` stand block
+  (decision D-D62 (2)).
   It raises every standing episode's return by about
   `lateral_lean_weight` × 800, so enabling it is a reward change (see the
   comment in `environments/tyrannosaurus_rex/base_env.py`).

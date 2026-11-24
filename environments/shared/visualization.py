@@ -13,8 +13,9 @@ called headless (no display).  The notebook can continue to call
 from __future__ import annotations
 
 import logging
+import math
 import zlib
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -260,6 +261,30 @@ _REWARD_KEY_TO_CONFIG_WEIGHTS: dict[str, tuple[str, ...]] = {
     "reward_spin": ("spin_penalty_weight",),
     "reward_idle": ("idle_penalty_weight",),
 }
+#: The live command's tracking term (decision D-D60): ``DiagnosticsCallback`` records it as one of its
+#: ``COMMAND_TRACKING_KEYS``, only from a run whose env emitted it, and its weight is the command config's
+#: ``tracking_weight``, not an ``[env]`` kwarg.  The reward decomposition draws it after every other term.
+_TRACKING_REWARD_KEY = "reward_tracking"
+#: The tracking term's own colour and line width in the reward decomposition.  Every other term takes a tab10
+#: colour by its index, and those wrap every ten terms, so the tracking term's index would share one with an active
+#: walk term (``reward_tail``, ``reward_height``, ``reward_stance_width``) at the same per-stage line style; black is
+#: no tab10 colour, and the heavier line marks the walk's dominant term apart from the terms it outweighs.
+_TRACKING_REWARD_COLOR = "black"
+_TRACKING_REWARD_LINEWIDTH = 2.5
+
+
+def _tracking_weight(command_config: Any) -> float:
+    """The command config's ``tracking_weight`` (a loaded config or its record); 0 without a live command."""
+    if command_config is None:
+        return 0.0
+    value = (
+        command_config.get("tracking_weight")
+        if isinstance(command_config, Mapping)
+        else getattr(command_config, "tracking_weight", None)
+    )
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        return 0.0
+    return float(value)
 
 
 def plot_diagnostics_graphs(
@@ -290,15 +315,22 @@ def plot_diagnostics_graphs(
     from environments.shared.diagnostics import DiagnosticsCallback
 
     model_title = model_display_name(model_id)
-    _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"]
+    # The live command's tracking term last, so every other term keeps its colour on a command-free stage, whose
+    # diagnostics.npz holds no reward_tracking series.
+    _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"] + [_TRACKING_REWARD_KEY]
 
     def _signal_active(reward_key: str, stage_num: "int | str") -> bool:
         """Return True if *reward_key* has a non-zero weight in this stage's config.
 
         A live stage's stand block counts (decision D-D62): a term its ``[env]``
         leaves at 0 is paid on the stand episodes when the block names its weight.
+        The tracking term is active on a live stage whose command config's
+        ``tracking_weight`` is above 0.
         """
         env_kw = stage_configs.get(stage_num, {}).get("env_kwargs", {})
+        if reward_key == _TRACKING_REWARD_KEY:
+            live = str(env_kw.get("command_mode", "none")) != "none"
+            return live and _tracking_weight(env_kw.get("command_config")) > 0.0
         weight_keys = _REWARD_KEY_TO_CONFIG_WEIGHTS.get(reward_key, ())
         if not weight_keys:
             # Unknown reward key — show it to be safe.
@@ -351,12 +383,15 @@ def plot_diagnostics_graphs(
         # [1,1] Reward Decomposition — only signals with non-zero weight
         for _ci, _rkey in enumerate(_REWARD_COMPONENTS):
             if _rkey in diag and _signal_active(_rkey, stage_num):
+                # Only a live stage draws the tracking term, so a command-free stage's lines are unchanged.
+                _tracking = _rkey == _TRACKING_REWARD_KEY
                 axes1[1, 1].plot(
                     ts,
                     _smooth(diag[_rkey]),
                     label=f"S{stage_num} {_rkey.replace('reward_', '')}",
-                    color=_reward_colors[_ci % len(_reward_colors)],
+                    color=_TRACKING_REWARD_COLOR if _tracking else _reward_colors[_ci % len(_reward_colors)],
                     linestyle=["-", "--", "-."][style_idx % 3],
+                    **({"linewidth": _TRACKING_REWARD_LINEWIDTH} if _tracking else {}),
                 )
 
     # Render termination breakdown as grouped bar chart
@@ -1043,7 +1078,10 @@ def plot_command_tracking(
     panel and the bar are judged on, so when the recorded
     ``stage_config.json`` task declares a ramp its window is shaded: there a
     standing policy reads partly in tolerance at the ramp's slow commands,
-    and a walker's fraction can fall as the commands rise.
+    and a walker's fraction can fall as the commands rise.  The shading
+    stops at the history's last rollout, so the axis follows the data on a
+    run shorter than its ramp, and the label then says the ramp continues
+    past the run.
 
     Returns the figure, or ``None`` when the stage has neither a trace nor a
     tracking history.  Report-only; reads the stage directory and writes
@@ -1210,13 +1248,21 @@ def plot_command_tracking(
         title = "Tracking fraction over training (training rollouts, the env's tolerances)"
         if ramp is not None:
             start_fraction, ramp_timesteps = ramp
+            label = f"cruise ramp: commanded speeds {start_fraction:g} to 1 x the end state"
+            # Clipped to the history's last rollout, so a run shorter than its ramp (a quick test) keeps the axis
+            # its data spans; the label says the ramp goes on past it.
+            recorded = timesteps[np.isfinite(timesteps)]
+            last = float(recorded.max()) if recorded.size else float(ramp_timesteps)
+            if ramp_timesteps > last:
+                length = f"{ramp_timesteps / 1e6:.1f}M" if ramp_timesteps >= 1_000_000 else f"{ramp_timesteps / 1e3:g}k"
+                label += f" (ramp to {length} continues past the run)"
             training.axvspan(
                 0.0,
-                ramp_timesteps / 1e6,
+                min(float(ramp_timesteps), last) / 1e6,
                 color="0.6",
                 alpha=0.15,
                 linewidth=0,
-                label=f"cruise ramp: commanded speeds {start_fraction:g} to 1 x the end state",
+                label=label,
             )
             title = (
                 "Tracking fraction over training (training rollouts at the cruise ramp's commanded speeds, "

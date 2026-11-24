@@ -630,7 +630,17 @@ never raises; each figure is in its own guard):
   `tracking_error_v`, `tracking_error_yaw` and `reward_tracking`, only for a
   run whose environment emits them), against the profile's tracking bar. It
   mixes both families and every step of a stochastic policy, so it shows the
-  trend, not the gate's statistic.
+  trend, not the gate's statistic. When the recorded task declares a cruise
+  ramp, its window is shaded up to the last recorded rollout, so a run
+  shorter than its ramp (a quick test) keeps the axis its data spans, and
+  the label then says the ramp continues past the run. The reward
+  decomposition of `locomotion_health.png` draws `reward_tracking`, the
+  walk's dominant term, beside the other terms on a live stage whose
+  command config pays it (`tracking_weight` above 0), as a heavier black
+  line: the other terms take tab10 colours by index, which wrap every ten
+  terms, so the tracking term would otherwise share its colour and line
+  style with an active walk term. A command-free stage has no such series
+  and draws what it drew before.
 - `figures/command_gate_progress.png`
   (`visualization.plot_command_gate_progress`): the kind's gate-progress
   view. One panel per gated statistic (walk: the cruise survival and success
@@ -1334,7 +1344,7 @@ every key and type the file had before is kept.
 | `policy` | PPO stages: the policy probe's latest row, its `policy_probe/*` scalars (without the prefix) and `update_timesteps` |
 | `training_rollouts` | The training episodes that ended in the last 262,144 steps (`window_timesteps`): `episodes`, `falls` (episodes that did not reach the time limit, a task stage's success terminations included), `fall_fraction`, `com_fore_aft_mean_m` over them, `com_fore_aft_last_falls_m` and `force_limited_fraction_falls` over the falls, and per foot with touch shares `touch_shares` (`pad`, each digit, `digits`; each a mean of the episodes' shares); then this session's `episodes_total` and `falls_total` |
 | `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes and the screen, with each rail's `_mean` and `_over_bar_fraction`, and the screen's `screen_v2_clean_count` and `screen_v2_clean_lcb`, where recorded |
-| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
+| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (the robust tracker's score: mean minus one standard deviation; on a live-command stage the family-aware score of decision D-D62, each family's mean minus one standard deviation weighted at the stage's family probabilities, cruise 1 - p and stand p, on the families each evaluation rolled, so the step is the evaluation whose score the tracker saved at). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
 | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
 
 ## Training history pages: `plot_training_history.py`
@@ -1682,21 +1692,38 @@ the pages inline; open `training_history.html` from the stage directory.
 A stance certificate scores the handoff checkpoint (`robust_best_model`
 first) on its own panel, but nothing beside it said at which in-training
 evaluation that checkpoint was saved, or how it scored there. Whenever a
-stance gate (any of its kinds) scores the handoff checkpoint, after that
-attempt has returned, whatever it returned, the stage writes
-`handoff_in_training.json` into its directory and logs one line, for
-example `Handoff in training: robust_best_model, saved at
-655,360 steps: evaluation mean 3959.1, std 0.0 over 40 episodes (mean -
-1.0 x std = 3959.1)`.
+stance gate (any of its kinds) or the `command_tracking/v1` report scores
+the handoff checkpoint, after that attempt has returned, whatever it
+returned, the stage writes `handoff_in_training.json` into its directory
+and logs one line, for example `Handoff in training: robust_best_model,
+saved at 655,360 steps: evaluation mean 3959.1, std 0.0 over 40 episodes
+(mean - 1.0 x std = 3959.1)`.
 
 | Key | Meaning |
 |---|---|
 | `selected` | The handoff checkpoint's name |
 | `timesteps` | Its own `num_timesteps`, from the zip's `data` member (no torch load) |
 | `mean_reward`, `std_reward`, `episodes` | The evaluation at exactly that step in `evaluations.npz` (the standard deviation with ddof 0, as the robust selector computes it) |
-| `selection_rule`, `selection_score` | `mean - 1.0 x std` for `robust_best_model` and `mean` for `best_model`, and its value at that evaluation |
+| `selection_rule`, `selection_score` | `mean - 1.0 x std` for `robust_best_model` and `mean` for `best_model`, and its value at that evaluation. On a live-command stage `robust_best_model` reads the tracker's family-aware rule instead, named with the stage's family weights, for example `family-weighted mean - 1.0 x std (cruise 0.85, stand 0.15)`: each family's mean minus one standard deviation on the families that evaluation rolled, weighted at the stop probability p (cruise 1 - p, stand p) and renormalized over the families it holds, the number `RobustBestModelCallback` compared, bit for bit |
 | `first_scoring_timesteps`, `step_agrees` | The first evaluation whose score equals the history's best (`progress.json`'s reading) and whether it is the checkpoint's own step |
-| `error` | Only when a value could not be found (a truncated zip, no `evaluations.npz`, no evaluation at that step, as for `stage1_final`): the reason, with the values not found `null` |
+| `error` | Only when a value could not be found (a truncated zip, no `evaluations.npz`, no evaluation at that step, as for `stage1_final`, or a live stage's record without its families): the reason, with the values not found `null` |
+
+On a live-command stage (decision D-D62) the families come from the
+record itself: `StageAwareEvalCallback` adds each evaluation's episode
+families (`cruise` or `stand`, read from each episode's first command) to
+the `evaluations.npz` SB3 has just written, as a `command_families` array
+aligned with `results`, before the file is published to the stage
+directory. An extra key of the record rather than a sidecar file, because
+every reader of `evaluations.npz` reads its keys by name and the families
+then travel wherever the record does: the publish copy, a same-stage
+resume (which seeds them with the rest of the history, scores the prior
+record on them, and reads a record written before they were kept as the
+plan's) and the result bundle. So the sidecar and `progress.json` score
+each evaluation without replaying the command plan. A widened checkpoint
+carries no record, and so no families: `widen_checkpoint` never writes
+`evaluations.npz`, and the widened node is re-paneled before it certifies.
+A command-free stage's record has no such key, and its sidecar is the
+pooled one, byte for byte as before.
 
 It is a sidecar, not a key of the certificate: a failure inside the
 certificate's own guard fails the stage closed, so nothing new runs there.

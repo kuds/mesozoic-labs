@@ -1555,7 +1555,7 @@ def _rederive_command_tracking_verdict(
         if block is not None:
             reference = [CommandTrackingEpisode.from_dict(entry["record"]) for entry in block["episode_evidence"]]
             if [episode.seed for episode in reference] != list(plan.seeds):
-                raise ValueError("the reference panel ran on other seeds than the policy's")
+                raise ValueError("the reference panel ran on other seeds, or in another order, than the policy's")
             if [episode.family for episode in reference] != list(plan.families):
                 raise ValueError("the reference panel's families are not the planned panel's")
         result = evaluate_command_tracking_gate(

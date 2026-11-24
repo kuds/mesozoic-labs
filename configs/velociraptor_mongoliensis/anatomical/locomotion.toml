@@ -165,11 +165,13 @@ max_phantom_support_fraction = 0.05     # 0 on every walker and hop but the robo
 # declares no max_flight_fraction (D-D61), and the staggered-hop risk of D-D61 (7) stays open on this model.
 #
 # Training-loop keys, read by no gate: the collapse backstop and the stage-entry warm-up.
-# Collapse backstop: the relative floor pair (PLANT_VALIDATION §14 item 3); an explicit collapse_peak_floor would
-# win over the pair (collapse_settings_from_config), so none is set.  On this walk the floor stands ABOVE the
-# statue: a policy that only stands earns the stand block on its stand episodes, and the in-training evaluation
-# (30 episodes from one seeded evaluation env, each a stand with probability 0.15) mixes the two families at
-# random, so a floor under what a stander evaluates at would arm the backstop on a standing plateau.
+# Collapse backstop: the relative floor pair (PLANT_VALIDATION §14 item 3); an explicit collapse_peak_floor would win
+# over the pair (collapse_settings_from_config), so none is set.  On this walk the floor stands ABOVE the statue: a
+# policy that only stands earns the stand block on its stand episodes, and the in-training evaluation mixes the two
+# families (30 episodes, each a stand with probability 0.15), so a floor under what a stander evaluates at would arm
+# the backstop on a standing plateau.  Since D-D62 (20) the evaluation env is reseeded with the run's evaluation seed
+# before every evaluation, so a run's stand count k is fixed by that seed (the default seed 42's evaluation seed 1042
+# draws k = 4) and a stander's evaluations hold one level.
 collapse_peak_floor_reference = 891.3   # The zero-action statue's reward on this walk: 891.35 +/- 1375.22 over 40
                                         # episodes, seeds 3042-3081, 40/40 full horizon, physics r6, measured
                                         # 2026-11-24 with environments/shared/scripts/zero_action_baseline.py
@@ -183,18 +185,22 @@ collapse_peak_floor_reference = 891.3   # The zero-action statue's reward on thi
                                         # at the 15% stand rate the mix averages 1281.2. The forward walk's statue
                                         # was 798.4. Re-measure with the same script whenever a reward weight, the
                                         # command distribution OR the plant changes, and re-derive the fraction.
-collapse_peak_floor_fraction = 2.4      # floor = 2.4 x 891.3 = 2139.1, above every evaluation a stander reads
-                                        # with at most 9 of its 30 episodes stands: 499.8 + 5209.5 k / 30 is 1281
-                                        # at the expected k = 4.5, 2062.6 at k = 9 and 2236.3 at k = 10. The peak
-                                        # is the best 5-evaluation median past the warm-up (115 evaluations of
-                                        # the 8M budget at 50k steps); P(k >= 10) = 0.0097 per evaluation, so a
-                                        # stander's peak reaches the floor on 0.06% of runs (simulated, 200,000
-                                        # runs), and the cruise statue alone (499.8) is 0.23 of it. A walker clears
-                                        # it at a mean cruise-episode reward of (2139.1 - 0.15 x 5709.2) / 0.85 =
-                                        # 1509, a tracking quality of 0.40 on top of the 0.5 alive bonus: the
-                                        # reference walk (scripts/reference_walk.py) under a command matched to its
-                                        # own 0.257 m/s reads 2.55 a step, quality 0.82 (decision D-D62; the shared
-                                        # forward walk's 0.45 put the floor at 401.1, under the cruise statue).
+collapse_peak_floor_fraction = 2.4      # floor = 2.4 x 891.3 = 2139.1, above every evaluation a stander reads with
+                                        # at most 9 of its 30 episodes stands: 499.8 + 5209.5 k / 30 is 1281 at the
+                                        # expected k = 4.5, 2062.6 at k = 9 and 2236.3 at k = 10.  With k fixed by
+                                        # the run's evaluation seed (D-D62 (20)), a stander arms the floor only on a
+                                        # run whose seed draws k >= 10, 0.97% of seeds (P(k >= 10) = 0.0097; the
+                                        # default seed 42 draws 4), and a level that holds steady never reads as a
+                                        # collapse.  The floor was sized with k drawn afresh at every evaluation, a
+                                        # superset of that variance: then a stander's peak, the best 5-evaluation
+                                        # median of the 115 evaluations past the warm-up (8M at 50k steps), reached
+                                        # the floor on 0.06% of 200,000 simulated runs.  The cruise statue alone
+                                        # (499.8) is 0.23 of it.  A walker clears it at a mean cruise-episode reward
+                                        # of (2139.1 - 0.15 x 5709.2) / 0.85 = 1509, a tracking quality of 0.40 on
+                                        # top of the 0.5 alive bonus: the reference walk (scripts/reference_walk.py)
+                                        # under a command matched to its own 0.257 m/s reads 2.55 a step, quality
+                                        # 0.82 (decision D-D62; the shared forward walk's 0.45 put the floor at
+                                        # 401.1, under the cruise statue).
 statue_constants_physics_revision = 6   # The velociraptor PHYSICS revision the reference was measured on.
                                         # test_statue_constant_freshness.py holds this pin against the plant
                                         # manifest, so a plant bump that forgets the re-measure fails CI.

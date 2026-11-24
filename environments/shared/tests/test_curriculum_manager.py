@@ -487,15 +487,15 @@ class TestPublicationKeys:
     """``certification_seeds`` configures publication, not the gate (plan §4.5, decision D-B9)."""
 
     def test_it_is_accepted_beside_every_registered_gate_kind(self):
-        """Every kind a committed stage declares, plus a synthetic block for each kind none declares yet.
+        """Every kind a committed stage declares, plus a synthetic block for each registered kind.
 
-        The committed blocks of every species (stance v1, reward_and_length,
-        recovery) are validated as they stand; the pilot,
-        ``stance_quality/v2`` -- registered by D-D23 before any stage adopts
-        it -- the six-heading certificate (D-D32) and ``command_tracking/v1``
-        (D-D61, both profiles at their provisional values, each with a biped's
-        and a quadruped's provisional gait clause) get a minimal
-        schema-valid block each, so the loop still covers exactly
+        The committed blocks of every species (the stances, the recoveries
+        and, since D-D62, the walks' ``command_tracking/v1``) are validated as
+        they stand; the pilot, ``stance_quality/v2`` -- registered by D-D23
+        before any stage adopts it -- the six-heading certificate (D-D32) and
+        ``command_tracking/v1`` (D-D61, both profiles at their provisional
+        values, each with a biped's and a quadruped's provisional gait clause)
+        also get a minimal schema-valid block each, so the loop covers exactly
         ``GATE_KINDS`` whichever kinds the TOMLs happen to declare.
         """
         from environments.shared.config import load_all_stages

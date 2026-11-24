@@ -412,20 +412,20 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
 # passed the six-heading certificate on branch commits; they never count as certified or as replicates
 # (run_exclusions.py), and two new seeds certify it on main. The statue-derived collapse reference in
 # [curriculum] moves with these keys. Arm L as #624 ships it (website/docs/training/mirror-symmetry.md): the
-# standing lateral-lean bonus on the centre of mass over the feet, paid after stance_width_settle_steps with a zero
-# command and both feet loaded (base_env 8g), and the leg_home_pose term centred on the statue's settled leg pose
-# (base_env._LEG_SETTLED_QPOS, physics r10's).
+# standing lateral-lean bonus on the centre of mass over the feet, paid after stance_width_settle_steps with both
+# feet loaded (base_env 8g; a walk pays it at a zero command via its stand block, D-D62 (2)), and the leg_home_pose
+# term centred on the statue's settled leg pose (base_env._LEG_SETTLED_QPOS, physics r10's).
 lateral_lean_weight = 0.25
 lateral_lean_tolerance_m = 0.015
 leg_home_pose_reference = "settled"
 # The stance stagger penalty (base_env 8h; stance4's arm LTS, D-D39): -w (1 - exp(-(s/tol)^2)), s the right foot
-# site's lead over the left along the pelvis heading, paid after stance_width_settle_steps with a zero command.
+# site's lead over the left along the pelvis heading, paid after stance_width_settle_steps (a walk: its stand block).
 stance_stagger_weight = 0.30
 stance_stagger_tolerance_m = 0.045
 # The per-foot centre-of-pressure band (base_env 8i; stance5's arm LTSB, D-D40 3a-3d): -w mean_feet
 # (1 - g exp(-(u/0.357)^2)), u each foot's excess of its whole-foot CoP outside [-0.6, +0.4] or of its pad CoP
 # outside [-0.65, +0.65] (span half-lengths), g the load-share ramp (0 at a share <= 0.25, 1 at >= 0.35, linear
-# between; 0 for a foot unloaded or off its pad), paid after stance_width_settle_steps with a zero command. Only
+# between; 0 for a foot unloaded or off its pad), paid after stance_width_settle_steps (a walk: its stand block). Only
 # the weight is set here; the other seven band keys stay at their code defaults, as the screens trained them.
 stance_cop_band_weight = 0.30
 

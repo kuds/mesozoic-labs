@@ -18,7 +18,11 @@ from typing import Any, NamedTuple
 
 import numpy as np
 
-from .curriculum.command_evaluation import CommandEvaluationPlan, info_command_family
+from .curriculum.command_evaluation import (
+    EVALUATION_COMMAND_FAMILIES_KEY,
+    CommandEvaluationPlan,
+    info_command_family,
+)
 from .curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from .curriculum.stance_gate import required_duty_episodes
 from .gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
@@ -418,9 +422,12 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     ``best_model`` would rank the draw.  Each episode's family, read from its
     first step's command (``desired_speed`` exactly zero: stand), is kept in
     :attr:`evaluations_command_families`, aligned with ``evaluations_results``,
-    for the family-aware ``robust_best_model`` score; an evaluation whose
-    families differ from the plan's is logged.  Under command_mode "none"
-    (*command_evaluation* ``None``) nothing of this runs.
+    for the family-aware ``robust_best_model`` score, and added to the
+    ``evaluations.npz`` SB3 has just written (its ``command_families`` key,
+    :meth:`_persist_command_families`), so a reader of the record scores each
+    evaluation as the tracker did; an evaluation whose families differ from
+    the plan's is logged.  Under command_mode "none" (*command_evaluation*
+    ``None``) nothing of this runs.
     """
 
     #: Declared at class scope so an instance built without ``__init__`` (the
@@ -1444,9 +1451,39 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.__dict__.setdefault("evaluations_actuator_force_frac", []).append([])
             self.__dict__.setdefault("evaluations_reward_terms_split", []).append({})
             if self.command_evaluation is not None:
-                # A placeholder, like the series above; a resumed robust tracker scores the prior record on the
-                # plan itself (RobustBestModelCallback.prior_score).
-                self.evaluations_command_families.append([])
+                # The plan's families, which a resume that keeps the run's seed rolled, so the series stays one
+                # label per return (evaluations.npz carries it, _persist_command_families);
+                # curriculum.seed_resume_eval_state then puts the record's own families in their place when the
+                # record carries them.
+                self.evaluations_command_families.append(list(self.command_evaluation.families))
+
+    def _persist_command_families(self) -> None:
+        """Add each evaluation's command families to the ``evaluations.npz`` SB3 has just written (a live stage).
+
+        Under :data:`~environments.shared.curriculum.command_evaluation.EVALUATION_COMMAND_FAMILIES_KEY`,
+        aligned with ``results``, beside every key SB3 wrote, so a reader of
+        the record (the handoff sidecar, a same-stage resume) scores each
+        evaluation as ``RobustBestModelCallback`` did.  Run in the same step
+        as SB3's write, before ``PublishEvalArtifactsCallback`` copies the
+        file to the stage directory.  A failure is logged and costs the key,
+        never the run; under command_mode "none" this is never called.
+        """
+        log_path = getattr(self, "log_path", None)
+        if log_path is None:
+            return
+        path = Path(f"{log_path}.npz")  # SB3's log_path is the "<dir>/evaluations" prefix np.savez extends
+        try:
+            with np.load(path) as record:
+                arrays = {key: record[key] for key in record.files}
+            families = np.asarray(self.evaluations_command_families, dtype=str)
+            if families.shape != np.shape(arrays["results"]):
+                raise ValueError(
+                    f"the command families {families.shape} do not align with the results {np.shape(arrays['results'])}"
+                )
+            arrays[EVALUATION_COMMAND_FAMILIES_KEY] = families
+            np.savez(path, **arrays)
+        except Exception:  # noqa: BLE001 - a record's extra key must not sink a run
+            logger.warning("Could not record the evaluations' command families in %s", path, exc_info=True)
 
     def seed_prior_record(self, directory: "str | Path", *, max_timesteps: int | None = None) -> int:
         """Keep the prior session's ``eval_episodes.csv`` rows at or before *max_timesteps* (a same-stage resume).
@@ -1535,6 +1572,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                         plan.family_counts(),
                         plan.seed,
                     )
+                self._persist_command_families()
             self._publish_action_statistics()
             self._publish_pad_telemetry()
             self._publish_leg_dc()

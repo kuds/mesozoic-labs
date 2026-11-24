@@ -408,6 +408,28 @@ class TestTheCommandTrackingFigure:
         assert shade.get_label() == "cruise ramp: commanded speeds 0.25 to 1 x the end state"
         assert shade.get_x() == 0.0 and shade.get_width() == pytest.approx(0.04)  # millions of steps
 
+    def test_a_run_shorter_than_its_ramp_keeps_the_axis_its_data_spans(self, tmp_path):
+        """A quick test run (60k steps here) under a 2M ramp: the shading stops at the last recorded rollout, so the
+        x-limit follows the data instead of putting the run in the first 3% of a 2M axis, and the label says the ramp
+        goes on past the run."""
+        pytest.importorskip("matplotlib")
+        from environments.shared.visualization import plot_command_tracking
+
+        directory = _charted_stage(tmp_path)
+        config = {"cruise_ramp_start_fraction": 0.25, "cruise_ramp_timesteps": 2_000_000}
+        (directory / "stage_config.json").write_text(
+            json.dumps({"task_fingerprint": {"command": {"schema": "x", "config": config}}}), encoding="utf-8"
+        )
+        training = plot_command_tracking(directory).axes[-1]
+        (shade,) = training.patches
+        assert shade.get_x() == 0.0 and shade.get_width() == pytest.approx(0.06)  # the last rollout, 60k steps
+        assert shade.get_label() == (
+            "cruise ramp: commanded speeds 0.25 to 1 x the end state (ramp to 2.0M continues past the run)"
+        )
+        low, high = training.get_xlim()
+        assert 0.06 < high < 0.07, "the axis ends at the data, within matplotlib's margin"
+        assert low < 0.0 < 0.02
+
     def test_without_a_history_it_says_not_recorded_and_without_either_it_draws_nothing(self, tmp_path):
         pytest.importorskip("matplotlib")
         from environments.shared.visualization import plot_command_tracking

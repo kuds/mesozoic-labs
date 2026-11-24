@@ -109,10 +109,12 @@ class DiagnosticsCallback(_BaseCallback):
     ``timesteps``: ``tracking_in_tolerance`` is the fraction of the
     rollout's training steps within the env's own tracking tolerances, the
     tracking fraction over training that the ``command_tracking/v1`` chart
-    draws (decision D-D61).  Unlike the INFO_KEYS, these reach
-    ``diagnostics.npz`` and TensorBoard only from a run whose env emitted
-    them, so a ``command_mode = "none"`` stage writes exactly the keys it
-    wrote before.
+    draws (decision D-D61), and ``reward_tracking``, the walk's dominant
+    reward term, is drawn in the reward decomposition with the
+    :attr:`REWARD_KEYS` (``visualization.plot_diagnostics_graphs``).  Unlike
+    the INFO_KEYS, these reach ``diagnostics.npz`` and TensorBoard only from
+    a run whose env emitted them, so a ``command_mode = "none"`` stage writes
+    exactly the keys it wrote before.
     """
 
     #: Record the per-rollout episode and fall counts (the switch the in-suite inertness proof turns off).
@@ -165,6 +167,10 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_support_geom_coverage",  # Compsognathus stance shaping
         "reward_home_pose",  # Compsognathus
         "reward_total",
+        # Not reward_tracking, the live command's tracking term (decision D-D60): it is one of the
+        # COMMAND_TRACKING_KEYS below, recorded only by a run whose env emits it, so a command-free stage's
+        # diagnostics.npz holds no series of it; the reward decomposition draws it from there
+        # (visualization.plot_diagnostics_graphs).
     ]
     INFO_KEYS = [
         "forward_vel",

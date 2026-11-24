@@ -358,8 +358,12 @@ staggered hop whose feet swap their lead past the 3% band is refused only by
 the optional flight cap, and a skid broken by brief alternating lifts is not
 refused at all (slip is reported, not judged). On a quadruped, a bound whose
 two fore feet (and two hind feet) land more than 20 ms apart with no flight
-reads as alternating pairs and clears the three required floors; only the
-optional `min_lead_swaps_per_stride` refuses it. The stand family's gait is
+reads as alternating pairs and clears the three required floors. The
+optional `min_lead_swaps_per_stride`, which both quadruped walks declare,
+refuses it only while each pair's feet stay side by side within the 3%
+band; a bound whose pair feet swing their lead past the band reads about
+two lead swaps a stride and clears every quadruped bar, that one included,
+so the bar narrows the gap and does not close it. The stand family's gait is
 not judged, so stepping in place within the stop tolerances passes it; the
 stand episodes' recorded alternation and touchdown rate show it. Each
 episode record carries the left/right phase (about 0.5 on a walk, near 0 or

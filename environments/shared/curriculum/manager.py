@@ -196,6 +196,8 @@ class CurriculumManager:
         # History of evaluation results per stage
         self._eval_history: dict[int, list[dict[str, float]]] = {s: [] for s in range(1, total_stages + 1)}
         self._consecutive_passes: dict[int, int] = {s: 0 for s in range(1, total_stages + 1)}
+        # The stages whose command_tracking/v1 refusal has been logged (once per stage, at INFO).
+        self._command_tracking_refusal_logged: set[int] = set()
 
         logger.info(
             "CurriculumManager initialized for %s: stage %d/%d",
@@ -530,16 +532,22 @@ class CurriculumManager:
         permissive reward defaults would pass on any evaluation.  The kind's
         threshold keys are deliberately not copied onto ``StageThreshold``
         (:func:`thresholds_from_configs`): nothing here reads them.
+
+        Every walk declares the kind, so this is the normal path, run at
+        every in-training evaluation: it says so once per stage, at INFO,
+        and refuses silently after that.
         """
-        logger.error(
-            "Stage %d declares gate_kind %r, which the in-training curriculum cannot evaluate: its certificate is "
-            "the stage's command panel (seeds planned from 3042, families by construction, the gait clause on "
-            "floor truth) rolled on the handoff chosen by the gated statistic, and an in-training evaluation rolls "
-            "other seeds on another checkpoint with no recorder. Refusing to advance; the verdict comes after the "
-            "stage from the command-tracking report, through reporting.gates.evaluate_stage_gate.",
-            self._current_stage,
-            COMMAND_TRACKING_GATE_KIND,
-        )
+        if self._current_stage not in self._command_tracking_refusal_logged:
+            self._command_tracking_refusal_logged.add(self._current_stage)
+            logger.info(
+                "Stage %d declares gate_kind %r: the in-training curriculum does not advance it. Its verdict comes "
+                "after the stage from the post-stage command_tracking_report.json (the stage's command panel, seeds "
+                "planned from 3042, rolled on the handoff chosen by the gated statistic), through "
+                "reporting.gates.evaluate_stage_gate; each in-training evaluation refuses to advance without "
+                "logging again.",
+                self._current_stage,
+                COMMAND_TRACKING_GATE_KIND,
+            )
         return False
 
     def _stance_gate_passes(self, latest: dict[str, float]) -> bool:

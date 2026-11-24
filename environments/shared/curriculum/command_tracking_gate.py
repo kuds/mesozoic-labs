@@ -149,9 +149,13 @@ declares none).  A skid broken by brief alternating lifts makes alternating
 touchdowns on either animal and is not refused: slip is report-only under
 GQ-8 (a) and GQ-9 (a).  A flightless quadruped bound whose pair feet land
 more than 20 ms apart reads as alternating pairs and clears every required
-quadruped floor (the Hildebrand phase reads it as a trot's 0.5); only the
-optional ``min_lead_swaps_per_stride`` refuses it, since the feet of a pair
-side by side never swap.  The metrics record the first two, report-only:
+quadruped floor (the Hildebrand phase reads it as a trot's 0.5).  The
+optional ``min_lead_swaps_per_stride`` refuses it only while each pair's
+feet stay side by side, within the dead band, where they never swap: a
+bound whose pair feet swing their lead past the band reads about two lead
+swaps a stride and clears every quadruped bar, that one included, so the
+bar narrows the gap and does not close it.  The metrics record the first
+two, report-only:
 ``left_right_phase`` (near 0.5 on a walk, near 0 or 1 on a hop, staggered or
 not) and ``stance_slip_speed_mps`` (near 0 under a planted foot, the body's
 speed under a skidding one).
@@ -180,8 +184,10 @@ threshold keys; another settle or dwell is another protocol.
 
 Provisional values
 ------------------
-No committed stage declares the kind yet.  :data:`PROVISIONAL_WALK_THRESHOLDS`
-and :data:`PROVISIONAL_FOLLOW_THRESHOLDS` are the documented starting values,
+Every committed walk declares the kind, under the walk profile, since
+decision D-D62; no committed stage declares the follow profile yet.
+:data:`PROVISIONAL_WALK_THRESHOLDS` and
+:data:`PROVISIONAL_FOLLOW_THRESHOLDS` are the documented starting values,
 copied from ``configs/behavior_certification.toml``, and the gait clause's
 come from GAIT_QUALITY_PLAN_2026_09.md §4.3 (a stage declares a profile's
 block with its animal's gait block); every one is
@@ -302,7 +308,9 @@ GAIT_THRESHOLD_KEYS: frozenset[str] = frozenset(GAIT_CRITERION_KEYS | {GAIT_LIMB
 #: quadruped's are GQ-9 (a)'s floors, which a walk, a trot and a pace all meet
 #: and a statue, a skid and a pronk or bound that flies or lands its pair feet
 #: within the 20 ms merge do not (a flightless bound whose pair feet land
-#: further apart clears them; the optional lead-swap bar refuses it).  The lateral-sequence or
+#: further apart clears them; the optional lead-swap bar refuses it only while
+#: each pair's feet stay side by side within the dead band, and a bound whose
+#: pair feet swing their lead past the band clears it too).  The lateral-sequence or
 #: trot match (the Hildebrand limb phase, ``ipsilateral_phase``) is measured
 #: and report-only: §4.3 B measured its band on no passing quadruped.
 GAIT_REQUIRED_KEYS: dict[int, frozenset[str]] = {
@@ -1805,11 +1813,20 @@ def paired_success_differences(
 
     *success* maps an episode to a bool (the profile's own per-episode
     success).  The two panels must hold the same seeds, once each, reduced
-    under the same measurement, and each seed's two records must have run
-    the same task: the same family, requested speed and planned event count
-    drawn at reset, at the same horizon and control step.  Otherwise the
-    differences are empty and the refusals say why.  The differences are in
-    the policy panel's order.
+    under the same measurement, and each seed's two records must agree on
+    the recorded reset-draw fields: the family, the requested speed, the
+    initial heading error and the planned event count, at the same horizon
+    and control step (:func:`_same_paired_task`).  Otherwise the differences
+    are empty and the refusals say why.  The differences are in the policy
+    panel's order.
+
+    The pairing binds only what the records show.  A schedule difference no
+    record carries (another ``turn_increment_max``, which moves the later
+    events' headings, or other command-adapter gains) leaves every one of
+    those fields equal, so it is bound only by the reference being rolled
+    on the stage's own env (the report rolls both panels on the stage's
+    config, and the judge binds the reference to the stage's parent
+    checkpoint), not by the pairing.
     """
     refusals: list[str] = []
     policy_seeds = [episode.seed for episode in episodes]
@@ -1833,7 +1850,8 @@ def paired_success_differences(
     if unpaired:
         refusals.append(
             f"the reference panel ran another task than the policy's on {len(unpaired)} seeds (first {unpaired[0]}): "
-            "a pair must share its family, requested speed, planned event count, horizon and control step"
+            "a pair must share its family, requested speed, initial heading error, planned event count, horizon and "
+            "control step"
         )
     if refusals:
         return [], refusals
@@ -1841,13 +1859,22 @@ def paired_success_differences(
 
 
 def _same_paired_task(policy: CommandTrackingEpisode, reference: CommandTrackingEpisode) -> bool:
-    """Whether two records of one seed ran the same reset draw at the same horizon and control step."""
+    """Whether two records of one seed agree on the recorded reset-draw fields.
+
+    The fields compared are the family, the requested speed, the initial
+    heading error and the planned event count, with the horizon and the
+    control step.  A schedule difference no record shows (``turn_increment_max``,
+    the command-adapter gains) passes this test; it is bound only by the
+    reference being rolled on the stage's own env
+    (:func:`paired_success_differences`), not here.
+    """
     return (
         policy.family == reference.family
         and policy.planned_event_count == reference.planned_event_count
         and policy.horizon == reference.horizon
         and abs(policy.dt - reference.dt) <= 1e-9
         and abs(policy.desired_speed - reference.desired_speed) <= 1e-9
+        and abs(policy.initial_heading_error_rad - reference.initial_heading_error_rad) <= 1e-9
     )
 
 
