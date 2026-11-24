@@ -891,6 +891,7 @@ def _storage_namespace(tmp_path, monkeypatch, **knobs):
         "SEED": 42,
         "N_ENVS": 1,
         "QUICK_TEST": False,
+        "RUN_KIND": "certify",
         "TRUNK_FROM": "",
         "RUN_ID": "",
         **knobs,
@@ -1106,7 +1107,7 @@ class TestStorageCellRerun:
         storage = _cell(STORAGE_CELL_MARKER)
         assigns = _top_level_assigns(storage)
         assert ast.unparse(assigns["_runs_root"]) == (
-            "MODEL_ID.path(LOG_BASE) / (ALGORITHM.lower() + ('_quick_test' if QUICK_TEST else ''))"
+            "MODEL_ID.path(LOG_BASE) / run_tree_name(ALGORITHM, run_kind=RUN_KIND, quick_test=QUICK_TEST)"
         )
         assert ast.unparse(assigns["_run_dir"]) == "_runs_root / _run_id"
 

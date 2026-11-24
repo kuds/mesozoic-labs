@@ -217,7 +217,9 @@ models, since decision D-D35, before which `stand` meant that chain there;
 `stance`, the stance stage alone on every model, labelled `stand` until
 decision D-D38, which refuses `stand` naming `stance`),
 `TRUNK_FROM = "auto"`, `RETRAIN_FROM = ""`, `RUN_LABEL = ""`, `RUN_ID = ""`
-(a configuration-cell knob since consolidation PR-14a), `SEED = 42`. The knobs the
+(a configuration-cell knob since consolidation PR-14a), `RUN_KIND = "certify"`
+(since 2026-11-24; `"screen"` writes a screen or pilot under `<algo>_screen/`),
+`SEED = 42`. The knobs the
 consolidation retired are named in the CHANGELOG entries of PR-4, PR-5, the PR-12
 slice and PR-14a.
 
@@ -424,6 +426,28 @@ directory.
 All on `main`, `notebooks/sb3_training.ipynb`, notebook defaults unless stated
 (`N_ENVS = 4`, `TRUNK_FROM = "auto"`). Times are
 the measured Colab wall clock of the section 2 runs or scaled from them.
+
+*2026-11-24: a branch screen, a pilot or any other experiment trained through
+the notebook sets `RUN_KIND = "screen"`. The run is then written under
+`logs/<species>/<embodiment>/<algo>_screen/`, where `TRUNK_FROM = "auto"` and
+seed-replicate discovery never look, so a screen whose task, gate, plant and
+recipe digests equal a landed recipe's can never count as a certification
+run's replicate or become its trunk; it still reuses certified ancestors. The
+T-Rex stance screens and walking pilot runs (`pilot*_walk`) recorded below ran
+before the knob existed, under `logs/tyrannosaurus_rex/anatomical/ppo/`, and
+`environments/shared/run_exclusions.py` keeps the nine r10 stance screens,
+whose digests equal the landed recipe's, out of every count. A certification
+session keeps the default `"certify"`. The screen's branch must hold the
+knob: an older storage cell ignores `RUN_KIND` and writes the run into
+`<algo>/`. A branch cut before 2026-11-24 (such as `claude/pilot-walk-r9-b`,
+below) takes the change first: merge `main`, or, where the branch must keep
+its own code, apply the change that added the knob
+(`environments/shared/run_tree.py` and the storage cell). Then check that the
+storage cell's `Run directory:` line shows `<algo>_screen/` before training. A fresh
+runtime resets the knob, so set it again to resume a screen (the storage
+cell refuses a `RUN_ID` that names a run only in another tree). Nothing
+refuses a certification run that loads, resumes or widens a screen's
+checkpoint, so a certification run never trains from one.*
 
 Status 2026-09-23: sessions 1, 2 and 3 are done and certified (rows below;
 section 2 has the numbers). Session 4 ran on 2026-09-23 as `20260923_020654`

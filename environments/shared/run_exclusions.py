@@ -78,7 +78,14 @@ excluded parent is refused), the result-bundle audit (rule (a) and
 every stage config it hashes) and the species catalog (the same provenance
 reading on a committed summary): an excluded run is never a promotable or
 committed result, nor is one whose provenance records a screen as an ancestor.
-A later screen needs its own entry here.
+A screen, pilot or other experiment trained with the SB3 notebook's
+``RUN_KIND = "screen"`` lives under ``<algo>_screen/``, outside the tree trunk
+selection and replicate discovery scan (:mod:`environments.shared.run_tree`),
+so this ledger keeps only the screens trained before that knob existed.  The
+tree covers those two scans and a certification run's pinned trunk only: rule
+(d) reads the runs named here, so nothing refuses a certification run that
+loads, resumes or widens a later screen's checkpoint, and a certification run
+never trains from one.
 """
 
 from __future__ import annotations

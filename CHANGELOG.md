@@ -2664,6 +2664,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The Drive summary labels each run's kind.** Its rows gain `run_kind`:
+  `certify`, `screen` or `quick_test`, read off the tree the run sits in. A
+  run of `<algo>/` that `run_exclusions.py` names reads `screen` too, and
+  sweep rows have none. The column shows in the identity table, the pass/fail
+  pivot and the detailed and settings tables, and is written to
+  `runs_summary.csv`, so a screen's PASS is not read as a certification. Its
+  strict promotion cell refuses a run under `<algo>_screen/` or
+  `<algo>_quick_test/` before it validates.
 - **`eval_episodes.csv` is rewritten on the checkpoint cadence, not after
   every evaluation.** It was rewritten whole after each evaluation, about 3.7
   GB to Drive over a 12M T. rex stance. It is now rewritten on the calls a
@@ -5323,6 +5331,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **A screen or pilot no longer shares the certification run tree.** The SB3
+  notebook wrote branch screens, walking pilots and certification runs into
+  `LOG_BASE/<species>/<embodiment>/<algo>/`. That is the tree `TRUNK_FROM =
+  "auto"` scans and seed-replicate discovery counts in, and neither reads a
+  run's commit, branch or `RUN_LABEL`. A screen whose task, gate, plant and
+  recipe digests equal a landed recipe's could count as a certification run's
+  replicate or become its auto trunk, and the hand-kept list in
+  `run_exclusions.py` was the only guard. A new configuration knob,
+  `RUN_KIND`, is `"certify"` by default; `"screen"` (for screens, pilots and
+  other experiments) writes the run under `<algo>_screen/`, which neither scan
+  reaches. `QUICK_TEST` still wins (`<algo>_quick_test/`), and an unknown kind
+  is refused before anything is written. A run id now names one run of a
+  model, whatever its tree. A fresh runtime resets `RUN_KIND`, so the storage
+  cell refuses an explicit `RUN_ID` that names no run in the selected tree but
+  one in another, and names the knobs that reach it. It no longer opens a
+  certification run under a screen's id. `TRUNK_FROM` ids still resolve, and
+  `"auto"` still scans, in `<algo>/`, so a screen builds on certified
+  ancestors; a screen pins a screen trunk as `../<algo>_screen/<id>` (read
+  lexically) or by its absolute path. A certification run refuses, before
+  anything is written, a pinned `TRUNK_FROM` that resolves into
+  `<algo>_screen/` or `<algo>_quick_test/`, even when the run already exists
+  and recorded that trunk earlier; a screen or a quick test may pin either.
+  The folder is the kind's only record, as for quick tests (decision D-D16
+  (b)), so `provenance.json` and every digest are unchanged
+  (`environments/shared/run_tree.py`;
+  `environments/shared/tests/test_screen_run_tree.py`). Runs already on Drive
+  stay where they are, and `run_exclusions.py` keeps the nine r10 stance
+  screens out of every count. Nothing refuses a certification run that loads,
+  resumes or widens a screen's checkpoint; `docs/KNOWN_ISSUES.md` records
+  that, and the older pilots that still sit in `<algo>/`.
 - **The TensorBoard sync to Drive publishes each event file atomically.**
   `environments/shared/tb_sync.py` copied the local buffer over its Drive copy
   with `shutil.copy` every 100,000 steps and at stage end. A runtime reclaimed

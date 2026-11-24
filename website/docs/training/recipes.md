@@ -135,9 +135,10 @@ root-first. At each node it does exactly one of three things:
    records copied, never its checkpoint pair) and loaded from where it
    lives, by the CLI and the notebook alike.
    The trunk run is the one `TRUNK_FROM` / `--trunk-from` names, or, under
-   `"auto"` (the notebook default, decision D-A25), the run beside this one
-   (under the species/embodiment/algorithm log directory in the notebook; the siblings
-   of the run directory on the command line) whose certified ancestors cover
+   `"auto"` (the notebook default, decision D-A25), the run (in the notebook,
+   one of the certification tree `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`,
+   whatever `RUN_KIND` says; on the command line, a sibling of the run
+   directory) whose certified ancestors cover
    the most of the chain root-first, the greatest run directory name on a
    tie (the newest timestamp id; a custom `RUN_ID` such as `my_run` sorts
    after every timestamp). The selection prints
@@ -289,23 +290,46 @@ verifying.
 
 ## In the notebook
 
-`notebooks/sb3_training.ipynb` exposes five knobs in its configuration cell,
+`notebooks/sb3_training.ipynb` exposes six knobs in its configuration cell,
 committed as:
 
 ```python
 BEHAVIOR = "auto"  # the model's final deliverable, a recipe label, or a deliverable's stage id
-TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
+TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
-RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+RUN_KIND = "certify"  # "certify" = a run that may certify, under <algo>/, the tree TRUNK_FROM = "auto" and seed replication scan; "screen" = a branch screen, pilot or other experiment, under <algo>_screen/: never a trunk or a seed replicate of a certification run, though it reuses certified ancestors; set it again to re-enter or resume a screen; QUICK_TEST wins (<algo>_quick_test/)
 ```
 
-`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`
-(`<algorithm>_quick_test/` when `QUICK_TEST` is on, so a 50,000-step quick
-test is never selected as a trunk or counted as a seed replicate of a real
-run):
+`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`,
+the certification tree, or under the tree `RUN_KIND` or `QUICK_TEST` moves it
+to: `<algorithm>_screen/` under `RUN_KIND = "screen"` (a branch screen, a
+pilot or another experiment), and `<algorithm>_quick_test/` when `QUICK_TEST`
+is on, whatever `RUN_KIND` says. Trunk selection and seed-replicate discovery
+never reach either, so a 50,000-step quick test, or a screen whose task, gate,
+plant and recipe digests equal a landed recipe's, is never selected as a trunk
+or counted as a seed replicate of a certification run (the runs of one of
+those trees may count one another). The folder is the run's only record of
+its kind (`environments/shared/run_tree.py`), and the Drive summary notebook
+reads it into its `run_kind` column. A run id names one run of the model,
+whatever its tree: a fresh runtime resets `RUN_KIND` and `QUICK_TEST`, so a
+screen is re-entered or resumed with `RUN_KIND = "screen"` set again, and the
+storage cell refuses, before anything is written, a `RUN_ID` that names no run
+in the selected tree but a run in another. A screen pins a screen trunk as
+`../<algorithm>_screen/<id>` or by its absolute path, since a bare `TRUNK_FROM`
+id resolves in `<algorithm>/`. The tree covers trunk selection, replicate
+discovery and the pinned trunk only: nothing refuses a certification run that
+loads, resumes or widens a screen's checkpoint (the manual node's
+`MANUAL_LOAD_PATH`, the widen tool, a command-line `--load`), so a
+certification run never trains from one. A screen's branch needs a notebook
+with the knob: on a branch cut before 2026-11-24 the storage cell ignores
+`RUN_KIND` and writes the run into `<algorithm>/`, so bring the change onto
+the branch first (merge `main`, or apply `environments/shared/run_tree.py` and
+the storage cell) and check that the storage cell's `Run directory:` line
+shows `<algorithm>_screen/` before training.
 `""` keeps the run this runtime's storage cell resolved last in the tree that
-`SPECIES`, `EMBODIMENT`, `ALGORITHM` and `QUICK_TEST` select and mints a fresh timestamped
+`SPECIES`, `EMBODIMENT`, `ALGORITHM`, `RUN_KIND` and `QUICK_TEST` select and mints a fresh timestamped
 run when there is none there (the first pass in a runtime, or after one of
 those changed),
 a new id starts a fresh run, and an existing run's id re-enters that run in
@@ -324,7 +348,8 @@ certified nodes across runs.
 A checkpoint trained behind this checkout's policy interface is widened on the
 command line into a new run, one the notebook has not opened yet (`python -m
 environments.shared.scripts.widen_checkpoint ... --to-stage-dir
-<LOG_BASE>/<species>/<embodiment>/<algorithm>/<new run id>/01_stance`, where `<new run id>`
+<LOG_BASE>/<species>/<embodiment>/<algorithm>/<new run id>/01_stance`, with
+`<algorithm>_screen/` in place of `<algorithm>/` for a screen, where `<new run id>`
 is a new timestamp id `YYYYMMDD_HHMMSS` that no run uses yet, with
 `--max-revision-gap N` for a parent more than one revision behind, decision
 D-C17, and `--label` when the session sets `RUN_LABEL`; on Colab, the three
@@ -339,8 +364,9 @@ consults any trunk (decisions D-C13, D-D14, and the cleanup's decision
 cell were removed once the two pending widen sessions had run.
 
 `TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
-cell selects the run under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/` whose
-certified ancestors cover the most of the chain root-first (the greatest run
+cell selects the run under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/` (the
+certification tree, whatever `RUN_KIND` says, so a screen builds on certified
+ancestors) whose certified ancestors cover the most of the chain root-first (the greatest run
 directory name on a tie, the newest timestamp id)
 and prints the choice, what it rests on and every refusal; `""` turns reuse
 off. Whatever the trunk, the resolve cell then records it in the run's
@@ -350,7 +376,10 @@ an `ancestors/` record, where another trunk than the recorded one is
 warned about (the trunk those records came through when the cells ran in
 order; see `docs/KNOWN_ISSUES.md`) and a missing file is never guessed. A
 pinned `TRUNK_FROM` is a run id, resolved under the same directory, or an
-absolute path to a run directory. It must be a run whose
+absolute path to a run directory. A certification run's trunk is a
+certification run: one under `<algorithm>_screen/` or `<algorithm>_quick_test/`
+is refused before anything is written, while a screen or a quick test may pin
+either. It must be a run whose
 `provenance.json` names the same species, embodiment, algorithm and backend, whatever its
 bundle status (a node is reused only when the reuse rule certifies it), and it
 must not be this run — certified nodes of an earlier run come in through
@@ -440,8 +469,8 @@ set `BEHAVIOR` and Run all again. It sits ahead of the chain loop, so a
 resume is: set `REPO_REF` to the `git_commit` the node's
 `stage_config.json` records, `RUN_ID` to the interrupted run and
 `RESUME_STAGE` to its node, with `RUN_LABEL` and `RETRAIN_FROM` empty,
-`CRITIC_PHASE` and the other recipe knobs as the interrupted session had
-them, and `TRUNK_FROM` set to the value the run's `trunk_run.json` records
+`RUN_KIND`, `QUICK_TEST`, `CRITIC_PHASE` and the other recipe knobs as the
+interrupted session had them, and `TRUNK_FROM` set to the value the run's `trunk_run.json` records
 (unless the run's `ancestors/` records came through another trunk than the
 file names: then remove the file and pin by the nearest ancestor record, as
 `docs/KNOWN_ISSUES.md` describes; a run opened before that file existed is
@@ -631,7 +660,9 @@ schema-2 summaries still read):
   summary-side projection of `ancestors/<stage_id>/`.
 - `replication` is writer-recorded (decision D-B10). When the notebook
   writes the run's bundle, `environments.shared.replication.discover_replicates_for_run`
-  looks through the sibling runs under `LOG_BASE/<species>/<embodiment>/<algo>/` for the
+  looks through the sibling runs under `LOG_BASE/<species>/<embodiment>/<algo>/` (for a
+  screen or a quick test, its own `<algo>_screen/` or `<algo>_quick_test/` tree, so
+  neither is ever a replicate of a certification run) for the
   same recipe on another seed — a passed, reusable `gate_verdict.json` for
   the node with equal `task_sha256` and `gate_sha256`, a `stage_config.json`
   with the same plant identity and `hyperparameters_sha256` (derived from

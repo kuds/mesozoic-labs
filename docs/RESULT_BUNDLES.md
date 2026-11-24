@@ -321,7 +321,10 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   `replication.runs` has exactly `count` entries with distinct run ids and
   distinct training seeds, THIS run first, then its replicates — the sibling
   runs under the same `LOG_BASE/<species>/<embodiment>/<algo>/` directory that certified
-  the SAME recipe on another seed (decision D-B16; plan §4.5): a sibling
+  the SAME recipe on another seed (decision D-B16; plan §4.5; a screen the SB3
+  notebook trains with `RUN_KIND = "screen"` sits in `<algo>_screen/` and a
+  quick test in `<algo>_quick_test/`, so neither is a sibling of a certification
+  run, though the runs of one of those trees may count one another): a sibling
   counts when its stage directory for the node holds a passed, reusable
   `gate_verdict.json` with equal `task_sha256` and equal `gate_sha256`, its
   `stage_config.json` records the same plant identity and the same
@@ -411,7 +414,12 @@ before continuing.
 The Google Drive summary notebook audits canonical bundles first and uses its
 older CSV/text/NPZ reconstruction only as a historical fallback; it reads
 `summary.json` for both `canonical-valid` and `canonical-partial` bundles.
-Before promotion, run strict validation:
+Before promotion, run strict validation, on a run of the certification tree
+`<algo>/` only: a run's tree is its only record of its kind
+(`environments/shared/run_tree.py`; nothing in `provenance.json` names it, as
+decision D-D16 (b) left quick tests), a copy promoted into `results/` loses
+it, and the Drive summary notebook's strict promotion cell refuses a run under
+`<algo>_screen/` or `<algo>_quick_test/` before it validates:
 
 ```python
 from environments.shared.result_bundle import validate_result_bundle

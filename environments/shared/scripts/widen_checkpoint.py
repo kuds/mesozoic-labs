@@ -120,7 +120,10 @@ parent's recorded ``run.seed`` (the storage cell refuses any other value
 before it writes anything, D-C14) and ``TRUNK_FROM = ""`` (the chain loop
 judges the widened root before it consults any trunk, D-C13 as amended by
 decision 6 (b); nothing below a widened root is reusable from another run
-anyway).
+anyway).  A screen's root is widened under ``<algo>_screen/`` in place of
+``<algo>/`` and judged with ``RUN_KIND = "screen"``
+(``environments/shared/run_tree.py``); a screen's checkpoint is never widened
+into ``<algo>/``, which nothing here refuses.
 
 Stable-Baselines3, torch and gymnasium are imported inside the functions so
 the module stays importable on a bare install (the lint job).

@@ -2369,6 +2369,25 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   `dependency_versions.mesozoic_labs`, which changes what
   `runs_summary.csv` says for those rows; no cleanup PR owns it. (2026-10
   CU-15 scouting)
+- **LOW** — **the run tree marks only the screens trained since `RUN_KIND`
+  existed (read from the code 2026-11-24).** A screen the SB3 notebook trains
+  with `RUN_KIND = "screen"` lives under `<algo>_screen/`, outside trunk
+  selection and replicate discovery, and a certification run refuses it as a
+  pinned `TRUNK_FROM` (`environments/shared/run_tree.py`). Two gaps remain.
+  The screens and pilots trained before then sit in `<algo>/`:
+  `environments/shared/run_exclusions.py` names the nine r10 stance screens,
+  and the Drive summary labels them and the runs built on them `screen`, but
+  the walking pilots (`pilot*_walk`) and any other older screen read
+  `run_kind` `certify` there, and both scans treat them as certification runs
+  (the pilots' recorded PPO digest differs from `main`'s, D-D36, so today they
+  match no landed recipe). And nothing refuses a certification run that
+  loads, resumes or widens a later screen's checkpoint: the manual node's
+  `MANUAL_LOAD_PATH`, `widen_checkpoint` into `<algo>/` and a command-line
+  `--load` record the load in `stage_config.json`, but rule (d) of
+  `run_exclusions.py` reads only the runs it names. Fix: have rule (d) count
+  a load path through a `<algo>_screen/` directory for a run of `<algo>/`,
+  and add an older screen to the ledger once its digests can match a landed
+  recipe.
 
 ## Testing / CI
 
