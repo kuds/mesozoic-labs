@@ -592,6 +592,7 @@ def record_resume_session(stage_dir: str | Path, *, load_path: str, timesteps: i
     atomic_write_text(path, json.dumps(data, indent=2) + "\n")
     return path
 
+
 #: The occupancy file that ends a stage: a judged node is never trained
 #: further in place, not even by a same-stage resume (D-A20 as amended
 #: 2026-11-24; D-D16 had the notebook's RESUME cell refuse it first).

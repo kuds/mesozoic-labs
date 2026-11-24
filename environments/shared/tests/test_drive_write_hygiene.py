@@ -415,18 +415,18 @@ class TestZeroActionRecords:
 
         preflight.run()
 
-        raptor = preflight.log_base / "velociraptor_mongoliensis/anatomical/zero_action_baselines"
-        assert sorted(path.name for path in raptor.iterdir()) == [
+        mongoliensis_dir = preflight.log_base / "velociraptor_mongoliensis/anatomical/zero_action_baselines"
+        assert sorted(path.name for path in mongoliensis_dir.iterdir()) == [
             "20261124_090000.json",
             "20261124_090000.txt",
             "20261124_100000.json",
             "20261124_100000.txt",
         ]
         # The T. rex measured the same, so it gets no new record.
-        trex = preflight.log_base / "tyrannosaurus_rex/anatomical/zero_action_baselines"
-        assert sorted(path.name for path in trex.iterdir()) == ["20261124_090000.json"]
+        rex_dir = preflight.log_base / "tyrannosaurus_rex/anatomical/zero_action_baselines"
+        assert sorted(path.name for path in rex_dir.iterdir()) == ["20261124_090000.json"]
         run_copy = (preflight.run_dir / "zero_action_baseline.json").read_text(encoding="utf-8")
-        assert run_copy == (raptor / "20261124_100000.json").read_text(encoding="utf-8")
+        assert run_copy == (mongoliensis_dir / "20261124_100000.json").read_text(encoding="utf-8")
         assert json.loads(run_copy)["captured_at"] == "2026-11-24T10:00:00"
 
     def test_a_changed_plant_identity_is_a_changed_baseline(self, preflight):
@@ -442,8 +442,8 @@ class TestZeroActionRecords:
 
         record = json.loads((preflight.run_dir / "zero_action_baseline.json").read_text(encoding="utf-8"))
         assert record["results"]["velociraptor_mongoliensis"]["anatomical"]["plant_identity"] == {"plant_revision": 2}
-        trex = preflight.log_base / "tyrannosaurus_rex/anatomical/zero_action_baselines"
-        assert len(list(trex.glob("*.json"))) == 2
+        rex_dir = preflight.log_base / "tyrannosaurus_rex/anatomical/zero_action_baselines"
+        assert len(list(rex_dir.glob("*.json"))) == 2
 
     @pytest.mark.parametrize("run_copy_text", [None, "{truncated", '{"captured_at": "x"}'])
     def test_a_missing_or_different_run_copy_is_written(self, preflight, run_copy_text):
@@ -465,8 +465,8 @@ class TestZeroActionRecords:
     def test_a_newest_record_that_differs_only_in_form_is_not_the_same(self, preflight, form):
         """Compared as written: a NaN no record of the tool holds, or ``850`` for ``850.0``, is another record."""
         preflight.run()
-        trex = preflight.log_base / "tyrannosaurus_rex/anatomical/zero_action_baselines"
-        newest = trex / "20261124_090000.json"
+        rex_dir = preflight.log_base / "tyrannosaurus_rex/anatomical/zero_action_baselines"
+        newest = rex_dir / "20261124_090000.json"
         record = json.loads(newest.read_text(encoding="utf-8"))
         assert record["results"]["tyrannosaurus_rex"]["anatomical"]["reward_mean"] == 850.0
         record["results"]["tyrannosaurus_rex"]["anatomical"]["reward_mean"] = float("nan") if form == "a_nan" else 850
@@ -474,24 +474,27 @@ class TestZeroActionRecords:
 
         preflight.run()
 
-        assert sorted(path.name for path in trex.iterdir()) == ["20261124_090000.json", "20261124_100000.json"]
-        written = json.loads((trex / "20261124_100000.json").read_text(encoding="utf-8"))
+        assert sorted(path.name for path in rex_dir.iterdir()) == [
+            "20261124_090000.json",
+            "20261124_100000.json",
+        ]
+        written = json.loads((rex_dir / "20261124_100000.json").read_text(encoding="utf-8"))
         assert written["results"]["tyrannosaurus_rex"]["anatomical"]["reward_mean"] == 850.0
 
     @pytest.mark.parametrize("unreadable", ["not_utf8", "a_directory"])
     def test_an_unreadable_newest_table_is_written_again(self, preflight, unreadable):
         preflight.run()
-        raptor = preflight.log_base / "velociraptor_mongoliensis/anatomical/zero_action_baselines"
-        table = (raptor / "20261124_090000.txt").read_text(encoding="utf-8")
+        mongoliensis_dir = preflight.log_base / "velociraptor_mongoliensis/anatomical/zero_action_baselines"
+        table = (mongoliensis_dir / "20261124_090000.txt").read_text(encoding="utf-8")
         if unreadable == "not_utf8":
-            (raptor / "20261124_090000.txt").write_bytes(b"\xff\xfe not a table")
+            (mongoliensis_dir / "20261124_090000.txt").write_bytes(b"\xff\xfe not a table")
         else:
-            (raptor / "20261124_093000.txt").mkdir()  # the newest name, and no file to read
+            (mongoliensis_dir / "20261124_093000.txt").mkdir()  # the newest name, and no file to read
 
         preflight.run()
 
-        assert (raptor / "20261124_100000.txt").read_text(encoding="utf-8") == table
-        assert not (raptor / "20261124_100000.json").exists(), "the record itself is unchanged"
+        assert (mongoliensis_dir / "20261124_100000.txt").read_text(encoding="utf-8") == table
+        assert not (mongoliensis_dir / "20261124_100000.json").exists(), "the record itself is unchanged"
 
     def test_the_readers_still_read_a_kept_copy(self, preflight):
         from environments.shared.curriculum.baseline_watch import read_zero_action_baseline

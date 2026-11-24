@@ -631,6 +631,7 @@ class TestColabWithoutDriveKeepsItsRuntime:
             "SEED": 42,
             "N_ENVS": 1,
             "QUICK_TEST": False,
+            "RUN_KIND": "certify",
             "TRUNK_FROM": "",
             "RUN_ID": "",
             **earlier,

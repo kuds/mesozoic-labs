@@ -29,7 +29,7 @@ import zipfile
 from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -47,9 +47,9 @@ from environments.shared.stage_manifest import load_stage_manifest, stage_dirnam
 
 from .test_sb3_notebook_pins import RESUME_CELL_MARKER, _all_cell_sources, _cell, _define_node_budget
 
-VELOCIRAPTOR = ModelId("velociraptor_mongoliensis", "anatomical")
-COMPSOGNATHUS_ROBOT = ModelId("compsognathus_longipes", "robot")
-COMPSOGNATHUS = ModelId("compsognathus_longipes", "anatomical")
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 
 
 def _sb3_style_zip(path: Path, data: dict | None = None) -> Path:
@@ -88,8 +88,8 @@ def _train_to_the_config_save(
     monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
     monkeypatch.setattr(config_module, "save_stage_config", reached)
     train_base.train(
-        SimpleNamespace(model_id=VELOCIRAPTOR, env_class=object),
-        configs if configs is not None else load_all_stages(VELOCIRAPTOR),
+        cast(Any, SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object)),
+        configs if configs is not None else load_all_stages(VELOCIRAPTOR_MONGOLIENSIS),
         1,
         total_timesteps=kwargs.pop("total_timesteps", 1_000),
         output_dir=str(stage_dir),
@@ -121,8 +121,8 @@ def _train_into_a_stubbed_body(monkeypatch, stage_dir: Path, *, learns: bool, **
     monkeypatch.setattr(train_base, "_train_stage_body", body)
     with pytest.raises(_BodyReached):
         train_base.train(
-            SimpleNamespace(model_id=VELOCIRAPTOR, env_class=object),
-            load_all_stages(VELOCIRAPTOR),
+            cast(Any, SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object)),
+            load_all_stages(VELOCIRAPTOR_MONGOLIENSIS),
             1,
             total_timesteps=kwargs.pop("total_timesteps", 600),
             output_dir=str(stage_dir),
@@ -153,7 +153,9 @@ class TestOnlyAContinuationResumesInPlace:
     @staticmethod
     def _interrupted_stage(tmp_path: Path, record: str) -> tuple[Path, Path]:
         stage_dir = tmp_path / "run" / "01_stance"
-        save_stage_config(stage_dir, 1, load_all_stages(VELOCIRAPTOR)[1], "SAC", model_id=VELOCIRAPTOR)
+        save_stage_config(
+            stage_dir, 1, load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1], "SAC", model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
         target = stage_dir / record
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(b"record")
@@ -197,7 +199,9 @@ class TestOnlyAContinuationResumesInPlace:
     def test_ppo_still_continues_over_its_records(self, tmp_path, monkeypatch, record):
         stage_dir, checkpoint = self._interrupted_stage(tmp_path, record)
         # The record was saved as SAC above; resave it as PPO, the algorithm this resume trains.
-        save_stage_config(stage_dir, 1, load_all_stages(VELOCIRAPTOR)[1], "PPO", model_id=VELOCIRAPTOR)
+        save_stage_config(
+            stage_dir, 1, load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1], "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
         with pytest.raises(_ConfigReached):
             _train_to_the_config_save(
                 monkeypatch, stage_dir, load_path=str(checkpoint), task_load_mode="resume_same_stage"
@@ -211,7 +215,9 @@ class TestOnlyAContinuationResumesInPlace:
         from environments.shared.config import ResumeRefusedError
 
         stage_dir, _ = self._interrupted_stage(tmp_path, record)
-        save_stage_config(stage_dir, 1, load_all_stages(VELOCIRAPTOR)[1], "PPO", model_id=VELOCIRAPTOR)
+        save_stage_config(
+            stage_dir, 1, load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1], "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
         checkpoint = _sb3_style_zip(stage_dir / "models" / curated)
         before = _listing(stage_dir)
         with pytest.raises(ResumeRefusedError) as refused:
@@ -421,13 +427,15 @@ class TestAResumeKeepsTheRecipe:
     @staticmethod
     def _recorded(tmp_path: Path, config: dict, *, label: str | None = None) -> tuple[Path, Path]:
         stage_dir = tmp_path / "run" / "01_stance"
-        save_stage_config(stage_dir, 1, config, "PPO", extra={"timesteps": 1_000}, label=label, model_id=VELOCIRAPTOR)
+        save_stage_config(
+            stage_dir, 1, config, "PPO", extra={"timesteps": 1_000}, label=label, model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
         checkpoint = _sb3_style_zip(stage_dir / "models" / "stage1_400_steps.zip")
         return stage_dir, checkpoint
 
     def test_the_digest_never_covers_the_budget(self):
         """So a resume that trains the rest of the budget, or a QUICK_TEST or --timesteps budget, digests the same."""
-        config = load_all_stages(VELOCIRAPTOR)[1]
+        config = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]
         edited = copy.deepcopy(config)
         edited["curriculum_kwargs"]["timesteps"] = 50_000
         assert hyperparameters_sha256(edited, "PPO") == hyperparameters_sha256(config, "PPO")
@@ -441,7 +449,7 @@ class TestAResumeKeepsTheRecipe:
     ):
         from environments.shared.config import ResumeRefusedError
 
-        configs = load_all_stages(VELOCIRAPTOR)
+        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         stage_dir, checkpoint = self._recorded(tmp_path, configs[1])
         before = _listing(stage_dir)
         edited = copy.deepcopy(configs)
@@ -464,7 +472,7 @@ class TestAResumeKeepsTheRecipe:
         commit's digest definition, or a fresh RUN_ID, can."""
         from environments.shared.config import ResumeRefusedError, refuse_resume_recipe_change
 
-        config = load_all_stages(VELOCIRAPTOR)[1]
+        config = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]
         stage_dir, _ = self._recorded(tmp_path, config)
         record = json.loads((stage_dir / "stage_config.json").read_text())
         record["run"]["hyperparameters_sha256"] = "sha256:" + "0" * 64
@@ -486,7 +494,7 @@ class TestAResumeKeepsTheRecipe:
         edit no longer rewrites the record (its reward weights and task fingerprint) before the load refuses."""
         from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, TaskFingerprintError
 
-        configs = load_all_stages(VELOCIRAPTOR)
+        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         stage_dir, _ = self._recorded(tmp_path, configs[1])
         recorded_task = {"task_sha256": "sha256:" + "a" * 64, "env": {"energy_penalty_weight": 0.02}}
         checkpoint = _sb3_style_zip(
@@ -517,7 +525,7 @@ class TestAResumeKeepsTheRecipe:
     def test_a_shaping_edit_is_refused_too(self, tmp_path):
         from environments.shared.config import ResumeRefusedError, refuse_resume_recipe_change
 
-        config = load_all_stages(VELOCIRAPTOR)[1]
+        config = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]
         stage_dir, _ = self._recorded(tmp_path, config)
         edited = copy.deepcopy(config)
         edited["curriculum_kwargs"]["warmup_timesteps"] = 12_345
@@ -525,7 +533,7 @@ class TestAResumeKeepsTheRecipe:
             refuse_resume_recipe_change(stage_dir, edited, "PPO", task_load_mode="resume_same_stage")
 
     def test_the_same_recipe_on_the_remaining_budget_trains(self, tmp_path, monkeypatch):
-        configs = load_all_stages(VELOCIRAPTOR)
+        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         stage_dir, checkpoint = self._recorded(tmp_path, configs[1])
         with pytest.raises(_ConfigReached):
             _train_to_the_config_save(
@@ -539,7 +547,7 @@ class TestAResumeKeepsTheRecipe:
     def test_only_a_same_stage_resume_over_a_record_with_a_digest_is_checked(self, tmp_path):
         from environments.shared.config import refuse_resume_recipe_change
 
-        config = load_all_stages(VELOCIRAPTOR)[1]
+        config = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]
         stage_dir, _ = self._recorded(tmp_path, config)
         edited = copy.deepcopy(config)
         edited["ppo_kwargs"]["learning_rate"] = 1e-6
@@ -567,7 +575,7 @@ class TestAResumeKeepsTheRecipe:
     def test_the_label_is_kept_or_refused(self, tmp_path, recorded, given, refused):
         from environments.shared.config import ResumeRefusedError, refuse_resume_recipe_change
 
-        config = load_all_stages(VELOCIRAPTOR)[1]
+        config = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]
         stage_dir, _ = self._recorded(tmp_path, config, label=recorded)
         if not refused:
             refuse_resume_recipe_change(stage_dir, config, "PPO", task_load_mode="resume_same_stage", label=given)
@@ -592,11 +600,17 @@ class TestAResumeKeepsTheFirstSessionsIdentity:
         kwargs.setdefault("extra", {"seed": 42, "n_envs": 4, "timesteps": 1_000})
         continues = kwargs.get("load_mode") == "resume_same_stage" and (stage_dir / "stage_config.json").is_file()
         out = save_stage_config(
-            stage_dir, 1, TestAResumeKeepsTheFirstSessionsIdentity.CONFIG, "PPO", model_id=VELOCIRAPTOR, **kwargs
+            stage_dir,
+            1,
+            TestAResumeKeepsTheFirstSessionsIdentity.CONFIG,
+            "PPO",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            **kwargs,
         )
         if continues:
             record_resume_session(stage_dir, load_path=kwargs["load_path"], timesteps=kwargs["extra"]["timesteps"])
-        return json.loads(out.read_text())
+        data: dict[str, Any] = json.loads(out.read_text())
+        return data
 
     def test_each_resume_keeps_the_first_identity_and_appends_its_session(self, tmp_path, monkeypatch):
         from environments.shared.result_bundle import sha256_file
@@ -661,7 +675,7 @@ class TestAResumeKeepsTheFirstSessionsIdentity:
                 self.CONFIG,
                 "PPO",
                 extra={"seed": 42, "n_envs": 4, "timesteps": 300},
-                model_id=VELOCIRAPTOR,
+                model_id=VELOCIRAPTOR_MONGOLIENSIS,
                 load_path=str(periodic),
                 load_mode="resume_same_stage",
             ).read_text()
@@ -678,7 +692,12 @@ class TestAResumeKeepsTheFirstSessionsIdentity:
 
         stage_dir = tmp_path / "run" / "01_stance"
         save_stage_config(
-            stage_dir, 1, load_all_stages(VELOCIRAPTOR)[1], "PPO", extra={"timesteps": 1_000}, model_id=VELOCIRAPTOR
+            stage_dir,
+            1,
+            load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1],
+            "PPO",
+            extra={"timesteps": 1_000},
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         periodic = _sb3_style_zip(stage_dir / "models" / "stage1_400_steps.zip")
         monkeypatch.setattr(config_module, "get_git_commit", lambda: "d" * 40)
@@ -811,10 +830,10 @@ def _run_resume_cell(
 ) -> list[dict]:
     """Execute the RESUME cell on the compsognathus robot's interrupted *reference* (one intact periodic pair at
     *steps*), with ``RUN_DIR`` at *tmp_path*; the ``train_stage`` calls are kept in ``_run_resume_cell.calls``."""
-    models = tmp_path / stage_dirname(COMPSOGNATHUS_ROBOT, reference) / "models"
+    models = tmp_path / stage_dirname(COMPSOGNATHUS_LONGIPES_ROBOT, reference) / "models"
     label = stage_label(reference)
     _write_pair(models / f"{label}_{steps}_steps.zip", models / f"{label}_vecnormalize_{steps}_steps.pkl")
-    manifest = load_stage_manifest(COMPSOGNATHUS_ROBOT)
+    manifest = load_stage_manifest(COMPSOGNATHUS_LONGIPES_ROBOT)
     target = manifest.deliverables[-1] if behavior == "auto" else manifest.resolve_behavior(behavior)
     calls: list[dict] = []
     _run_resume_cell.calls = calls  # type: ignore[attr-defined]
@@ -824,13 +843,13 @@ def _run_resume_cell(
         return (None,) * 6
 
     namespace = {
-        "SPECIES": COMPSOGNATHUS_ROBOT.species,
-        "EMBODIMENT": COMPSOGNATHUS_ROBOT.embodiment,
-        "MODEL_ID": COMPSOGNATHUS_ROBOT,
+        "SPECIES": COMPSOGNATHUS_LONGIPES_ROBOT.species,
+        "EMBODIMENT": COMPSOGNATHUS_LONGIPES_ROBOT.embodiment,
+        "MODEL_ID": COMPSOGNATHUS_LONGIPES_ROBOT,
         "BEHAVIOR": behavior,
         "MANIFEST": manifest,
         "CHAIN": manifest.chain_for(target.id),
-        "STAGE_CONFIGS": load_all_stages(COMPSOGNATHUS_ROBOT),
+        "STAGE_CONFIGS": load_all_stages(COMPSOGNATHUS_LONGIPES_ROBOT),
         "QUICK_TEST": False,
         "RUN_DIR": tmp_path,
         "LOG_BASE": tmp_path / "logs",
@@ -879,7 +898,7 @@ class TestTheResumeCellWarns:
     ):
         from environments.shared import config as config_module
 
-        stage_dir = tmp_path / stage_dirname(COMPSOGNATHUS_ROBOT, 2)
+        stage_dir = tmp_path / stage_dirname(COMPSOGNATHUS_LONGIPES_ROBOT, 2)
         stage_dir.mkdir(parents=True)
         (stage_dir / "stage_config.json").write_text(json.dumps({"git_commit": "e" * 40}))
         monkeypatch.setattr(config_module, "get_git_commit", lambda: checkout)
@@ -942,11 +961,11 @@ def test_two_real_sessions_continue_the_diagnostics_and_keep_the_first_identity(
     from environments.shared.species_registry import get_species_config
     from environments.shared.task_fingerprint import TaskFingerprintError
 
-    configs = copy.deepcopy(load_all_stages(COMPSOGNATHUS))
+    configs = copy.deepcopy(load_all_stages(COMPSOGNATHUS_LONGIPES))
     configs[1]["ppo_kwargs"].update(n_steps=256, batch_size=64, n_epochs=1)
     out = tmp_path / "01_stance"
     common: dict[str, Any] = {
-        "species_cfg": get_species_config(COMPSOGNATHUS),
+        "species_cfg": get_species_config(COMPSOGNATHUS_LONGIPES),
         "stage_configs": configs,
         "stage": 1,
         "n_envs": 1,
