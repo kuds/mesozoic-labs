@@ -111,3 +111,15 @@ and run 3's settings and arguments. Each run writes to its own folder, on 8 vCPU
 | trike60-fore160-s1 | 15:13:02 | 1 | fore160 | trike60-fore160-s1 | 8 |
 | trike60-fore128-s2 | 15:12:56 | 2 | fore128 | trike60-fore128-s2 | 8 |
 | trike60-fore160-s2 | 15:12:47 | 2 | fore160 | trike60-fore160-s2 | 8 |
+
+## Round 2 finished, 25 Nov 2026
+
+Each run had one session, from step 0, completed at 10,002,432 steps, with its final pair finite. Each record passes
+the record checks of `judge_d22.checks`. The final pairs were downloaded from Drive (the sizes match Drive's; each
+from its own run's `checkpoints/` folder).
+
+| run | session (UTC) | hours | env steps/s | final pair, zip sha256 | vecnormalize sha256 |
+|---|---|---|---|---|---|
+| trike60-fore160-s1 | 15:13:02-20:05:54 | 4.88 | 569 | 85e6ec3b… | 024f36f6… |
+| trike60-fore128-s2 | 15:12:56-20:17:19 | 5.07 | 548 | e41f7bd9… | 029d6dab… |
+| trike60-fore160-s2 | 15:12:47-18:46:49 | 3.57 | 779 | 1f53d262… | 040f6355… |
