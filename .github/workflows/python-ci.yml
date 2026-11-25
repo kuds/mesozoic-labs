@@ -534,6 +534,7 @@ jobs:
             environments/shared/tests/test_train_wiring.py \
             environments/shared/tests/test_walk_command_mechanism.py \
             environments/shared/tests/test_widen_checkpoint.py \
+            environments/compsognathus_longipes/tests/test_probe_ppo_updates.py \
             -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_longipes_training and compsognathus_longipes-robot)' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:

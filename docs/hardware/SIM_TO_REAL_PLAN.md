@@ -44,7 +44,8 @@ charismatic species. The honest summary:
 - **The deepest technical gap is the observation space.** ~7 of the 70–86
   observation dimensions are *privileged simulator state* (world-frame base
   linear velocity and an absolute prey/food beacon) that **no onboard sensor can
-  measure**. Closing this needs a legged base-state estimator *and* an onboard
+  measure** (*2026-11-23: D-D59 removed the beacon with the prey; the base
+  velocity remains, §3.1*). Closing this needs a legged base-state estimator *and* an onboard
   perception stack — neither exists in the repo.
 - **The heavy species are not servo-buildable.** The T-Rex model (85 kg) now
   permits 1,800–2,250 N·m at its gait-critical hip/knee servos, and
@@ -60,6 +61,13 @@ charismatic species. The honest summary:
 ---
 
 ## 2. Where the Repo Stands Today
+
+*Update 2026-11-24 (decision D-D59, 2026-11-23):* this section, like §1,
+describes the repository before D-D59 removed the hunt and the prey. No
+observation carries a prey or food beacon any more, and the T. rex bite and
+the Brachiosaurus food reach it names as reported success are deleted with
+the hunt nodes; every chain ends at the walk, which since D-D62 (2026-11-24)
+follows a live command. §3.1's dated update gives the observation as it is.
 
 | Capability | Status | Source |
 |---|---|---|

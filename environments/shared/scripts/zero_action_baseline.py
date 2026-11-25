@@ -49,7 +49,8 @@ from environments.shared.result_bundle import read_bundle_status
 from environments.shared.species_names import add_model_id_argument, model_display_name, parsed_model_ids
 
 #: Legacy stage numbers this script accepts; files resolve via the manifest.
-KNOWN_STAGES = frozenset({1, 2, 3})
+#: 1 stance, 2 locomotion.  3 (the hunt) resolves to no stage since decision D-D59.
+KNOWN_STAGES = frozenset({1, 2})
 
 #: The models scored when no ``--model-id`` is given: the panel this tool has
 #: always measured, written out as models (decision D-D33) so its default

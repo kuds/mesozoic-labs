@@ -6,7 +6,8 @@ outputs.** The behaviors below train through a separate runner
 loop; their bundles are not certified deliverables and are not reused as
 training parents (decision D-D9). The SB3 training notebook has no
 direction/terrain path since the consolidation's notebook-only PR-12 slice
-(decision D-D13): its `BEHAVIOR` takes `stance`, `recover`, `walk`, `hunt` or a stage id, and
+(decision D-D13): its `BEHAVIOR` takes `stance`, `recover`, `walk` or a stage id (`hunt`, removed
+by decision D-D59, is refused naming `walk`), and
 its `BEHAVIOR_*` knobs are gone. The final goal (every model
 follows a direction on difficult terrain) is reached by re-homing
 `follow_direction` and `follow_direction_difficult_terrain` as manifest nodes
@@ -139,7 +140,7 @@ one training run.
 Each filename ends in `.toml`; for example,
 [`configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml).
 None of these names is a notebook `BEHAVIOR` value: the notebook's `stance`,
-`recover`, `walk`, `hunt` and stage-ID selections are the canonical curriculum only, until
+`recover`, `walk` and stage-ID selections are the canonical curriculum only, until
 PR-11 adds the direction and terrain nodes to the models' stage manifests.
 
 ## Model-specific recipe settings

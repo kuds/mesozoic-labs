@@ -59,7 +59,7 @@ def _entries(model_id: ModelId, *ids: str) -> list[tuple[str, Any]]:
 
 
 def test_certified_requires_the_whole_chain() -> None:
-    # trex: stance -> recovery, stance -> locomotion; every node a deliverable.
+    # The Tyrannosaurus rex: stance -> recovery, stance -> locomotion; every node a deliverable.
     entries = _entries(TYRANNOSAURUS_REX)
     certified = certified_deliverables(
         entries,

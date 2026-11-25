@@ -1671,9 +1671,11 @@ class BaseDinoEnv(gym.Env, ABC):
         info["step"] = self._step_count
         info["distance_traveled"] = self._distance_traveled
 
-        # SB3 convention: report episode success at episode end so
-        # EvalCallback records per-episode success rates (evaluations.npz
-        # "successes" array). CurriculumCallback reads these for gating.
+        # SB3 convention: report episode success at episode end.  No
+        # in-training reader collects it since decision D-D59
+        # (StageAwareEvalCallback never delegates SB3's success collection,
+        # so evaluations.npz gains no "successes" array and no gate reads
+        # one); a model's success is measured by the post-training panels.
         if terminated or truncated:
             info["is_success"] = bool(term_info.get("success", False))
 

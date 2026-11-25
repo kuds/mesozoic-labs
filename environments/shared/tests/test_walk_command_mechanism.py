@@ -701,7 +701,11 @@ def test_train_base_builds_the_ramp_on_every_load_mode_and_refuses_it_from_a_liv
     entry = train_base._cruise_ramp_callback(stage, task_load_mode="initialize_next_stage", load_path=str(stance))
     assert entry.start_ramp_steps == 0
     walker = _checkpoint(tmp_path / "walk.zip", {"mesozoic_task_fingerprint": {"command": {"schema": "x"}}})
-    with pytest.raises(CruiseRampError, match="already tracked a command"):
+    # The guidance names both keys: the loader refuses cruise_ramp_timesteps = 0 under an inherited start fraction.
+    with pytest.raises(
+        CruiseRampError,
+        match=r"already tracked a command.*state cruise_ramp_start_fraction = 1\.0 and cruise_ramp_timesteps = 0",
+    ):
         train_base._cruise_ramp_callback(stage, task_load_mode="initialize_next_stage", load_path=str(walker))
     record = cruise_ramp_record(RAMP, steps_before_session=0, session_start_num_timesteps=0)
     resumed = _checkpoint(tmp_path / "ckpt.zip", {MODEL_CRUISE_RAMP_ATTRIBUTE: record, "num_timesteps": 40_000})
@@ -994,6 +998,40 @@ def test_the_committed_walk_resumes_its_cruise_ramp_where_its_checkpoint_left_it
     assert record["steps_before_session"] == position
     (again,) = (tmp_path / "resume" / "models").glob("*_final.zip")
     assert resume_ramp_steps(again, command) == position + resumed.num_timesteps - record["session_start_num_timesteps"]
+
+
+def test_a_same_stage_resume_of_a_live_stage_under_another_seed_is_refused(tmp_path):
+    """A live stage's evaluation panel is drawn from the run's seed (D-D62 (20)), so a ``resume_same_stage`` given
+    another seed is refused before the re-save rewrites ``run.seed``: into the stage directory it continues, and
+    into a fresh one (the CLI's default) by the record beside the checkpoint.  The run's own seed, a stance, a
+    warm start and a record without a seed are not refused."""
+    from environments.shared import train_base
+
+    interrupted = tmp_path / "interrupted"
+    (interrupted / "models").mkdir(parents=True)
+    (interrupted / "stage_config.json").write_text(json.dumps({"stage": "locomotion", "run": {"seed": 5}}))
+    checkpoint = str(interrupted / "models" / "locomotion_256_steps")
+    live = {"env_kwargs": {"command_mode": "heading_and_speed"}}
+
+    def refuse(config: dict[str, Any], seed: int, log_path: Path, mode: str = "resume_same_stage") -> None:
+        train_base._refuse_resume_seed_change(
+            config, seed=seed, log_path=log_path, load_path=checkpoint, task_load_mode=mode
+        )
+
+    for log_path in (interrupted, tmp_path / "fresh"):
+        with pytest.raises(
+            ValueError, match=r"records run\.seed 5.*given seed 6.*D-D62 \(20\).*--seed 5 \(the notebook's SEED = 5\)"
+        ):
+            refuse(live, 6, log_path)
+        refuse(live, 5, log_path)
+        refuse({"env_kwargs": {"command_mode": "none"}}, 6, log_path)
+        refuse({"env_kwargs": {}}, 6, log_path)
+        refuse(live, 6, log_path, mode="initialize_next_stage")
+    train_base._refuse_resume_seed_change(
+        live, seed=6, log_path=interrupted, load_path=None, task_load_mode="resume_same_stage"
+    )
+    (interrupted / "stage_config.json").write_text(json.dumps({"stage": "locomotion", "run": {}}))
+    refuse(live, 6, interrupted)
 
 
 # ---------------------------------------------------------------------------
@@ -1354,7 +1392,7 @@ def test_the_state_probes_score_a_live_stage_as_its_step_does():
 
 @pytest.mark.parametrize("model_id", [TYRANNOSAURUS_REX, ALLOSAURUS_FRAGILIS], ids=str)
 def test_a_recipe_env_keeps_the_spawn_anchors_and_the_none_course(model_id):
-    """The pilot recipes' rollouts are the Phase D golden's: their terms and the Allosaurus course read the spawn."""
+    """The pilot recipes' rollouts are the D-D60 golden's: their terms and the Allosaurus course read the spawn."""
     from environments.shared.train_behaviors import create_behavior_env
 
     env = create_behavior_env(model_id, commands=DirectionCommandConfig(**WALK), terrain=None, run_seed=0)

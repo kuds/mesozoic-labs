@@ -23,6 +23,29 @@ robustness, **LOW** = cosmetic / QoL.
 
 ## Training / RL
 
+- **HIGH** — **the walk's `command_tracking/v1` bars are provisional, and no
+  controller in the repository has been shown to clear them (2026-11-24,
+  decision D-D62 (16)).** Every committed walk follows a live command and is
+  judged by the gate's walk profile at `PROVISIONAL_WALK_THRESHOLDS` and the
+  model's gait clause. On the real plants the zero-action statue fails every
+  walk on the cruise family's success bound (0 of 20). The repository's
+  reference walks, under a command they match, read a per-step tracking
+  quality of 0.14 (T. rex, Allosaurus) and 0.32 (brachiosaurus), are in
+  tolerance on 14-30% of their steps and fail `heading_settle` and
+  `min_cruise_tracking_fraction` on every cruise episode: the tracking term
+  and the gate read the pelvis every step, and a gait sways within its
+  stride. At the cruise ramp's start the statue earns more tracking than a
+  reference-quality walk. Also open: the Compsognathus pair's tracking sigma
+  lies under an estimate of a home-width gait's lateral sway;
+  `gait_symmetry` pays a quadruped statue its whole weight; no controller
+  walks the dibothrosuchus inside its commanded speeds; the brachiosaurus
+  reference walk's hind-pair alternation reads 0.786 on its worst episodes
+  against the 0.75 bar; and a flightless quadruped bound whose feet swing
+  their lead clears every quadruped bar (measured on synthetic floor truth).
+  No weight, sigma or bar was changed for them. The options, a
+  stride-averaged tracking measure or bars re-frozen from a pilot, are the
+  maintainer's; until one is resolved, no document calls the walk gate
+  attainable.
 - **HIGH** — **Completed short stance reward pilots remain uncertified;
   the base T-Rex stance reward is CoP-indifferent, and the velociraptor
   fails by an exploration-driven hop plus an unloaded digit IV.** The
@@ -1279,6 +1302,17 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). Plan:
   `locomotion_gait/v1` in the six locomotion TOMLs, then retrains
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G5 and PR-G7; GQ-8, open).
+  *Update (2026-11-24, decisions D-D61 and D-D62):* this describes the walk
+  gate before the command-driven walk. `reward_and_length/v1` now judges no
+  locomotion stage: all seven `locomotion.toml` declare `command_tracking/v1`,
+  whose walk profile judges every panel episode and whose gait clause reads
+  each cruise episode's floor-truth footfalls (GAIT_QUALITY_PLAN GQ-8 (a),
+  GQ-9 (a), GQ-18; D-D61 (7)). `locomotion_gait/v1` was not built; the walk
+  gate's gait clause takes its place. Its bars are provisional and no
+  controller has yet been shown to clear them (D-D62 (16), the first item of
+  this section). The item stays open until a walk certifies under that gate;
+  the hopping certificates named above are stranded in any case by plant note
+  24, which refuses every earlier checkpoint.
 
 - **HIGH (hardware target)** — **the Compsognathus robot stands and walks on
   stacked feet, and its touch sensors count sole-on-sole force as support
@@ -1479,6 +1513,14 @@ robustness, **LOW** = cosmetic / QoL.
   panel passed the 1.0 bar. Plan: per-episode qualification under
   `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
   GQ-7, open for locomotion; taken for stance only, as D-D23, on 2026-10-06).
+  *Update (2026-11-24, decisions D-D61 and D-D62):* this no longer applies to
+  any committed stage. Every walk is judged per episode by
+  `command_tracking/v1`'s walk profile: at 20 cruise episodes
+  `min_cruise_survival_lcb` 0.80 is cleared only by 20 of 20 reaching the
+  horizon, so a lunge that falls fails, and the gait clause judges each
+  cruise episode's footfalls. The panel-mean reading above is `reward_and_length/v1`'s,
+  which judges no locomotion stage now. The walk profile's bars are
+  provisional (D-D62 (16)).
 
 - **MEDIUM** — **the recovery safe set has no support clause, and the
   certified T-Rex recovery answers forward pushes with two-footed hops
@@ -1916,7 +1958,10 @@ robustness, **LOW** = cosmetic / QoL.
   session's rollout diagnostics at its first save; one into a fresh
   directory holds the resumed session's rows only. The stage report's
   training-diagnostics figures (`visualization.py`) and
-  `scripts/compare_run_diagnostics.py` then start at the resumed checkpoint.
+  `scripts/compare_run_diagnostics.py` then start at the resumed checkpoint;
+  the command-tracking figure's tracking-fraction panel (2026-11-24) does
+  too, and marks the step its recorded history starts at, since its
+  cruise-ramp shading spans the whole run.
   Report-only: no gate, verdict or digest reads it. Fix: seed the
   callback from the `diagnostics.npz` beside the `evaluations.npz` being
   seeded, dropping rows after the resumed checkpoint, as

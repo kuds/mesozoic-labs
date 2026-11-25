@@ -1039,6 +1039,25 @@ def _recorded_cruise_ramp(stage_dir: "str | Path") -> "tuple[float, int] | None"
     return float(start), int(timesteps)
 
 
+def _records_a_same_stage_resume(stage_dir: "str | Path") -> bool:
+    """Whether *stage_dir*'s recorded run continued a checkpoint of its own stage.
+
+    ``save_stage_config`` records a root's resume as ``run.load_mode``
+    ``"resume_same_stage"`` with its ``load_path``, and the resume of a stage
+    that entered from its parent under ``run.resume_load_path``
+    (:data:`~environments.shared.config.RESUME_LINEAGE_KEYS`).
+    """
+    from .config import read_recorded_stage_config
+
+    record = read_recorded_stage_config(stage_dir) or {}
+    run = record.get("run")
+    if not isinstance(run, dict):
+        return False
+    if run.get("resume_load_path"):
+        return True
+    return run.get("load_mode") == "resume_same_stage" and bool(run.get("load_path"))
+
+
 def plot_command_tracking(
     stage_dir: "str | Path",
     *,
@@ -1218,7 +1237,7 @@ def plot_command_tracking(
         matches = rows[0]["record_matches_report"] if rows else False
         provenance = "the certified episode" if matches else "re-rolled; its record is not the report's"
         speed_axis.set_title(
-            f"{family} episode, seed {seed}, commanded {commanded[0]:.2f} m/s ({provenance})\n"
+            f"{family} episode, seed {seed}, commanded {commanded[0]:.3g} m/s ({provenance})\n"
             + textwrap.fill(verdict, width=90),
             fontsize=9,
         )
@@ -1235,6 +1254,16 @@ def plot_command_tracking(
     if history is not None:
         timesteps, fraction = history
         training.plot(timesteps / 1e6, fraction, color="C0", label="in-tolerance fraction of training steps")
+        recorded = timesteps[np.isfinite(timesteps)]
+        if recorded.size:
+            # The marker says where the recorded series starts (the first rollout's step).  diagnostics.npz holds
+            # this session's rollouts only: a same-stage resume does not continue it (KNOWN_ISSUES), so only a
+            # stage that records one gets the caveat that its series starts after the run did.
+            first = float(recorded.min())
+            label = f"training history recorded from step {first:,.0f}"
+            if _records_a_same_stage_resume(stage_dir):
+                label += " (this stage resumed a checkpoint; diagnostics.npz is not continued across a resume)"
+            training.axvline(first / 1e6, color="C0", linestyle=":", linewidth=0.9, label=label)
         bar_key = _TRACKING_BAR_KEYS.get(str(report.get("profile") or curriculum.get("profile")))
         bar_value = curriculum.get(bar_key) if bar_key else None
         if isinstance(bar_value, (int, float)) and not isinstance(bar_value, bool):
@@ -1251,7 +1280,6 @@ def plot_command_tracking(
             label = f"cruise ramp: commanded speeds {start_fraction:g} to 1 x the end state"
             # Clipped to the history's last rollout, so a run shorter than its ramp (a quick test) keeps the axis
             # its data spans; the label says the ramp goes on past it.
-            recorded = timesteps[np.isfinite(timesteps)]
             last = float(recorded.max()) if recorded.size else float(ramp_timesteps)
             if ramp_timesteps > last:
                 length = f"{ramp_timesteps / 1e6:.1f}M" if ramp_timesteps >= 1_000_000 else f"{ramp_timesteps / 1e3:g}k"

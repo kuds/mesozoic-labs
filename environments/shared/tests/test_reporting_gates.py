@@ -2,6 +2,7 @@
 
 import pytest
 
+from environments.shared.curriculum.gate_schema import GATE_KINDS
 from environments.shared.reporting import evaluate_recorded_gate, evaluate_stage_gate
 
 
@@ -288,7 +289,9 @@ class TestRetiredTaskSuccessGate:
         assert passed is False
         assert failures == [
             "stage 3: gate_kind 'task_success/v1' was removed with the hunt nodes (decision D-D59); no gate reader "
-            "evaluates it, so a stage or record declaring it is refused",
+            "evaluates it, so a stage or record declaring it is refused (a stage declares a registered kind "
+            f"instead, e.g. 'command_tracking/v1' for a walk; known kinds: {sorted(GATE_KINDS)}; a frozen record "
+            "cannot be re-judged, so retrain the stage)",
             "stage 3: [curriculum] key 'min_success_lcb' was removed with the hunt nodes (decision D-D59); no gate "
             "reader evaluates it, so a stage or record setting it is refused (delete the key)",
         ]

@@ -1,6 +1,6 @@
-"""Golden rollouts of the pilot behavior recipes (Phase D, BEHAVIOR_RECIPES_PLAN §4.6).
+"""Golden rollouts of the pilot behavior recipes (decision D-D60, BEHAVIOR_RECIPES_PLAN §4.6).
 
-Phase D moved the command-tracking reward, the tracking metrics and info
+Decision D-D60 moved the command-tracking reward, the tracking metrics and info
 keys and the tracking dwell out of ``behavior_env.SpeciesBehaviorMixin`` into
 ``BaseDinoEnv``, where a manifest stage with a live ``[commands]`` table runs
 the same code.  The move must change nothing a pilot recipe does.  This

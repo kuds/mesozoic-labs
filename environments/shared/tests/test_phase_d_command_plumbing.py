@@ -1,4 +1,4 @@
-"""Phase D command plumbing (decision D-D60): manifest stages can run a live command.
+"""The command plumbing of decision D-D60: manifest stages can run a live command.
 
 * **[commands]** in a stage TOML builds the stage's ``command_mode`` and
   ``DirectionCommandConfig`` (``config.load_stage_config``);

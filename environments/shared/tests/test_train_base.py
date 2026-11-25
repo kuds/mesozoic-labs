@@ -1633,9 +1633,10 @@ class TestTrainCurriculumWalksTheManifest:
             assert kwargs["plant_identity"] is plant
 
     def test_the_walk_records_the_floor_truth_result_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
-        """train_curriculum passes stage_result= to write_gate_verdict for the floor-truth stance (the trex stance's
-        six-heading certificate since D-D32; stubbed by ``_run``) and None for every other kind: the wiring, not
-        only the helper, is pinned. The in-training task_success/v1 record left with the gate (decision D-D59)."""
+        """train_curriculum passes stage_result= to write_gate_verdict for the floor-truth stance (the Tyrannosaurus
+        rex stance's six-heading certificate since D-D32; stubbed by ``_run``) and None for every other kind: the
+        wiring, not only the helper, is pinned. The in-training task_success/v1 record left with the gate (decision
+        D-D59)."""
         from environments.shared import train_base
 
         assert not hasattr(train_base, "_in_training_task_success_result")

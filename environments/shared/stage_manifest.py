@@ -92,7 +92,9 @@ STAGE_MANIFEST_SCHEMAS = (STAGE_MANIFEST_SCHEMA_V1, STAGE_MANIFEST_SCHEMA_V2)
 #: without a manifest in hand, and the numbered three map through
 #: :data:`LEGACY_STAGE_IDS`.  ``behavior`` (legacy stage 3, the hunt) stays
 #: reserved although no committed manifest declares it since decision D-D59:
-#: old run directories still carry it, and no new node may reuse the id.
+#: old run directories still carry it.  The loader still accepts a
+#: ``behavior`` node with legacy number 3 under any label but ``hunt``, as the
+#: test ladder (``tests/ladder_helpers.py``) declares one.
 RESERVED_STAGE_IDS = ("stance", "recovery", "locomotion", "behavior")
 
 #: Semantic identity of the historical numeric stages, used to validate that

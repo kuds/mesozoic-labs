@@ -450,7 +450,9 @@ def retired_gate_declarations(curriculum: Mapping[str, Any]) -> list[str]:
     ``retired_gate_declarations({"gate_kind": "task_success/v1"})`` is
     ``["gate_kind 'task_success/v1' was removed with the hunt nodes
     (decision D-D59); no gate reader evaluates it, so a stage or record
-    declaring it is refused"]``, and a retired key
+    declaring it is refused (a stage declares a registered kind instead,
+    e.g. 'command_tracking/v1' for a walk; known kinds: [...]; a frozen
+    record cannot be re-judged, so retrain the stage)"]``, and a retired key
     such as ``min_success_rate`` reads ``"[curriculum] key
     'min_success_rate' was removed with the hunt nodes (decision D-D59);
     ..."``.  The kind comes first, then the keys in sorted order; a
@@ -462,7 +464,9 @@ def retired_gate_declarations(curriculum: Mapping[str, Any]) -> list[str]:
         decision, removed_with = RETIRED_GATE_KINDS[kind]
         messages.append(
             f"gate_kind {kind!r} was removed with {removed_with} (decision {decision}); no gate reader "
-            "evaluates it, so a stage or record declaring it is refused"
+            "evaluates it, so a stage or record declaring it is refused (a stage declares a registered kind "
+            f"instead, e.g. 'command_tracking/v1' for a walk; known kinds: {sorted(GATE_KINDS)}; a frozen "
+            "record cannot be re-judged, so retrain the stage)"
         )
     keys = set(curriculum)
     for table in BACKEND_OVERRIDE_TABLES & keys:

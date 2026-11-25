@@ -1,4 +1,4 @@
-"""The command observation slice held at identity normalization (decision D-D60, Phase D part 2).
+"""The command observation slice held at identity normalization (decision D-D60 (5)).
 
 * **The hold** (``curriculum.command_identity``): ``CommandIdentityCallback``
   is first in every stage's callback list and re-imposes mean 0 / variance 1

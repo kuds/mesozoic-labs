@@ -111,7 +111,7 @@ class TestLaunchOption:
         species_cfg = MagicMock()
         species_cfg.model_id = TYRANNOSAURUS_REX
         species_cfg.stage_descriptions = "1=stance"
-        stages = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        stages = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2)})
         base = ["prog", "train", "--stage", "1", "--timesteps", "1000"]
         for extra, expected in (
             ([], None),

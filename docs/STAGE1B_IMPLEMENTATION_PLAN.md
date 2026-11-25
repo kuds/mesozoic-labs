@@ -311,7 +311,8 @@ trajectories when disabled is the acceptance test.
   policy and every null controller on the same seed (pairing is part of the
   1b gate's estimand); realized schedule persisted with the run. Magnitude
   derives from capture-velocity multiple × **kinematic-subtree mass** (not
-  `mj_getTotalmass`, which includes the 65.45 kg prey body — split plan §6).
+  `mj_getTotalmass`, which included the 65.45 kg prey body until decision
+  D-D59 removed it on 2026-11-23 — split plan §6).
 - **Config**: `perturbation_*` keys in `[env]`, defaulting to 0.0/off for
   every species and stage; register them in the fail-closed key validation the
   same way the `stance_probe_*` keys are registered, so a typo is fatal, and

@@ -205,7 +205,12 @@ closing it.
   the pack, is the limit.
 - **Control:** ✅ compute is trivial; the real risk is the **observation gap** —
   world-frame base velocity and the prey beacon are privileged sim state needing
-  a base-state estimator + perception stack (neither exists).
+  a base-state estimator + perception stack (neither exists). (*2026-11-24:
+  decision D-D59 removed the prey beacon with the prey, so no perception stack
+  is needed for it; the base velocity, read in the gravity-aligned heading frame
+  since the velociraptor's heading-free observations
+  (`configs/plant_versions.toml` note 21, 2026-11-06), is still privileged state
+  that needs the estimator, [`SIM_TO_REAL_PLAN.md`](SIM_TO_REAL_PLAN.md) §3.1.*)
 
 **Build effort:** ~200–320 h over 2–4 months part-time (CAD, ~16 kg of printing,
 assembly, CAN/FOC bring-up, PD tuning, sim-to-real). **Skills:** robot CAD,
@@ -230,7 +235,12 @@ power electronics, legged control + state estimation, RL sim-to-real.
 5. **Both totals are HARDWARE ONLY.** The base-state estimator, perception/
    prey-beacon stack, domain randomization, and policy retraining for the
    as-built mass are excluded and are the real critical path (see
-   [`SIM_TO_REAL_PLAN.md`](SIM_TO_REAL_PLAN.md) §3.1, §5).
+   [`SIM_TO_REAL_PLAN.md`](SIM_TO_REAL_PLAN.md) §3.1, §5). (*2026-11-24:
+   decision D-D59 removed the prey beacon with the prey, so that stack drops
+   out; the remaining privileged input is the base velocity, in the
+   gravity-aligned heading frame on every model since
+   `configs/plant_versions.toml` note 24 (the velociraptor's since note 21) and
+   still the estimator's job, §3.1.*)
 6. **Geared hobby actuators deliver peak torque only momentarily** and wear/
    overheat under repeated foot-impact loading. Keep sustained torque well below
    peak; budget for periodic gear/servo replacement.

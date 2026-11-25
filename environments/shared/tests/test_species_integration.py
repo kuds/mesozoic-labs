@@ -6,9 +6,9 @@ determinism, observation validity, basic functionality, and common reward
 invariants.
 
 Per-species test files should only contain tests for species-unique behavior
-(e.g. tail termination for raptor, head termination for T-Rex, the snout-prop
-termination for dibothrosuchus).  All shared behavior is tested here via
-parametrization.
+(e.g. tail termination for the velociraptor, head termination for the
+Tyrannosaurus rex, the snout-prop termination for the dibothrosuchus).  All
+shared behavior is tested here via parametrization.
 """
 
 import numpy as np

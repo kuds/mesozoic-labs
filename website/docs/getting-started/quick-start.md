@@ -70,8 +70,10 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 
 `--label TEXT` tags a run (train or curriculum). Stage directories inside a run
 are named `{position:02d}_{id}` (`01_stance`, `02_locomotion`);
-the handoff the curriculum promotes is `robust_best_model`, else `best_model`,
-with its `_vecnorm.pkl` sidecar. The default `--load-mode resume_same_stage`
+a stance or recovery hands on `robust_best_model`, else `best_model`, and the walk hands
+on the pair its `models/handoff_choice.json` chose
+([Behavior Recipes](/docs/training/recipes)), each with its `_vecnorm.pkl`
+sidecar. The default `--load-mode resume_same_stage`
 requires an exact task match, so a parent's checkpoint must be loaded with
 `--load-mode initialize_next_stage`, which in turn refuses a checkpoint whose
 recorded stage is not the node's declared parent. A stage directory that

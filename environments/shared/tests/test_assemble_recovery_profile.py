@@ -35,8 +35,10 @@ EDITED_SINCE_MEASUREMENT = {
     # whose task fingerprint, reset stream and digests are unchanged.  Decision D-D62 added the live walk's rules
     # (the command's forward reference and drift anchor, the stand block, the idle gate, set_command_config), each
     # keyed on a live command: under "none" the recovery's rollouts replay byte for byte
-    # (test_none_stage_rollout_golden.py) and its task_sha256 is unchanged.
-    "environments/shared/base_env.py": "0dbe7a19618c1b094221d22c2086634a5028e3815468cc58ec4f9aec5f1f894a",
+    # (test_none_stage_rollout_golden.py) and its task_sha256 is unchanged.  2026-11-24: a comment-only edit, no
+    # behavior change (the is_success comment in _step_body now says no in-training reader collects it since
+    # decision D-D59).
+    "environments/shared/base_env.py": "c56fff1d42a74c21d32f53e90e649ed2ec2cf2fb67559ea3cd5b346251c74469",
     # Decision D-D62: the species reward reads BaseDinoEnv's forward reference and drift anchor, which under the
     # recovery's command_mode "none" are the spawn arrays it read before (the same golden proves it).
     "environments/compsognathus_longipes/base_env.py": "303d40f3aa13f5cf65159eb180061b7214f941eff4d9c47c531d1b4e8ee12ba8",

@@ -195,6 +195,50 @@ def _command_evaluation_plan(stage_config: dict[str, Any], seed: "int | None") -
     )
 
 
+def _refuse_resume_seed_change(
+    stage_config: dict[str, Any],
+    *,
+    seed: int,
+    log_path: Path,
+    load_path: str | None,
+    task_load_mode: str,
+) -> None:
+    """Refuse a same-stage resume of a live-command stage under a seed other than the run's (decision D-D62 (20)).
+
+    A live stage's in-training evaluation rolls one panel drawn from the run's
+    evaluation seed (:func:`_command_evaluation_plan`), and a resume seeds its
+    best trackers and evaluation history from the prior session's record, so
+    a resume under another seed would rank the prior evaluations' mean against
+    another panel's and rewrite the record's ``run.seed``.  The run's seed is
+    read from this directory's ``stage_config.json``, else from the one beside
+    the checkpoint (``<stage_dir>/models/<checkpoint>``, the directory the
+    CLI's default resume, which mints a fresh one, seeds its history from).
+    Stance and recovery (``command_mode = "none"``) are untouched; a record
+    that names no seed is not refused.
+    """
+    from .command_frame import COMMAND_MODE_NONE
+    from .config import read_recorded_stage_config
+
+    if not load_path or task_load_mode != "resume_same_stage":
+        return
+    if str(stage_config.get("env_kwargs", {}).get("command_mode", COMMAND_MODE_NONE)) == COMMAND_MODE_NONE:
+        return
+    for stage_dir in (Path(log_path), Path(load_path).resolve().parent.parent):
+        record = read_recorded_stage_config(stage_dir)
+        if record is None:
+            continue
+        run_block = record.get("run")
+        recorded = run_block.get("seed") if isinstance(run_block, dict) else None
+        if isinstance(recorded, int) and not isinstance(recorded, bool) and recorded != seed:
+            raise ValueError(
+                f"{stage_dir / 'stage_config.json'} records run.seed {recorded}, and this same-stage resume of a "
+                f"live-command stage was given seed {seed}: its in-training evaluation panel is drawn from the "
+                f"run's seed, so a resume under another one would rank the prior evaluations against another "
+                f"panel (decision D-D62 (20)). Resume with --seed {recorded} (the notebook's SEED = {recorded})."
+            )
+        return
+
+
 def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
     """Episodes per evaluation, never fewer than the stage's gate requires.
 
@@ -1439,7 +1483,10 @@ def _cruise_ramp_callback(
     whose task fingerprint has a ``command`` section is refused: that parent
     was trained at the full cruise, and the warm start keeps its command
     columns so the child continues it exactly (decision D-D60 (5)); such a
-    stage states ``cruise_ramp_timesteps = 0`` in its ``[commands]``.
+    stage states ``cruise_ramp_start_fraction = 1.0`` and
+    ``cruise_ramp_timesteps = 0`` in its ``[commands]``, overriding the pair
+    it inherits from the walk (the loader refuses a ramp of zero steps whose
+    start fraction is below 1).
     """
     config = stage_config.get("env_kwargs", {}).get("command_config")
     if config is None or not config.has_cruise_ramp:
@@ -1454,8 +1501,8 @@ def _cruise_ramp_callback(
         if parent is not None and parent.get("command") is not None:
             raise CruiseRampError(
                 f"the stage declares a cruise ramp, but its parent {load_path} already tracked a command: the warm "
-                "start continues it exactly at the full cruise, so state cruise_ramp_timesteps = 0 (and no start "
-                "fraction) in the stage's [commands]"
+                "start continues it exactly at the full cruise, so state cruise_ramp_start_fraction = 1.0 and "
+                "cruise_ramp_timesteps = 0 in the stage's [commands]"
             )
     elif load_path:
         start = resume_ramp_steps(load_path, config)
@@ -2231,6 +2278,8 @@ def train(
     # save_stage_config records below (None when nothing is loaded), so a
     # from-scratch run under the default resume_same_stage is refused too.
     refuse_occupied_stage_dir(log_path, task_load_mode=task_load_mode if load_path else None)
+    # Before the re-save below rewrites the record's run.seed.
+    _refuse_resume_seed_change(config, seed=seed, log_path=log_path, load_path=load_path, task_load_mode=task_load_mode)
 
     log_path.mkdir(parents=True, exist_ok=True)
     model_dir = log_path / "models"

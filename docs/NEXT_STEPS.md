@@ -42,7 +42,9 @@ compsognathus_robot `20260924_031815`), and only compsognathus
 zero-action statue passes every stance gate; the robot's touch sensors count
 sole-on-sole contact as floor support; and the in-progress dibothrosuchus
 re-run `20260928_012318` is, at 4.3M, a three-legged skid its gate would pass.
-No locomotion gate reads a foot contact.
+No locomotion gate read a foot contact then; since D-D61 and D-D62 (2026-11-23
+and 2026-11-24) every walk's `command_tracking/v1` gate judges each cruise
+episode's floor-truth footfalls through its gait clause, at provisional bars.
 [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) proposes the fix
 (floor-truth gait measurement, per-episode gait gates, per-species reward
 revisions) and puts all of its code after the 0.3.9 cut and, by the
@@ -219,9 +221,13 @@ dibothrosuchus 1560 → 1500).* *2026-11-24 (decision D-D62): the walk is now
 command-driven on all seven models: it follows a forward cruise command with
 a small initial heading offset and holds a stop on about 15% of its episodes,
 under the `command_tracking/v1` walk gate, whose bars are provisional and not
-yet shown attainable (D-D62 (16)). A walk session needs a stance retrained on
-the current interface first (its warm start begins command-blind), and the
-follow-direction nodes that widen the walk come in later changes.* Section 2 labels each
+yet shown attainable: D-D62 (16) leaves its open risks, per-step tracking
+under a gait's sway first among them, to the maintainer (KNOWN_ISSUES). A
+walk session needs a stance retrained on the current interface first (its
+warm start begins command-blind). The follow-direction nodes that widen the
+walk are next and not built; until one exists, or a command-free walk config
+is added, the terrain recipes have no parent a user can produce. The
+development version is `0.4.0.dev3` from this day.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -320,7 +326,8 @@ run-level summaries. A cell ending "gait audit 2026-09-28: …" gives, in plain
 words, what the 2026-09-28 replays show that node doing
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md)
 §4); the label changes no certification fact, and a verdict still certifies
-only what its gate checks (no locomotion gate reads a foot contact).
+only what its gate checks (no locomotion gate read a foot contact then; since
+D-D61 and D-D62 the walk gate's gait clause does).
 *2026-10-06: T-Rex is physics r8 since D-D24, so the plant contract refuses every
 T-Rex run below (physics r7) and none is reused; each T-Rex row ends with a dated
 "stranded by physics r8" note, and its facts are as they were.*
@@ -1030,7 +1037,9 @@ Not recommended yet: direction/terrain pilots (evaluation only, D-D9; command
 line only from the notebook-only PR-12 slice on, with `--checkpoint` /
 `--vecnormalize` naming the pair, [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md);
 one T-Rex `follow_direction` pilot pointed at the September walker's locomotion
-checkpoint pair is harmless but disposable) and T-Rex hunting (off the direction path). Never
+checkpoint pair is harmless but disposable; since decision D-D62 no committed
+path produces a walker a pilot can start from, section 1's note of
+2026-11-24). T-Rex hunting is removed (decision D-D59). Never
 re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 
 ---
@@ -1067,7 +1076,7 @@ and PR-14a .. PR-14c (landed by `0.3.9`), whose sections the plan's §3 keeps as
 | PR-8 | One behavior env, part 2: one terrain selector (`terrain_sampler` kwarg, `terrain_contact` family), command constants imported from `command_frame`, delete `BehaviorVecNormalize` | M (about −170) | PR-7; D-D3 |
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
-| PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
+| PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `locomotion` (planned after the hunt node `behavior`, which decision D-D59 removed), trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
 | PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
 | PR-15 | Docs fold (a residual pass for PR-8 .. PR-13), pin budget; the CHANGELOG half and the notebook-cell helper are done (the plan's PR-15 section) | M (about −290) | PR-14c |

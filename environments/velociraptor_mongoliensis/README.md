@@ -137,8 +137,9 @@ that read a forward direction measure along the commanded heading. On a zero com
 place. The commanded speeds ramp from 0.25 of their end values to the full range over the first 2M training steps.
 After training the walk is judged on its `command_tracking/v1` panel: the cruise family's survival and success bounds,
 the stand family's hold and the biped gait clause, with no flight cap since its cruise reaches Froude 0.82. The bars
-are provisional, and no controller has yet been shown to clear them; the running half of the speed range has no
-measured gait, so the staggered-hop risk of decision D-D61 (7) stays open.
+are provisional, and no controller has yet been shown to clear them (decision D-D62 (16)). No gait has been measured
+in the commanded 1.05-2.1 m/s range (the reference walk runs at 0.257 m/s), and with no flight cap the staggered-hop
+risk of decision D-D61 (7) stays open (D-D62 (12)).
 
 The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
 frame, beside the joint state, the pelvis gyro and accelerometer, one channel per foot touch sensor and the command.

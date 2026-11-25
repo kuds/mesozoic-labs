@@ -1283,3 +1283,74 @@ class TestDetectStageFromPath:
         path = "/runs/x/follow_direction/models/best_model.zip"
         assert detect_stage_from_path(path) == 1
         assert detect_stage_from_path(path, model_id=PILOT) == 1
+
+
+class TestEvaluateRefusesAHuntCheckpointPath:
+    """Auto-detection refuses a hunt (legacy stage 3) path, never falling back to the stance (D-D59)."""
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/runs/tyrannosaurus_rex/stage3/best_model.zip",
+            "/runs/x/stage3/stage3_final.zip",
+            "/runs/x/03_behavior/models/best_model.zip",
+            "/runs/x/03_behavior_20260901_120000/models/best_model.zip",
+            "/runs/20260819/behavior/models/best_model.zip",
+        ],
+    )
+    def test_a_hunt_path_is_refused_naming_the_decision_and_the_walk(self, path):
+        from environments.shared.config import load_all_stages
+
+        mock_sb3 = _mock_sb3()
+        species_cfg = SimpleNamespace(
+            model_id=TYRANNOSAURUS_REX, env_class=MagicMock(), height_label="Pelvis height", success_keys=[]
+        )
+        stage_configs = load_all_stages(TYRANNOSAURUS_REX)
+        assert 3 not in stage_configs and 1 in stage_configs
+
+        with (
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
+            pytest.raises(ValueError, match="D-D59") as refused,
+        ):
+            evaluate(species_cfg=species_cfg, stage_configs=stage_configs, model_path=path, render=False)
+
+        assert "--stage locomotion" in str(refused.value)
+        species_cfg.env_class.assert_not_called()
+        mock_sb3["DummyVecEnv"].assert_not_called()
+
+    def test_only_the_component_detection_reads_decides(self):
+        from environments.shared.config import load_all_stages
+        from environments.shared.evaluation import _retired_hunt_path_component
+
+        stage_configs = load_all_stages(TYRANNOSAURUS_REX)
+        # The deepest stage component wins, as in detect_stage_from_path.
+        assert (
+            _retired_hunt_path_component("/runs/stage3/02_locomotion/models/best.zip", stage_configs, TYRANNOSAURUS_REX)
+            is None
+        )
+        assert (
+            _retired_hunt_path_component("/runs/03_behavior/stage2/best.zip", stage_configs, TYRANNOSAURUS_REX) is None
+        )
+        assert _retired_hunt_path_component("/tmp/some_model.zip", stage_configs, TYRANNOSAURUS_REX) is None
+        # A model that still declares stage 3 (the ladder fixture's shape) is not refused.
+        assert (
+            _retired_hunt_path_component("/runs/x/stage3/best.zip", {**stage_configs, 3: {}}, TYRANNOSAURUS_REX) is None
+        )
+
+    def test_an_explicit_stage_the_model_lacks_is_refused_before_any_environment(self):
+        mock_sb3 = _mock_sb3()
+        species_cfg = _species_cfg()
+
+        with (
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
+            pytest.raises(ValueError, match=r"unknown stage 3 for this model; available: \['1'\]"),
+        ):
+            evaluate(
+                species_cfg=species_cfg,
+                stage_configs={1: {"name": "stance", "env_kwargs": {}}},
+                model_path="/tmp/model.zip",
+                render=False,
+                stage=3,
+            )
+
+        species_cfg.env_class.assert_not_called()

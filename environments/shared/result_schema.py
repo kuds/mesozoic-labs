@@ -33,8 +33,10 @@ least one is, ``failed`` when none is — and a summary exists whenever at
 least one is.
 
 The rules are VERSION-GATED: every rule for a schema below 4 runs verbatim
-(the four committed ``results/**/summary.json`` are the bit-identity pins),
-and a provenance block without a ``deliverables`` key is read under the v3
+(the four ``results/**/summary.json`` committed until decision D-D59 were the
+bit-identity pins; ``git show 6c9982d81c8a:results/<path>`` holds them, and
+the ``LADDER_SUMMARY`` test fixture pins the schema-2 rules now), and a
+provenance block without a ``deliverables`` key is read under the v3
 rules when no version is given.  Under a v1 stage manifest the loader
 derives exactly one deliverable (the last advancing node) with edges to the
 previous advancing node, so the v4 rules collapse to the v3 "every advancing
@@ -48,7 +50,9 @@ carry over to v5 unchanged; the canonical runtime provenance gains
 accepts exactly {2, 5} (:data:`SUPPORTED_RESULT_SCHEMA_VERSIONS`): every v3
 or v4 summary names a species ID D-D33 retired and no writer emits either,
 so they are refused.  Schema 2 is the curated historical form of the four
-committed summaries under ``results/``, their identity amended in place by
+summaries committed under ``results/`` until decision D-D59 deleted them
+(``git show 6c9982d81c8a:results/<path>``; the ``LADDER_SUMMARY`` test
+fixture now pins its version-gated rules), their identity amended in place by
 D-D33: ``species`` is the binomial and ``embodiment`` is required, and every
 other byte is as curated.  Both identity fields are required on every
 accepted version, and a record is never matched on its species alone.
@@ -87,9 +91,10 @@ from .model_id import ModelId
 
 RESULT_SCHEMA_VERSION = 5
 #: Versions this reader accepts (module docstring).  v2 is the integer-stage
-#: schema every committed summary under results/ carries, its identity
-#: amended in place by decision D-D33; v5 is what writers emit.  v3 and v4
-#: summaries name retired species IDs and are refused.
+#: schema of the four summaries committed under results/ until decision
+#: D-D59, its identity amended in place by decision D-D33; v5 is what
+#: writers emit.  v3 and v4 summaries name retired species IDs and are
+#: refused.
 SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({2, RESULT_SCHEMA_VERSION})
 ALLOWED_BUNDLE_STATUSES = frozenset({"complete", "partial", "failed"})
 #: The stage-row success rates a canonical summary must carry but may leave

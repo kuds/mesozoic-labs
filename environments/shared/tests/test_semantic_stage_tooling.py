@@ -204,7 +204,7 @@ class TestCliStageResolution:
         assert _parse_stage_ref("recovery") == "recovery"
 
     def test_legacy_semantic_id_resolves_to_historical_number(self):
-        configs = {1: {}, 2: {"curriculum_kwargs": {"timesteps": 123_456}}, 3: {}}
+        configs = {1: {}, 2: {"curriculum_kwargs": {"timesteps": 123_456}}}
         resolved = _resolve_stage_ref("locomotion", configs, TYRANNOSAURUS_REX)
         assert resolved == 2
         # The default-timesteps lookup that used to raise a raw KeyError.
@@ -214,7 +214,7 @@ class TestCliStageResolution:
         assert _resolve_stage_ref("recovery", {1: {}, "recovery": {}}, TYRANNOSAURUS_REX) == "recovery"
 
     def test_unknown_refs_return_none_for_the_friendly_error(self):
-        configs = {1: {}, 2: {}, 3: {}}
+        configs = {1: {}, 2: {}}
         assert _resolve_stage_ref("cartwheel", configs, TYRANNOSAURUS_REX) is None
         assert _resolve_stage_ref(5, configs, TYRANNOSAURUS_REX) is None
         # A species whose manifest has no recovery stage fails closed.
@@ -224,7 +224,7 @@ class TestCliStageResolution:
     def species_cfg(self):
         cfg = MagicMock()
         cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
-        cfg.stage_descriptions = "1=balance, 2=locomotion, 3=strike"
+        cfg.stage_descriptions = "1=stance, 2=locomotion"
         return cfg
 
     def test_train_stage_locomotion_without_timesteps_uses_stage_config(self, species_cfg):
@@ -233,7 +233,6 @@ class TestCliStageResolution:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {}},
                 2: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {"timesteps": 777_000}},
-                3: {"env_kwargs": {}, "ppo_kwargs": {}},
             }
         )
         with (
@@ -248,7 +247,7 @@ class TestCliStageResolution:
 
     def test_train_unknown_stage_reaches_the_friendly_parser_error(self, species_cfg):
         mock_train = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         for bad_stage in ("cartwheel", "5"):
             with (
                 patch("environments.shared.config.load_all_stages", mock_load),
@@ -264,9 +263,9 @@ class TestCliStageResolution:
         # recovery checkpoint could not be corrected from the CLI.
         species_cfg = MagicMock()
         species_cfg.model_id = TYRANNOSAURUS_REX
-        species_cfg.stage_descriptions = "1=stance, 2=locomotion, 3=behavior"
+        species_cfg.stage_descriptions = "1=stance, 2=locomotion"
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}, "recovery": {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}, "recovery": {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),
@@ -278,7 +277,7 @@ class TestCliStageResolution:
 
     def test_eval_integer_stage_keeps_current_behavior(self, species_cfg):
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),
@@ -290,7 +289,7 @@ class TestCliStageResolution:
 
     def test_eval_unknown_stage_reaches_the_friendly_parser_error(self, species_cfg):
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),

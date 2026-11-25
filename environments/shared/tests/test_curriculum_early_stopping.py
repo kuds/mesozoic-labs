@@ -955,10 +955,10 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         ids=lambda m: f"{m.species}-{m.embodiment}",
     )
     def test_locomotion_warmup_covers_the_stage_entry_window(self, model_id):
-        """The D-B5 bound the trex behavior stage carried (until decision D-D59 removed it), applied to locomotion:
-        the stage-entry warm-up plus the walk's entry ramp, the cruise ramp since decision D-D62 (the walk trains no
-        forward-velocity ramp under its live command).  The T. rex walk declares it since D-D62 (the forward walk
-        declared none)."""
+        """The D-B5 bound the Tyrannosaurus rex behavior stage carried (until decision D-D59 removed it), applied to
+        locomotion: the stage-entry warm-up plus the walk's entry ramp, the cruise ramp since decision D-D62 (the walk
+        trains no forward-velocity ramp under its live command).  The T. rex walk declares it since D-D62 (the forward
+        walk declared none)."""
         from environments.shared.config import load_all_stages
 
         config = load_all_stages(model_id)[2]

@@ -579,6 +579,42 @@ def detect_stage_from_path(model_path: str, *, model_id: ModelId | None = None) 
     return 1
 
 
+#: Legacy stage 3, ``behavior``: the hunt, whose nodes decision D-D59 removed.
+_HUNT_LEGACY_NUMBER = 3
+
+
+def _retired_hunt_path_component(
+    model_path: str, stage_configs: "dict[int | str, Any]", model_id: ModelId
+) -> "str | None":
+    """The component of *model_path* naming the removed hunt stage, or None.
+
+    Walks the components deepest-first as :func:`detect_stage_from_path`
+    does and stops at the first one that names a stage.  A component names
+    the hunt when it is ``stage3`` (or carries that token) or the reserved
+    ``behavior`` id (``03_behavior``, bare ``behavior``) and the model
+    declares no stage 3 — every committed model since decision D-D59.
+    Model-aware detection reads an undeclared ``03_behavior`` as nothing
+    and would fall back to stage 1 (the stance), so the check reads the
+    component model-free as well.
+    """
+    from .stage_manifest import LEGACY_STAGE_IDS, stage_ref_from_dirname
+
+    if _HUNT_LEGACY_NUMBER in stage_configs:
+        return None
+    legacy_tokens = {f"stage{number}": number for number in LEGACY_STAGE_IDS}
+    for part in reversed(Path(model_path).parts):
+        candidate = _RUN_TIMESTAMP_SUFFIX.sub("", part)
+        ref = stage_ref_from_dirname(candidate, model_id=model_id)
+        if ref is None and stage_ref_from_dirname(candidate) == _HUNT_LEGACY_NUMBER:
+            return part
+        if ref is not None:
+            return part if ref == _HUNT_LEGACY_NUMBER else None
+        for token in _PATH_TOKEN_SPLIT.split(part):
+            if token in legacy_tokens:
+                return part if legacy_tokens[token] == _HUNT_LEGACY_NUMBER else None
+    return None
+
+
 def evaluate(
     species_cfg,
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -617,8 +653,20 @@ def evaluate(
     logger.info("Loading model from: %s", model_path)
 
     if stage is None:
+        hunt_component = _retired_hunt_path_component(model_path, stage_configs, species_cfg.model_id)
+        if hunt_component is not None:
+            # Never fall back to the stance: that scores a hunt policy on
+            # another task (decision D-D59).
+            raise ValueError(
+                f"{model_path!r} names stage 3 (behavior, the hunt) in its path component {hunt_component!r}; "
+                "the hunt nodes were removed by decision D-D59, so this model has no stage to evaluate it on. "
+                "Evaluate a walk checkpoint (--stage locomotion) instead; a hunt checkpoint cannot be evaluated "
+                "on the current plants (configs/plant_versions.toml note 24), so train stance afresh, then the walk."
+            )
         stage = detect_stage_from_path(model_path, model_id=species_cfg.model_id)
         logger.info("Auto-detected stage %s from filename", stage)
+    if stage not in stage_configs:
+        raise ValueError(f"unknown stage {stage!r} for this model; available: {sorted(map(str, stage_configs))}")
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()
 

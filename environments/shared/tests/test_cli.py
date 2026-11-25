@@ -78,7 +78,7 @@ class TestMainDispatch:
     def species_cfg(self):
         cfg = MagicMock()
         cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
-        cfg.stage_descriptions = "1=balance, 2=locomotion, 3=strike"
+        cfg.stage_descriptions = "1=stance, 2=locomotion"
         return cfg
 
     def test_train_command(self, species_cfg):
@@ -88,7 +88,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {}},
                 2: {"env_kwargs": {}, "ppo_kwargs": {}},
-                3: {"env_kwargs": {}, "ppo_kwargs": {}},
             }
         )
         with (
@@ -102,7 +101,7 @@ class TestMainDispatch:
     def test_curriculum_command(self, species_cfg):
         """main() with 'curriculum' should call train_curriculum()."""
         mock_curriculum = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.train_base.train_curriculum", mock_curriculum),
@@ -114,7 +113,7 @@ class TestMainDispatch:
     def _run_curriculum(self, species_cfg, argv):
         """Dispatch ``curriculum`` with the trainer replaced; returns the mock."""
         mock_curriculum = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.train_base.train_curriculum", mock_curriculum),
@@ -383,7 +382,7 @@ class TestMainDispatch:
     def test_eval_command(self, species_cfg):
         """main() with 'eval' should call evaluate()."""
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),
@@ -396,7 +395,7 @@ class TestMainDispatch:
         """Decision D-A21: ``--label TEXT`` on both commands is forwarded verbatim as ``label=``;
         without it the trainers receive ``None`` (nothing recorded)."""
         mock_train = MagicMock()
-        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2)})
         for argv, expected in ((["--label", "lr-sweep-a"], "lr-sweep-a"), ([], None)):
             with (
                 patch("environments.shared.config.load_all_stages", mock_load),
@@ -417,7 +416,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {}},
                 2: {"env_kwargs": {}, "ppo_kwargs": {}},
-                3: {"env_kwargs": {}, "ppo_kwargs": {}},
             }
         )
         with (
@@ -435,7 +433,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {"learning_rate": 1e-3}},
                 2: {"env_kwargs": {}, "ppo_kwargs": {"learning_rate": 5e-4}},
-                3: {"env_kwargs": {}, "ppo_kwargs": {"learning_rate": 3e-4}},
             }
         )
         with (
@@ -449,7 +446,7 @@ class TestMainDispatch:
     def test_eval_with_algorithm(self, species_cfg):
         """main() eval command should pass algorithm correctly."""
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),
@@ -465,7 +462,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {"timesteps": 100}},
                 2: {},
-                3: {},
             }
         )
         with (
@@ -482,7 +478,7 @@ class TestMainDispatch:
 
     def test_eval_forwards_explicit_legacy_plant_override(self, species_cfg):
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),

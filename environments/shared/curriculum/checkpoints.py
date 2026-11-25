@@ -682,9 +682,11 @@ def seed_resume_eval_state(
     eval_callback.evaluations_results = results
     eval_callback.evaluations_length = ep_lengths
     if successes is not None and len(successes) == seeded:
-        # SB3 only writes the successes array when the CURRENT session's
-        # success buffer is non-empty; the seeded rows survive the next
-        # publish only while the resumed env still emits is_success.
+        # Inert since decision D-D59: only a success-gated (hunt) stage's
+        # record carries the rows, and SB3 writes the successes array only
+        # when the CURRENT session's success buffer is non-empty, which it
+        # never is (StageAwareEvalCallback does not collect is_success), so
+        # the seeded rows do not survive the next publish.
         eval_callback.evaluations_successes = successes
 
     # Stage diagnostics keep parallel per-eval series indexed by the absolute

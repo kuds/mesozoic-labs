@@ -341,7 +341,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     without commands records exactly what it did before.
 - **Live commands for manifest stages: the `[commands]` table, tracking in the
   base env and an independent command stream** (decision D-D60; no committed
-  stage turns its command on, so no stage's task, gate or plant digest moves).
+  stage turned its command on then, so no stage's task, gate or plant digest
+  moved; every walk does since D-D62).
   - A stage TOML may declare `[commands]`: `mode` (`"heading"` or
     `"heading_and_speed"`) and any `DirectionCommandConfig` field.
     `load_stage_config` turns it into the stage's `command_mode` and
@@ -2776,16 +2777,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (8); and the `task_sha256` of all 11 behavior recipes of the
   velociraptor, the T. rex and the anatomical Compsognathus, which inherit
   the walk's `[env]` stand-term settings and move no recipe reward (33). A
-  certified stance or recovery stays a valid ancestor (`--trunk-from`
-  reuses it), and the none-stage golden proves both bit for bit.
+  stance or recovery certified on the note-24 plants stays a valid ancestor
+  across this change (`--trunk-from` reuses it), and the none-stage golden
+  proves both bit for bit.
 - **A walk checkpoint trained before this change cannot resume or be
   re-judged as the walk**: its task digest is the forward walk's, so
   `resume_same_stage` refuses it, and its gate kind is gone from the stage.
   Train the walk again from a certified stance.
-- **A walk trains from a stance trained after Phases C and D**: one on the
-  current plant interface (an older checkpoint fails the plant check) whose
-  saved statistics hold the command slice at identity (a sidecar saved
-  before decision D-D60 is refused by a live stage). The warm start zeroes
+- **A walk trains from a stance trained on the note-24 plants and saved
+  under decision D-D60**: one on the current plant interface (an older
+  checkpoint fails the plant check) whose saved statistics hold the command
+  slice at identity (a sidecar saved before decision D-D60 is refused by a
+  live stage). The warm start zeroes
   the stance's command columns and proves the policy command-blind before
   the first update, so a walk starts blind to its command and learns to
   read it.
@@ -2838,8 +2841,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BEHAVIOR = "hunt"`, `--target hunt`, `--target behavior` and `--target 3`
   no longer resolve on any model; `"auto"` and a bare `curriculum` train
   stance then walk. An earlier run's `behavior` stage directory is left as it
-  is, and its certified stance and walk are reused as before (no stance,
-  recovery or locomotion digest moved). A result summary with a stage-3 row
+  is, but its hunt checkpoint cannot resume or be judged again: no stage
+  resolves to it, and the plant revision below refuses every checkpoint
+  trained before it. That run's stance and walk were reusable after this
+  change alone (no stance, recovery or locomotion digest moved), but not at
+  the end of this series: the same plant revision strands them, and a
+  forward-walk checkpoint is not the live walk (decision D-D62), so it cannot
+  resume as one either. Train each model's stance afresh, then its walk. A
+  result summary with a stage-3 row
   is refused by the validator ("no stage with legacy number 3"), so an old
   hunt bundle cannot be published or promoted into `results/`.
 - **A config or record that names `task_success/v1`, `min_success_rate`,
@@ -2854,8 +2863,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `generate_stage_artifacts` records a FAILED verdict. The refusal reads
   "gate_kind 'task_success/v1' was removed with the
   hunt nodes (decision D-D59); no gate reader evaluates it, so a stage or
-  record declaring it is refused" (a key reads "[curriculum] key
-  'min_success_rate' was removed with the hunt nodes (decision D-D59); ...
+  record declaring it is refused (a stage declares a registered kind
+  instead, e.g. 'command_tracking/v1' for a walk; known kinds: [...]; a
+  frozen record cannot be re-judged, so retrain the stage)" (a key reads
+  "[curriculum] key 'min_success_rate' was removed with the hunt nodes
+  (decision D-D59); ...
   (delete the key)"), before the unknown-key and unknown-kind checks, so
   neither reads as a typo; `min_success_rate = 0` is refused too. A frozen
   record that names one is refused by every reader rather than judged on the
@@ -2870,7 +2882,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recorded-history reading (`evaluate_recorded_gate`, the Drive summary)
   reads such a history as `None`. An earlier hunt run's stage directory
   therefore cannot be re-judged, backfilled or published; its stance and
-  walk are unaffected.
+  walk are not refused by this rule (the plant revision below retires them
+  with every other checkpoint).
 - **The task-success numbers in summaries and verdicts are no longer
   validated or written.** A result summary's stage row accepts keys the
   schema does not name, so `selected_model_success_lcb`,
@@ -2890,21 +2903,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved: no recorded node of those four models is reused, and none resumes**
   (decision D-D59's amendment of 2026-11-23). The task fingerprint hashes the
   constructor defaults, so every `task_sha256` of their stance, locomotion
-  and (T. rex) recovery stages and of their 44 behavior recipes moves; their
-  gate, hyperparameter and plant digests do not. A checkpoint of those models
-  still passes the plant check and loads, but `resume_same_stage` (the
-  notebook's RESUME, `--load-mode resume_same_stage`) refuses it naming the
-  differing `env` section, an `initialize_next_stage` warm start records the
-  move as lineage, and ancestor reuse (`TRUNK_FROM = "auto"`, `--trunk-from`)
-  refuses every node recorded before this change, whose verdict names the old
-  task. The rewards every remaining stage computes are unchanged (every hunt
-  weight was zero in those configs), so a retrained node trains the same
-  task; train each model's stance and walk again rather than resuming. No
-  training should start from this change for those four models: the next
+  and (T. rex) recovery stages and of their 44 behavior recipes moves; after
+  this change alone their gate, hyperparameter and plant digests did not. A
+  checkpoint of those models then still passed the plant check and loaded,
+  but `resume_same_stage` (the notebook's RESUME, `--load-mode
+  resume_same_stage`) refused it naming the differing `env` section, an
+  `initialize_next_stage` warm start recorded the move as lineage, and
+  ancestor reuse (`TRUNK_FROM = "auto"`, `--trunk-from`) refused every node
+  recorded before this change, whose verdict names the old task. The rewards
+  every remaining stage computes were unchanged (every hunt weight was zero
+  in those configs), so a retrained node trained the same task. No training
+  should start from this change for those four models: the next
   policy-interface revision, which removes the prey and makes every
-  observation heading-free, moves every task again. The Allosaurus and both
-  Compsognathus models keep every digest, and the committed Compsognathus
-  recovery calibrations still load.
+  observation heading-free, moves every task again. After this change alone
+  the Allosaurus and both Compsognathus models kept every digest, and the
+  committed Compsognathus recovery calibrations still loaded. At the end of
+  this series none of that holds: the plant revision below (note 24) refuses
+  every checkpoint of every model on its plant identity, and a recovery
+  resolution frozen before it; both Compsognathus recovery calibrations were
+  re-measured (Changed); and every walk's task and gate digest moved, with
+  four walks' hyperparameter digests (decision D-D62). Train each model's
+  stance afresh, then its walk.
 - **A constructor call or `[env]` table that passes a deleted hunt argument
   raises `TypeError`; drop the key.** The arguments are `strike_bonus`,
   `strike_approach_weight`, `strike_proximity_weight`,
@@ -3331,6 +3350,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The development version is `0.4.0.dev3`** (`pyproject.toml`; the
+  maintainer's request of 2026-11-24 to bump it once the hunt removal and the
+  command-driven walk were done, decisions D-D59 to D-D62). Every run records
+  the package version in its provenance (`dependency_versions`) and its stage
+  config (`library_version`), so the runs on the hunt-free tree, whose walk
+  follows a live command, are told apart from the `0.4.0.dev2` runs, whose
+  hunt checkpoints and forward walks these changes strand (Migration). The
+  living docs say where the series ends, in dated notes of 2026-11-24:
+  `docs/NEXT_STEPS.md`, `docs/ROADMAP.md` (with its version line), a status
+  row and note in `docs/CONSOLIDATION_PLAN_2026_09.md`, the gait plan, and a
+  new HIGH item in `docs/KNOWN_ISSUES.md` for the walk gate's provisional
+  bars (decision D-D62 (16)); the remaining living-doc mentions of the hunt
+  or the prey are marked removed. The bump and these notes change no code,
+  config, plant or digest (the same day's review fixes are under Fixed: the
+  live-walk resume seed, the command-tracking figure,
+  `zero_action_baseline.py --stage 3`, `eval` on a hunt checkpoint's path,
+  `probe_ppo_updates.py`'s baseline and the cruise ramp's refusal text);
+  `[Unreleased]` stays open.
 - **The walk's reports stop comparing it with the stance statue and show its
   stand terms** (decision D-D62). `plot_gate_progress` draws no zero-action
   line on a live-command stage (its new `live_command` argument, or the
@@ -3411,7 +3448,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   walk along a commanded heading, over an eight-metre course". The catalog
   (`README.md`, `docs/SPECIES_CATALOG.md`, `website/src/data/species.generated.json`)
   is regenerated and headlines a walk deliverable by its cruise success
-  bound and stand hold fraction.
+  bound and stand success fraction.
 - **`scripts/widen_checkpoint.py`** reads the parent stage's recorded gate
   kind and, for `command_tracking/v1`, widens the pair
   `select_handoff_checkpoint` honors from `handoff_choice.json`, a chosen
@@ -3651,11 +3688,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     recovery, through `extends`) and the Dibothrosuchus (0.1 before): a
     heading-free stance with no command cannot observe a heading error, and
     the spin and drift penalties price wandering; each TOML says why. The
-    locomotion heading weights stay (0.3 on the velociraptor and T. rex, 0.07
+    locomotion heading weights stayed (0.3 on the velociraptor and T. rex, 0.07
     on the Brachiosaurus, 0.1 on the Dibothrosuchus, 0.2 on both
-    Compsognathus models), now measured against the spawn heading; the
-    Compsognathus `lateral_penalty_weight` values stay, as their prey had no
-    lateral offset.
+    Compsognathus models), measured against the spawn heading, and so did the
+    Compsognathus `lateral_penalty_weight` values, as their prey had no
+    lateral offset; the live walk sets the walk's heading and lateral weights
+    to 0, as tracking subsumes them (decision D-D62; Changed).
   - The Allosaurus's `course_complete` fires when the pelvis has moved
     `COURSE_LENGTH_M - COURSE_TOLERANCE_M` = 7.65 m along
     `_reference_heading_2d` since reset while a foot bears weight (on a stage
@@ -6373,7 +6411,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     figure.
   - The two website stage-3 videos (`velociraptor_mongoliensis_anatomical_ppo_stage3_best.mp4`,
     `tyrannosaurus_rex_anatomical_ppo_stage3_best.mp4`) and their posters, with
-    their `stage_videos` entries.
+    their `stage_videos` entries. The same commit, `6c9982d81c8a`, holds them
+    (`git show 6c9982d81c8a:website/static/videos/<name>.mp4` and
+    `website/static/img/posters/<name>.jpg`).
   - The two unused website apex GIFs, `website/static/img/ppo_apex.gif` and
     `website/static/img/sac_apex.gif` (about 23.5 MB together). They were
     byte-identical copies of the two `strike.gif`, kept on 2026-09-30 under the
@@ -6458,7 +6498,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     kind, nor records `selected_mean_reward` / `selected_mean_episode_length`;
     its `curriculum`, `evaluated_handoff` and `stage_dir` arguments go, and
     so does `_post_training_eval_panels`' `stage_config`. It still records
-    D-B12's `success_count` / `n_success_episodes` for every stage.
+    D-B12's `success_count` / `n_success_episodes` for every stage (since the
+    next change, only on a model that declares success keys: Changed).
   - The recorded fields: the kind's five keys from `gate_verdict.json`'s
     projected `stage_result`; `selected_model_success_count`,
     `selected_model_n_episodes` and `selected_model_success_lcb` from the
@@ -6545,12 +6586,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     TOMLs (20 lines: `strike_bonus`, `strike_approach_weight`, `bite_bonus`,
     `bite_approach_weight`, `food_reach_bonus`, `food_approach_weight`,
     `food_head_proximity_weight`, `snap_bonus`, `snap_approach_weight`,
-    `snap_snout_proximity_weight`); the prey and food ranges stay. The T. rex
+    `snap_snout_proximity_weight`); the prey and food ranges stay until the
+    next revision removes them. The T. rex
     recovery inherits the stance's `[env]`; no recovery TOML named a hunt
     key, and no `OPT_IN_TASK_KWARGS` entry named one, so none was carved out.
   - The four species' entries in `behavior_env.SpeciesBehaviorMixin`'s
     zeroed-kwarg list (the Compsognathus `target_reach_bonus` and
-    `target_approach_weight` stay), and the callers of the deleted arguments
+    `target_approach_weight` stay until the next revision), and the callers of
+    the deleted arguments
     and keys: `environments/brachiosaurus_altithorax/scripts/reference_walk.py`
     (`food_approach_weight=0`, `food_reach_bonus=0`),
     `environments/tyrannosaurus_rex/scripts/audit_motion.py` (`bite_bonus`),
@@ -6791,6 +6834,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **A same-stage resume of a live walk under another seed is refused**
+  (decision D-D62 (20); no digest moves). A live stage's in-training
+  evaluation rolls one panel drawn from the run's evaluation seed, and a
+  resume seeds its best trackers and history from the prior record, but a
+  CLI `train --load <checkpoint> --load-mode resume_same_stage` given
+  another `--seed` (the default is 42) ran without a warning, rewrote
+  `stage_config.json`'s `run.seed` and ranked the prior evaluations against
+  another panel (a robot walk resumed from seed 5 under seed 6 recorded the
+  families `[c,c,c,c,s,s,c,s]` in its first two rows and
+  `[s,c,c,c,c,s,s,c]` in its third). `train_base.train` now refuses it
+  before the re-save, naming the recorded seed and decision D-D62 (20) and
+  saying to resume with `--seed <recorded>` (the notebook's `SEED =
+  <recorded>`); it reads the seed from the
+  stage directory's `stage_config.json`, else from the one beside the
+  checkpoint (`<stage_dir>/models/<checkpoint>`, where the CLI's default
+  resume into a fresh directory seeds its history from). Stance and recovery
+  (`command_mode = "none"`), a warm start and a record with no seed are not
+  refused; the notebook already kept the seed through its provenance
+  identity check. `test_walk_command_mechanism.py` pins it.
+- **The command-tracking figure titles the commanded speed to three
+  significant figures and marks where its training history starts.** The
+  episode title printed the commanded speed to two decimals, so the robot's
+  certified cruise episode at 0.0351 m/s read "commanded 0.04 m/s"; it now
+  reads 0.0351. The tracking-fraction-over-training panel draws from
+  `diagnostics.npz`, which a same-stage resume does not continue
+  (KNOWN_ISSUES), while its cruise-ramp shading spans the whole run; a
+  dotted marker now says at which step the recorded history starts, and
+  adds the resume caveat only when the stage's `stage_config.json` records
+  a same-stage resume. `test_command_tracking_charts.py` pins both.
+- **`zero_action_baseline.py --stage 3` is refused when its arguments are
+  parsed** (decision D-D59): its `--stage` choices are 1 and 2, as the
+  sibling report scripts' are, where it raised a raw `StageManifestError`
+  traceback. A result-bundle audit that reads no model falls back to the
+  stages 1 and 2, not the hunt's trio (that run already fails summary
+  validation).
+- **`eval` refuses a hunt checkpoint's path, and `probe_ppo_updates.py` a
+  baseline older than the prey's removal** (decision D-D59; no digest
+  moves). Run without `--stage` on a `stage3/...` or `03_behavior/...`
+  path, `evaluate` raised a raw `KeyError: 3`, or quietly fell back to stage
+  1 and built the stance for the hunt checkpoint; it now refuses before any
+  environment, naming the path component and decision D-D59 and pointing to
+  a walk checkpoint (`--stage locomotion`), since a hunt checkpoint cannot be
+  evaluated on the note-24 plants. A stage the model lacks is refused with
+  the stages it has. The Compsognathus `probe_ppo_updates.py` builds its
+  baseline arm's stance file, taken from `--baseline-ref`, with the current
+  environment, so every ref before `3d3ba61` failed in `create_vec_env` on
+  `reset_height_noise_scale`; it now refuses such a baseline before any arm
+  trains, naming the keys and the last commit whose environment took them
+  (`e3cccca`). `test_evaluation.py` and `test_probe_ppo_updates.py` pin
+  both.
+- **The cruise ramp's refusal of a command-trained parent names both ramp
+  keys** (decision D-D62 (5); no digest moves). The refusal of a parent
+  that already tracked a command (`CruiseRampError`) and the D-D62 (5)
+  decision row now say to state `cruise_ramp_start_fraction = 1.0` and
+  `cruise_ramp_timesteps = 0`: the loader refuses a zero-step ramp under
+  the start fraction a child inherits from the walk.
+  `test_walk_command_mechanism.py` pins the text.
 - **A follow profile's paired reference must also share each seed's initial
   heading error** (decision D-D61 (3); gate code only, no digest moves, and
   no committed stage declares the follow profile).

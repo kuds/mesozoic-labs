@@ -354,6 +354,55 @@ class TestTheCommandTrackingFigure:
         labels = [line.get_label() for line in training.get_lines()]
         assert "in-tolerance fraction of training steps" in labels
         assert any(label.startswith("min_cruise_tracking_fraction 0.60") for label in labels)
+        # The panel says where its history starts; a run that was never resumed gets no resume caveat.
+        assert "training history recorded from step 20,000" in labels
+
+    @pytest.mark.parametrize(
+        "run",
+        [
+            {"load_mode": "resume_same_stage", "load_path": "/runs/x/02_locomotion/models/walk_40000_steps.zip"},
+            {
+                "load_mode": "initialize_next_stage",
+                "load_path": "/runs/x/01_stance/models/robust_best_model.zip",
+                "resume_load_path": "/runs/x/02_locomotion/models/walk_40000_steps.zip",
+            },
+        ],
+        ids=["root-resume", "entered-then-resumed"],
+    )
+    def test_the_history_marker_adds_the_resume_caveat_only_on_a_recorded_resume(self, tmp_path, run):
+        """diagnostics.npz is not continued across a same-stage resume, so a stage that records one says its
+        history starts at the resumed session; a warm start from the parent alone is no resume."""
+        pytest.importorskip("matplotlib")
+        from environments.shared.visualization import plot_command_tracking
+
+        directory = _charted_stage(tmp_path)
+        entered = {key: value for key, value in run.items() if key != "resume_load_path"}
+        (directory / "stage_config.json").write_text(json.dumps({"run": entered}), encoding="utf-8")
+        labels = [line.get_label() for line in plot_command_tracking(directory).axes[-1].get_lines()]
+        resumed = run["load_mode"] == "resume_same_stage"
+        assert ("training history recorded from step 20,000" in labels) is not resumed
+        (directory / "stage_config.json").write_text(json.dumps({"run": run}), encoding="utf-8")
+        labels = [line.get_label() for line in plot_command_tracking(directory).axes[-1].get_lines()]
+        assert (
+            "training history recorded from step 20,000 (this stage resumed a checkpoint; diagnostics.npz is not "
+            "continued across a resume)"
+        ) in labels
+
+    def test_the_commanded_speed_is_titled_to_three_significant_figures(self, tmp_path):
+        """A slow walk's command (the robot's 0.02-0.04 m/s) is not rounded to two decimals in the title."""
+        pytest.importorskip("matplotlib")
+        from environments.shared.visualization import plot_command_tracking
+
+        directory = _charted_stage(tmp_path)
+        rows = read_command_tracking_trace(directory / COMMAND_TRACKING_TRACE_CSV)
+        assert rows is not None
+        write_command_tracking_trace(
+            directory,
+            [{**row, "desired_speed": 0.0351} if float(row["desired_speed"]) > 0 else row for row in rows],
+        )
+        titles = " ".join(axis.get_title() for axis in plot_command_tracking(directory).axes)
+        assert "commanded 0.0351 m/s" in titles
+        assert "commanded 0 m/s" in titles
 
     def test_a_failing_or_re_rolled_episode_says_so(self, tmp_path):
         pytest.importorskip("matplotlib")

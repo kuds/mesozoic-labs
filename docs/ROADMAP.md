@@ -18,8 +18,8 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3; Stage 3 terminal-bonus rescale (design debt) |
-| **2** | Into the Wild (v0.4.0) | **In Progress** | 0/8 items | Terrain and turning piloted (#540/#541, evaluation-only); certified nodes wait for consolidation PR-8..PR-13 (PR-13 registers their gate kind) |
+| **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3; Stage 3 terminal-bonus rescale (design debt); both moot since D-D59 removed the hunt (2026-11-23) |
+| **2** | Into the Wild (v0.4.0) | **In Progress** | 0/8 items | Terrain and turning piloted (#540/#541, evaluation-only); certified nodes wait for consolidation PR-8..PR-13 (the follow nodes' gate, `command_tracking/v1`'s follow profile, is registered since D-D61; PR-13 registers the terrain kind); since D-D62 (2026-11-24) the walk follows a live command, and the follow nodes that widen it are not built |
 | **3** | Evolution (v0.5.0) | **In Progress** | 2/9 items | Dibothrosuchus and Compsognathus landed early; rest blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
 | **5** | Hyperdrive (v0.7.0) | **Retired** (D-D17) | 3/5 items | — (JAX SAC and large-scale experiments dropped) |
@@ -33,10 +33,12 @@ walkers hopping; the Dibothrosuchus and Brachiosaurus sessions remain
 ([NEXT_STEPS.md](NEXT_STEPS.md)). The cleanup's 0.3.9 gate has landed, and
 0.3.9, the clean base release, was tagged on 2026-10-02
 ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D21); `main` now
-carries the development version `0.4.0.dev2` (from 2026-10-27, at the
-maintainer's decision of 2026-10-25 20:13 UTC to bump it once the work
-then in hand was done; `0.4.0.dev1` from 2026-10-12, when training
-restarted on the D-D33 names). The deferred cleanup PRs, in the
+carries the development version `0.4.0.dev3` (from 2026-11-24, at the
+maintainer's request once the hunt removal and the command-driven walk
+were done; `0.4.0.dev2` from 2026-10-27, at the maintainer's decision of
+2026-10-25 20:13 UTC to bump it once the work then in hand was done;
+`0.4.0.dev1` from 2026-10-12, when training restarted on the D-D33
+names). The deferred cleanup PRs, in the
 order of the cleanup plan's §3.1 item 5, which follows the maintainer's
 answers of 2026-10-02, come before the direction and terrain nodes
 (consolidation PR-8..PR-15, [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md))
@@ -48,6 +50,19 @@ is training the walkers (the consolidation plan's status table).
 Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO, and
 Brachiosaurus PPO; their provenance and metrics are shown in the generated
 [species catalog](SPECIES_CATALOG.md#training-results).
+
+> **Update (2026-11-24):** the hunt and the prey are removed (decision
+> D-D59; the 2026-11-23 update below), and with them the four historical
+> summaries just named. Every model's plant moved in one revision
+> (`configs/plant_versions.toml` note 24), so the certified nodes named
+> above no longer load and every stance and walk retrains. The walk is now
+> the first stage with a live command on all seven models (decisions D-D60
+> to D-D62): it follows a forward cruise command and stands still on a zero
+> one, judged by the walk profile of `command_tracking/v1`, whose bars are
+> provisional and not yet shown attainable; D-D62 (16) leaves the open
+> risks to the maintainer. The follow-direction nodes that widen the walk
+> are next and not built; until one exists, or a command-free walk config is
+> added, the terrain recipes have no parent a user can produce.
 
 ---
 
@@ -135,6 +150,9 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
 - [-] **Complete Brachiosaurus 3-stage training**
   - [x] Publish the existing PPO run summary as historical and unverified
   - [-] Improve and rerun the Stage 3 head-tip distance task
+  - _Superseded (2026-11-23, decision D-D59): the food-reach stage and its
+    food target are removed, and the summary was deleted with the hunt
+    results; the Brachiosaurus chain is stance then walk._
   - _Dependency: None (parallel with Velociraptor)_
 
 - [x] **T-Rex environment buildout**
@@ -219,6 +237,9 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - _Completed: 2026-04-18_
 
 - [ ] **Stage 3 terminal-bonus rescale (reward design debt)**
+  - _Superseded (2026-11-23, decision D-D59): the Stage 3 hunt tasks and
+    their bonuses are removed, so there is nothing left to rescale; the
+    lines below record the debt as it stood._
   - Stage 3 `strike_bonus` / `bite_bonus` / `food_reach_bonus` are all
     `1000`, ~2 orders of magnitude larger
     than accumulated per-step shaping. This produces a bimodal,
@@ -303,6 +324,10 @@ critical bridge between "cool demo" and "transferable research."
 - [-] **Turning and steering** — piloted: direction-following recipes on the
   command interface (the pilot pipeline of #540/#541); certified follow nodes
   wait for consolidation PR-9..PR-13
+  - _Update (2026-11-24, decision D-D62): the walk follows a live heading
+    and speed command on all seven models; the follow nodes that widen it to
+    turning are next and not built. There are no targets or prey to steer
+    toward since D-D59._
   - Add yaw velocity reward component and target-relative heading
   - Train policies that can steer toward moving targets
   - Prerequisite for interesting predator-prey dynamics
@@ -402,7 +427,8 @@ Deepen the RL capabilities and expand the species roster.
     opposite end of the scale
   - Curriculum: balance (hold the erect stance), locomotion (diagonal-pair
     walk), snap (snout-contact proxy on a 0.06 m prey sphere — the smallest
-    stage-3 target in the roster)
+    stage-3 target in the roster); the snap and its prey were removed by
+    decision D-D59 (2026-11-23), so the chain is stance then walk
   - Generalizing the shared MJX observation dispatch to admit a second
     quadruped bumped every species' `policy_interface_revision`; no
     observation dimension, layout, or value changed
@@ -464,6 +490,11 @@ results across algorithms.
 ## Phase 4 — Multi-Agent & Ecosystem (Weeks 22-32)
 
 The signature feature: coordinated pack hunting and interspecies dynamics.
+
+_Since decision D-D59 (2026-11-23) no model has a prey or a hunt task, and
+the Phase 2 scripted prey these items depend on is superseded; the hunting
+items below, and the Deinonychus pack-hunter species of Phase 3, are the
+long-range plan as written before it and would need a new task design._
 
 ### Milestone: v0.6.0 — "The Pack"
 

@@ -66,8 +66,10 @@ whole-episode stand. Its reward is the tracking term beside the forward
 walk's alive, posture, effort and gait terms; a stand block pays the
 stance's weights at a zero command, so zero means stand still; and a cruise
 ramp raises the training commands from a quarter of the end speeds over the
-first 2M steps. It is judged after training by the `walk` profile, and its
-handoff is the pair the gate prefers (`models/handoff_choice.json`). The
+first 2M steps. It is judged after training by the `walk` profile, whose
+bars are provisional: no controller has yet been shown to clear them
+(decision D-D62 (16)). Its handoff is the pair the gate prefers
+(`models/handoff_choice.json`). The
 stance and recovery run no command, and their task and gate digests did not
 move. Because a walk warm-starts from a stance with its command inputs
 zeroed, the stance it starts from must be one trained on the current plant

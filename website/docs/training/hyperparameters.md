@@ -74,8 +74,9 @@ when `--label TEXT` (`train` or `curriculum`) or the notebook's `RUN_LABEL` is
 set. Both are copied into the run's `provenance.deliverables` records, which
 is how two variants of one node are told apart later.
 
-The broad curriculum intent is balance first, locomotion second, and a
-species-specific simulator task third. Reward weights shift with that intent;
+The broad curriculum intent is balance first (the stance, and recovery where
+a model has one), then the command-driven walk; follow-direction, which widens
+the walk, is next and not built. Reward weights shift with that intent;
 do not infer current values from a copied range in this guide. The generated
 [model pages](/docs/models/velociraptor_mongoliensis/anatomical) show the current stage names, budgets,
 and advancement gates read from the same configs.

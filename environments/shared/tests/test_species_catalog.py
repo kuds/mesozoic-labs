@@ -629,7 +629,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             }
             continue
         # Gates are addressed by LEGACY number, not by list position: the
-        # trex list has three rows because the recovery stage sits at
+        # Tyrannosaurus rex list has three rows because the recovery stage sits at
         # position 2, and the numbered stages must be unaffected by it.
         # Legacy 3, the hunt, left every manifest with decision D-D59.
         gates_by_number = {stage["number"]: stage["advancement_gate"] for stage in entry["stages"]}
@@ -1106,14 +1106,15 @@ def test_default_paths_are_inside_repository() -> None:
 
 
 # Review SS5: a published stage_passed is rendered with the gate it was earned
-# under.  The committed summaries predate gate provenance and were certified
-# by the retired reward gate, while trex's stance stage now declares the
-# six-heading certificate stance_quality_heading/v1 (D-D32) — a bare "Yes"
-# beneath that description misstates what was measured.
+# under.  The summaries committed until decision D-D59 predated gate
+# provenance and were certified by the retired reward gate, while the
+# Tyrannosaurus rex stance stage now declares the six-heading certificate
+# stance_quality_heading/v1 (D-D32) — a bare "Yes" beneath that description
+# misstates what was measured.
 
 
 def test_current_gate_kinds_follow_the_manifest() -> None:
-    # The trex hunt, the one stage on task_success/v1 (plan §4.4, WS-B2), left
+    # The Tyrannosaurus rex hunt, the one stage on task_success/v1 (plan §4.4, WS-B2), left
     # with every other hunt by decision D-D59, and the kind with it.  Every
     # walk moved from reward_and_length/v1 to command_tracking/v1 with its live
     # command (decision D-D62), so a published walk verdict earned under the

@@ -1,4 +1,5 @@
-"""The life-size raptor is mirror-exact, and its policy interface mirrors with it (physics r6 / policy interface r15).
+"""The life-size velociraptor is mirror-exact, and its policy interface mirrors with it (physics r6 / policy
+interface r15).
 
 ``environments/shared/symmetry.py`` derives a plant's mirror maps from the compiled model
 and its observation layout; the T-Rex's map is committed and its paired rollouts are pinned

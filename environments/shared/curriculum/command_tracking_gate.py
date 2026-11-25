@@ -520,8 +520,9 @@ PROVISIONAL_FOLLOW_COURSE_FRACTION = 0.50
 #: GAIT_QUALITY_PLAN_2026_09.md §4.3 A (GQ-8 (a)), each named with the per-episode
 #: range it separates on the 2026-09-28 CPU replays of the genuine walkers
 #: (compsognathus `20260921_203149`, velociraptor `20260922_125248`, certified and
-#: final checkpoints) and the hops (trex seeds 42 and 44, the compsognathus robot).
-#: Every repository reference walk (trex, velociraptor, allosaurus) clears them
+#: final checkpoints) and the hops (Tyrannosaurus rex seeds 42 and 44, the
+#: compsognathus robot).  Every repository reference walk (the Tyrannosaurus
+#: rex's, the velociraptor's and the allosaurus's) clears them
 #: (``test_command_tracking_gait.py``).
 PROVISIONAL_BIPED_GAIT_THRESHOLDS: dict[str, Any] = {
     GAIT_LIMBS_KEY: BIPED_LIMBS,
@@ -535,15 +536,16 @@ PROVISIONAL_BIPED_GAIT_THRESHOLDS: dict[str, Any] = {
     # sign change.  locomotion-gait/v2 counts through a dead band of 0.03 leg lengths, which can only remove swaps:
     # the repository's reference walks read 1.58-2.02 under it, and the scripted statue hops 0, staggered or not.
     "min_lead_swaps_per_stride": 1.0,
-    # §4.3 A: 0 on every walker and every trex hop; the robot's stacked feet 0.949-0.966.
+    # §4.3 A: 0 on every walker and every Tyrannosaurus rex hop; the robot's stacked feet 0.949-0.966.
     "max_foot_contact_fraction": 0.02,
-    # §4.3 A: 0 on every walker and every trex hop; the robot 0.526-0.592.
+    # §4.3 A: 0 on every walker and every Tyrannosaurus rex hop; the robot 0.526-0.592.
     "max_phantom_support_fraction": 0.05,
 }
 #: PROVISIONAL: §4.3 A's biped flight cap, ``max_flight_fraction``, which the
-#: plan declares where the stage's commanded speed is below Froude 0.5 (trex,
-#: both compsognathus; walkers 0-0.007, hops 0.324-0.497) and leaves off a
-#: biped that may run (the velociraptor at Froude 0.82).
+#: plan declares where the stage's commanded speed is below Froude 0.5 (the
+#: Tyrannosaurus rex, both compsognathus and, since decision D-D62 (12), the
+#: allosaurus at Froude 0.007; walkers 0-0.007, hops 0.324-0.497) and leaves
+#: off a biped that may run (the velociraptor at Froude 0.82).
 PROVISIONAL_BIPED_FLIGHT_FRACTION = 0.05
 #: PROVISIONAL starting values of a quadruped's gait clause (both profiles), to
 #: be frozen from the first quadruped walk pilot's panel (decision D-D61): GQ-9

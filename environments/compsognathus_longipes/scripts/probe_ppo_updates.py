@@ -14,6 +14,11 @@ Both arms read each model's stance file at its decision D-D33 path,
 ``configs/<species>/<embodiment>/stance.toml``, so the baseline ref must hold
 that layout; the recorded probe (``data/ppo_recipe_probe_v1.json``, baseline
 ``BASELINE_REF``) predates it and is re-run from a checkout of ``f40c11d3``.
+A baseline stance file must also build with the current environment: every
+ref before ``3d3ba61`` sets the prey and target arguments and
+``reset_height_noise_scale``, which went with the prey (decision D-D59), so
+such a ref is refused before any arm trains (:func:`require_a_runnable_baseline`)
+and is probed from a checkout of ``LAST_RUNNABLE_COMMIT`` or earlier.
 """
 
 from __future__ import annotations
@@ -21,6 +26,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.metadata
+import inspect
 import json
 import os
 import subprocess
@@ -50,6 +56,8 @@ from environments.shared.train_base import (  # noqa: E402
 )
 
 BASELINE_REF = "21dfa4521b0822f0bee60be927893c2099c139c7"
+#: The last commit whose environment takes every ``[env]`` key a stance file before ``3d3ba61`` sets.
+LAST_RUNNABLE_COMMIT = "e3cccca"
 N_ENVS = 4
 N_EVAL_EPISODES = 10
 #: The probed models, in order: both Compsognathus embodiments.
@@ -103,7 +111,8 @@ class BoundedProbePPO(PPO):
         self.update_records.append(metrics)
 
 
-def _run_arm(model_id: ModelId, arm: str, output: Path, baseline_ref: str, updates: int, seed: int) -> dict:
+def _load_arm_config(model_id: ModelId, arm: str, output: Path, baseline_ref: str) -> tuple[bytes, dict[str, Any]]:
+    """The arm's stance file (the baseline's from *baseline_ref*) and its loaded config, snapshotted under *output*."""
     stage_relative = (model_id.path(Path("configs")) / "stance.toml").as_posix()
     if arm == "baseline":
         config_bytes = subprocess.check_output(["git", "show", f"{baseline_ref}:{stage_relative}"], cwd=REPO_ROOT)
@@ -111,7 +120,31 @@ def _run_arm(model_id: ModelId, arm: str, output: Path, baseline_ref: str, updat
         config_bytes = (REPO_ROOT / stage_relative).read_bytes()
     config_path = output / f"{model_id.species}_{model_id.embodiment}_{arm}.toml"
     config_path.write_bytes(config_bytes)
-    config = load_stage_config(model_id, "stance", config_path=str(config_path))
+    return config_bytes, load_stage_config(model_id, "stance", config_path=str(config_path))
+
+
+def require_a_runnable_baseline(output: Path, baseline_ref: str) -> None:
+    """Refuse, before any arm trains, a baseline whose stance ``[env]`` the current environment does not take."""
+    refused: dict[str, list[str]] = {}
+    for model_id in MODEL_IDS:
+        _, config = _load_arm_config(model_id, "baseline", output, baseline_ref)
+        accepted = inspect.signature(get_species_config(model_id).env_class).parameters
+        names = sorted(set(config["env_kwargs"]) - set(accepted))
+        if names:
+            refused[str(model_id)] = names
+    if refused:
+        raise RuntimeError(
+            f"probe_ppo_updates cannot probe baseline {baseline_ref} on this checkout: its stance files set "
+            f"{refused}, which this environment refuses (the prey and target arguments and "
+            "reset_height_noise_scale went with the prey, decision D-D59). The environment last took them at "
+            f"commit {LAST_RUNNABLE_COMMIT}; run the probe in a checkout of {LAST_RUNNABLE_COMMIT} or earlier "
+            f"(for example `git worktree add ../ppo-probe {LAST_RUNNABLE_COMMIT}`), or pass a --baseline-ref "
+            "at 3d3ba61 or later."
+        )
+
+
+def _run_arm(model_id: ModelId, arm: str, output: Path, baseline_ref: str, updates: int, seed: int) -> dict:
+    config_bytes, config = _load_arm_config(model_id, arm, output, baseline_ref)
     configs: dict[int | str, dict[str, Any]] = {"stance": config}
     horizon = config["curriculum_kwargs"]["timesteps"]
     budget = updates * N_ENVS * config["ppo_kwargs"]["n_steps"]
@@ -221,6 +254,7 @@ def main() -> None:
         ],
         "arms": [],
     }
+    require_a_runnable_baseline(output, args.baseline_ref)
     for model_id in MODEL_IDS:
         for arm in ("baseline", "candidate"):
             record = _run_arm(model_id, arm, output, args.baseline_ref, args.updates, args.seed)

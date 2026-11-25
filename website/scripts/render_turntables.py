@@ -35,10 +35,10 @@ def studio(model):
     options = mujoco.MjvOption()
     options.sitegroup[:] = 0
     options.tendongroup[:] = 0
-    # Keep the animal's visible surfaces. Exclude floor, targets and collision proxies.
+    # Keep the animal's visible surfaces: hide the floor (the world body's geoms) in group 5. The default
+    # options already hide geom groups 3-5, where the models keep their collision proxies.
     for i, body in enumerate(model.geom_bodyid):
-        root = model.body(model.body_rootid[body]).name
-        if body == 0 or root in {"prey", "food", "target"}:
+        if body == 0:
             model.geom_group[i] = 5
 
     model.vis.global_.offwidth = WIDTH

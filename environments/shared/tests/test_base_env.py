@@ -931,7 +931,8 @@ class TestRewardTermHelpers:
 
 
 class TestContactGeom:
-    """``_contact_geom``: the one contact query behind the bite, strike and snap checks and the floor scan.
+    """``_contact_geom``: the contact query behind the floor scan, its only caller since the hunt's bite, strike and
+    snap checks were deleted (decision D-D59).
 
     It scans ``data.contact`` in order and returns the geom of *geoms* from the first contact that
     pairs one of them with *other_geom*, from either side of the pair, or None.  The first match
