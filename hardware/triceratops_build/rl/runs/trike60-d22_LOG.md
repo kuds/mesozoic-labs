@@ -100,3 +100,14 @@ to the run commit's: the export has no git history to read the run commit's file
   four seeds). The choice can only be 128 mm, if 128 mm passes F1 and F2 on seeds 2 and 3 as well, or none. The
   remaining 160 mm runs still have to be trained and measured: `choose()` makes no choice if any of the eight is
   missing or not judged.
+
+## Round 2 started, 25 Nov 2026
+
+Each record passes the record checks of `judge_d22.checks`: the run commit, a clean tree, its own seed and model,
+and run 3's settings and arguments. Each run writes to its own folder, on 8 vCPUs.
+
+| run | session start (UTC) | seed | model | output folder | vCPUs |
+|---|---|---|---|---|---|
+| trike60-fore160-s1 | 15:13:02 | 1 | fore160 | trike60-fore160-s1 | 8 |
+| trike60-fore128-s2 | 15:12:56 | 2 | fore128 | trike60-fore128-s2 | 8 |
+| trike60-fore160-s2 | 15:12:47 | 2 | fore160 | trike60-fore160-s2 | 8 |
