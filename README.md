@@ -37,13 +37,13 @@ and the executable environments; do not edit by hand. -->
 
 | Model | Description | Gait | Task | Observation / action dim. | Details |
 |---|---|---|---|---:|---|
-| <a id="velociraptor_mongoliensis-anatomical"></a>**Velociraptor Mongoliensis (Anatomical)** | Swift Bipedal Predator | Bipedal | Fast bipedal running | 67 / 17 | [README](environments/velociraptor_mongoliensis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
-| <a id="tyrannosaurus_rex-anatomical"></a>**Tyrannosaurus Rex (Anatomical)** | Apex Predator | Bipedal | Heavy-bodied bipedal balance and walking | 59 / 15 | [README](environments/tyrannosaurus_rex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) · [model page](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
-| <a id="brachiosaurus_altithorax-anatomical"></a>**Brachiosaurus Altithorax (Anatomical)** | Gentle Giant Herbivore | Quadrupedal | Long-necked quadrupedal walking | 81 / 30 | [README](environments/brachiosaurus_altithorax/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
-| <a id="dibothrosuchus_elaphros-anatomical"></a>**Dibothrosuchus Elaphros (Anatomical)** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Erect-limbed quadrupedal walking | 75 / 27 | [README](environments/dibothrosuchus_elaphros/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
-| <a id="compsognathus_longipes-anatomical"></a>**Compsognathus Longipes (Anatomical)** | Small Bipedal Theropod | Bipedal | Small-bodied bipedal walking | 51 / 14 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) |
-| <a id="compsognathus_longipes-robot"></a>**Compsognathus Longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Servo-driven bipedal walking with fixed head and tail | 41 / 12 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
-| <a id="allosaurus_fragilis-anatomical"></a>**Allosaurus Fragilis (Anatomical)** | Jurassic Tridactyl Theropod | Bipedal | Level-ground walk along a commanded heading, over an eight-metre course | 41 / 10 | [README](environments/allosaurus_fragilis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#allosaurus_fragilis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/allosaurus_fragilis/anatomical) |
+| <a id="velociraptor_mongoliensis-anatomical"></a>**Velociraptor mongoliensis (Anatomical)** | Swift Bipedal Predator | Bipedal | Fast bipedal running | 67 / 17 | [README](environments/velociraptor_mongoliensis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
+| <a id="tyrannosaurus_rex-anatomical"></a>**Tyrannosaurus rex (Anatomical)** | Apex Predator | Bipedal | Heavy-bodied bipedal balance and walking | 59 / 15 | [README](environments/tyrannosaurus_rex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) · [model page](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
+| <a id="brachiosaurus_altithorax-anatomical"></a>**Brachiosaurus altithorax (Anatomical)** | Gentle Giant Herbivore | Quadrupedal | Long-necked quadrupedal walking | 81 / 30 | [README](environments/brachiosaurus_altithorax/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
+| <a id="dibothrosuchus_elaphros-anatomical"></a>**Dibothrosuchus elaphros (Anatomical)** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Erect-limbed quadrupedal walking | 75 / 27 | [README](environments/dibothrosuchus_elaphros/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
+| <a id="compsognathus_longipes-anatomical"></a>**Compsognathus longipes (Anatomical)** | Small Bipedal Theropod | Bipedal | Small-bodied bipedal walking | 51 / 14 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) |
+| <a id="compsognathus_longipes-robot"></a>**Compsognathus longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Servo-driven bipedal walking with fixed head and tail | 41 / 12 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
+| <a id="allosaurus_fragilis-anatomical"></a>**Allosaurus fragilis (Anatomical)** | Jurassic Tridactyl Theropod | Bipedal | Level-ground walk along a commanded heading, over an eight-metre course | 41 / 10 | [README](environments/allosaurus_fragilis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#allosaurus_fragilis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/allosaurus_fragilis/anatomical) |
 
 The [species catalog](docs/SPECIES_CATALOG.md) holds each model's full entry: specifications, current stages
 with their recipes, budgets and gates, success definitions and run summaries; each model page renders it too.
@@ -53,6 +53,9 @@ Outside the table, the [Stegosaurus reference](examples/stegosaurus_stenops/READ
 reconstruction built from specimen measurements. It stands and walks with a scripted controller, not a trained
 policy. To watch it on a machine with a display, run `python -m examples.stegosaurus_stenops` from the repository
 root.
+
+The [adult Triceratops anatomical study](examples/triceratops_horridus/README.md) compares the revised body and feet
+with the original design and reports measured balance, footfalls and slip during a free-standing reference walk.
 
 ## Getting started
 
@@ -129,10 +132,9 @@ stage, the recovery stage and the notebook's settings.
 | [`configs/`](configs) | The species manifest and each model's stage configs (`configs/<species>/<embodiment>/`) |
 | [`notebooks/`](notebooks) | Colab notebooks for training and for summarizing results |
 | [`results/`](results) | Published run summaries, metrics and GIFs (none is published at present), and the ledger of judgements made outside training |
-| [`docs/`](docs) | The generated species catalog, plans, design records, investigations and reviews |
+| [`docs/`](docs) | The generated species catalog, plans, design records, investigations, reviews and hardware notes |
 | [`website/`](website) | Source of [mesozoiclabs.com](https://mesozoiclabs.com) (Docusaurus) |
-| [`examples/`](examples) | The standalone Stegosaurus reference |
-| [`hardware/`](hardware) | Robot design studies and build plans; no hardware results are published yet |
+| [`examples/`](examples) | The standalone Stegosaurus reference and the Triceratops anatomical study |
 
 ## Documentation
 
@@ -148,6 +150,7 @@ Start with the guides on [mesozoiclabs.com](https://mesozoiclabs.com) and the ge
 | Add a species or a robot, set up for development and run the tests | [Contributing](CONTRIBUTING.md) |
 | See what changed in each release | [Changelog](CHANGELOG.md) |
 | Check project status, plans, design records and open problems | [Documentation map](docs/README.md) |
+| Read the robot hardware notes: parts and costs, sizes tried, lessons learned and the first planned build | [docs/hardware](docs/hardware/README.md) |
 | Read how the project started | [From Zero to Dino-Roar](https://www.findingtheta.com/blog/from-zero-to-dino-roar-teaching-a-t-rex-to-walk-with-mujoco-and-reinforcement-learning) (blog post) |
 
 ## Citation

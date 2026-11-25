@@ -358,35 +358,138 @@ class TestTheCommandTrackingFigure:
         assert "training history recorded from step 20,000" in labels
 
     @pytest.mark.parametrize(
-        "run",
+        ("record", "caveat"),
         [
-            {"load_mode": "resume_same_stage", "load_path": "/runs/x/02_locomotion/models/walk_40000_steps.zip"},
-            {
-                "load_mode": "initialize_next_stage",
-                "load_path": "/runs/x/01_stance/models/robust_best_model.zip",
-                "resume_load_path": "/runs/x/02_locomotion/models/walk_40000_steps.zip",
-            },
+            (
+                {
+                    "run": {
+                        "load_mode": "resume_same_stage",
+                        "load_path": "/runs/x/02_locomotion/models/walk_40000_steps.zip",
+                    }
+                },
+                None,
+            ),
+            (
+                {
+                    "run": {
+                        "load_mode": "initialize_next_stage",
+                        "load_path": "/runs/x/01_stance/models/robust_best_model.zip",
+                        "resume_load_path": "/runs/x/02_locomotion/models/walk_40000_steps.zip",
+                    }
+                },
+                None,
+            ),
+            (
+                {
+                    "algorithm": "PPO",
+                    "stage": "locomotion",
+                    "run": {
+                        "load_mode": "resume_same_stage",
+                        "load_path": "/runs/x/02_locomotion/models/locomotion_40000_steps.zip",
+                    },
+                },
+                None,
+            ),
+            (
+                {
+                    "run": {
+                        "load_mode": "resume_same_stage",
+                        "load_path": "/runs/x/02_locomotion/models/walk_10000_steps.zip",
+                    }
+                },
+                "after",
+            ),
+            (
+                {
+                    "run": {
+                        "load_mode": "initialize_next_stage",
+                        "load_path": "/runs/x/01_stance/models/robust_best_model.zip",
+                        "resume_sessions": [{"resume_load_path": "/runs/x/02_locomotion/models/walk_10000_steps.zip"}],
+                    }
+                },
+                "after",
+            ),
+            (
+                {"run": {"load_mode": "resume_same_stage", "load_path": "/runs/x/02_locomotion/models/best_model.zip"}},
+                "best_model.zip",
+            ),
+            (
+                # The SAC walk interrupted at step 60,000, refused in place, resumed into a fresh directory from its
+                # step-40,000 checkpoint: the counter restarts, so the series starts below the checkpoint's step.
+                {
+                    "algorithm": "SAC",
+                    "stage": 2,
+                    "run": {
+                        "load_mode": "resume_same_stage",
+                        "load_path": "/runs/x/02_locomotion/models/stage2_40000_steps.zip",
+                    },
+                },
+                "stage2_40000_steps.zip",
+            ),
+            (
+                {
+                    "algorithm": "PPO",
+                    "stage": "locomotion",
+                    "run": {
+                        "load_mode": "resume_same_stage",
+                        "load_path": "/runs/x/01_stance/models/stance_40000_steps.zip",
+                    },
+                },
+                "stance_40000_steps.zip",
+            ),
+            (
+                # A curated load into a fresh directory, then continued in place from its own periodic checkpoint:
+                # the continuation is seeded, the restart before it still holds.
+                {
+                    "run": {
+                        "load_mode": "resume_same_stage",
+                        "load_path": "/runs/x/02_locomotion/models/walk_final.zip",
+                        "resume_load_path": "/runs/y/02_locomotion/models/walk_40000_steps.zip",
+                        "resume_sessions": [{"resume_load_path": "/runs/y/02_locomotion/models/walk_40000_steps.zip"}],
+                    }
+                },
+                "walk_final.zip",
+            ),
         ],
-        ids=["root-resume", "entered-then-resumed"],
+        ids=[
+            "root-resume-continued",
+            "entered-resume-continued",
+            "labelled-ppo-resume-continued",
+            "root-resume",
+            "session-resume",
+            "no-step-count",
+            "sac-fresh-directory",
+            "another-stage-periodic",
+            "restart-then-continued",
+        ],
     )
-    def test_the_history_marker_adds_the_resume_caveat_only_on_a_recorded_resume(self, tmp_path, run):
-        """diagnostics.npz is not continued across a same-stage resume, so a stage that records one says its
-        history starts at the resumed session; a warm start from the parent alone is no resume."""
+    def test_the_history_marker_says_which_resume_the_series_does_not_cover(self, tmp_path, record, caveat):
+        """A PPO continuation continues diagnostics.npz, so a continued stage's series starts where the run did and
+        gets no caveat; one that starts after a checkpoint the stage continued from (here step 10,000, the series at
+        20,000) says the rows before that checkpoint were not continued.  Any other same-stage resume (a SAC load, a
+        checkpoint without a step count, another stage's periodic checkpoint) restarted the step counter and seeded
+        nothing, so it gets that caveat wherever the series starts.  A warm start from the parent alone is no
+        resume."""
         pytest.importorskip("matplotlib")
         from environments.shared.visualization import plot_command_tracking
 
         directory = _charted_stage(tmp_path)
-        entered = {key: value for key, value in run.items() if key != "resume_load_path"}
-        (directory / "stage_config.json").write_text(json.dumps({"run": entered}), encoding="utf-8")
+        (directory / "stage_config.json").write_text(json.dumps(record), encoding="utf-8")
         labels = [line.get_label() for line in plot_command_tracking(directory).axes[-1].get_lines()]
-        resumed = run["load_mode"] == "resume_same_stage"
-        assert ("training history recorded from step 20,000" in labels) is not resumed
-        (directory / "stage_config.json").write_text(json.dumps({"run": run}), encoding="utf-8")
-        labels = [line.get_label() for line in plot_command_tracking(directory).axes[-1].get_lines()]
-        assert (
-            "training history recorded from step 20,000 (this stage resumed a checkpoint; diagnostics.npz is not "
-            "continued across a resume)"
-        ) in labels
+        plain = "training history recorded from step 20,000"
+        if caveat is None:
+            expected = plain
+        elif caveat == "after":
+            expected = (
+                f"{plain} (after the step-10,000 checkpoint this stage resumed from: the rows before it were not "
+                "continued)"
+            )
+        else:
+            expected = (
+                f"{plain} (a resume from {caveat} restarted the step counter: the steps before that checkpoint are "
+                "not in this record)"
+            )
+        assert [label for label in labels if label.startswith(plain)] == [expected]
 
     def test_the_commanded_speed_is_titled_to_three_significant_figures(self, tmp_path):
         """A slow walk's command (the robot's 0.02-0.04 m/s) is not rounded to two decimals in the title."""

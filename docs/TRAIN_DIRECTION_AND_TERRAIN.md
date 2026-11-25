@@ -24,7 +24,7 @@ before decision D-D33, such as the T-Rex walker `20260914_123816`, no longer
 load: that decision moved every plant's policy-interface revision.
 
 Direction following and difficult-terrain training are supported SB3/PPO behaviors
-for all six registered models: the anatomical Velociraptor, Tyrannosaurus Rex,
+for all six registered models: the anatomical Velociraptor, Tyrannosaurus rex,
 Brachiosaurus, Dibothrosuchus and Compsognathus, and the Compsognathus robot.
 Every model has the same eleven behavior recipes, a complete set of TOML files
 under `configs/<species>/<embodiment>/behaviors/`.

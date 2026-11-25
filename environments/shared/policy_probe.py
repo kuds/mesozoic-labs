@@ -750,6 +750,14 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
     def _on_training_end(self) -> None:
         self.write()
 
+    def flush_records(self) -> bool:
+        """:meth:`write`, which the trainer calls after the final save of an interrupt it saves.
+
+        ``learn()`` skips ``on_training_end`` on a ``KeyboardInterrupt``
+        (``train_base._flush_report_records``).
+        """
+        return self.write()
+
     # ------------------------------------------------------------------ the file
     def arrays(self) -> dict[str, np.ndarray]:
         """The file's arrays: the per-update ones, then the bank's description and the frozen statistics."""

@@ -666,6 +666,49 @@ class TestLoadStageConfigTableValidation:
         with pytest.raises(ValueError, match=r"unknown top-level table\(s\) \['jax'\]"):
             load_stage_config("ignored", 1, config_path=str(path))
 
+    @pytest.mark.parametrize(
+        "spelling",
+        [
+            "\n[curriculum.jax]\nmin_avg_reward = 40.0\n",
+            "jax = { min_avg_reward = 40.0 }\n",
+            "jax.min_avg_reward = 40.0\n",
+            "jax = 40.0\n",
+        ],
+        ids=["sub-table", "inline-table", "dotted-key", "scalar"],
+    )
+    def test_a_retired_curriculum_jax_table_is_rejected(self, tmp_path, spelling):
+        """The JAX gate override went with the trainer that applied it (D-D17); the loader refuses it on every
+        path, the SB3 notebook's ``load_all_stages`` included, however the TOML spells it."""
+        path = self._write(
+            tmp_path,
+            '[stage]\nname = "x"\n\n[env]\nalive_bonus = 1.0\n\n[ppo]\nlearning_rate = 1e-4\n\n'
+            '[curriculum]\ngate_schema_version = 1\ngate_kind = "reward_and_length/v1"\nmin_avg_reward = 100.0\n'
+            + spelling,
+        )
+        with pytest.raises(ValueError) as excinfo:
+            load_stage_config("ignored", 1, config_path=str(path))
+        message = str(excinfo.value)
+        assert message.startswith(f"{path}: [curriculum.jax] is refused")
+        assert "D-D17 retired" in message
+
+    @pytest.mark.parametrize(
+        ("toml", "tables"),
+        [
+            ('curriculum = [["timesteps", 100], ["jax", { min_avg_reward = 40.0 }]]\n', "[curriculum]"),
+            ("[[curriculum]]\njax = 1\ntimesteps = 2\n", "[curriculum]"),
+            ('env = 3\nppo = "fast"\n', "[env], [ppo]"),
+            ('stage = ["x"]\n', "[stage]"),
+        ],
+        ids=["array-of-pairs", "array-of-tables", "scalars", "array"],
+    )
+    def test_a_stage_table_written_as_anything_but_a_table_is_rejected(self, tmp_path, toml, tables):
+        """``dict()`` turned an array of pairs or of tables into a mapping, so a ``jax`` key got past the
+        ``[curriculum.jax]`` refusal; every stage table must now be a TOML table."""
+        path = self._write(tmp_path, toml)
+        with pytest.raises(ValueError) as excinfo:
+            load_stage_config("ignored", 1, config_path=str(path))
+        assert str(excinfo.value).startswith(f"{path}: {tables} must be a TOML table, not ")
+
     def test_empty_env_table_warns(self, tmp_path, caplog):
         path = self._write(tmp_path, '[stage]\nname = "x"\n\n[ppo]\nlearning_rate = 1e-4\n')
         with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
@@ -1077,9 +1120,13 @@ class TestSaveStageConfigLoadLineage:
         with pytest.raises(AncestorReuseError, match="a certified node is reusable only on top of the parent"):
             _check_chain(tmp_path / "run", entry=locomotion, parent_model_sha256=sha256_file(periodic))
 
-    def test_only_a_same_stage_resume_of_an_entered_stage_keeps_the_edge(self, tmp_path):
-        """A root's resume, a resume over an unreadable record, and a fresh ``initialize_next_stage``
-        entry all record the load under the lineage keys as before, with no resume keys."""
+    def test_a_resume_records_its_load_as_lineage_only_over_a_record_without_one(self, tmp_path):
+        """A from-scratch root's first resume, a resume over an unreadable record, and a fresh
+        ``initialize_next_stage`` entry record the load under the lineage keys, with no resume keys.
+        Re-pinned 2026-11-24 (the resume-path cleanup): a resume over a record that holds a load keeps
+        it, a root's as an entered stage's edge, and records its own under the resume keys; before, a
+        resume of a resumed root replaced the root's lineage with its newest checkpoint, which hid a
+        root's first ``--load`` from ``run_exclusions`` rule (d)."""
         from environments.shared.result_bundle import sha256_file
 
         periodic = _sb3_style_zip(tmp_path / "stage1_100_steps.zip", {})
@@ -1089,9 +1136,11 @@ class TestSaveStageConfigLoadLineage:
         assert run["load_path"] == str(periodic) and run["load_mode"] == "resume_same_stage"
         assert run["parent_checkpoint_sha256"] == sha256_file(periodic)
         assert not set(RESUME_LINEAGE_KEYS) & set(run)
-        # A resume of a resumed root keeps recording the newest checkpoint as the load.
-        run = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
-        assert run["load_mode"] == "resume_same_stage" and not set(RESUME_LINEAGE_KEYS) & set(run)
+        # A resume of a resumed root keeps the load its record holds and records its own apart.
+        later = _sb3_style_zip(tmp_path / "stage1_200_steps.zip", {})
+        run = self._run_block(tmp_path, load_path=str(later), load_mode="resume_same_stage")
+        assert run["load_path"] == str(periodic) and run["parent_checkpoint_sha256"] == sha256_file(periodic)
+        assert run["resume_load_path"] == str(later) and run["resume_checkpoint_sha256"] == sha256_file(later)
         # An unreadable record reads as "no edge".
         (tmp_path / "run" / "stage_config.json").write_text("{not json")
         run = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
@@ -1339,7 +1388,8 @@ class TestHyperparameterDigestAndLabel:
 
 class TestRefuseOccupiedStageDir:
     """Decision D-A20: a stage directory holding ``stage_config.json`` or ``gate_verdict.json``
-    is a recorded stage; only an explicit same-stage resume may write into it again."""
+    is a recorded stage; only an explicit same-stage resume of an unjudged stage may write into it
+    again (a judged one is refused under every load mode: ``test_write_guards.py``)."""
 
     def test_the_occupancy_files_are_the_config_and_the_verdict(self):
         assert STAGE_DIR_OCCUPANCY_FILES == ("stage_config.json", "gate_verdict.json")
@@ -1355,9 +1405,13 @@ class TestRefuseOccupiedStageDir:
         message = str(excinfo.value)
         assert issubclass(StageDirectoryOccupiedError, RuntimeError)
         assert str(tmp_path) in message and occupancy_file in message and repr(task_load_mode) in message
-        # Both ways forward are named: a fresh run directory, or an explicit same-stage resume.
+        # Both ways forward are named: a fresh run directory, or an explicit same-stage resume (an
+        # unjudged stage only: a judged one is never resumed in place, D-A20 as amended 2026-11-24).
         assert "--output-dir" in message and "RUN_ID" in message
-        assert "--load <checkpoint> --load-mode resume_same_stage" in message and "RESUME" in message
+        if occupancy_file == "stage_config.json":
+            assert "--load <checkpoint> --load-mode resume_same_stage" in message and "RESUME" in message
+        else:
+            assert "never trained further in place" in message and "RESUME" not in message
 
     def test_both_files_are_named_when_both_are_present(self, tmp_path):
         for name in STAGE_DIR_OCCUPANCY_FILES:
@@ -1365,9 +1419,8 @@ class TestRefuseOccupiedStageDir:
         with pytest.raises(StageDirectoryOccupiedError, match="stage_config.json, gate_verdict.json"):
             refuse_occupied_stage_dir(str(tmp_path), task_load_mode="initialize_next_stage")
 
-    @pytest.mark.parametrize("occupancy_file", STAGE_DIR_OCCUPANCY_FILES)
-    def test_a_same_stage_resume_is_allowed(self, tmp_path, occupancy_file):
-        (tmp_path / occupancy_file).write_text("{}")
+    def test_a_same_stage_resume_of_an_unjudged_stage_is_allowed(self, tmp_path):
+        (tmp_path / "stage_config.json").write_text("{}")
         assert refuse_occupied_stage_dir(tmp_path, task_load_mode="resume_same_stage") is None
 
     @pytest.mark.parametrize("task_load_mode", [None, "resume_same_stage", "initialize_next_stage"])

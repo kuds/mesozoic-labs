@@ -5,7 +5,7 @@ title: Privacy Policy
 
 # Privacy Policy
 
-Last updated: February 2026
+Last updated: November 2026
 
 ## Overview
 
@@ -15,13 +15,18 @@ Mesozoic Labs ("we", "our", or "us") respects your privacy and is committed to p
 
 ### Analytics Data
 
-When you consent to cookies, we use Google Analytics to collect:
+Google Analytics runs only if you accept cookies in the consent banner. Until you accept, and if you decline,
+the site does not load the Google Analytics script and sends nothing to Google Analytics. When you accept, we use
+Google Analytics to collect:
 
 - **Usage Data**: Pages visited, time spent on pages, navigation paths
 - **Technical Data**: Browser type, operating system, device type, screen resolution
 - **Location Data**: Country and city (approximate, based on IP address)
 
 **Important**: All IP addresses are anonymized before being stored.
+
+We do not use Google's advertising features: the site keeps Google's advertising consent signals (ad storage,
+ad user data and ad personalization) denied, even when you accept analytics.
 
 ### What We Do NOT Collect
 
@@ -47,20 +52,29 @@ Cookies are small text files stored on your device when you visit websites.
 
 ### Cookies We Use
 
+Only when you accept analytics, Google Analytics sets these cookies:
+
 | Cookie | Purpose | Duration |
 |--------|---------|----------|
-| `mesozoic_cookie_consent` | Stores your cookie preference | Persistent |
 | `_ga` | Google Analytics - distinguishes users | 2 years |
 | `_ga_*` | Google Analytics - session state | 2 years |
 
+Your choice itself is not stored in a cookie: the site keeps it in your browser's local storage, under the key
+`mesozoic_cookie_consent`.
+
 ### Managing Cookies
 
-You can change your cookie preferences at any time by:
+You can change your cookie preferences at any time by either:
 
-1. Clearing your browser's local storage
-2. Refreshing the page to see the consent banner again
+1. Using the **Reset Cookie Preferences** button at the bottom of this page. It forgets your choice, deletes the
+   Google Analytics cookies, stops analytics for the rest of your visit and reloads the page, so the consent
+   banner asks again.
+2. Clearing your browser's local storage for this site and refreshing the page to see the consent banner again.
 
-You can also disable cookies entirely in your browser settings.
+Declining in the banner also deletes any Google Analytics cookies this site has set.
+
+If your browser blocks site data, your choice cannot be saved: it applies until you reload the page, and the
+banner asks again next time. You can also disable cookies entirely in your browser settings.
 
 ## Third-Party Services
 
@@ -73,7 +87,7 @@ To opt out of Google Analytics across all websites, you can install the [Google 
 ## Data Retention
 
 - Analytics data is retained for 14 months
-- Cookie consent preferences are stored indefinitely in your browser
+- Your cookie preference stays in your browser's local storage until you reset it or clear your site data
 
 ## Your Rights
 
@@ -94,7 +108,7 @@ We may update this privacy policy from time to time. Changes will be posted on t
 
 ## Contact Us
 
-If you have questions about this privacy policy or our data practices, please open an issue on our [GitHub repository](https://github.com/mesozoic-labs).
+For questions about this privacy policy or our data practices, email [hello@findingtheta.com](mailto:hello@findingtheta.com).
 
 ---
 

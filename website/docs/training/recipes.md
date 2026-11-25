@@ -177,9 +177,10 @@ root-first. At each node it does exactly one of three things:
    records copied, never its checkpoint pair) and loaded from where it
    lives, by the CLI and the notebook alike.
    The trunk run is the one `TRUNK_FROM` / `--trunk-from` names, or, under
-   `"auto"` (the notebook default, decision D-A25), the run beside this one
-   (under the species/embodiment/algorithm log directory in the notebook; the siblings
-   of the run directory on the command line) whose certified ancestors cover
+   `"auto"` (the notebook default, decision D-A25), the run (in the notebook,
+   one of the certification tree `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`,
+   whatever `RUN_KIND` says; on the command line, a sibling of the run
+   directory) whose certified ancestors cover
    the most of the chain root-first, the greatest run directory name on a
    tie (the newest timestamp id; a custom `RUN_ID` such as `my_run` sorts
    after every timestamp). The selection prints
@@ -258,7 +259,10 @@ reason naming it:
    retrain). The re-judge paths are the notebook's JUDGE branch
    (`generate_stage_artifacts`, for a directory holding no verdict — remove
    a refused one first) and `backfill_gate_verdict.py --force [--gate
-   current]` below.
+   current]` below. Neither writes into a run whose bundle is `complete`,
+   which is immutable: such a verdict stays as published, and when rule 7
+   refuses it a trunked run trains the node itself (decision D-B8 as
+   amended 2026-11-24).
 
 A candidate the rule refuses is not an error: `curriculum --trunk-from` and
 the notebook loop log the refusal and train the node in the new run, so
@@ -321,27 +325,53 @@ a report whose recorded `thresholds` are not the ones being judged under
 (under either `--gate`): a stance directory whose rail moved is re-judged
 through the notebook's JUDGE branch, which measures a fresh panel. The tool
 refuses when the evidence is missing, and cannot backfill
-`recovery_quality/v1`.
+`recovery_quality/v1`. It refuses, before it writes anything and `--force` or
+not, a stage directory whose run holds a `complete` bundle: that bundle is
+immutable, and a verdict added or rewritten in it would stop its manifest
+verifying.
 
 ## In the notebook
 
-`notebooks/sb3_training.ipynb` exposes five knobs in its configuration cell,
+`notebooks/sb3_training.ipynb` exposes six knobs in its configuration cell,
 committed as:
 
 ```python
 BEHAVIOR = "auto"  # the model's final deliverable, a recipe label, or a deliverable's stage id
-TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
+TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
-RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+RUN_KIND = "certify"  # "certify" = a run that may certify, under <algo>/, the tree TRUNK_FROM = "auto" and seed replication scan; "screen" = a branch screen, pilot or other experiment, under <algo>_screen/: never a trunk or a seed replicate of a certification run, though it reuses certified ancestors; set it again to re-enter or resume a screen; QUICK_TEST wins (<algo>_quick_test/)
 ```
 
-`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`
-(`<algorithm>_quick_test/` when `QUICK_TEST` is on, so a 50,000-step quick
-test is never selected as a trunk or counted as a seed replicate of a real
-run):
+`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`,
+the certification tree, or under the tree `RUN_KIND` or `QUICK_TEST` moves it
+to: `<algorithm>_screen/` under `RUN_KIND = "screen"` (a branch screen, a
+pilot or another experiment), and `<algorithm>_quick_test/` when `QUICK_TEST`
+is on, whatever `RUN_KIND` says. Trunk selection and seed-replicate discovery
+never reach either, so a 50,000-step quick test, or a screen whose task, gate,
+plant and recipe digests equal a landed recipe's, is never selected as a trunk
+or counted as a seed replicate of a certification run (the runs of one of
+those trees may count one another). The folder is the run's only record of
+its kind (`environments/shared/run_tree.py`), and the Drive summary notebook
+reads it into its `run_kind` column. A run id names one run of the model,
+whatever its tree: a fresh runtime resets `RUN_KIND` and `QUICK_TEST`, so a
+screen is re-entered or resumed with `RUN_KIND = "screen"` set again, and the
+storage cell refuses, before anything is written, a `RUN_ID` that names no run
+in the selected tree but a run in another. A screen pins a screen trunk as
+`../<algorithm>_screen/<id>` or by its absolute path, since a bare `TRUNK_FROM`
+id resolves in `<algorithm>/`. The tree covers trunk selection, replicate
+discovery and the pinned trunk only: nothing refuses a certification run that
+loads, resumes or widens a screen's checkpoint (the manual node's
+`MANUAL_LOAD_PATH`, the widen tool, a command-line `--load`), so a
+certification run never trains from one. A screen's branch needs a notebook
+with the knob: on a branch cut before 2026-11-24 the storage cell ignores
+`RUN_KIND` and writes the run into `<algorithm>/`, so bring the change onto
+the branch first (merge `main`, or apply `environments/shared/run_tree.py` and
+the storage cell) and check that the storage cell's `Run directory:` line
+shows `<algorithm>_screen/` before training.
 `""` keeps the run this runtime's storage cell resolved last in the tree that
-`SPECIES`, `EMBODIMENT`, `ALGORITHM` and `QUICK_TEST` select and mints a fresh timestamped
+`SPECIES`, `EMBODIMENT`, `ALGORITHM`, `RUN_KIND` and `QUICK_TEST` select and mints a fresh timestamped
 run when there is none there (the first pass in a runtime, or after one of
 those changed),
 a new id starts a fresh run, and an existing run's id re-enters that run in
@@ -360,7 +390,8 @@ certified nodes across runs.
 A checkpoint trained behind this checkout's policy interface is widened on the
 command line into a new run, one the notebook has not opened yet (`python -m
 environments.shared.scripts.widen_checkpoint ... --to-stage-dir
-<LOG_BASE>/<species>/<embodiment>/<algorithm>/<new run id>/01_stance`, where `<new run id>`
+<LOG_BASE>/<species>/<embodiment>/<algorithm>/<new run id>/01_stance`, with
+`<algorithm>_screen/` in place of `<algorithm>/` for a screen, where `<new run id>`
 is a new timestamp id `YYYYMMDD_HHMMSS` that no run uses yet, with
 `--max-revision-gap N` for a parent more than one revision behind, decision
 D-C17, and `--label` when the session sets `RUN_LABEL`; on Colab, the three
@@ -375,8 +406,9 @@ consults any trunk (decisions D-C13, D-D14, and the cleanup's decision
 cell were removed once the two pending widen sessions had run.
 
 `TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
-cell selects the run under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/` whose
-certified ancestors cover the most of the chain root-first (the greatest run
+cell selects the run under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/` (the
+certification tree, whatever `RUN_KIND` says, so a screen builds on certified
+ancestors) whose certified ancestors cover the most of the chain root-first (the greatest run
 directory name on a tie, the newest timestamp id)
 and prints the choice, what it rests on and every refusal; `""` turns reuse
 off. Whatever the trunk, the resolve cell then records it in the run's
@@ -386,7 +418,10 @@ an `ancestors/` record, where another trunk than the recorded one is
 warned about (the trunk those records came through when the cells ran in
 order; see `docs/KNOWN_ISSUES.md`) and a missing file is never guessed. A
 pinned `TRUNK_FROM` is a run id, resolved under the same directory, or an
-absolute path to a run directory. It must be a run whose
+absolute path to a run directory. A certification run's trunk is a
+certification run: one under `<algorithm>_screen/` or `<algorithm>_quick_test/`
+is refused before anything is written, while a screen or a quick test may pin
+either. It must be a run whose
 `provenance.json` names the same species, embodiment, algorithm and backend, whatever its
 bundle status (a node is reused only when the reuse rule certifies it), and it
 must not be this run — certified nodes of an earlier run come in through
@@ -444,23 +479,49 @@ alone, on these models as on every other. The old
 
 Two escape hatches remain. The manual single-node cell (`MANUAL_NODE`) trains
 one node outside the chain and records its verdict without enforcing it; it
-never feeds the chain. The resume cell (`RESUME_STAGE`) continues an
-interrupted node from its newest intact periodic checkpoint under
+never feeds the chain. It refuses, before it writes anything, a run whose
+bundle is `complete` and a node that already holds a gate verdict, whatever
+`MANUAL_LOAD_MODE` says: a judged node is never trained further in place,
+so a new attempt is a fresh `RUN_ID`. The resume cell (`RESUME_STAGE`)
+continues an interrupted node from its newest intact periodic checkpoint under
 `resume_same_stage` and evaluates nothing (the loop's JUDGE branch evaluates
-the node from disk); the re-saved `stage_config.json` keeps the edge's
-lineage keys and records the continued-from checkpoint under
-`resume_load_path` / `resume_checkpoint_sha256`, so a resumed-then-judged
-node still chains by digest and stays reusable. It sits ahead of the chain
-loop, so a resume is: set `RUN_ID` to the interrupted run and `RESUME_STAGE`
-to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` set to the value the
-run's `trunk_run.json` records (unless the run's `ancestors/` records came
-through another trunk than the file names: then remove the file and pin by
-the nearest ancestor record, as `docs/KNOWN_ISSUES.md` describes; a run
-opened before that file
-existed is pinned by hand to the run the interrupted session resolved, `""`
-only when it trained every node itself), then Run all; the loop judges the
-node after the resume trains it, before it consults any trunk, so a node
-trained here although that trunk run certifies it is resumed the same way.
+the node from disk); the re-saved `stage_config.json` keeps the load lineage
+the record holds (an entered node's edge, or a root's first load) and
+records the continued-from checkpoint under `resume_load_path` /
+`resume_checkpoint_sha256`, so a resumed-then-judged node still chains by
+digest and stays reusable. The record also keeps the first session's
+`git_commit`, `library_version`, `run.timesteps` and `run.label`, and each
+resume session's commit, library version, timesteps and continued-from
+checkpoint are appended to `run.resume_sessions` once its model has loaded
+(a resume refused or failed before training adds none). Only a PPO node is
+resumed: SAC restarts its step counter on a load (its replay buffer is not
+saved), so the cell refuses an `ALGORITHM` other than `"ppo"`, and `train`
+refuses such a load into a directory holding the node's records. The trainer
+refuses, before it writes anything, a checkpoint trained on another task, a
+resume whose `hyperparameters_sha256` differs from the node's record, naming
+the keys, and a `RUN_LABEL` other than the recorded label (an empty one keeps
+it). A node first trained at a commit from before 2026-11-24 resumes at
+`main` like any other: these checks compare it with its record, and the
+re-saved record keeps its first session. The cell warns
+when `BEHAVIOR` is `"auto"`, when the run's `provenance.json` records another
+target deliverable than `BEHAVIOR` resolves to, and when the checkout's
+commit is not the one the node records; it trains the same node either way,
+so to keep the run's target, interrupt the run before the chain loop starts,
+set `BEHAVIOR` and Run all again. It sits ahead of the chain loop, so a
+resume is: leave `REPO_REF` at `main` (pinning the `git_commit` the node's
+`stage_config.json` records works only for a commit that has
+`environments/shared/run_tree.py`, which the storage cell imports), set
+`RUN_ID` to the interrupted run and
+`RESUME_STAGE` to its node, with `RUN_LABEL` and `RETRAIN_FROM` empty,
+`RUN_KIND`, `QUICK_TEST`, `CRITIC_PHASE` and the other recipe knobs as the
+interrupted session had them, and `TRUNK_FROM` set to the value the run's `trunk_run.json` records
+(unless the run's `ancestors/` records came through another trunk than the
+file names: then remove the file and pin by the nearest ancestor record, as
+`docs/KNOWN_ISSUES.md` describes; a run opened before that file existed is
+pinned by hand to the run the interrupted session resolved, `""` only when
+it trained every node itself), then Run all; the loop judges the node after
+the resume trains it, before it consults any trunk, so a node trained here
+although that trunk run certifies it is resumed the same way.
 Once the run holds an `ancestors/` record, the resume cell refuses a resume
 under another trunk than `trunk_run.json` names, and a resume of a node the
 run holds as such a record (the record stays that node in the run: the loop
@@ -549,12 +610,31 @@ Refusals:
   parent's checkpoint cannot be loaded under it.
 - A stage directory that already holds `stage_config.json` or
   `gate_verdict.json` is refused unless the load is an explicit
-  `--load <checkpoint> --load-mode resume_same_stage`. `train` checks this
+  `--load <checkpoint> --load-mode resume_same_stage` of a stage that holds no
+  `gate_verdict.json`: a judged node is never trained further in place, under
+  any load mode (decision D-A20 as amended 2026-11-24). `train` checks this
   before it writes anything; the curriculum checks each node when the walk
   reaches it, before that stage directory is written to — by then the run
   directory, its `plant_identity.json` and any earlier node already exist.
   The curriculum has no resume mode, so it always needs a fresh
   `--output-dir`.
+- A same-stage resume is refused, before `train` writes anything, when it
+  cannot continue the stage the directory records: a `--load` that is not a
+  continuation into a directory that already holds that stage's training
+  records (`evaluations.npz`, an episode ledger, its periodic or final
+  checkpoints, a best-model pair), that is a SAC load (its replay buffer is
+  not saved, so its step counter restarts) or a curated PPO checkpoint
+  (`best_model.zip`, `<label>_final.zip`: no step count in the name); a
+  checkpoint trained on another task; and any resume whose
+  `hyperparameters_sha256` or `--label` differs from the directory's
+  `stage_config.json`. Such a `--load` into a fresh directory (the default
+  without `--output-dir`) trains.
+- A same-stage resume of a live-command stage (the walk) under a `--seed`
+  other than the run's is refused before `train` writes anything (decision
+  D-D62): its in-training evaluation panel is drawn from that seed. The seed
+  is read from the directory's `stage_config.json`, else from the one beside
+  the checkpoint, so the refusal holds for a resume into a fresh directory
+  too. Stance and recovery (`command_mode = "none"`) are not refused.
 - Non-advancing nodes (no legacy number — recovery) are skipped by the CLI
   curriculum with a log line in Phase A and trained on their own with
   `train --stage recovery`.
@@ -596,9 +676,10 @@ The `run` block of each `stage_config.json` records:
 |---|---|
 | `load_path`, `load_mode`, `parent_checkpoint_sha256`, `parent_task_sha256` | Where the node's initial weights came from; a from-scratch root writes none of them. |
 | `parent_run_id` | Present only when the parent was a certified ancestor reused from another run. |
-| `resume_load_path`, `resume_checkpoint_sha256` | The periodic checkpoint a same-stage resume continued from; the edge keys above are kept. |
-| `hyperparameters_sha256` | A digest over the stage's `[ppo]` or `[sac]` block plus its `warmup_` / `ramp_` shaping keys, key-order independent, untouched by env kwargs or gate thresholds. Always written. |
-| `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. |
+| `resume_load_path`, `resume_checkpoint_sha256` | The periodic checkpoint the latest same-stage resume continued from, when the record already held a load: the keys above stay that load (an entered node's edge, or a root's first load). A root trained from scratch records its first resume's load under the keys above instead. |
+| `resume_sessions` | One entry per same-stage resume into this directory that reached training, oldest first: its `git_commit`, `library_version`, `timesteps` (the steps it was set to train), `resume_load_path`, `resume_checkpoint_sha256` and `resumed_at`. The top-level `git_commit` and `library_version` and the run block's `timesteps` and `label` stay the first session's. |
+| `hyperparameters_sha256` | A digest over the stage's `[ppo]` or `[sac]` block plus its `warmup_` / `ramp_` shaping keys, key-order independent, untouched by env kwargs, gate thresholds and the budget. Always written; a same-stage resume under another digest is refused. |
+| `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. A same-stage resume keeps it; another non-empty label is refused. |
 | `duration_seconds` | Seconds from `train_base.train`'s start (for a `curriculum` node, from the point the node is trained rather than reused) to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` and `curriculum` subcommands (every node a curriculum trains, one a Ctrl-C ended included) and the notebook's `train_stage`. `curriculum_results.csv`'s `training_duration_seconds` is the time `learn()` alone took. |
 
 `gate_verdict.json` (schema `mesozoic.gate-verdict/v2`) records the species
@@ -623,7 +704,9 @@ schema-2 summaries still read):
   summary-side projection of `ancestors/<stage_id>/`.
 - `replication` is writer-recorded (decision D-B10). When the notebook
   writes the run's bundle, `environments.shared.replication.discover_replicates_for_run`
-  looks through the sibling runs under `LOG_BASE/<species>/<embodiment>/<algo>/` for the
+  looks through the sibling runs under `LOG_BASE/<species>/<embodiment>/<algo>/` (for a
+  screen or a quick test, its own `<algo>_screen/` or `<algo>_quick_test/` tree, so
+  neither is ever a replicate of a certification run) for the
   same recipe on another seed — a passed, reusable `gate_verdict.json` for
   the node with equal `task_sha256` and `gate_sha256`, a `stage_config.json`
   with the same plant identity and `hyperparameters_sha256` (derived from
@@ -687,7 +770,7 @@ thresholds. That one fact decides what an edit does to a trunked run:
 |---|---|---|
 | Algorithm block (`[ppo]`, `[sac]`, `warmup_` / `ramp_` shaping) | unchanged | Reuses the old certified checkpoint unless the node is the run's target or `--retrain-from` / `RETRAIN_FROM` covers it. The reuse prints a warning naming the differing keys (`ppo.learning_rate`, `shaping.warmup_timesteps`) and pointing at the retrain knob — never a refusal. |
 | Environment block (`[env]`, pushes, plant) | changes | Rule 3 refuses the old checkpoint; the node and everything below it retrain. Older checkpoints stay valid in the runs that certified them. |
-| Gate thresholds | unchanged | Rule 7 refuses the old verdict, naming the thresholds that differ (`gate_sha256` no longer matches). Re-judge the directory under the current gate — the notebook JUDGE branch / `generate_stage_artifacts`, or `backfill_gate_verdict.py --force --gate current` for a `reward_and_length/v1` directory — never retrain; until then a trunked run trains the node itself. |
+| Gate thresholds | unchanged | Rule 7 refuses the old verdict, naming the thresholds that differ (`gate_sha256` no longer matches). Re-judge the directory under the current gate — the notebook JUDGE branch / `generate_stage_artifacts`, or `backfill_gate_verdict.py --force --gate current` for a `reward_and_length/v1` directory — never retrain; until then a trunked run trains the node itself. A run whose bundle is `complete` is never re-judged in place, so for its verdict the trunked run's training is the only route. |
 
 Two variants of one node are two runs: writing into a stage directory that
 already records a node is refused, so give each variant a fresh

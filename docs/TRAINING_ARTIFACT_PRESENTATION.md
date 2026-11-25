@@ -2,8 +2,8 @@
 
 Human-facing training output uses the model display names from
 `configs/species_manifest.toml`, through `model_display_name()`: the species
-display name followed by the embodiment label, such as "Tyrannosaurus Rex
-(Anatomical)" or "Compsognathus Longipes (Robot)" (decision D-D33). Stage
+display name followed by the embodiment label, such as "Tyrannosaurus rex
+(Anatomical)" or "Compsognathus longipes (Robot)" (decision D-D33). Stage
 headings use `stage_display_name()`: the historical `balance` name is shown
 as **Stance**, and the six current stance configs record `name = "stance"`.
 This applies to CLI logs, text summaries, gate and probe reports, plot
@@ -11,17 +11,17 @@ legends, notebook tables and the public catalog.
 
 | Species ID | Embodiment | Model display name | Stance gate |
 |---|---|---|---|
-| `velociraptor_mongoliensis` | `anatomical` | Velociraptor Mongoliensis (Anatomical) | `stance_quality_heading/v1` |
-| `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus Rex (Anatomical) | `stance_quality_heading/v1` |
-| `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus Altithorax (Anatomical) | `reward_and_length/v1` |
-| `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus Elaphros (Anatomical) | `reward_and_length/v1` |
-| `compsognathus_longipes` | `anatomical` | Compsognathus Longipes (Anatomical) | `stance_quality_heading/v1` |
-| `compsognathus_longipes` | `robot` | Compsognathus Longipes (Robot) | `stance_quality/v1` |
+| `velociraptor_mongoliensis` | `anatomical` | Velociraptor mongoliensis (Anatomical) | `stance_quality_heading/v1` |
+| `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus rex (Anatomical) | `stance_quality_heading/v1` |
+| `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus altithorax (Anatomical) | `reward_and_length/v1` |
+| `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus elaphros (Anatomical) | `reward_and_length/v1` |
+| `compsognathus_longipes` | `anatomical` | Compsognathus longipes (Anatomical) | `stance_quality_heading/v1` |
+| `compsognathus_longipes` | `robot` | Compsognathus longipes (Robot) | `stance_quality/v1` |
 
 Consistent presentation does not imply identical anatomy or certification
 criteria. The gate kind remains visible in each report. `stance` and `recover`
 are **recipes**: `stance`, the stance stage's id and its label, resolves to the
-stance stage on every model, and `recover`, on the anatomical Tyrannosaurus Rex
+stance stage on every model, and `recover`, on the anatomical Tyrannosaurus rex
 and both Compsognathus embodiments, through stance and recovery (decision D-D35;
 before it the stance label, then `stand`, resolved through both there). The
 stance label was `stand` until decision D-D38, which refuses `stand` naming
@@ -51,7 +51,7 @@ checkpoint, rather than silently replayed with unnormalized observations.
 The default, side, and front cameras record **one rollout**, with one
 policy prediction and physics step per frame. Side/front views share fixed
 angles and preserve each species' tracking body and default camera distance.
-Tyrannosaurus Rex keeps its historical 3.4 m side/front framing;
+Tyrannosaurus rex keeps its historical 3.4 m side/front framing;
 Brachiosaurus uses a 9 m front view to include its tall neck.
 
 Playback uses `fps = 1 / env.dt`. The four 0.01 s models produce 100 fps
@@ -127,13 +127,13 @@ on a step the limb carries nothing. The column is absent, not empty, on a
 foot that declares no digits (the Compsognathus robot's sole and every
 Dibothrosuchus foot).
 
-The pad columns cover the four box-soled models: Tyrannosaurus Rex, both
+The pad columns cover the four box-soled models: Tyrannosaurus rex, both
 Compsognathus embodiments and Dibothrosuchus. The Velociraptor's capsule feet
 and the Brachiosaurus's ellipsoids have no box pad, so their CSVs have no pad
 column, just as their gates have no fore-aft CoP.
 
 A pad foot whose `FOOT_SUPPORT` entry declares its ankle and a support span
-(`ankle`, `heel_line`, `toe_line`; only the Tyrannosaurus Rex, whose span is
+(`ankle`, `heel_line`, `toe_line`; only the Tyrannosaurus rex, whose span is
 its pad's own heel and toe edges, 0.070 and 0.210 m ahead of the ankle) also
 has the whole-foot columns, and every pad foot with digits has per-digit
 columns, named by the digit's geom less the foot label and `_geom`
@@ -145,7 +145,7 @@ columns, named by the digit's geom less the foot label and `_geom`
 | `<label>_foot_cop_fore_aft` | The step's signed WHOLE-FOOT centre of pressure: every floor contact of the limb (pad, digits, any other leg geom), force-weighted along the pad's forward axis from the ankle axis, in half-lengths of the declared span (`-1` the heel line, `+1` the toe line, beyond `+1` past it on the digits) |
 | `<label>_toe_margin_nm`, `<label>_heel_margin_nm` | The floor-load moment left before that CoP reaches the toe line, `F (toe_line - x)`, and the heel line, `F (x - heel_line)`, in N m, with `F` the limb's floor force; negative past the line |
 | `<label>_<digit>_load_share` | The step's floor force on that digit over the whole limb's |
-| `<label>_<digit>_load_pos` | Where along the digit its floor load sits, force-weighted: 0 at the MTP joint's axis, 1 at the tip. Only on a digit with its own MTP joint (the Tyrannosaurus Rex's; the anatomical Compsognathus's digits share the pad's body) |
+| `<label>_<digit>_load_pos` | Where along the digit its floor load sits, force-weighted: 0 at the MTP joint's axis, 1 at the tip. Only on a digit with its own MTP joint (the Tyrannosaurus rex's; the anatomical Compsognathus's digits share the pad's body) |
 
 The whole-foot cells are empty on a step the limb carries nothing above
 0.1 N, so the per-foot whole-foot statistic over any window is again the
@@ -157,9 +157,9 @@ position is empty on a step its digit carries nothing.
 
 | Model | Foot site (`r_`/`l_` columns) | Leg joints |
 |---|---|---|
-| Velociraptor Mongoliensis (Anatomical), Tyrannosaurus Rex (Anatomical) | `r_foot`, `l_foot` | `r_*`, `l_*` |
-| Compsognathus Longipes (Anatomical) | `r_foot_touch_volume`, `l_foot_touch_volume` | `r_*`, `l_*` |
-| Compsognathus Longipes (Robot) | `right_foot_touch_volume`, `left_foot_touch_volume` | `right_*`, `left_*` |
+| Velociraptor mongoliensis (Anatomical), Tyrannosaurus rex (Anatomical) | `r_foot`, `l_foot` | `r_*`, `l_*` |
+| Compsognathus longipes (Anatomical) | `r_foot_touch_volume`, `l_foot_touch_volume` | `r_*`, `l_*` |
+| Compsognathus longipes (Robot) | `right_foot_touch_volume`, `left_foot_touch_volume` | `right_*`, `left_*` |
 
 The foot site is the `foot_site` of the embodiment class's `FOOT_SUPPORT`
 (`environments/<species>/<embodiment>/env.py`, read through
@@ -263,17 +263,17 @@ columns:
 
 - A field exists for a foot only if the foot has what the field measures.
   The CoP keys exist for every foot whose `FOOT_SUPPORT` sole is a box: the
-  Tyrannosaurus Rex, both Compsognathus embodiments and the Dibothrosuchus.
+  Tyrannosaurus rex, both Compsognathus embodiments and the Dibothrosuchus.
 - The digit share exists only on a box-soled foot with digits: the Tyrannosaurus
-  Rex and the anatomical Compsognathus.
+  rex and the anatomical Compsognathus.
 - The Velociraptor and the Brachiosaurus have no pad key: they have no box pad.
 - The `max_sole_cop_fore_aft_*` keys follow the pad keys, and the bar
   fraction exists only where the stage declares the bar.
 - The whole-foot keys, and `max_foot_cop_fore_aft_mean`, exist only on a foot
   whose `FOOT_SUPPORT` entry declares its ankle and support span: the
-  Tyrannosaurus Rex. The per-digit load share exists on every box-soled foot
+  Tyrannosaurus rex. The per-digit load share exists on every box-soled foot
   with digits; the load position only on a digit with its own MTP joint (the
-  Tyrannosaurus Rex's three per foot).
+  Tyrannosaurus rex's three per foot).
 - NaN in a key that exists means the value could not be measured at that
   evaluation. That happens when no episode reached the horizon or the
   evaluation could not be recorded. It also happens when no full-horizon
@@ -419,12 +419,12 @@ before.
 
 - `com_fore_aft_mean_m`, `root_pitch_mean_deg`, `xcom_fore_aft_max_m`, the
   Hof terms, the achieved leg offsets and the force keys but the ankle's:
-  the four box-soled models (the Tyrannosaurus Rex, both Compsognathus
+  the four box-soled models (the Tyrannosaurus rex, both Compsognathus
   embodiments and the Dibothrosuchus).
 - The toe and heel margins, `xcom_past_toe_fraction`, `time_to_toe_min_s`,
   `fall_xcom_toe_lead_s` and the ankle moment arm need a declared support
   span and ankle, and the tip margin needs hinged digits: the
-  Tyrannosaurus Rex only.
+  Tyrannosaurus rex only.
 - The Velociraptor and the Brachiosaurus have none of them: no box pad, no
   recorder.
 - `leg_dc_<left>_<right>_mean_<joint>_deg` follows the left-minus-right leg
@@ -668,10 +668,24 @@ reads the trace or the figures: they are report-only.
 episodes. Each stage directory also holds `eval_episodes.csv`, one row per
 evaluation episode (`StageAwareEvalCallback` with
 `environments/shared/episode_ledger.py`), on every model. It is rewritten
-atomically after every evaluation and when training ends, so every row up
-to a checkpoint's step is on disk before a run can resume from that
-checkpoint (SB3's `best_model`, saved inside the evaluation just before
-the rewrite, is the one exception). A same-stage resume keeps the previous session's rows at or
+atomically on the checkpoint cadence (in the calls a periodic checkpoint is
+saved in, as `train_episodes.csv` is) and when training ends, an early or
+gate stop included. The callback runs before the checkpoint's, so every row
+up to a periodic checkpoint's step is on disk before a run can resume from
+that checkpoint. After an interrupt that `train()` or the curriculum saves
+(`save_on_interrupt`), `learn()` skips its end, so the trainer rewrites this
+file, `train_episodes.csv` and `policy_probe.npz` itself, after the final
+pair is saved (`train_base._flush_report_records`): a second Ctrl-C during
+those rewrites cannot cost the final pair. Until 2026-11-24 it was
+rewritten after every evaluation (the cost below); a crash now loses the
+rows of the evaluations since the newest periodic checkpoint, the rows a
+same-stage resume from that checkpoint drops anyway. So does an interrupt
+in the notebook, which does not save one (`save_on_interrupt=False`): its
+RESUME cell drops those rows too, but a stage judged or backfilled from its
+newest checkpoint instead of resumed lacks them in its training history.
+Mid-run, the file on Drive lags the evaluations by up to one checkpoint
+interval (100,000 steps on the notebook's cadence).
+A same-stage resume keeps the previous session's rows at or
 before the resumed step. It does so where it seeds `gate_progress.npz`:
 when the resume can seed the evaluation history from the stage's
 `evaluations.npz`. When that file is missing, unreadable or holds another
@@ -731,13 +745,13 @@ leg without a hip roll hinge. Where the recorder runs:
 
 | Model | Head tip | Neck pitch | Head pitch | Hip roll |
 |---|---|---|---|---|
-| Tyrannosaurus Rex | `head_tip` | `neck_pitch` | `head_pitch` | `r`, `l` |
-| Compsognathus Longipes (Anatomical) | `head_tip` | `neck_pitch` | `nan` (the head turns on the neck alone) | `r`, `l` |
-| Compsognathus Longipes (Robot) | `head_tip` | `nan` (no neck hinge) | `nan` | `r`, `l` (`right_hip_roll`, `left_hip_roll`) |
-| Dibothrosuchus Elaphros | `snout_tip` | `neck_pitch` | `head_pitch` | `fr`, `fl`, `rr`, `rl` |
+| Tyrannosaurus rex | `head_tip` | `neck_pitch` | `head_pitch` | `r`, `l` |
+| Compsognathus longipes (Anatomical) | `head_tip` | `neck_pitch` | `nan` (the head turns on the neck alone) | `r`, `l` |
+| Compsognathus longipes (Robot) | `head_tip` | `nan` (no neck hinge) | `nan` | `r`, `l` (`right_hip_roll`, `left_hip_roll`) |
+| Dibothrosuchus elaphros | `snout_tip` | `neck_pitch` | `head_pitch` | `fr`, `fl`, `rr`, `rl` |
 
-The Velociraptor Mongoliensis (Anatomical) (no head-tip site, no neck
-hinge; hip rolls on both legs) and the Brachiosaurus Altithorax
+The Velociraptor mongoliensis (Anatomical) (no head-tip site, no neck
+hinge; hip rolls on both legs) and the Brachiosaurus altithorax
 (Anatomical) (`head_tip`, `neck_1_pitch` to `neck_4_pitch`,
 `head_pitch`, four hip rolls) have no box pad, so their evaluations run no
 recorder and their ledgers hold none of the recorder's columns, these
@@ -811,10 +825,10 @@ Where the recorder runs, what each model reads (measured from the MJCF on
 
 | Model | Groups (legs/tail/neck_head) | Tail hinges | Stops | Bases | Head body | Reads `nan` |
 |---|---|---|---|---|---|---|
-| Tyrannosaurus Rex | 8 / 4 / 3 | 4 | 12 | `tail_1_pitch`, `neck_pitch` | `skull` | nothing |
-| Compsognathus Longipes (Anatomical) | 10 / 2 / 2 | 5 | 15 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins (no foot declares a support span) |
-| Compsognathus Longipes (Robot) | 12 / 0 / 0 | 0 | 12 | none | `fixed_head` | the tail and neck_head groups, the chord, the margins, both bases (no tail or neck joint) |
-| Dibothrosuchus Elaphros | 20 / 4 / 3 | 5 | 25 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins |
+| Tyrannosaurus rex | 8 / 4 / 3 | 4 | 12 | `tail_1_pitch`, `neck_pitch` | `skull` | nothing |
+| Compsognathus longipes (Anatomical) | 10 / 2 / 2 | 5 | 15 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins (no foot declares a support span) |
+| Compsognathus longipes (Robot) | 12 / 0 / 0 | 0 | 12 | none | `fixed_head` | the tail and neck_head groups, the chord, the margins, both bases (no tail or neck joint) |
+| Dibothrosuchus elaphros | 20 / 4 / 3 | 5 | 25 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins |
 
 The Velociraptor and the Brachiosaurus run no recorder, so they have no
 body columns either (the documented gap, as for the posture columns).
@@ -861,11 +875,14 @@ specification's +10%. The columns add about 1.6 to 2.0 KB to a row
 whose many exact zeros print short, and 1.95 to 1.97 KB on the inertness
 proof's trained toy policy, whose rows are 3.19 to 3.23 KB], so a T. rex
 row is about 3.2 KB: the file of a 12M stance at main's default cadence
-(9,600 rows) ends at about 31 MB and its rewrites at every evaluation write
+(9,600 rows) ends at about 31 MB and its rewrites at every evaluation wrote
 about 3.7 GB to Drive over the run; at the first r10 round's draft cadence
 (10 episodes every 131,072 steps, 910 rows) about 2.9 MB and 135 MB
 [inferred from the measured rows; a synthetic 910-row ledger measures
-2.94 MB].
+2.94 MB]. Since 2026-11-24 the file is rewritten on the checkpoint cadence
+instead, every 100,000 steps on the notebook's cadence against an
+evaluation every 50,000, which halves that total to about 1.9 GB [inferred:
+the same rows over half as many rewrites].
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 
@@ -896,8 +913,10 @@ reductions run once per episode. A `SubprocVecEnv`'s envs live in other
 processes: their rows keep the outcome columns and read NaN in the rest
 (one warning). A failure costs that env's episode (NaN, one warning), never
 the run. The file is rewritten on the checkpoint cadence (in the calls a
-periodic checkpoint is saved in) and at training end, and a same-stage
-resume keeps the previous session's rows at or before the resumed step.
+periodic checkpoint is saved in), at training end and, since 2026-11-24,
+after the final save of an interrupt the trainer saves (as
+`eval_episodes.csv` is), and a same-stage resume keeps the previous
+session's rows at or before the resumed step.
 On four T. rex envs the per-step copies cost 44 to 48 µs per vector step
 in a micro-benchmark, against a 4.8 to 5.2 ms physics step (about 0.9%);
 the short T. rex proof run clocked the whole callback, row closes and
@@ -929,9 +948,18 @@ deliberately not `term_count_<reason>`: every `term_` key but
 `term_timesteps` is read as a termination fraction
 (`visualization.termination_fraction_keys`,
 `scripts/compare_run_diagnostics.py`). TensorBoard gets
-`terminations/rollout_episodes` and `terminations/rollout_falls`. Like the
-rest of `diagnostics.npz`, the counts start again on a same-stage resume
-(`docs/KNOWN_ISSUES.md`).
+`terminations/rollout_episodes` and `terminations/rollout_falls`. A
+same-stage continuation keeps the prior session's rows of
+`diagnostics.npz` at or before the resumed step on each of its three
+clocks (`timesteps`, `term_timesteps`, `algo_timesteps`;
+`DiagnosticsCallback.seed_prior_diagnostics`), the counts included; a
+series the prior file lacks reads NaN on those rows (a count too: unknown,
+not zero). A session's first rewrite of a `diagnostics.npz` already there
+copies it aside first, as `diagnostics.prior_<UTC>.npz` beside it, so a
+resume that cannot seed (an unreadable file, or a SAC or curated `--load`
+into a directory that holds no training records yet) loses no row either; the
+figures and `scripts/compare_run_diagnostics.py` read `diagnostics.npz` by
+name.
 `diagnostics.npz` also gains `reward_action_jerk`, the action-jerk reward
 term every stance stage pays (`action_jerk_weight`): the env emitted it,
 but nothing recorded it. It reaches TensorBoard
@@ -992,8 +1020,9 @@ same seed draws, and the observation does not depend on it.
 Per update the probe reads parameters and runs `torch.no_grad()` forward
 passes of the constant bank: no sampling, no gradient, and no parameter,
 optimizer, buffer or training-mode change. It cost 1.6 to 2.3 ms per update
-on the T. rex. The file is rewritten atomically on the checkpoint cadence
-and at training end. A same-stage resume keeps the previous session's rows
+on the T. rex. The file is rewritten atomically on the checkpoint cadence,
+at training end and after the final save of an interrupt the trainer saves
+(as `eval_episodes.csv` is). A same-stage resume keeps the previous session's rows
 at or before the resumed step when its bank equals this session's (the
 labels, seeds, steps, offsets and raw observations); otherwise it drops
 them with one warning.
@@ -1231,7 +1260,7 @@ step at 0.99 with a median of 216
 checkpoint, offline and report-only:
 
 ```bash
-python environments/shared/scripts/episode_trace_report.py \
+python -m environments.shared.scripts.episode_trace_report \
     --species tyrannosaurus_rex --embodiment anatomical \
     --model RUN/01_stance/models/stage1_2097152_steps.zip \
     --vecnorm RUN/01_stance/models/stage1_vecnormalize_2097152_steps.pkl \
@@ -1288,9 +1317,12 @@ Two flags make the rollout a probe, and the summary records them:
   satdiag's counterfactual of holding `tail_3_pitch_act` at 0.
 
 The trace writes to `--out-dir` (default `episode_trace_<checkpoint stem>`
-in the current directory) and refuses one inside the run directory of the
-checkpoint or its statistics (the nearest ancestor holding
-`provenance.json`), as `plot_gate_progress.py` does: a result bundle's
+in the current directory) and refuses one inside a run directory (the
+nearest ancestor holding `provenance.json`) or inside the stage directory of
+the checkpoint or its statistics (`result_bundle.refuse_output_inside_run`,
+which `stance_gate_report.py` and `harnesses/recovery_offdist_panel.py`
+share; `plot_gate_progress.py` has its own, narrower guard: it refuses an
+`--out` inside the run of the stage directory it plots): a result bundle's
 manifest hashes every file under the run. It changes no gate, reward,
 observation, action, task, checkpoint selection or plant, and the digest
 snapshot does not move. It traces the training heading only, not the
@@ -1354,7 +1386,7 @@ latest row. To see how one run's feet, balance, asymmetry, saturation, head
 posture and hip roll moved over its training, or to overlay several runs,
 draw them from the ledgers above:
 
-    python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
+    python -m environments.shared.scripts.plot_training_history STAGE_DIR [STAGE_DIR ...] --out DIR \
         [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
         [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER] [--judged JUDGED_DIR ...] [--gait-evaluations K]
 
@@ -1777,12 +1809,12 @@ terms split by outcome, the mirror-even leg DC, and, on PPO,
 
 | Model | Balance and force keys | Span, tip and ankle keys | In-training screen | Touch shares | Probe ankle pairs |
 |---|---|---|---|---|---|
-| Tyrannosaurus Rex | yes | yes | yes | `pad`, `toe_d2`, `toe_d3`, `toe_d4`, `digits` per foot | 1 |
-| Compsognathus Longipes (Anatomical) | yes | no | yes | no | 1 |
-| Compsognathus Longipes (Robot) | yes | no | no (`stance_quality/v1`) | no | 1 |
-| Dibothrosuchus Elaphros | yes | no | no (`reward_and_length/v1`) | no | 2 |
-| Velociraptor Mongoliensis | no (no box pad) | no | no (no recorder) | no | 1 |
-| Brachiosaurus Altithorax | no (no box pad) | no | no | no | 2 |
+| Tyrannosaurus rex | yes | yes | yes | `pad`, `toe_d2`, `toe_d3`, `toe_d4`, `digits` per foot | 1 |
+| Compsognathus longipes (Anatomical) | yes | no | yes | no | 1 |
+| Compsognathus longipes (Robot) | yes | no | no (`stance_quality/v1`) | no | 1 |
+| Dibothrosuchus elaphros | yes | no | no (`reward_and_length/v1`) | no | 2 |
+| Velociraptor mongoliensis | no (no box pad) | no | no (no recorder) | no | 1 |
+| Brachiosaurus altithorax | no (no box pad) | no | no | no | 2 |
 
 The in-run K3 noise panel (`k3_panel.csv`, `k3_panel.json`) is written only
 where the launch enabled it, and only on the stance stage; its arithmetic

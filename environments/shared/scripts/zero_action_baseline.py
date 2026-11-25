@@ -28,6 +28,7 @@ Usage (``--model-id`` repeats; with none, the four anatomical models below)::
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -43,6 +44,7 @@ from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.curriculum.gate_schema import STANCE_GATE_KINDS
 from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+from environments.shared.file_io import atomic_write_json, atomic_write_text, read_json_object
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity
 from environments.shared.result_bundle import read_bundle_status
@@ -69,6 +71,35 @@ DEFAULT_MODEL_IDS = (
 ZERO_ACTION_BASELINE_SCHEMA = "mesozoic.zero-action-baseline/v2"
 
 NOISE_SWEEP = (0.01, 0.05, 0.10, 0.15, 0.20)
+
+#: The name of a stamped record or table under ``zero_action_baselines/``: ``YYYYmmdd_HHMMSS``, which sorts by time.
+_STAMP_PATTERN = re.compile(r"\d{8}_\d{6}")
+
+
+def _record_text(payload: dict) -> str:
+    """A baseline record as it is written: indented, sorted, no NaN and no trailing newline."""
+    return json.dumps(payload, indent=2, sort_keys=True, allow_nan=False)
+
+
+def _same_apart_from_capture_time(existing: dict | None, payload: dict) -> bool:
+    """Whether the record *existing* holds what *payload* holds, ``captured_at`` aside (False without one).
+
+    Compared as written text, so a value that changed type (``100`` to ``100.0``) counts as a change.
+    """
+    if existing is None:
+        return False
+    try:
+        return _record_text({**existing, "captured_at": None}) == _record_text({**payload, "captured_at": None})
+    except ValueError:  # a NaN no record of this tool holds: not the same, and the write says why
+        return False
+
+
+def _newest_stamped(directory: Path, suffix: str) -> Path | None:
+    """The newest ``<stamp><suffix>`` file in *directory* (``None``: none yet)."""
+    if not directory.is_dir():
+        return None
+    stamped = [path for path in directory.glob(f"*{suffix}") if _STAMP_PATTERN.fullmatch(path.stem)]
+    return max(stamped, key=lambda path: path.name, default=None)
 
 
 def score(env, episodes: int, seed: int, noise: float | None = None) -> dict:
@@ -238,7 +269,12 @@ def preflight(model_ids, *, stage: int, episodes: int, seed: int, model_id: Mode
 
     Saves one record per model of *model_ids* under ``<log_base>/<species>/<embodiment>/zero_action_baselines/``
     and the table beside the record of *model_id* (the model the notebook trains), whose record is also copied
-    into *run_dir* (what ``curriculum.baseline_watch`` reads) unless that run's bundle is complete.
+    into *run_dir* (what ``curriculum.baseline_watch`` reads) unless that run's bundle is complete.  The notebook
+    calls this every session, so nothing is rewritten that would only change its time: a model's new stamped
+    record (and the table) is skipped when the newest one there holds the same apart from ``captured_at``, and the
+    run's copy is rewritten only when it is absent or differs apart from ``captured_at`` (a new plant, env kwargs
+    or score) -- a rewrite with a new time alone changed a declared file of a ``partial`` bundle.  Every file is
+    written atomically.
 
     A stage that declares a stance kind (``gate_schema.STANCE_GATE_KINDS``) is judged by the stance gate's own
     verdict on the statue (:func:`statue_stance_verdict`), recorded under ``stance_gate``, rather than by its
@@ -352,32 +388,48 @@ def preflight(model_ids, *, stage: int, episodes: int, seed: int, model_id: Mode
             "results": nested,
         }
 
+    # A new stamped record only when the baseline changed: the notebook runs this
+    # every session, and a record differing only in its time says nothing new.
     for name in results:
         model_dir = name.path(Path(log_base)) / "zero_action_baselines"
-        model_dir.mkdir(parents=True, exist_ok=True)
-        (model_dir / f"{stamp}.json").write_text(
-            json.dumps(payload_for([name]), indent=2, sort_keys=True, allow_nan=False)
+        payload = payload_for([name])
+        newest = _newest_stamped(model_dir, ".json")
+        if newest is not None and _same_apart_from_capture_time(read_json_object(newest), payload):
+            print(f"\nUnchanged: {newest} holds the same baseline apart from its time; no new record")
+            continue
+        atomic_write_json(
+            model_dir / f"{stamp}.json", payload, indent=2, sort_keys=True, allow_nan=False, trailing_newline=False
         )
         print(f"\nSaved: {model_dir / (stamp + '.json')}")
 
     # The human-readable table covers every model measured, so it belongs with
-    # the one this notebook is training.
+    # the one this notebook is training; it carries no time, so an unchanged
+    # table is the newest one's text.
     table_dir = model_id.path(Path(log_base)) / "zero_action_baselines"
-    table_dir.mkdir(parents=True, exist_ok=True)
-    (table_dir / f"{stamp}.txt").write_text(report_text + "\n")
+    newest_table = _newest_stamped(table_dir, ".txt")
+    try:
+        table_unchanged = newest_table is not None and newest_table.read_text(encoding="utf-8") == report_text + "\n"
+    except (OSError, ValueError):
+        table_unchanged = False
+    if not table_unchanged:
+        atomic_write_text(table_dir / f"{stamp}.txt", report_text + "\n")
 
     # Drop a copy in the run directory too, so this run carries the calibration
     # its own gate was judged against — except in a run whose bundle is complete:
     # that bundle is immutable and keeps the copy it was sealed with (a rewrite,
-    # with its new captured_at, would stop the bundle verifying).
+    # with its new captured_at, would stop the bundle verifying).  A copy that
+    # holds the same baseline apart from captured_at is kept as it is: a
+    # partial bundle declares it, and a rewrite would read as a changed file.
     if run_dir is not None and model_id in results:
+        run_copy = Path(run_dir) / "zero_action_baseline.json"
+        payload = payload_for([model_id])
         if read_bundle_status(run_dir) == "complete":
             print(f"Not copied to run: {run_dir} holds a complete bundle, which keeps the copy it was sealed with")
+        elif _same_apart_from_capture_time(read_json_object(run_copy), payload):
+            print(f"Run copy unchanged: {run_copy} holds the same baseline apart from its time")
         else:
-            (Path(run_dir) / "zero_action_baseline.json").write_text(
-                json.dumps(payload_for([model_id]), indent=2, sort_keys=True, allow_nan=False)
-            )
-            print(f"Copied to run: {Path(run_dir) / 'zero_action_baseline.json'}")
+            atomic_write_json(run_copy, payload, indent=2, sort_keys=True, allow_nan=False, trailing_newline=False)
+            print(f"Copied to run: {run_copy}")
 
 
 def main(argv: list[str]) -> None:

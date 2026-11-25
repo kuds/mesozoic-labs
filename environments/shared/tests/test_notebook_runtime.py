@@ -34,10 +34,10 @@ def test_outside_colab_or_with_auto_off_it_only_prints(colab, capsys, in_colab, 
     )
 
 
-@pytest.mark.parametrize(
-    "flush_drive,expected", [(True, ["flush", "sleep 5", "unassign"]), (False, ["sleep 5", "unassign"])]
-)
-def test_in_colab_it_flushes_drive_when_asked_then_releases_the_runtime(colab, flush_drive, expected):
+@pytest.mark.parametrize("flush_drive,expected", [(True, ["flush", "sleep 5", "unassign"]), (False, [])])
+def test_in_colab_it_flushes_drive_then_releases_the_runtime_and_never_without_drive(colab, flush_drive, expected):
+    """Without Drive the run lives on the VM's disk, which ``unassign`` deletes: the runtime is kept (pinned in
+    ``test_write_guards.py``)."""
     disconnect_runtime("Training finished.", in_colab=True, auto=True, flush_drive=flush_drive)
     assert colab == expected
 

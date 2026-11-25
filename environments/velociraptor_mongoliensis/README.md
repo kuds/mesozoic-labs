@@ -1,4 +1,4 @@
-# Velociraptor Mongoliensis
+# Velociraptor mongoliensis
 
 A life-size reconstruction of *Velociraptor mongoliensis*, a small feathered theropod. It walks on two weight-bearing
 toes per foot and carries a raised sickle claw on each foot. The model is for learning to stand and to walk. It is a
@@ -13,7 +13,7 @@ research abstraction built on measured bones, not a validated model of how the a
 | Environment | [`VelociraptorMongoliensisAnatomicalEnv`](anatomical/env.py) |
 | MuJoCo model | [`velociraptor_mongoliensis_anatomical.xml`](anatomical/assets/velociraptor_mongoliensis_anatomical.xml) |
 | Stage configs | [`configs/velociraptor_mongoliensis/anatomical/stages.toml`](../../configs/velociraptor_mongoliensis/anatomical/stages.toml) |
-| Catalog entry | [Velociraptor Mongoliensis (Anatomical)](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) |
+| Catalog entry | [Velociraptor mongoliensis (Anatomical)](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) |
 | Model page | [mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
 
 Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat

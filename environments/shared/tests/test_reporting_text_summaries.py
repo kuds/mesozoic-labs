@@ -137,7 +137,7 @@ class TestWriteTrainingSummary:
             tmp_path, results, ModelId("tyrannosaurus_rex", "anatomical"), "PPO", seed=42, n_envs=4
         )
         text = path.read_text()
-        assert "Tyrannosaurus Rex" in text
+        assert "Tyrannosaurus rex" in text
 
     def test_contains_algorithm(self, tmp_path):
         results = [make_stage_result(1)]

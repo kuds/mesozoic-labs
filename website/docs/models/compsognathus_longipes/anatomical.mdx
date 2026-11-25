@@ -8,7 +8,7 @@ import {requireModel} from '@site/src/data/species';
 
 export const MODEL = requireModel('compsognathus_longipes', 'anatomical');
 
-# Compsognathus Longipes (Anatomical)
+# Compsognathus longipes (Anatomical)
 
 The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 51 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 none of them reads the world heading: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes. Since policy interface r7 (decision D-D59) the scene holds no target and the observation no target direction or distance.
 
@@ -35,12 +35,17 @@ exploration noise PPO starts with no longer topples the standing animal.
 Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "anatomical"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares three nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance) and `locomotion` (walk, warm-started from stance). The non-contact target-reach hunt that followed walk was removed by decision D-D59, so the notebook's `BEHAVIOR = "auto"` default resolves to walk here as for every model; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`).
 
 ```bash
-python -m pip install -e ".[train]"
+pip install -e ".[train]"
+
+# View the model (requires a display; on macOS, use mjpython instead of python)
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment anatomical
+
+# Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical train --stage 1
 
-# The advancing stages in manifest order; reuse an earlier run's certified stance and walk
-python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical curriculum \
-  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+# The advancing stages in manifest order; reuse an earlier run's certified stance, train walk here
+python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical \
+  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
 Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state, the pelvis velocity among it, is a privileged MLP input; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.

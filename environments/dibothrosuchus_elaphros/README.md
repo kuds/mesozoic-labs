@@ -1,4 +1,4 @@
-# Dibothrosuchus Elaphros
+# Dibothrosuchus elaphros
 
 *Dibothrosuchus elaphros* was a small, lightly built crocodylomorph from the Early Jurassic of Yunnan, China. The
 model is a quadruped with an upright stance, gracile limbs, hindlimbs longer than its forelimbs, and a mobile neck,
@@ -14,7 +14,7 @@ and the mass and soft tissue are modeling choices.
 | Environment | [`DibothrosuchusElaphrosAnatomicalEnv`](anatomical/env.py) |
 | MuJoCo model | [`dibothrosuchus_elaphros_anatomical.xml`](anatomical/assets/dibothrosuchus_elaphros_anatomical.xml) |
 | Stage configs | [`configs/dibothrosuchus_elaphros/anatomical/stages.toml`](../../configs/dibothrosuchus_elaphros/anatomical/stages.toml) |
-| Catalog entry | [Dibothrosuchus Elaphros (Anatomical)](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) |
+| Catalog entry | [Dibothrosuchus elaphros (Anatomical)](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) |
 | Model page | [mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
 
 Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat
@@ -185,8 +185,8 @@ the floor. The thresholds are in `base_env.py`, and the review lists them.
   and the failed walk were both the zero-action statue, and a re-run skidded on three legs.
 - [Stance-hack audit, 2026-10](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md), §3.5: the statue and the
   three-legged stance of the certified checkpoints on an earlier plant.
-- [Raptor scaling and alternatives](../../docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md): a custom
-  Dibothrosuchus-inspired quadruped as the speed-focused tier of the running-robot plans.
+- [Hardware notes](../../docs/hardware/PARTS_AND_COSTS.md#dibothrosuchus-inspired-quadruped): a custom
+  Dibothrosuchus-inspired quadruped, a paper concept of July 2026, as the near-$10k tier of the running-robot plans.
 - [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
   `configs/dibothrosuchus_elaphros/anatomical/behaviors/`, trained by `python -m environments.shared.train_behaviors`.
 - [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual

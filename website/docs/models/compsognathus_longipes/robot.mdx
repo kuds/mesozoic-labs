@@ -8,7 +8,7 @@ import {requireModel} from '@site/src/data/species';
 
 export const MODEL = requireModel('compsognathus_longipes', 'robot');
 
-# Compsognathus Longipes (Robot)
+# Compsognathus longipes (Robot)
 
 The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an unpowered fixed tail, and 41 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 (decision D-D59) none of them reads the world heading or a target: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes, and its two foot channels read each sole's force against the floor, not its touch sensors, so a sole resting on the other foot is not read as support. Its single head camera, IMU and joint encoders preserve the hardware design direction; the mass allocations still need validation against real parts.
 
@@ -21,12 +21,17 @@ The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an 
 Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "robot"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares three nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance) and `locomotion` (walk, warm-started from stance). The non-contact target-reach hunt that followed walk was removed by decision D-D59, so the notebook's `BEHAVIOR = "auto"` default resolves to walk here as for every model; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`).
 
 ```bash
-python -m pip install -e ".[train]"
+pip install -e ".[train]"
+
+# View the model (requires a display; on macOS, use mjpython instead of python)
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot
+
+# Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species compsognathus_longipes --embodiment robot train --stage 1
 
-# The advancing stages in manifest order; reuse an earlier run's certified stance and walk
-python -m environments.shared.train --species compsognathus_longipes --embodiment robot curriculum \
-  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+# The advancing stages in manifest order; reuse an earlier run's certified stance, train walk here
+python -m environments.shared.train --species compsognathus_longipes --embodiment robot \
+  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
 Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state, the pelvis velocity among it, is a privileged MLP input; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.

@@ -375,7 +375,7 @@ class TestTheRecord:
             "anatomical",
             "stance",
         )
-        assert record["model"] == "Tyrannosaurus Rex (Anatomical)"
+        assert record["model"] == "Tyrannosaurus rex (Anatomical)"
         assert (record["run_id"], record["run_dir"], record["stage_dir"]) == (
             "tyrannosaurus_rex-anatomical-run-1",
             "run",

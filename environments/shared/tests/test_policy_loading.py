@@ -671,7 +671,8 @@ CALL_TIME_READS = {
     "environments/shared/train_base.py": {
         "_ensure_sb3": 5,
         "_resolve_vecnorm_sidecar": 1,
-        "_PERIODIC_CHECKPOINT_RE": 1,
+        # _is_resume_continuation, and _stage_training_records (the SAC resume refusal's periodic checkpoints).
+        "_PERIODIC_CHECKPOINT_RE": 2,
     },
     "environments/shared/evaluation.py": {"_ensure_sb3": 2, "_resolve_vecnorm_sidecar": 1},
     "environments/shared/reporting/stage_artifacts.py": {"_ensure_sb3": 1},
@@ -682,6 +683,8 @@ CALL_TIME_READS = {
     "environments/shared/curriculum/progress_report.py": {"_PERIODIC_CHECKPOINT_RE": 1},
     # The training-history report's checkpoint kinds, read from the names alone (report only).
     "environments/shared/reporting/training_history.py": {"_PERIODIC_CHECKPOINT_RE": 1},
+    # The command-tracking figure's resume caveat: which recorded same-stage resumes continued the run (report only).
+    "environments/shared/visualization.py": {"_PERIODIC_CHECKPOINT_RE": 1},
 }
 #: The only bindings of a moved name made outside a function body (at import
 #: or class-definition time) outside this module: ``train_base``'s
@@ -1424,6 +1427,10 @@ def test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_wr
     elif trunk == "a handoff without its sidecar":
         _trunk_with_handoff(trunk_dir, "01_stance", FIXTURES / FIXTURE_NAMES[0], sidecar=False)
     before = _tree_bytes(trunk_dir)
+    # torch's per-user compile cache is torch's, not the preflight's: the first optimizer a process builds imports
+    # torch._dynamo, which creates $TORCHINDUCTOR_CACHE_DIR (unset: tempfile.gettempdir()/torchinductor_<user>) and
+    # pins it in os.environ. Kept out of the scratch, so this holds run alone as after another test built a model.
+    monkeypatch.setenv("TORCHINDUCTOR_CACHE_DIR", str(tmp_path / "torch_cache"))
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     monkeypatch.chdir(cwd)
     real_load, seen = policy_loading.load_sb3_model, []

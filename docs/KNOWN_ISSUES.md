@@ -735,6 +735,12 @@ robustness, **LOW** = cosmetic / QoL.
   `undeclared bundle artifacts: ['trunk_run.json']` (all three verified
   against the library 2026-10-03; the masking executed the same day).
   Remedy: run the auto-disconnect cell (§9) by hand.
+  *Update (2026-11-24):* the zero-action cell no longer refreshes an
+  unchanged copy: `preflight` (`scripts/zero_action_baseline.py`) rewrites
+  `zero_action_baseline.json` only when the run has none or the baseline
+  differs in something other than `captured_at` (a new plant, env kwargs or
+  score), so on an unchanged plant it is not one of the files that differ;
+  `provenance.json` still is.
 - **LOW (operational)** — **a re-entry that is not a resume, under another
   trunk than the run's `trunk_run.json` records, is only warned (ROW-4/6;
   executed against the notebook cells 2026-10-03).** Since ROW-4/6's
@@ -797,26 +803,35 @@ robustness, **LOW** = cosmetic / QoL.
   ROW-4/6's `result_bundle.refuse_judging_off_the_resolved_parent` covers
   only a node the loop judges ahead of a trunk (decision 6 (b)); calling it
   in the JUDGE branch would close the rest, and is a separate change.
-- **MEDIUM (operational)** — **`train --load <checkpoint>` (default
-  `--load-mode resume_same_stage`) writes into a stage directory that already
-  holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
-  `config.refuse_occupied_stage_dir` (`config.py:539-562`, called at
-  `train_base.py:1588`) lets any same-stage resume through. Against a
-  directory holding `stage_config.json` and a passed `gate_verdict.json`, it
-  returns for `resume_same_stage` and raises only for `initialize_next_stage`
-  or no load. `train()` has no complete-bundle refusal either. Read from the
-  code, such a resume re-saves `stage_config.json` and always rewrites the
-  final pair. It rewrites the handoff pair the verdict hashes whenever a
-  post-resume evaluation beats the seeded best. When that happens the verdict
-  no longer matches its checkpoint, reuse rule 5 refuses the node, and a
-  `complete` bundle stops verifying. The SB3 notebook refuses this since D-D16
-  (its RESUME cell trains nothing for a node that holds a verdict); the CLI
-  and the library do not, and the website's recipes and quick-start pages
-  state the resume exception without the judged case. Workaround: never point
-  `--output-dir` at a judged stage directory; a new attempt is a new run
-  directory. Plan: D-D16 left the library guard open because it amends D-A20;
-  pending in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2. (#558
-  reviews)
+- **LOW (operational)** — **`train --output-dir` or `curriculum
+  --output-dir` into a run whose bundle is `complete` is not refused when the
+  stage directory holds no verdict.** Neither `train_base.train` nor
+  `train_base.train_curriculum` has a complete-bundle refusal
+  (`train_base.py` reads no bundle status): a new stage directory, or an
+  unjudged one, written into a `complete` run adds files its manifest never
+  listed, so the bundle stops verifying. `curriculum` also writes the run's
+  `plant_identity.json` first, and then every node the run does not hold as
+  its own stage directory (a trunked run whose stance is only an
+  `ancestors/` record trains the next node there). The notebook refuses this
+  before it writes
+  (`result_bundle.refuse_complete_run_session` in the resolve cell,
+  `refuse_write_into_complete_run` in the chain, RESUME and manual cells).
+  Workaround: never point `--output-dir` into a run whose bundle is
+  complete; a new attempt is a new run directory.
+  **Fixed on 2026-11-24 (the D-A20 amendment; the cleanup plan's §2 row 5):**
+  the judged case this entry was opened for (guard executed 2026-09-26: `train
+  --load <checkpoint>`, default `--load-mode resume_same_stage`, into a
+  directory holding `gate_verdict.json` re-saved `stage_config.json`, always
+  rewrote the final pair, and rewrote the handoff pair the verdict hashes
+  whenever a post-resume evaluation beat the seeded best). The D-A20 guard
+  `config.refuse_occupied_stage_dir` now refuses a directory that holds
+  `gate_verdict.json` under every load mode, the same-stage resume included,
+  so the CLI and the library refuse it as the RESUME cell has since D-D16;
+  the notebook's manual-node cell, which let `MANUAL_LOAD_MODE =
+  "resume_same_stage"` through to that guard and then rewrote the verdict,
+  refuses a judged target before it writes anything. The website's recipes and
+  quick-start pages state the judged case. `test_write_guards.py` pins all
+  three. (#558 reviews)
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -837,7 +852,9 @@ robustness, **LOW** = cosmetic / QoL.
   question for it. The recipes, kept as history until cleanup CU-17, are in
   this file at commit `20ab100` (`0.3.9`). What stays true for a same-plant
   directory: a moved rail or a statue re-measure is a RE-JUDGE of every
-  certified trunk, never a retrain (decisions D-B7/D-B8; stance's
+  certified trunk, never a retrain, except in a run whose bundle is
+  `complete`, which is never re-judged in place (a trunked run then trains
+  the node; D-B8 as amended 2026-11-24) (decisions D-B7/D-B8; stance's
   `min_avg_reward` rail moved 1940.0 → 2100.0 on 2026-08-10, the day
   `20260810_145546` ran); `--gate current` re-aggregates a
   `reward_and_length/v1` directory's evidence rows under the checkout's block,
@@ -1835,8 +1852,8 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM (design gap)** — **every push of a recovery stage has the same
   magnitude (read from the code 2026-09-30).** `push_schedule` draws each
   push's start and heading from hash lanes `k*2` and `k*2+1`
-  (`perturbation.py:95-120`), and `external_push_force` applies one scalar
-  `force_newtons` to every push (:123-142), while the recovery design
+  (`perturbation.py:74-98`), and `external_push_force` applies one scalar
+  `force_newtons` to every push (:101-119), while the recovery design
   pre-generated push "times, directions, and magnitudes" per episode
   ([STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) W1), so a
   certified recovery policy has met one force. Adding magnitudes needs a hash
@@ -1948,26 +1965,35 @@ robustness, **LOW** = cosmetic / QoL.
   warning when its sidecar is missing, as the selected replay does, or have
   `record_stage_video` refuse a named `vecnorm_path` that does not exist; no
   cleanup PR owns it yet. (2026-10 CU-8b scouting)
-- **LOW** — **a same-stage resume does not continue `diagnostics.npz`
-  (reproduced 2026-10-13).** `DiagnosticsCallback` starts its rollout
-  history empty in every session (`diagnostics.py:206-217`) and rewrites
-  `diagnostics.npz` from that history alone (`:464`), and nothing seeds it on
-  a resume: `seed_resume_eval_state` (`curriculum/checkpoints.py:272`) seeds
-  the evaluation history and `gate_progress.npz`, not this file.
-  A resume into the stage directory it continues overwrites the prior
-  session's rollout diagnostics at its first save; one into a fresh
-  directory holds the resumed session's rows only. The stage report's
-  training-diagnostics figures (`visualization.py`) and
-  `scripts/compare_run_diagnostics.py` then start at the resumed checkpoint;
-  the command-tracking figure's tracking-fraction panel (2026-11-24) does
-  too, and marks the step its recorded history starts at, since its
-  cruise-ramp shading spans the whole run.
-  Report-only: no gate, verdict or digest reads it. Fix: seed the
-  callback from the `diagnostics.npz` beside the `evaluations.npz` being
-  seeded, dropping rows after the resumed checkpoint, as
-  `StageGatePlateauCallback.seed_prior_gate_progress` does for
-  `gate_progress.npz`; no cleanup PR owns it yet. (2026-10 review of the
-  `gate_progress.npz` resume fix)
+- ~~**LOW** — **a same-stage resume does not continue `diagnostics.npz`
+  (reproduced 2026-10-13).**~~ **FIXED** (2026-11-24): a PPO continuation
+  seeds `DiagnosticsCallback` from the `diagnostics.npz` beside the
+  `evaluations.npz` it seeds (`DiagnosticsCallback.seed_prior_diagnostics`,
+  which `seed_resume_eval_state` calls first, so a missing or ragged
+  evaluation record does not stop it). Each of the file's three clocks keeps
+  its rows at or before the resumed step, and a series the prior file lacks
+  reads NaN on them. A session's first rewrite of a `diagnostics.npz` already
+  there copies it aside as `diagnostics.prior_<UTC>.npz`, so a resume that
+  cannot seed (an unreadable file, or a SAC or curated `--load` into a
+  directory that holds no training records yet) loses no row either, and a
+  file a seeded session wrote, its back-filled NaN rows included, seeds
+  again. The stage figures
+  (`visualization.py`) and `scripts/compare_run_diagnostics.py` read
+  `diagnostics.npz` by name and now cover the whole stage
+  (`tests/test_resume_record_integrity.py`). On a live-command stage the seed
+  also carries the four command-tracking series (`tracking_in_tolerance`,
+  `tracking_error_v`, `tracking_error_yaw`, `reward_tracking`), so the
+  command-tracking figure's tracking-fraction panel (2026-11-24), which marks
+  the step its recorded history starts at, covers the whole stage of a
+  continuation too. Its resume caveat (merged 2026-11-25) is drawn for a PPO
+  continuation only when the series starts after the checkpoint the stage
+  continued from, and for every recorded resume that cannot seed (a SAC or
+  curated `--load`, which restarted the step counter) wherever the series
+  starts, naming the checkpoint whose earlier steps the record does not
+  hold. As it was: the callback started its rollout history empty in every
+  session and nothing seeded it, so a resume into the stage directory it
+  continued overwrote the prior session's rows at its first save. (2026-10
+  review of the `gate_progress.npz` resume fix)
 - **LOW** — **a result-bundle JSON file that is not UTF-8 escapes as a raw
   `UnicodeDecodeError` instead of the reader's own refusal (reproduced
   2026-10-01).** These readers read with `encoding="utf-8"` but catch only
@@ -1996,23 +2022,20 @@ robustness, **LOW** = cosmetic / QoL.
   `validate_evaluation_evidence`. Fix: catch `ValueError` in these
   handlers too, and give `initialize_result_bundle`'s read its own
   refusal; no cleanup PR owns it yet. (2026-10 CU-8c review)
-- **LOW** — **the species `requirements.txt` files take any MuJoCo from
-  3.0.0, and the stale-manifest error does not name the version (read from
-  the code 2026-09-30).** `environments/tyrannosaurus_rex/requirements.txt:2`,
-  `environments/velociraptor_mongoliensis/requirements.txt:2` and
-  `environments/brachiosaurus_altithorax/requirements.txt:1` ask for `mujoco>=3.0.0`,
-  while the package pins `mujoco==3.10.0` (`pyproject.toml:25`), the version
-  the plant digests are built on. An install from one of them gets a newer
-  MuJoCo, and training then stops in `current_plant_identity` with
-  "generated plant manifest is stale for <species>/<embodiment>; run the plant-contract
-  check before training" (`plant_contract/manifest.py:487-492`); only the
-  check it points to names the cause ("plant manifest generation requires
-  MuJoCo 3.10.0", :176-179). In the review's reproduction (MuJoCo 3.12.0)
-  training stopped before its first step, so the cost is a two-step
-  diagnosis, not a wrong result. Fix: pin or delete the three files
-  (`pip install -e ".[train]"` is the documented install) and name the
-  MuJoCo version in the stale-manifest error. No cleanup PR owns it.
-  (2026-08 gap review OP9)
+- **LOW** — **the stale-manifest error does not name the MuJoCo version
+  (read from the code 2026-09-30).** The package pins `mujoco==3.10.0`
+  (`pyproject.toml:25`), the version the plant digests are built on. An
+  install that gets another MuJoCo stops training in
+  `current_plant_identity` with "generated plant manifest is stale for
+  <species>/<embodiment>; run the plant-contract check before training"
+  (`plant_contract/manifest.py:484-486`); only the check it points to names
+  the cause ("plant manifest generation requires MuJoCo 3.10.0", :169-171).
+  In the review's reproduction (MuJoCo 3.12.0) training stopped before its
+  first step, so the cost is a two-step diagnosis, not a wrong result. Fix:
+  name the MuJoCo version in the stale-manifest error. No cleanup PR owns
+  it. (2026-08 gap review OP9; its other half, the species
+  `requirements.txt` files that took any MuJoCo from 3.0.0, was fixed by
+  deleting them.)
 
 ## Post-training artifacts (recommended additions)
 
@@ -2370,32 +2393,46 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   without a summary (`:794-806`), takes the provenance one. For an older
   run without a bundle it is the mesozoic-labs version, which the legacy
   `scan_run` (cell 8, `:535`) reads from `stage_config.json`
-  (`config.py:938`). The summary tables (cells 14, 16 and 18) and the
-  export to `runs_summary.csv` (cell 24) show both under the one name. In
-  a probe of the reader cells, a complete and a failed run read the
-  backend version their bundles record and a flat run its stage config's
-  mesozoic-labs version. Nothing in the repository reads the column back.
+  (`save_stage_config`, `config.py:1308`). The summary tables (cells 14,
+  16 and 18) and the export to `runs_summary.csv` (cell 24) show both
+  under the one name. In a probe of the reader cells, a complete and a
+  failed run read the backend version their bundles record and a flat
+  run its stage config's mesozoic-labs version. Nothing in the
+  repository reads the column back.
   Fix: export the bundle value as `backend_version`, and fill
   `library_version` from `provenance.json`'s
   `dependency_versions.mesozoic_labs`, which changes what
   `runs_summary.csv` says for those rows; no cleanup PR owns it. (2026-10
   CU-15 scouting)
+- **LOW** — **the run tree marks only the screens trained since `RUN_KIND`
+  existed (read from the code 2026-11-24).** A screen the SB3 notebook trains
+  with `RUN_KIND = "screen"` lives under `<algo>_screen/`, outside trunk
+  selection and replicate discovery, and a certification run refuses it as a
+  pinned `TRUNK_FROM` (`environments/shared/run_tree.py`). Two gaps remain.
+  The screens and pilots trained before then sit in `<algo>/`:
+  `environments/shared/run_exclusions.py` names the nine r10 stance screens,
+  and the Drive summary labels them and the runs built on them `screen`, but
+  the walking pilots (`pilot*_walk`) and any other older screen read
+  `run_kind` `certify` there, and both scans treat them as certification runs
+  (the pilots' recorded PPO digest differs from `main`'s, D-D36, so today they
+  match no landed recipe). And nothing refuses a certification run that
+  loads, resumes or widens a later screen's checkpoint: the manual node's
+  `MANUAL_LOAD_PATH`, `widen_checkpoint` into `<algo>/` and a command-line
+  `--load` record the load in `stage_config.json`, but rule (d) of
+  `run_exclusions.py` reads only the runs it names. Fix: have rule (d) count
+  a load path through a `<algo>_screen/` directory for a run of `<algo>/`,
+  and add an older screen to the ledger once its digests can match a landed
+  recipe.
 
 ## Testing / CI
 
-- **LOW** — `hw_chassis_study.py`'s excitation drives hip pitch and knee in
-  phase, unlike a real trot where knee flexion leads swing. This contributes to
-  the knee pinning at its 22 N·m cap in all 18 runs, so that column is reported
-  as "not a configuration discriminator"; the ab/ad conclusions are unaffected
-  (that joint is driven at 0.25x and does discriminate).
-  (2026-07 Dibothrosuchus review)
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - **LOW** — **the site deploy waits on nothing but its own build (read from
   the code 2026-09-30).** `.github/workflows/deploy.yml` runs on a push to
   `main` that touches `website/**`, a `summary.json` or the workflow itself
   (:3-15), and its `deploy` job needs only the `build` job (`npm ci`, `tsc`,
-  the site build) and the `main` ref (:72-78). A push with a hand-edited or
+  `npm test`, the site build) and the `main` ref (:76-82). A push with a hand-edited or
   stale `website/src/data/species.generated.json` therefore deploys while
   python-ci's `species_catalog --check` (`python-ci.yml:127-130`) fails on the
   same commit, and `main` has no required checks

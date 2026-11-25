@@ -1,4 +1,4 @@
-# Brachiosaurus Altithorax
+# Brachiosaurus altithorax
 
 A sauropod-inspired quadruped with a long, articulated neck, a tapering tail and shoulders that stand higher than its
 hips. It walks with a slow four-beat, lateral-sequence gait that keeps at least two feet on the ground. The model is
@@ -14,7 +14,7 @@ animal moved.
 | Environment | [`BrachiosaurusAltithoraxAnatomicalEnv`](anatomical/env.py) |
 | MuJoCo model | [`brachiosaurus_altithorax_anatomical.xml`](anatomical/assets/brachiosaurus_altithorax_anatomical.xml) |
 | Stage configs | [`configs/brachiosaurus_altithorax/anatomical/stages.toml`](../../configs/brachiosaurus_altithorax/anatomical/stages.toml) |
-| Catalog entry | [Brachiosaurus Altithorax (Anatomical)](../../docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) |
+| Catalog entry | [Brachiosaurus altithorax (Anatomical)](../../docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) |
 | Model page | [mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
 
 Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat

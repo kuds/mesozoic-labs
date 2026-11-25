@@ -9,8 +9,9 @@ argument parsing and config-override helpers.
 
 import argparse
 import logging
+import tomllib
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .species_names import model_display_name
 
@@ -20,25 +21,32 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _cast_value(v: str):
-    """Auto-cast a string value to bool, int, float, or keep as string.
+def _cast_value(v: str) -> Any:
+    """Parse an override's value as the TOML value it spells.
 
-    Handles float-encoded integers (e.g. ``"128.0"`` -> ``128``) and
-    ``true``/``false`` literals (otherwise ``bool("false")`` truthiness
-    bites anyone overriding a boolean kwarg).
+    *v* is read as the right-hand side of ``v = <value>`` in a TOML file, so
+    an override is typed exactly as the stage TOML types the same text:
+    ``1.0`` stays a float and ``1`` an int (``--override ppo.x=1.0`` then
+    gives the TOML ``x = 1.0``'s ``hyperparameters_sha256``; this used to
+    turn it into the int 1), ``true``/``false`` are bools, and quoted
+    strings, arrays and inline tables parse.  ``True``/``FALSE`` in any case
+    stay bools (``bool("false")`` is truthy), and a number TOML refuses
+    (``.5``, ``007``) is still read as a Python int or float.  Anything else
+    that is not a TOML value, such as the bare word ``MlpPolicy``, stays the
+    raw string.
     """
     if v.lower() in ("true", "false"):
         return v.lower() == "true"
     try:
-        return int(v)
-    except ValueError:
+        return tomllib.loads(f"v = {v}")["v"]
+    except tomllib.TOMLDecodeError:
+        pass
+    for number in (int, float):
         try:
-            f = float(v)
-            if f.is_integer():
-                return int(f)
-            return f
+            return number(v)
         except ValueError:
-            return v
+            pass
+    return v
 
 
 def _resolve_override_stage_token(token: str, configs: dict, model_id: "ModelId | None") -> "int | str | None":
@@ -69,6 +77,43 @@ def _resolve_override_stage_token(token: str, configs: dict, model_id: "ModelId 
     return None
 
 
+def _kwargs_key(section: str) -> str:
+    """The stage-config key holding an override section's table (``env`` -> ``env_kwargs``)."""
+    return "env_kwargs" if section == "env" else f"{section}_kwargs"
+
+
+def _check_override_path(key: str, stage: "int | str", stage_config: dict, section: str, path: list[str]) -> None:
+    """Refuse an override whose dotted *path* does not end in a table of *stage_config*.
+
+    Walks ``path[:-1]`` down from the section's table.  Each step must name a
+    table the stage config has, except an algorithm block's
+    ``policy_kwargs``, which SB3 takes as a dict and a stage TOML may leave
+    out: it is created when the override is applied.  Anything else raises,
+    naming the override, before any stage is written: the dotted rest used to
+    be written as one flat key (``env_kwargs["a.b"]``), which failed only at
+    env construction.
+    """
+    if _kwargs_key(section) not in stage_config:
+        raise ValueError(f"--override {key!r} names unknown config section {section!r}")
+    table: Any = stage_config[_kwargs_key(section)]
+    for depth, name in enumerate(path[:-1], start=1):
+        dotted = ".".join([section, *path[:depth]])
+        if name not in table and depth == 1 and section in ("ppo", "sac") and name == "policy_kwargs":
+            table = {}
+        elif name not in table:
+            raise ValueError(
+                f"--override {key!r} sets a key inside {dotted!r}, a table stage {stage}'s config does not "
+                f"declare; a nested key can only go into a declared table (or {section}.policy_kwargs)"
+            )
+        elif not isinstance(table[name], dict):
+            raise ValueError(
+                f"--override {key!r} sets a key inside {dotted!r}, which is not a table in stage {stage}'s "
+                f"config (it is {table[name]!r})"
+            )
+        else:
+            table = table[name]
+
+
 def _apply_overrides(configs: dict, overrides: list | None, model_id: "ModelId | None" = None) -> None:
     """Apply dot-notation ``key=value`` overrides to stage configs.
 
@@ -80,6 +125,14 @@ def _apply_overrides(configs: dict, overrides: list | None, model_id: "ModelId |
       when *model_id* is given — any manifest stage id (``stance``,
       ``locomotion``)
 
+    ``key`` may be a dotted path into a nested table, in either form:
+    ``ppo.policy_kwargs.log_std_init=-1.5`` sets
+    ``ppo_kwargs["policy_kwargs"]["log_std_init"]`` (see
+    :func:`_check_override_path` for which tables a path may enter).  The
+    value is parsed as a TOML value (:func:`_cast_value`); a top-level
+    ``env`` array becomes a tuple, as
+    :func:`~environments.shared.config.load_stage_config` makes it.
+
     Unknown stages and unknown config sections raise instead of silently
     no-opping or crashing with a bare ``KeyError``: a typo'd override used to
     train the full multi-hour stage budget at unmodified hyperparameters
@@ -89,42 +142,58 @@ def _apply_overrides(configs: dict, overrides: list | None, model_id: "ModelId |
     """
     if not overrides:
         return
+    from .config import _RETIRED_CURRICULUM_TABLE
+
+    def is_section(token: str) -> bool:
+        return any(_kwargs_key(token) in cfg for cfg in configs.values())
+
     for item in overrides:
         key, _, raw_value = item.partition("=")
         value = _cast_value(raw_value)
         parts = key.split(".")
-        stage_key = _resolve_override_stage_token(parts[0], configs, model_id) if len(parts) == 3 else None
-        if len(parts) == 3 and (stage_key is None or stage_key not in configs):
+        stage_key = _resolve_override_stage_token(parts[0], configs, model_id) if len(parts) >= 3 else None
+        if len(parts) >= 3 and (stage_key is None or stage_key not in configs):
             # The token was meant as a stage whenever the MIDDLE token is a
-            # real config section: a typo'd semantic id ('recvery.env.x')
-            # must get the stage-flavored error with the available choices,
-            # not a misattributed unknown-section one.
-            middle_kwargs = "env_kwargs" if parts[1] == "env" else f"{parts[1]}_kwargs"
-            if parts[0].isdigit() or any(middle_kwargs in cfg for cfg in configs.values()):
+            # real config section and the head is not: a typo'd semantic id
+            # ('recvery.env.x') must get the stage-flavored error with the
+            # available choices, not a misattributed unknown-section one,
+            # while 'env.a.b' is a nested all-stages key.
+            if parts[0].isdigit() or (is_section(parts[1]) and not is_section(parts[0])):
                 raise ValueError(
                     f"--override {key!r} names unknown stage {parts[0]!r}; available: {sorted(map(str, configs))}"
                 )
         if stage_key is not None and stage_key in configs:
-            section, param = parts[1], parts[2]
-            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
-            if kwargs_key not in configs[stage_key]:
-                raise ValueError(f"--override {key!r} names unknown config section {section!r}")
-            configs[stage_key][kwargs_key][param] = value
-            logger.info(
-                "Stage %s override: %s.%s = %r",
-                stage_key,
-                section,
-                param,
-                value,
-            )
+            targets = {stage_key: configs[stage_key]}
+            section, path = parts[1], parts[2:]
         else:
-            section, _, param = key.partition(".")
-            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
-            for stage_config in configs.values():
-                if kwargs_key not in stage_config:
-                    raise ValueError(f"--override {key!r} names unknown config section {section!r}")
-                stage_config[kwargs_key][param] = value
-            logger.info("Override applied: %s.%s = %r", section, param, value)
+            targets = configs
+            section, path = parts[0], parts[1:]
+        if not path:
+            raise ValueError(f"--override {key!r} names no key; write section.key=value or STAGE.section.key=value")
+        if section == "curriculum" and path[0] == _RETIRED_CURRICULUM_TABLE:
+            # The loader refuses this table in a stage TOML; an override sets the same key after loading,
+            # where the single-stage ``train`` path runs no gate schema, so it is refused here for every path.
+            raise ValueError(
+                f"--override {key!r} sets [curriculum.{_RETIRED_CURRICULUM_TABLE}], which is refused: it overrode "
+                "the shared [curriculum] thresholds for the JAX/MJX trainer, which D-D17 retired, so nothing would "
+                "enforce it."
+            )
+        if section == "env" and len(path) == 1 and isinstance(value, list):
+            value = tuple(value)
+        # Every target stage is checked before any is written, so a refused
+        # all-stages override leaves no stage half-overridden.
+        for stage, stage_config in targets.items():
+            _check_override_path(key, stage, stage_config, section, path)
+        for stage_config in targets.values():
+            table = stage_config[_kwargs_key(section)]
+            for name in path[:-1]:
+                table = table.setdefault(name, {})
+            table[path[-1]] = value
+        dotted = ".".join([section, *path])
+        if targets is configs:
+            logger.info("Override applied: %s = %r", dotted, value)
+        else:
+            logger.info("Stage %s override: %s = %r", stage_key, dotted, value)
 
 
 def _non_negative_int(value: str) -> int:
@@ -140,6 +209,22 @@ def _non_negative_int(value: str) -> int:
     if count < 0:
         raise argparse.ArgumentTypeError(f"expected a non-negative integer, got {count}")
     return count
+
+
+def _positive_steps(value: str) -> int:
+    """argparse type for a step interval, which must be at least 1.
+
+    ``--eval-freq 0`` (or a negative value) reached the trainer as an
+    evaluation interval that ``EvalCallback`` never reaches, so the stage
+    trained with no evaluation, no best model and no gate.
+    """
+    try:
+        steps = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a positive number of steps, got {value!r}") from None
+    if steps < 1:
+        raise argparse.ArgumentTypeError(f"expected a positive number of steps, got {steps}")
+    return steps
 
 
 def _parse_stage_ref(value: str) -> "int | str":
@@ -264,7 +349,12 @@ def main(species_cfg):
         "fatal mistake, so this fails closed by default)",
     )
     train_parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    train_parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency")
+    train_parser.add_argument(
+        "--eval-freq",
+        type=_positive_steps,
+        default=50000,
+        help="Evaluation frequency in environment steps (at least 1)",
+    )
     train_parser.add_argument(
         "--save-freq",
         type=int,
@@ -363,7 +453,7 @@ def main(species_cfg):
     )
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
-    cur_parser.add_argument("--eval-freq", type=int, default=50000)
+    cur_parser.add_argument("--eval-freq", type=_positive_steps, default=50000)
     cur_parser.add_argument("--save-freq", type=int, default=100000)
     cur_parser.add_argument("--log-dir", type=str, default=None)
     cur_parser.add_argument("--subproc", action="store_true")

@@ -369,29 +369,19 @@ DEFAULT_CERTIFICATION_SEEDS = 1
 #: The schema's own declaration keys.
 _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 
-#: Name of the per-backend override sub-table: ``[curriculum.jax]`` in TOML,
-#: ``curriculum_kwargs["jax"]`` once loaded.  The shared scalar thresholds were
-#: compared against raw episode returns on both backends, but the two did not
-#: pay the same return for the same behaviour: the retired MJX stage-2/3 alive
-#: bonus was height-gated (a deliberate legacy kernel) and ``[jax]
-#: fall_penalty`` overrode ``[env] fall_penalty``, so one shared number encoded
-#: a different bar per backend.  The sub-table let a stage state a
-#: JAX-calibrated bar ADDITIVELY: absent, nothing changes; present, only the
-#: keys it names were replaced for that backend.  Nothing has applied it since
-#: D-D17 retired the JAX path, and its merge helper is gone; the table is still
-#: validated (docs/CLEANUP_PLAN_2026_09.md §4.9).
-BACKEND_OVERRIDE_TABLES = frozenset({"jax"})
-
-#: The only keys an override table may carry: the legacy scalar thresholds.
-#: Composite criteria (stance duty, recovery LCB) are physical, not
-#: reward-denominated, so they must stay identical across backends.
-BACKEND_OVERRIDABLE_KEYS = frozenset(
-    {
-        "min_avg_reward",
-        "min_avg_episode_length",
-        "min_avg_forward_vel",
-    }
-)
+#: The retired per-backend override sub-table, ``[curriculum.jax]`` in TOML
+#: (the ``curriculum_kwargs["jax"]`` key in a mapping).  It let a stage state a
+#: JAX-calibrated scalar bar beside the shared one, which only the JAX/MJX
+#: trainer applied.  D-D17 retired that trainer.  ``config.load_stage_config``
+#: refuses the TOML table, as it does a top-level ``[jax]``, so it stops every
+#: path that reads a stage file, the CLI and the SB3 notebook alike, and
+#: ``cli._apply_overrides`` refuses an ``--override curriculum.jax=...``.
+#: Where this schema runs (CLI ``curriculum`` training, through
+#: ``thresholds_from_configs``), :func:`validate_gate_config` refuses the key
+#: by name as well, for a ``curriculum_kwargs`` mapping built in memory, which
+#: would otherwise get the unknown-key refusal and its advice to add the key
+#: to this module.
+_RETIRED_BACKEND_TABLE = "jax"
 
 #: Every threshold key any gate kind knows about, used to tell "belongs to a
 #: different gate kind" apart from "not a gate key at all".
@@ -399,8 +389,9 @@ _ALL_THRESHOLD_KEYS = frozenset().union(*GATE_KINDS.values())
 
 #: Every ``[curriculum]`` key that is not a threshold: the schema declaration,
 #: schedule, collapse, retention, warm-start, diagnostic, provenance and
-#: publication keys, and the backend override table.  A gate module that reads
-#: its own thresholds strictly (``command_tracking_gate.thresholds_from_curriculum``)
+#: publication keys.  The retired ``[curriculum.jax]`` table is not one of
+#: them: :func:`validate_gate_config` refuses it by name.  A gate module that
+#: reads its own thresholds strictly (``command_tracking_gate.thresholds_from_curriculum``)
 #: accepts these beside its keys and refuses anything else.
 NON_THRESHOLD_CURRICULUM_KEYS = frozenset(
     _SCHEMA_KEYS
@@ -411,7 +402,6 @@ NON_THRESHOLD_CURRICULUM_KEYS = frozenset(
     | _DIAGNOSTIC_KEYS
     | _PROVENANCE_KEYS
     | _PUBLICATION_KEYS
-    | BACKEND_OVERRIDE_TABLES
 )
 
 #: Gate kinds retired by a decision: the kind, mapped to the decision that
@@ -455,8 +445,9 @@ def retired_gate_declarations(curriculum: Mapping[str, Any]) -> list[str]:
     record cannot be re-judged, so retrain the stage)"]``, and a retired key
     such as ``min_success_rate`` reads ``"[curriculum] key
     'min_success_rate' was removed with the hunt nodes (decision D-D59);
-    ..."``.  The kind comes first, then the keys in sorted order; a
-    ``[curriculum.jax]`` override table is searched too.
+    ..."``.  The kind comes first, then the keys in sorted order; a retired
+    ``[curriculum.jax]`` override table is searched too, since a frozen record
+    written before the stage loader refused the table may carry one.
     """
     messages: list[str] = []
     kind = curriculum.get("gate_kind")
@@ -469,10 +460,9 @@ def retired_gate_declarations(curriculum: Mapping[str, Any]) -> list[str]:
             "record cannot be re-judged, so retrain the stage)"
         )
     keys = set(curriculum)
-    for table in BACKEND_OVERRIDE_TABLES & keys:
-        overrides = curriculum[table]
-        if isinstance(overrides, Mapping):
-            keys |= set(overrides)
+    overrides = curriculum.get(_RETIRED_BACKEND_TABLE)
+    if isinstance(overrides, Mapping):
+        keys |= set(overrides)
     for key in sorted(keys & set(RETIRED_CURRICULUM_KEYS)):
         decision, removed_with = RETIRED_CURRICULUM_KEYS[key]
         messages.append(
@@ -491,9 +481,10 @@ def gate_config_view(curriculum: Mapping[str, Any]) -> dict[str, Any]:
     so every advancing kind's ``min_eval_episodes`` / ``required_consecutive``
     are in it (``none/v1`` consumes nothing), while schedule, collapse,
     diagnostic, retention, provenance and publication keys
-    (``certification_seeds``, decision D-B9) and any ``[curriculum.jax]``
-    override table are not (SB3 never applies the override table and the
-    retired JAX path wrote no verdict, decision D-A5).  A null kind (a stage that
+    (``certification_seeds``, decision D-B9) and the retired
+    ``[curriculum.jax]`` override table, which the stage loader and
+    :func:`validate_gate_config` refuse, are not (the JAX path that applied
+    it wrote no verdict, decision D-A5).  A null kind (a stage that
     declares no gate; ``stage_artifacts`` records it as null) or an
     unregistered one projects through :data:`_ALL_THRESHOLD_KEYS` instead, so
     it hashes deterministically rather than raising.  Hash it with
@@ -659,7 +650,8 @@ def validate_gate_config(
         and no kind was declared.
 
     Raises:
-        GateSchemaError: If the block carries an unknown key, declares an
+        GateSchemaError: If the block carries an unknown key or the retired
+            ``[curriculum.jax]`` table, declares an
             unknown gate kind or schema version, carries a threshold field
             that its declared kind does not consume, declares a
             floor-truth stance (``stance_quality/v2`` or the heading
@@ -678,6 +670,14 @@ def validate_gate_config(
             or a value outside its rule), or omits the gate declaration
             entirely while advancement is enabled.
     """
+    # The retired [curriculum.jax] table first, whatever it carries: no
+    # reader applies any key in it, so the whole table is refused by name.
+    if _RETIRED_BACKEND_TABLE in curriculum_kwargs:
+        raise GateSchemaError(
+            f"{_describe(stage)}: [curriculum.{_RETIRED_BACKEND_TABLE}] is refused: it overrode the shared "
+            "thresholds for the JAX/MJX trainer, which D-D17 retired, so nothing would enforce it. Remove the "
+            "table; the shared [curriculum] thresholds are the stage's only bar."
+        )
     # Before the unknown-key and unknown-kind checks, so a retired name is
     # refused with the decision that retired it rather than as a typo.
     retired = retired_gate_declarations(curriculum_kwargs)
@@ -798,41 +798,7 @@ def validate_gate_config(
             "pilot, so it cannot be used in a run that advances between stages."
         )
 
-    for table in sorted(BACKEND_OVERRIDE_TABLES & set(curriculum_kwargs)):
-        _validate_backend_override_table(stage, table, curriculum_kwargs[table], allowed)
-
     return str(declared_kind)
-
-
-def _validate_backend_override_table(stage: int | str, table: str, overrides: Any, allowed: frozenset[str]) -> None:
-    """Validate one ``[curriculum.<backend>]`` override sub-table.
-
-    Fail-closed like the parent table: a misspelled key here would silently
-    leave the shared (mis-calibrated) threshold in force on that backend.
-    """
-    if not isinstance(overrides, Mapping):
-        raise GateSchemaError(
-            f"{_describe(stage)}: [curriculum.{table}] must be a table of threshold overrides, "
-            f"not {type(overrides).__name__}."
-        )
-    unknown = sorted(set(overrides) - BACKEND_OVERRIDABLE_KEYS)
-    if unknown:
-        raise GateSchemaError(
-            f"{_describe(stage)}: [curriculum.{table}] carries key(s) {unknown} that cannot be "
-            f"overridden per backend; only the scalar thresholds {sorted(BACKEND_OVERRIDABLE_KEYS)} "
-            "may differ between backends, and only when the declared gate_kind consumes them."
-        )
-    misplaced = sorted(set(overrides) - allowed)
-    if misplaced:
-        raise GateSchemaError(
-            f"{_describe(stage)}: [curriculum.{table}] overrides threshold field(s) {misplaced} that the "
-            "declared gate_kind does not consume, which implies a bar that is not actually enforced."
-        )
-    non_numeric = sorted(key for key, value in overrides.items() if finite_gate_metric(value) is None)
-    if non_numeric:
-        raise GateSchemaError(
-            f"{_describe(stage)}: [curriculum.{table}] threshold(s) {non_numeric} must be finite numbers."
-        )
 
 
 def validate_gate_configs(

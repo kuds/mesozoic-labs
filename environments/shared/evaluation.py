@@ -840,11 +840,6 @@ def _log_eval_results(
             agg.get("std_distance_traveled", 0),
         )
 
-    logger.info("--- Gait Quality ---")
-    logger.info("  Symmetry:     %.3f", agg.get("mean_gait_symmetry", 0))
-    logger.info("  Stride freq:  %.3f Hz", agg.get("mean_stride_frequency", 0))
-    logger.info("  Cost of transport: %.4f", agg.get("mean_cost_of_transport", 0))
-
     logger.info("--- Balance ---")
     logger.info(
         "  %s: %.3f +/- %.3f m",

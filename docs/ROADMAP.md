@@ -178,7 +178,8 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - Video recording of evaluation episodes via `WandbCallback(video_env=...)`
   - _Dependency: None_
 
-- [x] **Expanded evaluation metrics**
+- [x] **Expanded evaluation metrics** (gait symmetry, cost of transport and stride frequency removed in
+  November 2026: they measured the wrong thing, and nothing but log lines read them)
   - Gait symmetry (left/right contact balance; no phase difference is computed)
   - Cost of transport (energy / distance / weight)
   - Stride frequency and regularity
@@ -563,6 +564,15 @@ recoverable from the same tag._
 **Status: planned.** Physical robot construction and sim-to-real policy transfer
 are roadmap goals. The repository does not currently include a hardware prototype,
 a ROS 2 bridge, or published sim-to-real validation results.
+
+- **Where hardware goes** (2026-11-22): this repository holds the simulation, the
+  anatomical and robot models. The physical build, with its design files, firmware
+  and bench data, will get its own repository. The high-level hardware notes (parts
+  and costs, sizes tried, lessons learned and the current plan) are in
+  [hardware/](hardware/README.md). The first planned build is a 60 cm Triceratops,
+  chosen on 2026-11-18. The D-D33 note and the milestones below (the hardware
+  abstraction layer, the ROS 2 bridge and the Compsognathus prototype) predate this
+  split.
 
 - **Where robot code goes** (decision D-D33, 2026-10-11): a robot is an
   embodiment of its species, at `environments/<species>/robot/` and

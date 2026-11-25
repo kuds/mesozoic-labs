@@ -48,7 +48,7 @@ export function AnimalHeader({
         </div>
         <figcaption className={styles.caption}>
           <span className={styles.captionControls}>
-            {caption} · Drag or swipe to rotate
+            {caption} · Rotate by dragging, swiping or using the left and right arrow keys
             <RotationButton motion={motion} />
           </span>
           <a href={source}>{sourceLabel}</a>

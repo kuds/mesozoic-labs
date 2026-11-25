@@ -144,7 +144,8 @@ def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
 def test_notebook_preflight_leaves_a_complete_bundle_untouched(tmp_path, monkeypatch, status):
     """A complete bundle is immutable (consolidation PR-14a): the run keeps the copy it was sealed with, and the
     per-species record outside the run is still written. A ``partial`` or ``failed`` bundle is rebuilt by the
-    next node trained or judged in it, so its copy is refreshed as before."""
+    next node trained or judged in it, so its copy is refreshed when it differs apart from ``captured_at``, as the
+    sealed copy here does (an unchanged one is kept: ``test_drive_write_hygiene.py``)."""
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     (run_dir / "artifact_manifest.json").write_text(json.dumps({"status": status}))
@@ -168,8 +169,8 @@ zero-action baseline — stage 1, 4 episodes, seed 7
 
 model                                         reward  mean-std  standing  full-hz     gate  verdict
 ---------------------------------------------------------------------------------------------------
-Tyrannosaurus Rex (Anatomical)                 850.0     590.2    1000.0     75%     5000  OK
-Velociraptor Mongoliensis (Anatomical)         150.0     100.0         —      0%        —  NO GATE
+Tyrannosaurus rex (Anatomical)                 850.0     590.2    1000.0     75%     5000  OK
+Velociraptor mongoliensis (Anatomical)         150.0     100.0         —      0%        —  NO GATE
 
 A trained stage-1 policy must beat 'reward', 'mean-std' AND 'full-hz' to have
 learned to balance at all, and 'standing' to have learned more than 'do not fall'."""

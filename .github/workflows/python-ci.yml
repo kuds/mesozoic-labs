@@ -14,7 +14,9 @@ on:
       - "CONTRIBUTING.md"
       - "results/README.md"
       - "environments/**"
+      - "examples/shared/**"
       - "examples/stegosaurus_stenops/**"
+      - "examples/triceratops_horridus/**"
       - "configs/**"
       # docs/** rather than docs/*.md: the investigations/reviews/hardware
       # subdirectories were silently outside CI (gap review CI7).
@@ -514,6 +516,7 @@ jobs:
             environments/shared/tests/test_recovery_calibration.py \
             environments/shared/tests/test_curriculum_*.py \
             environments/shared/tests/test_diagnostics.py \
+            environments/shared/tests/test_drive_write_hygiene.py \
             environments/shared/tests/test_episode_trace.py \
             environments/shared/tests/test_eval_diagnostics.py \
             environments/shared/tests/test_evaluation.py \
@@ -528,12 +531,14 @@ jobs:
             environments/shared/tests/test_report_script_vecnorm.py \
             environments/shared/tests/test_resume_continuation.py \
             environments/shared/tests/test_resume_load_path.py \
+            environments/shared/tests/test_resume_record_integrity.py \
             environments/shared/tests/test_run_exclusions.py \
             environments/shared/tests/test_stance_gate_report.py \
             environments/shared/tests/test_train_base.py \
             environments/shared/tests/test_train_wiring.py \
             environments/shared/tests/test_walk_command_mechanism.py \
             environments/shared/tests/test_widen_checkpoint.py \
+            environments/shared/tests/test_write_guards.py \
             environments/compsognathus_longipes/tests/test_probe_ppo_updates.py \
             -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_longipes_training and compsognathus_longipes-robot)' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0

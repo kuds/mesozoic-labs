@@ -14,7 +14,7 @@ from environments.tyrannosaurus_rex.base_env import TyrannosaurusRexEnv
 
 
 class TyrannosaurusRexAnatomicalEnv(TyrannosaurusRexEnv):
-    """Tyrannosaurus Rex, the anatomical model."""
+    """Tyrannosaurus rex, the anatomical model."""
 
     embodiment = "anatomical"
     MODEL_PATH = ModelId("tyrannosaurus_rex", "anatomical").asset_path(ENVIRONMENTS_ROOT)

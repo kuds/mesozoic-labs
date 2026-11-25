@@ -59,7 +59,13 @@ picks NOW (robust_best_model, then best_model); the v1 stance report records
 no checkpoint path, so the tool cannot prove a v1 report scored that pair —
 it says so in the log (a v2 report records the digests, and is refused
 unless they are the pair's).  An existing verdict is never overwritten
-without ``--force``.
+without ``--force``.  A stage directory whose run holds a complete result
+bundle (``artifact_manifest.json`` records ``status: "complete"``) is
+refused before anything is read or written, ``--force`` or not: a complete
+bundle is immutable (``docs/RESULT_BUNDLES.md``), and a verdict added or
+rewritten in it stops its manifest verifying, so the audit reads
+canonical-conflict, the run cannot be promoted and the bundle writer
+refuses every later save.
 
 Decision D-A22 (Phase B): the verdict records the gate configuration it was
 judged under (``gate`` / ``gate_sha256``), and reuse rule 7 compares it
@@ -229,7 +235,9 @@ def backfill_gate_verdict(
     (:data:`GATE_SOURCES`): ``"recorded"``, the directory's own
     ``stage_config.json`` block, or ``"current"``, the checkout's block for
     the stage.  Raises :class:`BackfillError` on any missing evidence or a
-    disagreeing override; returns the written path.
+    disagreeing override, and, before anything else and whatever *force*,
+    for a stage directory whose run (its parent directory) holds a complete
+    result bundle; returns the written path.
     """
     from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
     from environments.shared.curriculum.command_tracking_evidence import COMMAND_TRACKING_REPORT_JSON
@@ -252,7 +260,12 @@ def backfill_gate_verdict(
         stance_v2_report_refusals,
     )
     from environments.shared.reporting.stage_artifacts import stance_heading_stage_result, stance_v2_stage_result
-    from environments.shared.result_bundle import GATE_VERDICT_FILENAME, write_gate_verdict
+    from environments.shared.result_bundle import (
+        GATE_VERDICT_FILENAME,
+        ResultBundleError,
+        read_bundle_status,
+        write_gate_verdict,
+    )
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
     if gate not in GATE_SOURCES:
@@ -260,6 +273,25 @@ def backfill_gate_verdict(
     stage_path = Path(stage_dir)
     if not stage_path.is_dir():
         raise BackfillError(f"{stage_path} is not a stage directory")
+    # A complete bundle is immutable: a verdict added or rewritten in one of its stage directories stops its
+    # manifest verifying. Refused before anything is read or written, and --force does not lift it.
+    run_path = stage_path.resolve().parent
+    try:
+        bundle_status = read_bundle_status(run_path)
+    except ResultBundleError as exc:
+        raise BackfillError(
+            f"the bundle status of run {run_path} is unknown, so it cannot be written to: {exc}. Restore a "
+            "readable artifact_manifest.json there (the bundle writer refuses to rebuild over this one too); "
+            "nothing was written."
+        ) from exc
+    if bundle_status == "complete":
+        raise BackfillError(
+            f'run {run_path} holds a complete result bundle (artifact_manifest.json records status "complete"), '
+            f"and a complete bundle is immutable: a {GATE_VERDICT_FILENAME} added or rewritten in {stage_path.name} "
+            "would stop its manifest verifying (the audit reads canonical-conflict and the run can no longer be "
+            "promoted). Nothing was written, and --force does not apply. Its verdicts stay as published; a trunked "
+            "run that refuses one (reuse rule 7) trains the node itself."
+        )
     verdict_path = stage_path / GATE_VERDICT_FILENAME
     if verdict_path.is_file() and not force:
         raise BackfillError(f"{verdict_path} already exists; pass --force to re-derive it from the evidence")
@@ -577,7 +609,14 @@ def main(argv: "list[str] | None" = None) -> int:
         default=None,
         help="override the stage reference stage_config.json records (a legacy number or a stage id)",
     )
-    parser.add_argument("--force", action="store_true", help="re-derive even when a gate_verdict.json exists")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "re-derive even when a gate_verdict.json exists (never in a run whose bundle is complete: that is "
+            "refused either way)"
+        ),
+    )
     parser.add_argument(
         "--gate",
         choices=GATE_SOURCES,

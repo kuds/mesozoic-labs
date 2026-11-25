@@ -183,6 +183,38 @@ class TestBuildCoreCallbacks:
         assert plateau_callback.min_relative_variation == 0.02
         eval_env.close()
 
+    @pytest.mark.parametrize(("eval_freq", "n_envs", "expected"), [(2, 4, 1), (3, 4, 1), (4, 4, 1), (100, 4, 25)])
+    def test_the_eval_callback_cadence_is_at_least_one_call(self, tmp_path, monkeypatch, eval_freq, n_envs, expected):
+        """``eval_freq // n_envs`` floored to 0 below n_envs, and EvalCallback never evaluates at 0."""
+        pytest.importorskip("stable_baselines3")
+        import tempfile
+
+        from stable_baselines3.common.callbacks import CheckpointCallback
+        from stable_baselines3.common.vec_env import DummyVecEnv
+
+        from .tiny_env_helpers import tiny_env_class
+
+        scratch = tmp_path / "scratch"
+        scratch.mkdir()
+        monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+        eval_env = DummyVecEnv([tiny_env_class(info={"forward_vel": 0.0})])
+        try:
+            _, eval_callback, _ = _build_core_callbacks(
+                {"CheckpointCallback": CheckpointCallback},
+                eval_env,
+                tmp_path / "models",
+                tmp_path / "logs",
+                1,
+                n_envs,
+                eval_freq,
+                100,
+                0,
+                {"curriculum_kwargs": {"min_avg_reward": 100.0}},
+            )
+        finally:
+            eval_env.close()
+        assert eval_callback.eval_freq == expected
+
     def test_collapse_early_stop_params_are_configurable(self, tmp_path):
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback
@@ -1123,7 +1155,7 @@ class TestTrainCurriculumWalksTheManifest:
         )
         monkeypatch.setattr(plant_contract, "write_plant_identity", lambda path, identity: None)
 
-        species_cfg = SimpleNamespace(model_id=model_id, env_class=object)
+        species_cfg = SimpleNamespace(model_id=model_id, env_class=object, success_keys=[])
         with caplog.at_level(logging.INFO):
             train_base.train_curriculum(
                 species_cfg,
@@ -2513,8 +2545,9 @@ class TestTrainRefusesAnUndeclaredParent:
 class TestTrainRefusesAnOccupiedStageDirectory:
     """Decision D-A20 at the launch path: train() refuses to write into a stage directory that
     already records a stage (``stage_config.json`` or ``gate_verdict.json``) unless the load is an
-    explicit same-stage resume — checked after the directory is resolved and before its config,
-    models directory or any environment is written."""
+    explicit same-stage resume of an unjudged stage — checked after the directory is resolved and
+    before its config, models directory or any environment is written (the judged case:
+    ``test_write_guards.py``)."""
 
     class ConfigReached(RuntimeError):
         """The guard passed: train() went on to write the stage config."""
@@ -2576,10 +2609,10 @@ class TestTrainRefusesAnOccupiedStageDirectory:
         assert sorted(p.name for p in occupied.iterdir()) == [occupancy_file]
 
     def test_an_explicit_same_stage_resume_is_accepted(self, tmp_path, monkeypatch):
+        # An interrupted, unjudged stage: a judged one is refused even to a resume (D-A20 as amended).
         occupied = tmp_path / "old-run"
         occupied.mkdir()
         (occupied / "stage_config.json").write_text("{}")
-        (occupied / "gate_verdict.json").write_text("{}")
 
         outcome = self._train(
             tmp_path,
@@ -2764,16 +2797,19 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
         from environments.shared.config import read_stage_duration
 
         self._run(tmp_path, monkeypatch)
-        final = tmp_path / "01_stance" / "models" / "stage1_final.zip"
-        self._run(tmp_path, monkeypatch, load_path=str(final), task_load_mode="resume_same_stage")
+        # A periodic checkpoint: a curated one (the final) is refused over the stage's records (2026-11-24).
+        periodic = tmp_path / "01_stance" / "models" / "stage1_10_steps.zip"
+        periodic.write_bytes(b"periodic")
+        self._run(tmp_path, monkeypatch, load_path=str(periodic), task_load_mode="resume_same_stage")
         assert read_stage_duration(tmp_path / "01_stance") == 14.0
 
     def test_a_session_that_stops_before_its_final_save_keeps_the_earlier_sum(self, tmp_path, monkeypatch):
         from environments.shared.config import read_stage_duration
 
         self._run(tmp_path, monkeypatch)
-        final = tmp_path / "01_stance" / "models" / "stage1_final.zip"
-        resume = {"load_path": str(final), "task_load_mode": "resume_same_stage"}
+        periodic = tmp_path / "01_stance" / "models" / "stage1_10_steps.zip"
+        periodic.write_bytes(b"periodic")
+        resume = {"load_path": str(periodic), "task_load_mode": "resume_same_stage"}
         with pytest.raises(KeyboardInterrupt):
             self._run(tmp_path, monkeypatch, interrupt=True, save_on_interrupt=False, **resume)
         assert read_stage_duration(tmp_path / "01_stance") == 7.0, "the re-saved config keeps the recorded sum"
@@ -2962,7 +2998,7 @@ class TestOneStageBody:
         from environments.shared.config import load_all_stages
 
         train_base.train_curriculum(
-            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object, success_keys=["stub_success"]),
             load_all_stages(VELOCIRAPTOR_MONGOLIENSIS) if stage_configs is None else stage_configs,
             n_envs=1,
             seed=self.SEED,
@@ -3219,6 +3255,12 @@ class TestOneStageBody:
         self._run_curriculum(tmp_path)
         node = ["env", "env", "model", "entropy decay", "panel size", "shaping", "learn"]
         assert [event for event in events if event in node] == node * 3
+
+    def test_the_curriculum_callback_reads_the_species_success_keys(self, tmp_path, monkeypatch):
+        """Its supplementary and standalone evaluations read the species config's success keys (a stub key here; the
+        velociraptor declares none since decision D-D59, and only the Allosaurus declares one, course_complete)."""
+        self._curriculum(tmp_path, monkeypatch)
+        assert [kwargs["success_keys"] for kwargs in self.record["curriculum_kwargs"]] == [["stub_success"]] * 3
 
     def test_a_node_releases_the_previous_nodes_model_before_it_trains(self, tmp_path, monkeypatch):
         """An SB3 callback keeps the model it trained (``BaseCallback.model``), and a SAC model its replay

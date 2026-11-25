@@ -211,7 +211,7 @@ copying an existing pair:
 ```toml
 [species.custom_dino]
 display_order = 7
-display_name = "Custom Dino"
+display_name = "Custom dino"
 
 [species.custom_dino.embodiments.anatomical]
 tagline = "Small Bipedal Theropod"

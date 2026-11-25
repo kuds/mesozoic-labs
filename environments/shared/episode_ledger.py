@@ -17,8 +17,9 @@ A column first seen in a later row reads ``""`` on the earlier rows, and a
 row that lacks a column reads ``""`` there.
 
 No wall clock decides anything: the owner calls :meth:`EpisodeLedger.write`
-at points fixed by the run (``StageAwareEvalCallback``: after every
-evaluation), and a write with no row added since the last one writes
+at points fixed by the run (``StageAwareEvalCallback`` and
+``TrainingEpisodeLedgerCallback``: on the checkpoint cadence and at
+training end), and a write with no row added since the last one writes
 nothing.  A write that fails is logged once and costs the file, never the
 run.  On a same-stage resume, :meth:`EpisodeLedger.seed_prior` keeps the
 prior session's rows recorded at or before the resumed step, as

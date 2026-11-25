@@ -4,6 +4,7 @@ import logging
 import re
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 from environments.shared.curriculum import (
@@ -13,6 +14,7 @@ from environments.shared.curriculum import (
     StageWarmupCallback,
 )
 from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+from environments.shared.model_id import ModelId
 
 
 class TestCallbackMethodsMocked:
@@ -65,7 +67,7 @@ class TestCallbackMethodsMocked:
         mock_agg = {
             "mean_forward_velocity": 1.5,
             "mean_total_distance": 10.0,
-            "mean_cost_of_transport": 0.3,
+            "mean_pelvis_height": 0.3,
             "termination_counts": {"timeout": 3, "fall": 1},
         }
 
@@ -79,7 +81,7 @@ class TestCallbackMethodsMocked:
 
         MockMetrics.aggregate_episodes.assert_called_once_with(reports)
         messages = [record.getMessage() for record in caplog.records]
-        assert "Stage 1 locomotion: forward_velocity=1.500, total_distance=10.000, cost_of_transport=0.300" in messages
+        assert "Stage 1 locomotion: forward_velocity=1.500, total_distance=10.000, pelvis_height=0.300" in messages
         assert "Stage 1 terminations (1 eps): fall=1, timeout=3" in messages
 
     def test_no_success_sample_is_collected(self):
@@ -212,6 +214,98 @@ class TestEvalHorizon:
         given = CurriculumCallback(curriculum_manager=manager, eval_env=MagicMock(), eval_horizon=32)
         assert given.eval_horizon == 32
         assert given._eval_horizon() == 32
+
+
+class _OneStepVecEnv:
+    """A one-env VecEnv stand-in whose every episode is one step ending with *info*."""
+
+    def __init__(self, info):
+        self.info = info
+
+    def reset(self):
+        return np.zeros((1, 1))
+
+    def step(self, action):
+        return np.zeros((1, 1)), np.array([1.0]), np.array([True]), [dict(self.info)]
+
+
+class TestSpeciesSuccessKeys:
+    """The supplementary and standalone evaluations' locomotion reports read the species' success keys.
+
+    Both used to loop over (bite_success, strike_success, food_reached), so an Allosaurus course_complete read 0.0.
+    No gate reads success since decision D-D59, so the keys reach the locomotion report only, never the gate.
+    """
+
+    CASES = [
+        (ModelId("allosaurus_fragilis", "anatomical"), "course_complete"),
+    ]
+
+    @staticmethod
+    def _callback(info, success_keys, *, episodes=3):
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_env = _OneStepVecEnv(info)
+        cb.model = MagicMock()
+        cb.model.predict.return_value = (np.zeros((1, 1)), None)
+        cb.supplementary_episodes = episodes
+        cb.n_eval_episodes = episodes
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_stage = 3
+        cb.curriculum_manager.current_threshold = StageThreshold()
+        cb.curriculum_manager.should_advance.return_value = False
+        if success_keys is not None:
+            cb.success_keys = success_keys
+        return cb
+
+    @staticmethod
+    def _species_keys(model_id):
+        from environments.shared.species_registry import get_species_config
+
+        return get_species_config(model_id).success_keys
+
+    @pytest.mark.parametrize(("model_id", "key"), CASES, ids=lambda case: str(case))
+    def test_the_supplementary_evaluation_reports_the_species_success(self, model_id, key):
+        cb = self._callback({"forward_vel": 0.0, key: 1.0}, self._species_keys(model_id))
+
+        _, reports = cb._run_supplementary_eval()
+
+        assert [report["success_rate"] for report in reports] == [1.0, 1.0, 1.0]
+
+    @pytest.mark.parametrize(("model_id", "key"), CASES, ids=lambda case: str(case))
+    def test_the_standalone_evaluation_passes_no_success_to_the_gate(self, model_id, key):
+        cb = self._callback({"forward_vel": 0.0, key: 1.0}, self._species_keys(model_id))
+        cb._log_locomotion_metrics = MagicMock()
+
+        assert cb._on_step_standalone() is True
+
+        rewards, lengths, _, stance_panel = cb.curriculum_manager.should_advance.call_args.args
+        assert (rewards, lengths, stance_panel) == ([1.0] * 3, [1.0] * 3, None)
+        (reports,) = cb._log_locomotion_metrics.call_args.args
+        assert [report["success_rate"] for report in reports] == [1.0, 1.0, 1.0]
+
+    def test_another_species_key_is_not_a_success(self):
+        cb = self._callback({"forward_vel": 0.0, "bite_success": 1.0, "course_complete": 0.0}, ["course_complete"])
+
+        _, reports = cb._run_supplementary_eval()
+
+        assert [report["success_rate"] for report in reports] == [0.0, 0.0, 0.0]
+
+    def test_without_species_keys_no_success_is_reported(self):
+        cb = self._callback({"forward_vel": 0.0, "course_complete": 1.0, "bite_success": 1.0}, None)
+        assert cb.success_keys is None
+
+        _, reports = cb._run_supplementary_eval()
+
+        assert reports and not any("success_rate" in report for report in reports)
+
+    def test_the_constructor_takes_them_after_the_existing_parameters(self):
+        pytest.importorskip("stable_baselines3")
+        manager = MagicMock()
+
+        positional = CurriculumCallback(manager, MagicMock(), 50000, 30, None, 10, 0, None)
+        assert positional.success_keys is None
+
+        given = CurriculumCallback(curriculum_manager=manager, eval_env=MagicMock(), success_keys=["course_complete"])
+        assert given.success_keys == ["course_complete"]
 
 
 class TestStageWarmupCallbackMocked:

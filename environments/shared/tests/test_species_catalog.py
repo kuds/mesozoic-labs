@@ -1975,7 +1975,7 @@ def test_readme_results_block_renders_a_ladder_summary_with_stance_labels(tmp_pa
         if "stable-baselines3" in metric["backends"]
     )
     section = (
-        "### Velociraptor Mongoliensis (Anatomical) (PPO · Stable-Baselines3) — 2026-03-15\n"
+        "### Velociraptor mongoliensis (Anatomical) (PPO · Stable-Baselines3) — 2026-03-15\n"
         "\n"
         "**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 "
         "(version not recorded). **Run total:** 14M steps; 7:33:20. "
@@ -2194,7 +2194,7 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
     assert rendered.count("**Deliverables:**") == 1
     # The ladder section beside it is untouched by the new line (headed by the model display name, D-D33).
     assert rendered.startswith(baseline.rstrip("\n"))
-    assert rendered.count("### Tyrannosaurus Rex (Anatomical) (PPO") == 2
+    assert rendered.count("### Tyrannosaurus rex (Anatomical) (PPO") == 2
 
 
 # ── Website adapter pins (WS4, decisions D-A8, D-A10, D-A13) ──────────────

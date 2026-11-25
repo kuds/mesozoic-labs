@@ -231,7 +231,7 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      `[behavior] species = "<species>"` and `embodiment = "anatomical"`
    - Follow the TOML structure from an existing species
    - Calibrate `reset_noise_scale` for stage 1 against
-     `python environments/shared/scripts/zero_action_baseline.py --model-id <species> anatomical --sweep-noise`:
+     `python -m environments.shared.scripts.zero_action_baseline --model-id <species> anatomical --sweep-noise`:
      a level at which a do-nothing policy reaches the full horizon in nearly
      every episode makes the stage reward a statue
 

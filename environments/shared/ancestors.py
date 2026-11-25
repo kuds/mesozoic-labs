@@ -35,10 +35,12 @@ between 5 and 6, and rule 9 by the maintainer's stance-landing decision of
    pre-D-A23 refusal stands;
 9. the run is not one that never counts (the stance-landing decision of
    2026-11-06, :mod:`environments.shared.run_exclusions`): its
-   ``provenance.json`` ``repository_commit`` and the stage directory's
-   ``stage_config.json`` ``git_commit`` are not an excluded branch commit, the
+   ``provenance.json`` ``repository_commit``, the stage directory's
+   ``stage_config.json`` ``git_commit`` and each of its ``run.resume_sessions``
+   entries' are not an excluded branch commit, the
    directory's ``gate_verdict.json`` does not hash an excluded handoff
-   checkpoint, and its ``stage_config.json`` ``run`` block records no load of
+   checkpoint, and its ``stage_config.json`` ``run`` block (a resume session
+   included) records no load of
    a screen's checkpoint (by its digest, by a path inside a screen's run
    folder or by a screen's run id) -- the r10 T. rex stance screen runs,
    whose digests equal the landed
@@ -67,11 +69,14 @@ between 5 and 6, and rule 9 by the maintainer's stance-landing decision of
    path (edit a threshold, re-judge, never retrain; decision D-B8), so a
    re-judged directory is reusable under the gate it was re-judged under,
    and ``generate_stage_artifacts`` logs a warning at judge time when the
-   two blocks differ.  The verdict must agree with itself — ``gate_sha256``
-   is the digest of ``gate`` — which the reader enforces, so a verdict
-   edited after judging is refused by rule 2.  Checked here, after the
-   task and before the chain, because it is cheaper than hashing the
-   handoff pair and validating the plant;
+   two blocks differ.  Neither path writes into a run whose result bundle
+   is ``complete`` (a complete bundle is immutable; D-B8 as amended
+   2026-11-24): such a verdict is never re-judged in place, and when this
+   rule refuses it the reusing run trains the node itself.  The verdict
+   must agree with itself — ``gate_sha256`` is the digest of ``gate`` —
+   which the reader enforces, so a verdict edited after judging is refused
+   by rule 2.  Checked here, after the task and before the chain, because
+   it is cheaper than hashing the handoff pair and validating the plant;
 4. the chain: a non-root node's candidate must record, in its
    ``stage_config.json`` run block, an ``initialize_next_stage`` load whose
    ``parent_checkpoint_sha256`` equals the digest of the checkpoint the
@@ -145,7 +150,6 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -593,7 +597,8 @@ def _find_certified_ancestor(
         raise AncestorReuseError(
             f"{stage_dir}/gate_verdict.json records no gate_sha256 (judged before decision D-A22), so the gate "
             "it certifies under is unknown: re-judge it (the notebook JUDGE branch / generate_stage_artifacts, "
-            "or scripts/backfill_gate_verdict.py --force [--gate current]) before it can be reused"
+            "or scripts/backfill_gate_verdict.py --force [--gate current]) before it can be reused; neither writes "
+            "into a run whose result bundle is complete, so a verdict there stays as published and is never reused"
         )
     current_view = gate_config_view(current_gate_config)
     current_digest = gate_config_sha256(current_view)
@@ -616,7 +621,8 @@ def _find_certified_ancestor(
             f"{current_digest} ({current_view['gate_kind']}) now; differing thresholds: {named}; a certified "
             "checkpoint proves only the gate it was judged against — re-judge it under the current gate (the "
             "notebook JUDGE branch / generate_stage_artifacts, or scripts/backfill_gate_verdict.py --force "
-            "--gate current) to reuse it"
+            "--gate current) to reuse it; neither writes into a run whose result bundle is complete, so a verdict "
+            "there stays as published and is reusable only under the gate it was judged against"
         )
 
     # (4) The chain: the candidate descends from the checkpoint resolved for
@@ -775,13 +781,14 @@ def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) ->
     """Write ``<child_run_dir>/ancestors/<stage_id>/`` for a reused ancestor.
 
     Copies the ancestor stage's JSON records (:data:`ANCESTOR_COPIED_FILES`,
-    those that exist) and then writes ``ancestor.json`` atomically, last, so
-    an interrupted write leaves no record.  Never copies the checkpoint or
-    its sidecar.  Recording the same ancestor again is a no-op; an existing
+    those that exist), each atomically, and then writes ``ancestor.json``
+    atomically, last, so an interrupted write leaves no record and no
+    truncated copy.  Never copies the checkpoint or its sidecar.  Recording
+    the same ancestor again is a no-op; an existing
     record for the same node that differs in anything but its timestamp is
     an error, because a run cannot have two parents for one node.
     """
-    from .file_io import atomic_write_text
+    from .file_io import atomic_copy, atomic_write_text
     from .result_bundle import ANCESTOR_RECORD_NAME, ANCESTORS_DIRNAME
 
     _warn_on_heading_probe(ancestor)
@@ -803,7 +810,7 @@ def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) ->
     for name in ANCESTOR_COPIED_FILES:
         source = ancestor.stage_dir / name
         if source.is_file():
-            shutil.copyfile(source, target / name)
+            atomic_copy(source, target / name)
     atomic_write_text(record_path, json.dumps(record, indent=2, sort_keys=True) + "\n")
     logger.info(
         "Recorded certified ancestor %r from run %s under %s%s",

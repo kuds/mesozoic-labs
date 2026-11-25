@@ -41,6 +41,9 @@ STOCK = {
     "rollout_buffer": "stable_baselines3.common.buffers.RolloutBuffer",
     "vec_normalize": "stable_baselines3.common.vec_env.vec_normalize.VecNormalize",
 }
+#: What later changes record that main at 4c9d5e9b did not, none of it the critic phase's: a same-stage resume into
+#: the directory it continues lists its session under ``run.resume_sessions`` (2026-11-24, config.record_resume_session).
+ADDED_SINCE_GOLDEN: dict[str, dict[str, list[str]]] = {"S3": {"run_keys": ["resume_sessions"]}}
 
 
 @pytest.fixture(scope="module")
@@ -126,6 +129,8 @@ def test_the_off_path_records_main_s_structure(off_run, golden):
     for name, scenario in golden["scenarios"].items():
         # Everything but the observation width the current plant's buffer holds (63 on the golden's r10 plant).
         expected = {**scenario["structure"], "buffer_obs_shape": [CURRENT_OBSERVATION_WIDTH]}
+        for field, added in ADDED_SINCE_GOLDEN.get(name, {}).items():
+            expected[field] = sorted([*expected[field], *added])
         actual = dict(off_run["scenarios"][name]["structure"])
         if name == "S2":
             # The walk (S2) runs the live command of decision D-D62, which moves four entries and nothing else: its

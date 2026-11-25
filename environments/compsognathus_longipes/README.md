@@ -1,4 +1,4 @@
-# Compsognathus Longipes
+# Compsognathus longipes
 
 *Compsognathus longipes* was a small, long-tailed bipedal theropod. The species has two models: an anatomical
 reconstruction scaled from a fossil, and the Rev B robot, a twelve-servo biped with a fixed head and an unpowered
@@ -14,7 +14,7 @@ anatomical model is not a validated model of how the animal moved, and the robot
 | Environment | [`CompsognathusLongipesAnatomicalEnv`](anatomical/env.py) | [`CompsognathusLongipesRobotEnv`](robot/env.py) |
 | MuJoCo model | [`compsognathus_longipes_anatomical.xml`](anatomical/assets/compsognathus_longipes_anatomical.xml) | [`compsognathus_longipes_robot.xml`](robot/assets/compsognathus_longipes_robot.xml) |
 | Stage configs | [`configs/compsognathus_longipes/anatomical/stages.toml`](../../configs/compsognathus_longipes/anatomical/stages.toml) | [`configs/compsognathus_longipes/robot/stages.toml`](../../configs/compsognathus_longipes/robot/stages.toml) |
-| Catalog entry | [Compsognathus Longipes (Anatomical)](../../docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) | [Compsognathus Longipes (Robot)](../../docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) |
+| Catalog entry | [Compsognathus longipes (Anatomical)](../../docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) | [Compsognathus longipes (Robot)](../../docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) |
 | Model page | [mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) | [mesozoiclabs.com/docs/models/compsognathus_longipes/robot](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
 
 Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat
@@ -198,8 +198,9 @@ identified hardware.
 
 The full design record, with the mass budget, part candidates, sensor layout, actuation and contact assumptions,
 validation results and sources, is
-[docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md](../../docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md). Hardware
-feasibility and cost plans are in [docs/hardware/](../../docs/hardware/README.md).
+[docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md](../../docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md). The hardware
+notes, with the sizes tried for every robot concept and the parts and costs of those priced so far, are in
+[docs/hardware/](../../docs/hardware/README.md).
 
 ## Files
 

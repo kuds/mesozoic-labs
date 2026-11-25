@@ -416,7 +416,11 @@ report and figures after each such node's budget.
 
 ## Overriding Hyperparameters from the CLI
 
-Use `--override` to change TOML values without editing files — useful for hyperparameter sweeps. Keys use dot notation; values are auto-cast to `int`, `float`, or `str`:
+Use `--override` to change TOML values without editing files — useful for hyperparameter sweeps. Keys use dot
+notation. A value is read as a TOML value, so it has the type the same text has in the stage TOML: `1.0` is a float
+and `1` an int, `true` and `false` are booleans, and quoted strings and arrays work; a bare word such as
+`MlpPolicy` stays a string. Write the value as the TOML would, since the stage's `hyperparameters_sha256` tells
+`1` and `1.0` apart:
 
 ```bash
 # Override learning rate and entropy coefficient for all stages
@@ -435,6 +439,11 @@ Supported key prefixes:
 | `ppo.X` | `ppo_kwargs[X]` |
 | `sac.X` | `sac_kwargs[X]` |
 | `env.X` | `env_kwargs[X]` (reward weights, episode settings) |
+| `ppo.policy_kwargs.X` | `ppo_kwargs["policy_kwargs"][X]` (likewise for `sac`) |
+
+A longer key sets a key inside a nested table: `ppo.policy_kwargs.log_std_init=-1.5`, or
+`'ppo.policy_kwargs.net_arch=[64, 64]'` (quoted for the shell). Each step must be a table the stage config declares;
+only `policy_kwargs` is created when a stage has none, and any other step is refused before training starts.
 
 A `[commands]` key has no override prefix (`commands.X` is refused as an unknown section): a stage's command task is edited in its TOML.
 
@@ -463,11 +472,17 @@ block you edited. The task digest a verdict is bound to covers the effective
    trunked run then trains the node itself. The remedy is a re-judge under
    the current gate — the notebook JUDGE branch / `generate_stage_artifacts`,
    or `backfill_gate_verdict.py --force --gate current` for a
-   `reward_and_length/v1` directory — never a retrain.
+   `reward_and_length/v1` directory — never a retrain, except for a run
+   whose bundle is `complete`: it is immutable and never re-judged in place,
+   so the trunked run's own training of the node is the remedy there.
 
 A variant is a new run directory: writing into a stage directory that already
 holds `stage_config.json` or `gate_verdict.json` is refused unless the load is
-an explicit same-stage resume. It is also a trunk for everything it holds:
+an explicit same-stage resume of a stage that holds no verdict (a judged node
+is never trained further in place), and a resume is refused too when its
+`hyperparameters_sha256` differs from the one the directory's
+`stage_config.json` records (it names the differing keys), so an edited recipe
+never continues an old node. A variant is also a trunk for everything it holds:
 `--trunk-from` follows a run's own stage directories first and, for a node
 it only reused, its `ancestors/<stage_id>/` record to the run that certified
 the node, so a variant that reused stance hands stance on to a later run as
@@ -479,7 +494,7 @@ the original run's checkpoint. See
 1. **Start from the committed config** — Treat it as a reproducible baseline, not a validated optimum
 2. **Compare algorithms under the same protocol** — The published historical runs do not provide a controlled PPO-versus-SAC comparison
 3. **Monitor with TensorBoard** — Every stage logs its per-component rewards as `diagnostics/*` scalars; point `tensorboard --logdir` at the run directory
-4. **Watch a run mid-training** — Every stage directory holds `progress.json`, rewritten after each evaluation: steps against the budget, steps per second and the projected finish, the latest evaluation and how its episodes ended, the posture against the stage's bars (centre of pressure, sole tilt and corner lift, per foot), the checkpoints so far and any warnings. On Colab, open it from Drive at `MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json` while the notebook trains; the full per-evaluation series are in `gate_progress.npz` beside it. A line starting `PostureDrift` in the training output means that on two evaluations in a row, half or more of the evaluation episodes that reached the horizon stood over the stage's fore-aft centre-of-pressure bar; training continues. An evaluation in which no episode reached the horizon measures no posture and breaks the streak, so a seed whose episodes all fall gets no `PostureDrift` line; its falls show in `progress.json`'s `evaluation.falls`. A line starting `PostureTrend` comes earlier: on two evaluations in a row, at least a tenth of those episodes stood over the bar, and the feet's signed centre of pressure is moving toward the edge it is on. It is a prompt to look at the run, not a sign the stage will fail, and training continues. Beside `progress.json`, `eval_episodes.csv` has one row per evaluation episode (its return, how it ended, its posture, balance and floor forces) and `train_episodes.csv` one row per training episode, so the falls the policy learns from can be read too. When the stage ends, `figures/gate_progress.png` plots the evaluations' reward, centre of pressure, over-bar fractions and leg offsets against steps; to plot a run mid-training, download its stage directory and run `python environments/shared/scripts/plot_gate_progress.py <stage_dir>`, which writes the figure to the current directory, never into the run. The stage's training history from those two ledgers (its feet, balance, asymmetry, saturation and per-actuator policy spread over the training) is in `figures/training_history/training_history.html`, also written when the stage ends. The schema is in `docs/TRAINING_ARTIFACT_PRESENTATION.md` in the repository
+4. **Watch a run mid-training** — Every stage directory holds `progress.json`, rewritten after each evaluation: steps against the budget, steps per second and the projected finish, the latest evaluation and how its episodes ended, the posture against the stage's bars (centre of pressure, sole tilt and corner lift, per foot), the checkpoints so far and any warnings. On Colab, open it from Drive at `MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json` while the notebook trains; the full per-evaluation series are in `gate_progress.npz` beside it. A line starting `PostureDrift` in the training output means that on two evaluations in a row, half or more of the evaluation episodes that reached the horizon stood over the stage's fore-aft centre-of-pressure bar; training continues. An evaluation in which no episode reached the horizon measures no posture and breaks the streak, so a seed whose episodes all fall gets no `PostureDrift` line; its falls show in `progress.json`'s `evaluation.falls`. A line starting `PostureTrend` comes earlier: on two evaluations in a row, at least a tenth of those episodes stood over the bar, and the feet's signed centre of pressure is moving toward the edge it is on. It is a prompt to look at the run, not a sign the stage will fail, and training continues. Beside `progress.json`, `eval_episodes.csv` has one row per evaluation episode (its return, how it ended, its posture, balance and floor forces) and `train_episodes.csv` one row per training episode, so the falls the policy learns from can be read too; both are rewritten at each periodic checkpoint (every 100,000 steps in the notebook) and when the stage ends, so mid-run they can trail `progress.json` by up to one checkpoint, and after a crash or an interrupt in the notebook they end at the newest checkpoint. When the stage ends, `figures/gate_progress.png` plots the evaluations' reward, centre of pressure, over-bar fractions and leg offsets against steps; to plot a run mid-training, download its stage directory and run `python -m environments.shared.scripts.plot_gate_progress <stage_dir>` from the repository root, which writes the figure to the current directory, never into the run. The stage's training history from those two ledgers (its feet, balance, asymmetry, saturation and per-actuator policy spread over the training) is in `figures/training_history/training_history.html`, also written when the stage ends. The schema is in `docs/TRAINING_ARTIFACT_PRESENTATION.md` in the repository
 5. **Measure throughput** — Compare CPU and GPU performance for your algorithm and parallel-environment count
 
 ## Tuning Playbook

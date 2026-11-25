@@ -8,9 +8,9 @@ Train your first dinosaur-inspired simulated agent.
 
 ## Option 1: Google Colab (Easiest)
 
-Open the unified training notebook in the `notebooks/` directory:
+Open the [training notebook in Google Colab](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb).
 
-- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros` or `compsognathus_longipes`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR` (`"auto"`, the default, is the model's last deliverable, walk on every model; or a recipe label `"stance"`, `"recover"` or `"walk"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance is reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
+- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros`, `compsognathus_longipes` or `allosaurus_fragilis`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR` (`"auto"`, the default, is the model's last deliverable, walk on every model; or a recipe label `"stance"`, `"recover"` or `"walk"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance is reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
 
 The notebook handles dependency installation automatically.
 
@@ -30,8 +30,10 @@ pip install -e ".[train]"
 
 ### View the Model
 
+From the repository root, on a machine with a display (on macOS, use `mjpython` instead of `python`):
+
 ```bash
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
 ```
 
 ### Train with Curriculum Learning
@@ -78,10 +80,15 @@ requires an exact task match, so a parent's checkpoint must be loaded with
 `--load-mode initialize_next_stage`, which in turn refuses a checkpoint whose
 recorded stage is not the node's declared parent. A stage directory that
 already holds `stage_config.json` or `gate_verdict.json` is refused unless the
-load is `--load <checkpoint> --load-mode resume_same_stage`, so a new attempt is
-a new run directory. Hand-chained `train` runs are unjudged — `train` writes no
-`gate_verdict.json` — so they cannot serve as a later run's `--trunk-from`
-until re-judged with
+load is `--load <checkpoint> --load-mode resume_same_stage` and the directory
+holds no `gate_verdict.json` (a judged node is never trained further in place),
+so a new attempt is a new run directory. Such a resume is itself refused when it
+cannot continue the recorded stage: a SAC or curated-checkpoint load over the
+stage's records, a checkpoint trained on another task, another
+`hyperparameters_sha256` or `--label`, or, on the walk, another `--seed`
+(decision D-D62; the recipes page lists the refusals). Hand-chained `train` runs are
+unjudged — `train` writes no `gate_verdict.json` — so they cannot serve as a
+later run's `--trunk-from` until re-judged with
 `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>`. The curriculum walks
 to its `--target` (a recipe label, a deliverable's stage id or a legacy
 number; default the last advancing stage), so `curriculum --target walk`
@@ -96,8 +103,10 @@ budgets for every model and stage.
 
 ```bash
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  eval logs/<stage_dir>/models/stage1_final.zip --algorithm ppo
+  eval logs/<stage_dir>/models/stage1_final.zip --algorithm ppo --no-render
 ```
+
+`--no-render` scores the episodes without a window; drop it to watch them on a machine with a display.
 
 ### Override Hyperparameters
 
@@ -109,8 +118,11 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 
 ### Run Tests
 
+pytest comes with the test extra:
+
 ```bash
-pytest -v
+pip install -e ".[test]"
+pytest environments/velociraptor_mongoliensis/tests
 ```
 
 ## Basic Training Loop (Python)

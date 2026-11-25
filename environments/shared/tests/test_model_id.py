@@ -123,7 +123,7 @@ def test_identity_is_a_frozen_hashable_value_ordered_by_species_then_embodiment(
         "tyrannosaurus_rex/anatomical",  # a joined identity is never parsed
         "Tyrannosaurus_Rex",  # no normalisation: case
         "tyrannosaurus-rex",  # no normalisation: separator
-        "Tyrannosaurus Rex",  # a display name
+        "Tyrannosaurus rex",  # a display name
         "tyrannosaurus_rex ",
         "tyrannosaurus",  # a genus alone
         "",

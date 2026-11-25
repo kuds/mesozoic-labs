@@ -488,8 +488,16 @@ class TrainingEpisodeLedgerCallback(BaseCallback):  # type: ignore[misc]
         except Exception:  # noqa: BLE001 - a report must not sink a run
             self._warn_once("tensorboard", "Training-episode ledger: could not record rollout_balance/.", exc_info=True)
 
+    def flush_records(self) -> bool:
+        """Rewrite ``train_episodes.csv`` when it holds rows not yet written; ``True`` when it wrote.
+
+        Called at training end and by the trainer after the final save of an
+        interrupt it saves, which skips that hook (``train_base._flush_report_records``).
+        """
+        return bool(self._ledger.write())
+
     def _on_training_end(self) -> None:
-        self._ledger.write()
+        self.flush_records()
 
     # ------------------------------------------------------------------ resume and report
     def seed_prior_record(self, directory: str | Path, *, max_timesteps: int | None = None) -> int:

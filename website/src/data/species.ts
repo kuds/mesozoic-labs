@@ -316,9 +316,9 @@ export interface Species {
   /** The species ID (its binomial in snake_case) and the embodiment: together, the model's identity. */
   species: string;
   embodiment: string;
-  /** The species display name ("Compsognathus Longipes"). */
+  /** The species display name ("Compsognathus longipes"). */
   speciesName: string;
-  /** The model display name ("Compsognathus Longipes (Robot)"). */
+  /** The model display name ("Compsognathus longipes (Robot)"). */
   name: string;
   tagline: string;
   observationDim: number;

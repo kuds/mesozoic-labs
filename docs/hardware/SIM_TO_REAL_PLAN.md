@@ -8,6 +8,20 @@
 > `hardware_prototype` is `planned` and `sim_to_real_validation` is
 > `not_started`. Nothing here has been built or transferred to hardware.
 
+> **Status note, 2026-11-23:** the shared observation builder cited below,
+> `environments/shared/obs_functions.py` (`build_bipedal_obs`), was deleted with
+> the frozen MJX interface core (`c9a47469`). Each species env now builds its own
+> observation in `_get_obs`, the abstract method of `BaseDinoEnv`
+> (`environments/shared/base_env.py`): in `environments/<species>/base_env.py`,
+> and for the anatomical Compsognathus in its `anatomical/env.py`. Every
+> model is heading-free since decision D-D59 (`configs/plant_versions.toml`
+> note 24; when this note was first written, four were), and every species env
+> reads its root segments from `environments/shared/heading_observation.py`.
+> The `obs_functions` references and the `species_manifest.toml` line numbers
+> below are historical: the capabilities are now at
+> `configs/species_manifest.toml:44-62` (domain randomization :48-50, hardware
+> prototype :52-54, ROS 2 bridge :56-58, sim-to-real validation :60-62).
+
 This document answers a single question: **what would it actually take to turn
 the Mesozoic Labs MuJoCo simulation into physical robots?** It is grounded in a
 file-by-file audit of the three MJCF models, the observation/action pipeline,

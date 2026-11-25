@@ -40,16 +40,22 @@ def _default_file_mode() -> int:
     return 0o666 & ~mask
 
 
-def atomic_copy(src: "str | Path", dst: "str | Path") -> None:
+def atomic_copy(src: "str | Path", dst: "str | Path", *, temp_prefix: str | None = None) -> None:
     """Copy *src* over *dst* without exposing a partially-written file.
 
     The bytes are first copied to a temp file in *dst*'s directory, then
     moved into place with ``os.replace`` so readers (and a runtime
     teardown) only ever see either the old complete file or the new one.
+    The temp file is named ``<temp_prefix><random>.tmp``; *temp_prefix*
+    defaults to ``.<dst name>.``.  It should start with a dot, the shape the
+    result-bundle manifest discards if a crash strands one.  The TensorBoard
+    sync passes one without ``tfevents``, which TensorBoard would read as an
+    event file (:mod:`~environments.shared.tb_sync`).
     """
     dst = Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".tmp", dir=str(dst.parent))
+    prefix = f".{dst.name}." if temp_prefix is None else temp_prefix
+    fd, tmp = tempfile.mkstemp(prefix=prefix, suffix=".tmp", dir=str(dst.parent))
     os.close(fd)
     try:
         shutil.copyfile(str(src), tmp)

@@ -16,7 +16,7 @@ gates shown are for the Stable-Baselines3 curriculum path. Do not edit the gener
 
 <a id="velociraptor_mongoliensis-anatomical"></a>
 
-### Velociraptor Mongoliensis (Anatomical)
+### Velociraptor mongoliensis (Anatomical)
 
 Swift Bipedal Predator. **Specialty:** Fast bipedal running.
 
@@ -45,7 +45,7 @@ Swift Bipedal Predator. **Specialty:** Fast bipedal running.
 
 <a id="tyrannosaurus_rex-anatomical"></a>
 
-### Tyrannosaurus Rex (Anatomical)
+### Tyrannosaurus rex (Anatomical)
 
 Apex Predator. **Specialty:** Heavy-bodied bipedal balance and walking.
 
@@ -76,7 +76,7 @@ Apex Predator. **Specialty:** Heavy-bodied bipedal balance and walking.
 
 <a id="brachiosaurus_altithorax-anatomical"></a>
 
-### Brachiosaurus Altithorax (Anatomical)
+### Brachiosaurus altithorax (Anatomical)
 
 Gentle Giant Herbivore. **Specialty:** Long-necked quadrupedal walking.
 
@@ -105,7 +105,7 @@ Gentle Giant Herbivore. **Specialty:** Long-necked quadrupedal walking.
 
 <a id="dibothrosuchus_elaphros-anatomical"></a>
 
-### Dibothrosuchus Elaphros (Anatomical)
+### Dibothrosuchus elaphros (Anatomical)
 
 Gracile Erect-Limbed Crocodylomorph. **Specialty:** Erect-limbed quadrupedal walking.
 
@@ -134,7 +134,7 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Erect-limbed quadrupedal wal
 
 <a id="compsognathus_longipes-anatomical"></a>
 
-### Compsognathus Longipes (Anatomical)
+### Compsognathus longipes (Anatomical)
 
 Small Bipedal Theropod. **Specialty:** Small-bodied bipedal walking.
 
@@ -165,7 +165,7 @@ Small Bipedal Theropod. **Specialty:** Small-bodied bipedal walking.
 
 <a id="compsognathus_longipes-robot"></a>
 
-### Compsognathus Longipes (Robot)
+### Compsognathus longipes (Robot)
 
 Twelve-Servo Biped Prototype. **Specialty:** Servo-driven bipedal walking with fixed head and tail.
 
@@ -196,7 +196,7 @@ Twelve-Servo Biped Prototype. **Specialty:** Servo-driven bipedal walking with f
 
 <a id="allosaurus_fragilis-anatomical"></a>
 
-### Allosaurus Fragilis (Anatomical)
+### Allosaurus fragilis (Anatomical)
 
 Jurassic Tridactyl Theropod. **Specialty:** Level-ground walk along a commanded heading, over an eight-metre course.
 

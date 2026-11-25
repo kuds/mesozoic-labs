@@ -95,9 +95,6 @@ After each training stage the `eval` command reports:
 | Metric | Description |
 |--------|-------------|
 | `mean_forward_velocity` | Average forward speed (m/s) |
-| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] |
-| `stride_frequency` | Step frequency (Hz) |
-| `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
 | `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command |
 
@@ -120,10 +117,14 @@ These PPO recordings show earlier model revisions.
 ## Usage
 
 ```bash
-# From the repository root. View the model
-python environments/tyrannosaurus_rex/scripts/view_model.py --embodiment anatomical
+# From the repository root. View the model (requires a display)
+python -m environments.tyrannosaurus_rex.scripts.view_model --embodiment anatomical
 
-# Reproduce the filmed reference walk and its foot-contact measurements
+# Measure standing balance or the reference walk on the level floor
+python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode stand --seconds 20 --warmup 9
+python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode walk --seconds 30 --warmup 4
+
+# Reproduce the filmed 16-second reference walk and its foot-contact measurements
 python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode walk --seconds 16 --warmup 4 --noise 0.05 --seeds 0
 
 # Train the stance node using its current TOML-configured budget

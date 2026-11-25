@@ -11,6 +11,17 @@ from environments.shared.model_id import ModelId
 matplotlib = pytest.importorskip("matplotlib")
 
 
+def _panels(fig):
+    """Map each axes of *fig* to its panel name, the title after the model/algorithm prefix."""
+    return {ax.get_title().split(" – ")[-1]: ax for ax in fig.axes}
+
+
+def _drawn(ax):
+    """True if *ax* shows a bar or a line with a finite point (``has_data`` also counts an all-NaN line)."""
+    lines = ax.get_lines()
+    return bool(ax.patches) or any(np.isfinite(np.asarray(line.get_ydata(), dtype=float)).any() for line in lines)
+
+
 class TestPlotTrainingCurves:
     """Tests for plot_training_curves."""
 
@@ -132,11 +143,11 @@ class TestPlotDiagnosticsGraphs:
         )
 
         assert (tmp_path / "behavioral_metrics.png").exists()
-        # Always a 2x2 grid (4 axes)
+        # Distance traveled across the top row, heading and drift below (3 axes)
         assert fig2.axes[0] is not None
-        assert len(fig2.axes) == 4
+        assert len(fig2.axes) == 3
 
-    def test_stays_2x2_with_prey_data(self, tmp_path):
+    def test_adds_no_row_with_prey_data(self, tmp_path):
         """The hunt's third row (prey distance, strike / bite success) left with the hunt (decision D-D59)."""
         matplotlib.use("Agg")
 
@@ -166,7 +177,8 @@ class TestPlotDiagnosticsGraphs:
         )
 
         assert (tmp_path / "behavioral_metrics.png").exists()
-        assert len(fig2.axes) == 4
+        # The hunt's prey-distance and strike-success row left with the hunt (decision D-D59)
+        assert len(fig2.axes) == 3
 
     def test_the_reward_decomposition_shows_a_live_stages_stand_block_terms(self, tmp_path):
         """A term the walk's ``[env]`` leaves at 0 is paid on its stand episodes when the stand block names its
@@ -198,7 +210,7 @@ class TestPlotDiagnosticsGraphs:
                 save_dir=tmp_path,
                 show=False,
             )
-            return {line.get_label() for line in fig1.axes[3].get_lines()}
+            return {line.get_label() for line in _panels(fig1)["Reward Decomposition"].get_lines()}
 
         live = drawn(command_mode="heading_and_speed", command_config=command)
         assert {"S2 energy", "S2 tail_home_pose"} <= live and "S2 neck_home_pose" not in live
@@ -225,7 +237,7 @@ class TestPlotDiagnosticsGraphs:
                 save_dir=directory,
                 show=False,
             )
-            return {line.get_label(): line.get_color() for line in fig1.axes[3].get_lines()}
+            return {line.get_label(): line.get_color() for line in _panels(fig1)["Reward Decomposition"].get_lines()}
 
         series = {"timesteps": np.array([50000, 100000]), "reward_energy": np.array([-0.1, -0.2])}
         free = tmp_path / "free"
@@ -279,7 +291,7 @@ class TestPlotDiagnosticsGraphs:
             save_dir=tmp_path,
             show=False,
         )
-        lines = {line.get_label(): line for line in fig1.axes[3].get_lines()}
+        lines = {line.get_label(): line for line in _panels(fig1)["Reward Decomposition"].get_lines()}
         assert set(lines) == {"S2 tracking", "S2 tail", "S2 height", "S2 stance_width"}
         tracking = lines.pop("S2 tracking")
         assert to_rgba(tracking.get_color()) == to_rgba("black")
@@ -288,6 +300,116 @@ class TestPlotDiagnosticsGraphs:
         assert to_rgba("black") not in others.values()
         assert all(tracking.get_linestyle() == line.get_linestyle() for line in lines.values())
         assert all(tracking.get_linewidth() > line.get_linewidth() for line in lines.values())
+
+    def test_every_panel_is_drawn_and_none_measures_transport_cost_or_gait(self, tmp_path):
+        """Every panel draws from a full diagnostics.npz and a row's lone panel spans it.
+
+        A file that still holds a finite prey distance and strike success adds no row: the hunt's
+        row left with the hunt (decision D-D59). No panel claims a cost of transport or a gait symmetry. The two deleted panels drew
+        rollout means that measure neither: |reward_energy| (an action penalty) over forward
+        speed floored at 0.01 m/s, and the left/right contact-force balance with its mean
+        labelled a stride frequency (an in-phase hop scored 1.0).
+        """
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        from environments.shared.visualization import plot_diagnostics_graphs
+
+        ts = np.array([50000, 100000, 150000])
+        np.savez(
+            str(tmp_path / "diagnostics.npz"),
+            timesteps=ts,
+            forward_vel=np.array([0.5, 1.0, 1.2]),
+            pelvis_height=np.array([0.8, 0.85, 0.84]),
+            reward_energy=np.array([-0.1, -0.2, -0.2]),
+            reward_forward=np.array([0.5, 1.0, 1.2]),
+            l_foot_contact=np.array([200.0, 150.0, 160.0]),
+            r_foot_contact=np.array([200.0, 150.0, 140.0]),
+            heading_alignment=np.array([0.9, 0.95, 0.97]),
+            heading_alignment_std=np.array([0.1, 0.05, 0.02]),
+            distance_traveled=np.array([0.5, 2.3, 3.0]),
+            drift_distance=np.array([0.1, 0.3, 0.4]),
+            prey_distance=np.array([5.0, 4.5, 4.0]),
+            strike_success=np.array([0.0, 0.1, 0.2]),
+            term_timesteps=ts,
+            term_fallen=np.array([0.5, 0.2, 0.1]),
+        )
+        stage_configs = {"locomotion": {"name": "Locomotion", "env_kwargs": {"forward_vel_weight": 1.0}}}
+
+        fig1, fig2 = plot_diagnostics_graphs(
+            [("locomotion", tmp_path)],
+            stage_configs,
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            algorithm="ppo",
+            show=False,
+        )
+
+        health, behavior = _panels(fig1), _panels(fig2)
+        assert set(health) == {"Termination Breakdown", "Pelvis Height", "Reward Decomposition"}
+        assert set(behavior) == {
+            "Heading Alignment",
+            "Distance Traveled (path length)",
+            "Drift Distance (displacement from spawn)",
+        }
+        for title, ax in {**health, **behavior}.items():
+            assert _drawn(ax), f"{title} panel is empty"
+        assert health["Reward Decomposition"].get_subplotspec().colspan == range(2)
+        assert behavior["Distance Traveled (path length)"].get_subplotspec().colspan == range(2)
+        titles_and_labels = [text for ax in fig1.axes + fig2.axes for text in (ax.get_title(), ax.get_ylabel())]
+        for removed in ("Cost of Transport", "Gait Symmetry", "Stride"):
+            assert not any(removed in text for text in titles_and_labels), removed
+        plt.close("all")
+
+    @pytest.mark.parametrize(
+        ("recorded", "blank", "n_axes"),
+        [
+            # Allosaurus: no heading alignment.
+            ({}, "Heading Alignment", 3),
+            # A pre-D-D59 file with a finite prey distance: no hunting row (it left with the hunt), nothing blank.
+            ({"heading_alignment": [0.98, 0.99, 0.97], "prey_distance": [7.2, 7.7, 7.3]}, None, 3),
+        ],
+    )
+    def test_all_nan_series_add_no_row_and_say_no_data(self, tmp_path, recorded, blank, n_axes):
+        """A real diagnostics.npz holds every info key, all-NaN where the env never emits it.
+
+        Key presence adds no row, the full-width top row is the distance every species records, and
+        a panel no stage recorded says so instead of drawing blank.
+        """
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        from environments.shared.diagnostics import DiagnosticsCallback
+        from environments.shared.visualization import plot_diagnostics_graphs
+
+        ts = np.array([50000, 100000, 150000])
+        series = {key: np.full(len(ts), np.nan) for key in DiagnosticsCallback.INFO_KEYS}
+        series.update(
+            pelvis_height=np.array([0.8, 0.85, 0.84]),
+            distance_traveled=np.array([0.5, 2.3, 3.0]),
+            drift_distance=np.array([0.1, 0.3, 0.4]),
+            heading_alignment_std=np.full(len(ts), np.nan),
+        )
+        series.update({key: np.array(values) for key, values in recorded.items()})
+        np.savez(str(tmp_path / "diagnostics.npz"), timesteps=ts, **series)
+
+        _, fig2 = plot_diagnostics_graphs(
+            [("locomotion", tmp_path)],
+            {"locomotion": {"name": "Locomotion"}},
+            model_id=ModelId("allosaurus_fragilis", "anatomical"),
+            algorithm="ppo",
+            show=False,
+        )
+
+        behavior = _panels(fig2)
+        assert len(behavior) == n_axes
+        assert behavior["Distance Traveled (path length)"].get_subplotspec().colspan == range(2)
+        for title, ax in behavior.items():
+            notes = [text.get_text() for text in ax.texts]
+            if title == blank:
+                assert not _drawn(ax) and notes == ["No data recorded"], title
+            else:
+                assert _drawn(ax) and not notes, title
+        plt.close("all")
 
     def test_handles_empty_diagnostics(self, tmp_path):
         matplotlib.use("Agg")

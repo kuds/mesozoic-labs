@@ -3,8 +3,9 @@
 ``validate_gate_config`` runs on every SB3 curriculum run (through
 ``thresholds_from_configs``). These cases were tested only through the JAX
 curriculum's ``check_stage_gate`` until D-D17 retired it (cleanup PR-B); the
-schema itself stays, including the ``[curriculum.jax]`` override validation
-(docs/CLEANUP_PLAN_2026_09.md §4.9).
+schema itself stays, and refuses the retired ``[curriculum.jax]`` override table
+by name in a mapping built in memory (the loader refuses it in a TOML, and the CLI
+refuses it as an ``--override``).
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ _STANCE = {
     "min_eval_episodes": 40,
 }
 
-#: A stage TOML declaring the shared bar and a ``[curriculum.jax]`` override for it.
+#: A stage TOML declaring the shared bar and a retired ``[curriculum.jax]`` override for it.
 _OVERRIDE_TOML = (
     '[stage]\nname = "t"\n[env]\nalive_bonus = 1.0\n'
     '[curriculum]\ngate_schema_version = 1\ngate_kind = "reward_and_length/v1"\n'
@@ -52,63 +53,48 @@ class TestGateDeclaration:
             _validate(dict(_GATE, min_avg_rewrad=100.0))
 
 
-class TestBackendOverrideTable:
-    """``[curriculum.jax]`` is still validated, although no backend applies it."""
+class TestRetiredBackendOverrideTable:
+    """``[curriculum.jax]`` is refused by name: only the retired JAX/MJX trainer applied it (D-D17)."""
 
-    def test_a_valid_override_table_passes(self):
-        assert _validate(dict(_GATE, min_avg_reward=100.0, jax={"min_avg_reward": 40.0})) == "reward_and_length/v1"
+    @pytest.mark.parametrize(
+        ("base", "table"),
+        [
+            (dict(_GATE, min_avg_reward=100.0), {"min_avg_reward": 40.0}),
+            (dict(_GATE, min_avg_reward=100.0), {"min_avg_rewrad": 40.0}),
+            (_STANCE, {"max_unsupported_duty": 0.5}),
+            (_STANCE, {"min_avg_forward_vel": 0.5}),
+            (dict(_GATE, min_avg_reward=100.0), {"min_avg_reward": "x"}),
+            (dict(_GATE, min_avg_reward=100.0), 40.0),
+            (dict(_GATE, min_avg_reward=100.0), {}),
+        ],
+    )
+    def test_any_override_table_is_refused_by_name(self, base, table):
+        """Well-formed or not, the table states a bar nothing enforces, so the refusal names the table."""
+        with pytest.raises(GateSchemaError, match=r"\[curriculum\.jax\] is refused.*D-D17 retired"):
+            _validate(dict(base, jax=table))
 
-    def test_unknown_key_inside_the_override_table_is_fatal(self):
-        with pytest.raises(GateSchemaError, match="cannot be overridden"):
-            _validate(dict(_GATE, min_avg_reward=100.0, jax={"min_avg_rewrad": 40.0}))
+    def test_the_refusal_holds_without_advancement_or_a_gate(self):
+        with pytest.raises(GateSchemaError, match=r"\[curriculum\.jax\] is refused"):
+            validate_gate_config(1, {"jax": {"min_avg_reward": 40.0}}, advancement_enabled=False)
 
-    def test_a_composite_criterion_cannot_be_overridden_per_backend(self):
-        with pytest.raises(GateSchemaError, match="cannot be overridden"):
-            _validate(dict(_STANCE, jax={"max_unsupported_duty": 0.5}))
-
-    def test_overriding_a_field_the_kind_does_not_consume_is_fatal(self):
-        with pytest.raises(GateSchemaError, match="does not consume"):
-            _validate(dict(_STANCE, jax={"min_avg_forward_vel": 0.5}))
-
-    def test_a_retired_key_inside_the_override_table_names_its_decision(self):
-        """min_success_rate left with the hunt nodes (decision D-D59), in the override table as at the top level."""
-        with pytest.raises(
-            GateSchemaError, match=r"'min_success_rate' was removed with the hunt nodes \(decision D-D59\)"
-        ):
-            _validate(dict(_GATE, min_avg_reward=100.0, jax={"min_success_rate": 0.5}))
-
-    def test_non_numeric_and_non_table_overrides_are_fatal(self):
-        with pytest.raises(GateSchemaError, match="finite numbers"):
-            _validate(dict(_GATE, min_avg_reward=100.0, jax={"min_avg_reward": "x"}))
-        with pytest.raises(GateSchemaError, match="must be a table"):
-            _validate(dict(_GATE, min_avg_reward=100.0, jax=40.0))
-
-    def test_the_sb3_thresholds_ignore_the_override_table(self):
+    def test_the_sb3_thresholds_refuse_the_override_table(self):
         configs = {1: {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, jax={"min_avg_reward": 40.0})}}
-        thresholds = thresholds_from_configs(configs)
-        assert thresholds[1]["min_avg_reward"] == 100.0
-        assert "jax" not in thresholds[1]
+        with pytest.raises(GateSchemaError, match=r"\[curriculum\.jax\] is refused"):
+            thresholds_from_configs(configs)
 
-    def test_a_toml_sub_table_loads_and_validates(self, tmp_path):
-        path = tmp_path / "good.toml"
+    def test_a_toml_sub_table_is_refused_by_the_loader_before_the_schema_runs(self, tmp_path):
+        """The loader refuses the table, so no path that reads a stage file (the SB3 notebook included) gets
+        past it; the schema's own refusal above covers a mapping built in memory."""
+        model_id = ModelId("tyrannosaurus_rex", "anatomical")
+        path = tmp_path / "retired.toml"
         path.write_text(_OVERRIDE_TOML)
-        curriculum = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1, config_path=str(path))[
-            "curriculum_kwargs"
-        ]
-        assert curriculum["min_avg_reward"] == 100.0
-        assert curriculum["jax"] == {"min_avg_reward": 40.0}
+        with pytest.raises(ValueError, match=r"\[curriculum\.jax\] is refused.*D-D17 retired") as excinfo:
+            load_stage_config(model_id, 1, config_path=str(path))
+        assert not isinstance(excinfo.value, GateSchemaError)
+        assert str(excinfo.value).startswith(str(path))
+        path.write_text(_OVERRIDE_TOML.split("[curriculum.jax]")[0])
+        curriculum = load_stage_config(model_id, 1, config_path=str(path))["curriculum_kwargs"]
         assert _validate(curriculum) == "reward_and_length/v1"
-
-    def test_an_unknown_key_in_the_toml_sub_table_is_rejected_by_the_schema(self, tmp_path):
-        """The loader passes the misspelling through, so the schema must refuse it."""
-        path = tmp_path / "bad.toml"
-        path.write_text(_OVERRIDE_TOML.replace("[curriculum.jax]\nmin_avg_reward", "[curriculum.jax]\nmin_avg_rewrad"))
-        curriculum = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1, config_path=str(path))[
-            "curriculum_kwargs"
-        ]
-        assert curriculum["jax"] == {"min_avg_rewrad": 40.0}
-        with pytest.raises(GateSchemaError, match="cannot be overridden"):
-            _validate(curriculum)
 
 
 #: A complete stance_quality/v2 declaration: exactly its required keys (decision D-D23).

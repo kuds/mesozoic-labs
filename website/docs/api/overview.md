@@ -22,13 +22,13 @@ env = gym.make("MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0")
 
 Available environment IDs:
 
-- `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` - Velociraptor Mongoliensis (Anatomical)
-- `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` - Tyrannosaurus Rex (Anatomical)
-- `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` - Brachiosaurus Altithorax (Anatomical)
-- `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` - Dibothrosuchus Elaphros (Anatomical)
-- `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` - Compsognathus Longipes (Anatomical)
-- `MesozoicLabs/CompsognathusLongipes-Robot-v0` - Compsognathus Longipes (Robot), the robot prototype
-- `MesozoicLabs/AllosaurusFragilis-Anatomical-v0` - Allosaurus Fragilis (Anatomical)
+- `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` - Velociraptor mongoliensis (Anatomical)
+- `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` - Tyrannosaurus rex (Anatomical)
+- `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` - Brachiosaurus altithorax (Anatomical)
+- `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` - Dibothrosuchus elaphros (Anatomical)
+- `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` - Compsognathus longipes (Anatomical)
+- `MesozoicLabs/CompsognathusLongipes-Robot-v0` - Compsognathus longipes (Robot), the robot prototype
+- `MesozoicLabs/AllosaurusFragilis-Anatomical-v0` - Allosaurus fragilis (Anatomical)
 
 `import environments` registers all seven at once, from `configs/species_manifest.toml`.
 Each class is `<Species><Embodiment>Env` in `environments.<species>.<embodiment>.env`,
@@ -162,13 +162,15 @@ Or use the shared training CLI from the repository root, which takes the model a
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo --n-envs 4
 
-# Or control stages individually; each command reads its budget from TOML
+# Or control stages individually; each command reads its budget from TOML, and a
+# later stage enters from its parent's handoff under initialize_next_stage
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  train --stage 1 --algorithm ppo
+  train --stage 1 --algorithm ppo --output-dir logs/<run>/01_stance
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  train --stage 2 --algorithm ppo --load logs/stage1/models/stage1_final.zip
+  train --stage 2 --algorithm ppo --output-dir logs/<run>/02_locomotion \
+  --load logs/<run>/01_stance/models/robust_best_model.zip --load-mode initialize_next_stage
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  eval logs/stage2/models/stage2_final.zip --algorithm ppo --stage 2
+  eval logs/<run>/02_locomotion/models/robust_best_model.zip --algorithm ppo --stage 2 --no-render
 
 # Use SAC instead
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
@@ -211,10 +213,7 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 | Metric key | Description | Species |
 |---|---|---|
 | `mean_forward_velocity` | Mean forward speed (m/s) | All |
-| `cost_of_transport` | Energy per unit distance per unit weight | All |
 | `mean_pelvis_height` | Mean pelvis z-position (m) | T-Rex, Velociraptor |
-| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] | All |
-| `stride_frequency` | Mean step frequency (Hz) | All |
 | `mean_tilt_angle` | Mean body tilt angle (rad) | All |
 | `termination_reason` | Reason episode ended | All |
 
@@ -241,5 +240,5 @@ hunt's success keys (`bite_success`, `strike_success`, `food_reached`,
 and time-to-target metrics were removed with the hunt (decision D-D59).
 
 The shared CLI's `eval` command prints all metrics above grouped
-into **Core Performance**, **Velocity**, **Gait Quality** and **Balance**, with
-a success rate only for a model that declares success keys.
+into **Core Performance**, **Velocity** and **Balance**, with a success rate
+only for a model that declares success keys.

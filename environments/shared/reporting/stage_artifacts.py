@@ -2089,7 +2089,7 @@ def evaluate_stage_checkpoints(
     # judges it through the one shared `reporting.gates.evaluate_stage_gate`
     # and records `gate_passed` / `publication_gate_passed` / `gate_failures`
     # onto this dict; the chain loop enforces it. The notebook's own checklist
-    # knew nothing about `gate_kind`, so when Tyrannosaurus Rex stage 1 moved
+    # knew nothing about `gate_kind`, so when Tyrannosaurus rex stage 1 moved
     # to stance_quality/v1 it quietly degraded to a reward comparison, which
     # the zero-action statue clears by 68% (run 20260802_203215 advanced to
     # stage 2 beside a stance_gate_report.txt reading GATE: FAIL).

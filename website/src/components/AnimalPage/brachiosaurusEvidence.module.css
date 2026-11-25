@@ -1,0 +1,75 @@
+.section { margin-block: 2rem; }
+
+.section h2 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.875rem, 3.3vw, 2.75rem);
+  scroll-margin-top: calc(var(--ifm-navbar-height) + 1rem);
+}
+
+.figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem 2rem;
+  margin: 0;
+  padding-block: 1rem;
+  border-block: 1px solid var(--museum-rule);
+}
+
+.plate {
+  position: relative;
+  background: var(--museum-panel);
+}
+
+.plate img { display: block; width: 100%; height: auto; }
+
+.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--museum-ink);
+}
+
+.lines path {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2;
+  filter: drop-shadow(0 1px 0 var(--museum-paper));
+}
+
+.plate span {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--museum-paper);
+  border-radius: 50%;
+  color: var(--museum-paper);
+  background: var(--museum-ink);
+  font: 600 .8125rem/1 var(--museum-mono);
+}
+
+.upperLimbs { left: 46.25%; top: 72.75%; }
+.forelimb { left: 63.875%; top: 85.25%; }
+.head { left: 90.5%; top: 16.5%; }
+
+.key { margin: 0; padding-inline-start: 1.7rem; }
+.key li { padding-inline-start: .25rem; }
+.key li + li { margin-top: .875rem; }
+.key li::marker { color: var(--museum-ink); font-family: var(--museum-mono); font-weight: 600; }
+.key p { margin: .15rem 0 0; color: var(--museum-muted); }
+.key a { text-decoration: underline; }
+
+.prediction { margin-top: 1rem; }
+.prediction summary { cursor: pointer; font-weight: 600; }
+.prediction p { margin-block: .5rem; }
+
+.feedback { margin: .75rem 0 0; }
+.feedback a { text-decoration: underline; }
+
+@media (max-width: 740px) {
+  .figure { grid-template-columns: minmax(0, 1fr); }
+}

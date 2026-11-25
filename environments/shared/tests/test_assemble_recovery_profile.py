@@ -42,6 +42,11 @@ EDITED_SINCE_MEASUREMENT = {
     # Decision D-D62: the species reward reads BaseDinoEnv's forward reference and drift anchor, which under the
     # recovery's command_mode "none" are the spawn arrays it read before (the same golden proves it).
     "environments/compsognathus_longipes/base_env.py": "303d40f3aa13f5cf65159eb180061b7214f941eff4d9c47c531d1b4e8ee12ba8",
+    # main's 76c1bfd (merged 2026-11-25) made the module NumPy-only: the _array_mod dispatch and its jax.numpy
+    # branches are gone, and the NumPy path that every measurement ran is the same operations in the same order.
+    # lowbias32, hash_uniform01, push_schedule and external_push_force return the same bytes and dtypes as before
+    # the edit, the recovery profiles still re-assemble (--check) and the digest snapshot is current.
+    "environments/shared/perturbation.py": "2e9a4622ac247ed6cdcee36f95405bd257f6705cbbf062f430f9987d9fe1f81c",
 }
 
 

@@ -174,7 +174,7 @@ robot's free-root pelvis is a massless frame, so the scheduler uses the
 heaviest massive body rigidly welded to it: the core, at a nominal height
 of 0.288 m. The previous massless-root inertial point was 0.15 m higher and
 produced an artificial tipping lever. The robot was recalibrated after this
-correction. Massive-root species, including Tyrannosaurus Rex, retain their
+correction. Massive-root species, including Tyrannosaurus rex, retain their
 previous target and trajectories. Contact and position-servo forces act during
 the pulse, so `J/m` is a nominal free-body velocity increment, not the
 measured velocity after a shove. See the [MuJoCo applied-force documentation](https://mujoco.readthedocs.io/en/stable/programming/simulation.html).
@@ -295,11 +295,11 @@ The initial targets are explicit engineering choices for a pilot:
 The first condition requires at least 26 successes out of 40; the paired
 condition can demand more, depending on which episodes the null succeeds on.
 These targets have not been demonstrated by a trained Compsognathus policy.
-They are not copied from Tyrannosaurus Rex's measured 0.30/0.20 thresholds.
+They are not copied from Tyrannosaurus rex's measured 0.30/0.20 thresholds.
 Both zero command and the frozen stance-derived brace are required paired
 comparisons for Compsognathus. A fixed pose that merely beats zero command
 cannot pass by matching the brace; the policy must improve on both.
-The historical Tyrannosaurus Rex gate retains its original single-null rule.
+The historical Tyrannosaurus rex gate retains its original single-null rule.
 
 ## Running the pilot
 

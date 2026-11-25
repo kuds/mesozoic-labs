@@ -37,9 +37,6 @@ After each training stage the `eval` command reports:
 | Metric | Description |
 |--------|-------------|
 | `mean_forward_velocity` | Average forward speed (m/s) |
-| `gait_symmetry` | Diagonal-pair stride symmetry ∈ [0, 1] |
-| `stride_frequency` | Step frequency (Hz) |
-| `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Trunk height stability (m) |
 | `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command |
 
@@ -53,8 +50,8 @@ After each training stage the `eval` command reports:
 # From the repository root. Measure the reference walk
 python -m environments.dibothrosuchus_elaphros.scripts.reference_walk
 
-# View the model
-python environments/dibothrosuchus_elaphros/scripts/view_model.py --embodiment anatomical
+# View the model (requires a display)
+python -m environments.dibothrosuchus_elaphros.scripts.view_model --embodiment anatomical
 
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1

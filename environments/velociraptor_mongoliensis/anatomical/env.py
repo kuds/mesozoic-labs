@@ -14,7 +14,7 @@ from environments.velociraptor_mongoliensis.base_env import VelociraptorMongolie
 
 
 class VelociraptorMongoliensisAnatomicalEnv(VelociraptorMongoliensisEnv):
-    """Velociraptor Mongoliensis, the anatomical model."""
+    """Velociraptor mongoliensis, the anatomical model."""
 
     embodiment = "anatomical"
     MODEL_PATH = ModelId("velociraptor_mongoliensis", "anatomical").asset_path(ENVIRONMENTS_ROOT)

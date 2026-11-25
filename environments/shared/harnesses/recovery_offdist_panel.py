@@ -208,8 +208,22 @@ def main() -> None:
         default="auto",
         help="forward pass for the checkpoint; 'numpy' skips PPO.load entirely (the §9 path)",
     )
-    parser.add_argument("--out", help="write the full result (per-episode rows included) as JSON")
+    parser.add_argument(
+        "--out",
+        help=(
+            "write the full result (per-episode rows included) as JSON; refused inside a run directory or the "
+            "stage directory of --policy-zip / --vecnorm (result_bundle.refuse_output_inside_run)"
+        ),
+    )
     args = parser.parse_args()
+    if args.out:
+        # Before anything is rolled: a file added to a run stops its result bundle's manifest verifying.
+        from environments.shared.result_bundle import ResultBundleError, refuse_output_inside_run
+
+        try:
+            refuse_output_inside_run(args.out, [args.policy_zip, args.vecnorm])
+        except ResultBundleError as exc:
+            parser.error(str(exc))
 
     env = build_env(args.schedule, model_id=SCHEDULE_MODEL_ID)
     if args.controller == "statue":

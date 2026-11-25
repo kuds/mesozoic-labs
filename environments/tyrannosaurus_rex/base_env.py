@@ -1,5 +1,5 @@
 """
-Tyrannosaurus Rex Gymnasium Environment
+Tyrannosaurus rex Gymnasium Environment
 
 A large bipedal predator with a massive skull and vestigial forelimbs.  The
 scene holds the animal and the floor only: the prey sphere, its four
@@ -107,7 +107,7 @@ from environments.shared.reward_functions import (
 
 
 class TyrannosaurusRexEnv(BaseDinoEnv):
-    """Tyrannosaurus Rex bipedal locomotion environment.
+    """Tyrannosaurus rex bipedal locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,

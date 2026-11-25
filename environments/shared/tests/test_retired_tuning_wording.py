@@ -35,7 +35,6 @@ def _living_files() -> list[Path]:
     files = sorted(path for path in (REPOSITORY_ROOT / "environments").rglob("*.py") if path.resolve() != this_file)
     files += sorted((REPOSITORY_ROOT / "configs").rglob("*.toml"))
     files += sorted((REPOSITORY_ROOT / "configs").rglob("*.py"))
-    files += sorted((REPOSITORY_ROOT / "environments").rglob("requirements*.txt"))
     files += sorted(REPOSITORY_ROOT.glob("*.py"))
     files += [REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb", REPOSITORY_ROOT / "pyproject.toml"]
     files += [REPOSITORY_ROOT / ".pre-commit-config.yaml"]

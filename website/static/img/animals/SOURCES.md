@@ -16,18 +16,24 @@ The anatomical Tyrannosaurus plate shows the home pose of physics revision 11 an
 
 The anatomical Dibothrosuchus plate and the Compsognathus robot plate were rendered in MuJoCo 3.17.0. For each `<species>-<embodiment>.webp`, the corresponding MJCF is `environments/<species>/<embodiment>/assets/<species>_<embodiment>.xml` at the linked revision. The robot includes Open Duck Mini hardware meshes. [Source revision](https://github.com/kuds/mesozoic-labs/tree/4b86f5c6fec8d1b427ba86c1c9a7cc11855ec875/environments) · [Upstream license](https://github.com/kuds/mesozoic-labs/blob/4b86f5c6fec8d1b427ba86c1c9a7cc11855ec875/environments/compsognathus_longipes/robot/references/LICENSE_Open_Duck_Mini)
 
-The two Triceratops plates crop the anatomical and robot views from the lab’s design study. The robot view shows the 75 cm frill-height concept. [Original study figure](https://github.com/kuds/mesozoic-labs/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study/models/preview.png)
+The adult Triceratops plate shows the neutral standing pose. The real-time walking clip follows the same model under its reference controller. [Adult model](../../../../examples/triceratops_horridus/anatomical.xml) · [Walking study and measurements](../../../../examples/triceratops_horridus/README.md)
+
+The 75 cm robot plate is a crop from the original design study. [Original study figure](https://github.com/kuds/mesozoic-labs/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study/models/preview.png)
 
 ## Rotating views
 
 The Animals collection and specimen pages use 30-second camera orbits rendered from each model’s standing pose in MuJoCo 3.10.0. Each orbit has a light and dark H.264 version and a transparent WebP poster made from the opening frame. A keyframe every half second keeps the video responsive when visitors drag to change the view. The anatomical and robot Compsognathus views use their respective models, including the robot hardware meshes credited above.
 
-To regenerate all views, install the repository’s rendering dependencies and an FFmpeg build with libx264. Download the [archived Triceratops anatomical XML](https://github.com/kuds/mesozoic-labs/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study/models/anatomical.xml), then run the following command from the repository root. The other models are loaded directly from the checkout.
+To regenerate all rotating views, install the repository’s rendering dependencies and an FFmpeg build with libx264, then run this command from the repository root.
 
 ```sh
-python website/scripts/render_turntables.py --triceratops-xml /path/to/anatomical.xml
+python website/scripts/render_turntables.py
 ```
 
 ## Triceratops scale comparison
 
-The two transparent profiles show neutral standing poses in a level, orthographic side view. Each image is cropped from the tip of the tail to the tip of the brow horn and from the lowest foot surface to the crown of the frill. The adult model spans 7.30 m. The selected 60 cm robot spans 1.20 m and its frill reaches 0.60 m above the soles. The rubber pads have a lighter studio finish so they remain visible on the dark background. [Adult reference model](https://github.com/kuds/mesozoic-labs/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study/models/anatomical.xml) · [60 cm option C model with roll ankles](https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/sim/generated/trike60_C_closed_ankleroll.xml) · [60 cm dimensions and build report](https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/sim/REPORT_60CM.md)
+The two transparent profiles show neutral standing poses in a level, orthographic side view. Each image is cropped from the tip of the tail to the tip of the brow horn and from the lowest foot surface to the crown of the frill. The adult model spans 7.19 m in this view. The selected 60 cm robot spans 1.20 m and its frill reaches 0.60 m above the soles. The rubber pads have a lighter studio finish so they remain visible on the dark background. [Adult reference model](../../../../examples/triceratops_horridus/anatomical.xml) · [60 cm option C model with roll ankles](https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/sim/generated/trike60_C_closed_ankleroll.xml) · [60 cm dimensions and build report](https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/sim/REPORT_60CM.md)
+
+## Homepage Triceratops images
+
+The current robot is shown standing on the capsule soles selected on 22 November 2026. The full-size JPEG is the [original simulation still](https://github.com/kuds/mesozoic-labs/blob/0a4ce5e9c60ccfabbd7f77110082a73e4744b01d/hardware/triceratops_build/renders/stills_60cm_capsule_2026-11-22/robot_side.jpg). The [render notes](https://github.com/kuds/mesozoic-labs/blob/0a4ce5e9c60ccfabbd7f77110082a73e4744b01d/hardware/triceratops_build/renders/README.md) describe the pose and model. The homepage’s `-800` images are half-width versions of that JPEG and the adult profile above. Regenerate the corresponding smaller image whenever the full-size art changes.

@@ -16,9 +16,11 @@ These docs cover the simulation tools behind the [animal collection](/animals). 
 - **Physics-Based Models** - Articulated MuJoCo models inspired by dinosaur morphology
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
 - **Behavior Recipes** - Models train the behaviors in their own stage graph, including stance and walk, declared in `configs/<species>/<embodiment>/stages.toml`
-- **Seven Models of Six Species** - Anatomical models of T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus, Compsognathus and Allosaurus, plus the Compsognathus robot. Each model has a species and an embodiment (`anatomical` or `robot`)
+- **Seven training models across six species** - Anatomical models of T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus, Compsognathus and Allosaurus, plus the Compsognathus robot. Each model has a species and an embodiment (`anatomical` or `robot`)
 - **Sim-to-Real Roadmap** - Planned hardware, system-identification, and transfer experiments; not yet validated
 - **Open Source** - Fully open codebase for research and education
+
+The [eight-animal collection](/animals) also includes separate [Triceratops](/animals/triceratops) and [Stegosaurus](/animals/stegosaurus) studies.
 
 ## Species Catalog and Published Results
 
@@ -29,19 +31,18 @@ whether it is a published deliverable, and the parent it warm-starts from;
 published results list one row per deliverable, headlined by the metric its
 gate kind certifies:
 
-- [Velociraptor Mongoliensis (Anatomical)](/docs/models/velociraptor_mongoliensis/anatomical)
-- [Tyrannosaurus Rex (Anatomical)](/docs/models/tyrannosaurus_rex/anatomical)
-- [Brachiosaurus Altithorax (Anatomical)](/docs/models/brachiosaurus_altithorax/anatomical)
-- [Dibothrosuchus Elaphros (Anatomical)](/docs/models/dibothrosuchus_elaphros/anatomical)
-- [Compsognathus Longipes (Anatomical)](/docs/models/compsognathus_longipes/anatomical)
-- [Compsognathus Longipes (Robot)](/docs/models/compsognathus_longipes/robot)
-- [Allosaurus Fragilis (Anatomical)](/docs/models/allosaurus_fragilis/anatomical)
+- [Velociraptor mongoliensis (Anatomical)](/docs/models/velociraptor_mongoliensis/anatomical)
+- [Tyrannosaurus rex (Anatomical)](/docs/models/tyrannosaurus_rex/anatomical)
+- [Brachiosaurus altithorax (Anatomical)](/docs/models/brachiosaurus_altithorax/anatomical)
+- [Dibothrosuchus elaphros (Anatomical)](/docs/models/dibothrosuchus_elaphros/anatomical)
+- [Compsognathus longipes (Anatomical)](/docs/models/compsognathus_longipes/anatomical)
+- [Compsognathus longipes (Robot)](/docs/models/compsognathus_longipes/robot)
+- [Allosaurus fragilis (Anatomical)](/docs/models/allosaurus_fragilis/anatomical)
 
 The published result summaries describe historical ladder runs with no
-per-deliverable records. They are marked unverified because the original
-repository commit, model hash, and config hash were not recorded; they should
-not be treated as controlled algorithm comparisons or as results from the
-current model revision and configs.
+per-deliverable records. They are marked unverified because some identifiers needed to reproduce the
+original model and configuration are missing. Each model page lists the
+provenance available for its run. Use those results in their historical context.
 
 ## Quick Links
 

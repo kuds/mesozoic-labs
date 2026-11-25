@@ -15,7 +15,7 @@ export default function Animals(): React.JSX.Element {
         <header className={styles.intro}>
           <h1>Animals</h1>
           <div className={styles.introTools}>
-            <p>Drag or swipe an animal to turn it. Select it to explore its anatomy, movement, and robot designs.</p>
+            <p>Drag, swipe or use the left and right arrow keys to rotate an animal. Select it to explore its anatomy, movement and robot designs.</p>
             <RotationButton motion={motion} plural />
           </div>
         </header>

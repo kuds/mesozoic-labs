@@ -4,13 +4,13 @@ The docs fall into a few categories with different lifecycles. Knowing which
 category a document belongs to tells you whether to trust it as current,
 read it as history, or update it when things change. Multi-doc topics that grow
 past a couple of files get their own subdirectory (`investigations/`,
-`reviews/`, `hardware/`), indexed below; `hardware/` also has a short README.
+`reviews/`, `hardware/`), indexed below; `hardware/` also has its own README.
 
 | Category | Lifecycle | Where |
 |---|---|---|
 | **Living reference** | Continuously updated; always current | `docs/` root ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)) |
 | **Plans & designs** | Updated until executed, then marked complete | `docs/` root |
-| **Hardware & sim-to-real** | Plans/designs, grouped as a topical track | [`hardware/`](hardware/) |
+| **Hardware & sim-to-real** | Status notes on the robot versions (README, parts and costs, sizes, lessons), updated as the work moves; the sim-to-real plan and the Microduck reference are dated records | [`hardware/`](hardware/) |
 | **Investigations & run analyses** | Point-in-time, dated; never rewritten (corrections are appended or cross-linked) | [`investigations/`](investigations/) |
 | **Code & repo reviews** | Archived records; findings migrate to KNOWN_ISSUES | [`reviews/`](reviews/) |
 
@@ -63,23 +63,23 @@ past a couple of files get their own subdirectory (`investigations/`,
 
 ## Hardware & sim-to-real
 
-Plans and feasibility studies for physical robots, grouped in
-[`hardware/`](hardware/) with a reading order in its
-[README](hardware/README.md). Nothing here is built yet.
+High-level notes on the robot versions of the simulated species, in
+[`hardware/`](hardware/): the parts and costs considered, the sizes tried and
+what was learned, with the current status in its [README](hardware/README.md).
+This repository holds simulation only; the hardware build itself will get its own
+repository. Nothing has been built or bought.
 
-**Headline conclusion:** there is no buildable-today, sub-$10k, two-legged
-*running* recipe — the limit is control, not motors. The recommended sub-$5k
-first physical platform is a juvenile-Psittacosaurus shell on the open Pupper V3
-quadruped; reliable walking/trotting comes before speed experiments. A
-clean-sheet, catalog-actuated _Dibothrosuchus elaphros_-inspired quadruped
-becomes credible near a $10k parts cap, with 2 m/s as repeatable acceptance and
-3 m/s as a short-sprint stretch target.
+As of 18 Nov 2026 the first planned build is a 60 cm Triceratops (a quadruped,
+about 12 kg, landed estimate $20.1k–$23.0k). The T. rex robot study is paused
+with a 75 cm body as its lead size.
 
 | Document | Date | One-liner |
 |---|---|---|
+| [hardware/README.md](hardware/README.md) | 2026-11-23 | Status, the robot concepts at a glance and where the detailed records are |
+| [hardware/PARTS_AND_COSTS.md](hardware/PARTS_AND_COSTS.md) | 2026-11-22 | Parts and estimated costs of each concept, the parts shared across builds and the first purchases planned |
+| [hardware/SIZES.md](hardware/SIZES.md) | 2026-11-22 | Sizes tried for the T. rex, the Triceratops and the other concepts, and what size taught |
+| [hardware/LESSONS_LEARNED.md](hardware/LESSONS_LEARNED.md) | 2026-11-22 | What was tried, what happened, the lessons that carry over and the open questions |
 | [hardware/SIM_TO_REAL_PLAN.md](hardware/SIM_TO_REAL_PLAN.md) | 2026-07-19 | Sim-to-real feasibility & phased plan — the six sim↔hardware gaps |
-| [hardware/HARDWARE_BOM.md](hardware/HARDWARE_BOM.md) | 2026-07-19 | Parts/cost & buildability for *walking* Compsognathus (~$950) + Velociraptor (~$8.7k) |
-| [hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md](hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md) | 2026-07-24 | *Running* robots: raptor scaling, a sourced sub-$5k Psittacosaurus/Pupper V3 starter, and a custom ~$10k Dibothrosuchus-inspired speed tier |
 | [hardware/REFERENCE_MICRODUCK_2026_10.md](hardware/REFERENCE_MICRODUCK_2026_10.md) | 2026-10-31 | Dated reference, read not run: Microduck's training stack against the T. rex tail habit, split into training-setup lessons for the anatomical models now and sim-to-real practices for later |
 
 ## Investigations & run analyses

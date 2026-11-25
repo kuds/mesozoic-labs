@@ -2860,7 +2860,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is refused when the `curriculum` command builds its thresholds; on the
   other paths (the `train` subcommand, the notebook's `train()`) the stage
   trains and the post-stage judge then refuses it, so
-  `generate_stage_artifacts` records a FAILED verdict. The refusal reads
+  `generate_stage_artifacts` records a FAILED verdict. (Merged with `main`'s
+  retirement of the `[curriculum.jax]` table, Removed: that table is now
+  refused whole, whatever it holds, before anything trains, by
+  `load_stage_config` in a stage TOML and by the CLI in an `--override`.)
+  The refusal reads
   "gate_kind 'task_success/v1' was removed with the
   hunt nodes (decision D-D59); no gate reader evaluates it, so a stage or
   record declaring it is refused (a stage declares a registered kind
@@ -3944,6 +3948,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     keep 5 of 10 on the T. rex), and the six-heading certificate's three
     stances in `curriculum/stance_heading_gate.py` and the `docs/KNOWN_ISSUES.md`
     heading item.
+
+- **The Brachiosaurus page's fossil-evidence section no longer asks about a
+  food reach** (`website/src/components/AnimalPage/BrachiosaurusEvidence.tsx`,
+  from `main`'s museum-outreach pages, merged onto the hunt-free tree). Its
+  prediction asked whether a food target 0.6 m from the head tip counts as a
+  reach, a task decision D-D59 removed with its target; it now says the model
+  trains to stand and then to walk on command, and that the food reach (head
+  tip within 0.8 m of a target) is gone.
+- **The Drive summary labels each run's kind.** Its rows gain `run_kind`:
+  `certify`, `screen` or `quick_test`, read off the tree the run sits in. A
+  run of `<algo>/` that `run_exclusions.py` names reads `screen` too, and
+  sweep rows have none. The column shows in the identity table, the pass/fail
+  pivot and the detailed and settings tables, and is written to
+  `runs_summary.csv`, so a screen's PASS is not read as a certification. Its
+  strict promotion cell refuses a run under `<algo>_screen/` or
+  `<algo>_quick_test/` before it validates.
+- **`eval_episodes.csv` is rewritten on the checkpoint cadence, not after
+  every evaluation.** It was rewritten whole after each evaluation, about 3.7
+  GB to Drive over a 12M T. rex stance. It is now rewritten on the calls a
+  periodic checkpoint is saved on, before the checkpoint itself, as
+  `train_episodes.csv` already was, and at training end (normal end, early
+  stop or gate stop). After an interrupt that `train()` or the curriculum
+  saves, which skips `on_training_end`, the trainer rewrites it,
+  `train_episodes.csv` and `policy_probe.npz` once the final pair is saved, so
+  the two ledgers and the probe all end at the interrupt and a second Ctrl-C
+  cannot cost the final pair. A crash, or an interrupt in the notebook (which
+  does not save one), now loses the rows of the evaluations since the newest
+  checkpoint, which a same-stage resume from it drops anyway. Mid-run, the
+  file on Drive can be up to one checkpoint behind.
+- **The report tools share one output guard, and it covers every run.**
+  `result_bundle.refuse_output_inside_run`, with
+  `result_bundle.run_directory`, replaces the body of
+  `episode_trace.refuse_run_directory_output`, which still raises
+  `EpisodeTraceError`. `stance_gate_report.py` and
+  `harnesses/recovery_offdist_panel.py` use the same guard. It refuses an
+  output directory inside any run directory, not only the checkpoint's. For a
+  checkpoint under `models/`, it also refuses that stage directory, which
+  covers a run without `provenance.json`.
+- **A verdict in a complete run is never re-judged in place** (decisions D-B6
+  and D-B8 as amended 2026-11-24). The notebook never judged into a complete
+  run, and `backfill_gate_verdict.py` now refuses one, so "edit a threshold,
+  re-judge, never retrain" holds only for runs whose bundle is not complete.
+  After a gate edit, reuse rule 7 refuses such a verdict and a trunked run
+  trains the node itself. A pre-D-A22 replication sibling in a complete run is
+  never counted. The rule-7 and replication messages and the re-judge docs say
+  so.
+- **A resumed stage's `stage_config.json` keeps its first session's identity
+  and load.** A resume used to rebuild the record from the new session:
+  `git_commit` and `library_version` became the resume's, `run.timesteps`
+  became the remaining budget, `run.label` became whatever `RUN_LABEL` held,
+  and a root's first `--load` was replaced by the resumed checkpoint. Now all
+  of these stay the first session's, and the continued-from checkpoint goes
+  under `run.resume_load_path`. Each resume session that reached training
+  appends its commit, library version, timesteps, checkpoint and UTC time to
+  `run.resume_sessions` (`config.record_resume_session`, called once the model
+  has loaded). `run_exclusions` rules (b) and (d) read every resume session
+  too, and the bundle evidence's "short of its run budget" check now compares
+  against the stage's own budget.
+- **The wheel ships only the data files runtime code reads.**
+  `pyproject.toml`'s package data no longer globs `data/*.json` in every
+  package or names the anatomical Compsognathus recovery evidence
+  (`recovery_calibration_anatomical_r3.json.gz`). It lists
+  `compsognathus_longipes/data/model_parameters.json` (read by `model.py`) and
+  `shared/data/plant_manifest.generated.json` (the plant contract's bundled
+  manifest). The other files in each species' `data/` are evidence the docs
+  link to, read from a checkout. `include-package-data` is off, so that list
+  is the whole of it: a stale `*.egg-info` or setuptools-scm in the build
+  environment can no longer add every tracked file in a package. The wheel
+  goes from 9,052,735 B to 8,345,037 B.
+  `environments/shared/tests/test_package_data.py` pins the shipped set and
+  the setting.
+- **Issue templates:** the bug report asks for the model (species ID and
+  embodiment) and suggests MuJoCo 3.10.0 (the pinned version) and
+  mesozoic-labs 0.4.0.dev3 with the commit. The new-species proposal asks for
+  the binomial, the species ID and the embodiment (decision D-D33,
+  `docs/SPECIES_NAMING.md`).
+- **Docs:** `docs/hardware/README.md` gives the pull-request states as read on
+  23 Nov 2026 (#649 and #662 are now closed; all four October T. rex concept
+  PRs are closed unmerged). `docs/hardware/SIM_TO_REAL_PLAN.md` gains a dated
+  status note: `obs_functions.py` is gone, each env builds its observation in
+  `_get_obs`, and the current `species_manifest.toml` capability lines are
+  :40-58 (:44-62 on the merged tree, whose manifest header is four lines
+  longer; the note there also says every model is heading-free since
+  decision D-D59).
+- **Species display names are written in scientific form**: "Tyrannosaurus rex",
+  "Velociraptor mongoliensis", "Brachiosaurus altithorax", "Dibothrosuchus elaphros",
+  "Compsognathus longipes" and "Allosaurus fragilis" (genus capitalized, epithet
+  lowercase), so model display names read "Tyrannosaurus rex (Anatomical)". The
+  manifest's six `display_name` values, the generated catalog, README and website data,
+  the species READMEs, docs, website pages and notebook prose follow; species IDs, model
+  IDs, Gymnasium IDs, class names and anchors are unchanged, and no digest moves.
+
+- **The website's commands match the READMEs'.** Scripts run as modules from the repository
+  root (`python -m environments.<species>.scripts.view_model --embodiment anatomical`,
+  `python -m environments.shared.scripts.plot_gate_progress`), since the script-path form
+  fails without an install; the test commands install the `test` extra that brings pytest
+  first; the evaluation examples pass `--no-render`, so they run without a display; the
+  API overview's hand-chained stage 2 loads stage 1's handoff with
+  `--load-mode initialize_next_stage`; the Compsognathus pages install and run the
+  curriculum as the README does; and the quick start lists `allosaurus_fragilis`.
 
 - **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
   check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
@@ -6619,7 +6723,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `reward_target` and `target_success` stay listed until then. The
     reward-decomposition weight map loses the seven hunt entries, and the
     behavioral-metrics figure its third row (prey distance and the
-    strike / bite success panel), so it is always 2x2.
+    strike / bite success panel), so it is always 2x2 (three panels on the
+    merged tree: with the gait-symmetry panel's removal below, distance
+    traveled takes the top row, above heading alignment and drift).
     `stance_diagnostics.STANCE_MARKER_KEYS` loses `bite_success`; the T. rex
     is still recognised by `leg_home_pose_error`, `head_pelvis_rel_z` and
     `neck_posture_error`.
@@ -6761,11 +6867,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `docs/TRAINING_ARTIFACT_PRESENTATION.md`'s policy-probe bank and the T. rex
     and Dibothrosuchus reviews (dated status notes) follow, and the plan's
     D-D59 row and top note carry the amendment.
+- **The training figures' cost-of-transport and gait-symmetry panels.**
+  `plot_diagnostics_graphs` no longer draws "Cost of Transport" in
+  `locomotion_health.png` or "Gait Symmetry + Stride Frequency" in
+  `behavioral_metrics.png`. Like `LocomotionMetrics`' versions, they measured
+  the wrong thing. The first divided the action penalty `|reward_energy|` by
+  forward speed floored at 0.01 m/s, so it scaled with each stage's penalty
+  weight. The second compared rollout-mean left and right contact forces: a
+  statue, an in-phase hop and an alternating walk all scored about 1.0, and
+  its "stride frequency" was a mean force in newtons. In
+  `locomotion_health.png`, the reward decomposition now takes the whole bottom
+  row. In `behavioral_metrics.png`, distance traveled, which every species
+  records, takes the whole top row, above heading alignment and drift. There
+  is no prey-distance and strike-success row: it left with the hunt
+  (decision D-D59, above), so the figure is these three panels whatever
+  `diagnostics.npz` holds (on `main` this change drew that row only when a
+  stage recorded a finite value). A panel no stage recorded, such as the
+  Allosaurus's heading alignment, reads "No data recorded" instead of drawing
+  blank. File names are unchanged. No gate, digest or result bundle read
+  either panel.
+- `website/static/img/velociraptor_mongoliensis_anatomical_stance_ppo.gif`
+  (2,427,423 B). Nothing has referenced it since the homepage rewrite of
+  2026-11-20, and `results/velociraptor_mongoliensis/anatomical/ppo/stance.gif`
+  keeps the same file. The two apex GIFs stay by the owner's decision of 2026-09-30.
+- **`LocomotionMetrics`' gait symmetry, stride frequency and cost of
+  transport**, together with `quad_gait_symmetry`, `total_energy`,
+  `compute()`'s `body_mass` argument, and the `eval` and curriculum log lines
+  that printed them. They measured the wrong thing: in-phase hopping scored
+  symmetry 1.0, a double-support walk read 0 Hz, and the transport cost
+  divided the action penalty by distance. No gate, result schema or bundle
+  read them. The website's metric tables and its list of `eval` output
+  sections no longer include them.
+- **The retired `[curriculum.jax]` override table and the JAX array
+  dispatch.** A `[curriculum.jax]` sub-table is refused by name on every path:
+  `load_stage_config` refuses it in a stage TOML, as it refuses a top-level
+  `[jax]` (the SB3 notebook included), and refuses any stage table written as
+  something other than a table, such as `[[curriculum]]` or an array of
+  key-value pairs, which used to be coerced into a mapping past that check;
+  the CLI refuses an `--override curriculum.jax=...` on every subcommand, and
+  the gate schema refuses it in a `curriculum_kwargs` mapping built in memory,
+  whatever `advancement_enabled` is set to. Only the JAX/MJX trainer applied
+  that table, and D-D17 retired it. Its validation code is gone
+  (`BACKEND_OVERRIDE_TABLES`, `BACKEND_OVERRIDABLE_KEYS`,
+  `_validate_backend_override_table`). No committed stage config held the
+  table, and `gate_config_view` never projected it, so no gate digest moves.
+  `reward_functions.py` and `perturbation.py` are NumPy-only: both
+  `_array_mod` helpers and their `jax.numpy` branches are gone,
+  `check_height_tilt_termination` returns `tuple[bool, str | None]` directly,
+  and the docstrings no longer describe JAX tracing. Two comments in
+  `action_filter.py` lose their JAX wording, and its hashed tokens are
+  unchanged. Two guard tests no longer name deleted files: the retired-tuning
+  scan drops the species `requirements*.txt` clause, and the
+  retired-identifier test's exempt record-name example is now
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`. The cleanup
+  plan's §4.9 takes dated amendments for the two items it had said to keep.
+  The digest golden, the plant manifest and the species catalog are current,
+  and the bit-exact reward captures match the base.
+- **The species `requirements.txt` files** of the Velociraptor, the T. rex and the
+  Brachiosaurus. They asked for `mujoco>=3.0.0` and `stable-baselines3[extra]>=2.2.0`,
+  against the package's `mujoco==3.10.0` and `train` extra, so an install from one got a
+  MuJoCo the plant contract refuses. Install with `pip install -e ".[train]"`, adding
+  `-c constraints.txt` for the CI and Colab versions.
 - **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
   the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
   `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing
   used it; TensorBoard stays the run logger, and `--label` is still recorded
   beside each stage's hyperparameter digest. Drop `--wandb` from any scripts.
+- **The top-level `hardware/` folder** (the T. rex robot form study and the
+  Triceratops kickoff: about 3,800 files of design code, simulation records,
+  reviews and plans), with `docs/hardware/HARDWARE_BOM.md`,
+  `docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md` and
+  `environments/shared/scripts/hw_chassis_study.py`. This repository now holds
+  simulation only; the physical build will get its own repository. Four short
+  pages in `docs/hardware/` replace them: `README.md` (status and the robot
+  concepts at a glance), `PARTS_AND_COSTS.md`, `SIZES.md` and
+  `LESSONS_LEARNED.md`. Their links to the detailed records are pinned to
+  commits, and the removed files stay in git history. `SIM_TO_REAL_PLAN.md`
+  and `REFERENCE_MICRODUCK_2026_10.md` stay as they were. The dated D-D59
+  notes `HARDWARE_BOM.md` carried on the hunt-free tree (no prey beacon; the
+  base velocity, read in the heading frame, still needs an estimator) leave
+  with it: `SIM_TO_REAL_PLAN.md` §1 to §3.1 keeps the same facts, and the
+  four new pages name no beacon. The merge did edit `SIM_TO_REAL_PLAN.md`'s
+  2026-11-23 status note: it now says every model is heading-free since
+  D-D59, not four, and cites the capabilities at
+  `configs/species_manifest.toml:44-62`.
 - **The species aliases, selection by display name, and the per-species
   training wrappers** (D-D33):
   - the aliases `raptor`, `t-rex`, `brachio`, `dibo`, `compso` and
@@ -6863,6 +7048,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dotted marker now says at which step the recorded history starts, and
   adds the resume caveat only when the stage's `stage_config.json` records
   a same-stage resume. `test_command_tracking_charts.py` pins both.
+  (*Merged with `main`'s same-stage continuation of `diagnostics.npz`
+  (below), which seeds the command-tracking series too: a continued
+  stage's recorded history starts at the run's first rollout, so for a PPO
+  load of the stage's own periodic checkpoint the caveat is now added only
+  when the series starts after the checkpoint it resumed from
+  (`run.load_path`, `run.resume_load_path` or a `run.resume_sessions`
+  entry, by its `<prefix>_<steps>_steps.zip` step count), and it says the
+  rows before that checkpoint were not continued. Any other recorded
+  same-stage resume, which `main` allows only into a directory without the
+  stage's training records (a SAC load, or a checkpoint whose name carries
+  no step count, such as `best_model.zip` or `<label>_final.zip`),
+  restarted the step counter and seeded nothing, so it gets its own caveat
+  wherever the series starts: the resume from that checkpoint restarted
+  the step counter, and the steps before it are not in this record.*)
 - **`zero_action_baseline.py --stage 3` is refused when its arguments are
   parsed** (decision D-D59): its `--stage` choices are 1 and 2, as the
   sibling report scripts' are, where it raised a raw `StageManifestError`
@@ -6959,6 +7158,197 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lines on an 8M walk). It says once per stage, at INFO, that the verdict
   comes from the post-stage `command_tracking_report.json`, and it still
   refuses to advance.
+- **A screen or pilot no longer shares the certification run tree.** The SB3
+  notebook wrote branch screens, walking pilots and certification runs into
+  `LOG_BASE/<species>/<embodiment>/<algo>/`. That is the tree `TRUNK_FROM =
+  "auto"` scans and seed-replicate discovery counts in, and neither reads a
+  run's commit, branch or `RUN_LABEL`. A screen whose task, gate, plant and
+  recipe digests equal a landed recipe's could count as a certification run's
+  replicate or become its auto trunk, and the hand-kept list in
+  `run_exclusions.py` was the only guard. A new configuration knob,
+  `RUN_KIND`, is `"certify"` by default; `"screen"` (for screens, pilots and
+  other experiments) writes the run under `<algo>_screen/`, which neither scan
+  reaches. `QUICK_TEST` still wins (`<algo>_quick_test/`), and an unknown kind
+  is refused before anything is written. A `REPO_REF` whose library predates
+  `environments/shared/run_tree.py` is refused there too, naming the remedy
+  (`main` or a later commit), instead of failing on the import. A run id now
+  names one run of a model, whatever its tree. A fresh runtime resets
+  `RUN_KIND`, so the storage cell refuses an explicit `RUN_ID` that names no
+  run in the selected tree but one in another, and names the knobs that reach
+  it. It no longer opens a certification run under a screen's id. `TRUNK_FROM`
+  ids still resolve, and `"auto"` still scans, in `<algo>/`, so a screen
+  builds on certified ancestors; a screen pins a screen trunk as
+  `../<algo>_screen/<id>` (read lexically) or by its absolute path. A
+  certification run refuses, before anything is written, a pinned `TRUNK_FROM`
+  that resolves into `<algo>_screen/` or `<algo>_quick_test/`, even when the
+  run already exists and recorded that trunk earlier; a screen or a quick test
+  may pin either. The folder is the kind's only record, as for quick tests
+  (decision D-D16 (b)), so `provenance.json` and every digest are unchanged
+  (`environments/shared/run_tree.py`;
+  `environments/shared/tests/test_screen_run_tree.py`). Runs already on Drive
+  stay where they are, and `run_exclusions.py` keeps the nine r10 stance
+  screens out of every count. Nothing refuses a certification run that loads,
+  resumes or widens a screen's checkpoint; `docs/KNOWN_ISSUES.md` records
+  that, and the older pilots that still sit in `<algo>/`.
+- **The TensorBoard sync to Drive publishes each event file atomically.**
+  `environments/shared/tb_sync.py` copied the local buffer over its Drive copy
+  with `shutil.copy` every 100,000 steps and at stage end. A runtime reclaimed
+  mid-copy could leave the only surviving event file truncated, because the
+  `/tmp` buffer dies with the runtime. Each file is now published with
+  `file_io.atomic_copy`, under a temporary name without `tfevents`
+  (`.tbsync.<random>.tmp`), so a temporary that a hard kill strands is never
+  loaded by TensorBoard as a second event file; the next sync removes it. The
+  periodic sync also skips a file whose size and modification time have not
+  changed since its last copy. The stage-end sync still copies every file.
+- **`collected_results.csv`, the summary texts, the zero-action records and
+  the `ancestors/` copies are written atomically.** `write_results_csv` (both
+  the result bundle's batch write and the CLI's appended
+  `curriculum_results.csv`, which is now read and rewritten whole),
+  `stage_summary.txt`, `training_summary.txt`, the zero-action preflight's
+  records and `record_ancestor`'s copies used plain writes. A truncated file
+  that was never rewritten was hashed into the manifest. They now go through
+  the `file_io` helpers, with the bytes they had.
+- **The zero-action preflight no longer rewrites unchanged records.** The SB3
+  notebook runs it every session. Each run wrote a new stamped record per
+  model and table into `zero_action_baselines/` (84 files in the T. rex folder
+  on Drive). It also rewrote the run's `zero_action_baseline.json` with a new
+  `captured_at`, which changed a declared file of a `partial` bundle. A record
+  that would differ from the newest one only in its time is no longer written.
+  The run's copy is rewritten only when it is missing or the baseline changed
+  (plant, env kwargs or score). The printed report says when a record was
+  unchanged.
+- **A same-stage resume no longer trains a judged node in place.** The D-A20
+  guard, `config.refuse_occupied_stage_dir`, let every `resume_same_stage`
+  load through. So `train --load <checkpoint>`, under its default load mode,
+  could write into a stage directory holding `gate_verdict.json`. It re-saved
+  the config, rewrote the final pair and, whenever a later evaluation beat the
+  seeded best, rewrote the handoff pair the verdict hashes, which left the
+  verdict not matching its checkpoint. A directory with a verdict is now
+  refused under every load mode (decision D-A20 as amended 2026-11-24).
+  Training a judged node further is a new attempt, in a fresh run directory.
+  The notebook's manual-node cell passed `MANUAL_LOAD_MODE =
+  "resume_same_stage"` through to that guard and then rewrote the verdict, so
+  a PASS could become a FAIL. It now refuses a judged target before it writes
+  anything.
+- **No tool writes into a complete run any more.** Adding or rewriting a file
+  in a run whose bundle is `complete` stopped its manifest verifying. The
+  audit then read canonical-conflict, the Drive summary dropped the run, it
+  could not be promoted, and the bundle writer refused every later save.
+  `backfill_gate_verdict` now refuses such a stage directory before it reads
+  or writes anything, `--force` or not. `widen_checkpoint` refuses a
+  `--to-stage-dir` in such a run. `harnesses/freeze_recovery_gate.py` refuses
+  such a run, and a stage directory that holds `gate_verdict.json`,
+  `--replace` or not: a judged recovery node's verdict was judged against the
+  resolution there. A manifest that cannot be read is refused too, with the
+  remedy.
+- **`stance_gate_report.py --out-dir` is refused inside a run.** A fresh-seed
+  audit written into the stage directory replaced the stage's own
+  `stance_gate_report.json`, its gate evidence. Any file added to a published
+  run also stops its manifest verifying. The tool now refuses an `--out-dir`
+  inside a run directory, or inside the stage directory of `--model` or
+  `--vecnorm`, before it loads or rolls anything.
+  `harnesses/recovery_offdist_panel.py --out` takes the same guard.
+- **Colab without Drive no longer deletes the run when it ends.** With
+  `USE_GOOGLE_DRIVE = False`, the runs live on the VM's disk.
+  `AUTO_DISCONNECT` then released the runtime seconds after a gate failure or
+  the last cell, which deleted them. The storage cell now resolves
+  `RUNS_ON_DRIVE`, which stays False for the rest of the runtime once a run
+  went to the VM's disk. The chain loop's gate-failure halt and the final cell
+  pass it instead of the knob, which can change after the run was placed.
+  `notebook_runtime.disconnect_runtime` and `halt` never release a Colab
+  runtime without Drive and say to download the results first. The storage
+  cell prints a warning that the results live only on the VM's disk.
+- **Only a continuation resumes a node in place.** Only a PPO load of one of
+  the stage's periodic checkpoints continues a run. A SAC `resume_same_stage`
+  load (nothing saves its replay buffer) and a curated PPO checkpoint
+  (`best_model.zip`, `<label>_final.zip`: no step count in the name) restarted
+  the step counter and seeded nothing. In the interrupted stage directory the
+  first evaluation then rewrote `evaluations.npz`, `gate_progress.npz` and the
+  episode ledgers from the new session alone and replaced both best-model
+  pairs whatever they scored, and the node was judged on that tail. The SB3
+  notebook's RESUME cell now refuses `ALGORITHM` other than `"ppo"` before
+  anything is written, and `train_base.train` refuses such a load into a
+  directory that holds the stage's `evaluations.npz`, an episode ledger, its
+  periodic or final checkpoints or a best-model pair
+  (`config.ResumeRefusedError`). A load into a fresh directory, the CLI
+  default, still trains.
+- **A same-stage resume continues `diagnostics.npz` instead of rewriting it.**
+  On a PPO continuation `seed_resume_eval_state` seeds `DiagnosticsCallback`
+  from the `diagnostics.npz` beside the evaluation record
+  (`seed_prior_diagnostics`). Each of its three clocks keeps its rows at or
+  before the resumed step, a series the prior file lacks reads NaN, and a file
+  a seeded session wrote seeds again. The stage figures and
+  `compare_run_diagnostics.py` cover the whole stage. A session's first
+  rewrite of an existing file copies it aside as
+  `diagnostics.prior_<UTC>.npz`, so a resume that cannot seed loses no row
+  either. The KNOWN_ISSUES entry is resolved. Merged with decision D-D61, a
+  live-command stage's seed also carries its four command-tracking series
+  (`tracking_in_tolerance`, `tracking_error_v`, `tracking_error_yaw`,
+  `reward_tracking`), while a session whose env emits none still writes
+  none.
+- **A same-stage resume is refused when it would change the stage's recipe,
+  task or label.** The task fingerprint caught env and reward edits but not a
+  `[ppo]` or shaping edit, and a resume in a fresh Colab runtime installs
+  `REPO_REF = "main"`. `train_base.train` now refuses, before it writes
+  anything, a resume whose `hyperparameters_sha256` differs from the one the
+  node's `stage_config.json` records (the digest never covers the budget). The
+  refusal names the keys and says to restore the recorded recipe (`REPO_REF`
+  at the recorded commit, and `CRITIC_PHASE`) or to train in a fresh `RUN_ID`;
+  a resume at `main` whose recipe matches continues the node. A checkpoint
+  trained on another task is also refused before anything is written; the
+  record used to be rewritten first. A non-empty label other than the recorded
+  one is refused; a resume without a label keeps it. The RESUME cell warns
+  when `BEHAVIOR` is `"auto"`, when `provenance.json` records another target
+  deliverable, and when the checkout is at another commit than the node
+  recorded.
+- **The SB3 load preflight's throwaway test passes when run on its own.**
+  `test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_writes_nothing`
+  checks that the temporary directory it gives the preflight is empty
+  afterwards. Run alone, that directory held `torchinductor_<user>`: the
+  throwaway PPO's optimizer is the first one the process builds, and it
+  imports `torch._dynamo`, which creates torch's compile cache under
+  `tempfile.gettempdir()` and pins `TORCHINDUCTOR_CACHE_DIR` in the
+  environment. The test now points that variable outside the checked
+  directory, so it passes in a fresh process and after other tests, and it
+  still fails on any file the preflight leaves behind. The preflight is
+  unchanged: its own temporary directory holds only the throwaway archive, and
+  torch's cache goes to the system temp, as it does for any training.
+- **An `--eval-freq` below `--n-envs` no longer turns evaluation off.** The
+  `EvalCallback` cadence was `eval_freq // n_envs` with no floor. Below
+  `--n-envs` that came to 0, which `EvalCallback` never reaches, so the stage
+  trained with no evaluation, no best model and no gate. The cadence is now at
+  least 1, as the checkpoint stride already was. `train` and `curriculum` also
+  reject a non-positive `--eval-freq` with a usage error.
+- **`--override` values get the type the stage TOML gives the same text.** A
+  value is parsed as a TOML value. `1.0` stays a float (it used to become the
+  int `1`, which gave the stage a different `hyperparameters_sha256` from the
+  TOML's own `1.0`), `true`/`false` are booleans, and quoted strings, arrays
+  and inline tables parse. A bare word such as `MlpPolicy` stays a string,
+  `True`/`FALSE` stay booleans and `.5` stays a number. A value TOML types as
+  a float is now a float, so write integers without a decimal point or
+  exponent (`curriculum.timesteps=1000000`, not `1e6`).
+- **`--override` can set nested keys** (`ppo.policy_kwargs.log_std_init=-1.5`,
+  in both the all-stages and the `STAGE.section` forms). `env.a.b=v` used to
+  write the flat key `'a.b'` into `env_kwargs`, which failed only at env
+  construction. Each step must be a table the stage config declares. The one
+  exception is an algorithm block's `policy_kwargs`, which is created when
+  absent. Any other step is refused, with an error naming the override, before
+  any stage is written.
+- **Success counts read each species' own success keys.** The curriculum's
+  supplementary and standalone evaluations and `LocomotionMetrics` checked
+  hard-coded key tuples. These missed Dibothrosuchus `snap_success` and
+  Allosaurus `course_complete`, and the curriculum's tuple also missed
+  Compsognathus `target_success`. As a result, the curriculum's evaluations
+  read those successes as 0, and `eval` reported no success rate at all for
+  Dibothrosuchus or Allosaurus. They now read `SpeciesConfig.success_keys`:
+  `train_curriculum` passes them to `CurriculumCallback`, and `evaluate()`
+  to `LocomotionMetrics`. (*Merged with decision D-D59 (Removed and Changed
+  above), which had already deleted the hard-coded tuples and every hunt
+  success key: the Allosaurus' `course_complete` is the only key left,
+  `eval_policy_quality` takes no success keys, and nothing falls back to a
+  union of keys, so a model that declares none records no success rate. On
+  `main` this change also passed the keys to `eval_policy_quality` and fell
+  back to every species' keys when none was given.*)
 - **T. rex stance training no longer fails on a fresh `pip install -e ".[train]"`**
   (`environments/shared/mirror_kl_ppo.py`, `pyproject.toml`). The mirror-symmetric PPO
   guard refused any stable-baselines3 but 2.9.0, though pip resolves 2.9.2, whose sources
@@ -7135,6 +7525,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passed `gate_verdict.json`. `train_curriculum` without the argument fails
   the end-to-end test, and `_eval_horizon` reading the TOML again fails it
   and five of the six unit tests. No digest moves.
+- **The website loads Google Analytics only after the visitor accepts
+  cookies** (`website/docusaurus.config.ts`,
+  `website/src/components/CookieConsent/`, `website/src/clientModules/gtag.ts`).
+  Before, every visitor downloaded gtag.js and sent `gtag('config')`, with
+  only `analytics_storage` defaulted to denied, and every build, local and
+  fork builds included, reported to the production property. Now the head
+  script denies all four Consent Mode signals. It requests gtag.js and
+  sends config only after the visitor accepts: at startup on a return visit
+  with a stored acceptance, otherwise from the banner. Accepting grants
+  `analytics_storage` only. The preconnect to googletagmanager.com is gone.
+  The measurement ID is `GA_MEASUREMENT_ID` if set, otherwise the
+  production ID only in the upstream repository's Actions build
+  (`GITHUB_ACTIONS` and `GITHUB_REPOSITORY` are both checked, so a codespace
+  does not count); any other build has no analytics script and no banner.
+  Declining or resetting now sends consent denied, sets `ga-disable-<ID>`
+  once gtag.js is loaded, and deletes the `_ga`, `_ga_<container>` and
+  `_gid` cookies on the host and its parent domains. A browser that blocks
+  site data no longer shows "This page crashed": every storage access is
+  guarded. Page views on client-side navigation are sent only with consent.
+  They now carry the new page's title, waiting for react-helmet-async's
+  animation frame; a bare `setTimeout` sent the previous page's title. The
+  privacy page describes this, no longer lists the consent choice (kept in
+  local storage) as a cookie, and is dated November 2026. New
+  `website/tests/consent.test.mjs` (`npm test`, node:test, no new
+  dependencies) runs in the deploy workflow.
 
 ## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup
 

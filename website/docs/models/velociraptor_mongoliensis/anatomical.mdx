@@ -51,9 +51,6 @@ After each training stage the `eval` command reports:
 | Metric | Description |
 |--------|-------------|
 | `mean_forward_velocity` | Average forward speed (m/s) |
-| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] |
-| `stride_frequency` | Step frequency (Hz) |
-| `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
 | `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command |
 
@@ -72,8 +69,8 @@ These PPO recordings come from earlier model revisions.
 ## Usage
 
 ```bash
-# From the repository root. View the model
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+# From the repository root. View the model (requires a display)
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
 
 # Measure standing balance or the reference walk on the level floor
 python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode stand
