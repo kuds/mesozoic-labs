@@ -123,3 +123,22 @@ from its own run's `checkpoints/` folder).
 | trike60-fore160-s1 | 15:13:02-20:05:54 | 4.88 | 569 | 85e6ec3b… | 024f36f6… |
 | trike60-fore128-s2 | 15:12:56-20:17:19 | 5.07 | 548 | e41f7bd9… | 029d6dab… |
 | trike60-fore160-s2 | 15:12:47-18:46:49 | 3.57 | 779 | 1f53d262… | 040f6355… |
+
+## Round 2 measured, 25 Nov 2026 (interim: figures per run, no choice until all eight)
+
+Measured on 22:26-23:09 UTC, as round 1. Each run's three outputs pass every check in `judge_d22.checks`.
+
+| run | F1 | F2 (worst drive) | T1 | T2 | T3 | T4 | T5 | L front (hind), N | H_all | H_front | H_elbow | N |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| fore128-s2 | pass | pass (left fore pitch 0.931) | pass | pass | fail | fail | fail | 117.5 (130.4) | 0.931 | 0.931 | 0.757 | 9 |
+| fore160-s1 | pass | **fail (right hind flexion 1.013)** | pass | pass | fail | pass | fail | 109.1 (129.9) | 1.013 | 0.965 | 0.768 | 14 |
+| fore160-s2 | pass | **fail (left hind flexion 1.094)** | pass | pass | pass | pass | fail | 105.2 (107.7) | 1.094 | 0.902 | 0.834 | 13 |
+
+- No foot-load episode fell; no run fell on the steps, the ramps or the 0.3 friction floor.
+- Sideways drift varies by seed more than by length. On T3's points (limit 0.30 m), fore128-s2 drifted 0.21-0.33 m,
+  fore160-s1 0.14-0.36 m and fore160-s2 0.09-0.27 m. At friction 0.3 (T4, limit 0.20 m) they drifted 0.65, 0.11
+  and 0.20 m.
+- T5 (pushes): falls at -1.25, -1.0, +1.0 and +1.25 m/s, out of 8 each: 1/0/0/8, 8/2/0/4 and 7/2/1/3.
+- So far, 128 mm passes F1 and F2 on seeds 0, 1 and 2. 160 mm fails F2 on seeds 0, 1 and 2, on a different drive
+  each time (left fore pitch, right hind flexion, left hind flexion). Under D24's order the choice is 128 mm if
+  fore128-s3 passes F1 and F2, and none if it does not; it is made only once all eight runs are measured and checked.

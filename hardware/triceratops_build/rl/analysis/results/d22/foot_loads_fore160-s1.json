@@ -1,0 +1,229 @@
+{
+ "simulation_only": true,
+ "tool": "hardware/triceratops_build/rl/analysis/foot_loads.py",
+ "policy": "policy trike60_10002432_steps.zip (checkpoints)",
+ "provenance": {
+  "checkpoint": "trike60_10002432_steps.zip",
+  "steps": 10002432,
+  "zip_sha256": "85e6ec3b28752745f10632d569b25e712bfd4ef9809c71778b9697b35952f7d6",
+  "vecnormalize_sha256": "024f36f6fe056992385445d7cd3ac37a6a3bd7f17ba96321477f12b0a03f38f8",
+  "model": "trike60_C_closed_capsule_fore160.xml",
+  "model_sha256": "377e364719627eeacbb9d741c8827960a87ff743a86b6093da9c2e2161188da3",
+  "trike_env_sha256": "6774a9622c397e0c03dd72062bdd93cd038c79ac0f51fca52b44a0526a579ae1",
+  "run_commit": "f84a6919dda31c39f1a56967b1f57b759c31da5c"
+ },
+ "settings": {
+  "seeds": [
+   300000,
+   300001,
+   300002,
+   300003,
+   300004
+  ],
+  "seconds": 20.0,
+  "from_s": 2.0,
+  "command_mps": 0.25,
+  "delay_ms": 10,
+  "floor": "flat",
+  "randomisation": false,
+  "observation_noise": true
+ },
+ "episodes": [
+  {
+   "seed": 300000,
+   "fell": false,
+   "termination": "",
+   "seconds": 20.0,
+   "foot_samples": 18000,
+   "window_s": 0.01,
+   "weight_n": 125.64810752412606,
+   "feet": {
+    "left_fore": {
+     "window_max_n": 141.36291892667228,
+     "window_p99_n": 97.81917019310066,
+     "raw_max_n": 198.47897807144352,
+     "window_max_bw": 1.125070020648968
+    },
+    "right_fore": {
+     "window_max_n": 168.11345809271677,
+     "window_p99_n": 113.13290575130935,
+     "raw_max_n": 183.45401109512613,
+     "window_max_bw": 1.3379704748870715
+    },
+    "left_hind": {
+     "window_max_n": 160.3638516994017,
+     "window_p99_n": 106.51298250386023,
+     "raw_max_n": 233.62934118107904,
+     "window_max_bw": 1.2762934106954995
+    },
+    "right_hind": {
+     "window_max_n": 251.18725430924968,
+     "window_p99_n": 125.21945248394175,
+     "raw_max_n": 264.4529571068352,
+     "window_max_bw": 1.999132810345102
+    }
+   },
+   "front_p99_window_n": 113.13290575130935,
+   "hind_p99_window_n": 125.21945248394175,
+   "worst_foot_p99_window_n": 125.21945248394175
+  },
+  {
+   "seed": 300001,
+   "fell": false,
+   "termination": "",
+   "seconds": 20.0,
+   "foot_samples": 18000,
+   "window_s": 0.01,
+   "weight_n": 125.64810752412606,
+   "feet": {
+    "left_fore": {
+     "window_max_n": 138.03700302303983,
+     "window_p99_n": 94.32881784467286,
+     "raw_max_n": 188.57167305323276,
+     "window_max_bw": 1.098599937102395
+    },
+    "right_fore": {
+     "window_max_n": 161.9836011211625,
+     "window_p99_n": 109.13921049563099,
+     "raw_max_n": 197.66670758413682,
+     "window_max_bw": 1.2891845672252529
+    },
+    "left_hind": {
+     "window_max_n": 206.43939398167473,
+     "window_p99_n": 108.62128158866379,
+     "raw_max_n": 237.4054141869634,
+     "window_max_bw": 1.6429964449885224
+    },
+    "right_hind": {
+     "window_max_n": 207.08276881821936,
+     "window_p99_n": 128.41276132041386,
+     "raw_max_n": 241.9995587180826,
+     "window_max_bw": 1.648116894864149
+    }
+   },
+   "front_p99_window_n": 109.13921049563099,
+   "hind_p99_window_n": 128.41276132041386,
+   "worst_foot_p99_window_n": 128.41276132041386
+  },
+  {
+   "seed": 300002,
+   "fell": false,
+   "termination": "",
+   "seconds": 20.0,
+   "foot_samples": 18000,
+   "window_s": 0.01,
+   "weight_n": 125.64810752412606,
+   "feet": {
+    "left_fore": {
+     "window_max_n": 126.09264011712675,
+     "window_p99_n": 93.29141586941304,
+     "raw_max_n": 197.3760537087795,
+     "window_max_bw": 1.0035379171382692
+    },
+    "right_fore": {
+     "window_max_n": 158.76938533366547,
+     "window_p99_n": 108.74260326790068,
+     "raw_max_n": 220.02303563276158,
+     "window_max_bw": 1.2636034753104395
+    },
+    "left_hind": {
+     "window_max_n": 149.11094733239037,
+     "window_p99_n": 104.97424306582734,
+     "raw_max_n": 217.37225801295943,
+     "window_max_bw": 1.18673452605531
+    },
+    "right_hind": {
+     "window_max_n": 218.9565995114217,
+     "window_p99_n": 132.96492049297694,
+     "raw_max_n": 265.03012114355624,
+     "window_max_bw": 1.7426175676333144
+    }
+   },
+   "front_p99_window_n": 108.74260326790068,
+   "hind_p99_window_n": 132.96492049297694,
+   "worst_foot_p99_window_n": 132.96492049297694
+  },
+  {
+   "seed": 300003,
+   "fell": false,
+   "termination": "",
+   "seconds": 20.0,
+   "foot_samples": 18000,
+   "window_s": 0.01,
+   "weight_n": 125.64810752412606,
+   "feet": {
+    "left_fore": {
+     "window_max_n": 132.10253995708635,
+     "window_p99_n": 94.1657394575648,
+     "raw_max_n": 198.93740896457837,
+     "window_max_bw": 1.0513691177698077
+    },
+    "right_fore": {
+     "window_max_n": 149.5182790188578,
+     "window_p99_n": 105.71723590560715,
+     "raw_max_n": 197.56679283867558,
+     "window_max_bw": 1.1899763710340672
+    },
+    "left_hind": {
+     "window_max_n": 142.98288076046356,
+     "window_p99_n": 103.2972627696394,
+     "raw_max_n": 214.97359395413642,
+     "window_max_bw": 1.1379628677097982
+    },
+    "right_hind": {
+     "window_max_n": 203.63069159089258,
+     "window_p99_n": 128.9968230902448,
+     "raw_max_n": 263.57245232605305,
+     "window_max_bw": 1.6206427267660426
+    }
+   },
+   "front_p99_window_n": 105.71723590560715,
+   "hind_p99_window_n": 128.9968230902448,
+   "worst_foot_p99_window_n": 128.9968230902448
+  },
+  {
+   "seed": 300004,
+   "fell": false,
+   "termination": "",
+   "seconds": 20.0,
+   "foot_samples": 18000,
+   "window_s": 0.01,
+   "weight_n": 125.64810752412606,
+   "feet": {
+    "left_fore": {
+     "window_max_n": 127.38434732974477,
+     "window_p99_n": 91.53942184701788,
+     "raw_max_n": 191.27598549906992,
+     "window_max_bw": 1.0138182726332374
+    },
+    "right_fore": {
+     "window_max_n": 163.7684132070919,
+     "window_p99_n": 108.54961465145752,
+     "raw_max_n": 220.00980625242093,
+     "window_max_bw": 1.303389413769294
+    },
+    "left_hind": {
+     "window_max_n": 155.67251358709933,
+     "window_p99_n": 105.42195153973022,
+     "raw_max_n": 222.3463160797065,
+     "window_max_bw": 1.2389562935295957
+    },
+    "right_hind": {
+     "window_max_n": 187.80205010116023,
+     "window_p99_n": 134.05096701690607,
+     "raw_max_n": 243.0885933155324,
+     "window_max_bw": 1.4946667626100123
+    }
+   },
+   "front_p99_window_n": 108.54961465145752,
+   "hind_p99_window_n": 134.05096701690607,
+   "worst_foot_p99_window_n": 134.05096701690607
+  }
+ ],
+ "falls": 0,
+ "front_p99_window_n": 109.05631401438113,
+ "hind_p99_window_n": 129.92898488089668,
+ "worst_foot_p99_window_n": 129.92898488089668,
+ "worst_foot_window_max_n": 251.18725430924968,
+ "worst_foot_raw_max_n": 265.03012114355624
+}
