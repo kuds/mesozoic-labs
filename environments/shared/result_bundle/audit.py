@@ -203,10 +203,9 @@ def audit_result_bundle(
                 raise ResultBundleError("summary.json must contain an object")
             summary = loaded
             # Publishable, not complete: a summary exists whenever at least
-            # one deliverable is certified (schema v4), and whether the
-            # bundle is COMPLETE is the manifest's status, cross-checked
-            # against the summary below.  Below schema 4 the two flags are
-            # synonyms, so every historical bundle audits as before.
+            # one deliverable is certified (schema v4 onward), and whether
+            # the bundle is COMPLETE is the manifest's status, cross-checked
+            # against the summary below.
             validate_result_summary(
                 summary,
                 require_complete=False,

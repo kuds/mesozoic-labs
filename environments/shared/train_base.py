@@ -3040,8 +3040,10 @@ def _post_training_command_verdict(
     task and command, and re-derives the verdict from its records.  Never
     raises: a panel that could not be rolled or judged is a FAIL naming why.
     After the verdict, ``stage_artifacts.write_command_tracking_figures``
-    draws the command-tracking trace and figures into the stage's
-    ``figures/``, as ``generate_stage_artifacts`` does for the notebook.
+    draws the command-tracking trace and figures, the figures into a
+    ``stage_layout.staged_artifacts`` directory published into the stage's
+    ``figures/`` with ``atomic_copy``, as ``generate_stage_artifacts`` does
+    for the notebook.
     """
     from .reporting.gates import evaluate_stage_gate
     from .reporting.stage_artifacts import _write_command_tracking_report, admitted_command_tracking_stage_result
@@ -3065,20 +3067,29 @@ def _post_training_command_verdict(
         "gate_failures": failures,
         **admitted_command_tracking_stage_result(curriculum, report, stage=stage, stage_dir=stage_dir),
     }
-    # After the verdict, as generate_stage_artifacts draws them: the trace and the two command figures in the
-    # stage's figures/ (never raises; nothing here is read by the verdict above).
+    # After the verdict, as generate_stage_artifacts draws them: the trace and the two command figures (never
+    # raises; nothing here is read by the verdict above).  The figures are drawn into a local staging directory
+    # and published into the stage's figures/ with atomic_copy on exit, as the notebook path publishes its own, so
+    # a runtime killed mid-savefig leaves no half-written png on the mount.  The publish runs in a finally, on an
+    # error or an interrupt too, so the writer removes a failed figure's partial file from staging before the error
+    # goes on.  The stale-figure sweep inside still removes an earlier judgement's published copies from the
+    # stage's figures/ before anything is drawn.
     from .reporting import stage_layout
     from .reporting.stage_artifacts import write_command_tracking_figures
 
-    write_command_tracking_figures(
-        model_id=model_id,
-        stage=stage,
-        stage_config=config,
-        stage_dir=stage_dir,
-        figures_out=stage_layout.figures_dir(stage_dir),
-        report=report,
-        verdict=passed,
-    )
+    try:
+        with stage_layout.staged_artifacts(stage_dir) as staging:
+            write_command_tracking_figures(
+                model_id=model_id,
+                stage=stage,
+                stage_config=config,
+                stage_dir=stage_dir,
+                figures_out=stage_layout.figures_dir(staging, create=True),
+                report=report,
+                verdict=passed,
+            )
+    except Exception:  # noqa: BLE001 - staging that cannot be set up costs the figures, never the verdict
+        logger.warning("Stage %s's command figures could not be staged", stage, exc_info=True)
     return passed, failures, stage_result
 
 

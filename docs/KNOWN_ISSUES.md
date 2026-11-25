@@ -15,6 +15,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
 | [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B); execution was deferred until the T-Rex clears stages 1–3, until the maintainer's D-D25 (2026-10-06): velociraptor physics r3 fixes findings 2, 3 and 5 and replaces finding 1's reward gate with `stance_quality/v2`, and 4, 6 and 8–11 stayed open until velociraptor physics r5 (the maintainer's decision of 2026-11-08, `configs/plant_versions.toml` note 22) closed them all (the review's dated status note); see below |
 | [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) (2026-08-28) | SB3 training core, notebooks, env/physics, evaluation, JAX/MJX, configs and sweeps, CI, scripts; cleanup opportunities | 120 ids: 78 fixed (#514–#517, #519, #530, #534, #535), 25 retired by D-D17 (16 of them after a fix), 3 fixed with a residue, 6 duplicates; the 8 open ones and the three residues (SM7, DU4, CI8) are below (its appendix B, 2026-09-30) |
+| [reviews/SB3_NOTEBOOK_REVIEW_2026_11.md](reviews/SB3_NOTEBOOK_REVIEW_2026_11.md) (2026-11-22) | The SB3 training notebook, the pipeline behind it, every post-training artifact, the Drive summary, `results/` and the website, across all seven models | 141 verified findings in 30 themes, written before the hunt's removal (D-D59) and the command-driven walk (D-D62). Its status of 2026-11-25 (decision D-D63 (7)) finds 11 addressed, 20 moot and 110 open, each open one with what remains. The open ones are listed there and are not yet folded in here: a recorded exception to the fold rule above until they are triaged, which is pending (NEXT_STEPS §1, 2026-11-25) |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
 robustness, **LOW** = cosmetic / QoL.
@@ -42,10 +43,17 @@ robustness, **LOW** = cosmetic / QoL.
   reference walk's hind-pair alternation reads 0.786 on its worst episodes
   against the 0.75 bar; and a flightless quadruped bound whose feet swing
   their lead clears every quadruped bar (measured on synthetic floor truth).
-  No weight, sigma or bar was changed for them. The options, a
-  stride-averaged tracking measure or bars re-frozen from a pilot, are the
-  maintainer's; until one is resolved, no document calls the walk gate
-  attainable.
+  No weight, sigma or bar was changed for them. *Decided 2026-11-25
+  (decision D-D63 (2)):* the maintainer chose the stride-averaged tracking
+  measure for the per-step reading, not bars re-frozen from a pilot. It
+  applies to both the reward and the gate, on live-command stages only, with
+  a `COMMAND_PANEL_PROTOCOL` bump. It is implemented by the next decision
+  row. Until it lands, the per-step reading above holds, the other open
+  risks stay open, and no document calls the walk gate attainable. The
+  in-training evaluation keeps the declared end-state commands during the
+  cruise ramp (D-D63 (3)). Candidates are ranked on the task that is
+  certified, and the handoff is still chosen afterwards on the selection
+  panel.
 - **HIGH** — **Completed short stance reward pilots remain uncertified;
   the base T-Rex stance reward is CoP-indifferent, and the velociraptor
   fails by an exploration-driven hop plus an unloaded digit IV.** The
@@ -2382,28 +2390,6 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   gradient updates; `n_envs` is recorded, so the difference can be found but
   is never flagged. Fix: mirror the CLI in the configuration cell, or say so
   there. (read from the code 2026-09-30; 2026-08 gap review NB9)
-- **LOW** — **the Drive summary's `library_version` column holds two
-  different versions (read from the code and probed 2026-10-02).** For a
-  run with a result bundle it is the training backend's version:
-  `_bundle_fields` (cell 9 of
-  [notebooks/google_drive_summary.ipynb](../notebooks/google_drive_summary.ipynb),
-  `:773`) takes `summary.json`'s `backend_version`, else `provenance.json`'s,
-  and both record the Stable-Baselines3 version (`reporting/bundles.py:355`,
-  `:651`); a partial or failed run, which `_canonical_csv_rows` reads
-  without a summary (`:794-806`), takes the provenance one. For an older
-  run without a bundle it is the mesozoic-labs version, which the legacy
-  `scan_run` (cell 8, `:535`) reads from `stage_config.json`
-  (`save_stage_config`, `config.py:1308`). The summary tables (cells 14,
-  16 and 18) and the export to `runs_summary.csv` (cell 24) show both
-  under the one name. In a probe of the reader cells, a complete and a
-  failed run read the backend version their bundles record and a flat
-  run its stage config's mesozoic-labs version. Nothing in the
-  repository reads the column back.
-  Fix: export the bundle value as `backend_version`, and fill
-  `library_version` from `provenance.json`'s
-  `dependency_versions.mesozoic_labs`, which changes what
-  `runs_summary.csv` says for those rows; no cleanup PR owns it. (2026-10
-  CU-15 scouting)
 - **LOW** — **the run tree marks only the screens trained since `RUN_KIND`
   existed (read from the code 2026-11-24).** A screen the SB3 notebook trains
   with `RUN_KIND = "screen"` lives under `<algo>_screen/`, outside trunk

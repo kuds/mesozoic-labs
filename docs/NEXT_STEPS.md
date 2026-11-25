@@ -227,7 +227,20 @@ walk session needs a stance retrained on the current interface first (its
 warm start begins command-blind). The follow-direction nodes that widen the
 walk are next and not built; until one exists, or a command-free walk config
 is added, the terrain recipes have no parent a user can produce. The
-development version is `0.4.0.dev3` from this day.* Section 2 labels each
+development version is `0.4.0.dev3` from this day.* *2026-11-25 (decision
+D-D63): the maintainer answered the series' open questions. For the
+per-step tracking (D-D62 (16)(a)) the answer is a stride-averaged tracking
+measure, in both the reward and the gate, on live-command stages only, with
+a `COMMAND_PANEL_PROTOCOL` bump. It is implemented by the next decision
+row, so until then the walk's bars stay provisional and the other open
+risks stay open. The in-training evaluation keeps the declared end-state commands
+during the cruise ramp, so candidates are ranked on the task that is
+certified. The library version a run records is read from the checkout's
+`pyproject.toml` first. Result-summary schema 2 is retired. The T. rex
+policy probe keeps 9 of its 10 bank rows. The SB3 notebook review
+([reviews/SB3_NOTEBOOK_REVIEW_2026_11.md](reviews/SB3_NOTEBOOK_REVIEW_2026_11.md)) is committed with
+its status of this day; triaging its 110 open findings into KNOWN_ISSUES is pending, after the
+stride-averaged tracking lands.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.

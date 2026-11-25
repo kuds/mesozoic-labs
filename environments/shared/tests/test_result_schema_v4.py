@@ -3,14 +3,13 @@
 The rules the bundle writer, the summary and the audit share: which
 deliverables a run certified (its own gate plus every ``warm_start_from``
 ancestor's), which one is published (the target when certified, else the
-deepest certified), and the target-aware bundle status.  The v2 pins in
-``test_result_summaries.py`` are untouched: below schema 4 every rule runs
-verbatim, and ``require_publishable`` is a synonym of ``require_complete``.
+deepest certified), and the target-aware bundle status.
 
 Schema v5 (decision D-D33) carries the v4 rules unchanged and adds
-``embodiment`` to the canonical runtime provenance; the reader accepts
-{2, 5}, so the summaries here are written at v5 (the writers' version) and
-the ``test_v4_*`` names keep the rule set they pin.
+``embodiment`` to the canonical runtime provenance; the reader accepts schema 5
+alone (decision D-D63 retired schema 2), so the summaries here are written at
+v5 (the writers' version) and the ``test_v4_*`` names keep the rule set they
+pin.
 
 Since decision D-D59 every committed chain ends at walk (stance -> locomotion,
 with recovery a sibling branch off stance on the T-Rex), so the leaf whose
@@ -31,8 +30,6 @@ from environments.shared import stage_manifest
 from environments.shared.model_id import ModelId
 from environments.shared.result_schema import (
     CANONICAL_RUNTIME_PROVENANCE_FIELDS,
-    CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4,
-    CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5,
     DELIVERABLE_RECORD_FIELDS,
     OPTIONAL_DELIVERABLE_RECORD_FIELDS,
     RESULT_SCHEMA_VERSION,
@@ -159,23 +156,20 @@ def test_a_run_with_no_deliverable_yet_but_every_stage_passing_is_partial() -> N
 
 
 def _canonical_summary_v5() -> dict[str, Any]:
-    """The canonical summary under the deliverable rules, at the writers' schema (v4 before decision D-D33)."""
-    summary = deepcopy(_canonical_summary())
-    summary["schema_version"] = RESULT_SCHEMA_VERSION
+    """The canonical summary under the deliverable rules, at the writers' schema (v4 before decision D-D33): every
+    stage a certified deliverable on the checkpoint it selected, walk the target and the primary."""
+    summary = _canonical_summary()
+    assert summary["schema_version"] == RESULT_SCHEMA_VERSION
     provenance = summary["provenance"]
-    provenance["deliverables"] = {
-        key: {
-            "model_path": checkpoint["model_path"],
-            "model_hash": checkpoint["model_hash"],
-            "normalization_hash": checkpoint["normalization_hash"],
-            "gate_kind": "reward_and_length/v1",
-            "certified": True,
-            "replication": {"count": 1, "runs": [{"run_id": provenance["run_id"], "training_seed": summary["seed"]}]},
-        }
-        for key, checkpoint in provenance["selected_checkpoints"].items()
-    }
-    provenance["primary_deliverable"] = "2"
-    provenance["target_deliverable"] = "2"
+    for key, checkpoint in provenance["selected_checkpoints"].items():
+        record = provenance["deliverables"][key]
+        assert [record[field] for field in ("model_path", "model_hash", "normalization_hash")] == [
+            checkpoint[field] for field in ("model_path", "model_hash", "normalization_hash")
+        ]
+        assert record["certified"] is True and record["replication"]["runs"] == [
+            {"run_id": provenance["run_id"], "training_seed": summary["seed"]}
+        ]
+    assert (provenance["primary_deliverable"], provenance["target_deliverable"]) == ("2", "2")
     return summary
 
 
@@ -200,27 +194,36 @@ def test_v4_canonical_summary_validates_complete() -> None:
     )
 
 
-def test_v4_runtime_fields_extend_the_v3_tuple_without_changing_it() -> None:
-    assert CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[: len(CANONICAL_RUNTIME_PROVENANCE_FIELDS)] == (
-        CANONICAL_RUNTIME_PROVENANCE_FIELDS
-    )
-    assert set(CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4) - set(CANONICAL_RUNTIME_PROVENANCE_FIELDS) == {
+def test_the_canonical_runtime_fields_are_schema_5s() -> None:
+    """One tuple, schema 5's (decision D-D63 retired schema 2, whose v3 tuple it was built on): schema 3's fields with
+    ``embodiment`` after ``species`` (decision D-D33), then the deliverable keys schema 4 added."""
+    assert RESULT_SCHEMA_VERSION == 5
+    assert CANONICAL_RUNTIME_PROVENANCE_FIELDS == (
+        "run_id",
+        "captured_at",
+        "species",
+        "embodiment",
+        "algorithm",
+        "backend",
+        "backend_version",
+        "repository_dirty",
+        "repository_patch_sha256",
+        "training_seed",
+        "seed_roles",
+        "evaluation_protocols",
+        "evaluation_seeds",
+        "parallel_envs",
+        "hardware",
+        "python_version",
+        "platform",
+        "dependency_versions",
+        "plant_identity",
+        "selected_checkpoints",
+        "selected_model_path",
         "deliverables",
         "primary_deliverable",
         "target_deliverable",
-    }
-
-
-def test_v5_runtime_fields_are_the_v4_tuple_with_the_embodiment_after_the_species() -> None:
-    """Deliberately a NEW tuple (decision D-D33): the v3 and v4 tuples stay as they were."""
-    assert RESULT_SCHEMA_VERSION == 5
-    after_species = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4.index("species") + 1
-    assert CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5 == (
-        CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[:after_species]
-        + ("embodiment",)
-        + CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[after_species:]
     )
-    assert "embodiment" not in CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4
 
 
 @pytest.mark.parametrize("field", ["deliverables", "primary_deliverable", "target_deliverable", "embodiment"])
@@ -351,25 +354,6 @@ def test_v4_without_publication_flags_accepts_a_summary_without_deliverables() -
     del summary["provenance"]["target_deliverable"]
     validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=False)
     with pytest.raises(ResultSchemaError, match="without provenance.deliverables"):
-        validate_result_summary(
-            summary,
-            expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
-            require_complete=False,
-            require_publishable=True,
-        )
-
-
-def test_require_publishable_equals_require_complete_below_v4() -> None:
-    summary = deepcopy(_canonical_summary())
-    assert summary["schema_version"] < 4
-    del summary["stages"]["2"]
-    summary["total_timesteps"] = sum(int(stage["timesteps"]) for stage in summary["stages"].values())
-    summary["final_avg_reward"] = summary["stages"]["1"]["final_eval_reward"]
-
-    validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=False)
-    with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
-        validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=True)
-    with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
         validate_result_summary(
             summary,
             expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,

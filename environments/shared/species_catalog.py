@@ -727,10 +727,10 @@ def _validate_provenance(provenance: Any, *, result_path: str) -> dict[str, Any]
 def _validate_result_summary(summary: Any, *, model_id: ModelId, relative_path: str) -> dict[str, Any]:
     """Validate public results while preserving the catalog error API.
 
-    Publishable, not complete (decision D-A2): a schema-4 run that certified
-    stance but failed walk publishes its certified deliverables as
-    ``partial``.  Below schema 4 the two flags are synonyms, so a v2 ladder
-    summary validates exactly as before.
+    Publishable, not complete (decision D-A2): a run that certified stance
+    but failed walk publishes its certified deliverables as ``partial``.  A
+    summary is read at schema 5 alone (decision D-D63 retired schema 2), so
+    every published result certifies at least one deliverable.
     """
     try:
         return validate_result_summary(
@@ -855,12 +855,11 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
     deliverables, primary_deliverable, target_deliverable = _build_result_deliverables(
         model_id, summary, validated_provenance, raw_stages_by_id, relative_path=relative_path
     )
-    # The exported provenance is the identity/status surface alone.  A v4
+    # The exported provenance is the identity/status surface alone.  The
     # block also validates to its deliverables map, ancestors, primary and
     # target (and a canonical one to run_id, seeds, ...); those are published
-    # ONLY through the per-deliverable rows below, so every schema exports
-    # the same six keys and the website adapter's RawResult.provenance stays
-    # honest for the first committed schema-4 summary.
+    # ONLY through the per-deliverable rows below, so the website adapter's
+    # RawResult.provenance holds the same six keys for every result.
     provenance = {
         key: validated_provenance[key]
         for key in ("model_revision_status", "verification_status", "evaluation_episodes", *PROVENANCE_IDENTIFIERS)
@@ -880,15 +879,14 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
         ),
         "total_training_time": summary.get("total_training_time"),
         "final_avg_reward": summary.get("final_avg_reward"),
-        # The ladder headline: a schema-2 summary publishes no deliverable,
-        # so the website headlines its fastest reported stage velocity; a v4
-        # result's headline comes from its primary deliverable below. The
-        # stage-3 task-success headline left with the hunt nodes (decision
-        # D-D59).
+        # The fastest reported stage velocity.  The website headlines a result
+        # by its primary deliverable (below), and by this only for a result
+        # without one, which schema 5 never publishes (decision D-D63 retired
+        # the schema-2 ladder summaries that had none). The stage-3
+        # task-success headline left with the hunt nodes (decision D-D59).
         "max_average_forward_velocity": max_average_forward_velocity,
         "provenance": provenance,
-        # Per-deliverable publication (schema 4): [] and nulls for every
-        # schema-2 summary — never synthesized from a ladder pass.
+        # Per-deliverable publication (schema 4 onward).
         "deliverables": deliverables,
         "primary_deliverable": primary_deliverable,
         "target_deliverable": target_deliverable,
@@ -914,10 +912,7 @@ def _build_result_deliverables(
     deferred by D-B15) rather than the ladder projection, which carries
     only the fixed ladder columns.
 
-    A schema-2 ladder summary publishes NO deliverable: its ``stage_passed``
-    was a pass of the retired reward gate, and relabelling it "certified"
-    would mint a certification nothing measured.  From schema 4 on each
-    ``provenance.deliverables`` record becomes a row carrying its gate kind,
+    Each ``provenance.deliverables`` record becomes a row carrying its gate kind,
     certification, model hash, replication count, the CURRENT
     ``certification_seeds`` and the provisional label re-derived from the
     two (plan §4.5, decisions D-B10/D-B11: the catalog validates the
@@ -927,9 +922,7 @@ def _build_result_deliverables(
     that is absent, unknown, uncertified or not the one the deliverables
     imply is a catalog failure.
     """
-    schema_version = int(summary.get("schema_version") or 0)
-    if schema_version < 4:
-        return [], None, None
+    schema_version = summary.get("schema_version")
     raw_records = provenance.get("deliverables")
     if not raw_records:
         raise CatalogError(f"schema-{schema_version} result {relative_path} publishes no provenance.deliverables")
@@ -1774,22 +1767,20 @@ def render_readme_results(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                     f"{_format_percent(stage['mean_success_rate'])} | "
                     f"{_format_millions(stage['timesteps'])} | {_format_verdict(stage)} |"
                 )
-            # Only a schema-4 result publishes deliverables; a ladder
-            # summary publishes none, and its block renders as it did before
-            # Phase A (D-A10).
-            if result["deliverables"]:
-                lines.extend(
-                    [
-                        "",
-                        "**Deliverables:** "
-                        + " · ".join(
-                            _format_deliverable(
-                                deliverable, primary=deliverable["stage_key"] == result["primary_deliverable"]
-                            )
-                            for deliverable in result["deliverables"]
-                        ),
-                    ]
-                )
+            # Every published result certifies at least one deliverable (schema 5 alone is read; decision D-D63
+            # retired the schema-2 ladder summaries, which published none and rendered no line here).
+            lines.extend(
+                [
+                    "",
+                    "**Deliverables:** "
+                    + " · ".join(
+                        _format_deliverable(
+                            deliverable, primary=deliverable["stage_key"] == result["primary_deliverable"]
+                        )
+                        for deliverable in result["deliverables"]
+                    ),
+                ]
+            )
             lines.extend(
                 [
                     "",

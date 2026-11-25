@@ -39,10 +39,12 @@ gate kind certifies:
 - [Compsognathus longipes (Robot)](/docs/models/compsognathus_longipes/robot)
 - [Allosaurus fragilis (Anatomical)](/docs/models/allosaurus_fragilis/anatomical)
 
-The published result summaries describe historical ladder runs with no
-per-deliverable records. They are marked unverified because some identifiers needed to reproduce the
-original model and configuration are missing. Each model page lists the
-provenance available for its run. Use those results in their historical context.
+No result summary is published at present: the historical ladder runs,
+which had no per-deliverable records and were marked unverified, were
+deleted with the hunt nodes their last stage trained (decision D-D59), and
+their schema is retired (decision D-D63). A published result certifies at
+least one deliverable and lists one row per deliverable it records, and
+each model page lists the provenance available for its run.
 
 ## Quick Links
 

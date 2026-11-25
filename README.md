@@ -23,7 +23,9 @@ anatomical reconstructions.
 
 Each model learns a few behaviors, such as stance (standing balance), recovery from pushes and walk. Each behavior
 is a separate policy, judged against its own pass/fail test and published on its own. A behavior that passes its test
-is certified, and later stages start from it, so a certified policy is reused, not trained again.
+is certified, and later stages start from it, so a certified policy is reused, not trained again. The walk follows a
+live heading-and-speed command and is judged by `command_tracking/v1`, whose bars are provisional (decision D-D62), so
+no walk is certified until they are frozen.
 
 The goals are locomotion controllers for these bodies, walking that follows a commanded direction and speed, and, in
 the long run, policies that run on real robots. All work so far is in simulation. Hardware transfer is future work,

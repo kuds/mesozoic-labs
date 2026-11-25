@@ -521,7 +521,7 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 | Crab-walks or turns off the commanded heading | The tracking term tolerates the error | Raise `[commands] tracking_weight` within 2.0–2.5, or narrow the lateral and yaw sigmas |
 | Walks but falls frequently | Balance reward zeroed too aggressively | Keep `env.posture_weight ≥ 0.3` and the walk's `env.alive_bonus` |
 | Unrealistic "ice-skating" gait | Symmetry and smoothness under-weighted | Raise `env.gait_symmetry_weight`, raise `env.smoothness_weight` |
-| Walks at the commanded speed but fails the gate's tracking bars | The tracking term and the gate read the pelvis every step, and a gait sways within its stride | Decision D-D62 (16) (a): the reference walks fail them too; it is an open design question, not a setting |
+| Walks at the commanded speed but fails the gate's tracking bars | The tracking term and the gate read the pelvis every step, and a gait sways within its stride | Decision D-D62 (16) (a): the reference walks fail them too. Decision D-D63 (2) chose a stride-averaged tracking measure for the reward and the gate, which the next decision row implements; it is not a setting |
 
 ### Algorithm-specific notes
 

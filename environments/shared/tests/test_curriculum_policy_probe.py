@@ -130,7 +130,9 @@ def _update(model, callback, steps=64):
 
 #: The bank rows the T. rex stance env cannot hold to their kept step.  On physics r12 (plant_versions note 24: the
 #: skull's 0.2 kg bite box gone, the statue standing 4.6 mm further back) the +0.03 lean, a backward lean of the
-#: shank, falls at step 515 of seed 3043 (it held on r11); +0.025 holds on seeds 3042-3045.
+#: shank, falls at step 515 of seed 3043 (it held on r11); +0.025 holds on seeds 3042-3045.  Kept dropped by
+#: decision D-D63 (8): the bank's +0.03 lean stays the same on every model, so probe files stay comparable, and the
+#: T. rex keeps 9 of its 10 rows.
 TYRANNOSAURUS_REX_DROPPED_ROWS = {("ankle_plus_0.03", 3043)}
 
 

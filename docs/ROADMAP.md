@@ -60,7 +60,10 @@ Brachiosaurus PPO; their provenance and metrics are shown in the generated
 > to D-D62): it follows a forward cruise command and stands still on a zero
 > one, judged by the walk profile of `command_tracking/v1`, whose bars are
 > provisional and not yet shown attainable; D-D62 (16) leaves the open
-> risks to the maintainer. The follow-direction nodes that widen the walk
+> risks to the maintainer. *2026-11-25:* the first of them, per-step
+> tracking, is decided by D-D63 (2): a stride-averaged tracking measure in
+> the reward and the gate, implemented by the next decision row. The other
+> risks stay open. The follow-direction nodes that widen the walk
 > are next and not built; until one exists, or a command-free walk config is
 > added, the terrain recipes have no parent a user can produce.
 

@@ -38,6 +38,7 @@ import inspect
 import json
 import logging
 import math
+import re
 import tomllib
 from collections.abc import Mapping
 from datetime import datetime, timezone
@@ -54,26 +55,68 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
-def get_library_version() -> str:
-    """Return the mesozoic-labs package version string.
+#: The distribution this package is published as: the ``[project] name`` a
+#: source checkout's ``pyproject.toml`` declares, and the name
+#: ``importlib.metadata`` knows an installed copy by.
+DISTRIBUTION_NAME = "mesozoic-labs"
 
-    Tries ``importlib.metadata`` first (works when the package is installed),
-    then falls back to parsing ``pyproject.toml`` at the repository root.
+
+def _normalized_distribution_name(name: str) -> str:
+    """*name* in its PEP 503 normal form (lower case, each run of ``-``, ``_`` and ``.`` one ``-``)."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _checkout_version(repository_root: Path) -> str | None:
+    """The version a source checkout's ``pyproject.toml`` declares, or ``None`` when *repository_root* is not one.
+
+    A checkout is a readable ``pyproject.toml`` at *repository_root* whose
+    ``[project] name`` is :data:`DISTRIBUTION_NAME` and whose ``version`` is a
+    non-empty string.  A foreign project's ``pyproject.toml`` (an installed
+    copy whose parent directory holds some other project), a malformed file
+    (invalid TOML, or bytes that are not UTF-8) and a dynamic version all read
+    as no checkout.
     """
+    try:
+        with open(repository_root / "pyproject.toml", "rb") as pyproject:
+            data = tomllib.load(pyproject)
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return None
+    name = project.get("name")
+    if not isinstance(name, str) or _normalized_distribution_name(name) != DISTRIBUTION_NAME:
+        return None
+    version = project.get("version")
+    if not isinstance(version, str) or not version.strip():
+        return None
+    return version
+
+
+def get_library_version() -> str:
+    """Return the mesozoic-labs package version string, the one every record of a run carries.
+
+    The package running from a source checkout reports the checkout's
+    ``pyproject.toml`` version (:func:`_checkout_version`), so an editable
+    install whose metadata predates the last version bump does not record its
+    stale version.  Otherwise (a wheel or site-packages install) it reports
+    ``importlib.metadata``'s, and ``"unknown"`` when neither has one.
+
+    ``stage_config.json``'s ``library_version`` (with each resume session's),
+    the hyperparameter-tuning metrics payload, the text summary and
+    ``provenance.json``'s ``dependency_versions["mesozoic_labs"]``
+    (``result_bundle.provenance``) all read it here, so a run never records
+    two versions.
+    """
+    checkout_version = _checkout_version(_REPO_ROOT)
+    if checkout_version is not None:
+        return checkout_version
     try:
         from importlib.metadata import version
 
-        return version("mesozoic-labs")
+        return version(DISTRIBUTION_NAME)
     except Exception:
-        pass
-
-    pyproject = _REPO_ROOT / "pyproject.toml"
-    if pyproject.exists():
-        with open(pyproject, "rb") as f:
-            data = tomllib.load(f)
-        return str(data.get("project", {}).get("version", "unknown"))
-
-    return "unknown"
+        return "unknown"
 
 
 def get_git_commit() -> str:

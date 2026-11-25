@@ -56,7 +56,8 @@ documented in the
 Under a v1 stage manifest (one deliverable — the last advancing node — with
 edges to the previous advancing node) these rules collapse to the historical
 "every advancing stage present and passed / terminal = last advancing stage"
-rule. Schema-2 summaries keep their own rules.
+rule. These are the only rules: the readers accept schema 5 alone (decision
+D-D63 retired schema 2, which had its own).
 
 ## Canonical layout
 
@@ -318,9 +319,12 @@ validator treats disagreements as conflicts.
   again after the verdict, each stamped with the checkpoint digest it was
   rolled on) and
   `figures/command_tracking.png` and `figures/command_gate_progress.png`
-  are report-only: publication neither binds nor reads them.  The role is
-  bound per
-  evidence file, not through
+  (drawn into a local staging directory and copied into `figures/` with
+  `atomic_copy` on the notebook and CLI paths alike; a figure whose draw
+  raises or is interrupted has its partial file removed before the copy,
+  and a runtime killed mid-draw copies nothing, so a half-written png never
+  lands) are report-only: publication neither binds nor reads them.
+  The role is bound per evidence file, not through
   `evaluation_protocols` (its name deliberately lacks "evaluation"), and it
   may equal the publication seed;
 - deterministic evaluation protocols and episode counts;
@@ -534,10 +538,13 @@ last stage trained; `results/README.md` names the last commit that holds them). 
 unchanged by schema v4; the summary carries the deliverables map. Decision
 D-D33 added the `<embodiment>` level and made `species` and `embodiment` two
 required fields of every summary (result schema 5; the CSV gains an
-`embodiment` column). The readers accept schema 2 and 5. Schema 2 is the
-curated historical form: the four summaries committed until D-D59 predated
-the plant contract, and D-D33 amended their identity in place (the binomial
-`species` and `"embodiment": "anatomical"`), leaving every other value as
-recorded. A
-summary of schema 3 or 4 names a species ID that no longer exists and is
-refused.
+`embodiment` column). The readers accept schema 5 alone. A summary of
+schema 3 or 4 names a species ID that no longer exists and is refused.
+Schema 2, the integer-stage form of the four summaries committed until
+D-D59 (`git show 6c9982d81c8a:results/<path>`), is refused too since
+decision D-D63, by a message that names that commit as the tree that
+still reads them (version 0.4.0.dev2). It names the commit, not the
+version: a later tree that still declares 0.4.0.dev2 came after D-D59
+removed the stage 3 they record, and refuses them. `results/` holds no
+summary at present, and no writer has emitted schema 2 since schema 3
+replaced it.

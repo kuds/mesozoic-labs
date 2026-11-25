@@ -5,6 +5,7 @@ call, so that every stage they judge records the same artifacts."""
 
 from __future__ import annotations
 
+import contextlib
 import json as _json
 import logging
 import math
@@ -799,7 +800,11 @@ def write_command_tracking_figures(
     ``figures/command_gate_progress.png`` (the gated statistics of every
     handoff candidate and of the certified handoff against the bars, titled
     with *verdict*) are drawn into *figures_out*.  Each step is in its own
-    guard, so a failure costs that step's file only.  Called inside
+    guard, so a failure costs that step's file only.  A figure whose draw
+    raises or is interrupted (``BaseException``) has its partial file at
+    *figures_out* removed before the error is logged or goes on, so a
+    staging directory's publish (which runs in a ``finally``) never copies
+    a truncated png into the stage's ``figures/``.  Called inside
     ``generate_stage_artifacts``' figure block and by the CLI curriculum's
     post-training judge, after the verdict is formed: nothing here is read
     by the gate.
@@ -866,14 +871,25 @@ def write_command_tracking_figures(
         (COMMAND_TRACKING_FIGURE, plot_command_tracking),
         (COMMAND_GATE_PROGRESS_FIGURE, plot_command_gate_progress),
     ):
+        save_path = figures_out / name
         try:
-            kwargs: dict[str, Any] = {"model_id": model_id, "save_path": figures_out / name, "show": False}
+            kwargs: dict[str, Any] = {"model_id": model_id, "save_path": save_path, "show": False}
             if plot is plot_command_tracking:
                 kwargs["curriculum_kwargs"] = dict(curriculum)
             else:
                 kwargs["verdict"] = verdict
-            if plot(stage_dir, **kwargs) is not None:
-                drawn.append(figures_out / name)
+            try:
+                figure = plot(stage_dir, **kwargs)
+            except BaseException:
+                # A savefig that raised or was interrupted (Ctrl-C, a Colab interrupt) part-way can leave a truncated
+                # png at save_path.  Remove it before the error goes on, so neither a staging publish (whose finally
+                # still copies what staging holds) nor a straight-through write leaves it in the stage's figures/.
+                # The sweep above already removed this name's earlier copies, so the figure is simply absent.
+                with contextlib.suppress(OSError):
+                    save_path.unlink(missing_ok=True)
+                raise
+            if figure is not None:
+                drawn.append(save_path)
         except ImportError:
             logger.warning("Skipping %s (matplotlib not installed).", name)
         except Exception:  # noqa: BLE001 - one figure costs that file only

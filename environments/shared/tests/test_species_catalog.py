@@ -312,10 +312,10 @@ def test_catalog_publishes_layered_plant_contract() -> None:
 
 
 def test_catalog_keeps_current_configs_separate_from_historical_results(tmp_path: Path, monkeypatch: Any) -> None:
-    """A published row reports the budget its run trained, never the stage's current one. Run on the ladder
+    """A published row reports the budget its run trained, never the stage's current one. Run on the historical
     fixture filed as a T-Rex summary, since ``results/`` holds none (decision D-D59)."""
     current_locomotion = next(stage for stage in _build_catalog_stages(TYRANNOSAURUS_REX) if stage["number"] == 2)
-    summary = _tyrannosaurus_rex_ladder_summary()
+    summary = _tyrannosaurus_rex_historical_summary()
     summary["stages"]["2"]["timesteps"] = 7_999_488
     summary["total_timesteps"] = sum(stage["timesteps"] for stage in summary["stages"].values())
     result = _build_result_from(tmp_path, monkeypatch, summary)
@@ -765,11 +765,11 @@ def test_manifest_covers_all_curated_results_and_implemented_models() -> None:
 
 
 def _published_summary() -> dict[str, Any]:
-    """The curated schema-2 ladder fixture (``result_bundle_helpers.LADDER_SUMMARY``): ``results/`` holds no summary
-    since decision D-D59."""
-    from .result_bundle_helpers import LADDER_SUMMARY
+    """The complete schema-5 historical fixture (``result_bundle_helpers.HISTORICAL_SUMMARY``): ``results/`` holds no
+    summary since decision D-D59."""
+    from .result_bundle_helpers import HISTORICAL_SUMMARY
 
-    return deepcopy(LADDER_SUMMARY)
+    return deepcopy(HISTORICAL_SUMMARY)
 
 
 def test_result_validator_rejects_missing_public_metric() -> None:
@@ -1133,9 +1133,9 @@ def test_current_gate_kinds_follow_the_manifest() -> None:
 
 
 def test_published_verdicts_carry_gate_provenance(tmp_path: Path, monkeypatch: Any) -> None:
-    """A ladder row's verdicts name the gate they passed (none recorded: a retired reward gate)."""
+    """A historical row's verdicts name the gate they passed (none recorded: a retired reward gate)."""
     catalog = build_catalog()
-    result = _build_result_from(tmp_path, monkeypatch, _tyrannosaurus_rex_ladder_summary())
+    result = _build_result_from(tmp_path, monkeypatch, _tyrannosaurus_rex_historical_summary())
     stance = next(stage for stage in result["stages"] if stage["id"] == "stance")
     assert stance["stage_passed"] is True
     assert stance["gate_kind"] is None
@@ -1149,7 +1149,7 @@ def test_published_verdicts_carry_gate_provenance(tmp_path: Path, monkeypatch: A
 
 
 def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path, monkeypatch: Any) -> None:
-    summary = _tyrannosaurus_rex_ladder_summary()
+    summary = _tyrannosaurus_rex_historical_summary()
     summary["stages"]["1"]["gate_kind"] = "stance_quality_heading/v1"
 
     result = _build_result_from(tmp_path, monkeypatch, summary)
@@ -1159,12 +1159,13 @@ def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path,
     assert _format_verdict(stages["stance"]) == "Yes"
     assert stages["locomotion"]["gate_retired"] is True
     assert _format_verdict(stages["locomotion"]) == "passed retired gate (reward gate)"
-    # Extended 2026-09-12: a current-gate pass on a schema-2 ladder summary
-    # is still a ladder pass — it publishes NO deliverable and no primary.
-    # Relabelling it certified would mint a certification nothing measured.
-    assert result["deliverables"] == []
-    assert result["primary_deliverable"] is None
-    assert result["target_deliverable"] is None
+    # The stage row's recorded gate relabels no deliverable: each is published under the gate its own record
+    # names (the reward gate here), certified as its record says.
+    assert [(row["stage_key"], row["gate_kind"], row["certified"]) for row in result["deliverables"]] == [
+        ("1", "reward_and_length/v1", True),
+        ("2", "reward_and_length/v1", True),
+    ]
+    assert (result["primary_deliverable"], result["target_deliverable"]) == ("2", "2")
 
 
 @pytest.mark.parametrize(
@@ -1232,20 +1233,26 @@ def test_stage_rows_carry_recipe_edges_for_every_model() -> None:
         assert any(stage["deliverable"] for stage in entry["stages"])
 
 
-def test_ladder_summaries_publish_no_deliverables_and_no_stage3_headline(tmp_path: Path, monkeypatch: Any) -> None:
-    """A schema-2 ladder row publishes nothing new, and no committed model publishes one.
+def test_a_summary_without_deliverables_is_not_published_and_no_stage3_headline(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """No committed model publishes a result, and a summary that certifies no deliverable is never published.
 
-    `deliverables` is [] and both deliverable keys are null because a
-    reward-gate pass is not a certification and is never synthesized into
-    one. The stage-3 task-success headline (`stage3_success_rate`) left with
-    the hunt nodes (decision D-D59), with the four historical ladder
-    summaries that carried it; the website headlines a ladder row's fastest stage velocity.
+    A schema-2 ladder summary published none: a reward-gate pass relabelled "certified" would mint a certification
+    nothing measured, so its row carried no deliverable.  Schema 2 is retired (decision D-D63), and a schema-5
+    summary without a deliverables map is refused, never published with an empty one.  The stage-3 task-success
+    headline (`stage3_success_rate`) left with the hunt nodes (decision D-D59), with the four historical ladder
+    summaries that carried it; a published row keeps its fastest stage velocity.
     """
     assert all(entry["historical_results"] == [] for entry in build_catalog()["models"])
-    row = _build_result_from(tmp_path, monkeypatch, _tyrannosaurus_rex_ladder_summary())
-    assert row["deliverables"] == []
-    assert row["primary_deliverable"] is None
-    assert row["target_deliverable"] is None
+    bare = _tyrannosaurus_rex_historical_summary()
+    for key in ("deliverables", "primary_deliverable", "target_deliverable"):
+        del bare["provenance"][key]
+    with pytest.raises(CatalogError, match="without provenance.deliverables, so it certifies nothing"):
+        _build_result_from(tmp_path, monkeypatch, bare)
+    row = _build_result_from(tmp_path, monkeypatch, _tyrannosaurus_rex_historical_summary())
+    assert [deliverable["stage_key"] for deliverable in row["deliverables"]] == ["1", "2"]
+    assert (row["primary_deliverable"], row["target_deliverable"]) == ("2", "2")
     assert "stage3_success_rate" not in row
     assert row["max_average_forward_velocity"] == 3.47
     assert [stage["id"] for stage in row["stages"]] == ["stance", "locomotion"]
@@ -1255,11 +1262,13 @@ def test_ladder_summaries_publish_no_deliverables_and_no_stage3_headline(tmp_pat
 _SHA = "sha256:" + "a" * 64
 
 
-def _tyrannosaurus_rex_ladder_summary() -> dict[str, Any]:
-    """The curated schema-2 ladder fixture (``result_bundle_helpers.LADDER_SUMMARY``) filed as a T-Rex summary:
-    its stance and walk rows, under the T-Rex's identity. ``results/`` holds no summary since decision D-D59."""
+def _tyrannosaurus_rex_historical_summary() -> dict[str, Any]:
+    """The complete schema-5 historical fixture (``result_bundle_helpers.HISTORICAL_SUMMARY``) filed as a T-Rex
+    summary: its stance and walk rows and their deliverable records, under the T-Rex's identity in the summary and
+    its provenance. ``results/`` holds no summary since decision D-D59."""
     summary = _published_summary()
     summary.update(TYRANNOSAURUS_REX.record())
+    summary["provenance"].update(TYRANNOSAURUS_REX.record())
     return summary
 
 
@@ -1270,8 +1279,9 @@ def _tyrannosaurus_rex_v5_summary(
     primary: str | None,
     bundle_status: str,
 ) -> dict[str, Any]:
-    """The ladder fixture filed as a T-Rex summary (:func:`_tyrannosaurus_rex_ladder_summary`) re-cut as a result
-    under the deliverable rules, at the writers' schema (v5; it was schema 4 until decision D-D33 retired it).
+    """The historical fixture filed as a T-Rex summary (:func:`_tyrannosaurus_rex_historical_summary`) re-cut with
+    the T-Rex's current gate kinds and the given verdicts, at the writers' schema (v5; it was schema 4 until
+    decision D-D33 retired it).
     *verdicts* is keyed ``"1"`` (stance) and ``"2"`` (walk); the committed T-Rex summary this was built on, whose
     stage 3 was the bite hunt, left with decision D-D59.
 
@@ -1281,8 +1291,7 @@ def _tyrannosaurus_rex_v5_summary(
     from the recorded verdicts through the shared rule so a fixture can
     never claim more than its chain supports.
     """
-    summary = _tyrannosaurus_rex_ladder_summary()
-    summary["schema_version"] = 5
+    summary = _tyrannosaurus_rex_historical_summary()
     summary["bundle_status"] = bundle_status
     summary["stages"] = {key: stage for key, stage in summary["stages"].items() if key in verdicts}
     gates = current_gate_kinds(TYRANNOSAURUS_REX)
@@ -1950,14 +1959,17 @@ def test_readme_results_block_says_no_summary_is_published() -> None:
     assert "GENERATED: RESULTS" not in DEFAULT_README_PATH.read_text(encoding="utf-8")
 
 
-def test_readme_results_block_renders_a_ladder_summary_with_stance_labels(tmp_path: Path, monkeypatch: Any) -> None:
-    """A schema-2 ladder section renders as it did before Phase A (D-A10), the stance label normalized.
+def test_readme_results_block_renders_a_historical_summary_with_stance_labels(tmp_path: Path, monkeypatch: Any) -> None:
+    """A historical section renders its stage rows as D-A10's golden held them, the stance label normalized, and
+    one Deliverables line.
 
     D-A10's golden pinned the block of the four committed summaries byte for byte; with those summaries deleted
-    (decision D-D59) the same rendering is pinned on the ladder fixture, whose two stage rows are the stance and
+    (decision D-D59) the stage rows are pinned on the historical fixture, whose two stage rows are the stance and
     walk rows of the velociraptor PPO section that golden held (``1 — Balance`` relabelled ``1 — Stance``, the
-    amendment of 2026-10-10), and whose run total is re-summed over those two stages. No Deliverables line is
-    emitted for a schema-2 summary, and the empty-block line is not.
+    amendment of 2026-10-10), and whose run total is re-summed over those two stages.  Its schema-5 deliverable
+    records add the Deliverables line a schema-2 ladder section never had (decision D-D63 retired schema 2); the
+    stance is provisional against the velociraptor's current two certification seeds.  The empty-block line is not
+    emitted.
     """
     from environments.shared import species_catalog
 
@@ -1985,6 +1997,9 @@ def test_readme_results_block_renders_a_ladder_summary_with_stance_labels(tmp_pa
         "|---|---:|---:|---:|---:|---:|\n"
         "| 1 — Stance | 1964.43 | 0.11 m/s | — | 6M | passed retired gate (reward gate) |\n"
         "| 2 — Locomotion | 2678.68 | 3.47 m/s | — | 8M | passed retired gate (reward gate) |\n"
+        "\n"
+        "**Deliverables:** 1 — stance (certified; gate reward_and_length/v1; 1 run of 2 seeds; provisional) · "
+        "2 — walk (certified, primary; gate reward_and_length/v1; 1 run of 1 seed)\n"
         "\n"
         f"**Current Stable-Baselines3 catalog definition for this task label:** {walk_definition}\n"
     )
@@ -2091,8 +2106,8 @@ def test_catalog_page_blocks_differ_from_the_root_renderings_only_in_their_links
     for render in (render_readme_species, render_readme_results):
         root_relative = render(catalog)
         targets = link.findall(root_relative)
-        # The RESULTS block holds no link while no summary is published (decision D-D59); the ladder rendering's
-        # links are test_readme_results_block_renders_a_ladder_summary_with_stance_labels's.
+        # The RESULTS block holds no link while no summary is published (decision D-D59); a rendered section's
+        # links are test_readme_results_block_renders_a_historical_summary_with_stance_labels's.
         assert targets or render is render_readme_results
         assert not [t for t in targets if t.startswith(("http://", "https://", "/", "../", "#"))]
         rebased = link.sub(lambda m: f"]({posixpath.relpath(m.group(1), CATALOG_PAGE_DIR)})", root_relative)
@@ -2166,17 +2181,19 @@ def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
 
 
 def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monkeypatch: Any) -> None:
-    """A result under the deliverable rules (schema 5; schema 4 before decision D-D33) adds one Deliverables line,
-    and every ladder section stays as it was."""
+    """A result under the deliverable rules (schema 5; schema 4 before decision D-D33) adds one Deliverables line of
+    its own, and the section beside it stays as it was."""
     catalog = build_catalog()
     summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": False}, target="2", primary="1", bundle_status="partial")
     v4_result = _build_result_from(tmp_path, monkeypatch, summary)
-    (tmp_path / "ladder").mkdir()
-    ladder_result = _build_result_from(tmp_path / "ladder", monkeypatch, _tyrannosaurus_rex_ladder_summary())
+    (tmp_path / "historical").mkdir()
+    historical_result = _build_result_from(
+        tmp_path / "historical", monkeypatch, _tyrannosaurus_rex_historical_summary()
+    )
     tyrannosaurus_rex = _models(catalog)[TYRANNOSAURUS_REX]
-    tyrannosaurus_rex["historical_results"] = [ladder_result]
+    tyrannosaurus_rex["historical_results"] = [historical_result]
     baseline = render_readme_results(catalog)
-    tyrannosaurus_rex["historical_results"] = [ladder_result, v4_result]
+    tyrannosaurus_rex["historical_results"] = [historical_result, v4_result]
 
     rendered = render_readme_results(catalog)
 
@@ -2191,8 +2208,8 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
     replicated = {**v4_result["deliverables"][0], "replication_count": 2, "provisional": False}
     assert "; 2 runs of 2 seeds; " in _format_deliverable(replicated, primary=False)
     assert "provisional" not in _format_deliverable(replicated, primary=False)
-    assert rendered.count("**Deliverables:**") == 1
-    # The ladder section beside it is untouched by the new line (headed by the model display name, D-D33).
+    assert baseline.count("**Deliverables:**") == 1 and rendered.count("**Deliverables:**") == 2
+    # The section beside it is untouched by the new one (headed by the model display name, D-D33).
     assert rendered.startswith(baseline.rstrip("\n"))
     assert rendered.count("### Tyrannosaurus rex (Anatomical) (PPO") == 2
 
@@ -2270,18 +2287,17 @@ def test_website_adapter_declares_every_exported_key(tmp_path: Path, monkeypatch
     Two-sided: an exported key the adapter never declares is a field the
     site silently drops (the seven gate keys were, before WS4 — D-A13), and
     a declared key the catalog no longer exports is a field the site reads
-    as undefined.  Deliverable rows are taken from a schema-4 fixture
-    because a ladder summary publishes none (D-A10); the result and
-    provenance pins take the ladder fixture's v2 row (no summary is
-    committed since decision D-D59) AND that schema-4 fixture, so the six-key
-    provenance projection holds for the first schema-4 summary committed.
+    as undefined.  The result, deliverable and provenance pins take the
+    historical fixture's row (no summary is committed since decision D-D59)
+    AND a partial fixture under the current gate kinds, so the six-key
+    provenance projection holds for the first summary committed.
     """
     source = _website_source("data/species.ts")
     catalog = build_catalog()
     models = catalog["models"]
     stage_rows = [stage for entry in models for stage in entry["stages"]]
-    (tmp_path / "ladder").mkdir()
-    results = [_build_result_from(tmp_path / "ladder", monkeypatch, _tyrannosaurus_rex_ladder_summary())]
+    (tmp_path / "historical").mkdir()
+    results = [_build_result_from(tmp_path / "historical", monkeypatch, _tyrannosaurus_rex_historical_summary())]
     v4_result = _build_result_from(
         tmp_path,
         monkeypatch,

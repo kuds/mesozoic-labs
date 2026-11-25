@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The SB3 notebook review of 2026-11-22, with its status of 2026-11-25**
+  (decision D-D63 (7)). `docs/reviews/SB3_NOTEBOOK_REVIEW_2026_11.md` is the
+  cross-species review of `notebooks/sb3_training.ipynb`, the pipeline behind
+  it and every post-training artifact, on all seven models. It is committed
+  as written, before the hunt's removal and the command-driven walk. An
+  appended "Status on 2026-11-25" checks each of its 141 findings against the
+  tree at `d1dc274` and marks it addressed (11, naming the file and the
+  decision or commit), moot (20: the hunt, the prey, the deleted gait
+  metrics) or open (110, naming what remains). `docs/README.md`'s review list
+  and `docs/KNOWN_ISSUES.md`'s review table list it. Its open findings are
+  not yet folded into KNOWN_ISSUES.
 - **The walk follows a live command on all seven models** (decision D-D62;
   every locomotion task and gate digest moves, no stance or recovery one
   does). Each `configs/<species>/<embodiment>/locomotion.toml` declares a
@@ -2767,6 +2778,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **A schema-2 `summary.json` no longer validates** (decision D-D63 (5)).
+  `results/` holds none, and no writer has emitted schema 2 since schema 3.
+  To read the four summaries committed until D-D59, check them out with
+  `git show 6c9982d81c8a:results/<path>` and read them with the tree at
+  that commit (version 0.4.0.dev2): a later tree that still declares
+  0.4.0.dev2, after D-D59 removed the stage 3 they record, refuses them.
+  To publish such a run, re-cut it as schema 5: a deliverables map,
+  `primary_deliverable` and `target_deliverable`. Code that imported
+  `CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4` or `_V5`, or passed
+  `schema_version=` to `validate_provenance`, uses
+  `CANONICAL_RUNTIME_PROVENANCE_FIELDS` and drops the argument.
 - **Every locomotion task and gate digest moved; no stance or recovery one
   did** (decision D-D62). `configs/digest_snapshot.generated.txt` moved 90
   lines and added or removed none: on each of the seven walks its
@@ -3354,14 +3376,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The maintainer's answers to the series' open questions are recorded**
+  (decision D-D63, taken 2026-11-25, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). The
+  row records eight answers, and four of them change no code:
+  - `main` is merged into the branch (`d1dc274`).
+  - Per-step tracking, D-D62 (16)'s open risk (a), gets a stride-averaged
+    tracking measure in both the reward and the gate, on live-command stages
+    only, with a `COMMAND_PANEL_PROTOCOL` bump. The next decision row
+    implements it. Until then the walk's bars stay provisional, and no
+    document calls the walk gate attainable.
+  - The in-training evaluation keeps the declared end-state commands during
+    the cruise ramp, so candidates are ranked on the task that is certified,
+    and the handoff is still chosen afterwards on the selection panel. D-D62
+    (5) is amended to say so.
+  - The T. rex policy probe keeps `("ankle_plus_0.03", 3043)` dropped, so the
+    bank's +0.03 lean stays the same on every model and the T. rex keeps 9 of
+    its 10 rows. A comment beside `TYRANNOSAURUS_REX_DROPPED_ROWS` in
+    `test_curriculum_policy_probe.py` cites the decision.
+
+  D-D62's row carries a dated amendment for (5) and (16). The plan's top notes,
+  `docs/KNOWN_ISSUES.md` (the walk gate's HIGH item), `docs/NEXT_STEPS.md`
+  (section 1) and `docs/ROADMAP.md` (the 2026-11-24 update) say the same in
+  dated notes. The root `README.md` gains one sentence in its hand-written
+  overview, outside the generated species block: the walk follows a live
+  heading-and-speed command and is judged by `command_tracking/v1`, whose
+  bars are provisional (decision D-D62), so no walk is certified until they
+  are frozen (`species_catalog --check` stays current). No code, config,
+  plant or digest moves for these records.
 - **The development version is `0.4.0.dev3`** (`pyproject.toml`; the
   maintainer's request of 2026-11-24 to bump it once the hunt removal and the
   command-driven walk were done, decisions D-D59 to D-D62). Every run records
   the package version in its provenance (`dependency_versions`) and its stage
-  config (`library_version`), so the runs on the hunt-free tree, whose walk
-  follows a live command, are told apart from the `0.4.0.dev2` runs, whose
-  hunt checkpoints and forward walks these changes strand (Migration). The
-  living docs say where the series ends, in dated notes of 2026-11-24:
+  config (`library_version`), both read from the checkout's `pyproject.toml`
+  before the installed metadata since decision D-D63 (4) (Fixed), so the
+  runs on the hunt-free tree, whose walk follows a live command, are told
+  apart from the `0.4.0.dev2` runs, whose hunt checkpoints and forward walks
+  these changes strand (Migration). The living docs say where the series
+  ends, in dated notes of 2026-11-24:
   `docs/NEXT_STEPS.md`, `docs/ROADMAP.md` (with its version line), a status
   row and note in `docs/CONSOLIDATION_PLAN_2026_09.md`, the gait plan, and a
   new HIGH item in `docs/KNOWN_ISSUES.md` for the walk gate's provisional
@@ -3538,7 +3589,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     node the same way. The result-schema, bundle and catalog tests that read
     the deleted summaries read `result_bundle_helpers.LADDER_SUMMARY`, a
     schema-2 ladder fixture built from the stance and walk rows of the deleted
-    velociraptor PPO summary, and their leaf is the walk.
+    velociraptor PPO summary, and their leaf is the walk (since decision
+    D-D63 retired schema 2, `HISTORICAL_SUMMARY`, the same rows at schema 5:
+    see Removed).
 
 - **The evaluation's success measurement is driven by each model's
   `SUCCESS_KEYS`, and a model without one records no success rate rather
@@ -4723,7 +4776,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `plant_versions.toml` schema 2);
   - task fingerprint v3;
   - result summary 5 (readers accept 2 and 5; the four curated schema-2
-    summaries carry their identity amended in place) and provenance 2;
+    summaries carry their identity amended in place; since decision D-D63
+    the readers accept 5 alone, see Removed) and provenance 2;
   - gate verdict, gate resolution, recovery calibration, recovery evaluation
     and floor-truth measurement v2;
   - the recovery-calibration measurement and PPO-probe outputs
@@ -6481,6 +6535,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **Result-summary schema 2** (decision D-D63 (5)). The readers accept
+  schema 5 alone: `result_schema.SUPPORTED_RESULT_SCHEMA_VERSIONS` is
+  `{5}`, and the version must be an integer (a `5.0` no longer passes). A
+  schema-2 summary is refused by name
+  (`result_schema.RETIRED_RESULT_SCHEMA_VERSIONS`): schema 2 is the
+  integer-stage form of the summaries committed under `results/` until
+  decision D-D59 (`git show 6c9982d81c8a:results/<path>`), and the refusal
+  says to read it with the tree at that commit (version 0.4.0.dev2, before
+  D-D59 removed the stage 3 those summaries record): no release tag exists,
+  and a later tree that still declares 0.4.0.dev2 refuses them. Schema 3 and 4
+  keep their D-D33 refusal. Deleted with it: every rule gated below schema
+  4 (every advancing stage present for a complete summary, every advancing
+  stage passed for a canonical one, the canonical `bundle_status ==
+  "complete"` check, the headline and the selected model taken from the
+  terminal advancing stage), `validate_provenance`'s `schema_version`
+  parameter and its guess from a `deliverables` key, and the v3 and v4
+  runtime-field tuples: `CANONICAL_RUNTIME_PROVENANCE_FIELDS` is the one
+  schema-5 tuple (`CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4` and `_V5` are
+  gone). The species catalog's schema-2 branch (a result published with
+  `deliverables = []`) and the README renderer's skip of the Deliverables
+  line for one are gone too. The test fixture `LADDER_SUMMARY` becomes
+  `HISTORICAL_SUMMARY`, a complete schema-5 summary with the same two stage
+  rows and a deliverable record per stage, and `test_result_summaries.py`
+  pins the schema-2 refusal through the schema and the catalog.
+  `docs/RESULT_BUNDLES.md`, the website's recipes and intro pages and
+  `results/README.md` say so.
 - **The hunt nodes and their publication** (decision D-D59, taken 2026-11-23;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). The first change carrying out the
   hunt's removal; it changes no environment code, so no stance, recovery or
@@ -6534,7 +6614,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     walk instead of the hunt.
   - The catalog's `stage3_success_rate` export (`species_catalog.py`, the
     website's `RawResult` and `PublishedResult`): a schema-2 ladder result on
-    the website now headlines its fastest stage velocity
+    the website (none since decision D-D63 retired schema 2) now headlines its
+    fastest stage velocity
     (`max_average_forward_velocity`), and the RESULTS block of
     `docs/SPECIES_CATALOG.md`, with no summary to render, says that no result
     summary is published. The D-A10 golden of the four summaries
@@ -7019,6 +7100,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **The package version prefers the checkout's `pyproject.toml`** (decision
+  D-D63 (4); no digest moves). `config.get_library_version` asked
+  `importlib.metadata` first, so a stale editable install recorded the
+  version of its last install (this tree's 0.4.0.dev3 recorded as
+  0.4.0.dev2). It now returns the `[project] version` of the checkout's
+  `pyproject.toml` when its `[project] name` is `mesozoic-labs` (compared in
+  its PEP 503 normal form), and otherwise falls back to the installed
+  metadata (a wheel or site-packages install), then to `"unknown"`. A
+  foreign project's `pyproject.toml`, a malformed file (invalid TOML, or
+  bytes that are not UTF-8) and a dynamic version read as no checkout.
+  `provenance.json`'s `dependency_versions["mesozoic_labs"]` read the
+  metadata on its own; it now reads the same function (`"unknown"` recorded as `null`), so
+  `stage_config.json`'s `library_version`, each resume session's, the
+  `metrics.json` payload, `stage_summary.txt` and the provenance never
+  record two versions. `test_library_version.py` pins the three cases, the
+  fallbacks, the agreement and that no other library module reads the
+  metadata.
+- **The Drive summary's `library_version` column holds the package version
+  on every row** (decision D-D63 (4); no digest moves).
+  `notebooks/google_drive_summary.ipynb` filled it, for a result bundle's
+  rows, with the training backend's `backend_version` (the
+  Stable-Baselines3 version), and for a historical run's rows with
+  `stage_config.json`'s mesozoic-labs version, so one column of
+  `logs/runs_summary.csv` held two kinds of version. A bundle's rows now
+  read `provenance.json`'s `dependency_versions["mesozoic_labs"]`, and the
+  backend's version has its own `backend_version` column.
+  `test_drive_summary_notebook.py` pins both columns. This closes the
+  KNOWN_ISSUES LOW item on the column (the 2026-10 CU-15 scouting), which
+  is deleted.
+- **The command-line curriculum publishes its command figures atomically**
+  (no digest moves). `train_base._post_training_command_verdict` saved
+  `figures/command_tracking.png` and `figures/command_gate_progress.png`
+  with a plain `savefig` straight into the stage directory, where a runtime
+  that died mid-draw could leave a half-written png on a Drive mount. It now
+  draws them in `stage_layout.staged_artifacts` and publishes them with
+  `atomic_copy`, as the notebook path (`generate_stage_artifacts`) does; the
+  stale-figure sweep still removes an earlier judgement's published copies
+  before anything is drawn. The publish runs in a `finally`, so a figure
+  whose `savefig` raised or was interrupted (Ctrl-C, a Colab interrupt)
+  part-way would still have been copied truncated, on either path:
+  `write_command_tracking_figures` now removes a failed figure's partial
+  file before the error is logged or goes on. A staging directory that
+  cannot be created (a full or read-only temp directory) costs the figures,
+  never the verdict: the judge logs it and returns, so `train_curriculum`
+  still writes the walk's `gate_verdict.json`. Tests in
+  `test_command_tracking_charts.py` run the judge on a staged and on a
+  report-less judgement, and a figure that writes 108 bytes and then raises
+  `OSError` or `KeyboardInterrupt` leaves no file where it was drawn and
+  none in the published `figures/`; a failing `mkdtemp` still returns the
+  verdict.
 - **A same-stage resume of a live walk under another seed is refused**
   (decision D-D62 (20); no digest moves). A live stage's in-training
   evaluation rolls one panel drawn from the run's evaluation seed, and a

@@ -20,7 +20,8 @@
 * **The wiring**: ``stage_artifacts.write_command_tracking_figures`` is a
   no-op for other kinds, rolls the trace only on the pair the report scored,
   never raises, and a failure costs its own file; ``generate_stage_artifacts``
-  and the CLI curriculum's judge draw them after the verdict.
+  and the CLI curriculum's judge draw them after the verdict, both into a
+  staging directory published with ``atomic_copy``.
 
 The end-to-end figures of a trained stage are in
 ``test_command_tracking_wiring.py`` (``TestEndToEnd``).
@@ -845,7 +846,164 @@ class TestTheWiring:
         )
         judge = inspect.getsource(train_base._post_training_command_verdict)
         assert judge.index("evaluate_stage_gate(") < judge.index("write_command_tracking_figures(")
-        assert "figures_dir(stage_dir)" in judge
+        # The CLI judge stages its figures and publishes them atomically, as the notebook path does.
+        assert judge.index("staged_artifacts(stage_dir)") < judge.index("write_command_tracking_figures(")
+        assert "figures_dir(staging, create=True)" in judge and "figures_dir(stage_dir)" not in judge
+
+    @staticmethod
+    def _judge(directory: Path, monkeypatch: pytest.MonkeyPatch, report: Any, passed: bool) -> list[Path]:
+        """Run the CLI curriculum's post-training judge on *directory* with *report* as the panel it rolled and
+        *passed* as the verdict; return every destination ``atomic_copy`` wrote."""
+        from environments.shared import file_io, train_base
+        from environments.shared.reporting import gates
+
+        monkeypatch.setattr(stage_artifacts, "_write_command_tracking_report", lambda **kwargs: report)
+        monkeypatch.setattr(gates, "evaluate_stage_gate", lambda *args, **kwargs: (passed, []))
+        monkeypatch.setattr(stage_artifacts, "admitted_command_tracking_stage_result", lambda *args, **kwargs: {})
+        copied: list[Path] = []
+        real_copy = file_io.atomic_copy
+
+        def recording_copy(src: Any, dst: Any, **kwargs: Any) -> None:
+            copied.append(Path(dst))
+            real_copy(src, dst, **kwargs)
+
+        monkeypatch.setattr(file_io, "atomic_copy", recording_copy)
+        config = {"curriculum_kwargs": WALK_CURRICULUM, "env_kwargs": {}}
+        verdict, _failures, _result = train_base._post_training_command_verdict(
+            COMPSOGNATHUS_LONGIPES, 2, config, stage_dir=directory, model_dir=directory / "models"
+        )
+        assert verdict is passed
+        return copied
+
+    def test_the_cli_judge_draws_into_staging_and_publishes_with_atomic_copy(self, tmp_path, monkeypatch):
+        """The CLI path's figures are never saved straight into the stage's figures/: they are drawn into a staging
+        directory outside it and published with atomic_copy, over an earlier judgement's published copies, which the
+        sweep has removed before anything is drawn."""
+        pytest.importorskip("matplotlib")
+        from environments.shared.reporting import command_tracking_trace, stage_layout
+
+        directory = _charted_stage(tmp_path)
+        report = json.loads((directory / "command_tracking_report.json").read_text())
+        published = stage_layout.figures_dir(directory, create=True)
+        names = ("command_tracking.png", "command_gate_progress.png")
+        for name in names:
+            (published / name).write_bytes(b"an earlier judgement's figure")
+        monkeypatch.setattr(command_tracking_trace, "roll_command_trace", self._roll_from_report)
+        drawn_into: list[Path] = []
+        real_write = stage_artifacts.write_command_tracking_figures
+
+        def recording_write(**kwargs: Any) -> list[Path]:
+            drawn: list[Path] = real_write(**kwargs)
+            drawn_into.append(Path(kwargs["figures_out"]))
+            # Inside the staged block: drawn into staging, the published copies swept and not yet replaced.
+            assert [path.name for path in drawn] == list(names)
+            assert all(path.parent == drawn_into[-1] for path in drawn)
+            assert not any((published / name).exists() for name in names)
+            return drawn
+
+        monkeypatch.setattr(stage_artifacts, "write_command_tracking_figures", recording_write)
+        copied = self._judge(directory, monkeypatch, report, passed=True)
+        (staging,) = drawn_into
+        assert directory.resolve() not in staging.resolve().parents
+        assert not staging.exists(), "the staging directory is removed after the publish"
+        assert sorted(copied) == sorted(published / name for name in names)
+        for name in names:
+            assert (published / name).is_file()
+            assert (published / name).read_bytes().startswith(b"\x89PNG"), name
+        assert (directory / COMMAND_TRACKING_TRACE_CSV).is_file()
+
+    def test_the_cli_judge_without_a_report_removes_the_published_copies_and_publishes_nothing(
+        self, tmp_path, monkeypatch
+    ):
+        pytest.importorskip("matplotlib")
+        from environments.shared.reporting import command_tracking_trace, stage_layout
+
+        directory = _charted_stage(tmp_path)
+        published = stage_layout.figures_dir(directory, create=True)
+        stale = [published / "command_tracking.png", published / "command_gate_progress.png"]
+        for path in stale:
+            path.write_bytes(b"an earlier judgement's figure")
+        monkeypatch.setattr(command_tracking_trace, "roll_command_trace", MagicMock(side_effect=AssertionError))
+        assert self._judge(directory, monkeypatch, None, passed=False) == []
+        assert not any(path.exists() for path in stale)
+        assert not (directory / COMMAND_TRACKING_TRACE_CSV).exists()
+
+    def test_a_staging_directory_that_cannot_be_created_costs_the_figures_not_the_verdict(self, tmp_path, monkeypatch):
+        """The local staging directory is set up outside the writer's own guards: if it cannot be created (a full or
+        read-only temp directory), the judge logs it and still returns its verdict, so train_curriculum goes on to
+        write gate_verdict.json after the stage's whole budget instead of crashing."""
+        pytest.importorskip("matplotlib")
+        import tempfile
+
+        from environments.shared.reporting import command_tracking_trace
+
+        directory = _charted_stage(tmp_path)
+        report = json.loads((directory / "command_tracking_report.json").read_text())
+        monkeypatch.setattr(command_tracking_trace, "roll_command_trace", self._roll_from_report)
+        real_mkdtemp = tempfile.mkdtemp
+
+        def failing_mkdtemp(*args: Any, **kwargs: Any) -> str:
+            if str(kwargs.get("prefix", args[1] if len(args) > 1 else "")).startswith("mesozoic-stage-artifacts-"):
+                raise OSError(28, "No space left on device")
+            return str(real_mkdtemp(*args, **kwargs))
+
+        monkeypatch.setattr(tempfile, "mkdtemp", failing_mkdtemp)
+        assert self._judge(directory, monkeypatch, report, passed=True) == []
+
+    @staticmethod
+    def _truncating_plot(error: BaseException) -> Any:
+        """A figure that dies mid-savefig: it writes the first 108 bytes of a png to its save path, then raises."""
+
+        def plot(stage_dir: Any, *, save_path: Path, **kwargs: Any) -> Any:
+            Path(save_path).write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 100)
+            raise error
+
+        return plot
+
+    @pytest.mark.parametrize("error", [OSError("disk full"), KeyboardInterrupt()], ids=["oserror", "interrupt"])
+    def test_a_figure_that_dies_mid_draw_leaves_no_partial_file_where_it_was_drawn(self, tmp_path, monkeypatch, error):
+        """The writer removes a failed figure's partial file before the error goes on: a straight-through write keeps
+        no truncated png, and a staging directory holds nothing for its publish to copy."""
+        pytest.importorskip("matplotlib")
+        from environments.shared import visualization
+        from environments.shared.reporting import command_tracking_trace
+
+        directory = _charted_stage(tmp_path)
+        report = json.loads((directory / "command_tracking_report.json").read_text())
+        monkeypatch.setattr(command_tracking_trace, "roll_command_trace", self._roll_from_report)
+        monkeypatch.setattr(visualization, "plot_command_gate_progress", self._truncating_plot(error))
+        figures = tmp_path / "figures"
+        if isinstance(error, Exception):
+            assert [path.name for path in _write(directory, report, figures, verdict=True)] == ["command_tracking.png"]
+        else:
+            with pytest.raises(KeyboardInterrupt):
+                _write(directory, report, figures, verdict=True)
+        assert (figures / "command_tracking.png").read_bytes().startswith(b"\x89PNG")
+        assert not (figures / "command_gate_progress.png").exists()
+
+    @pytest.mark.parametrize("error", [OSError("disk full"), KeyboardInterrupt()], ids=["oserror", "interrupt"])
+    def test_the_cli_judge_never_publishes_a_figure_that_died_mid_draw(self, tmp_path, monkeypatch, error):
+        """staged_artifacts publishes in a finally, on an error and on an interrupt alike: the half-written png the
+        failed savefig left in staging is gone before it, so the stage's figures/ holds the complete figure only (the
+        earlier judgement's copy of the failed one was swept before drawing)."""
+        pytest.importorskip("matplotlib")
+        from environments.shared import visualization
+        from environments.shared.reporting import command_tracking_trace, stage_layout
+
+        directory = _charted_stage(tmp_path)
+        report = json.loads((directory / "command_tracking_report.json").read_text())
+        published = stage_layout.figures_dir(directory, create=True)
+        for name in ("command_tracking.png", "command_gate_progress.png"):
+            (published / name).write_bytes(b"an earlier judgement's figure")
+        monkeypatch.setattr(command_tracking_trace, "roll_command_trace", self._roll_from_report)
+        monkeypatch.setattr(visualization, "plot_command_gate_progress", self._truncating_plot(error))
+        if isinstance(error, Exception):
+            assert self._judge(directory, monkeypatch, report, passed=True) == [published / "command_tracking.png"]
+        else:
+            with pytest.raises(KeyboardInterrupt):
+                self._judge(directory, monkeypatch, report, passed=True)
+        assert (published / "command_tracking.png").read_bytes().startswith(b"\x89PNG")
+        assert not (published / "command_gate_progress.png").exists()
 
 
 # ── a real plant ─────────────────────────────────────────────────────────────

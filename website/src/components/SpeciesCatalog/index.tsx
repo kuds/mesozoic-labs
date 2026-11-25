@@ -392,9 +392,9 @@ export function PublishedResults({species}: {species: Species}): React.JSX.Eleme
               ))}
             </tbody>
           </table>
-          {/* Only a schema-4 result publishes deliverables; the committed ladder
-              summaries publish none, so their rendering is byte-identical to
-              the pre-Phase-A page (decision D-A10). */}
+          {/* Every published result carries deliverables (decision D-D63 retired
+              the schema-2 ladder summaries, which published none and rendered as
+              the pre-Phase-A page did: decision D-A10). */}
           {result.deliverables.length > 0 && (
             <>
               <h4>Deliverables</h4>

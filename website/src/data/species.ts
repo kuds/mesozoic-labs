@@ -287,10 +287,10 @@ export interface PublishedResult {
   totalTimesteps: number;
   totalTrainingTime: string | null;
   finalAverageReward: number | null;
-  /** Fastest stage velocity the summary reports; a ladder summary's headline (headlineFor). */
+  /** Fastest stage velocity the summary reports; headlineFor's headline only for a result without deliverables. */
   maxAverageForwardVelocity: number | null;
   provenance: ResultProvenance;
-  /** Empty for every schema-2 ladder summary; never synthesized. */
+  /** Never synthesized; the catalog publishes no result without one (decision D-D63 retired schema 2). */
   deliverables: ResultDeliverable[];
   primaryDeliverable: string | null;
   targetDeliverable: string | null;
@@ -863,7 +863,7 @@ export function successMetricForBackend(species: Species, backend: TrainingBacke
   return metric;
 }
 
-/** The certified primary deliverable of a schema-4 result, or null for a ladder summary. */
+/** The certified primary deliverable of a result, or null for one without deliverables (a retired ladder summary). */
 export function primaryDeliverableOf(result: PublishedResult): ResultDeliverable | null {
   if (result.deliverables.length === 0) return null;
   const primary = result.deliverables.find((deliverable) => deliverable.stageKey === result.primaryDeliverable);
@@ -889,10 +889,11 @@ export function formatHeadlineValue(metric: HeadlineMetric): string {
  * value until a later phase — decisions D-A9 and D-B15), and a provisional
  * primary — fewer certifying runs than the current config's
  * certification_seeds — says so with its count (plan §4.5, decision D-B11),
- * so a one-seed pass never headlines as settled.  A ladder summary
- * publishes no deliverable and headlines the fastest stage velocity it
- * reports; its stage-3 "Task success" headline left with the hunt nodes
- * (decision D-D59).
+ * so a one-seed pass never headlines as settled.  A result without
+ * deliverables headlines the fastest stage velocity it reports; the catalog
+ * publishes none since decision D-D63 retired the schema-2 ladder summaries,
+ * whose stage-3 "Task success" headline left with the hunt nodes (decision
+ * D-D59).
  */
 export function headlineFor(result: PublishedResult): {label: string; value: string} {
   const primary = primaryDeliverableOf(result);

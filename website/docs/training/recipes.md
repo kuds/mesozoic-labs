@@ -691,8 +691,11 @@ digests, the `task_sha256` it was judged on, when it was judged and
 ## Publication per deliverable
 
 Result schema v5 (`summary.json`, v4's per-deliverable shape with the
-`embodiment` field; `provenance.json` is provenance schema 2; the curated
-schema-2 summaries still read):
+`embodiment` field; `provenance.json` is provenance schema 2). The readers
+accept result schema 5 alone: decision D-D63 retired result schema 2, the
+integer-stage form of the summaries committed until D-D59, which the tree
+at commit `6c9982d81c8a` (version 0.4.0.dev2, before D-D59 removed the
+stage 3 they record) still reads:
 
 - `provenance.deliverables` maps each deliverable the run holds to
   `model_path`, `model_hash`, `normalization_hash`, `gate_kind`, `certified`
@@ -753,10 +756,12 @@ never hand-edited); result rows list one entry per deliverable
 headlined by its gate kind, with stance and recovery headline values
 rendered as null until a later phase exports per-stage gate metrics
 (decision D-B15); and stage
-videos are keyed by stage id. A historical ladder summary publishes
-`deliverables = []` and is never relabelled certified; the four committed
-ones, whose last stage was a hunt, were deleted by decision D-D59 (the last
-commit holding them is named in `results/README.md`).
+videos are keyed by stage id. A result that certifies no deliverable is
+never published. A historical ladder summary published `deliverables = []`
+and was never relabelled certified; the four committed ones, whose last
+stage was a hunt, were deleted by decision D-D59 (the last commit holding
+them is named in `results/README.md`), and decision D-D63 retired their
+schema.
 
 ## Experiments on a node that already passes
 

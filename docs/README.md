@@ -147,6 +147,13 @@ done),
 (2026-08-28, pipeline gaps and cleanup findings at `ea0d339`; its appended
 appendix B records what became of every finding as of 2026-09-30, and its open
 findings are in KNOWN_ISSUES),
+[SB3_NOTEBOOK_REVIEW_2026_11.md](reviews/SB3_NOTEBOOK_REVIEW_2026_11.md)
+(2026-11-22, the SB3 training notebook, the pipeline behind it and every
+post-training artifact across all seven models, written before the hunt's
+removal and the command-driven walk; its appended status of 2026-11-25,
+decision D-D63 (7), marks each of its 141 findings addressed, moot or open on
+that day's tree; its open findings are listed there and not yet folded into
+KNOWN_ISSUES),
 [CODE_REVIEW.md](reviews/CODE_REVIEW.md) (superseded). Open findings live in
 [KNOWN_ISSUES.md](KNOWN_ISSUES.md), not here.
 

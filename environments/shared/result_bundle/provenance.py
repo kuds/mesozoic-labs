@@ -167,9 +167,19 @@ def _accelerator_versions() -> dict[str, str | None]:
 
 def _dependency_versions() -> dict[str, str | None]:
     """Every :data:`_DEPENDENCY_PACKAGES` version from the installed package metadata (``None`` when absent), and
-    the accelerator stack's (:func:`_accelerator_versions`)."""
+    the accelerator stack's (:func:`_accelerator_versions`).
+
+    ``mesozoic_labs`` is :func:`~environments.shared.config.get_library_version`'s (``None`` for its
+    ``"unknown"``): a source checkout's ``pyproject.toml`` version before the installed metadata, the version
+    ``stage_config.json`` records, so a stale editable install never records two."""
+    from ..config import get_library_version
+
     installed: dict[str, str | None] = {}
     for label, package in _DEPENDENCY_PACKAGES.items():
+        if label == "mesozoic_labs":
+            library_version = get_library_version()
+            installed[label] = None if library_version == "unknown" else library_version
+            continue
         try:
             installed[label] = version(package)
         except PackageNotFoundError:

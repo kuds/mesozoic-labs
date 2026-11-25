@@ -3,9 +3,9 @@
 ``test_result_bundle_*.py`` each cover one submodule of
 ``environments.shared.result_bundle``; these builders assemble the on-disk
 run directories they all operate on.  ``_canonical_summary`` is the complete
-curated summary ``test_result_summaries.py`` and ``test_result_schema_v4.py``
-validate, built on :data:`LADDER_SUMMARY`, a schema-2 ladder summary kept here
-since ``results/`` holds none (decision D-D59).
+canonical summary ``test_result_summaries.py`` and ``test_result_schema_v4.py``
+validate, built on :data:`HISTORICAL_SUMMARY`, a complete schema-5 historical
+summary kept here since ``results/`` holds none (decision D-D59).
 """
 
 from __future__ import annotations
@@ -41,13 +41,35 @@ VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 #: The advancing stages of every committed manifest: stance and locomotion (decision D-D59 removed legacy 3).
 ADVANCING_STAGES: "tuple[int, ...]" = (1, 2)
 
-#: A curated schema-2 ladder summary for the velociraptor, the shape the readers still accept.  Its two stage rows
-#: are the stance and walk rows of the 2026-03 PPO summary that ``results/`` held until decision D-D59 deleted it
-#: with the hunt nodes (``git show 6c9982d81c8a:results/velociraptor_mongoliensis/anatomical/ppo/summary.json``);
-#: that summary's stage-3 hunt row is left out and the run totals are re-summed over the two stages, so the
-#: validators' totals checks hold.  A test fixture only: nothing publishes it.
-LADDER_SUMMARY: dict[str, Any] = {
-    "schema_version": 2,
+#: The run id the historical fixture's deliverable records replicate, and the canonical fixture's ``run_id``.
+_HISTORICAL_RUN_ID = "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test"
+
+
+def _historical_deliverable(stage: int) -> dict[str, Any]:
+    """The deliverable record of one stage of :data:`HISTORICAL_SUMMARY`: certified under the reward gate its row
+    passed, on the checkpoint ``_canonical_summary`` selects for that stage."""
+    return {
+        "model_path": f"stage{stage}/models/best_model.zip",
+        "model_hash": "sha256:" + ("b" if stage == ADVANCING_STAGES[-1] else "e") * 64,
+        "normalization_hash": "sha256:" + "f" * 64,
+        "gate_kind": "reward_and_length/v1",
+        "certified": True,
+        "replication": {"count": 1, "runs": [{"run_id": _HISTORICAL_RUN_ID, "training_seed": 42}]},
+    }
+
+
+#: A complete schema-5 historical summary for the velociraptor (decision D-D63 retired schema 2, the integer-stage
+#: form the curated summaries had).  Its two stage rows are the stance and walk rows of the 2026-03 PPO summary that
+#: ``results/`` held until decision D-D59 deleted it with the hunt nodes (``git show
+#: 6c9982d81c8a:results/velociraptor_mongoliensis/anatomical/ppo/summary.json``, a schema-2 summary); that summary's
+#: stage-3 hunt row is left out and the run totals are re-summed over the two stages, so the validators' totals
+#: checks hold.  Its provenance is historical and unverified with null identifiers, as curated, plus what schema 5
+#: publishes by: the model, the backend and a deliverable record per stage (both certified under the reward gate
+#: their rows passed; the rows record no gate kind, as curated), walk the target and the primary.  A test fixture
+#: only: nothing publishes it.
+HISTORICAL_SUMMARY: dict[str, Any] = {
+    "schema_version": 5,
+    "bundle_status": "complete",
     "provenance": {
         "model_revision_status": "historical",
         "verification_status": "unverified",
@@ -55,6 +77,11 @@ LADDER_SUMMARY: dict[str, Any] = {
         "repository_commit": None,
         "model_hash": None,
         "config_hash": None,
+        **VELOCIRAPTOR_MONGOLIENSIS.record(),
+        "backend": "stable-baselines3",
+        "deliverables": {str(stage): _historical_deliverable(stage) for stage in ADVANCING_STAGES},
+        "primary_deliverable": str(ADVANCING_STAGES[-1]),
+        "target_deliverable": str(ADVANCING_STAGES[-1]),
     },
     "species": "velociraptor_mongoliensis",
     "embodiment": "anatomical",
@@ -526,8 +553,8 @@ def _load_summary(path: Path) -> dict[str, Any]:
 
 
 def _published_summary() -> dict[str, Any]:
-    """A fresh copy of :data:`LADDER_SUMMARY`, the curated schema-2 ladder summary."""
-    return deepcopy(LADDER_SUMMARY)
+    """A fresh copy of :data:`HISTORICAL_SUMMARY`, the complete schema-5 historical summary."""
+    return deepcopy(HISTORICAL_SUMMARY)
 
 
 def _canonical_plant_identity() -> dict[str, Any]:
@@ -540,7 +567,7 @@ def _canonical_summary() -> dict[str, Any]:
     summary.update(
         {
             "bundle_status": "complete",
-            "run_id": "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
+            "run_id": _HISTORICAL_RUN_ID,
             "backend_version": "2.7.0",
             "plant_identity": plant_identity,
         }

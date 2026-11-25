@@ -657,10 +657,18 @@ never raises; each figure is in its own guard):
 The figures describe the judgement that drew them. The writer first removes
 the trace and both figures an earlier judgement left, and draws nothing
 when this judgement built no report (the panel could not be rolled, and the
-gate failed closed). Each trace row carries the checkpoint digest it was
-rolled on, and the tracking figure draws only the rows of the report's
-handoff, so a trace of another pair never appears as this one's. Nothing
-reads the trace or the figures: they are report-only.
+gate failed closed). Both paths draw the two figures into a local staging
+directory and copy them into the stage's `figures/` with `atomic_copy`:
+the notebook's post-stage pipeline (`generate_stage_artifacts`) and the
+command-line curriculum's post-training judge alike, so a runtime that dies
+mid-draw leaves no half-written png on a Drive mount. The copy runs even
+when a draw raises or is interrupted (Ctrl-C, a Colab interrupt), so the
+writer first removes the failed figure's partial file: the stage's
+`figures/` then holds no copy of that figure. Each trace row carries
+the checkpoint digest it was rolled on, and the tracking figure draws only
+the rows of the report's handoff, so a trace of another pair never appears
+as this one's. Nothing reads the trace or the figures: they are
+report-only.
 
 ## Evaluation episodes: `eval_episodes.csv`
 

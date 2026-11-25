@@ -48,8 +48,11 @@ The last commit that holds them is
 `6c9982d81c8a34c0402905feb2724cffde04e974`; `git show 6c9982d81c8a:results/<path>`
 reads any of them. They were schema 2, marked `historical` and `unverified`:
 they predated model and configuration hashes, so they were never evidence
-for a current model revision. The website's two unused apex GIFs,
-`website/static/img/ppo_apex.gif` and `sac_apex.gif`, were byte-identical
+for a current model revision. The readers accept schema 5 alone since
+decision D-D63 retired schema 2; the tree at that commit (version
+0.4.0.dev2) still reads them, while a later tree, even one that still
+declares 0.4.0.dev2, refuses their stage 3. The website's two unused apex
+GIFs, `website/static/img/ppo_apex.gif` and `sac_apex.gif`, were byte-identical
 copies of the two `strike.gif` and were deleted with them; the same commit
 holds them (`git show 6c9982d81c8a:website/static/img/<name>`).
 
