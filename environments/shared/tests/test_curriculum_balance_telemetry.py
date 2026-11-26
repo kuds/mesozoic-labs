@@ -13,18 +13,12 @@ balance and force fields, the mirror-even leg DC, the reward-term split and
 the force matrix), the action-jerk reward key, the PostureTrend watch, the
 per-rollout episode and fall counts, the training-episode ledger, the
 policy probe (its forward pass of every rollout buffer's observations for
-the rollout clip shares included), the checkpoint archive rule and the
-in-run K3 noise panel (``k3_panel``: enabled at test scale in both runs'
-launch, every 128 steps on spawns 3042 and 3043, so three of its panels
-fall inside a rollout, and switched off in the plain run by its builder;
-its panels equal an offline run on the saved checkpoint pairs, and its
-final panel runs after the final pair is saved).  The
+the rollout clip shares included) and the checkpoint archive rule.  The
 two runs train and evaluate exactly alike (the same ``evaluations.npz``,
 the same tensors in every checkpoint, the same VecNormalize statistics),
 and so do a second pair trained with mirror-symmetric PPO (``[ppo]
 symmetry = "mirror_kl"``, the stance5 LTSB arm's: ``MirrorKLPPO``'s
-``log_std`` tie hook and symmetric observation statistics beside the
-panel's CPU copy of the policy),
+``log_std`` tie hook and symmetric observation statistics),
 the plain run writes the key sets main writes for the same run without
 this change, pinned below as they were derived on
 ``2e734e29`` (main's commits since, through ``c6292b1e``, change no
@@ -38,7 +32,7 @@ update) and at the end of ``learn()`` a hash of the policy's parameters,
 its optimizer state and the global generators (``numpy.random``,
 ``random``, torch).  The two sequences must be identical: the training-side
 telemetry, the probe's state bank included, draws no random number and
-changes no update.  Nothing records a TensorBoard key for the panel.
+changes no update.
 """
 
 from __future__ import annotations
@@ -69,14 +63,6 @@ LTSB_REWARD_KEYS = ("reward_lateral_lean", "reward_stance_stagger", "reward_stan
 NECK_HOME_POSE_REWARD_KEY = "reward_neck_home_pose"
 EPISODES = 2
 STEPS = 768
-#: The K3 panel at test scale: every 128 steps (128, 384 and 640 inside a rollout of 256 steps; 512 on the checkpoint
-#: pair's step), two spawns per test, the stance5 replication sidecar's mean sigma.
-K3_EVERY = 128
-K3_SEEDS = (3042, 3043)
-K3_SIGMA_FILE = (
-    Path(__file__).resolve().parents[3] / "docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
-)
-K3_SIGMA_KEY = "80"
 
 #: The keys main writes for this run without this change (at ``2e734e29``, unchanged through ``c6292b1e``),
 #: termination causes aside (which causes a run meets is the run's; both runs here must meet the same ones).
@@ -179,28 +165,11 @@ def _state_digest(model) -> str:
 
 
 def _instrument(monkeypatch, record: dict) -> None:
-    """Hash every rollout-buffer add, and the state before every rollout and at the end of ``learn()``; keep every
-    logger key recorded."""
+    """Hash every rollout-buffer add, and the state before every rollout and at the end of ``learn()``."""
     from stable_baselines3.common.buffers import RolloutBuffer
-    from stable_baselines3.common.logger import Logger
     from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 
-    from environments.shared.k3_panel import K3PanelCallback
-
     add, collect, learn = RolloutBuffer.add, OnPolicyAlgorithm.collect_rollouts, OnPolicyAlgorithm.learn
-    log = Logger.record
-    panel = K3PanelCallback._panel
-
-    def watched_panel(self, kind, **kwargs):
-        models = Path(self.stage_dir) / "models"
-        saved = (models / "stage1_final.zip").is_file() and (models / "stage1_final_vecnorm.pkl").is_file()
-        record["k3_panels"].append([kind, int(self.num_timesteps), saved, record["learning"]])
-        return panel(self, kind, **kwargs)
-
-    def recorded(self, key, *args, **kwargs):
-        if key not in record["logger_keys"]:
-            record["logger_keys"].append(key)
-        return log(self, key, *args, **kwargs)
 
     def hashed_add(self, *args, **kwargs):
         record["rollout_add"].append(_digest(*args, *kwargs.values()))
@@ -211,19 +180,13 @@ def _instrument(monkeypatch, record: dict) -> None:
         return collect(self, *args, **kwargs)
 
     def hashed_learn(self, *args, **kwargs):
-        record["learning"] = True
-        try:
-            result = learn(self, *args, **kwargs)
-        finally:
-            record["learning"] = False
+        result = learn(self, *args, **kwargs)
         record["learn_end"] = _state_digest(self)
         return result
 
     monkeypatch.setattr(RolloutBuffer, "add", hashed_add)
     monkeypatch.setattr(OnPolicyAlgorithm, "collect_rollouts", hashed_collect)
     monkeypatch.setattr(OnPolicyAlgorithm, "learn", hashed_learn)
-    monkeypatch.setattr(Logger, "record", recorded)
-    monkeypatch.setattr(K3PanelCallback, "_panel", watched_panel)
 
 
 def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) -> Path:
@@ -234,7 +197,7 @@ def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) 
     pytest.importorskip("mujoco")
     import torch
 
-    from environments.shared import curriculum, k3_panel, policy_probe, rollout_ledger, train_base
+    from environments.shared import curriculum, policy_probe, rollout_ledger, train_base
     from environments.shared.config import load_all_stages
     from environments.shared.diagnostics import DiagnosticsCallback
     from environments.shared.eval_diagnostics import StageAwareEvalCallback
@@ -266,15 +229,7 @@ def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) 
         monkeypatch.setattr(rollout_ledger, "build_training_ledger_callback", lambda *a, **k: None)
         monkeypatch.setattr(policy_probe, "build_policy_probe_callback", lambda *a, **k: None)
         monkeypatch.setattr(curriculum, "checkpoint_archive_every", lambda curriculum_kwargs: 0)
-        monkeypatch.setattr(k3_panel, "build_k3_panel_callback", lambda *a, **k: None)
-    record: dict[str, Any] = {
-        "rollout_add": [],
-        "updates": [],
-        "learn_end": None,
-        "logger_keys": [],
-        "k3_panels": [],
-        "learning": False,
-    }
+    record: dict[str, Any] = {"rollout_add": [], "updates": [], "learn_end": None}
     _instrument(monkeypatch, record)
     configs = load_all_stages(TYRANNOSAURUS_REX)
     # The key sets below were pinned on 2e734e29, before the r10 LTSB stance recipe (the stance-landing decision of
@@ -304,10 +259,6 @@ def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) 
             verbose=0,
             use_tensorboard=False,
             output_dir=str(run / "01_stance"),
-            # The same launch option in both runs; the plain run's builder above returns no callback.
-            k3_panel=k3_panel.K3PanelConfig(
-                sigma_file=str(K3_SIGMA_FILE), sigma_key=K3_SIGMA_KEY, every=K3_EVERY, seeds=K3_SEEDS
-            ),
         )
     finally:
         torch.set_num_threads(threads)
@@ -408,12 +359,6 @@ def test_the_training_side_telemetry_draws_no_random_number_and_changes_no_updat
     assert full["rollout_add"] == plain["rollout_add"]
     assert full["updates"] == plain["updates"]
     assert full["learn_end"] == plain["learn_end"]
-    # The panels the full run rolled: on the grid inside learn() (three of them mid-rollout), and the final one
-    # after learn() returned, with the final checkpoint pair on disk; the plain run rolled none.
-    grid = [[kind, step, saved, inside] for kind, step, saved, inside in full["k3_panels"] if kind == "grid"]
-    assert grid == [["grid", step, False, True] for step in range(K3_EVERY, STEPS + 1, K3_EVERY)]
-    assert full["k3_panels"][-1] == ["final", STEPS, True, False] and len(full["k3_panels"]) == len(grid) + 1
-    assert plain["k3_panels"] == []
 
 
 def test_the_plain_run_writes_the_bases_artifacts(trained):
@@ -562,117 +507,14 @@ def test_the_full_run_writes_the_body_columns_last_and_ledger_only(trained):
             )
 
 
-def _k3_stage_factory():
-    """The stance env the proof trained (the pre-landing stance ``_train`` sets, its horizon 40 steps past the
-    settle window), as the panel builds it."""
-    from environments.shared.config import load_all_stages
-    from environments.shared.species_registry import get_species_config
-
-    configs = load_all_stages(TYRANNOSAURUS_REX)
-    pre_landing_stance(configs)  # as _train trains it, so the offline panel rolls the env the run rolled
-    stance = configs[1]
-    stance["env_kwargs"]["max_episode_steps"] = int(stance["curriculum_kwargs"]["settle_steps"]) + 40
-    env_class, kwargs = get_species_config(TYRANNOSAURUS_REX).env_class, dict(stance["env_kwargs"])
-    return (lambda: env_class(**kwargs)), int(kwargs["max_episode_steps"])
-
-
-def test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_record(trained):
-    """The full run rolls a panel at every 128 steps and at training end; the panel at 512 and the final one are
-    what an offline run of the same arithmetic gives on the checkpoint pair saved at that step (lengths and returns
-    bit for bit, twice); the plain run writes no panel file; no TensorBoard key, progress.json entry or
-    gate_progress.npz key of it exists in either run."""
-    import torch
-
-    from environments.shared import k3_panel as K
-    from environments.shared.plant_contract import current_plant_identity
-    from environments.shared.policy_loading import load_sb3_checkpoint
-
-    full, plain = trained
-    assert not list(plain.glob("k3_panel*"))
-    assert sorted(path.name for path in full.glob("k3_panel*")) == [K.K3_PANEL_CSV_FILENAME, K.K3_PANEL_JSON_FILENAME]
-    document = json.loads((full / K.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
-    assert document["schema"] == K.K3_PANEL_SCHEMA and document["session_problem"] is None
-    panels = document["panels"]
-    assert [(panel["kind"], panel["timesteps"]) for panel in panels] == [
-        *(("grid", step) for step in range(K3_EVERY, STEPS + 1, K3_EVERY)),
-        ("final", STEPS),
-    ]
-    sidecar = json.loads(K3_SIGMA_FILE.read_text(encoding="utf-8"))
-    sigma = np.asarray(sidecar["control_sigma"][K3_SIGMA_KEY]["vector"], dtype=np.float64)
-    assert document["spec"]["joint_sigma"]["path_in_file"] == f"control_sigma.{K3_SIGMA_KEY}"
-    assert document["spec"]["joint_sigma"]["sha256"] == hashlib.sha256(sigma.astype("<f8").tobytes()).hexdigest()
-    for panel in panels:
-        assert panel["failure"] is None and panel["global_rng_moved"] is False
-        assert panel["own_episodes"] == panel["joint_episodes"] == len(K3_SEEDS)
-    with open(full / K.K3_PANEL_CSV_FILENAME, newline="", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
-    assert len(rows) == 2 * len(K3_SEEDS) * len(panels) and list(rows[0]) == list(K.CSV_COLUMNS)
-
-    factory, horizon = _k3_stage_factory()
-    for panel, (policy_zip, sidecar_pkl) in (
-        (panels[512 // K3_EVERY - 1], ("stage1_512_steps.zip", "stage1_vecnormalize_512_steps.pkl")),
-        (panels[-1], ("stage1_final.zip", "stage1_final_vecnorm.pkl")),
-    ):
-        model, normalizer, _ = load_sb3_checkpoint(
-            str(full / "models" / policy_zip),
-            str(full / "models" / sidecar_pkl),
-            factory,
-            guess_sidecar=False,
-            plant_identity=current_plant_identity(TYRANNOSAURUS_REX),
-        )
-        # The weights and statistics the panel copied are the pair's.
-        assert K.state_dict_sha256(model.policy.state_dict()) == panel["policy_state_sha256"], policy_zip
-        statistics = K.copy_normalization(normalizer)
-        assert statistics is not None
-        assert hashlib.sha256(statistics.mean.astype("<f8").tobytes()).hexdigest() == panel["obs_mean_sha256"]
-        assert hashlib.sha256(statistics.var.astype("<f8").tobytes()).hexdigest() == panel["obs_var_sha256"]
-        threads = torch.get_num_threads()
-        torch.set_num_threads(1)
-        try:
-            offline = [
-                K.run_k3_panel(model.policy, statistics, factory, joint_sigma=sigma, seeds=K3_SEEDS, horizon=horizon)
-                for _ in range(2)
-            ]
-        finally:
-            torch.set_num_threads(threads)
-        assert offline[0] == offline[1]
-        recorded = [row for row in rows if int(row["panel"]) == panel["panel"]]
-        assert [
-            (row["test"], int(row["seed"]), int(row["length"]), float(row["return"]), row["termination_reason"])
-            for row in recorded
-        ] == [(row["test"], row["seed"], row["length"], row["return"], row["termination_reason"]) for row in offline[0]]
-
-    def keys(value) -> set[str]:
-        if isinstance(value, dict):
-            return set(value) | {key for item in value.values() for key in keys(item)}
-        if isinstance(value, list):
-            return {key for item in value for key in keys(item)}
-        return set()
-
-    for stage in (full, plain):
-        instrumentation = json.loads((stage.parent / "instrumentation.json").read_text(encoding="utf-8"))
-        assert instrumentation["logger_keys"] and not any("k3" in key for key in instrumentation["logger_keys"])
-        assert not any("k3" in key for key in keys(json.loads((stage / "progress.json").read_text(encoding="utf-8"))))
-        assert not any("k3" in key for key in _keys(stage / "gate_progress.npz"))
-
-
-def test_the_k3_panel_runs_beside_mirror_symmetric_ppo(trained_symmetric):
-    """The symmetric pair trained MirrorKLPPO (recorded in the stage config and in every checkpoint), and the full
-    run's panels ran in full beside its ``log_std`` tie hook and symmetric statistics, moving no global generator."""
-    from environments.shared import k3_panel as K
+def test_the_symmetric_pair_trains_mirror_symmetric_ppo(trained_symmetric):
+    """The symmetric pair trained MirrorKLPPO: recorded in the stage config and in every run's final checkpoint."""
     from environments.shared.symmetry import CHECKPOINT_ATTRIBUTE
     from environments.shared.task_fingerprint import read_checkpoint_attribute
 
-    full, plain = trained_symmetric
-    for stage in (full, plain):
+    for stage in trained_symmetric:
         assert '"mirror_kl"' in (stage / "stage_config.json").read_text(encoding="utf-8")
         assert read_checkpoint_attribute(stage / "models" / "stage1_final.zip", CHECKPOINT_ATTRIBUTE)
-    assert not list(plain.glob("k3_panel*"))
-    panels = json.loads((full / K.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))["panels"]
-    assert [panel["kind"] for panel in panels] == ["grid"] * (STEPS // K3_EVERY) + ["final"]
-    for panel in panels:
-        assert panel["failure"] is None and panel["global_rng_moved"] is False
-        assert panel["own_episodes"] == panel["joint_episodes"] == len(K3_SEEDS)
 
 
 @pytest.mark.parametrize("pair", PAIRS)

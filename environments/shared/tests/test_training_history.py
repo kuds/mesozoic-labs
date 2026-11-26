@@ -1527,32 +1527,6 @@ def _body_stage(tmp_path: Path, *, name: str = "bodied", nan_columns: tuple[str,
     return stage
 
 
-def _k3_panel_file(stage: Path, points: list[tuple[int, str, int, int, int]], *, sigma: str = "a" * 64) -> None:
-    """A ``k3_panel.json`` (``mesozoic.k3-panel/v1``) of panels ``(steps, kind, own falls, joint falls, n)``."""
-    panels = [
-        {
-            "panel": index,
-            "timesteps": steps,
-            "kind": kind,
-            "failure": None,
-            "joint_sigma_sha256": sigma,
-            "tests": {"own": {"n": n, "falls": own}, "joint": {"n": n, "falls": joint}},
-        }
-        for index, (steps, kind, own, joint, n) in enumerate(points)
-    ]
-    record = {
-        "schema": th.K3_PANEL_SCHEMA,
-        "spec": {
-            "seeds": list(range(3042, 3062)),
-            "horizon": 1000,
-            "every": 1_048_576,
-            "joint_sigma": {"sha256": sigma},
-        },
-        "panels": panels,
-    }
-    (stage / th.K3_PANEL_JSON_FILENAME).write_text(json.dumps(record), encoding="utf-8")
-
-
 def _fake_vecnorm(
     path: Path,
     monkeypatch,
@@ -1679,130 +1653,88 @@ class TestBodyPages:
         assert errors == [] and len(pages) == len(th.page_names())
 
 
-class TestK3PanelAndExploration:
-    def test_the_in_run_panel_is_read_with_k3s_flags_at_its_checkpoints_only(self, tmp_path):
-        stage = _stage(tmp_path)
-        _k3_panel_file(
-            stage,
-            [(1_048_576, "grid", 0, 1, 20), (6_291_456, "grid", 2, 3, 20), (12_001_280, "final", 2, 2, 20)],
-        )
-        panel = th.read_k3_panel(stage)
-        assert panel["recorded"] and [p["timesteps"] for p in panel["points"]] == [1_048_576, 6_291_456, 12_001_280]
-        first, slot, final = panel["points"]
-        assert "joint_within_bar" not in first and first["k3_slot"] is False
-        assert slot["joint_within_bar"] is False and slot["own_within_bar"] is False
-        assert final["joint_within_bar"] is True and final["own_within_bar"] is False
-        _k3_panel_file(stage, [(6_291_456, "grid", 0, 0, 2)])
-        (point,) = th.read_k3_panel(stage)["points"]
-        assert point["joint_within_bar"] is None and "n 2, not K3's 20" in point["within_bar_withheld"]
-        assert th.read_k3_panel(tmp_path / "nowhere")["recorded"] is False
-        from environments.shared import k3_panel
-
-        assert (th.K3_PANEL_JSON_FILENAME, th.K3_PANEL_SCHEMA) == (
-            k3_panel.K3_PANEL_JSON_FILENAME,
-            k3_panel.K3_PANEL_SCHEMA,
-        )
-
-    def test_the_leg_std_comes_from_the_probe_and_is_read_at_each_k3_point(self, tmp_path):
+class TestExplorationAndK3:
+    def test_the_leg_std_comes_from_the_probe_and_is_read_at_each_judged_k3_point(self, tmp_path):
         pytest.importorskip("mujoco")  # the actuator names come from the checkout's MJCF
         stage = _stage(tmp_path)
         steps = np.arange(1, 9, dtype=np.int64) * 1_048_576
         std = np.tile(np.linspace(0.3, 0.05, 8)[:, None], (1, 15)).astype(np.float32)
         np.savez(stage / th.POLICY_PROBE_FILENAME, update_timesteps=steps, std_per_actuator=std)
-        _k3_panel_file(stage, [(2_097_152, "grid", 0, 1, 20), (6_291_456, "grid", 0, 2, 20)])
-        run = th.load_run_history(stage, read_std=False)
+        judged = tmp_path / "judged" / "run_a"
+        _judge_file(judged, "judge_2097152.json", joint=1, own=0)
+        _judge_file(judged, "judge_6291456.json", joint=2, own=0)
+        run = th.load_run_history(stage, read_std=False, judged=judged)
         summary = th.exploration_summary(run)
         assert summary["recorded"] and summary["pairs_tied"] is True
         assert summary["leg_actuators"] == [
             "r_hip_pitch", "r_hip_roll", "r_knee", "r_ankle", "l_hip_pitch", "l_hip_roll", "l_knee", "l_ankle"
         ]  # fmt: skip
         at = summary["leg_std_at_k3"]
-        assert [(p["timesteps"], p["std_timesteps"]) for p in at] == [(2_097_152, 2_097_152), (6_291_456, 6_291_456)]
+        assert [(p["source"], p["timesteps"], p["std_timesteps"]) for p in at] == [
+            ("judge", 2_097_152, 2_097_152),
+            ("judge", 6_291_456, 6_291_456),
+        ]
         assert at[1]["std"]["r_knee"] == pytest.approx(float(std[5, 5]))
         context = th._make_context([run], marks=[], smooth=5)
         figure = th._exploration_figure(context, title="t", dpi=30, width=12.0)
         top, falls = figure.axes[:2]
         assert top.get_yscale() == "log" and "knee (r = l, tied)" in top.get_legend_handles_labels()[1]
         assert any("stance3 line-2 floor 0.08" in text.get_text() for text in top.texts)
-        assert any(text.get_text() == "2/0" for text in falls.texts)  # the K3 checkpoint, joint/own
+        assert [text.get_text() for text in falls.texts] == ["2/0"]  # the K3 checkpoint only, joint/own
         document = th.summary([run], title="t", marks=[], smooth=5)
-        assert document["runs"][0]["k3_panel"]["points"][1]["joint_falls"] == 2
+        assert document["runs"][0]["judge_k3"]["checkpoints"][1]["joint_falls"] == 2
 
 
-def test_page_17_breaks_its_lines_marks_a_failed_panel_and_names_the_two_sources(tmp_path):
-    """A failed panel and a skipped joint test break the panel's lines (never bridged); the failed panel is an x at 0;
-    at a K3 checkpoint read by both the panel and the judge, each count is named and the two are stacked; K3's bars
-    are in the legend, not written over the markers."""
+def test_page_17_draws_the_judges_falls_and_writes_them_at_k3s_checkpoints(tmp_path):
+    """The judge's joint-space (diamonds) and own-sigma (crosses) falls at every judged checkpoint; joint/own written
+    at K3's checkpoints only, two at one step stacked; K3's bars in the legend, not written over the markers."""
     stage = _stage(tmp_path)
-    _k3_panel_file(stage, [(1_048_576, "grid", 0, 1, 20), (3_145_728, "grid", 0, 2, 20), (6_291_456, "grid", 1, 3, 20)])
-    record = json.loads((stage / th.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
-    record["panels"].append({"panel": 3, "timesteps": 2_097_152, "kind": "grid", "failure": "RuntimeError: no env"})
-    skipped = {**record["panels"][1], "panel": 4, "timesteps": 4_194_304}
-    skipped["tests"] = {"own": {"n": 20, "falls": 0}, "joint": {"skipped": "no joint-space sigma"}}
-    record["panels"].append(skipped)
-    (stage / th.K3_PANEL_JSON_FILENAME).write_text(json.dumps(record), encoding="utf-8")
     judged = tmp_path / "judged" / "run_a"
+    _judge_file(judged, "judge_4194304.json", joint=1, own=0)
     _judge_file(judged, "judge_6291456.json", joint=2, own=0)
+    _judge_file(judged, "judge_final.json", joint=3, own=1, checks={"checkpoint_num_timesteps": 6_291_456})
     run = th.load_run_history(stage, read_std=False, judged=judged)
     falls = th._exploration_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0).axes[1]
     lines = {line.get_label(): line for line in falls.get_lines()}
-    joint = lines["in-run panel joint-space falls"]
-    assert np.asarray(joint.get_xdata()) * 1e6 == pytest.approx([1_048_576, 2_097_152, 3_145_728, 4_194_304, 6_291_456])
-    assert np.isnan(np.asarray(joint.get_ydata())[[1, 3]]).all() and np.asarray(joint.get_ydata())[4] == 3.0
-    own = np.asarray(lines["in-run panel own-sigma falls"].get_ydata())
-    assert np.isnan(own[1]) and own[3] == 0.0  # the own test ran where the joint one was skipped
-    failed = lines["in-run panel failed (no falls read)"]
-    assert failed.get_marker() == "x" and np.asarray(failed.get_ydata()).tolist() == [0.0]
+    joint, own = lines["judge joint-space falls"], lines["judge own-sigma falls"]
+    assert (joint.get_marker(), own.get_marker()) == ("D", "P")
+    assert np.asarray(joint.get_xdata()) * 1e6 == pytest.approx([4_194_304, 6_291_456, 6_291_456])
+    assert np.asarray(joint.get_ydata()).tolist() == [1.0, 2.0, 3.0]
+    assert np.asarray(own.get_ydata()).tolist() == [0.0, 0.0, 1.0]
     texts = {text.get_text(): text for text in falls.texts}
-    assert {"panel 3/1", "judge 2/0"} <= set(texts)
-    assert texts["judge 2/0"].get_position()[1] > texts["panel 3/1"].get_position()[1]  # stacked above it
+    assert set(texts) == {"2/0", "3/1"}  # 4,194,304 is not one of K3's checkpoints
+    assert texts["3/1"].xy == texts["2/0"].xy == (6_291_456 / 1e6, 3)  # one anchor, over the higher mark
+    assert texts["3/1"].get_position()[1] > texts["2/0"].get_position()[1]  # stacked above it
     assert {"K3 bar: joint-space <= 2 of 20", "K3 bar: own-sigma <= 1 of 20"} <= set(lines)
     assert not any(text.startswith("K3 bar") for text in texts)
 
 
-def test_the_leg_std_at_a_k3_point_is_the_points_own_sigma_where_recorded(tmp_path):
-    """At a final panel the probe's last row is the update before the last train(); the panel's own_sigma (and the
-    judge's sigma_vector) is exp(log_std) of the weights K3 rolled, and is read instead."""
+def test_the_leg_std_at_a_k3_point_is_the_judges_own_sigma_where_recorded(tmp_path):
+    """At a final point the probe's last row is the update before the last train(); the judge's sigma_vector is
+    exp(log_std) of the weights K3 rolled, and is read instead; without it the probe's row at or before is read."""
     pytest.importorskip("mujoco")  # the actuator names come from the checkout's MJCF
     stage = _stage(tmp_path)
     steps = np.arange(1, 9, dtype=np.int64) * 1_048_576
     std = np.tile(np.linspace(0.3, 0.05, 8)[:, None], (1, 15)).astype(np.float32)
     np.savez(stage / th.POLICY_PROBE_FILENAME, update_timesteps=steps, std_per_actuator=std)
-    _k3_panel_file(stage, [(4_194_304, "grid", 0, 1, 20), (8_388_608, "final", 0, 2, 20)])
-    record = json.loads((stage / th.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
-    record["panels"][1]["own_sigma"] = [0.04 + 0.001 * index for index in range(15)]
-    (stage / th.K3_PANEL_JSON_FILENAME).write_text(json.dumps(record), encoding="utf-8")
     judged = tmp_path / "judged" / "run_a"
-    _judge_file(judged, "judge_6291456.json", joint=2, own=0)
-    vector = [0.06 + 0.001 * index for index in range(15)]
-    record = json.loads((judged / "judge_6291456.json").read_text(encoding="utf-8"))
-    record["noise_matched_own"]["sigma_vector"] = vector
-    (judged / "judge_6291456.json").write_text(json.dumps(record), encoding="utf-8")
+    _judge_file(judged, "judge_4194304.json", joint=1, own=0)
+    vector = [0.04 + 0.001 * index for index in range(15)]
+    _judge_file(
+        judged,
+        "judge_final.json",
+        joint=2,
+        own=0,
+        checks={"checkpoint_num_timesteps": 8_388_608},
+        noise_matched_own={"n": 20, "falls": 0, "space": "policy", "sigma_vector": vector},
+    )
     at = th.exploration_summary(th.load_run_history(stage, read_std=False, judged=judged))["leg_std_at_k3"]
-    by = {(p["source"], p["timesteps"]): p for p in at}
-    grid, final, judge = by[("panel", 4_194_304)], by[("panel", 8_388_608)], by[("judge", 6_291_456)]
+    grid, final = ({p["timesteps"]: p for p in at}[step] for step in (4_194_304, 8_388_608))
     assert grid["std_source"].startswith(th.POLICY_PROBE_FILENAME) and grid["std"]["r_knee"] == pytest.approx(
         float(std[3, 5])
     )
-    assert final["std_source"] == "the panel's own_sigma" and final["std_timesteps"] == 8_388_608
+    assert final["std_source"] == "the judge's noise_matched_own sigma_vector" and final["std_timesteps"] == 8_388_608
     assert final["std"]["r_knee"] == pytest.approx(0.045) and final["std"]["l_ankle"] == pytest.approx(0.05)
-    assert judge["std_source"] == "the judge's noise_matched_own sigma_vector" and judge["std"]["r_knee"] == 0.065
-
-
-def test_two_joint_sigmas_are_never_joined_into_one_series(tmp_path):
-    """A resumed session that read another sigma vector draws its panels as a series of their own."""
-    stage = _stage(tmp_path)
-    _k3_panel_file(stage, [(1_048_576, "grid", 0, 1, 20)], sigma="a" * 64)
-    first = json.loads((stage / th.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
-    _k3_panel_file(stage, [(2_097_152, "grid", 0, 2, 20)], sigma="b" * 64)
-    record = json.loads((stage / th.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
-    record["panels"] = first["panels"] + [{**record["panels"][0], "panel": 1}]
-    (stage / th.K3_PANEL_JSON_FILENAME).write_text(json.dumps(record), encoding="utf-8")
-    run = th.load_run_history(stage, read_std=False)
-    assert run.k3_panel["sigma_series"] == ["a" * 64, "b" * 64]
-    figure = th._exploration_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
-    labels = figure.axes[1].get_legend_handles_labels()[1]
-    assert "in-run panel joint-space falls" in labels and "in-run panel joint-space falls\n(sigma bbbbbbbb)" in labels
 
 
 class TestObsNormalization:

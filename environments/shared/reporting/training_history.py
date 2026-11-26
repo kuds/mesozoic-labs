@@ -48,8 +48,8 @@ the training step, for one run or overlaid for several:
   wrenches, balance margins, angular momentum and head rate
   (``19_body_dynamics``);
 - the leg actuators' exploration std (``policy_probe.npz`` per update, else
-  the checkpoint zips) beside K3's noise falls from the in-run K3 panel's
-  ``k3_panel.json`` and the judge files named (``17_exploration_k3``);
+  the checkpoint zips) beside K3's noise falls from the judge files named
+  (``17_exploration_k3``);
 - the observation normalization's drift per checkpoint, from the
   VecNormalize pickles in ``models/`` and the probe's per-update statistics
   (``18_obs_normalization``);
@@ -281,9 +281,9 @@ NOT_RECORDED: tuple[str, ...] = (
     "(policy_probe.npz holds it per update where the run kept that file; the exploration page reads it there).",
     "The body columns (commands, tail and body posture, energy, drift and slip, joint stops, the centre of mass and "
     "momentum, base wrenches, head rate) are recorded per episode only in ledgers written since they were added; an "
-    "older run's are absent series, and a model without a part (no tail, no neck) reads nan there. The K3 noise "
-    "panel is in the stage directory only where the launch enabled it (k3_panel.json); the judge's own K3 is in its "
-    "files (--judged). The normalization page reads the VecNormalize pickles kept in models/ only.",
+    "older run's are absent series, and a model without a part (no tail, no neck) reads nan there. K3 is read from "
+    "the judge's files only (--judged): the k3_panel.json a run wrote before the in-run K3 panel was retired "
+    "(2026-11-26) is not read. The normalization page reads the VecNormalize pickles kept in models/ only.",
     "The per-rollout clip shares are the training rollouts' (sampled actions, and the policy's means at the same "
     "observations), from policy_probe.npz only where the run kept it and wrote its rollout_* arrays; an older run's "
     "are absent series. The JSON keeps each actuator's peak and last values; the per-rollout series are in the file.",
@@ -347,10 +347,6 @@ K3_JUDGE_SCHEMAS: dict[str, str] = {
 #: The judge files read: one per judged checkpoint, ``judge_<steps>.json`` or ``judge_final.json``.
 _JUDGE_FILE = re.compile(r"^judge_(?P<slot>\d+|final)\.json$")
 
-#: The in-run K3 panel's record (``environments/shared/k3_panel.py``, its ``K3_PANEL_JSON_FILENAME`` and
-#: ``K3_PANEL_SCHEMA``), read for the exploration and K3 page; nothing here imports that module (or SB3).
-K3_PANEL_JSON_FILENAME = "k3_panel.json"
-K3_PANEL_SCHEMA = "mesozoic.k3-panel/v1"
 #: The stance3 line-2 exploration reference drawn beside the leg actuators' std (log_std >= ln 0.08 on hip pitch,
 #: knee and ankle in the stance3 design): a reference line, not applied by any stage.
 EXPLORATION_REFERENCE_STD = 0.08
@@ -1115,26 +1111,6 @@ def read_probe_series(path: Path) -> dict[str, np.ndarray]:
     return out
 
 
-def _k3_flags(point: dict[str, Any], seeds: Any) -> None:
-    """Set a K3-checkpoint point's within-bar flags, withheld where its panels are not K3's 20 episodes on spawns
-    3042-3061 (the scorers' own condition)."""
-    if not point["k3_slot"]:
-        return
-    spawns = list(range(K3_SPAWNS[0], K3_SPAWNS[1] + 1))
-    issues = []
-    if list(seeds or []) != spawns:
-        issues.append(f"spawns {seeds!r}, not K3's {K3_SPAWNS[0]}-{K3_SPAWNS[1]}")
-    for name in ("joint", "own"):
-        if point.get(f"{name}_episodes") != K3_EPISODES:
-            issues.append(f"{name} n {point.get(f'{name}_episodes')}, not K3's {K3_EPISODES}")
-    if issues:
-        point["joint_within_bar"] = point["own_within_bar"] = None
-        point["within_bar_withheld"] = "; ".join(issues)
-    else:
-        point["joint_within_bar"] = point["joint_falls"] <= K3_JOINT_MAX_FALLS
-        point["own_within_bar"] = point["own_falls"] <= K3_OWN_MAX_FALLS
-
-
 def _mapping(value: Any) -> Mapping[str, Any]:
     """*value* when it is a mapping, else an empty one."""
     return value if isinstance(value, Mapping) else {}
@@ -1148,72 +1124,6 @@ def _number_list(value: Any) -> list[float] | None:
         return None
     numbers = [float(item) for item in value]
     return numbers if all(math.isfinite(item) for item in numbers) else None
-
-
-def read_k3_panel(stage: Path) -> dict[str, Any]:
-    """The in-run K3 panel's record in *stage* (``k3_panel.json``, ``mesozoic.k3-panel/v1``), as points.
-
-    One point per panel that ran (a failed one is listed in ``failed``): its step, kind (grid, final, resume), the
-    own-sigma and joint-space falls of n, and the joint sigma's sha256 (a series is never joined across two
-    sigmas).  At K3's checkpoints (:data:`K3_SLOT_STEPS` and the final panel) each test says whether it is within
-    its bar, withheld where the panel is not K3's 20 episodes on spawns 3042-3061.  ``recorded`` is ``False``, with
-    ``why``, without a readable file of that schema.
-    """
-    path = stage / K3_PANEL_JSON_FILENAME
-    if not path.is_file():
-        return {
-            "recorded": False,
-            "why": f"no {K3_PANEL_JSON_FILENAME} (the panel is off unless the launch enables it)",
-        }
-    record = read_json_object(path)
-    if record is None:
-        return {"recorded": False, "why": f"{K3_PANEL_JSON_FILENAME} is not a JSON object"}
-    if record.get("schema") != K3_PANEL_SCHEMA:
-        return {"recorded": False, "why": f"{K3_PANEL_JSON_FILENAME} schema {record.get('schema')!r}"}
-    spec = _mapping(record.get("spec"))
-    sigma = _mapping(spec.get("joint_sigma"))
-    points: list[dict[str, Any]] = []
-    failed: list[dict[str, Any]] = []
-    for panel in record.get("panels") or []:
-        if not isinstance(panel, Mapping):
-            continue
-        steps = _whole(panel.get("timesteps"))
-        if panel.get("failure") or steps is None:
-            failed.append({"panel": panel.get("panel"), "timesteps": steps, "failure": panel.get("failure")})
-            continue
-        tests = _mapping(panel.get("tests"))
-        own, joint = _mapping(tests.get("own")), _mapping(tests.get("joint"))
-        kind = str(panel.get("kind") or "")
-        point: dict[str, Any] = {
-            "panel": panel.get("panel"),
-            "timesteps": steps,
-            "kind": kind,
-            "k3_slot": kind == "final" or steps == K3_SLOT_STEPS,
-            "own_falls": _whole(own.get("falls")),
-            "own_episodes": _whole(own.get("n")),
-            "joint_falls": _whole(joint.get("falls")),
-            "joint_episodes": _whole(joint.get("n")),
-            "joint_skipped": joint.get("skipped"),
-            "joint_sigma_sha256": panel.get("joint_sigma_sha256"),
-            "own_sigma_mean": panel.get("own_sigma_mean"),
-            "own_sigma": _number_list(panel.get("own_sigma")),
-            "seconds": panel.get("seconds"),
-        }
-        _k3_flags(point, spec.get("seeds"))
-        points.append(point)
-    points.sort(key=lambda p: (p["timesteps"], p["kind"] == "final"))
-    return {
-        "recorded": True,
-        "source": str(path),
-        "seeds": spec.get("seeds"),
-        "horizon": spec.get("horizon"),
-        "every": spec.get("every"),
-        "joint_sigma": {key: sigma.get(key) for key in ("file", "file_sha256", "path_in_file", "mean", "sha256")},
-        "session_problem": record.get("session_problem"),
-        "points": points,
-        "failed": failed,
-        "sigma_series": sorted({str(p["joint_sigma_sha256"]) for p in points if p["joint_sigma_sha256"]}),
-    }
 
 
 # ---------------------------------------------------------------------------------------------- normalization
@@ -1792,8 +1702,6 @@ class RunHistory:
     body_unmeasured: list[str] = field(default_factory=list)
     #: The judge's K3 inputs read from the judge files a caller named (:func:`read_judge_k3`); ``None``: none named.
     k3: dict[str, Any] | None = None
-    #: The in-run K3 panel's points from the stage's own ``k3_panel.json`` (:func:`read_k3_panel`).
-    k3_panel: dict[str, Any] = field(default_factory=dict)
     #: ``policy_probe.npz``'s per-update std and normalizer statistics and its bank (:func:`read_probe_series`).
     probe: dict[str, np.ndarray] | None = field(default=None, repr=False)
     #: The probe's actuator names (or ``actuator[<i>]``) and where they came from.
@@ -2071,11 +1979,6 @@ def load_run_history(
         else:
             found, run.probe_actuator_source = actuator_names(run.model_id, width, plant=run.plant)
             run.probe_actuators = found or [f"actuator[{i}]" for i in range(width)]
-    run.k3_panel = read_k3_panel(stage)
-    if not run.k3_panel.get("recorded"):
-        run.absent.append(f"in-run K3 panel: {run.k3_panel.get('why')}")
-    elif run.k3_panel.get("failed"):
-        run.errors += [f"K3 panel at {f['timesteps']}: {f['failure']}" for f in run.k3_panel["failed"]]
     if run.rollout_shares is not None:
         width = int(run.rollout_shares[ROLLOUT_ARRAYS[0]].shape[1])
         if run.actuators is not None and len(run.actuators) == width:
@@ -3000,11 +2903,6 @@ def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any
         if judged is not None:
             row["judge_joint_falls"] = judged["joint_falls"]
             row["judge_own_falls"] = judged["own_falls"]
-        rolled = [p for p in (run.k3_panel or {}).get("points", []) if p["timesteps"] == step]
-        rolled = sorted(rolled, key=lambda p: (p["kind"] != ("final" if prefer == "final" else "grid"), p["kind"]))
-        if rolled:
-            row["panel_joint_falls"] = rolled[0]["joint_falls"]
-            row["panel_own_falls"] = rolled[0]["own_falls"]
         for column in ("tail_tip_chord_mean_deg", "legs_work_abs_j"):
             values = run.column(column)
             if values is not None:
@@ -3061,7 +2959,6 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "rollout_shares": rollout_summary(run),
             "checkpoint_table": checkpoint_rows(run, marks),
             "judge_k3": run.k3,
-            "k3_panel": run.k3_panel,
             "exploration": exploration_summary(run),
             "obs_normalization": _normalization_record(run),
             "gait_ledger": ledger_of(run),
@@ -3153,14 +3050,10 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "drift, path, yaw and slip, the joint stops, the centre of mass's and capture point's margins, the "
             "centroidal angular momentum, the tail-base and neck-base wrench and the head's rate; reduced like every "
             "other column. Report only; no gate reads them",
-            "k3_panel": "from the stage's k3_panel.json (k3_panel.py, enabled at launch): per panel rolled during "
-            "training on the live policy, the own-sigma and joint-space falls of its episodes with the stance5 "
-            "replication judge's arithmetic; within_bar at K3's checkpoints only (6,291,456 and the final panel), "
-            "withheld where a panel is not 20 episodes on spawns 3042-3061; a series never joins two joint sigmas. A "
-            "readout, never a verdict: the offline judge's K3 is the K3 of record",
             "exploration": f"the leg actuators' exp(log_std) from {POLICY_PROBE_FILENAME} (every PPO update), else "
-            "from the checkpoint zips; leg_std_at_k3: each leg actuator's std at the last update at or before each "
-            f"K3 point; the reference {EXPLORATION_REFERENCE_STD:g} is the stance3 design's line-2 floor, not applied",
+            "from the checkpoint zips; leg_std_at_k3: each leg actuator's std at each judged K3 point (judge_k3), "
+            "the judge's noise_matched_own sigma_vector where recorded, else the last update at or before it; the "
+            f"reference {EXPLORATION_REFERENCE_STD:g} is the stance3 design's line-2 floor, not applied",
             "obs_normalization": "per periodic and final VecNormalize pickle (read through a stub unpickler: numpy's "
             "array helpers and inert stand-ins only), per observation dimension: shift = (mean_k - mean_ref) / "
             "sqrt(var_ref + eps) and scale = 0.5 ln((var_k + eps) / (var_ref + eps)) against the checkpoint before "
@@ -5683,35 +5576,25 @@ def exploration_why(run: RunHistory) -> str:
     return "no leg actuator std"
 
 
-def _k3_sources(run: RunHistory) -> list[dict[str, Any]]:
-    """Every K3 point of *run*: the in-run panel's (``source`` ``panel``) and the judge files' (``judge``)."""
-    points = [{**p, "source": "panel"} for p in (run.k3_panel or {}).get("points", [])]
-    points += [{**p, "source": "judge"} for p in _k3_points(run)]
-    return points
-
-
 def exploration_summary(run: RunHistory) -> dict[str, Any]:
-    """The JSON's ``exploration``: the leg actuators' std source, and at each K3 point (the in-run panel's and the
-    judge's) each leg actuator's std: the point's own sigma (``own_sigma``: the panel's, or the judge's
-    ``noise_matched_own`` ``sigma_vector``, exp(log_std) of the very weights K3 rolled), else the last update (or
-    checkpoint) at or before it, which at a final point is the update before the last ``train()``.  ``std_source``
-    says which."""
+    """The JSON's ``exploration``: the leg actuators' std source, and at each judged K3 point (``source``
+    ``judge``) each leg actuator's std: the point's own sigma (``own_sigma``, the judge's ``noise_matched_own``
+    ``sigma_vector``, exp(log_std) of the very weights K3 rolled), else the last update (or checkpoint) at or before
+    it, which at a final point is the update before the last ``train()``.  ``std_source`` says which."""
     found = exploration_std(run)
     if found is None:
         return {"recorded": False, "why": exploration_why(run)}
     steps, std = found["timesteps"], found["std"]
     at_k3 = []
-    for point in _k3_sources(run):
+    for point in _k3_points(run):
         own = point.get("own_sigma")
         entry: dict[str, Any] = {
-            "source": point["source"],
+            "source": "judge",
             "timesteps": int(point["timesteps"]),
             "kind": point.get("kind") or point.get("slot"),
         }
         if isinstance(own, list) and len(own) == found["width"]:
-            entry["std_source"] = (
-                "the panel's own_sigma" if point["source"] == "panel" else "the judge's noise_matched_own sigma_vector"
-            )
+            entry["std_source"] = "the judge's noise_matched_own sigma_vector"
             entry["std_timesteps"] = int(point["timesteps"])
             entry["std"] = {name: float(own[column]) for name, column in zip(found["names"], found["leg_indices"])}
         else:
@@ -5798,76 +5681,15 @@ def _draw_exploration_std(axis: Any, context: _Context) -> str | None:
 
 
 def _draw_k3_falls(axis: Any, context: _Context) -> str | None:
-    """Joint-space (circles) and own-sigma (squares) falls per K3 point: the in-run panel's as lines with markers (one
-    series per joint sigma, broken where a panel has no value: a skipped joint test, a panel of another series, a
-    failed panel, which is marked ``x`` at 0), the judge's as larger filled markers with a dark edge on top; K3's bars
-    (in the legend) where a point is 20 episodes, the K3 checkpoints annotated ``joint/own`` (``panel`` and ``judge``
-    named when a run has both, stacked at one step).  Returns why nothing was drawn, or ``None``."""
+    """Joint-space (diamonds) and own-sigma (crosses) falls per judged checkpoint, from the judge files named:
+    filled markers with a dark edge; K3's bars (in the legend) where a point is 20 episodes, the K3 checkpoints
+    annotated ``joint/own`` (stacked at one step).  Returns why nothing was drawn, or ``None``."""
     top, drawn, bars = 0.0, False, False
     for index, run in enumerate(context.runs):
         colours = (
             (_SERIES[0], _SERIES[1]) if not context.comparison else (context.colours[index], context.colours[index])
         )
         who = f"{run.label}: " if context.comparison else ""
-        panel = [p for p in (run.k3_panel or {}).get("points", []) if p.get("own_falls") is not None]
-        failed = [f for f in (run.k3_panel or {}).get("failed", []) if f.get("timesteps") is not None]
-        # Every panel step in order (a failed one included), so a series is broken, not bridged, where it has no value.
-        slots: list[tuple[int, bool, Mapping[str, Any] | None]] = sorted(
-            [(int(p["timesteps"]), p.get("kind") == "final", p) for p in panel]
-            + [(int(f["timesteps"]), False, None) for f in failed],
-            key=lambda slot: (slot[0], slot[1]),
-        )
-        x_all = np.asarray([slot[0] for slot in slots], dtype=float) / 1e6
-        # One series per joint sigma (a resumed session may read another vector), and one for panels without one.
-        keys: list[str | None] = list((run.k3_panel or {}).get("sigma_series") or [])
-        if any(not p.get("joint_sigma_sha256") for p in panel):
-            keys.append(None)
-        for series, sha in enumerate(keys):
-            if not any((p.get("joint_sigma_sha256") or None) == sha for p in panel):
-                continue
-            suffix = "" if series == 0 else ("\n(own test only)" if sha is None else f"\n(sigma {sha[:8]})")
-            for key, marker, colour, name, style in (
-                ("joint_falls", "o", colours[0], "in-run panel joint-space falls", "-"),
-                ("own_falls", "s", colours[1], "in-run panel own-sigma falls", "--" if context.comparison else "-"),
-            ):
-                y = np.asarray(
-                    [
-                        np.nan
-                        if point is None or (point.get("joint_sigma_sha256") or None) != sha or point[key] is None
-                        else point[key]
-                        for _step, _final, point in slots
-                    ],
-                    dtype=float,
-                )
-                if not np.isfinite(y).any():
-                    continue
-                axis.plot(
-                    x_all,
-                    y,
-                    color=colour,
-                    linestyle=style,
-                    linewidth=1.0,
-                    marker=marker,
-                    markersize=5,
-                    label=f"{who}{name}{suffix}",
-                )
-                top = max(top, float(np.nanmax(y)))
-                drawn = True
-        for p in panel:
-            bars = bars or (p.get("joint_episodes") == K3_EPISODES or p.get("own_episodes") == K3_EPISODES)
-        if failed:
-            axis.plot(
-                np.asarray([f["timesteps"] for f in failed], dtype=float) / 1e6,
-                np.zeros(len(failed)),
-                linestyle="none",
-                marker="x",
-                markersize=8,
-                markeredgewidth=1.6,
-                color=_INK_2 if not context.comparison else context.colours[index],
-                zorder=5,
-                label=f"{who}in-run panel failed (no falls read)",
-            )
-            drawn = True
         judged = _k3_points(run)
         if judged:
             x = np.asarray([p["timesteps"] for p in judged], dtype=float) / 1e6
@@ -5892,28 +5714,23 @@ def _draw_k3_falls(axis: Any, context: _Context) -> str | None:
             drawn = True
             bars = bars or any(p.get("joint_episodes") == K3_EPISODES for p in judged)
         if not context.comparison:
-            # At a K3 checkpoint the panel's and the judge's counts may differ: each is named when the run has both,
-            # and the two are stacked above the higher of their marks.
+            # Two judged points at one step are stacked above the higher of their marks.
             labelled = [
-                (source, p)
-                for source, points in (("panel", panel), ("judge", judged))
-                for p in points
+                p
+                for p in judged
                 if p.get("k3_slot") and p.get("joint_falls") is not None and p.get("own_falls") is not None
             ]
-            named = len({source for source, _p in labelled}) > 1
             anchor: dict[int, int] = {}
-            for _source, p in labelled:
+            for p in labelled:
                 step = int(p["timesteps"])
                 anchor[step] = max(anchor.get(step, 0), int(p["joint_falls"]), int(p["own_falls"]))
             level: dict[int, int] = {}
-            for source, p in labelled:
+            for p in labelled:
                 step = int(p["timesteps"])
                 # At the right edge the label ends at its step, clear of the legend beside the axis.
                 edge = context.xmax > 0 and step / 1e6 >= 0.96 * context.xmax
                 axis.annotate(
-                    f"{source} {p['joint_falls']}/{p['own_falls']}"
-                    if named
-                    else f"{p['joint_falls']}/{p['own_falls']}",
+                    f"{p['joint_falls']}/{p['own_falls']}",
                     (step / 1e6, anchor[step]),
                     xytext=(4 if edge else 0, 8 + 13 * level.get(step, 0)),
                     textcoords="offset points",
@@ -5927,10 +5744,7 @@ def _draw_k3_falls(axis: Any, context: _Context) -> str | None:
                 level[step] = level.get(step, 0) + 1
             top = max([top, *(value + 0.6 * (level[step] - 1) for step, value in anchor.items())])
     if not drawn:
-        return (
-            "no K3 source: no k3_panel.json in the stage directory (the in-run panel is off unless the launch enables "
-            "it) and no judge files named (--judged)"
-        )
+        return "no K3 source: no judge files named (--judged)"
     if bars:
         # In the legend, not written on the axis, where the markers at 2 falls would cover it.
         axis.axhline(
@@ -5983,8 +5797,8 @@ def _exploration_figure(context: _Context, *, title: str, dpi: int, width: float
         _Panel(
             None,
             None,
-            "K3's noise falls of 20 at each K3 point: the in-run panel (k3_panel.json; lines) and the judge files "
-            "(--judged; large markers), a readout of the stance5 replication judge's K3 criterion, never a verdict",
+            "K3's noise falls of 20 at each judged checkpoint, from the judge files (--judged), a readout of the "
+            "stance5 replication judge's K3 criterion, never a verdict",
             "falls",
             2.2,
         ),
@@ -6693,17 +6507,14 @@ def render_pages(
                 "solid, left dashed), drawn once when the two are bitwise equal throughout (the mirror-symmetric "
                 f"PPO ties them); dashed: {EXPLORATION_REFERENCE_STD:g}, the stance3 design's line-2 floor on hip "
                 "pitch, knee and ankle, a reference only (no stage applies it). Below: K3's two noise tests at each "
-                "K3 point, the in-run panel's (k3_panel.json, rolled during training on the live policy, the judge's "
-                "arithmetic; lines, one series per joint-space sigma, broken where a panel has no value, a failed "
-                "panel marked x at 0) and the judge's own files where named (--judged; large markers on top): "
-                "joint-space falls (circles, diamonds) and own-sigma falls (squares, crosses) of 20; K3's bars "
-                "(joint <= 2, own <= 1, in the legend) where a point has 20 episodes, and joint/own written at K3's "
-                "checkpoints (6,291,456 and the final; 'panel' and 'judge' named where a run has both). A readout "
-                "of the stance5 replication judge's K3 criterion, never a verdict: the offline judge's K3 stays the "
-                "K3 of record. The JSON's exploration.leg_std_at_k3 gives each leg actuator's std at every K3 point: "
-                "the point's own sigma (the panel's own_sigma, the judge's noise_matched_own sigma_vector) where it "
-                "is recorded, else the last update at or before it (at a final point, the update before the last "
-                "train()), its std_source saying which.",
+                "checkpoint judged in the judge files named (--judged): joint-space falls (diamonds) and own-sigma "
+                "falls (crosses) of 20; K3's bars (joint <= 2, own <= 1, in the legend) where a point has 20 "
+                "episodes, and joint/own written at K3's checkpoints (6,291,456 and the final). A readout of the "
+                "stance5 replication judge's K3 criterion, never a verdict: the offline judge's K3 is the K3 of "
+                "record. The JSON's exploration.leg_std_at_k3 gives each leg actuator's std at every judged K3 point: "
+                "the point's own sigma (the judge's noise_matched_own sigma_vector) where it is recorded, else the "
+                "last update at or before it (at a final point, the update before the last train()), its std_source "
+                "saying which.",
             ),
             (
                 NORMALIZATION_PAGE,
@@ -6851,62 +6662,9 @@ _POSTURE_HEADERS: tuple[tuple[str, str], ...] = (
 _JUDGE_HEADERS: tuple[tuple[str, str], ...] = (
     ("judge_joint_falls", "judge joint"),
     ("judge_own_falls", "judge own"),
-    ("panel_joint_falls", "K3 panel joint"),
-    ("panel_own_falls", "K3 panel own"),
     ("tail_tip_chord_mean_deg", "tail chord deg"),
     ("legs_work_abs_j", "legs work J"),
 )
-
-
-def _k3_panel_table(run: Mapping[str, Any]) -> str:
-    """The run's in-run K3 panel as HTML: each panel's step, kind and falls, its joint sigma, its time."""
-    panel = run.get("k3_panel")
-    if not isinstance(panel, Mapping) or not panel.get("recorded"):
-        return ""
-    rows = []
-    for point in panel.get("points") or []:
-        within = ""
-        if point.get("k3_slot") and point.get("within_bar_withheld"):
-            within = f"withheld: {point['within_bar_withheld']}"
-        elif point.get("k3_slot"):
-            within = "; ".join(
-                f"{name} {'within' if point.get(key) else 'over'}"
-                for name, key in (("joint", "joint_within_bar"), ("own", "own_within_bar"))
-            )
-        rows.append(
-            [
-                _fmt(point.get("timesteps")),
-                html.escape(str(point.get("kind"))),
-                f"{point.get('own_falls')} / {point.get('own_episodes')}",
-                (
-                    f"{point.get('joint_falls')} / {point.get('joint_episodes')}"
-                    if point.get("joint_episodes") is not None
-                    else html.escape(f"not run: {point.get('joint_skipped')}")
-                ),
-                html.escape(str(point.get("joint_sigma_sha256") or "–")[:12]),
-                _fmt(point.get("seconds")),
-                html.escape(within or "–"),
-            ]
-        )
-    failed = "; ".join(f"{f.get('timesteps')}: {f.get('failure')}" for f in panel.get("failed") or [])
-    sigma = panel.get("joint_sigma") or {}
-    parts = [
-        f"<h3>{html.escape(str(run['label']))}: in-run K3 panel</h3>",
-        f"<p>From <code>{html.escape(str(panel.get('source')))}</code>: K3's two noise tests rolled during training "
-        f"on the live policy with the stance5 replication judge's arithmetic, spawns "
-        f"{html.escape(str(panel.get('seeds')))}, horizon {html.escape(str(panel.get('horizon')))}, every "
-        f"{_fmt(panel.get('every'))} steps and at training end. Joint-space sigma "
-        f"{html.escape(str(sigma.get('path_in_file')))} of <code>{html.escape(str(sigma.get('file')))}</code> "
-        f"(mean {_fmt(sigma.get('mean'))}, sha256 {html.escape(str(sigma.get('sha256'))[:12])}). A readout, never a "
-        "verdict: the offline judge's K3 is the K3 of record."
-        + (f" Failed panels: {html.escape(failed)}." if failed else "")
-        + "</p>",
-    ]
-    if rows:
-        parts.append(
-            _table(["step", "kind", "own-sigma falls", "joint-space falls", "joint sigma", "seconds", "K3 bars"], rows)
-        )
-    return "".join(parts)
 
 
 def _normalization_table(run: Mapping[str, Any]) -> str:
@@ -7126,7 +6884,6 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         parts.append(f"<h3>{html.escape(str(run['label']))}</h3>")
         parts.append(_table(headers, body))
     parts += [_k3_table(run) for run in runs if run.get("judge_k3")]
-    parts += [_k3_panel_table(run) for run in runs]
     parts += [_normalization_table(run) for run in runs]
     parts.append(
         "<h2>Gait ledger</h2><p>From the same full-horizon episodes, over each run's last evaluations (page "

@@ -14,7 +14,7 @@
    columns alone (the same shapes, and on a 63-wide input the same tensor, as the stock actor) and whose critic's
    first layer reads the observation and the phase.  Every actor path -- ``forward`` in the rollout,
    ``evaluate_actions`` and ``get_distribution`` in ``train()``, MirrorKLPPO's mirrored KL term, ``predict()`` in
-   evaluation, the probe, the K3 panel and the judge -- goes through ``mlp_extractor.forward_actor``, which slices
+   evaluation, the probe and the judge -- goes through ``mlp_extractor.forward_actor``, which slices
    the observation's columns off before the first layer: the actor is exactly independent of the phase, and gets no
    gradient through it.  ``predict()`` takes the env's own observation (the deploy interface) as well as the
    training one; a value asked of the critic without the phase is refused, never guessed.  A fresh model is a

@@ -17,8 +17,12 @@ directory of that run's judge files (``judge_<steps>.json``,
 ``judge_final.json``; ``-`` for none): the outcomes page then draws K3's
 inputs at each judged checkpoint (the stance3, stance4, stance5 and stance5
 replication judges' files, whose K3 is the same), as a readout of the stance5
-replication judge's K3 criterion, never a verdict.  A run that is still
-training can be drawn from a copy of its stage directory at any point.
+replication judge's K3 criterion, never a verdict, and page
+``17_exploration_k3`` draws K3's falls there beside the leg actuators' std
+(the JSON's ``exploration.leg_std_at_k3``).  The judge files are the report's
+only K3 source: without them page 17's K3 panel says so.  They are T. rex
+stance judges; no other model has one.  A run that is still training can be
+drawn from a copy of its stage directory at any point.
 
 Report only.  Nothing is written into a run: an ``--out`` inside any run
 directory is refused, as ``plot_gate_progress.py`` refuses it (a result
@@ -132,7 +136,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="JUDGED_DIR",
         help="one per STAGE_DIR ('-' for none): a directory of that run's judge files (judge_<steps>.json, "
         "judge_final.json), read for K3's inputs (the stance3 to stance5 judges' files: the same K3), drawn as a "
-        "readout of the stance5 replication judge's K3 criterion, never a verdict",
+        "readout of the stance5 replication judge's K3 criterion, never a verdict, on the outcomes page and on "
+        "page 17_exploration_k3 (with the JSON's exploration.leg_std_at_k3); the report's only K3 source",
     )
     args = parser.parse_args(argv)
     stage_dirs = [path.resolve() for path in args.stage_dirs]

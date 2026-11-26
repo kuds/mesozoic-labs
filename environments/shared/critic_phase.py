@@ -27,7 +27,7 @@ weight in ``V(o_k)`` is ``gamma ** (S - k)`` -- ``discount``.  A reset observati
 
 How (the SB3 classes are in :mod:`environments.shared.critic_phase_ppo`).  The phase is a side input of the
 critic, separate from the actor's observation: the policy interface -- the model's ``observation_space``, the
-VecNormalize sidecar, every evaluation, probe, K3 panel, judge and deploy path -- stays the env's 63-wide
+VecNormalize sidecar, every evaluation, probe, judge and deploy path -- stays the env's 63-wide
 observation, and nothing reuses the three command slots (60-62), which the walking stages need live.  Only the
 TRAINING ``VecNormalize`` returns ``[normalized observation, phase]`` (66 values) to PPO; PPO's rollout buffer is
 3 columns wider; the actor's first layer reads columns 0-62 alone and the critic's first layer all 66.  The phase
