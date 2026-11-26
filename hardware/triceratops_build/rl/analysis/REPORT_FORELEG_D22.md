@@ -424,8 +424,8 @@ reported instead.
 - **The steering run (D20)** on the chosen leg. Run 3's terrain lies only along the reset heading, and a steering
   policy turns away from it, so the steering run's terrain must lie all around the start, or be left out
   (`PLAN_STEERING_AND_TELEMETRY.md`). The drift (4) and the pushes (5) are the weak points to watch.
-- **The museum renders** due 8 Dec show the 188 mm foreleg. Redrawing them with the chosen foreleg is possible if
-  wanted.
+- **The museum renders** due 8 Dec showed the 188 mm foreleg. *Done 26 Nov 2026:* the owner chose to redraw them
+  with the adopted 128 mm foreleg (D27, `renders/README.md`).
 - **F19,** the shoulder crossmember, is still open for either leg.
 
 ## The independent review (26 Nov)
