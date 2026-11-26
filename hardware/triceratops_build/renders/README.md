@@ -8,7 +8,92 @@ image shows hardware. Made ahead of the 8 Dec 2026 target, so they can be redone
 > The Triceratops is the near-term live demonstration (Q3 2027); the T. rex is the flagship, coming at end 2027 /
 > early 2028.
 
-## At 60 cm with the capsule feet (22 Nov 2026; the current set: show these)
+## At 60 cm with the 128 mm foreleg (26 Nov 2026; the current set: show these)
+
+The owner adopted the 128 mm upper foreleg on 26 Nov 2026 (D25), after the foreleg comparison
+(`../rl/analysis/REPORT_FORELEG_D22.md`, F20). The earlier sets show the 188 mm foreleg, which cannot be built as
+modelled (F18). This set replaces the capsule set below and uses the same feet (D19), the same scripts and the same
+settings; only the model changes, to `../sim/generated/trike60_C_closed_capsule_fore128.xml` (12.751 kg). **Every image
+and clip is a simulation render**, labelled "SIMULATION" with a badge top left and another bottom right.
+
+**Stills** ([stills_60cm_fore128_2026-11-26/](stills_60cm_fore128_2026-11-26/), JPEG, each under 150 KB):
+
+| File | Shows | Caption |
+|---|---|---|
+| `robot_three_quarter.jpg` | The 60 cm robot standing, three-quarter view | Triceratops robot, 60 cm to the frill: simulation. Simulation: MuJoCo model of the proposed 60 cm Triceratops robot (12.8 kg, capsule feet), standing. Not hardware; nothing is built yet. |
+| `robot_side.jpg` | The same, side view | as above |
+| `robot_head.jpg` | Head, frill and horns, close | as above |
+| `robot_trot_frame.jpg` | The model-based trot, 8.0 s into the clip's episode | Triceratops robot, 60 cm: trotting at its planned walking speed, 0.25 m/s (simulation). MuJoCo model, 12.8 kg, capsule feet (the foot chosen on 22 Nov 2026). Model-based trot, 8.0 s into the episode. 10 ms servo delay and sensor noise simulated. Not hardware; nothing is built yet. |
+
+- **What changes in the picture:**
+  - The shoulder sits 40 mm lower.
+  - Each elbow drive (X6) sits in a pocket at the shoulder on an offset mount.
+  - The upper foreleg is 128 mm long (188 mm before), so the elbow stands higher. This is PR #697's repackaged
+    fore-assembly.
+- **What the model shows:** `render_stills.py` checks that the frill's top stands at 60 cm after the 2 s settle.
+- **What is not modelled:**
+  - The body and legs are shown as frame, drives and ribs; the head, frill and tail as shells.
+  - The capsule is drawn as a full rigid capsule.
+  - The schematic shoulder crossmember passes through the shoulder drives in this model, as in the earlier ones
+    (F19, open). The pushrod that drives the elbow is fixed in the model.
+
+**Clip, on the data branch (D11):** `walk60_fore128_trot_0.25_1x.mp4`, 20 s shown at actual speed, 1280 × 720,
+H.264, 6.8 MB (data-branch commit 9c020943; the capsule-188 clip there is marked superseded).
+- **What it shows:** the frozen model-based trot (`../walk/walk60.py`) on the 128 mm foreleg and capsule feet, at
+  the 0.25 m/s planned walking speed.
+  - It solves its inverse kinematics on the model itself, so it runs on the new foreleg unchanged (largest
+    inverse-kinematics error 0.02 mm), but untuned.
+  - The learned policies of the foreleg study walk with irregular strides; this clip shows the model-based trot, not
+    those policies.
+- **Conditions:** 10 ms servo delay and sensor noise on, no randomisation, episode seed 101; shadow range widened
+  (`--shadow-clip 6`).
+- **Seeds 101-110 under the same conditions, run without rendering** (`trot_seed_check.py`; outputs
+  `stills_60cm_fore128_2026-11-26/trot_seeds_101-110_{fore128,188}.json`):
+
+  | | 128 mm foreleg | 188 mm foreleg (the capsule set's model) |
+  |---|---|---|
+  | Falls | 0 of 10 | 0 of 10 |
+  | Speed from 2 s | 0.250-0.252 m/s | 0.248-0.249 m/s |
+  | Worst drive, RMS / continuous | 0.66-0.70 | 0.71-0.73 |
+  | Front pitch drive at its torque limit | 0.6-0.8 % of steps (the flag is 1 %) | 1.8-2.1 % |
+  | Sideways drift over 18 s | up to 0.27 m | up to 0.27 m |
+  | Heading change | up to 5.0 deg | up to 5.6 deg |
+  | Front-foot touchdowns | 3.3-4.2 per second | 4.2-4.3 per second |
+
+  The 188 mm figures reproduce the capsule set's.
+- **The episode itself** (seed 101, measured from 2 s):
+  - no fall; 0.250 m/s;
+  - worst drive 0.69 of its continuous rating (left hind pitch);
+  - right fore pitch at its torque limit in 0.8 % of steps;
+  - sideways drift 0.09 m and heading change 2.2 deg over 18 s;
+  - front feet touch down 3.9 times per second: each front foot still rocks and touches down more than once per
+    stride.
+- **How to show it:** as a trot developed and tested in simulation, not as a demonstration of the robot. It walks
+  straight ahead on a flat floor only. Turning is the steering run's work (D20).
+- **Where it is:** on the data branch `claude/triceratops-build-clips`. Fetch it with
+  `git fetch origin claude/triceratops-build-clips`, then
+  `git show FETCH_HEAD:walk60_fore128_trot_0.25_1x.mp4 > clip.mp4`.
+
+**Reproduce** (mujoco 3.10.0, numpy 2.5.5, gymnasium 1.4.0, Pillow 13.0.0, imageio 2.38.2, ffmpeg 6.1.1):
+
+```sh
+MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_stills.py \
+  --robot ../sim/generated/trike60_C_closed_capsule_fore128.xml --size 60 --scale 0.8 --no-reflection \
+  --second-badge --out stills_60cm_fore128_2026-11-26
+MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_walk_clip.py \
+  --model ../sim/generated/trike60_C_closed_capsule_fore128.xml --shadow-clip 6 \
+  --out stills_60cm_fore128_2026-11-26/robot_trot_frame.jpg --still-at 8.0
+IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_walk_clip.py \
+  --model ../sim/generated/trike60_C_closed_capsule_fore128.xml --shadow-clip 6 \
+  --out walk60_fore128_trot_0.25_1x.mp4 --seconds 20
+python trot_seed_check.py trike60_C_closed_capsule_fore128.xml stills_60cm_fore128_2026-11-26/trot_seeds_101-110_fore128.json
+python trot_seed_check.py trike60_C_closed_capsule.xml stills_60cm_fore128_2026-11-26/trot_seeds_101-110_188.json
+```
+
+## At 60 cm with the capsule feet (22 Nov 2026; superseded by the 128 mm set above: do not show)
+
+**Superseded on 26 Nov 2026** by the 128 mm foreleg set above: these show the 188 mm foreleg, which cannot be built as
+modelled (F18). Kept for the record.
 
 The owner chose the capsule foot on 22 Nov 2026 (D19, `../sim/REPORT_FEET60.md`): each sole is an 88 mm pad,
 rounded across its width, with no extra joint. This set replaces the earlier 60 cm set below, which shows the
@@ -86,7 +171,7 @@ IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa pyt
   --seconds 20
 ```
 
-## At 60 cm, earlier feet (22 Nov 2026; superseded by the capsule set above: do not show)
+## At 60 cm, earlier feet (22 Nov 2026; superseded: do not show)
 
 **Superseded on 22 Nov 2026 by the capsule-foot set above.** These show the as-designed foot (stills) and the
 roll-ankle variant (clip), neither of which was chosen (D19). Kept for the record; the scripts still reproduce them
