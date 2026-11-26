@@ -2778,6 +2778,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Four digest lines moved: the brachiosaurus and dibothrosuchus walks'
+  `stage_config_view_sha256` (PPO and SAC)** (decision D-D65).
+  `stage_config.json` records the curriculum, which loses
+  `collapse_peak_floor` and gains the floor pair and the physics pin. No
+  `task_sha256`, `gate_sha256`, `hyperparameters_sha256`, reward, stance,
+  recovery, recipe, plant or policy line moved.
+  - A walk of either model trained since D-D64 resumes, because
+    `resume_same_stage` finds its task and recipe digests unchanged. It trains
+    on under the new floor. The backstop applies that floor to the whole
+    evaluation history the resume seeds from `evaluations.npz`, so a run that
+    armed on a standing plateau under the old 100 is disarmed unless its
+    evaluations had already reached the new floor.
+  - The resumed run's rewritten `stage_config.json` records the new floor. Its
+    top-level `git_commit` stays the first session's, and the resume lists
+    its own commit under `run.resume_sessions`.
+  - A walk trained before D-D64 is still refused by its moved task digest.
 - **Every walk's task digest moved; no stance, recovery, recipe or gate
   digest did** (decision D-D64). `configs/digest_snapshot.generated.txt`
   moved 35 lines and added or removed none, all of them walk lines:
@@ -3406,6 +3422,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The brachiosaurus and dibothrosuchus walks' collapse floors are raised
+  above the stander** (decision D-D65, taken 2026-11-26,
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). D-D62 (15)'s floor rule now measures
+  its walker on one basis on every model: the reference walk under a command
+  matched to its own speed along the spawn heading. There the brachiosaurus
+  walker is expected to evaluate at 3965 and the dibothrosuchus walker at
+  4652, above their standers' 10-stand levels (2859.8, 3037.6).
+  - **The floors.** Each walk's absolute `collapse_peak_floor = 100.0` is
+    deleted, since an explicit floor wins over the pair, and the relative
+    pair takes its place: `collapse_peak_floor_reference` 2359.7 and
+    `collapse_peak_floor_fraction` 1.20 (floor 2831.6) on the brachiosaurus,
+    2286.0 and 1.31 (floor 2994.7) on the dibothrosuchus. Each floor is the
+    midpoint of the stander's 9- and 10-stand evaluations, to the fraction's
+    two decimals, with `statue_constants_physics_revision` 7 and 4. The
+    warm-ups (3.0M, 2.8M) are unchanged.
+  - **What arms them.** At the statue's family means a stander arms either
+    floor only on a run whose evaluation seed draws 10 or more stands of its
+    30 episodes (0.97% of seeds), and there a steady level never reads as a
+    collapse. On the dibothrosuchus, whose statue's cruise episodes fall into
+    two groups, a run's own episodes move that level: with them fixed,
+    1.06-1.13% of seeds arm (some 9-stand runs, most 10-stand ones), and
+    about 2.7% if a stander's cruise episodes change group from one
+    evaluation to the next; such a level still never stops the run. A
+    matched walker arms the floor at every stand count.
+  - **The trade the maintainer accepted.** On these walks a standing plateau
+    no longer arms the backstop, so a collapse from standing is not caught. In
+    exchange, the dip while a policy starts to walk can no longer stop the run
+    before its evaluations reach the floor. A collapse after walking still
+    stops. A learned walk that keeps its own pace and tracks none of the
+    committed commands evaluates 7.8 under the brachiosaurus floor at the
+    default seed, so ordinary fluctuation between evaluations would usually
+    arm it there, and its collapse would mostly be caught. On the
+    dibothrosuchus it evaluates far under the floor on most seeds, so its
+    collapse mostly goes uncaught too.
+  - **Unchanged.** The T. rex and velociraptor floors were already on this
+    basis, and every number their TOMLs quote holds under D-D64's reward. The
+    Allosaurus and the Compsognathus pair still declare no walk backstop: the
+    rule raises a floor and adds none.
+  - **Tests.** Both quadrupeds' `test_locomotion_walk.py` are rewritten for
+    the new floor, in the style of the T. rex and velociraptor
+    `test_locomotion_collapse_backstop.py`. `test_curriculum_early_stopping.py`
+    replays run `20260923_020654` on the dibothrosuchus config: the series
+    never arms the new floor, and an explicit override of the old 100 still
+    reproduces its stop at 1.45M. Its one-rule test now finds all four walks
+    that carry the backstop setting the floor above their statue.
+  - **Docs.** D-D62's and D-D64's rows are amended. The plan's top note, §6.2's
+    intro and §4.6's table, `docs/KNOWN_ISSUES.md`, `docs/NEXT_STEPS.md` and
+    `website/docs/training/hyperparameters.md` (on `longest_stop_s`) are
+    updated. `configs/digest_snapshot.generated.txt` is regenerated
+    (Migration).
+- **The maintainer's answers of 2026-11-26 are recorded** (decision D-D65).
+  Besides the matched basis above:
+  - `longest_stop_s` stays report-only, and whether it becomes a bar is
+    decided after the pilot.
+  - D-D64's boxcar, its window rule and its window-fill settle allowance are
+    accepted as recorded, and the triangular-window fallback stays on record.
+  - The SB3 notebook review's 110 open findings are folded into
+    KNOWN_ISSUES by the next change.
+
+  No code changes for these three.
 - **The walk's command tracking is scored on a one-stride mean** (decision
   D-D64, taken 2026-11-26, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). It
   implements D-D63 (2) and resolves D-D62 (16)'s open risk (a): a walking gait

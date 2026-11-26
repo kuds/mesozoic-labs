@@ -849,6 +849,15 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
     release at 800k; the lunge-and-fall that followed read as a collapse.
     Brachiosaurus has the same two shapes and no current-plant series, so
     only its configuration is pinned.
+
+    Since decision D-D65 (1) the live walk's floor on both quadrupeds is the
+    relative pair above a stander's evaluation mix (dibothrosuchus 1.31 x
+    2286.0 = 2994.7), above that run's whole locomotion series (its standing
+    plateau peaks at 2246.9), so on the committed locomotion config the series
+    never arms the backstop, with the warm-up or without it; the forward
+    walk's absolute floor of 100, under which it stopped at 1.45M, is pinned
+    here by an explicit override.  The stance node keeps its absolute floor
+    and its warm-up.
     """
 
     # The REAL per-evaluation mean rewards of run 20260923_020654, read from
@@ -905,16 +914,35 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
                 return cb.num_timesteps, cb
         return None, cb
 
-    @pytest.mark.parametrize(
-        ("stage", "trace_name", "peak"),
-        [(1, "STANCE_20260923", 2592.9), (2, "LOCOMOTION_20260923", 2246.9)],
-    )
-    def test_without_the_warmup_the_committed_config_reproduces_the_stop(self, stage, trace_name, peak):
-        """Not an approximation of the failure — the failure itself, on both nodes."""
-        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, stage, peak_warmup_timesteps=0.0)
-        stopped_at, cb = self._drive(getattr(self, trace_name), settings)
+    #: The locomotion node's floor when the run trained: the forward walk's absolute 100, which the live walk kept
+    #: until decision D-D65 (1).
+    FORWARD_WALK_FLOOR = 100.0
+
+    def test_without_the_warmup_the_committed_stance_config_reproduces_the_stop(self):
+        """Not an approximation of the failure — the failure itself, on the stance node."""
+        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 1, peak_warmup_timesteps=0.0)
+        stopped_at, cb = self._drive(self.STANCE_20260923, settings)
         assert stopped_at == 1_450_000
-        assert cb._peak_score == pytest.approx(peak)
+        assert cb._peak_score == pytest.approx(2592.9)
+
+    def test_without_the_warmup_the_forward_walk_floor_reproduces_the_locomotion_stop(self):
+        """The failure itself on the locomotion node, under the floor the run trained with (an explicit override)."""
+        settings = self._settings(
+            DIBOTHROSUCHUS_ELAPHROS, 2, peak_floor=self.FORWARD_WALK_FLOOR, peak_warmup_timesteps=0.0
+        )
+        stopped_at, cb = self._drive(self.LOCOMOTION_20260923, settings)
+        assert stopped_at == 1_450_000
+        assert cb._peak_score == pytest.approx(2246.9)
+
+    def test_the_committed_locomotion_floor_never_arms_on_the_real_run(self):
+        """Decision D-D65 (1): the walk's floor (1.31 x 2286.0 = 2994.7) stands above the run's standing plateau
+        (2246.9), so on the committed config the series never arms, with the committed warm-up or without it."""
+        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2)
+        assert settings["peak_floor"] == pytest.approx(1.31 * 2286.0)
+        assert max(self.LOCOMOTION_20260923) < settings["peak_floor"]
+        for warmup in (0.0, settings["peak_warmup_timesteps"]):
+            stopped_at, cb = self._drive(self.LOCOMOTION_20260923, {**settings, "peak_warmup_timesteps": warmup})
+            assert stopped_at is None and not cb._peak_score >= settings["peak_floor"]
 
     @pytest.mark.parametrize(("stage", "trace_name"), [(1, "STANCE_20260923"), (2, "LOCOMOTION_20260923")])
     def test_the_committed_warmup_lets_the_real_run_continue(self, stage, trace_name):
@@ -924,24 +952,32 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         # Never armed: no window past the warm-up reaches the floor.
         assert not cb._peak_score >= settings["peak_floor"]
 
-    def test_a_shorter_locomotion_warmup_arms_on_the_fallen_plateau(self):
-        """Why stage 2's warm-up must clear 1.05M (the committed value is the D-B5 bound).
+    def test_a_shorter_locomotion_warmup_arms_on_the_fallen_plateau_under_the_forward_walk_floor(self):
+        """Why stage 2's warm-up had to clear 1.05M under the forward walk's floor (the committed value is the D-B5
+        bound).
 
         Just past the clip release, the eligible windows are the lunge-and-fall
         regime itself (peak ~115), which clears the absolute floor of 100 and
-        arms the backstop on a level that was never good.
+        arms the backstop on a level that was never good.  The committed floor
+        (decision D-D65 (1)) stands far above that regime, so there it never arms.
         """
-        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2, peak_warmup_timesteps=1_000_000)
+        settings = self._settings(
+            DIBOTHROSUCHUS_ELAPHROS, 2, peak_floor=self.FORWARD_WALK_FLOOR, peak_warmup_timesteps=1_000_000
+        )
         _, cb = self._drive(self.LOCOMOTION_20260923, settings)
         assert settings["peak_floor"] <= cb._peak_score < 200.0
+        committed = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2, peak_warmup_timesteps=1_000_000)
+        _, cb = self._drive(self.LOCOMOTION_20260923, committed)
+        assert cb._peak_score < 200.0 < committed["peak_floor"]
 
     def test_a_genuine_collapse_after_the_locomotion_warmup_still_stops(self):
-        """The warm-up delays the peak; it must not disarm the backstop."""
+        """The warm-up delays the peak; it must not disarm the backstop.  The walking level is the matched reference
+        walk's expected evaluation, 0.85 x 4594.1 + 0.15 x 4977.4 = 4651.6, above the floor (decision D-D65 (1))."""
         settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2)
-        trace = [2245.0] * 66 + [2500.0] * 10 + [300.0] * 12
+        trace = [2245.0] * 66 + [4651.6] * 10 + [300.0] * 12
         stopped_at, cb = self._drive(trace, settings)
         assert stopped_at is not None
-        assert cb._peak_score == pytest.approx(2500.0)
+        assert cb._peak_score == pytest.approx(4651.6) and cb._peak_score >= settings["peak_floor"]
 
     @pytest.mark.parametrize(
         "model_id", [DIBOTHROSUCHUS_ELAPHROS, BRACHIOSAURUS_ALTITHORAX], ids=lambda m: f"{m.species}-{m.embodiment}"
@@ -972,11 +1008,12 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         """One backstop rule across the seven live walks (decision D-D62).  A walk that carries the backstop
         (velociraptor, T. rex, brachiosaurus, dibothrosuchus) declares the D-B5 peak warm-up as exactly its stage-entry
         warm-up plus its cruise ramp; the Compsognathus pair and the Allosaurus carry none, by recorded decision.  The
-        floor sits above a stander's evaluation mix only where a walk as steady as the model's reference walk
-        evaluates above that mix (the velociraptor, and the T. rex since the stride-averaged tracking of decision
-        D-D64 lifted its reference walk above the mix's 10-stand level; their species tests derive it); elsewhere it
-        stays where the model had it (the quadrupeds' absolute 100) and the warm-up alone keeps a standing plateau
-        from arming it (their species tests replay the plateau)."""
+        floor sits above a stander's evaluation mix where a walk as steady as the model's reference walk, under a
+        command matched to its own speed along the spawn heading, evaluates above the mix's 10-stand level (the
+        matched basis on every model, decision D-D65 (1)).  It holds on all four: the velociraptor, the T. rex since
+        the stride-averaged tracking of decision D-D64 lifted its reference walk above that level, and the
+        brachiosaurus and the dibothrosuchus since D-D65 (1) replaced their absolute 100.  Each species test derives
+        its floor and replays the standing plateau."""
         from environments.shared.config import load_all_stages
         from environments.shared.species_names import model_ids
 
@@ -995,7 +1032,7 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
             assert settings["peak_warmup_timesteps"] == cur["warmup_timesteps"] + ramp, model_id
             # The 40-episode statue mean is the stander's evaluation mix to within its family-mix noise.
             above_the_statue = settings["peak_floor"] > cur.get("collapse_peak_floor_reference", float("inf"))
-            assert above_the_statue == (model_id in {VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX}), model_id
+            assert above_the_statue, model_id
         assert seen == armed
 
     def test_the_velociraptor_mongoliensis_locomotion_floor_keeps_the_scaled_standing_plateau_from_arming(self):

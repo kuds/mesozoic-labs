@@ -26,11 +26,11 @@ robustness, **LOW** = cosmetic / QoL.
 
 - **HIGH** — **the walk's `command_tracking/v1` bars are provisional, and no
   controller in the repository has passed a committed walk panel (2026-11-24,
-  decision D-D62 (16); updated 2026-11-26, decision D-D64).** Every committed
-  walk follows a live command and is judged by the gate's walk profile at
-  `PROVISIONAL_WALK_THRESHOLDS` and the model's gait clause. On the real
-  plants the zero-action statue fails every walk on the cruise family's
-  success bound (0 of 20).
+  decision D-D62 (16); updated 2026-11-26, decisions D-D64 and D-D65).**
+  Every committed walk follows a live command and is judged by the gate's
+  walk profile at `PROVISIONAL_WALK_THRESHOLDS` and the model's gait clause.
+  On the real plants the zero-action statue fails every walk on the cruise
+  family's success bound (0 of 20).
   - *Resolved by D-D64:* the per-step tracking reading, D-D62 (16) (a),
     which D-D63 (2) decided. At a moving command the tracking term and the
     gate's in-tolerance test now read a trailing one-stride mean
@@ -38,7 +38,10 @@ robustness, **LOW** = cosmetic / QoL.
     protocol `command_panel/v2`; stops and the speed ratio stay per step.
     Under a command it matches, every reference walk now clears the
     in-tolerance fraction and the speed ratio: in tolerance after the settle,
-    its worst episode reads 0.873-1.000, against 0.10-0.86 per step.
+    its worst episode reads 0.873-1.000, against 0.10-0.86 per step. The
+    maintainer accepted its boxcar, its one window rule and its window-fill
+    settle allowance as recorded on 2026-11-26 (D-D65 (3)); the
+    triangular-window fallback stays on record.
     - The brachiosaurus (at 0.35 m/s) and the dibothrosuchus (at 0.157 m/s)
       pass the whole walk gate there. Both commands lie below their
       commanded ranges.
@@ -74,7 +77,8 @@ robustness, **LOW** = cosmetic / QoL.
       sidelobe (window over stride about 1.2-1.6) keeps up to 0.22 of the
       sway. A stop-and-go whose cycle divides the window earns full
       tracking, and only the report-only `longest_stop_s` sees it, as a
-      panel maximum (per episode its values overlap). A quadruped start
+      panel maximum (per episode its values overlap). Whether it becomes a
+      bar is decided after the pilot (D-D65 (2)). A quadruped start
       sprint is charged little tracking under the expanding window and the
       +W allowance, and out-earns the steady reference by 0.4-2.1% a step,
       through `gait_symmetry`. The follow profile's mid-episode command
@@ -1017,6 +1021,19 @@ robustness, **LOW** = cosmetic / QoL.
   with the velociraptor's 2.3M unchanged and a new 2.3M on the T-Rex walk
   (D-D62 (12), (15)). The velociraptor walk's floor is 2.4 x its live-walk
   statue's 891.3 (D-D62 (15)); the two quadruped walks keep the absolute 100.
+  **Update 2026-11-26 (decision D-D65 (1)):** the quadruped walks' floors
+  are relative too. On the matched basis (the reference walk under a command
+  matched to its own speed) each walker is expected to evaluate above its
+  stander's 10-stand level, so the brachiosaurus walk's floor is 1.20 x
+  2359.7 = 2831.6 and the dibothrosuchus walk's 1.31 x 2286.0 = 2994.7, each
+  between its stander's 9- and 10-stand evaluations, with the
+  `statue_constants_physics_revision` pin (7, 4). A standing plateau no
+  longer arms them, so a collapse from standing is not caught on these
+  walks. On the dibothrosuchus, neither, on most seeds, is the collapse of a
+  learned walk that tracks none of the committed commands; on the
+  brachiosaurus such a walk evaluates within a few units of the floor, so
+  ordinary fluctuation between evaluations usually arms it. Still open: the
+  brachiosaurus and dibothrosuchus stance floors (1310, 1870) stay absolute.
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`

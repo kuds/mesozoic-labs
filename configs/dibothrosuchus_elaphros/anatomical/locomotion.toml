@@ -187,27 +187,83 @@ min_lead_swaps_per_stride = 1.0         # The dibothrosuchus reference walk read
 # panel's 20 cruise episodes.
 #
 # Training-loop keys, read by no gate: the collapse backstop and the stage-entry warm-up.
-collapse_peak_floor = 100.0             # Absolute: the value the backstop took from the forward walk's 100.0
-                                        # min_avg_reward rail, which the command-tracking gate does not carry.
-                                        # The statue reads 2067.6 a cruise episode and 4977.4 a stand one on this
-                                        # walk (2504 an evaluation at the 15% stand rate), so a standing plateau
-                                        # arms the backstop once past the warm-up below.  The stand count's spread
-                                        # alone never stops it (0 of 400 simulated 12M runs; no evaluation under
-                                        # 0.67 of the peak).
+# Collapse backstop: the relative floor pair stance and recovery use (PLANT_VALIDATION §14 item 3); an explicit
+# collapse_peak_floor would win over the pair (collapse_settings_from_config), so none is set.  The forward walk's
+# absolute 100.0, which this walk kept until decision D-D65 (1), is gone.
+collapse_peak_floor_reference = 2286.0  # The zero-action statue's reward on this walk: 2286.04 +/- 810.62 over 40
+                                        # episodes, seeds 3042-3081, 40/40 full horizon, physics r4, measured 2026-11-26
+                                        # with environments/shared/scripts/zero_action_baseline.py --model-id
+                                        # dibothrosuchus_elaphros anatomical --stage 2 --episodes 40 --seed 3042, with
+                                        # the tracking window (D-D64).  A mix of the two families: 37 cruise episodes
+                                        # 2067.63 +/- 272.66 (1913.6 of it gait_symmetry; tracking 1.07 an episode: the
+                                        # statue tracks no cruise command) and 3 stand episodes (seeds 3052, 3060, 3074)
+                                        # 4979.78 +/- 5.12; at the 15% stand rate the mix would average 2504.5.  The
+                                        # cruise family is bimodal: an episode whose settle leaves the diagonal
+                                        # alternation ratio at 0.5 collects half of gait_symmetry (seeds 3042, 3045 and
+                                        # 3077 here; 26 of 321 statue cruise episodes rolled, 1149.4 against the full
+                                        # mode's 2148.3).  The first 10 stand seeds from 3042 (3052-3130) read 4977.44
+                                        # +/- 6.88: the stance's weights plus the stop's tracking (2478.1; a stop is
+                                        # scored per step).  Re-measure with the same script whenever a reward weight,
+                                        # the command distribution OR the plant changes, and re-derive the fraction.
+collapse_peak_floor_fraction = 1.31     # floor = 1.31 x 2286.0 = 2994.7, above every evaluation a stander reads at the
+                                        # family means with at most 9 of its 30 episodes stands: 2067.6 + 2909.8 k / 30
+                                        # is 2504.1 at the expected k = 4.5, 2940.6 at k = 9 and 3037.6 at k = 10 (the
+                                        # floor is their midpoint, 2989.1, to the fraction's two decimals).  With k
+                                        # fixed by the run's evaluation seed (D-D62 (20)), a stander at the family means
+                                        # arms the floor only on a run whose seed draws k >= 10, 0.97% of seeds, and a
+                                        # level that holds steady never reads as a collapse.  A run's own 30 episodes
+                                        # move that level by 33.3 for each cruise episode in the half mode (the modes
+                                        # 2148.35 +/- 3.48 and 1149.42 +/- 1.58, 26 of the 321 episodes in the half
+                                        # one), so with each run's episodes fixed a stander arms on 1.13% of seeds: 17%
+                                        # of the 9-stand runs (only runs whose 21 cruise episodes are all full), 78% of
+                                        # the 10-stand ones (those with at most 2 in the half mode) and all but 0.3%
+                                        # from 11 up (1.06%, and 13% of the 9-stand runs, with all 89 statue stand
+                                        # episodes rolled, 4973.3 +/- 14.7, as the stand family).  A stander whose
+                                        # cruise episodes change mode from one evaluation to the next, as a learned
+                                        # policy's settle can while k stays fixed, arms on about 2.7% of seeds instead,
+                                        # near P(k >= 9) = 2.78% (95% of its 9-stand runs; 2.4% and 79% on the 89 stand
+                                        # episodes), and still never stops.  The statue's own evaluation reads 2424.5 at
+                                        # the default seed 42 (k = 4), 2894.3-2930.9 at seeds 45, 76 and 104 (k = 9),
+                                        # and 3024.1, 3057.5 and 2990.8 at seeds 4, 136 and 292 (k = 10, the last with 3
+                                        # half-mode episodes).  Sized with k drawn afresh at every evaluation (a
+                                        # superset of k's variance, though not of that change of mode at a fixed k), a
+                                        # stander's peak (the best 5-evaluation median past the warm-up) reached the
+                                        # floor on 0.10% of 200,000 simulated 12M runs (0.16% with the spread).  The
+                                        # cruise statue alone (2067.6) is 0.69 of it.  A walker clears it at a mean
+                                        # cruise-episode reward of (2994.7 - 0.15 x 4977.4) / 0.85 = 2645: the reference
+                                        # walk (scripts/reference_walk.py, its root servo steered to the commanded
+                                        # heading) under a command matched to its own 0.157 m/s along the spawn heading
+                                        # reads 4594.1 a cruise episode on the walk panel with the tracking window (4.59
+                                        # a step; 4590.9 unsteered; 3979.9 scored per step), an expected evaluation of
+                                        # 4652 (4645 at k = 4), 1.55 x the floor, so it arms the floor at every k.  The
+                                        # rule (D-D62 (15), read on the matched basis on every model, D-D65 (1)): the
+                                        # floor stands above a stander's mix where a walk as steady as the reference,
+                                        # under a command it matches, evaluates above the mix's 10-stand level.  On the
+                                        # committed panel's commands (0.45-0.9 m/s, 2.9-5.7 times its speed) the
+                                        # reference tracks nothing and reads 2243.1 a cruise episode, an expected 2653,
+                                        # under the 9-stand level: D-D64 read the rule there and kept the absolute 100,
+                                        # and no controller in the repository walks this plant inside its commanded
+                                        # range.  The trade the maintainer accepted (D-D65 (1)): a standing plateau no
+                                        # longer arms the backstop (under the 100 it armed once past the warm-up), so a
+                                        # collapse from standing is not caught here; in exchange the dip while a policy
+                                        # starts to walk cannot stop the run before its evaluations have reached the
+                                        # floor.
+statue_constants_physics_revision = 4   # The dibothrosuchus PHYSICS revision the reference was measured on.
 collapse_peak_warmup_timesteps = 2800000 # Evaluations before this step cannot SET the peak: the D-B5 bound,
-                                         # warmup_timesteps + [commands] cruise_ramp_timesteps (800k + 2M; 3.3M with
-                                         # the forward-weight ramp's 2.5M). The evaluation env runs the end-state
-                                         # command from step 0 (the cruise ramp swaps only the training workers),
-                                         # so a warm-started policy still standing evaluates at its standing level,
-                                         # far above the absolute floor: run 20260923_020654 (the forward walk)
-                                         # armed at 1.0M on that standing peak (2246.9), and the lunge-and-fall
-                                         # after the clip release at 800k stopped it at 1.45M of 12M. On its 29
-                                         # evaluations a warm-up <= 750k still stops there, a 0.8-1.05M one arms on
-                                         # the fallen plateau itself (peak 107-192) under this floor, and anything
-                                         # past 1.05M stays disarmed through 1.45M: the replay bounds the warm-up
-                                         # below at 1.1M; 2.8M is the D-B5 bound and leaves 9.2M protected. The
-                                         # floor stays absolute until the plant settles (KNOWN_ISSUES, the
-                                         # collapse-floor entry).
+                                         # warmup_timesteps + [commands] cruise_ramp_timesteps (800k + 2M; 3.3M with the
+                                         # forward-weight ramp's 2.5M). The evaluation env runs the end-state command
+                                         # from step 0 (the cruise ramp swaps only the training workers), so a
+                                         # warm-started policy still standing evaluates at its standing level. Run
+                                         # 20260923_020654 (the forward walk) shows the shape on its own 29 evaluations:
+                                         # under the forward walk's absolute floor of 100 it armed at 1.0M on that
+                                         # standing peak (2246.9), and the lunge-and-fall after the clip release at 800k
+                                         # stopped it at 1.45M of 12M; a warm-up <= 750k still stopped there, a
+                                         # 0.8-1.05M one armed on the fallen plateau itself (peak 107-192), and anything
+                                         # past 1.05M stayed disarmed through 1.45M. Under the floor above the series
+                                         # never arms, with this warm-up or without it
+                                         # (test_curriculum_early_stopping.py replays it on this config). 2.8M is the
+                                         # D-B5 bound and leaves 9.2M protected; it also keeps the cruise ramp's 2M
+                                         # steps out of the peak.
 collapse_min_evals = 20                 # Backstop early-stop: wait ~1M steps (20 evals x 50k) before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5

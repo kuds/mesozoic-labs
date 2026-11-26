@@ -250,7 +250,12 @@ Allosaurus fail heading_settle on their scripted starts; the statue still fails 
 stay provisional and no controller has passed a committed walk panel (KNOWN_ISSUES). Every walk's
 task digest moved, so a walk session trains a walk afresh; the T. rex walk's collapse floor is
 2.16 x 1248.7 (D-D62 (15), as D-D64 reads it). The review triage the previous note deferred is
-no longer waiting on it.* Section 2 labels each
+no longer waiting on it.* *2026-11-26 (decision D-D65): the maintainer answered D-D64's open
+questions. The collapse floor's walker is now measured on the matched basis on every model, so the
+brachiosaurus and dibothrosuchus walks' floors are raised from the absolute 100 to 1.20 x 2359.7 =
+2831.6 and 1.31 x 2286.0 = 2994.7; on those walks a standing plateau no longer arms the backstop.
+`longest_stop_s` stays report-only until the pilot, D-D64's window design is accepted as recorded,
+and the notebook review's 110 open findings are folded into KNOWN_ISSUES next.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.

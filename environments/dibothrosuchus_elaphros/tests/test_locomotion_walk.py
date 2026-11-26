@@ -32,10 +32,24 @@ Under the live walk an in-training evaluation is a mix of the two families: its 
 probability ``stop_probability`` (0.15).  Since decision D-D62 (20) the evaluation env is reseeded with the run's
 evaluation seed before every evaluation, so a run has one stand count k, fixed by that seed (4 at the default seed
 42), and a stander's level holds; the tests that draw k afresh at every evaluation keep those per-evaluation draws as
-a superset of the real variance.  The walk keeps the absolute ``collapse_peak_floor`` behind the D-B5 peak warm-up: a
-standing plateau arms the backstop once past the warm-up, and the family mix alone never stops it.  Run
-20260923_020654 itself, on this config, is replayed in
-``environments/shared/tests/test_curriculum_early_stopping.py``.
+a superset of k's variance (not of a change of cruise mode at a fixed k, below).
+
+Since decision D-D65 (1) the D-D62 (15) floor rule reads one basis on every model: the reference walk under a command
+matched to its own speed along the spawn heading.  There the steered reference earns 4594.11 a cruise episode, an
+expected evaluation of 0.85 x 4594.11 + 0.15 x 4977.44 = 4651.6, above a stander's 10-stand level (3037.6), so the
+floor (``collapse_peak_floor_fraction`` x ``collapse_peak_floor_reference``, 1.31 x 2286.0 = 2994.7) stands between a
+stander's 9-stand and 10-stand evaluations (2940.6, 3037.6), as on the velociraptor and the T. rex: on the family
+means a standing plateau arms the backstop only on the 0.97% of seeds that draw k >= 10, where a level that holds
+never reads as a collapse, while a walk that tracks its command clears it.  The statue's cruise family is bimodal
+(the episodes whose settle leaves the alternation ratio at 0.5 earn about 1150, the rest about 2150), so a run's own
+30 episodes move its stander's level by up to about 33 per such episode: a 9-stand run whose 21 cruise episodes all
+collect the whole gait_symmetry weight reads just above the floor, and a 10-stand run with three or more of the low
+episodes reads under it.  With each run's episodes fixed, 1.13% of seeds arm; a learned stander whose cruise episodes
+change mode from one evaluation to the next, at its fixed k, arms at 9 stands too, on about 2.7% of seeds (near
+P(k >= 9)), and still never stops.  The forward walk's absolute floor of 100, which a standing plateau armed once past
+the warm-up, is gone: a collapse from standing is no longer caught, and the dip while a policy starts to walk can no
+longer stop the run (the trade decision D-D65 (1) accepted).  Run 20260923_020654 itself, on this config, is replayed
+in ``environments/shared/tests/test_curriculum_early_stopping.py``: under the floor its series never arms.
 """
 
 from __future__ import annotations
@@ -75,9 +89,18 @@ REFERENCE_WALK_MATCHED = (4594.11, 104.25)
 #: stride / period = 0.175 m/s; it covers 0.157-0.158 m/s on the walk panel).
 TRACKING_WINDOW_S = 0.80
 REFERENCE_WALK_SPEED = 0.157
+#: The statue's two cruise modes: the episodes whose settle leaves the diagonal alternation ratio at 1 (gait_symmetry's
+#: whole weight on every step) and at 0.5, over 321 statue cruise episodes (seeds 3042-3241 and the evaluation
+#: sequences of seven run seeds), 295 at 2148.35 +/- 3.48 and 26 (8.1%) at 1149.42 +/- 1.58.
+STATUE_CRUISE_MODES = (2148.35, 1149.42)
+#: The same walk on the committed walk panel's commands (0.45-0.9 m/s, 2.9-5.7 times its speed), steered: the
+#: basis D-D64 read the rule on for this model, under which the floor stayed absolute.
+REFERENCE_WALK_COMMITTED = 2243.10
 #: Episodes per in-training evaluation (train_base._DEFAULT_EVAL_EPISODES) and its spacing in steps.
 EVAL_EPISODES = 30
 EVAL_FREQ = 50_000
+#: The most stand episodes an evaluation of a stander may hold and still read below the floor (on the family means).
+STANDS_BELOW_THE_FLOOR = 9
 
 #: Run 20260923_020654's locomotion series (this model's forward walk) and its standing plateau.
 RUN_20260923 = early_stopping_tests.TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups.LOCOMOTION_20260923
@@ -92,6 +115,11 @@ def _settings(**overrides):
     settings = collapse_settings_from_config(dict(_walk()["curriculum_kwargs"]))
     settings.update(overrides)
     return settings
+
+
+def _stander_evaluation(stands: int, cruise: float = STATUE_CRUISE[0], stand: float = STATUE_STAND[0]) -> float:
+    """The mean reward of a statue evaluation holding *stands* stand episodes of its EVAL_EPISODES."""
+    return cruise + (stand - cruise) * stands / EVAL_EPISODES
 
 
 def _drive(trace, settings):
@@ -122,8 +150,27 @@ def _mixed_evaluation(rng, stop_probability, cruise=STATUE_CRUISE):
 # ── the collapse backstop ────────────────────────────────────────────────────
 
 
-def test_the_walk_keeps_the_absolute_floor_behind_the_d_b5_peak_warmup():
-    """warmup_timesteps plus the cruise ramp (800k + 2M); the floor stays absolute, far under the statue's level."""
+def test_the_floor_is_the_relative_pair_above_the_stander_and_the_cruise_statue():
+    """1.31 x 2286.0 = 2994.7, the midpoint of a stander's evaluations with 9 stands (2940.6) and 10 (3037.6), to the
+    fraction's two decimals (decision D-D65 (1)); no absolute floor is set, since one would win over the pair."""
+    curriculum = _walk()["curriculum_kwargs"]
+    settings = _settings()
+    assert "collapse_peak_floor" not in curriculum
+    assert curriculum["collapse_peak_floor_reference"] == 2286.0
+    assert curriculum["collapse_peak_floor_fraction"] == 1.31
+    assert settings["peak_floor"] == pytest.approx(1.31 * 2286.0)
+    assert _stander_evaluation(STANDS_BELOW_THE_FLOOR) < settings["peak_floor"]
+    assert _stander_evaluation(STANDS_BELOW_THE_FLOOR + 1) >= settings["peak_floor"]
+    midpoint = 0.5 * (_stander_evaluation(STANDS_BELOW_THE_FLOOR) + _stander_evaluation(STANDS_BELOW_THE_FLOOR + 1))
+    assert settings["peak_floor"] == pytest.approx(midpoint, abs=0.005 * 2286.0)
+    # The 40-episode statue reference is the family mix at the 3 stand episodes seeds 3042-3081 hold.
+    assert 37 / 40 * STATUE_CRUISE[0] + 3 / 40 * 4979.78 == pytest.approx(2286.0, abs=0.1)
+    # The statue's cruise episodes alone come to under 0.7 of it.
+    assert STATUE_CRUISE[0] < 0.70 * settings["peak_floor"]
+
+
+def test_the_walk_declares_the_d_b5_peak_warmup():
+    """warmup_timesteps plus the cruise ramp (800k + 2M), within a quarter of the budget."""
     walk = _walk()
     curriculum = walk["curriculum_kwargs"]
     ramp = walk["env_kwargs"]["command_config"].cruise_ramp_timesteps
@@ -131,34 +178,62 @@ def test_the_walk_keeps_the_absolute_floor_behind_the_d_b5_peak_warmup():
     assert ramp == 2_000_000 and "ramp_timesteps" not in curriculum
     assert settings["peak_warmup_timesteps"] == curriculum["warmup_timesteps"] + ramp == 2_800_000
     assert settings["peak_warmup_timesteps"] <= 0.25 * curriculum["timesteps"]
-    assert curriculum["collapse_peak_floor"] == 100.0 and "collapse_peak_floor_fraction" not in curriculum
-    # A statue-level evaluation reads at least about its cruise level, 20x the floor: a standing plateau arms the
-    # backstop once past the warm-up.
-    assert settings["peak_floor"] < 0.05 * STATUE_CRUISE[0]
 
 
-def test_the_family_mix_alone_never_stops_a_standing_walk():
-    """A statue-level policy over the whole 12M budget: the stand count's spread never reads as ten evaluations under
-    half the peak, with or without the warm-up.
+def test_a_stander_reaches_the_floor_only_by_a_median_of_ten_stand_evaluations():
+    """The binomial tail of 10 or more stands, and the union bound over the windows past the warm-up, on the family
+    means.
 
-    Each evaluation draws its own stand count, a superset of the real variance (one k per run, fixed by its
-    evaluation seed, decision D-D62 (20)).
+    With one k per run, fixed by its evaluation seed (decision D-D62 (20)), a stander at the family means arms the
+    floor on the seeds whose k reaches 10: the tail, 0.97% of seeds.  Under the superset that draws k afresh at every
+    evaluation, a window's median reaches the floor only when 3 of its 5 evaluations hold 10 or more stands, each
+    with that tail probability, so over the 181 windows of the 12M budget past the 2.8M warm-up a stander arms on
+    under 0.2% of runs.
     """
     walk = _walk()
     stop_probability = walk["env_kwargs"]["command_config"].stop_probability
+    settings = _settings()
+    tail = sum(
+        math.comb(EVAL_EPISODES, k) * stop_probability**k * (1 - stop_probability) ** (EVAL_EPISODES - k)
+        for k in range(STANDS_BELOW_THE_FLOOR + 1, EVAL_EPISODES + 1)
+    )
+    window = settings["smoothing_window"]
+    median_tail = sum(
+        math.comb(window, m) * tail**m * (1 - tail) ** (window - m) for m in range(window // 2 + 1, window + 1)
+    )
     evaluations = walk["curriculum_kwargs"]["timesteps"] // EVAL_FREQ
-    rng = np.random.default_rng(3042)
-    for _ in range(3):
-        trace = [_mixed_evaluation(rng, stop_probability) for _ in range(evaluations)]
-        assert _drive(trace, _settings(peak_warmup_timesteps=0.0))[0] is None
-        assert _drive(trace, _settings())[0] is None
+    eligible = evaluations - int(settings["peak_warmup_timesteps"] // EVAL_FREQ) + 1
+    windows = eligible - window + 1
+    assert tail == pytest.approx(0.0097, abs=0.0001)
+    assert windows == 181
+    assert windows * median_tail < 0.002
 
 
-@pytest.mark.parametrize("stands", [4, 10])
+def test_the_statue_s_bimodal_cruise_family_moves_a_stander_only_between_nine_and_ten_stands():
+    """A run's 30 episodes are fixed (decision D-D62 (20)), so its stander's level depends on how many of its cruise
+    episodes collect half of gait_symmetry (seed 3042's mode) rather than all of it (seed 3043's).  At 9 stands a run
+    whose 21 cruise episodes are all full reads just above the floor and one half episode puts it under; at 10 stands
+    it takes three half episodes; at 8 stands no mix reaches the floor, and at 11 four half episodes still clear it."""
+    floor = _settings()["peak_floor"]
+    full, half = STATUE_CRUISE_MODES
+
+    def level(stands, half_episodes):
+        cruise = (EVAL_EPISODES - stands - half_episodes) * full + half_episodes * half
+        return (cruise + stands * STATUE_STAND[0]) / EVAL_EPISODES
+
+    assert level(8, 0) < floor
+    assert level(9, 0) > floor > level(9, 1)
+    assert level(10, 2) > floor > level(10, 3)
+    assert level(11, 4) > floor
+
+
+@pytest.mark.parametrize("stands", [4, STANDS_BELOW_THE_FLOOR + 1])
 def test_a_stander_at_its_runs_fixed_stand_count_never_stops(stands):
-    """A run's stand count k is fixed by its evaluation seed (decision D-D62 (20)), so a stander's level holds: at the
-    default seed's k = 4 and at k = 10 it arms the absolute floor once the peak may be set, and holding steady it
-    never reads as a collapse, with or without the warm-up."""
+    """A run's stand count k is fixed by its evaluation seed (decision D-D62 (20)), so a stander's level holds.
+
+    At the default seed's k = 4 the level stays under the floor; at k = 10 (a seed in about 1%) it arms the backstop,
+    and holding steady it never reads as a collapse, with or without the warm-up.
+    """
     from environments.shared.curriculum.command_evaluation import command_evaluation_plan
     from environments.shared.train_base import eval_env_seed
 
@@ -166,34 +241,83 @@ def test_a_stander_at_its_runs_fixed_stand_count_never_stops(stands):
     plan = command_evaluation_plan(walk["env_kwargs"]["command_config"], eval_env_seed(42), EVAL_EPISODES)
     assert plan.family_counts()["stand"] == 4
     evaluations = walk["curriculum_kwargs"]["timesteps"] // EVAL_FREQ
-    level = STATUE_CRUISE[0] + (STATUE_STAND[0] - STATUE_CRUISE[0]) * stands / EVAL_EPISODES
-    trace = [level] * evaluations
+    trace = [_stander_evaluation(stands)] * evaluations
     for settings in (_settings(), _settings(peak_warmup_timesteps=0.0)):
         stopped_at, cb = _drive(trace, settings)
         assert stopped_at is None
-        assert cb._peak_score == pytest.approx(level) and level >= settings["peak_floor"]
+        assert cb._peak_score == pytest.approx(trace[0])
+        assert (cb._peak_score >= settings["peak_floor"]) == (stands > STANDS_BELOW_THE_FLOOR)
 
 
-def test_the_run_20260923_shape_with_the_family_mix_stops_without_the_warmup_and_runs_on_behind_it():
-    """The run's series as a ratio of this walk's standing mix (each evaluation draws its stand episodes at 0.15)."""
+def test_a_standing_walk_never_arms_the_backstop():
+    """A statue-level policy over the whole 12M budget, each evaluation's stand count drawn: never armed, never stopped.
+
+    Drawing k afresh at every evaluation is a superset of k's variance (one k per run, fixed by its evaluation seed,
+    decision D-D62 (20)), though not of a change of cruise mode at a fixed k (the module docstring).
+    """
+    walk = _walk()
+    stop_probability = walk["env_kwargs"]["command_config"].stop_probability
+    evaluations = walk["curriculum_kwargs"]["timesteps"] // EVAL_FREQ
+    rng = np.random.default_rng(3042)
+    for _ in range(20):
+        trace = [_mixed_evaluation(rng, stop_probability) for _ in range(evaluations)]
+        for settings in (_settings(), _settings(peak_warmup_timesteps=0.0)):
+            stopped_at, cb = _drive(trace, settings)
+            assert stopped_at is None and not cb._peak_score >= settings["peak_floor"]
+
+
+def test_the_run_20260923_shape_with_the_family_mix_never_arms_with_or_without_the_warmup():
+    """The run's series as a ratio of this walk's standing mix (each evaluation draws its stand episodes at 0.15)
+    peaks at the mix, under the floor, so the floor alone now holds it; under the forward walk's absolute floor of
+    100 it stopped at 1.45M without the warm-up, which alone kept it running."""
     stop_probability = _walk()["env_kwargs"]["command_config"].stop_probability
     rng = np.random.default_rng(20261124)
     for _ in range(10):
         trace = [_mixed_evaluation(rng, stop_probability) * value / RUN_20260923_PLATEAU for value in RUN_20260923]
-        assert _drive(trace, _settings(peak_warmup_timesteps=0.0))[0] == 1_450_000
-        assert _drive(trace, _settings())[0] is None
+        for settings in (_settings(), _settings(peak_warmup_timesteps=0.0)):
+            stopped_at, cb = _drive(trace, settings)
+            assert stopped_at is None and not cb._peak_score >= settings["peak_floor"]
+        assert _drive(trace, _settings(peak_floor=100.0, peak_warmup_timesteps=0.0))[0] == 1_450_000
+        assert _drive(trace, _settings(peak_floor=100.0))[0] is None
 
 
-def test_a_genuine_collapse_after_the_warmup_still_stops():
-    """The warm-up delays the peak; it does not disarm the backstop: a walk that falls after 6M is stopped."""
+def test_a_walk_that_tracks_its_command_clears_the_floor_and_its_collapse_still_stops():
+    """The matched reference walk's cruise family with stand episodes at the statue's: its expected evaluation
+    (4651.6) and its evaluation at the default seed's 4 stands (4645.2) clear the floor, and a simulated run that
+    stands to 3M, walks to 6M and then falls is stopped from a peak above the floor."""
     stop_probability = _walk()["env_kwargs"]["command_config"].stop_probability
+    settings = _settings()
+    walker = REFERENCE_WALK_MATCHED[0]
+    expected = (1 - stop_probability) * walker + stop_probability * STATUE_STAND[0]
+    assert expected > 1.1 * settings["peak_floor"] > _stander_evaluation(STANDS_BELOW_THE_FLOOR + 1)
+    assert _stander_evaluation(4, cruise=walker) > settings["peak_floor"]
+    # It arms the floor at every stand count: its cruise episode alone clears it.
+    assert walker > settings["peak_floor"]
+    # A walker clears the floor at a cruise-episode reward of (floor - 0.15 x stand) / 0.85 = 2645.
+    clearing = (settings["peak_floor"] - stop_probability * STATUE_STAND[0]) / (1 - stop_probability)
+    assert STATUE_CRUISE[0] < clearing < walker
+
     rng = np.random.default_rng(2042)
     standing = [_mixed_evaluation(rng, stop_probability) for _ in range(60)]
     walking = [_mixed_evaluation(rng, stop_probability, cruise=REFERENCE_WALK_MATCHED) for _ in range(60)]
     fallen = [value * RUN_20260923[-1] / RUN_20260923_PLATEAU for value in walking[:20]]
-    stopped_at, cb = _drive(standing + walking + fallen, _settings())
+    stopped_at, cb = _drive(standing + walking + fallen, settings)
     assert stopped_at is not None and stopped_at > 6_000_000
-    assert cb._peak_score > 20 * _settings()["peak_floor"]
+    assert cb._peak_score > settings["peak_floor"]
+
+
+def test_the_floor_rule_on_the_matched_basis_places_the_floor_above_the_stander():
+    """The D-D62 (15) floor rule on the matched basis of decision D-D65 (1): a floor goes above a stander's evaluation
+    mix where a walk as steady as the reference, under a command matched to its own speed, evaluates above the
+    stander's 10-stand level.  The matched steered reference evaluates at 4651.6, above it, so the floor stands
+    between the 9- and 10-stand levels.  On the committed panel's commands, the basis D-D64 read the rule on here, the
+    same walk tracks nothing and evaluates at 2653.3, under the 9-stand level, which is why D-D64 kept the absolute
+    100."""
+    floor = _settings()["peak_floor"]
+    matched = 0.85 * REFERENCE_WALK_MATCHED[0] + 0.15 * STATUE_STAND[0]
+    committed = 0.85 * REFERENCE_WALK_COMMITTED + 0.15 * STATUE_STAND[0]
+    assert _stander_evaluation(9) < floor < _stander_evaluation(10) < matched
+    assert committed < _stander_evaluation(9)
 
 
 # ── the real plant ───────────────────────────────────────────────────────────
@@ -224,7 +348,7 @@ def _statue_episode(env, seed):
 @pytest.mark.parametrize(
     ("seed", "family", "ratio"), [(3043, "cruise", 1.0), (3042, "cruise", 0.5), (3052, "stand", 0.0)]
 )
-def test_the_statue_reads_its_family_rewards(walk_env, seed, family, ratio):
+def test_the_statue_reads_the_family_rewards_the_floor_is_derived_from(walk_env, seed, family, ratio):
     """One episode of each family, inside the range its measured episodes span.  On a cruise episode the statue
     collects gait_symmetry at the alternation ratio its settle left (the whole weight on 3043, half on 3042) on
     every step after it; on the stand episode the stand block pays the stance's weights (alive 1.5, no
@@ -349,7 +473,8 @@ def test_the_reference_walk_clears_the_tracking_bars_at_a_command_it_matches(mon
     """The reference walk under a command matched to its 0.157 m/s along the spawn heading, on the matched panel's
     first three cruise seeds: on the stride window it is in tolerance on every step after the settle, settles its
     heading and clears every cruise bar, the gait clause included.  Per step the same trajectory reads a tracking
-    quality of about 0.72 (the within-stride sway)."""
+    quality of about 0.72 (the within-stride sway).  Each episode earns more than the cruise-episode reward at which a
+    walker clears the collapse floor (decision D-D65 (1))."""
     stage = _matched(_walk())
     command = stage["env_kwargs"]["command_config"]
     thresholds = thresholds_from_curriculum(
@@ -360,12 +485,15 @@ def test_the_reference_walk_clears_the_tracking_bars_at_a_command_it_matches(mon
     assert rollout.measurement.tracking_window_s == TRACKING_WINDOW_S
     cruise = [(episode, rows) for episode, rows in zip(rollout.episodes, rollout.steps) if episode.family == "cruise"]
     assert len(cruise) == 3
+    floor = _settings()["peak_floor"]
+    clearing = (floor - command.stop_probability * STATUE_STAND[0]) / (1 - command.stop_probability)
     for episode, rows in cruise:
         assert classify_cruise_episode(episode, thresholds) == ()
         assert episode.tracking_fraction_after_settle == 1.0 and episode.first_event_settled
         assert episode.speed_ratio >= 0.95 and episode.longest_stop_s <= 0.2
         windowed, per_step = _qualities_after_settle(rows, command)
         assert windowed >= 0.99 and per_step <= 0.75
+        assert math.fsum(row["reward"] for row in rows) > clearing
 
 
 def test_the_statue_still_fails_every_cruise_episode_on_the_window(monkeypatch):

@@ -398,7 +398,8 @@ episode record carries the left/right phase (about 0.5 on a walk, near 0 or
 `longest_stop_s`, the longest stretch after 2 s at under a quarter of the
 requested speed, which no verdict reads (a stop-and-go whose cycle fits
 inside the tracking window would show there, not in the in-tolerance
-fraction; decision D-D64). The
+fraction; decision D-D64; whether it becomes a bar is decided after the
+pilot, decision D-D65). The
 in-tolerance test is the environment's own (at a moving command the
 windowed errors when the stage declares `tracking_window_s`, a stop per
 step), at the tolerances the stage's
