@@ -1,5 +1,7 @@
-"""The foreleg comparison's (D22) appendix: every judged measure per run, and everything PREREG_FORELEG_D22.md lists as
-reported, not judged, read from the tools' stored output. Simulation only; the choice itself is judge_d22.py's.
+"""The foreleg comparison's (D22) appendix: every judged measure per run, and the main figures of what
+PREREG_FORELEG_D22.md lists as reported, not judged, read from the tools' stored output. Simulation only; the choice
+itself is judge_d22.py's. The full per-run record is each run's `analytics/results/<run>/gait_report.md` and
+`robustness/results/<run>/summary_<run>.md`.
 
 Inputs (all in the repository): `analysis/results/d22/` (judge_d22.json, foot_loads_<run>.json, demo/<run>/),
 `analytics/results/<run>/gait_report.json`, `robustness/results/<run>/sweep_<run>.json.gz`, with run 3's two seeds
@@ -26,9 +28,8 @@ ALL = {**RUNS, **REF}
 FEET = ("left_fore", "right_fore", "left_hind", "right_hind")
 FRONT = ("left_fore_roll", "left_fore_pitch", "left_fore_flexion", "right_fore_roll", "right_fore_pitch",
          "right_fore_flexion")
-# Run 3's front-foot figures from the foot-load tool, as the pre-registration states them (measured 23 Nov, before
-# any D22 run; the stored run 3 checkpoints were not kept here, so they are quoted, not re-read).
-RUN3_FOOT = {"188 s0 (run 3)": {"L": 143.5, "L_hind": 135.2}, "188 s1 (run 3)": {"L": 110.6, "L_hind": 122.9}}
+sys.path.insert(0, str(RL / "analysis"))
+import judge_d22 as jd  # noqa: E402  (its measure(): run 3's columns get the D22 measures from run 3's stored outputs)
 # PR #697's own figures from scripted controllers (commit 65a44fad, refinement60/mid160/README.md), for scale only.
 PR697 = [
     ("slow four-beat walk at 17 mm/s, highest single-foot raw / 10 ms load, N", "87.7 / 84.7", "89.8 / 86.2"),
@@ -65,13 +66,29 @@ def table(rows, cols, label_fn_pairs, head_label=""):
     rows.append("")
 
 
+def foot(col):
+    return json.loads((D22 / f"foot_loads_{ALL[col]}.json").read_text())
+
+
+def run3_measures():
+    """Run 3's two seeds through judge_d22.measure: its gait report and sweep as stored, and its foot loads measured
+    with the D22 run commit's foot_loads.py (26 Nov; equal to the pre-registration's figures)."""
+    return {k: jd.measure(jd.j3._load(str(RL / "analytics" / "results" / v / "gait_report.json")),
+                          jd.j3._load(str(RL / "robustness" / "results" / v / f"sweep_{v}.json.gz")), foot(k))
+            for k, v in REF.items()}
+
+
 def judged(rows, judge):
     rows.append("## A. The judged measures and the choice (judge_d22.py)\n")
     rows.append(f"Run commit {judge['run_commit']}. Checks: " + "; ".join(
         f"{k} {'pass' if not v else 'FAIL: ' + ', '.join(v)}" for k, v in judge["problems"].items()) + ".\n")
     rows.append(f"**Choice: {judge['choice']['choice']} mm** ({judge['choice']['why']}).\n")
     r = {k: judge["runs"][f"{n}_s{s}"] for k, (n, s) in ((f"{n} s{s}", (n, s)) for n in LENGTHS for s in SEEDS)}
-    cols = list(RUNS)
+    r.update(run3_measures())
+    cols = list(ALL)
+    rows.append("Run 3's two columns (188 mm, a reference) are `judge_d22.measure` on run 3's stored gait report and "
+                "sweep and on its foot loads, measured on 26 Nov with the D22 run commit's `foot_loads.py` (the "
+                "same figures as the pre-registration's).\n")
     yes = lambda b: "pass" if b else "FAIL"  # noqa: E731
     table(rows, cols, [
         ("F1, flat walking (speed m/s; falls of 5)", lambda c: f"{yes(r[c]['rules']['F1'])} "
@@ -102,27 +119,28 @@ def judged(rows, judge):
     rows.append(f"| H_front | {f(m[128]['H_front'], 3)} | {f(m[160]['H_front'], 3)} | H_front(160) <= "
                 f"H_front(128) + 0.10 | {'yes' if m[160]['H_front'] <= m[128]['H_front'] + 0.10 else 'no'} |")
     rows.append(f"| H_elbow (reported) | {f(m[128]['H_elbow'], 3)} | {f(m[160]['H_elbow'], 3)} | none | - |\n")
-    rows.append("Run 3 (188 mm) for scale, from the pre-registration: L " + ", ".join(
-        f"{f(v['L'], 1)} N (hind {f(v['L_hind'], 1)})" for v in RUN3_FOOT.values()) + "; its H, N and rules are in "
-        "B and C.\n")
     return r
 
 
 def rules_by_length(rows, r, judge):
     rows.append("## B. Run 3's rules for each length (PASS: all four seeds; FAIL: none; MIXED otherwise)\n")
-    rows.append("| rule | 128 mm (s0 s1 s2 s3) | 160 mm (s0 s1 s2 s3) |\n|---|---|---|")
+    rows.append("| rule | 128 mm (s0 s1 s2 s3) | 160 mm (s0 s1 s2 s3) | 188 mm, run 3 (s0 s1; reference) |\n"
+                "|---|---|---|---|")
     for k in ("F1", "F2", "T1", "T2", "T3", "T4", "T5"):
         cells = []
-        for n in LENGTHS:
-            v = [judge["runs"][f"{n}_s{s}"]["rules"][k] for s in SEEDS]
+        for v in ([judge["runs"][f"{n}_s{s}"]["rules"][k] for s in SEEDS] for n in LENGTHS):
             word = "PASS" if all(v) else "FAIL" if not any(v) else "MIXED"
             cells.append(f"{word} ({' '.join('P' if x else 'F' for x in v)})")
+        v = [r[c]["rules"][k] for c in REF]
+        cells.append(f"{'PASS' if all(v) else 'FAIL' if not any(v) else 'MIXED'} "
+                     f"({' '.join('P' if x else 'F' for x in v)})")
         rows.append(f"| {k} | " + " | ".join(cells) + " |")
     rows.append("")
     rows.append("Rule values per run (T3: drift on the four terrain points, limit 0.30 m; T4: friction 0.3, drift "
-                "limit 0.20 m and speed at least 0.8 of nominal; T5: falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s; "
-                "every rule also needs no fall):\n")
-    cols = list(RUNS)
+                "limit 0.20 m and speed at least 0.8 of nominal; T5: falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s, "
+                "passing with none at +-1.0 and at most 2 at +-1.25. F1 and T1-T4 also need no fall; F2 has no fall "
+                "condition):\n")
+    cols = list(ALL)
     rv = {c: r[c]["rule_values"] for c in cols}
     table(rows, cols, [
         ("T1 step 3 cm: falls; speed / nominal", lambda c: f"{rv[c]['T1']['falls']}; "
@@ -201,10 +219,10 @@ def gait_tables(rows):
 
 
 def foot_tables(rows):
-    fl = {k: json.loads((D22 / f"foot_loads_{v}.json").read_text()) for k, v in RUNS.items()}
+    fl = {k: foot(k) for k in ALL}
     rows.append("## D. Foot loads (foot_loads.py: 5 episodes, 20 s at 0.25 m/s, flat floor, randomisation off, noise "
-                "on, 10 ms delay; from 2 s)\n")
-    table(rows, list(RUNS), [
+                "on, 10 ms delay; from 2 s; run 3's two seeds measured on 26 Nov with the D22 run commit's tool)\n")
+    table(rows, list(ALL), [
         ("episodes that fell, of 5", lambda c: str(fl[c]["falls"])),
         ("worst front foot, 99th percentile of the 10 ms mean (L), N", lambda c: f(fl[c]["front_p99_window_n"], 1)),
         ("worst hind foot, the same, N", lambda c: f(fl[c]["hind_p99_window_n"], 1)),
@@ -223,6 +241,18 @@ def demo_tables(rows):
     d = {k: json.loads((D22 / "demo" / v / "demo_course.json").read_text()) for k, v in RUNS.items()}
     rows.append("## E. The demo course (demo_course.py: 90 s walking at 0.25 m/s and 30 s standing, repeated for one "
                 "pack; temperatures and battery are model estimates)\n")
+    rows.append("Provenance: demo_course.py records no checkpoint hash. Each was run from the run commit's export on "
+                "the run's downloaded final pair (the folder of the same name; the pairs' sha256 are in "
+                "runs/trike60-d22_LOG.md), on 26 Nov; the printout is stored beside each output.\n")
+    cont = {k: v["continuous_nm"] for k, v in gait_all("fore128-s0")["drives"].items()}
+    group = lambda j: ("roll" if j.endswith("roll") else "pitch" if j.endswith("pitch")  # noqa: E731
+                       else "front elbow" if "fore" in j else "hind knee")
+
+    def stand_worst(c, seg="stand"):
+        sg = d[c]["segments"][seg]
+        ratio = {j: t / cont[group(j)] for j, t in zip(sg["joints"], sg["tau_drive_rms"])}
+        j = max(ratio, key=ratio.get)
+        return j, ratio[j]
 
     def hottest(c, tau="tau_480s"):
         t = d[c]["temperatures"]
@@ -238,6 +268,13 @@ def demo_tables(rows):
          f"{f(hottest(c, 'tau_900s')[1]['peak_c'], 1)}"),
         ("hottest front winding, peak, 8 min, C (drive)", lambda c: (lambda j: f"{f(d[c]['temperatures'][j]['tau_480s']['peak_c'], 1)} ({j})")(
             max(FRONT, key=lambda j: d[c]["temperatures"][j]["tau_480s"]["peak_c"]))),
+        ("standing segment: worst drive RMS / continuous (drive)", lambda c: f"{f(stand_worst(c)[1], 2)} "
+         f"({stand_worst(c)[0]})"),
+        ("standing segment: feet carrying no load throughout", lambda c: ", ".join(
+            k.replace("_sole", "") for k, v in d[c]["segments"]["stand"]["loads"]["feet"].items()
+            if v["normal_n"]["max"] == 0.0) or "none"),
+        ("walking segment (0.25 m/s): worst drive RMS / continuous (drive)", lambda c: f"{f(stand_worst(c, 'walk_0.25')[1], 2)} "
+         f"({stand_worst(c, 'walk_0.25')[0]})"),
         ("any winding reaching its limit", lambda c: "yes" if any(
             v[t]["minutes_to_limit"] is not None for v in d[c]["temperatures"].values() for t in v) else "no"),
         ("runtime per pack, 30 W hotel (25 / 40 W), min", lambda c: f"{f(d[c]['battery']['runtime_minutes'], 0)} "
@@ -257,7 +294,8 @@ def sweep_tables(rows):
     s = {k: sweep(v) for k, v in ALL.items()}
     cols = list(ALL)
     rows.append("## F. Every sweep point (nominal model, noise on, 8 episodes, 0.25 m/s unless stated)\n")
-    rows.append("Each cell: falls of 8; speed m/s; sideways drift, mean, m; worst joint RMS / continuous rating. "
+    rows.append("Each cell: falls of 8; speed m/s; sideways drift, mean of its absolute value, m (the figure T3 and T4 "
+                "read); worst joint RMS / continuous rating. "
                 "Speed, drift and heat are over the episodes that did not fall; \"all fell\" has none.\n")
     for fam in s["188 s0 (run 3)"]["families"]:
         rows.append(f"**{fam['family']}** ({fam['x_key']})\n")
@@ -283,11 +321,14 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=str(Path(__file__).resolve().parent / "REPORT_FORELEG_D22_APPENDIX.md"))
     a = ap.parse_args(argv)
     judge = json.loads((D22 / "judge_d22.json").read_text())
-    rows = ["# The foreleg comparison (D22), appendix: every measure (simulation)\n",
+    rows = ["# The foreleg comparison (D22), appendix: the judged measures and the main reported figures (simulation)\n",
             "Generated by `analysis/d22_appendix.py` from the stored tool outputs. Columns: the eight D22 runs "
             "(upper foreleg length and seed) and, where the same tool measured it, run 3's two seeds (188 mm), as a "
             "reference only: its foreleg cannot be built (F18) and its fore-assembly differs besides the length. "
-            "Rules and the choice: PREREG_FORELEG_D22.md; the report: REPORT_FORELEG_D22.md.\n",
+            "Rules and the choice: PREREG_FORELEG_D22.md; the report: REPORT_FORELEG_D22.md. The full per-run "
+            "record (balance, slip, duty factors, head steadiness, the command sweep and every other figure the tools "
+            "give) is each run's `analytics/results/<run>/gait_report.md` and `robustness/results/<run>/"
+            "summary_<run>.md`.\n",
             "Proportions (geometry, PLAN_FORELEG_D22.md): upper foreleg over upper hind leg 0.681 (128 mm) and "
             "0.851 (160 mm); the specimen RGM.1332500's humerus over femur 0.682. Posture: the body's mean pitch, "
             "roll and height are in C; the elbow's angle was not measured by these tools.\n"]

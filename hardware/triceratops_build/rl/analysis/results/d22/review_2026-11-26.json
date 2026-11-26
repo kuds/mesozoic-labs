@@ -1,0 +1,990 @@
+{
+ "date": "2026-11-26",
+ "report_commit_reviewed": "0133faa6",
+ "method": "five independent reviewers (blind re-derivation, numbers, pre-registration, provenance, claims), each given the code and the stored records; each reviewer's findings then checked by a separate skeptical reviewer",
+ "reviews": [
+  {
+   "findings": [
+    {
+     "id": "B1",
+     "severity": "medium",
+     "title": "Report says one 128 mm seed reaches 1.00 and 1.005 in two reported-only heat cases. They are two different seeds, and the 1.00 is 0.997",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:31-32 (The answer)",
+     "what_is_written": "In two cases that are reported but not judged, one 128 mm seed reaches 1.00 and 1.005: the sweep's nominal point, and the gait report's nominal model with noise off.",
+     "evidence": "Read from the stored JSON (sweep points[...nominal...].summary.heat_worst; gait cases.nominal_0.25 max rms_over_continuous.mean). Sweep nominal point, 128 s0-s3: 0.865487, 0.940438, 0.974363, 0.996888 (s3, left_hind_pitch). Gait nominal_0.25, 128 s0-s3: 0.878312, 0.989089, 1.00461 (s2, left_fore_pitch), 0.965581. So 1.005 is seed 2 and '1.00' is seed 3 at 0.997, which is under the rating. The report's own table (lines 110-111) shows this split (s2 1.005, s3 1.00). The sentence in 'The answer' gives both to one seed.",
+     "suggested_fix": "Write: 'two 128 mm seeds come close: seed 3 reaches 0.997 at the sweep's nominal point and seed 2 reaches 1.005 in the gait report's nominal case (noise off)'."
+    },
+    {
+     "id": "B2",
+     "severity": "low",
+     "title": "H_elbow range for 128 mm misrounded: 0.62 should be 0.61",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:161",
+     "what_is_written": "H_elbow is 0.62-0.76 at 128 mm (mean 0.678)",
+     "evidence": "128 s3 H_elbow = right_fore_flexion rms_over_continuous.mean = 0.614826 in analytics/results/fore128-s3/gait_report.json. Both my script and judge_d22.json give this value. To two decimals it is 0.61. The appendix shows it as 0.615 (line 21), and rounding that again gives 0.62: a double rounding. The other figures are correct: max 0.756638, mean 0.6778855, 160 mm 0.688106-0.834319 with mean 0.75697.",
+     "suggested_fix": "0.61-0.76 at 128 mm."
+    },
+    {
+     "id": "B3",
+     "severity": "low",
+     "title": "Run log round 1 gives the wrong T3 drift range for fore128-s0 (0.43 is its T4 drift)",
+     "location": "hardware/triceratops_build/rl/runs/trike60-d22_LOG.md, 'Round 1 measured' bullet 2",
+     "what_is_written": "the runs drifted 0.27-0.43 m (fore128-s0), 0.46-0.60 m (fore160-s0) and 0.28-0.58 m (fore128-s1)",
+     "evidence": "sweep_fore128-s0.json.gz drift_abs_mean_m at the four T3 points: step 2 cm 0.273364, step 3 cm 0.270615, ramp 5 deg 0.351628, ramp 8 deg 0.277358. That is 0.27-0.35 m. The friction 0.3 point (T4) is 0.430609. The appendix (B, T3 row) also gives 0.27/0.27/0.35/0.28. The other two ranges are correct.",
+     "suggested_fix": "0.27-0.35 m (fore128-s0)."
+    },
+    {
+     "id": "B4",
+     "severity": "low",
+     "title": "The pre-registration's run 3 elbow range (0.53-0.66) does not match run 3's stored gait reports",
+     "location": "hardware/triceratops_build/rl/analysis/PREREG_FORELEG_D22.md, 'Measures per run', For scale paragraph",
+     "what_is_written": "H_front 0.823 and 0.722 (both the right front pitch drive; the elbows 0.53-0.66)",
+     "evidence": "analytics/results/run3-s0 and run3-s1/gait_report.json, target_0.25 rms_over_continuous.mean: s0 left_fore_flexion 0.53386 and right 0.660173; s1 left 0.593685 and right 0.508767. All four elbows span 0.51-0.66; the worst elbow per seed spans 0.59-0.66. The appendix C table shows the same (0.534/0.660, 0.594/0.509). The quoted H_all (0.836118, 0.800957), H_front (0.822791, 0.722198, both right_fore_pitch) and N (25, 18) do match. The elbows are reported only and the pre-registration is fixed text, so this affects no rule.",
+     "suggested_fix": "Note in the report or an erratum that run 3's elbows are 0.51-0.66 (worst per seed 0.59 and 0.66)."
+    },
+    {
+     "id": "B5",
+     "severity": "low",
+     "title": "Disclosure 3 understates what was added under rl/ after the run commit",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:188-190",
+     "what_is_written": "no code under rl/ has changed since f84a6919. Only notes, run records and results were added under rl/runs/ and rl/analysis/results/.",
+     "evidence": "git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl: added analysis/d22_appendix.py (new code), analysis/REPORT_FORELEG_D22.md and _APPENDIX.md, 44 files under analysis/results, 96 under analytics/results, 64 under robustness/results, 6 under runs/d22_startup and runs/trike60-d22_LOG.md; modified runs/trike60-d22_STEPS.md. No existing tool file changed. judge_d22.py, judge_run3.py, foot_loads.py, telemetry/loads.py, gait_report.py, sweep.py and trike_env.py have the same sha256 in the commit, the tree and the export. So the judging is unaffected; only the sentence is inaccurate.",
+     "suggested_fix": "Write 'no existing code under rl/ changed; added since f84a6919: the report, its appendix and its generator d22_appendix.py, and results under analysis/, analytics/ and robustness/results/ and runs/'."
+    },
+    {
+     "id": "B6",
+     "severity": "low",
+     "title": "T3 drift range for 128 mm includes points that pass",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:140",
+     "what_is_written": "T3 (steps and ramps, 0.30 m limit) fails on all four 128 mm seeds, at 0.21-0.58 m.",
+     "evidence": "T3 drifts over all 16 points at 128 mm run from 0.205755 (s2 ramp 5 deg, which passes) to 0.577231 (s1 ramp 8 deg). Each seed's worst T3 point: 0.351628, 0.577231, 0.329228, 0.481309, so the failing worst points span 0.33-0.58 m. The pass/fail statement itself is correct (FFFF).",
+     "suggested_fix": "'fails on all four 128 mm seeds; each seed's worst point drifts 0.33-0.58 m'."
+    }
+   ],
+   "checked_ok": [
+    "BLIND VERDICT: my own script (/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_d22final/blind/blind_judge.py) does not import judge_d22 or judge_run3. It finds sweep points by their 'point' dict, not by key string. Result: 128 mm walks (F1 and F2 pass on s0-s3) and 160 mm does not (F2 fails on s0, s1, s2), so the walk gate chooses 128 mm. This matches judge_d22.json: choice 128, 'only 128 mm passes F1 and F2 on all four seeds'.",
+    "Per-run values agree with judge_d22.json on all eight runs (0 differences; only ~1e-14 float differences in L from summation order). Fields compared: F1-T5 pass/fail and rule_values (speeds, falls, drifts, T5 fall counts, nominal speed, worst joint), L, L_hind, H_all, H_front, H_elbow, N, foot_falls.",
+    "Measured values. F2 worst, 128 s0-s3: left_hind_pitch 0.827586, right_hind_flexion 0.887707, left_fore_pitch 0.93091, left_hind_pitch 0.945385. 160 s0-s3: left_fore_pitch 1.01411, right_hind_flexion 1.01273, left_hind_flexion 1.09433, right_fore_pitch 0.87844. L: 122.906/119.458/117.478/126.392 and 134.296/109.056/105.200/121.704. N: 14/24/9/27 and 11/14/13/19. H_front: 0.6915/0.8111/0.9309/0.7795 and 1.0141/0.9646/0.9019/0.8784.",
+    "Means (not applied, because the gate decided). L 121.558 vs 117.564, ratio 0.9671, threshold 103.32: loads test fails. N 18.5 vs 14.25: falls test passes. H_all 0.8979 vs 0.9999 (+0.102 > 0.035) and H_front 0.8032 vs 0.9398 (+0.137 > 0.10): heat fails. The report's tables (lines 77-97) and appendix A match these.",
+    "Run 3's rules per length (appendix B) match my per-seed results: F2 160 MIXED (FFFP); T3 128 FAIL, 160 MIXED (FFPP); T4 128 FAIL, 160 MIXED (FPPF); T5 FAIL at both lengths; F1, T1 and T2 PASS at both.",
+    "Re-ran judge_d22.py on the repo-stored files, with output to my scratch folder. Every check passes and the output is byte-identical to analysis/results/d22/judge_d22.json (cmp).",
+    "The repo-stored gait, sweep, foot-load and record files have the same sha256 as the author's measurement outputs in d22_measure and d22_runs, for all eight runs. per_run_round1-3.json agree with judge_d22.json.",
+    "Pre-registration vs code. F2 'under 1.0' is coded as strict '<'; no value is exactly 1.0 (nearest 1.01273 and 0.945385), so the choice between < and <= has no effect.",
+    "Pre-registration vs code. N counts 9 sweep points \u00d7 8 episodes (steps 2/3 cm, ramps 5/8 deg, friction 0.3, pushes \u00b11.0/\u00b11.25) plus gait target_0.25, cmd_0.15 and nominal_0.25 \u00d7 5. It excludes otherfoot_0.25 and the sweep's nominal point; both had 0 falls in every run. All gait-case falls are 0, so N is sweep falls only. Each judged point has 8 episodes, and the fall counts from the episode lists equal the summaries.",
+    "Pre-registration vs code. L reads the front feet only (worst of left_fore and right_fore). The two readings of 'mean over 5 episodes of the worst front foot's p99' (worst per episode then mean, or mean per foot then worst) give identical L for all eight runs, because the same front foot is worst in all 5 episodes of every run.",
+    "Pre-registration vs code. A foot-load fall is any env termination (tilt, height, floor contact, unstable simulation); the 20 s truncation is not a fall. foot_loads.mean_of returns None when any episode fell, and choose() step 2 then makes no choice. Not exercised: 0 falls in 40 episodes, each 20.0 s with 18000 samples at 1 ms and a 0.01 s window; seeds 300000-300004; 10 delay steps = 10 ms (1 ms physics steps).",
+    "Pre-registration vs code. H_front uses the six *_fore_{roll,pitch,flexion} drives; flexion is the env's 'front elbow' group (cont_torque_fore_flexion 10.8 N m). H_all is F2's mean-of-episodes figure, as the pre-registration says.",
+    "Pre-registration vs code. D24's order is coded as worded: walk gate, then undefined L/H_front, then the mean tests with <= (0.85, +7, +0.035, +0.10). NOT JUDGED (the pre-registration's step 4) is checked first in code; the outcome is the same either way. H_all cannot be undefined when both lengths walk.",
+    "Run 3's tolerances from its stored files: H_all 0.836118/0.800957 (difference 0.0352), H_front 0.822791/0.722198 (0.1006), both right_fore_pitch, N 25/18 (7). These match the pre-registration and report line 99.",
+    "Report figures verified against the stored data: F1 speeds; F2 margins (1.3-9.4 %; 128's worst seed 5.5 % under); the heat table rows for the judged case, the nominal model, the sweep nominal point and 0.15 m/s (0.698-0.831 and 0.722-1.085); foot-load ranges (L, largest 10 ms mean 184.6-221.6 and 187.5-251.2 N, largest 1 ms sample 247.6-320.4 and 231.0-367.0 N); T4 drifts; T5 push table; 'no run fell on any step, ramp or friction point' (15 such points per run, 0 falls).",
+    "Demo course: hottest winding at 8 min, 128 mm 62.9-85.9 C; 160 mm 68.9-84.8 C on three seeds and 109.9 C at right_hind_pitch on s0, the only winding to reach its limit. Runtimes 84.2-95.9 min (128) and 69.0-90.4 min (160). Training: 1 completed session per run from step 0 to 10,002,432 steps, 3.57-5.13 h, 542-779 env steps/s, 8 CPUs, at f84a6919 with a clean tree.",
+    "tests/test_judge_d22.py: 19 passed (pytest -p no:cacheprovider, basetemp in my scratch folder). git status --short is empty before and after, and no file under rl/ is newer than my start marker."
+   ],
+   "not_checked": [
+    "I did not re-run the gait report, the sweep or foot_loads.py on the checkpoints, so I did not check that the stored JSON reproduces from the checkpoints (byte-identical rerun claim).",
+    "I did not check the measuring tools' internals: that gait_report's rms_over_continuous.mean and falls, the sweep's falls and drift, and telemetry/loads.py's percentiles are computed correctly from the simulation. My derivation starts from their stored summary fields (and the foot-load per-episode figures).",
+    "I did not check the pooled-sample reading of L (99th percentile over all 5 episodes' samples pooled); the per-sample series is not stored.",
+    "Run 3's front and hind foot loads (143.5/110.6 N, hind 135.2/122.9 N) are quoted in the pre-registration; no run 3 foot-load JSON is stored, so I could not check them.",
+    "I did not independently re-implement the record and provenance checks in judge_d22.checks (settings equal to run3_reference_settings.json, session arguments, model and trike_env sha256 against the commit, gait and foot settings). They are covered only by re-running the judge, which passed every check.",
+    "I spot-checked only appendix C's gait, stride and power tables, appendix E beyond peak temperatures, runtime and validity, appendix F beyond the points used above, the PR #697 comparison figures, and d22_appendix.py's code.",
+    "Not checked: the stop-rule and restart disclosures (runs/d22_startup), the step sheet, Drive downloads, checkpoint integrity, and the proportions (0.681/0.851/0.682)."
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "N1",
+     "severity": "medium",
+     "title": "'One 128 mm seed reaches 1.00 and 1.005' mixes two seeds, and the 1.00 is really 0.997",
+     "location": "analysis/REPORT_FORELEG_D22.md:31-32 (also the heat table at :110-111)",
+     "what_is_written": "In two cases that are reported but not judged, one 128 mm seed reaches 1.00 and 1.005: the sweep's nominal point, and the gait report's nominal model with noise off.",
+     "evidence": "I computed the worst drive (max over joints of rms_over_continuous.mean, and the sweep's heat_worst at judge_run3.NOMINAL) from the stored JSON. Sweep nominal point at 128 mm: s0 0.8655, s1 0.9404, s2 0.9744, s3 0.9969. Gait nominal_0.25 (noise off) at 128 mm: s0 0.8783, s1 0.9891, s2 1.0046, s3 0.9656. So the '1.00' is s3 at 0.9969, which is below the rating and only shows as 1.00 after rounding, and the '1.005' is s2. They are different seeds, and only one value is at or above 1.0. Related: in the demo course's 0.25 m/s segment, stored tau_drive_rms / rating (7.5 N m for pitch) gives 128 s3 left_hind_pitch 1.006 and 128 s2 left_fore_pitch 0.998. That is another reported case near or above 1.0 that the report does not mention.",
+     "suggested_fix": "Write: '128 mm s2 reaches 1.005 in the gait report's nominal case (noise off), and s3 reaches 0.997 at the sweep's nominal point.' Optionally add the demo walking segment (s3 at 1.006). Give the table's '1.00' for s3 as 0.997, or round every entry in that table to 3 decimals."
+    },
+    {
+     "id": "N2",
+     "severity": "medium",
+     "title": "'None of the stopped starts saved a checkpoint' contradicts the stored record and the run log",
+     "location": "analysis/REPORT_FORELEG_D22.md:174",
+     "what_is_written": "None of the stopped starts saved a checkpoint (the first is at 250,000 steps) or ran an evaluation.",
+     "evidence": "runs/d22_startup/fore160-s0_first-folder_run_record.json has session status 'interrupted', steps_end 13936, saves ['trike60_13936_steps.zip']. runs/trike60-d22_LOG.md:15-16 says: 'the mis-set session at 1,168 steps (23:12:49), fore160-s0 at 13,936 steps (23:12:55). Each left a stop pair in `checkpoints/`.' So two stopped starts did save a checkpoint pair, namely their stop pairs. Only the three 2-vCPU starts have saves [] (LOG:43 makes the narrower claim correctly). No start reached the first periodic checkpoint at 250,000 steps (checkpoint_every 250000).",
+     "suggested_fix": "Write: 'None reached the first periodic checkpoint (250,000 steps) or an evaluation. The two sessions stopped in the mixed fore160-s0 folder left stop pairs at 1,168 and 13,936 steps, which went to the trash with that folder.'"
+    },
+    {
+     "id": "N3",
+     "severity": "medium",
+     "title": "The one winding over its limit (160 s0, 109.9 C) is caused by standing on three legs; the report does not say so",
+     "location": "analysis/REPORT_FORELEG_D22.md:116-118 (demo-course bullet)",
+     "what_is_written": "At 160 mm it peaks at 68.9-84.8 C on three seeds, and on seed 0 the right hind pitch winding reaches the 100 C limit (109.9 C).",
+     "evidence": "analysis/results/d22/demo/fore160-s0/demo_course.json gives the right_hind_pitch drive's tau_drive_rms as 11.84 N m in the 'stand' segment and 5.77 N m in 'walk_0.25'. Against the 7.5 N m pitch rating that is 1.58 while standing, and that segment's copper loss is 25.9 W. In the same stand segment, right_fore_sole normal force has median, p95, p99 and max all 0.0 N: the right forefoot never touches the ground in the 18 s measured. fore160-s3's stand segment also has left_fore_sole at 0.0 N throughout, and fore160-s2's stand shows right_hind_flexion at 1.18 of rating. All four 128 mm runs stand on four loaded feet, with a worst stand-segment ratio of 0.58-0.69. The bullet's figure is correct, but it sits under 'thin margins' for walking heat and does not mention that the cause is the standing posture.",
+     "suggested_fix": "Add: 'The 109.9 C comes from the 30 s standing segment. 160 s0 stands with its right forefoot off the ground, which puts its right hind pitch at 1.58 of rating; 160 s3 also stands on three feet. All four 128 mm policies stand on four feet.'"
+    },
+    {
+     "id": "N4",
+     "severity": "low",
+     "title": "T3 drift range 0.21-0.58 m includes passing values",
+     "location": "analysis/REPORT_FORELEG_D22.md:140",
+     "what_is_written": "T3 (steps and ramps, 0.30 m limit) fails on all four 128 mm seeds, at 0.21-0.58 m.",
+     "evidence": "From judge_d22.json rule_values.T3.points, 128 mm drifts (step 2 / step 3 / ramp 5 / ramp 8) are: s0 0.2734/0.2706/0.3516/0.2774; s1 0.2800/0.2787/0.4261/0.5772; s2 0.3243/0.2580/0.2058/0.3292; s3 0.4682/0.4290/0.4813/0.3918. The per-seed worst values, the ones that fail, are 0.35/0.58/0.33/0.48, so 0.33-0.58 m. 0.21 is s2's ramp-5 point, which passes. The T4 line beside it correctly gives one failing value per seed (0.43-0.65).",
+     "suggested_fix": "Write 'with worst drifts of 0.33-0.58 m' (each seed's worst point)."
+    },
+    {
+     "id": "N5",
+     "severity": "low",
+     "title": "The H_elbow range at 128 mm starts at 0.61, not 0.62",
+     "location": "analysis/REPORT_FORELEG_D22.md:161",
+     "what_is_written": "H_elbow is 0.62-0.76 at 128 mm (mean 0.678)",
+     "evidence": "judge_d22.json runs.128_s3.H_elbow = 0.6148 (right_fore_flexion 0.615 in appendix C), which rounds to 0.61. The other figures are right: max 0.7566, mean 0.67789, and 160 mm 0.6881-0.8343, mean 0.75697.",
+     "suggested_fix": "Write '0.61-0.76', or '0.615-0.757' to 3 decimals."
+    },
+    {
+     "id": "N6",
+     "severity": "low",
+     "title": "The start-up narrative in Departures 1 compresses or misstates the sequence the run log gives",
+     "location": "analysis/REPORT_FORELEG_D22.md:172-179",
+     "what_is_written": "The owner then stopped all three runs, moved their folders to the Drive trash and restarted them from step 0 under the same RUN_IDs. The first restart was on 2 vCPUs; the owner restarted again on 8-vCPU runtimes. ... The mis-set starts stopped at 1,168 and 13,936 steps ... with the five stopped records kept in runs/d22_startup/.",
+     "evidence": "runs/trike60-d22_LOG.md:15-21: after the mis-set only two sessions were stopped, the mis-set copy and fore160-s0. fore128-s0's first session (23:11:04, 2 vCPUs) kept running until the second stop, when its record shows steps_reached 100000. fore128-s1 also had an intermediate corrected start in a new folder (23:14:16, fore128-s1_first-folder_run_record.json, steps 0) that was trashed. Only the 1,168-step session was mis-set; the 13,936-step session was fore160-s0's correctly set one. The 1,168 figure appears in no stored record: grep finds no '1168' in runs/d22_startup/*.json, and the stored first-folder record is fore160-s0's own session (steps_end 13936). runs/d22_startup holds 6 files for 5 stopped starts, and the mis-set session (a sixth stopped start) has no kept record.",
+     "suggested_fix": "Follow the log: two sessions stopped after the mis-set (1,168 steps for the mis-set copy, 13,936 for fore160-s0), then restarts on 2 vCPUs, then all three stopped and restarted on 8 vCPUs. Say the 1,168 comes from Drive's revision history, not a kept record, and that records of five of the six stopped starts are kept."
+    },
+    {
+     "id": "N7",
+     "severity": "low",
+     "title": "'No code under rl/ has changed ... only ... under rl/runs/ and rl/analysis/results/' is not quite true",
+     "location": "analysis/REPORT_FORELEG_D22.md:189-190",
+     "what_is_written": "no code under `rl/` has changed since f84a6919. Only notes, run records and results were added under `rl/runs/` and `rl/analysis/results/`.",
+     "evidence": "git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl, with results excluded, gives: A analysis/REPORT_FORELEG_D22.md, A analysis/REPORT_FORELEG_D22_APPENDIX.md, A analysis/d22_appendix.py (new code), A runs/d22_startup/*.json, A runs/trike60-d22_LOG.md, M runs/trike60-d22_STEPS.md. Results were also added under rl/analytics/results/ and rl/robustness/results/. judge_d22.py, judge_run3.py and the measuring tools are unchanged, so the substantive claim holds.",
+     "suggested_fix": "Write: 'No existing code under rl/ changed. Added since: d22_appendix.py and the report (rl/analysis/), notes and run records (rl/runs/), and tool outputs (rl/analysis/results/, rl/analytics/results/, rl/robustness/results/).'"
+    },
+    {
+     "id": "N8",
+     "severity": "low",
+     "title": "The push table shows only +-1.0 m/s, so two runs that fail T5 look clean",
+     "location": "analysis/REPORT_FORELEG_D22.md:147-152",
+     "what_is_written": "T5 fails on all eight runs, as on run 3. Falls of 8 at -1.0 and +1.0 m/s: ... 128 mm | 0 / 0 | 1 / 7 | 0 / 0 | 8 / 3",
+     "evidence": "judge_run3.py T5: pass = f[-1.0]==0 and f[1.0]==0 and f[-1.25]<=2 and f[1.25]<=2. 128 s0 falls are 8/0/0/6 and 128 s2 falls are 1/0/0/8 (-1.25/-1/+1/+1.25). Both show 0/0 in the report's table and fail only at +-1.25. The figures shown are correct.",
+     "suggested_fix": "Add the -1.25 and +1.25 columns, or state the rule (0 falls at +-1.0, at most 2 at +-1.25) and point to appendix B."
+    },
+    {
+     "id": "N9",
+     "severity": "low",
+     "title": "The appendix says run 3's N and rules are in B and C, but they are not in the appendix",
+     "location": "analysis/REPORT_FORELEG_D22_APPENDIX.md:35 (d22_appendix.py:105-107); REPORT_FORELEG_D22.md:4",
+     "what_is_written": "Appendix: 'its H, N and rules are in B and C.' Report: 'Every figure: REPORT_FORELEG_D22_APPENDIX.md'",
+     "evidence": "Section B's tables have only the 128 and 160 columns (appendix lines 39-58). Run 3's N (25, 18, which I recomputed with judge_d22.JUDGED_POINTS and GAIT_CASES on run3-s0/s1) and its rule verdicts (T3 and T4 PASS, T5 FAIL in analysis/results/judge_run3.json) appear nowhere in the appendix. Report figures that the appendix does not hold: 'Run 3 passed both' (:143), 'as on run 3' (:147), 'N 25 and 18' (:99), the training hours and env steps/s, the masses, and the 1,168/13,936/100,000 step counts. They come from the run log and records.",
+     "suggested_fix": "Add run 3 columns to A and B (N from the same falls sum, rules from judge_run3.json), or fix the pointer and narrow the report's 'Every figure' claim to the measured figures."
+    },
+    {
+     "id": "N10",
+     "severity": "low",
+     "title": "Appendix B says 'every rule also needs no fall', which is wrong for F2 and T5",
+     "location": "analysis/REPORT_FORELEG_D22_APPENDIX.md:49 (d22_appendix.py:122-124)",
+     "what_is_written": "... T5: falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s; every rule also needs no fall",
+     "evidence": "judge_run3.judge_seed: F2 has no fall condition (worst < 1.0 only), and T5 allows up to 2 falls of 8 at -1.25 and +1.25 (f[-1.25] <= 2 and f[1.25] <= 2).",
+     "suggested_fix": "Write: 'F1, T1-T4 also need no fall; T5 needs 0 falls at +-1.0 and at most 2 of 8 at +-1.25.'"
+    },
+    {
+     "id": "N11",
+     "severity": "low",
+     "title": "The appendix F drift label hides that it is a mean of absolute drift, unlike C's signed mean",
+     "location": "analysis/REPORT_FORELEG_D22_APPENDIX.md:163 (d22_appendix.py:260-261, 274)",
+     "what_is_written": "Each cell: falls of 8; speed m/s; sideways drift, mean, m; ...",
+     "evidence": "The cell reads drift_abs_mean_m, and robustness/sweep.py:447,454 computes dr = np.abs([...sideways_drift_m...]); drift_abs_mean_m = dr.mean(). Section C's 'sideways drift, mean of episodes' is the signed mean (e.g. -0.30 and -0.48 for 128 s1 and s3). Both tables label their figure 'drift, mean'.",
+     "suggested_fix": "Label F's figure 'mean of |sideways drift|, m' (the figure T3 and T4 read)."
+    },
+    {
+     "id": "N12",
+     "severity": "low",
+     "title": "The power watts exclude the 30 W hotel load, but the wording suggests they include it",
+     "location": "analysis/REPORT_FORELEG_D22.md:120-123",
+     "what_is_written": "These are the gait report's estimates, on a shared bus with a 30 W hotel load: 128 mm draws 49.8-59.9 W, giving 78-88 min ...",
+     "evidence": "The figure is power.electrical_shared_bus_w, the drives only (128 s0 49.81 W). The runtime adds the hotel: 117.2 Wh usable / (49.81 + 30) W = 88.1 min, against run_time_min_shared_bus.hotel_30w 88.17. All the ranges themselves are correct.",
+     "suggested_fix": "Write: 'the drives draw 49.8-59.9 W on a shared bus; with a 30 W hotel load that gives 78-88 min per pack.'"
+    },
+    {
+     "id": "N13",
+     "severity": "low",
+     "title": "Run log's interim T3 drift range for fore128-s0 is wrong (the report cites the log as the run history)",
+     "location": "runs/trike60-d22_LOG.md:98",
+     "what_is_written": "the runs drifted 0.27-0.43 m (fore128-s0)",
+     "evidence": "judge_d22.json 128_s0 T3 points: 0.2734 / 0.2706 / 0.3516 / 0.2774, so 0.27-0.35 m. The log's other ranges match: fore160-s0 0.46-0.60, fore128-s1 0.28-0.58, run 3 0.08-0.26, and round 2's 0.21-0.33 / 0.14-0.36 / 0.09-0.27.",
+     "suggested_fix": "Correct the log to 0.27-0.35 m."
+    },
+    {
+     "id": "N14",
+     "severity": "low",
+     "title": "The stride-group swing heights are two-foot means that hide strong left-right asymmetry",
+     "location": "analysis/REPORT_FORELEG_D22.md:155-157",
+     "what_is_written": "front feet swinging 78-112 mm high ... Short strides: ... 19-33 mm",
+     "evidence": "The values match the appendix's mean of the two front feet. Per foot, from gait_report.json feet.swing_clearance_mm, they differ widely: 160 s3 left 109.5 / right 47.1 mm (reported as 78); 128 s2 14.2 / 48.6 mm (reported as 31); 160 s1 42.0 / 21.4 mm.",
+     "suggested_fix": "Say 'mean of the two front feet', or give the per-foot range."
+    }
+   ],
+   "checked_ok": [
+    "Regenerated the appendix with d22_appendix.py --out into review_d22final/numbers/appendix.md: byte-identical to the committed REPORT_FORELEG_D22_APPENDIX.md (diff empty).",
+    "Re-ran judge_d22.py on the repository copies of the 8 records and outputs (run commit f84a6919): output is byte-identical to analysis/results/d22/judge_d22.json. Choice 128, 'only 128 mm passes F1 and F2 on all four seeds', problems empty for all eight. Repository copies of records, gait, sweep, foot-load and demo JSON are byte-identical to the scratch d22_runs, d22_measure and d22_demo files.",
+    "Recomputed judge_d22.measure independently for all 8 runs: equal to the stored values. Judged table: F1 speeds 0.235/0.244/0.242/0.240/0.242/0.246/0.244/0.239, 0 falls each. F2 worst drives and values 0.828/0.888/0.931/0.945/1.014/1.013/1.094/0.878, with joints correct (hind flexion = knee). L 122.9/119.5/117.5/126.4/134.3/109.1/105.2/121.7. H_front 0.692/0.811/0.931/0.779/1.014/0.965/0.902/0.878. N 14/24/9/27/11/14/13/19.",
+    "Four-seed means: L 121.558/117.564 (121.6/117.6), ratio 0.96714 (0.967), 0.85 x L128 = 103.3. N 18.5/14.25. H_all 0.8979/0.9999 (0.898/1.000). H_front 0.8032/0.9398. H_elbow 0.678/0.757. With the walk gate bypassed, choose() would still give 128 (loads and heat fail, falls pass), so 'would also have kept 128 mm' is correct.",
+    "F2 margins: 160 mm failed by 1.27/1.41/9.43 % (1.3-9.4 %); 128 mm's worst seed 0.9454 leaves 5.46 % (5.5 %). The three 160 mm F2 failures are on three different drives. 128 judged range 0.83-0.95.",
+    "Heat table: gait target 0.83/0.89/0.93/0.95 and 1.01/1.01/1.09/0.88; gait nominal 0.88/0.99/1.005/0.97 and 1.05/1.08/1.16/0.91; sweep nominal 0.87/0.94/0.97/1.00 and 1.04/1.06/1.13/0.91; run 3 0.84/0.80, 0.81/0.77, 0.86/0.82. 0.15 m/s ranges: 0.70-0.83 and 0.72-1.085. The hottest drive is a pitch drive or hind knee, front or hind.",
+    "Run 3 reference: H_all 0.836/0.801 and H_front 0.823/0.722 from the gait JSON; N 25/18 recomputed from the run3 sweep and gait cases; T3 and T4 pass and T5 fail on both seeds (judge_run3.json and a re-run of judge_seed); L 143.5/110.6 and hind 135.2/122.9 match PREREG_FORELEG_D22.md:60. Between efd1e1c7 and f84a6919 sweep.py is unchanged and gait_report.py changed only in provenance.",
+    "Demo course: the hottest winding at 8 min is 64.7/62.9/81.1/85.9 (128 mm, range 62.9-85.9) and 109.9/84.8/80.4/68.9 (160 mm). The same joint is hottest at all three time constants. The hottest front winding selection over the six FRONT drives is correct. Only 160 s0 reaches the limit, at all three time constants; limit_c = 100.0 in telemetry/thermal.py:129. Runtimes 84-96 and 69-90 min. Time constants 240/480/900 s; the loop is 90 s walking at 0.25 m/s plus 30 s standing, one pack.",
+    "Power and runtime (gait, shared bus): 128 mm 49.8-59.9 W, 78-88 min; 160 mm 76.5/75.0/77.2 W (66/67/66 min) and 53.9 W (84 min); run 3 53.7/48.8 W, 84/89 min.",
+    "Foot loads: front L 117.5-126.4 / 105.2-134.3; largest 10 ms mean 184.6-221.6 / 187.5-251.2; largest 1 ms 247.6-320.4 / 231.0-367.0; no foot-load episode fell. Definitions match foot_loads.py: L is the per-episode worst front foot's p99, averaged over the 5 episodes.",
+    "Drift and pushes: T4 128 mm 0.43/0.45/0.65/0.45. T4 160 mm fails on s0 (0.8246) and s3 (0.2680); s2 passes at 0.1994. T3 fails on 160 s0 and s1. No D22 run fell at any step, ramp or friction sweep point. Push falls at -1.0/+1.0 match for all eight; T5 fails on all eight runs and on run 3.",
+    "Gait stride groups: long strides 0.676-0.867 Hz, 0.283-0.370 m, front clearance (two-foot mean) 78-112 mm, for 128 s0/s1 and 160 s0/s3; short strides 1.22-1.653 Hz, 0.149-0.201 m, 19-33 mm. Worst-foot irregular strides 38-85 %.",
+    "Training: one session per run from step 0, completed, 10,002,432 steps, final checkpoint finite, commit f84a6919, clean tree, 8 CPUs; 3.567-5.127 h and 541.9-778.9 env steps/s (3.57-5.13 h, 542-779). The 8 truncated zip sha256 values in the run log match the tools' provenance.",
+    "Start-up figures: 13,936 (fore160-s0 first-folder record, steps_end) and 100,000 (fore128-s0_2vcpu-start_run_record_final.json, steps_reached) match the stored records. There are no evaluations, since eval_every is 250000.",
+    "Sweep: 70 points, 8 episodes each, seeds 200000-200007, for all 10 runs. heat_worst is the worst joint of the episode mean, and speed, drift and heat are taken over the episodes that did not fall (sweep.py:438-457), as appendix F states.",
+    "Model masses 12.7506 and 12.8082 kg (mujoco body_mass sum) = 12.751 and 12.808 kg. Proportions 128/188 = 0.681, 160/188 = 0.851; specimen 708/1038 = 0.682 (PR #697 README).",
+    "PR #697 figures in the appendix and report match refinement60/mid160/README.md at 65a44fad: slow walk, pivots, both moving-course panels, elbow 3.70 vs 4.58 N m (+24 %). The moving courses are turning courses (+15 to -35 deg headings), so 'turning tests ... 260.8 against 215.1 N' is correct.",
+    "d22_appendix.py logic: correct field for every row; the run-to-judge-key mapping; the means use unrounded values and the four-seed tests match the judge's constants (0.85, +7, +0.035, +0.10). The hottest winding is the max over all 12 joints and the hottest front winding the max over the six fore drives at tau_480s. Front and hind swing averages use FEET[:2] and FEET[2:]. Run 3 columns are taken from run3-s0 and run3-s1 in the right order. The negative-zero formatting is handled, and no 'not run' cells occur.",
+    "Prereg rules quoted in the report (D24 walk gate, the 0.85 load factor, the tolerances, stop rule wording) match PREREG_FORELEG_D22.md and the DECISION_LOG D22-D24 rows. judge_d22.py and judge_run3.py are unchanged since f84a6919. per_run_round{1,2,3}.json agree with judge_d22.json.",
+    "git status --short was empty at the start and at the end; no repository file was modified (the existing analysis/__pycache__ predates this review)."
+   ],
+   "not_checked": [
+    "The 1,168-step figure for the mis-set session: no stored record holds it (the run log cites Drive revision history), so it could not be verified.",
+    "Which checkpoint the demo course ran on: demo_course.json records only the file name, with no sha256.",
+    "Whether the downloaded checkpoint files in scratch d22_runs match the recorded sha256 (I did not hash them or load them).",
+    "tests/test_judge_d22.py was not run.",
+    "Run 3's front-foot loads (143.5/110.6 N): they are quoted from the pre-registration and could not be re-measured. foot_loads.py changed in a83e979c and 006a9d92 after its first version; I did not check whether that affects the run 3 figures.",
+    "The museum renders (8 Dec, 188 mm) claim, and the claim that interim figures were sent to the owner after rounds 1 and 2.",
+    "The demo course's loads_headline rows (joint force, bending, foot force) and the pack current figures: their field selection was checked, but not their derivation inside demo_course.py.",
+    "The pre-registration's own 'elbows 0.53-0.66' for run 3 (stored values: worst elbow per seed 0.660 and 0.594; all four elbows 0.509-0.660), which is outside the two reports."
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "P1",
+     "severity": "low",
+     "title": "The judge links each run record to its checkpoint by file name only, and all eight final pairs have the same name",
+     "location": "hardware/triceratops_build/rl/analysis/judge_d22.py:111-113 (checks: last != gait['policy']['checkpoint']); REPORT_FORELEG_D22.md:67 ('the last checkpoint is the measured one')",
+     "evidence": "checks() compares sessions[-1].saves[-1] with gait.policy.checkpoint. All eight records and all three tools give the same name, 'trike60_10002432_steps.zip'. The run records store no hash of the checkpoint. The model-sha check catches a pair swapped across lengths. Nothing in the judge would catch two pairs swapped between seeds of the same length: the distinct-sha check only catches a duplicate. I checked the link myself and found no swap. I read the zip's 'data' JSON with zipfile and json, without unpickling anything. Its 'seed' equals each run's seed (0,1,2,3 for both lengths). Its 'start_time' is within 1 s of the record's session started_utc: for example fore128-s0 23:24:49 against 23:24:48, and fore160-s3 14:03:43 against 14:03:43. The zip's internal write time is within 1 s of ended_utc. A static pickletools scan of each vecnormalize .pkl gives obs_rms count 10002440.0001, which is 10,002,432 steps plus one 8-env reset. That fits one session from step 0. So the stored results are correct, but the documented check is weaker than the report's wording suggests.",
+     "suggested_fix": "Say in the report or appendix that the record-to-pair link was confirmed from each zip's embedded seed and start_time against the run record. Alternatively, add that check to checks(): read the zip's 'data' JSON (no unpickling) and compare seed and start_time with the record.",
+     "what_is_written": "the last checkpoint is the measured one"
+    },
+    {
+     "id": "P2",
+     "severity": "low",
+     "title": "Report section 3 misstates what changed under rl/ since the run commit",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:189-190",
+     "evidence": "I ran 'git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl'. The added files are: analysis/results (44), analytics/results (96), robustness/results (64), runs/d22_startup (6), runs/trike60-d22_LOG.md, analysis/REPORT_FORELEG_D22.md, analysis/REPORT_FORELEG_D22_APPENDIX.md and analysis/d22_appendix.py (new code). One file is modified: runs/trike60-d22_STEPS.md, where the commit placeholder was filled in and the rounds re-planned, in commits 9d3efcc8 and aa8c612f, both before the first run at 23:11. No existing code file changed, so the claim that matters is true. But results were also added under rl/analytics/results/ and rl/robustness/results/, a new script was added, and one file was modified rather than added.",
+     "suggested_fix": "Reword, for example: 'No file under rl/ that existed at f84a6919 changed except runs/trike60-d22_STEPS.md (the commit filled in, before any run). Added: run notes and records under rl/runs/, results under rl/analysis/results/, rl/analytics/results/ and rl/robustness/results/, and the report, its appendix and analysis/d22_appendix.py.'",
+     "what_is_written": "no code under `rl/` has changed since f84a6919. Only notes, run records and results were added under `rl/runs/` and `rl/analysis/results/`."
+    },
+    {
+     "id": "P3",
+     "severity": "low",
+     "title": "The demo-course outputs do not identify the checkpoint, the model or the commit",
+     "location": "hardware/triceratops_build/rl/analysis/results/d22/demo/<run>/demo_course.json and demo_course_printout.txt",
+     "evidence": "demo_course.json has no sha256, model or commit field. A grep for sha, commit, model, xml and fore128/fore160 finds no identity field. Its 'walker' reads 'policy trike60_10002432_steps.zip (checkpoints)', the same in all eight runs. So each demo result is tied to its run only by the folder name. The repo copies are byte-identical (cmp) to the scratch d22_demo/<run>/demo_course.json, and the printouts are identical to d22_demo/<run>.log. The demo is reported only, not judged.",
+     "suggested_fix": "In the appendix, list the zip and vecnormalize sha256 the demo was run on for each run, or note that demo provenance rests on the folder name. In future, have demo_course.py record the same provenance block that foot_loads.py writes.",
+     "what_is_written": "The demo course then ran on all eight (reported, not judged; `analysis/results/d22/demo/`), from the same export."
+    },
+    {
+     "id": "P4",
+     "severity": "low",
+     "title": "The gait reports record no run-commit trike_env.py hash (null), and their .md prints '-...'",
+     "location": "hardware/triceratops_build/rl/analytics/results/<run>/gait_report.json environment.run_commit_trike_env_sha256; analytics/results/fore160-s0/gait_report.md:125",
+     "evidence": "run_commit_trike_env_sha256 is null in all eight gait_report.json files, because the export has no .git for git_blob_sha256. gait_report.md:125 therefore reads 'the run commit's file: -...'. The comparison itself was done elsewhere: judge_d22.checks hashes 'git show f84a6919:.../trike_env.py'. I confirmed that this hash, 6774a9622c397e0c03dd72062bdd93cd038c79ac0f51fca52b44a0526a579ae1, equals trike_env_sha256 in all 24 tool outputs.",
+     "suggested_fix": "Add one line to the appendix or report: the gait report's own run-commit comparison is empty under an export, and the check against the run commit is the judge's.",
+     "what_is_written": "Environment: ... (sha256 6774a9622c39...; the run commit's file: -...)."
+    }
+   ],
+   "checked_ok": [
+    "(1) Run records: all eight have one session, status 'completed', last_checkpoint and saves[-1] = trike60_10002432_steps.zip, steps_end 10002432, last_checkpoint_finite true, git commit f84a6919dda31c39f1a56967b1f57b759c31da5c with dirty false, the right seed and model, started_from step 0, 8 CPUs.",
+    "(1) sha256sum of the downloaded pairs (zip / vecnormalize prefixes): fore128-s0 f7bbeb81/cc645bd9, s1 dc3090ac/f7636250, s2 e41f7bd9/029d6dab, s3 652082b1/01a6cacc; fore160-s0 0eb877a9/19981491, s1 85e6ec3b/024f36f6, s2 1f53d262/040f6355, s3 e0dbaf08/6757ade8. These equal, in full, gait policy.zip_sha256/vecnormalize_sha256, sweep checkpoint.zip_sha256/vecnormalize_sha256 and foot_loads provenance.zip_sha256/vecnormalize_sha256. The checkpoint names also match in all three tools. The run-log prefixes match all eight. 8 distinct zips and 8 distinct vecnormalize files (script at /tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_d22final/provenance/scripts/shas.py, output in /tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_d22final/provenance/shas.json).",
+    "(1) Each analysis/results/d22/run_record_<run>.json is cmp-identical to d22_runs/<run>/run_record.json and to the copy in d22_runs/<run>/checkpoints/.",
+    "Independent link from each pair to its run (no unpickling). The zip 'data' JSON gives seed = run seed, num_timesteps 10002432, n_envs 8, and start_time within 1 s of the session's started_utc. The vecnormalize obs_rms count is 10002440.0001 in all eight, which fits a single session from step 0.",
+    "Run log session times, hours (5.13, 3.69, 4.51, 4.88, 5.07, 3.57, 4.85, 4.93) and env steps/s (542, 753, 617, 569, 548, 779, 573, 563) agree with the records' started_utc, ended_utc and env_steps_per_s. The report's '3.57-5.13 h at 542-779 env steps/s' is correct.",
+    "(2) The export equals a fresh 'git archive f84a6919' for rl, sim/generated, environments and configs (diff -r exit 0). The whole repository export also equals the full archive (diff -r -x __pycache__ exit 0). The only extra is rl/analysis/__pycache__/{judge_d22,judge_run3}.cpython-313.pyc (24 Nov 05:10), whose headers match the export's source mtime and size. No export file is newer than 23 Nov 14:02 apart from those pyc files.",
+    "(3) git show f84a6919 | sha256sum: fore128.xml 372ac07b..., fore160.xml 377e3647..., trike_env.py 6774a962..., trike60_C_closed.xml 65e2da45..., trike60_C_closed_ankleroll.xml eea9c0d3.... These equal what all 24 tool outputs recorded (the gait reports' cross-check models included) and the HEAD files.",
+    "(4) Nothing outside hardware/triceratops_build/rl changed between f84a6919 and HEAD. Inside rl/, the only paths changed outside runs/, analysis/results*, analytics/results/ and robustness/results/ are analysis/REPORT_FORELEG_D22.md, REPORT_FORELEG_D22_APPENDIX.md and d22_appendix.py, all added. The only modified file is runs/trike60-d22_STEPS.md (placeholder filled in, rounds re-planned), committed before the first run. judge_d22.py, judge_run3.py, foot_loads.py, gait_report.py, sweep.py, demo_course.py and telemetry/loads.py have the same sha256 at the run commit, at HEAD and in the export.",
+    "Every repo-stored measurement output is byte-identical to the scratch d22_measure output it came from: diff -rq of each gait and sweep folder against analytics/results/<run> and robustness/results/<run> is empty, and the foot_loads files cmp equal. per_run_round{1,2,3}.json are identical to scratch, and their figures equal judge_d22.json's.",
+    "Sweeps: 70 points, 8 seeds per point, 565 episodes, TRIKE_ENV_DIR recorded as the export path. Foot loads: 5 episodes, 0 falls, for all eight. Masses at the nominal point: 12.751 kg (fore128) and 12.808 kg (fore160), as the report says.",
+    "(5) I re-ran the export's foot_loads.py on fore160-s0 exactly as measure.sh does (20:15:19-20:15:37 UTC, exit 0). The output is byte-identical (cmp, sha256 8685ca49...) to analysis/results/d22/foot_loads_fore160-s0.json. The file has no timestamp field, so nothing differs legitimately. This confirms the pre-registration's byte-identical claim for one checkpoint.",
+    "(6) pytest test_judge_d22.py (19) and test_foreleg60.py (10): 29 passed, exit 0.",
+    "(7) judge_all.sh output is cmp-identical to analysis/results/d22/judge_d22.json, with no timestamps: problems empty for all eight, choice 128, 'only 128 mm passes F1 and F2 on all four seeds', walks 128 true and 160 false. Running judge_d22.py on the repo-stored inputs instead of the scratch copies gives the same bytes.",
+    "The run log's per-run tables (rules, F2 worst drive, L, L_hind, H_all, H_front, H_elbow, N) match judge_d22.json for all eight runs. The report's four-seed means are correct: L 121.6/117.6, N 18.5/14.25, H_all 0.898/1.000, H_front 0.803/0.940.",
+    "The stopped-start records in runs/d22_startup match the log: sha256 77d1fb08... and 804e126c... as stated. Their start times, seeds, models, steps reached (0, 100000, 0, 0, 0, 13936) and 2 CPUs match the log's account. The measurement false start is in d22_measure/*_failed_start: FileNotFoundError for checkpoints/run_record.json, nothing measured.",
+    "git status --short was empty at the start and at the end. The pytest run did rewrite two git-ignored bytecode files in existing __pycache__ folders: rl/tests/__pycache__/test_foreleg60.cpython-313-pytest-9.2.0.pyc and sim/__pycache__/build_foreleg60.cpython-313.pyc."
+   ],
+   "not_checked": [
+    "That the downloaded pairs and records are the ones on Google Drive (sizes, folders, revisions). No Drive access was allowed.",
+    "The policy weights and vecnormalize statistics were not loaded. The pickles were only scanned statically with pickletools; nothing was unpickled.",
+    "I did not re-run the gait report, the sweep or the demo course. Only foot_loads was reproduced, on fore160-s0.",
+    "That the demo outputs belong to the right checkpoints: they carry no hash (P3).",
+    "Run 3 reference files (analytics/results/run3-s*, robustness/results/run3-s*, run3_reference_settings.json) and the run-3 figures quoted in the report.",
+    "Whether the judge's rule logic and thresholds match the pre-registration (choose(), measure(), judge_run3.judge_seed). Only provenance and reproducibility were checked.",
+    "Whether the start-up departures from the stop rule are acceptable, beyond checking that the stopped records match the log.",
+    "The appendix generator analysis/d22_appendix.py and the appendix's figures."
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "P1",
+     "severity": "medium",
+     "title": "The report's 'What this can and cannot conclude' leaves out the pre-registration's power caveat, yet it uses the loads ratio to support the outcome",
+     "location": "analysis/REPORT_FORELEG_D22.md:18-20, 94-97, 201-214 (against PREREG_FORELEG_D22.md:95-105, 132)",
+     "evidence": "PREREG:95-99 says the loads test catches a true 25 % cut about 80 % of the time, a 15 % cut about half the time, and passes wrongly about 10 % of the time; it also says 'These are rough'. A grep of the report for '80 %|half the time|scatter|rough|resolve' finds nothing. The report then says 'Had they been applied, they would also have kept 128 mm: Loads ... ratio of 0.967'. From the stored L values (128: 122.9/119.5/117.5/126.4; 160: 134.3/109.1/105.2/121.7) I get SDs of 3.9 and 13.2 N, a Welch SE of 6.9 N on 3.5 df, and an approximate 95 % interval of 0.80-1.14 for the ratio. A true 15-20 % reduction is therefore not excluded. PREREG:105 says \"'128 mm chosen' means 160 mm did not clearly beat it, not that 128 mm is better\"; the report weakens this to 'does not mean 128 mm is better in every respect' (line 27). PREREG:132's 'the foot's rubber' is also missing from the report's model-estimate caveat (line 210-212).",
+     "suggested_fix": "Add the pre-registration's power paragraph with its 'rough' qualifier to 'What this can and cannot conclude'. State that four seeds cannot resolve the 0.967 load ratio (160 mm's seeds spread about 11 %), so 'would also have kept 128 mm' on loads is no evidence that 160 mm gives no load benefit. Restore the pre-registered wording of the '128 mm chosen' caveat and list the foot's rubber.",
+     "what_is_written": "Had they been applied, they would also have kept 128 mm: Loads: 160 mm's mean front-foot load was 117.6 N against 128 mm's 121.6 N, a ratio of 0.967. The rule needed 0.85 or less."
+    },
+    {
+     "id": "P2",
+     "severity": "medium",
+     "title": "The pre-registered 'everything else the gait report gives' is only partly reported, though the appendix is titled 'every measure'",
+     "location": "analysis/REPORT_FORELEG_D22_APPENDIX.md:1 and section C (against PREREG_FORELEG_D22.md:113-115)",
+     "evidence": "Each run's analytics/results/<run>/gait_report.md has these sections: c. Balance (CoM outside the support polygon, CoP near an edge), f. Body and head steadiness (head bob/sway and acceleration), g. Feet (slip ratios, touchdown speed, load rate), h. Speed tracking (the command sweep 0-0.27 m/s with falls), and duty factors. The D22 appendix has none of them (grep of the appendix for 'balance|head|slip|duty|speed tracking' finds no such rows). Run 3's appendix (REPORT_RUN3_APPENDIX.md:61-70, 92) did carry balance, slip and the command sweep. Neither D22 file points to the per-run gait_report.md files. Nothing adverse is hidden: the command sweep has 0 falls at all 7 commands for all 8 runs, and CoM outside is 33.8-63.0 % (my extraction from gait_report.json).",
+     "suggested_fix": "Add the missing gait-report sections to the appendix (as run 3's appendix did), or rename it and point explicitly to analytics/results/<run>/gait_report.md and robustness/results/<run>/summary_<run>.md as the full record.",
+     "what_is_written": "The foreleg comparison (D22), appendix: every measure (simulation)"
+    },
+    {
+     "id": "P3",
+     "severity": "low",
+     "title": "Report disclosure 1 gets parts of the round-1 start-up wrong",
+     "location": "analysis/REPORT_FORELEG_D22.md:171-175",
+     "evidence": "(a) 'None of the stopped starts saved a checkpoint': runs/d22_startup/fore160-s0_first-folder_run_record.json has saves ['trike60_13936_steps.zip'], last_checkpoint_finite true, and the run log (LOG:16) says 'Each left a stop pair in checkpoints/'. (b) 'The owner then stopped all three runs ... restarted them ... The first restart was on 2 vCPUs': according to LOG:9-21 and the records, fore128-s0 was not stopped after the mis-set. Its first start (23:11:04, cpu_count 2) ran until the single 8-vCPU restart (23:24:48). fore160-s0 started at 23:11:48, 23:18:21 and 23:25:22; fore128-s1 at 23:14:16, 23:18:43 and 23:25:22. (c) Before the stop, the fore128-s0 2-vCPU start had written its 100,000-step progress record (steps_reached 100000), and train.py:478-487 prints training-rollout return and speed at that point. So 'no checkpoint or evaluation' is right, but 'No result existed' (LOG:24) holds only for the first two starts, as the log now words it.",
+     "suggested_fix": "Say that the mis-set and first fore160-s0 sessions left stop pairs (at 1,168 and 13,936 steps), and that no scheduled checkpoint (250,000) or evaluation was reached. Give the number of starts per run (fore128-s0: 2; fore160-s0: 3; fore128-s1: 3 under its RUN_ID plus the mis-set one), with times.",
+     "what_is_written": "The owner then stopped all three runs, moved their folders to the Drive trash and restarted them from step 0 under the same RUN_IDs. The first restart was on 2 vCPUs ... None of the stopped starts saved a checkpoint (the first is at 250,000 steps) or ran an evaluation."
+    },
+    {
+     "id": "P4",
+     "severity": "low",
+     "title": "The stop-rule departure is disclosed but not fully labelled: the exemption from the one-restart limit is the author's own reading, and the 'first files kept' clause was not met",
+     "location": "analysis/REPORT_FORELEG_D22.md:177-182; runs/trike60-d22_LOG.md:29-37, 39-48 (against PREREG_FORELEG_D22.md:28-30 and runs/trike60-d22_STEPS.md:17)",
+     "evidence": "PREREG:28-30: 'restarted once under a new RUN_ID ... its first files kept; if that also fails, the run is not judged'. fore160-s0 and fore128-s1 were each started from step 0 three times under the same RUN_ID (records above). The report names two differences (RUN_IDs reused; files trashed). The count beyond 'once' is covered only by 'I do not count these as a run's one allowed restart'. That is the author's interpretation: DECISION_LOG.md has no change since f84a6919 (git diff empty), so no owner decision covers it. 'First files kept' was met only for the run records: the stop pairs, monitor CSVs and train_health.jsonl were moved to the Drive trash, which empties itself after 30 days. The step sheet also says 'Never delete anything on your Drive' (STEPS.md:17). No reason is given for abandoning the correct fore128-s1 start at 23:14:16 (record: status running, steps_reached 0). None of this touches a result: no start reached the 250,000-step save or an evaluation, and all eight judged runs have one completed session from step 0 at f84a6919.",
+     "suggested_fix": "Label it plainly: the post-mis-set restart was each affected run's one allowed restart. The 2-vCPU to 8-vCPU switch was a deliberate stop followed by a from-step-0 start, equivalent to a resume because no checkpoint existed. Record the owner's agreement to this reading in the decision log, say which first files were not kept and why the 23:14:16 fore128-s1 start was abandoned, and note the step-sheet 'never delete' rule.",
+     "what_is_written": "Seeds, models and settings did not change, and nothing was chosen by outcome. I do not count these as a run's one allowed restart."
+    },
+    {
+     "id": "P5",
+     "severity": "low",
+     "title": "Interim per-run verdicts and a partial outcome went out before all eight runs, against the step sheet's 'nothing is judged until I have read all eight runs'; the disclosure does not name that commitment, and a six-run judge dry run is not disclosed",
+     "location": "runs/trike60-d22_STEPS.md:26; runs/trike60-d22_LOG.md:81-105, 130-147; analysis/REPORT_FORELEG_D22.md:184-186",
+     "evidence": "per_run_round1.json and the round-1 verdicts were committed in 6a7f711a (24 Nov 05:11), and round 2 in d8e09e62 (25 Nov 23:09). judge_d22.json was written 26 Nov 19:45 and committed in 0133faa6 at 20:01. LOG:102 says '160 mm now cannot pass the walk gate'; LOG:145-147 says 'the choice is 128 mm if fore128-s3 passes F1 and F2'. The scratchpad holds d22_measure/judge_d22_dryrun_six.json (mtime 26 Nov 14:28; six runs; choice null, 'not judged: a run is missing'), which neither the log nor the report mentions. Mitigating facts I checked: the interim figures equal the final judge output for all eight runs (rules, L, L_hind, H_all, H_front, H_elbow, N, checkpoint sha). Rounds 2 and 3 ran in the step sheet's order, fixed in aa8c612f before any run. No rule, tool or threshold file changed after f84a6919.",
+     "suggested_fix": "In disclosure 2, quote the step sheet's commitment and say that the per-run rules (judge_run3.judge_seed) were applied and the walk-gate implication stated after 3 and 6 runs. Mention the six-run dry run of judge_d22.py and its 'no choice' output.",
+     "what_is_written": "I sent the owner each round's measured figures after rounds 1 and 2, and named what the walk gate implied. No rule, seed, budget or tool changed afterwards."
+    },
+    {
+     "id": "P6",
+     "severity": "low",
+     "title": "Disclosure 3 says less was added than really was",
+     "location": "analysis/REPORT_FORELEG_D22.md:188-190",
+     "evidence": "git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl (excluding results) shows a new code file analysis/d22_appendix.py (306 lines), new REPORT_FORELEG_D22*.md under rl/analysis/, and new results under rl/analytics/results/<run>/ and rl/robustness/results/<run>/, not only under rl/runs/ and rl/analysis/results/. No file that existed at f84a6919 changed except runs/trike60-d22_STEPS.md, edited in aa8c612f before any run. Nothing outside rl/ changed.",
+     "suggested_fix": "Write: 'no file that existed at f84a6919 under rl/ changed except the step sheet (before any run); added since: the run log, start-up records, results under analytics/, robustness/ and analysis/results/, the report and the appendix generator d22_appendix.py, which judges nothing'.",
+     "what_is_written": "no code under rl/ has changed since f84a6919. Only notes, run records and results were added under rl/runs/ and rl/analysis/results/."
+    },
+    {
+     "id": "P7",
+     "severity": "low",
+     "title": "'One 128 mm seed reaches 1.00 and 1.005': these are two different seeds, and the 1.00 is below 1",
+     "location": "analysis/REPORT_FORELEG_D22.md:30-32 and 219",
+     "evidence": "From the stored JSON: the sweep's nominal point heat_worst for 128 s3 is 0.9969 (shown as 1.00), and the gait report's nominal_0.25 worst drive for 128 s2 is 1.0046 (left_fore_pitch). The report's own table (line 110-111) shows 1.005 for s2 and 1.00 for s3. 'What follows' then gives '0.83-1.00' for 128 mm, while the table shows 1.005.",
+     "suggested_fix": "'Two 128 mm seeds come close to or reach the rating: s3 at 0.997 at the sweep's nominal point, s2 at 1.005 in the gait report's nominal noise-off case.' Use 0.83-1.005 in 'What follows'.",
+     "what_is_written": "In two cases that are reported but not judged, one 128 mm seed reaches 1.00 and 1.005: the sweep's nominal point, and the gait report's nominal model with noise off."
+    },
+    {
+     "id": "P8",
+     "severity": "low",
+     "title": "Run 3's reference for the reported foot-load peaks is missing, and the pre-registration's run 3 L values have no stored record in the repo",
+     "location": "analysis/REPORT_FORELEG_D22_APPENDIX.md section D; analysis/REPORT_FORELEG_D22.md:195-196 (against PREREG_FORELEG_D22.md:59-61, 113-117)",
+     "evidence": "Run 3's foot-load outputs are on this machine at scratchpad/foot_loads_run3_s0_v2.json (provenance efd1e1c7) and foot_loads_run3_s1.json, but not in the repo (analysis/results/ has no foot_loads_run3*). Recomputed from their episodes, they give L 143.5 (hind 135.2) and 110.6 (hind 122.9), matching PREREG:60-61. They also give largest 10 ms means of 233.1 and 192.7 N and largest 1 ms samples of 418.1 and 324.0 N. Run 3 s0's 418.1 N raw peak is above every D22 run's (max 367.0 N). Appendix D has no run 3 columns. The report says run 3's checkpoints were not kept on this machine, which is true: I found no run 3 final checkpoint.",
+     "suggested_fix": "Commit run 3's two foot-load JSONs under analysis/results/ and add run 3's L, hind, largest 10 ms and raw 1 ms figures as reference columns in appendix D.",
+     "what_is_written": "Run 3's figures are quoted, not re-read. Its front-foot loads are quoted from the pre-registration: run 3's checkpoints were not kept on this machine."
+    },
+    {
+     "id": "P9",
+     "severity": "low",
+     "title": "The demo-course outputs carry no provenance, so 'for each run's final pair, from the same export' cannot be checked from the record",
+     "location": "analysis/results/d22/demo/<run>/demo_course.json; runs/trike60-d22_LOG.md:177-178",
+     "evidence": "The demo_course.json keys are simulation_only, estimates, walker, loop, seed0, segments, valid, fallen_segments, loads_headline, pack, hotel_range_w, time_constants_s, minutes, minutes_is_one_pack, temperatures, battery, traces and chart. There is no checkpoint sha256, run commit, model or trike_env sha. The only link is walker 'policy trike60_10002432_steps.zip (checkpoints)'. The scratch d22_demo/*.log files do not record the command or TRIKE_ENV_DIR. Appendix E's values match the stored JSON (e.g. 160 s0 right_hind_pitch 109.9 C, limit reached at 23.9 min; 128 s0 runtime 96 min).",
+     "suggested_fix": "Record the command line and the checkpoint sha256s beside each demo output (or in the log), or state that the demo course's provenance rests on the folder names only.",
+     "what_is_written": "The demo course then ran on all eight (reported, not judged; analysis/results/d22/demo/), from the same export."
+    },
+    {
+     "id": "P10",
+     "severity": "low",
+     "title": "The 'arguments equal to run 3's' check compares only run 3's argument names, so two new train.py arguments go unchecked",
+     "location": "analysis/judge_d22.py:103; analysis/REPORT_FORELEG_D22.md:64-65",
+     "evidence": "All eight D22 session records have args 'checks': '' and 'checks_every': 0, which run 3's reference record lacks (my diff). judge_d22.checks line 103 iterates only over ref_args keys, so a non-default value of a new argument would pass. Likewise, the 20 steering keys in env_config that run 3's record lacks are covered only by command_mode == 'none' (line 106). Here 'checks' and 'checks_every' equal train.py's defaults (train.py:139-142, off) and command_mode is 'none', so the settings are effectively run 3's.",
+     "suggested_fix": "In the report, say the D22 records carry two later arguments (periodic checks, off by default) and the D20 steering keys (command_mode none) that run 3's record predates, and that both are at their inert defaults.",
+     "what_is_written": "the PPO settings, schedules, 8 envs, 10,000,000 steps, the whole environment config, and every session's arguments equal to run 3's"
+    }
+   ],
+   "checked_ok": [
+    "Git status was empty before and after my review (HEAD 0133faa6 on claude/pensive-pasteur-o3bqtv); my only writes are under scratchpad/review_d22final/prereg/. The __pycache__ files with 20:17 timestamps in sim/ and rl/tests/ predate my pytest run (20:24) and are gitignored.",
+    "No rule, tool or setting changed after the run commit: git diff f84a6919 HEAD on PREREG_FORELEG_D22.md, judge_d22.py, judge_run3.py, foot_loads.py, telemetry/loads.py, gait_report.py, sweep.py, trike_env.py, demo_course.py, train.py, configs/, tests/, sim/, PLAN_FORELEG_D22.md, DECISION_LOG.md and run3_reference_settings.json is empty. Nothing outside rl/ changed. The step sheet's last edit (aa8c612f, 23 Nov 14:43) predates every run.",
+    "The measurement export scratchpad/d22_export/hardware/triceratops_build equals a fresh git archive of f84a6919 (diff -rq: only a __pycache__ directory differs).",
+    "Model and env hashes at f84a6919 equal the tree's and every tool's recorded values: fore128 372ac07b..., fore160 377e3647..., trike_env 6774a962..., run3_terrain.json 4da59a2e.... Model masses in the sweep are 12.751 and 12.808 kg, as pre-registered.",
+    "All 8 run records (repo copy = scratch copy = checkpoint-folder copy, byte-identical) have one session, from step 0, completed at 10,002,432 steps, git f84a6919 clean, changed_settings None, allow_changes False, cpu_count 8, the right seed and model, Colab notebook paths, last_checkpoint trike60_10002432_steps.zip, finite. Settings differ from run 3's only in seed, model and env_config (model_path, plus steering keys with command_mode 'none'). Session start/end times, hours, rates and sha prefixes in the run log all match the records.",
+    "The final pair's zip and vecnormalize sha256 (computed by me from the downloaded files) equal what the gait report, sweep and foot-load tool each recorded, for all 8 runs. The 8 pairs are distinct.",
+    "Measurement settings match the pre-registration in every stored output. Gait: seeds 100000-100004, 20 s, 10 ms, deterministic, from 2 s, 5 episodes in every case, nominal case with randomisation and noise off. Sweep: seeds 200000-200007, 8 per point, 70 points, 565 episodes, nominal delay 10 ms, 0.25 m/s, from 2 s. Foot loads: seeds 300000-300004, 20 s, from 2 s, 0.25 m/s, 10 ms, flat, randomisation off, noise on, 18000 samples (1 ms) per episode, 10 ms window. Gait and sweep settings are identical to run 3's stored outputs (only wall_s differs).",
+    "L and L_hind recomputed from per-episode values equal the stored values for all 8 runs.",
+    "Re-running judge_d22.py on the repo's stored outputs gives JSON identical to analysis/results/d22/judge_d22.json (choice 128, 'only 128 mm passes F1 and F2 on all four seeds'; problems empty for all 8). tests/test_judge_d22.py: 19 passed.",
+    "foot_loads.py re-run by me on fore128-s3's final pair from the export (20 s run) gives output byte-identical to analysis/results/d22/foot_loads_fore128-s3.json, confirming the pre-registered determinism claim on one run.",
+    "The scratch measurement outputs equal the repo copies (gait, sweep and foot for all 8). Measurement windows in times.log match the log (04:33-05:10, 22:26-23:09, 19:16-19:45). The round-1 false start (04:33:04-04:33:10, FileNotFoundError on run_record.json, nothing written) matches LOG:77-79 and report disclosure 4.",
+    "Interim per_run_round1/2/3.json equal the final judge output for every measure of every run. Rounds 2 and 3 started after the interim reports, in the step sheet's pre-registered order.",
+    "The corrected statement about the stopped 2-vCPU fore128-s0 start matches runs/d22_startup/fore128-s0_2vcpu-start_run_record_final.json: steps_reached 100000, saves [], status 'running', no ended_utc. It differs from the earlier copy only in steps_reached (0 vs 100000). train.py writes steps_reached at each 100,000-step progress line (train.py:470-487, 784-791), so 100k-200k at the stop is a sound inference. Timing agrees: 213 steps/s from 23:11:40 reaches about 165k by 23:24. The correction is labelled 'Corrected 26 Nov' and was committed in 0133faa6. The other two 2-vCPU records show 0, which is consistent with their at most ~7 minutes at ~210 steps/s (<100k).",
+    "Startup record hashes 77d1fb08... and 804e126c... match the log. All six startup records are at f84a6919, clean, with the right seed and model per RUN_ID, cpu_count 2.",
+    "D22/D23/D24/A-D22a: 4 seeds per length, the walk gate first (F1 and F2 on all four seeds), front-foot L as the 99th percentile of the 10 ms mean averaged over 5 episodes, thresholds 0.85/+7/+0.035/+0.10 in judge_d22.py:50, elbows reported only. A-D22a's models are unchanged since the run commit. The report keeps 'an input to the owner's decision, not the decision' and the straight-walking/turning caveat.",
+    "Four-seed means and rule outcomes in the report and appendix recomputed: L 121.56/117.56 (ratio 0.967), N 18.5/14.25, H_all 0.898/1.000, H_front 0.803/0.940, H_elbow 0.678/0.757. The report's F2 margins (160 mm fails by 1.3-9.4 %, 128 mm's worst passes with 5.5 % to spare) and the 0.15 m/s ranges (0.70-0.83, 0.72-1.085) match the appendix.",
+    "'Reported, not judged' items present: run 3's rules per length (appendix B, PASS/FAIL/MIXED); the sweep's every point; the raw 1 ms peaks and largest 10 ms mean per run beside PR #697's figures; the demo course for all 8 runs; proportions 0.681/0.851/0.682; the 'other foot' case with its caveat. PR #697's figures (87.7/84.7, 89.8/86.2, 302.5/210.2, 224.2/190.3, 416.3/260.8, 280.7/215.1, 424.0/329.6, 302.7/247.8, 3.70/4.58 N m, +24 %) match git show 65a44fad:hardware/triceratops_build/refinement60/mid160/README.md lines 26-36.",
+    "Posture: the plan defines it as 'elbow position' (PLAN:66). It is not reported; body pitch, roll and height are reported instead, disclosed as departure 6. I confirmed that no stored tool output (gait_report.json, gait_report_episodes.json.gz, demo_course.json) contains an elbow joint angle, so 'not measured by these tools' is accurate.",
+    "Demo-course figures in appendix E and report section 1 match the stored demo_course.json (hottest windings, 160 s0 at 109.9 C reaching the limit at 23.9 min, runtimes 69-96 min).",
+    "The prereg's 'four rounds of two' (Expected cost) became three rounds of up to three in the step sheet (aa8c612f) before any run. This is not a rule and has no effect.",
+    "judge_run3.judge_seed's thresholds are unchanged from run 3's pre-registration. Its edge-case hardening (44ce4f8a/c47cca7d) predates the D22 pre-registration and is the version at the run commit.",
+    "Run 3's pre-registered reference L values (143.5/135.2 and 110.6/122.9 N) recompute exactly from scratchpad/foot_loads_run3_s0.json and _s1.json."
+   ],
+   "not_checked": [
+    "The Colab-side facts in the run log that leave no stored record: the mis-set session's 1,168 steps, the Drive revision times, train_health.jsonl's 213 env steps/s, the first-rollout rates (565/878/630), Box 6's quick-test speeds, and whether the owner was actually sent the interim figures.",
+    "That the downloaded checkpoints are the ones on Drive (sizes and folders): I hashed the local copies only.",
+    "Re-running the gait report, the sweep or the demo course (left out to avoid long simulations). Only foot_loads was reproduced, on one run (fore128-s3).",
+    "d22_appendix.py's code and every cell of the appendix's sweep tables (spot-checked only, against judge output and selected JSON values).",
+    "Whether run 3's own measurements (efd1e1c7 tools) are fully comparable with the D22 tools beyond the gait_report.py diff, which adds provenance only, and the trike_env.py digest claim in the pre-registration.",
+    "The A-D22a part masses inside the model XMLs (only the total masses 12.751/12.808 kg and the file hashes were checked).",
+    "The train.py determinism claim across 2- vs 8-vCPU machines and the pre-registration's 2,048-step identical-weights check.",
+    "Anything under hardware/trex_form_study (excluded by instruction)."
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "R1",
+     "severity": "high",
+     "title": "The heat-margin message for 128 mm leaves out the sweep, where every 128 mm policy goes over its rating under modest changes, and the 0.83-1.00 range in 'What follows' is wrong",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:29-32, 105, 219-223 (also 210-212)",
+     "what_is_written": "L219-220: \"With 128 mm the worst drive sits at 0.83-1.00 of its continuous rating at 0.25 m/s, depending on the case.\" L29: \"Both lengths run their drives close to the continuous rating\". L105: \"Drive heat: thin margins for both lengths.\"",
+     "evidence": "I counted sweep points with summary.heat_worst >= 1.0 in robustness/results/<run>/sweep_<run>.json.gz (scratch script review_d22final/report-claims/sweep_heat.py). Points over rating, of 70: fore128 s0 14, s1 16, s2 20, s3 30; run3 14 and 11; fore160 53, 52, 61, 13. The sweep's settings.training_ranges are delay_ms [0,10] and mass_scale [0.9,1.1]. D9 says 10 ms is used only 'until the foreleg bench measures it'. 128 mm (s0/s1/s2/s3): at 20 ms delay and 0.25 m/s, 1.074/1.127/1.203/1.198; at 30 ms, 1.113/1.092/1.224/1.220; at 20 ms and 0.15 m/s, 1.289/1.131/1.25/1.099, which is hotter than at 0.25 m/s for s0 and s2. Run 3 does the same: 1.236/1.199 at 20 ms. At mass x1.1, inside the training range: s1 1.006, s2 1.022, s3 1.064 (s0 0.94). With 2 kg payload all four are over: 1.022/1.019/1.016/1.111. s3 is already over at 0.5 kg (1.024) and 1 kg (1.059). On ramps of 3/5/8 deg: s2 1.035/1.073/1.155, s3 1.096/1.151/1.216, s1 1.02 at 8 deg. s3 is over on the 3 cm step (1.018) and at kp x1.2 (1.087). The demo course's 0.25 m/s segment (nominal model, noise on, 10 ms) gives tau_drive_rms/rating of 1.006 for 128 s3 (left_hind_pitch) and 0.998 for s2. The report's own table (L110) gives 1.005 for 128 s2 (gait_report.json nominal_0.25, left_fore_pitch rms_over_continuous mean 1.00461), so '0.83-1.00' is wrong even on the report's own figures. The report never mentions any sweep heat figure except the nominal point. The verdict is unchanged, but the margin claim the owner is asked to act on is.",
+     "suggested_fix": "Replace L219-220 with: \"With 128 mm the worst drive is at 0.83-1.005 of its continuous rating in the three nominal cases at 0.25 m/s (three of four seeds at 0.94-1.005). In the sweep (reported, not judged), every 128 mm seed goes over its rating at every delay of 20 ms or more (1.07-1.22 at 0.25 m/s, 1.10-1.29 at 0.15 m/s; trained on 0-10 ms; run 3 behaves the same). Three of four go over at +10 % mass (1.01-1.06, the edge of the training range), all four with 2 kg on the chassis (1.02-1.11), and s2 and s3 on 3-8 deg ramps (1.04-1.22). Each 128 mm policy is over its rating at 14-30 of the 70 sweep points (run 3: 11-14). The real delay and masses are not measured yet.\" Put a one-line version in 'The answer' (L29-32). Retitle L105 to say the margin is thin or negative for 128 mm and negative for 160 mm. For the 'lower demo speed' option, add that 0.15 m/s lowers 128 mm's worst drive to 0.70-0.83 at 10 ms but does not help at 20 ms or more."
+    },
+    {
+     "id": "R2",
+     "severity": "medium",
+     "title": "'one 128 mm seed reaches 1.00 and 1.005' names two different seeds as one and understates how many 128 mm seeds sit at the rating",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:31-32",
+     "what_is_written": "\"In two cases that are reported but not judged, one 128 mm seed reaches 1.00 and 1.005: the sweep's nominal point, and the gait report's nominal model with noise off.\"",
+     "evidence": "In the sweep's nominal point (fore128-s3 sweep json, key [0.25, 10, null, 1.0, 0.0, 1.0, 1.0, 0.0, null, false]), s3 has heat_worst 0.996888 (left_hind_pitch) and heat_worst_episode 1.011. In the gait report's nominal_0.25 case it is s2 that reaches 1.00461 (fore128-s2 gait_report.json, left_fore_pitch rms_over_continuous mean). The other nominal values are: s1 0.989 (gait) and 0.940 (sweep); s2 0.974 (sweep); s3 0.966 (gait). So two different seeds reach about 1.00, a third reaches 0.99, and the sweep's '1.00' is 0.997 rounded.",
+     "suggested_fix": "\"In two nominal-model cases that are reported but not judged, three of the four 128 mm seeds reach 0.94-1.005: s2 1.005 in the gait report's noise-off case (s1 0.99), and s3 0.997 at the sweep's nominal point (one of its 8 episodes 1.011).\""
+    },
+    {
+     "id": "R3",
+     "severity": "medium",
+     "title": "The answer-first section leaves out where 128 mm did worse: drift on all four seeds, and more falls",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:7-35 (esp. 18-21, 26-27)",
+     "what_is_written": "\"Had they been applied, they would also have kept 128 mm: Loads ... Heat ...\" and \"It does not mean 128 mm is better in every respect.\" The section does not say which respects.",
+     "evidence": "judge_d22.json rules: T3 and T4 fail on all four 128 mm runs. On 160 mm, T3 fails on s0 and s1 and T4 on s0 and s3 (appendix B: FAIL vs MIXED). The mean N is 18.50 at 128 mm against 14.25 at 160 mm (the falls test that was not applied would have favoured 160 mm). Push falls at -1.25/+1.25 m/s from judge_d22.json T5: 128 mm 8+6, 8+8, 1+8, 8+8 = 55 of 64; 160 mm 4+6, 8+4, 7+3, 8+2 = 42 of 64. None of this is in L7-35. The falls test's result appears only at L96 ('Falls: pass'), and drift only at L139-145.",
+     "suggested_fix": "After L21, add: \"Falls: 160 mm would have passed (mean 14.25 against 18.5 falls). 128 mm was the weaker length on sideways drift: T3 and T4 fail on all four 128 mm seeds against two of four at 160 mm. It also fell more under the hardest pushes (55 of 64 against 42 of 64 at +-1.25 m/s).\" In L26-27, name these respects."
+    },
+    {
+     "id": "R4",
+     "severity": "medium",
+     "title": "The 160 mm s0 demo-course winding over 100 C comes from the standing segment; the report does not say so",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:116-118",
+     "what_is_written": "\"At 160 mm it peaks at 68.9-84.8 C on three seeds, and on seed 0 the right hind pitch winding reaches the 100 C limit (109.9 C).\"",
+     "evidence": "In analysis/results/d22/demo/fore160-s0/demo_course.json, segments.stand.tau_drive_rms[10] (right_hind_pitch) is 11.837 N m, which is 1.578 of the 7.5 N m pitch rating. In walk_0.25 the same drive is 5.767 N m (0.769). Its winding first reaches the limit at minutes_to_limit 23.9 (8 min constant). For fore160-s2 the hottest demo winding (right_hind_flexion, 80.4 C) also comes from standing: stand RMS/rating is 1.176 (6.75 N m knee rating). Every 128 mm policy stands at 0.58-0.69 of rating at most. The loop is [walk_0.25 90 s, stand 30 s].",
+     "suggested_fix": "\"...on seed 0 the right hind pitch winding crosses the 100 C limit after about 24 min and peaks at 109.9 C (model estimate). This comes from standing: that policy holds the drive at 1.58 of its continuous rating while standing (0.77 while walking). 160 mm s2 also stands with its right hind knee at 1.18. The 128 mm policies stand at 0.69 or less.\""
+    },
+    {
+     "id": "R5",
+     "severity": "medium",
+     "title": "The report never says that run 3 is a reference only (its foreleg cannot be built, F18, and its fore-assembly differs besides the length), yet it compares the lengths with it",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:99, 107-111, 143",
+     "what_is_written": "L99: \"For scale, run 3 (188 mm, the same tools)\"; L143: \"Run 3 passed both.\"",
+     "evidence": "grep -n -i 'reference\\|F18\\|cannot be built\\|fore-assembly' on REPORT_FORELEG_D22.md finds nothing. PREREG_FORELEG_D22.md:113-115 requires run 3 to be shown 'as a reference only: its foreleg cannot be built (F18) and its fore-assembly differs besides the length (the shoulder 40 mm higher, the X6 placement, about 14 % more forefoot travel per unit action)'. The appendix (L3) carries this, the report does not. 'Run 3 passed both' after 128 mm fails T3 and T4 on all seeds invites the reading that the longer foreleg drifts less.",
+     "suggested_fix": "At L99 and in the heat table caption, add: \"Run 3 is a reference, not a third length: its 188 mm foreleg cannot be built (F18), and its fore-assembly differs besides the length (shoulder 40 mm higher, X6 placement, about 14 % more forefoot travel per unit action).\" Change L143 to \"Run 3 (reference; different fore-assembly) passed both.\""
+    },
+    {
+     "id": "R6",
+     "severity": "low",
+     "title": "The T3 drift range includes points under the limit; the drift comparison has no numbers; 160 mm s2's T4 pass was at the limit",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:140-145",
+     "what_is_written": "\"T3 (steps and ramps, 0.30 m limit) fails on all four 128 mm seeds, at 0.21-0.58 m. It fails on two 160 mm seeds.\" ... \"The drift varies by seed as much as by length.\"",
+     "evidence": "In judge_d22.json T3 points, the worst-point drift per 128 mm seed is 0.352/0.577/0.329/0.481 m. 0.21 is 128 s2's ramp 5 deg, which passes. The two 160 mm fails are s0 at 0.597 and s1 at 0.358. 160 s2 passes T4 at 0.199 m against the 0.20 m limit. Across seeds: T3 worst-point mean 0.435 m (SD 0.116) at 128 mm against 0.377 m (SD 0.152) at 160 mm; T4 mean 0.494 m (SD 0.102) against 0.351 m (SD 0.323), range 0.43-0.65 against 0.11-0.82 m. The length difference (0.06 and 0.14 m) is smaller than the seed scatter, so the claim holds, but the reader is given no figure.",
+     "suggested_fix": "\"T3 fails on all four 128 mm seeds, worst point 0.33-0.58 m, and on two 160 mm seeds (0.60 and 0.36 m). T4 fails on all four 128 mm seeds (0.43-0.65 m) and on two 160 mm seeds (0.27 and 0.82 m); 160 mm s2 passed at 0.199 m. The seed-to-seed scatter (SD 0.10-0.32 m) is larger than the difference between the length means (0.06 m on T3, 0.14 m on T4), so four seeds do not show a length effect on drift.\""
+    },
+    {
+     "id": "R7",
+     "severity": "low",
+     "title": "The elbow comparison with PR #697 gives no D22 effect size and no caveat about the different controller and speed",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:161-162",
+     "what_is_written": "\"H_elbow is 0.62-0.76 at 128 mm (mean 0.678) and 0.69-0.83 at 160 mm (mean 0.757). This is in the same direction as PR #697's +24 % elbow effort at 160 mm.\"",
+     "evidence": "From judge_d22.json H_elbow: 128 mm 0.638/0.702/0.757/0.615, 160 mm 0.738/0.768/0.834/0.688. The ratio of means is 1.117 (+12 %), the ranges overlap, and Welch t = 1.78 on 4+4 seeds. Times the 10.8 N m elbow rating, that is 6.6-8.2 N m against 7.4-9.0 N m. PR #697 (65a44fad refinement60/mid160/README.md L27) gives 3.70 against 4.58 N m (+23.8 %) in a scripted four-beat walk at about 17 mm/s, compared with 0.25 m/s here.",
+     "suggested_fix": "\"...mean 0.678 against 0.757, 12 % higher at 160 mm, with overlapping seed ranges. PR #697 found +24 % (3.70 against 4.58 N m) under a scripted four-beat walk at 17 mm/s. Same direction, half the size, different controller and speed; here the elbows carry about twice the PR's torque.\""
+    },
+    {
+     "id": "R8",
+     "severity": "low",
+     "title": "The H_elbow lower bound is rounded wrongly",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:161",
+     "what_is_written": "\"H_elbow is 0.62-0.76 at 128 mm\"",
+     "evidence": "judge_d22.json 128_s3 H_elbow = 0.614826. At two decimals that is 0.61, not 0.62. The appendix shows 0.615.",
+     "suggested_fix": "\"0.61-0.76 at 128 mm\" (or 0.615-0.757)."
+    },
+    {
+     "id": "R9",
+     "severity": "low",
+     "title": "PR #697's case for 160 mm is reduced to turning loads, and 'What follows' offers no 160 mm option",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:34-35, 218",
+     "what_is_written": "L34: \"PR #697's case for 160 mm came from turning and pivoting loads, which these runs do not test.\" L218: \"Adopt 128 mm for the build, or hold until turning is tested.\"",
+     "evidence": "git show 65a44fad:hardware/triceratops_build/refinement60/mid160/README.md L3: \"the smaller impacts during turning and the more legible elbow are worth the extra elbow effort during the slow walk.\" The legibility argument (a visual one, for the museum robot) is not something D22 tests. DECISION_LOG D22's options included 'adopt 160 mm now'. The prereg says the choice is 'an input to the owner's decision, not the decision'.",
+     "suggested_fix": "L34: \"PR #697's case for 160 mm rested on lower turning and pivoting loads and a more legible elbow in profile; these runs test neither.\" L218: add a third option: \"or adopt 160 mm for its turning loads and looks, which would need its heat brought under the rating first (three of four seeds failed F2 here).\""
+    },
+    {
+     "id": "R10",
+     "severity": "low",
+     "title": "Departure 1 misstates the stopped starts: two of them saved stop pairs, and the first restart covered two runs, not three",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:172-175",
+     "what_is_written": "\"The owner then stopped all three runs, moved their folders to the Drive trash and restarted them from step 0 under the same RUN_IDs. The first restart was on 2 vCPUs ...\" and \"None of the stopped starts saved a checkpoint (the first is at 250,000 steps) or ran an evaluation. The mis-set starts stopped at 1,168 and 13,936 steps\"",
+     "evidence": "runs/d22_startup/fore160-s0_first-folder_run_record.json has last_checkpoint 'trike60_13936_steps.zip' and last_checkpoint_finite True. The run log (L18) says 'Each left a stop pair in checkpoints/'. In the run log, the first restart covered fore160-s0 (23:18:21) and fore128-s1 (23:18:43). fore128-s0 (23:11:04) kept running until all three were restarted on 8 vCPUs at 23:24-23:25. The 13,936-step start was fore160-s0's own, correctly set session in the mixed folder.",
+     "suggested_fix": "\"The owner stopped the mis-set copy (1,168 steps) and fore160-s0 (13,936 steps; correctly set, but sharing the folder), each of which left a stop pair. The owner trashed those folders and restarted fore160-s0 and fore128-s1 from step 0 under the same RUN_IDs on 2 vCPUs, then stopped all three and restarted them on 8 vCPUs. No start reached the first periodic checkpoint (250,000 steps) or an evaluation.\""
+    },
+    {
+     "id": "R11",
+     "severity": "low",
+     "title": "Departure 3 gives the wrong places and file types for what was added after the run commit",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:189-190",
+     "what_is_written": "\"no code under `rl/` has changed since f84a6919. Only notes, run records and results were added under `rl/runs/` and `rl/analysis/results/`.\"",
+     "evidence": "git diff --name-status f84a6919..HEAD -- hardware/triceratops_build/rl lists: A analysis/d22_appendix.py (new code, which generates the appendix), A analysis/REPORT_FORELEG_D22.md, A analysis/REPORT_FORELEG_D22_APPENDIX.md, 44 files under analysis/results, 96 under analytics/results, 64 under robustness/results, 7 under runs/, and M runs/trike60-d22_STEPS.md. No existing code file was modified.",
+     "suggested_fix": "\"No existing file under `rl/` has changed since f84a6919 except the step sheet. Added since: run records and notes under `rl/runs/`, tool outputs under `rl/analysis/results/`, `rl/analytics/results/` and `rl/robustness/results/`, and the report, its appendix and the appendix generator `analysis/d22_appendix.py`.\""
+    },
+    {
+     "id": "R12",
+     "severity": "low",
+     "title": "Model estimates and future work are written as if measured or done",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:39-40, 116-118, 125, 136-137, 211-212",
+     "what_is_written": "L116-117: \"the hottest winding peaks at 62.9-85.9 C\"; L125: \"gives 84-96 min per pack\"; L136-137: \"the steering run (D20) measures turning loads under the RL policy\"; L211-212: \"The bench article measures the real drives' temperature and current.\"; L39-40: \"(12.751 kg) ... (12.808 kg)\"",
+     "evidence": "demo_course.json 'estimates': 'temperatures, battery and currents are model estimates'. The thermal model starts from 25 C in open air (demo_course.py docstring). DECISION_LOG D20: 'Not yet trained'. The bench is only planned. A-D22a lists the masses as estimates until 'Weighed parts'. The report labels only the gait report's power (L120) as an estimate.",
+     "suggested_fix": "Label the figures where they appear: \"the hottest winding peaks at an estimated 62.9-85.9 C (thermal model, from 25 C)\", \"an estimated 84-96 min per pack\", \"model masses 12.751 and 12.808 kg (estimated parts)\". Use the future tense: \"the steering run (D20, not yet trained) will measure\" and \"the planned foreleg bench will measure\"."
+    },
+    {
+     "id": "R13",
+     "severity": "low",
+     "title": "'The policy, not the foreleg alone, sets where the heat goes' needs to be worded as what the data show",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:114-115",
+     "what_is_written": "\"The hottest drive differs by seed: a pitch drive or a knee, front or hind. The policy, not the foreleg alone, sets where the heat goes.\"",
+     "evidence": "Hottest drive per seed in judge_d22.json F2: 128 mm LH pitch, RH knee, LF pitch, LH pitch; 160 mm LF pitch, RH knee, LH knee, RF pitch. The model and conditions are the same within a length, so the inference that length alone does not fix the hottest drive is supported. The hottest drive also changes with the condition, though: for 160 s0 it is LF pitch walking but RH pitch standing (demo stand 1.578), and for 128 s3 it moves from LH pitch to the RH knee at mass x1.4 in the sweep.",
+     "suggested_fix": "\"With the same model, the hottest drive changes from seed to seed (...) and with the condition (walking or standing, load), so the foreleg length alone does not fix which drive runs hottest.\""
+    },
+    {
+     "id": "R14",
+     "severity": "low",
+     "title": "'Two kinds of stride' presents a split in eight runs as two settled modes",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:154-159",
+     "what_is_written": "\"The seeds settled into two kinds of stride, at both lengths:\"",
+     "evidence": "Appendix C: the stride frequency, length and front clearance values do split 4/4 with a gap (0.68-0.87 against 1.22-1.65 Hz; 0.283-0.370 against 0.149-0.201 m; 78-112 against 19-33 mm). Eight runs cannot show two discrete modes rather than a spread, though. Within the short group the frequency still varies by 35 %, the worst foot has 38-85 % irregular strides, and the gait report's own pattern label (trot/other) does not follow the two groups (128 s0 trot and s1 other are both long; 160 s1 and s2 trot are both short).",
+     "suggested_fix": "\"In these eight runs the strides fell into two groups, with no run in between: ... The gait report's trot/other label does not follow these groups.\""
+    },
+    {
+     "id": "R15",
+     "severity": "low",
+     "title": "The F1 and F2 definitions in the answer leave out their thresholds and test case",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:10-12",
+     "what_is_written": "\"F1: steady flat walking at 0.25 m/s with no falls; F2: every drive's RMS torque under its continuous rating.\"",
+     "evidence": "judge_run3.py:96-104: F1 needs a mean speed of at least 0.225 m/s and no falls in 5 episodes. F2 needs every joint's mean RMS torque over its rating below 1.0. Both are in the gait report's randomised 0.25 m/s case with a 10 ms delay. The policies walk at 0.235-0.246 m/s, not 0.25.",
+     "suggested_fix": "\"F1: at the 0.25 m/s command (randomised, 10 ms delay, 5 episodes), a mean speed of at least 0.225 m/s and no falls. F2: in the same case, every drive's RMS torque, averaged over the 5 episodes, below its continuous rating.\""
+    }
+   ],
+   "checked_ok": [
+    "The verdict and why it was chosen: judge_d22.json choice 128, 'only 128 mm passes F1 and F2 on all four seeds', walks {128: true, 160: false}, problems empty for all eight; this matches PREREG step 1 and D24.",
+    "F2 values and drives: 160 s0 left_fore_pitch 1.01411, s1 right_hind_flexion 1.01273, s2 left_hind_flexion 1.09433 (three different drives), s3 0.87844 pass; 128 0.8276/0.8877/0.9309/0.9454. The F2 margins of 1.3-9.4 % (fail) and 5.5 % (pass) are correct.",
+    "F1 speeds (0.235-0.246 m/s) and 0 falls for all eight, as in the judged table.",
+    "Four-seed means: L 121.575 against 117.575 N (ratio 0.967); H_all 0.8979 against 0.9999; H_front 0.8032 against 0.9398; N 18.5 against 14.25. The rules that were not applied come out as the report says: loads fail, falls pass, heat fails on both.",
+    "N per run (14/24/9/27, 11/14/13/19), recomputed from the T5 push falls plus terrain and gait-case falls (all 0).",
+    "Heat table rows (gait randomised, gait nominal noise-off, sweep nominal) and the run 3 column, against appendix C/F, gait_report.json and the sweep json.",
+    "The 0.15 m/s figures: 0.70-0.83 at 128 mm, 0.72-1.085 at 160 mm.",
+    "Demo course: hottest winding 62.9-85.9 C at 128 mm, 68.9-84.8 C on 160 s1-s3, 160 s0 109.9 C right_hind_pitch with the limit reached; time constants 240/480/900 s; loop of 90 s walking and 30 s standing; runtime 84-96 and 69-90 min.",
+    "Power and runtime from the gait report: 49.8-59.9 W and 78-88 min (128); 75.0-77.2 W / 66-67 min and 53.9 W / 84 min (160); run 3 53.7/48.8 W, 84/89 min.",
+    "Foot-load table ranges (L, largest 10 ms mean, largest 1 ms sample) against appendix D and foot_loads_fore160-s1.json; no foot-load episode fell.",
+    "PR #697 figures quoted (260.8/215.1 N moving courses, +24 % elbow from 3.70/4.58 N m) against git show 65a44fad:.../mid160/README.md; the moving courses are 0.25 m/s courses with heading changes, so 'turning tests' is fair.",
+    "T4 values (0.43-0.65 m at 128; 0.27 and 0.82 m at 160), the T3/T4 fail counts, 'Run 3 passed both' (REPORT_RUN3.md L43-44), and T5 failing on all eight runs and on run 3.",
+    "Push table at -1.0/+1.0 m/s against judge_d22.json T5.",
+    "Stride groups' ranges (0.68-0.87 / 1.22-1.65 Hz; 0.28-0.37 / 0.15-0.20 m; 78-112 / 19-33 mm) and irregular strides 38-85 %.",
+    "Proportions 0.681/0.851, recomputed with mujoco from joint anchors (upper fore 0.128/0.160 m, upper hind 0.188 m); specimen 708/1038 = 0.682. Model masses 12.751/12.808 kg, recomputed.",
+    "The appendix's 'other foot' caveat: trike60_C_closed.xml has a 188 mm upper foreleg (mujoco), so the case says nothing about 128 against 160 mm. Leaving it out of the report body is consistent with the caveat.",
+    "Training: one session per run from step 0, steps_end 10002432, last_checkpoint_finite True, cpu_count 8, 542-779 env steps/s, 3.57-5.13 h (run log).",
+    "The sweep has 70 points per run with 8 episodes (seeds_per_point 8).",
+    "d22_appendix.py regenerated the appendix byte-identical to the committed file (written to scratch only).",
+    "The judge and run3 rule files under rl/ are unchanged since f84a6919: no M entries under rl/ except runs/trike60-d22_STEPS.md.",
+    "The run 3 tools differ from D22's only in provenance code for gait_report.py (diff efd1e1c7..f84a6919) plus the steering additions to trike_env.py, so 'the same tools' is functionally fair.",
+    "The 'model estimates' caveat paragraph (L210-212) and the 'simulation only' header are present.",
+    "git status --short was the same at the start and the end."
+   ],
+   "not_checked": [
+    "I did not re-run any simulation (gait report, sweep, foot loads, demo) or check that the stored outputs come from the stated checkpoints, beyond reading the recorded sha256 values.",
+    "I did not review judge_d22.py, judge_run3.py or tests/test_judge_d22.py for correctness, and did not run pytest.",
+    "I did not check the thermal model calibration, the continuous ratings (7.5/10.8/6.75 N m) or the battery model.",
+    "Whether the realistic hardware servo delay is above 10-20 ms: unknown, since D9 says it is not yet measured.",
+    "The Colab 'High-RAM' runtime type, the Drive trash contents and the owner communications in Departure 2.",
+    "PR #697 figures other than the README lines quoted, and its 'pitch-only ankle' description of trike60_C_closed.xml.",
+    "The per_run_round*.json files and the measurement logs, beyond scanning for errors.",
+    "The appendix's derived gait metrics (irregular strides, clearance definitions) against the raw episode files, beyond a spot check of 160 s2's power and clearance."
+   ]
+  }
+ ],
+ "verifications": [
+  {
+   "verdicts": [
+    {
+     "id": "B1",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The part about attribution holds: the 1.00 and the 1.005 come from two different 128 mm seeds. The sweep's nominal maximum is s3 at 0.996888 and the gait report's nominal_0.25 maximum is s2 at 1.004610. The rest of the finding does not hold. '1.00' is a correct two-decimal rounding of 0.997, and the report uses that rounding in its own table (line 111: 0.87/0.94/0.97/1.00), so it is not a wrong number. The only flaw is the mixed precision next to '1.005'. The sentence can also be read as 'in each case one seed reaches X'. Either way its point stands: 128 mm runs close to the rating and goes over it once in a reported-only case. Two seeds near 1.0 makes the margin point stronger, not weaker. No judged figure or verdict is touched, so this is a wording and clarity issue (low), not a misleading number (medium).",
+     "evidence": "vals.py over robustness/results/fore128-s{0..3}/sweep_*.json.gz, key '[0.25, 10, null, 1.0, 0.0, 1.0, 1.0, 0.0, null, false]', summary.heat_worst: 0.865487, 0.940438, 0.974363, 0.996888 (s3, left_hind_pitch). sweep.py:457 confirms heat_worst = max over joints of the per-joint mean over episodes. analytics/results/fore128-s{0..3}/gait_report.json cases.nominal_0.25, max rms_over_continuous.mean: 0.878312, 0.989089, 1.004610 (s2, left_fore_pitch), 0.965581. REPORT lines 110-111 already show the split (s2 1.005; s3 1.00). The appendix (line 118) gives 0.878/0.989/1.005/0.966."
+    },
+    {
+     "id": "B2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "H_elbow is the larger of the two elbows' RMS/continuous (judge_d22.py:152, max(elbows)). For 128 s3 that is 0.614826, which is 0.61 to two decimals. The report's 0.62 comes from rounding the appendix's 0.615 a second time. The other figures in the sentence are correct. The figure is reported only, so low.",
+     "evidence": "judge_d22.json runs.128_s3.H_elbow = 0.614826 (right_fore_flexion 0.614826, left 0.573866 in gait_report target_0.25). 128 H_elbow s0-s3: 0.637945, 0.702133, 0.756638, 0.614826, mean 0.6778855. 160: 0.737704, 0.767762, 0.834319, 0.688106, mean 0.75697. REPORT line 161 says '0.62-0.76 at 128 mm (mean 0.678)'. Appendix line 21 shows 0.615."
+    },
+    {
+     "id": "B3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "fore128-s0's four T3 drifts run from 0.2706 to 0.3516 m, so the range is 0.27-0.35. The 0.43 in the run log is the T4 (friction 0.3) drift. The sweep file has not changed since the round-1 commit that wrote the log line (both are in 6a7f711a), so the log did not quote an older measurement. The other ranges in the bullet are correct. This is an interim note in the run log, outside the report and the verdict, so low.",
+     "evidence": "sweep_fore128-s0.json.gz drift_abs_mean_m: step2 0.273364, step3 0.270615, ramp5 0.351628, ramp8 0.277358; friction 0.3: 0.430609. runs/trike60-d22_LOG.md:98 says '0.27-0.43 m (fore128-s0)'. Checked correct: fore160-s0 0.456005-0.597256 (0.46-0.60); fore128-s1 0.278745-0.577231 (0.28-0.58); run 3 0.075238-0.259781 (0.08-0.26). git log on the sweep file shows only 6a7f711a, the same commit that added the log line ('-S0.27-0.43')."
+    },
+    {
+     "id": "B4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Run 3's stored gait reports have not changed since before the pre-registration was written (commits 6c93b2e7 and 5aabd2f6 on 23 Nov, before d11125e6). The pre-registration's 'elbows 0.53-0.66' was therefore written against the same data. That range matches neither all four elbows (0.51-0.66) nor the worst elbow per seed (0.59-0.66). It equals seed 0's two elbows only, and no other gait case gives that range for both seeds. The figure is a 'for scale' note on a reported-only measure, it feeds no rule, and the report's appendix C shows the right values, so low.",
+     "evidence": "target_0.25 rms_over_continuous.mean: run3-s0 left_fore_flexion 0.533860, right 0.660173; run3-s1 left 0.593685, right 0.508767. Other cases checked: cmd_0.15, nominal_0.25 and otherfoot_0.25 do not give 0.53-0.66 either, e.g. s1 nominal 0.5881/0.4862. PREREG_FORELEG_D22.md:61 '(both the right front pitch drive; the elbows 0.53-0.66)'. grep finds no other source of '0.53-0.66'."
+    },
+    {
+     "id": "B5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The report says only notes, run records and results were added under rl/runs/ and rl/analysis/results/. In fact a new code file (analysis/d22_appendix.py) and the report and its appendix were added under rl/analysis/, and results were also added under rl/analytics/results and rl/robustness/results. The claim that matters for the judging does hold: no existing tool or judge file changed, and their hashes are the same in the run commit, the working tree and the export. So the sentence is inaccurate and the judging is unaffected. Low.",
+     "evidence": "git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl: 214 A, 1 M. Non-results entries: A analysis/REPORT_FORELEG_D22.md, A analysis/REPORT_FORELEG_D22_APPENDIX.md, A analysis/d22_appendix.py, 6 A runs/d22_startup/*, A runs/trike60-d22_LOG.md, M runs/trike60-d22_STEPS.md (14+/13-). Results: 44 analysis/results, 96 analytics/results, 64 robustness/results. sha256 prefixes match across commit, tree and export: judge_d22 c953dc98, judge_run3 91209eb9, foot_loads 51c7b416, telemetry/loads 9daab386, gait_report 557c8299, sweep 6ef7d9c2, trike_env 6774a962, demo_course e6e53a2e. REPORT lines 188-190."
+    },
+    {
+     "id": "B6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "0.21-0.58 m is the range over all 16 T3 points at 128 mm. Its lower end (0.205755, s2 ramp 5 deg) is under the 0.30 m limit and passes. So the phrase 'fails ... at 0.21-0.58 m' contradicts the limit given in the same sentence. The next sentence, on T4, lists only failing values ('0.27 and 0.82 m'), so the two are inconsistent. The pass/fail statements are right: 128 FFFF, and 160 fails on s0 and s1. Wording only, low.",
+     "evidence": "T3 drift_abs_mean_m, 128 mm: s0 0.273/0.271/0.352/0.277; s1 0.280/0.279/0.426/0.577; s2 0.324/0.258/0.206/0.329; s3 0.468/0.429/0.481/0.392. Overall min 0.205755 and max 0.577231. Worst point per seed: 0.351628, 0.577231, 0.329228, 0.481309 (0.33-0.58). 160 T3: s0 max 0.597 fails, s1 ramp8 0.358 fails, s2 max 0.273 passes, s3 max 0.279 passes. T4: 128 at 0.4306/0.4471/0.6472/0.4526 (0.43-0.65, correct); 160 fails at s0 0.8246 and s3 0.2680 (correct). Also checked correct: REPORT line 113, 0.15 m/s worst drive 128 [0.760, 0.749, 0.698, 0.832], 160 [0.929, 0.909, 1.085, 0.722]. git status --short was the same at start and end (empty), HEAD 0133faa6. Not checked: the other report sections, the demo course, foot loads and the training records."
+    }
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "N1",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "All the figures check out. Two different seeds give the two values: s3 at 0.9969 at the sweep's nominal point and s2 at 1.0046 in the gait nominal case. Read naturally, 'one 128 mm seed reaches 1.00 and 1.005' describes a single seed. 0.997 printed as 1.00 follows the table's 2-decimal convention (1.005 gets a third decimal only so it shows as above 1), so 1.00 is a rounding choice rather than a wrong number. Still, saying a 0.997 value 'reaches 1.00' slightly overstates it. If anything the sentence understates the margin problem: two seeds, not one, sit at or above about 1.0. The demo figure is real but is my own derived ratio, not a figure the report prints. Line 219's '0.83-1.00' also leaves out the 1.005. The verdict is unaffected, the heat-margin message holds, and the table right below gives every seed, so I rate this low, not medium.",
+     "evidence": "Computed from the stored JSON as max over joints of cases[c].summary.drives.per_joint[j].rms_over_continuous.mean, and the sweep's points[NOMINAL].summary.heat_worst. Gait nominal_0.25 at 128 mm: s0 0.8783, s1 0.9891, s2 1.0046, s3 0.9656. Sweep nominal at 128 mm: 0.8655, 0.9404, 0.9744, 0.9969. The table at report:110-111 ('0.88/0.99/1.005/0.97', '0.87/0.94/0.97/1.00') matches these at 2 decimals. Ratings derived as rms_nm/rms_over_continuous: 7.5 N m for roll and pitch, 10.8 for fore flexion, 6.75 for hind flexion. Demo walk_0.25 tau_drive_rms/rating: 128 s3 left_hind_pitch 1.006, 128 s2 left_fore_pitch 0.998. demo_course_printout.txt prints temperatures only, no RMS ratios. Report:219 reads '0.83-1.00'."
+    },
+    {
+     "id": "N2",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "The stored record contradicts the report's sentence, and so does the author's own run log. fore160-s0's first-folder session saved a stop pair at 13,936 steps, and the log says each of the two sessions in that folder left a stop pair. The claim also bears on the disclosure. The pre-registration says 'a stopped session resumes under the same RUN_ID', so 'no start saved a checkpoint' implicitly justifies restarting from step 0. In fact one start could in principle have resumed, from its 13,936-step pair in the mixed folder. The log explains why it did not; the report's departures section does not. The parenthetical shows the author meant periodic checkpoints, and nothing outcome-related could come from a 14k-step pair, so the verdict is unaffected. Even so, a factual error in a pre-registration departure note meets the rubric's medium.",
+     "evidence": "runs/d22_startup/fore160-s0_first-folder_run_record.json session: status 'interrupted', steps_end 13936, saves ['trike60_13936_steps.zip']. The other five files all have saves []. trike60-d22_LOG.md:15-16: 'mis-set session at 1,168 steps ... fore160-s0 at 13,936 steps ... Each left a stop pair in `checkpoints/`.' LOG:43 makes the narrower 2-vCPU claim. PREREG_FORELEG_D22.md:28: 'a stopped session resumes under the same RUN_ID'. Report:174: 'None of the stopped starts saved a checkpoint (the first is at 250,000 steps)'."
+    },
+    {
+     "id": "N3",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Confirmed: the 109.9 C comes mainly from the 30 s standing segment. In the 90 s walk + 30 s stand loop, standing supplies 58% of right_hind_pitch's heat; walking alone would settle at about 64 C. Also confirmed: 160 s0's right forefoot and 160 s3's left forefoot carry 0.0 N throughout the stand segment, and all four 128 mm runs stand on four feet with a worst stand ratio of 0.584-0.689. Not established: that the three-legged stance itself causes the overload. 160 s3 also stands on three feet with a worst stand ratio of only 0.824, and 160 s2 reaches 1.176 standing with all four feet touching. The report's figure is correct and the same bullet states that the course includes 30 s of standing. Adding the cause would help, but no claim is wrong and the verdict is unaffected. Low. A side effect cuts the other way: the standing break lowers other drives' demo peaks. 160 s0 left_fore_pitch would settle near 111 C walking only, and 128 s3 left_hind_pitch near 101 C.",
+     "evidence": "demo/fore160-s0/demo_course.json: loop [['walk_0.25',90],['stand',30]]. right_hind_pitch: stand tau_drive_rms 11.84 N m (1.578 of 7.5) with copper 25.95 W; walk_0.25 5.77 N m with copper 6.16 W. Temperatures tau_480s: peak_c 109.90, continuous_c 105.8. Inverting telemetry/thermal.py's steady_state_c (ambient 25 C, alpha 0.00393) with the walk-only mean square gives about 64.3 C, and the stand share of loop heat is 0.58. Stand right_fore_sole normal_n median/p95/p99/max 0/0/0/0 (160 s0); left_fore_sole 0/0/0/0 (160 s3). Stand worst ratios: 128 0.607/0.689/0.657/0.584; 160 1.578/0.590/1.176/0.824. Walk-only estimates: 160 s0 left_fore_pitch 110.6 C, 128 s3 left_hind_pitch 101.5 C."
+    },
+    {
+     "id": "N4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "'Fails ... at 0.21-0.58 m' takes in passing points. 0.21 is 128 s2's ramp-5 drift, which passes the 0.30 m limit. The failing values run from 0.32 (s2 step 2) to 0.58, and each seed's worst point runs from 0.33 to 0.58. The T4 line's 0.43-0.65 and the 160 mm statements are correct.",
+     "evidence": "judge_d22.json rule_values.T3.points, 128 mm (step2/step3/ramp5/ramp8): s0 0.2734/0.2706/0.3516/0.2774; s1 0.2800/0.2787/0.4261/0.5772; s2 0.3243/0.2580/0.2058/0.3292; s3 0.4682/0.4290/0.4813/0.3918. T4 at 128: 0.4306/0.4471/0.6472/0.4526. T4 at 160: 0.8246 F, 0.1106 P, 0.1994 P, 0.2680 F. T3 at 160: F F P P. Report:140."
+    },
+    {
+     "id": "N5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "128 s3's H_elbow is 0.6148, which rounds to 0.61, not 0.62. The other parts of the sentence are correct.",
+     "evidence": "judge_d22.json H_elbow at 128: 0.6379, 0.7021, 0.7566, 0.6148 (mean 0.6779). At 160: 0.7377, 0.7678, 0.8343, 0.6881 (mean 0.7570). Appendix A:21 shows 0.615. Report:161 says '0.62-0.76'."
+    },
+    {
+     "id": "N6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The report compresses the sequence in a way that misstates it. After the mis-set, only two sessions were stopped. fore128-s0's 23:11:04 2-vCPU session was its original start, not a restart, and it ran until the 8-vCPU restart. fore128-s1 had an extra corrected start at 23:14:16. The 13,936-step session was fore160-s0's correctly set session, not a 'mis-set start'. 1,168 appears in no stored record; it comes from the log's account of Drive revisions. Five records for six stopped starts is consistent with the report's 'five stopped records'. The substance of the disclosure holds: restarts from step 0, the same RUN_IDs, the first files trashed.",
+     "evidence": "LOG:15 'The owner stopped both: the mis-set session at 1,168 steps ..., fore160-s0 at 13,936'. LOG:17-21: fore128-s1 corrected start at 23:14:16, then the trash and restarts at 23:18:21/23:18:43. LOG:60-62 lists the stopped starts: fore128-s0 23:11:04; fore160-s0 23:11:48 and 23:18:21; fore128-s1 23:14:16 and 23:18:43. 'grep -c 1168 runs/d22_startup/*.json' gives 0 for all six files. runs/d22_startup has 6 files, two of them for fore128-s0's one 2-vCPU start. Report:172-175."
+    },
+    {
+     "id": "N7",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "New code was added under rl/ (d22_appendix.py), and the report files sit in rl/analysis/, outside the folders the report names. Results were also added under analytics/results and robustness/results. No existing file other than runs/trike60-d22_STEPS.md was modified, and the judge and measuring tools are unchanged, so the claim that matters holds.",
+     "evidence": "git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl: A analysis/REPORT_FORELEG_D22.md, A analysis/REPORT_FORELEG_D22_APPENDIX.md, A analysis/d22_appendix.py; A in results: analysis 44, analytics 96, robustness 64; A runs/d22_startup/*.json (6), A runs/trike60-d22_LOG.md, M runs/trike60-d22_STEPS.md. No M on judge_d22.py, judge_run3.py or the tools."
+    },
+    {
+     "id": "N8",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The table's figures and header are correct. Because the T5 rule is not stated, 128 s0 and s2 read 0/0 even though T5 fails for them, at +-1.25 m/s. This is a clarity problem only.",
+     "evidence": "judge_d22.json T5 falls (-1.25/-1/+1/+1.25): 128 s0 8/0/0/6; s1 8/1/7/8; s2 1/0/0/8; s3 8/8/3/8; 160 s0 4/0/1/6; s1 8/2/0/4; s2 7/2/1/3; s3 8/8/1/2. All fail. judge_run3.py T5: f[-1.0]==0 and f[1.0]==0 and f[-1.25]<=2 and f[1.25]<=2. Every +-1.0 cell in report:151-152 matches."
+    },
+    {
+     "id": "N9",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Section B has only 128 and 160 columns, so neither run 3's rule verdicts nor its N appear in B or C. H does appear: section C has run 3's per-drive heat. N and T3-T5 could be worked out by hand from C's gait falls and F's sweep points, but they are never given. The report's figures for run 3 (N 25 and 18, 'Run 3 passed both') are correct: I recomputed N and read judge_run3.json. Their source is just not where the appendix says.",
+     "evidence": "Appendix:35 'its H, N and rules are in B and C'. Appendix:39-58: B tables have no 188 columns. Recomputed with judge_d22.JUDGED_POINTS and GAIT_CASES on run3-s0/s1: N 25 and 18. analysis/results/judge_run3.json verdict: T3 PASS, T4 PASS, T5 FAIL; s0 T3 drifts 0.169/0.173/0.144/0.075, T4 0.152; s1 T3 0.255/0.26/0.213/0.216, T4 0.063. The appendix has no hits for 12.751, 12.808, '25 and 18', 1,168, 13,936 or 100,000."
+    },
+    {
+     "id": "N10",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "T5 appears in that very table, and it allows falls (up to 2 of 8 at +-1.25 m/s) and is itself a falls rule. F2 has no fall condition. T1-T4 and F1 do need no fall.",
+     "evidence": "d22_appendix.py:122-124 writes '...; T5: falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s; every rule also needs no fall'. judge_run3.py judge_seed: F2 pass = worst < 1.0 only; T5 pass = f[-1.0]==0 and f[1.0]==0 and f[-1.25]<=2 and f[1.25]<=2; T1/T2/T3/T4 each require falls == 0."
+    },
+    {
+     "id": "N11",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "F's cells hold the mean of absolute drift, while C's 'mean of episodes' row is signed. The two labels look nearly the same. F's values are all non-negative, so a careful reader could infer it, but the label should say so.",
+     "evidence": "d22_appendix.py:274 reads p.get('drift_abs_mean_m'), with the label at :260 'sideways drift, mean, m'. robustness/sweep.py:447 dr = np.abs([...sideways_drift_m...]) and :454 drift_abs_mean_m=float(dr.mean()). Appendix C:67 is signed, e.g. 128 s1 -0.30 and s3 -0.48 (d22_appendix.py:150 reads speed.sideways_drift_m)."
+    },
+    {
+     "id": "N12",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The watt figures are drive draw only. The 30 W hotel load enters only the runtime figure. The sentence can be read as if the watts include the hotel load. All the ranges are correct.",
+     "evidence": "gait_report.json target_0.25 power.electrical_shared_bus_w: 128 49.81/58.61/59.86/55.17 W; 160 76.55/74.97/77.19/53.93 W. run_time_min_shared_bus.hotel_30w: 128 88.17/79.54/78.36/82.68; 160 66.11/67.15/65.68/83.87. Check: 117.2 Wh x 60 / (49.81 + 30) = 88.1 min."
+    },
+    {
+     "id": "N13",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "fore128-s0's T3 drifts run 0.27-0.35 m. 0.43 is its T4 drift, not a T3 value. The log's other interim ranges are correct, including run 3's 0.08-0.26.",
+     "evidence": "judge_d22.json 128_s0 T3: 0.2734/0.2706/0.3516/0.2774; T4 0.4306. LOG:98 says 'drifted 0.27-0.43 m (fore128-s0)'. fore160-s0 T3: 0.4857/0.4560/0.5973/0.5572 (0.46-0.60 correct). fore128-s1: 0.28-0.58 correct. Run 3 from judge_run3.json: 0.075-0.26 correct."
+    },
+    {
+     "id": "N14",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The report's figures are the two-foot means, which the appendix labels as such. Per foot, the asymmetry is large. The report should say 'mean of the two front feet'. Every other stride-group figure checks out.",
+     "evidence": "gait_report.json target_0.25 feet.swing_clearance_mm mean, left/right fore: 128 s0 80.8/93.2; s1 92.8/85.9; s2 14.2/48.6; s3 28.8/37.7; 160 s0 108.0/116.3; s1 42.0/21.4; s2 12.0/26.0; s3 109.5/47.1. Appendix C:97 gives 87/89/31/33/112/32/19/78 ('mean of the two'). Stride frequency 0.68/0.69/0.73/0.87 and 1.22/1.29/1.57/1.65; stride length 0.362/0.370/0.335/0.283 and 0.201/0.186/0.156/0.149 match report:155-157."
+    }
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "P1",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The core claim holds. checks() links each record to the measured pair only by checkpoint file name, and the name is the same in all eight records and all 24 tool outputs. The run records hold no checkpoint hash. The 'eight different checkpoints' test only catches a duplicate sha. So a swap of pairs between seeds of the same length would not be caught. P1's independent verification also holds: I re-ran it without unpickling and every pair matches its run, so the stored results are correct. One side remark in P1 is too strong, and correcting it makes the gap slightly wider, not smaller. P1 says 'the model-sha check catches a pair swapped across lengths', but gait_report.py, sweep.py and foot_loads.py all take the model from the run_record.json in the checkpoint folder, not from the checkpoint. A 160 mm zip/pkl moved into a 128 mm folder would run on the 128 model, record the 128 sha and pass. The finding stands. Low is right because the results were confirmed independently, and neither the report nor the appendix says the link was confirmed beyond the name.",
+     "evidence": "judge_d22.py:111-113: `last = (sessions[-1].get(\"saves\") or [None])[-1]; if last != gait[\"policy\"][\"checkpoint\"]`. In all 8 runs, sessions[-1].saves[-1] = gait.policy.checkpoint = sweep.checkpoint.zip_name = foot.provenance.checkpoint = 'trike60_10002432_steps.zip'. `grep -o '\"[a-z_]*sha[a-z0-9_]*\"' run_record_fore*.json` finds nothing. main() lines 219-223 only compare len(shas) with len(set(shas)). The tools take the model from the checkpoint folder's record: foot_loads.py:91-92 `rec = json.loads((ckpt_dir / \"run_record.json\").read_text()); model = Path(rec[\"settings\"][\"env_config\"][\"model_path\"]).name`, and likewise gait_report.py:988,994 and sweep.py:886,930. My own zip check (zipfile + json on the 'data' member; pickletools.genops on the .pkl, no unpickling) gave, for each run: zip and pkl sha256 equal to gait's; zip seed equal to the run's seed; num_timesteps 10002432. Zip start_time against the record's started_utc: fore128-s0 23:24:49 vs 23:24:48, fore128-s1 23:25:22 vs 23:25:22, fore160-s0 23:25:22 vs 23:25:22 (same second as 128-s1 but a different seed), fore160-s3 14:03:43 vs 14:03:43, and the rest match to the second. The zip 'data' write time is within 1 s of ended_utc (e.g. 04:32:26 vs 04:32:27). The pkl floats are [10002440.0001, 10002432.0001]. Each scratch checkpoints/run_record.json is byte-identical (cmp) to analysis/results/d22/run_record_<run>.json. No disclosure: grepping REPORT, APPENDIX, LOG and d22_appendix.py for start_time/embedded/file name finds nothing."
+    },
+    {
+     "id": "P2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The report's sentence is inaccurate as written. A new code file, analysis/d22_appendix.py, was added under rl/. Results were also added under rl/analytics/results/ and rl/robustness/results/, the report and its appendix under rl/analysis/, and one file was modified. The claim that matters is true: no existing code under rl/ changed, and judge_d22.py and judge_run3.py are byte-identical to the run commit's. The only modified file, the STEPS sheet, was committed hours before the first session started. Low is right.",
+     "evidence": "`git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl` gives 214 A and 1 M. The added files are: analysis/results/d22 44, analytics/results 96 (20 per run), robustness/results 64, runs/d22_startup 6, plus REPORT_FORELEG_D22.md, REPORT_FORELEG_D22_APPENDIX.md, analysis/d22_appendix.py and runs/trike60-d22_LOG.md. The one M is runs/trike60-d22_STEPS.md, changed in commits 9d3efcc8 (2026-11-23 14:10:52) and aa8c612f (14:43:31). The first session started at 23:11:04 (LOG:9-10). The only .py in the diff is `A analysis/d22_appendix.py`. `git show f84a6919:.../analysis/judge_d22.py | cmp -` and the same for judge_run3.py: both identical. REPORT_FORELEG_D22.md:189-190 reads: 'no code under `rl/` has changed since f84a6919. Only notes, run records and results were added under `rl/runs/` and `rl/analysis/results/`.'"
+    },
+    {
+     "id": "P3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The demo outputs carry no identity of the checkpoint, model or commit. The 'walker' string is the same in all eight runs. The printout's only path is the output folder. measure.sh does not run the demo, so no stored command line ties an input folder to a demo. The repo copies match the scratch outputs byte for byte, so each demo is tied to its run only by folder name. The demo speeds are close to the F1 speeds (e.g. 128-s0 0.235 vs 0.235), but the runs are too close together for this to identify which run a demo came from. The demo is reported, not judged, so low is right.",
+     "evidence": "In all 8 demo_course.json files, 'walker' = 'policy trike60_10002432_steps.zip (checkpoints)'. `grep -o -i -E 'sha256|commit|fore1[26][08]|\\.xml'` finds 0 hits in each json and 1 in each printout: line 11, 'wrote /tmp/.../scratchpad/d22_demo/<run>', which is the output folder. demo_course.py:210 writes only `\"walker\": label`, and demo_course.py:69 takes the model from the checkpoint folder's run_record.json. cmp: each repo demo_course.json equals scratch d22_demo/<run>/demo_course.json, and each printout equals d22_demo/<run>.log. d22_scripts/measure.sh runs only gait_report, sweep and foot_loads, with no demo command."
+    },
+    {
+     "id": "P4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The facts all hold. run_commit_trike_env_sha256 is null in all eight gait reports, and line 125 of each gait_report.md reads 'the run commit's file: -...'. The cause is that the tools ran from the export, which has no .git, so git_blob_sha256 catches the git failure and returns None. The comparison that matters was made elsewhere: judge_d22.checks hashes the run commit's file, and all 24 tool outputs equal it. The report and the LOG do say 'the export has no git history', but only to explain why the judge ran from the tree. They never say that this is why the gait report's own run-commit field is empty, so the one-line clarification is fair. Low, close to a nit.",
+     "evidence": "`git show f84a6919:hardware/triceratops_build/rl/trike_env.py | sha256sum` gives 6774a9622c397e0c03dd72062bdd93cd038c79ac0f51fca52b44a0526a579ae1, the same as the tree's and the export's trike_env.py. gait.environment.trike_env_sha256, sweep.env.trike_env_sha256 and foot.provenance.trike_env_sha256 match it in 24 of 24 outputs. gait.environment.run_commit_trike_env_sha256 is None in all 8. In every run, analytics/results/<run>/gait_report.md:125 reads '(sha256 6774a9622c39...; the run commit's file: -...)'. gait_report.py:885-891 has git_blob_sha256 run `git -C REPO show` inside try/except and return None on failure; REPO = BUILD.parents[1] is the export root, and `ls -a d22_export` shows no .git. measure.sh runs $E/.../gait_report.py from the export. The partial disclosures are REPORT:188 'The export has no git history, so judge_d22.py ran from the working tree' and LOG:84-85."
+    }
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "P1",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Two parts hold. The report leaves out the pre-registration's power paragraph and its 'rough' qualifier, and it leaves out 'the foot's rubber'. Two parts do not. First, the reworded caveat is not a weakening. Here the walk gate decided, and 128 mm really is better on F2 (four of four seeds pass, against one of four), so 'not better in every respect' is the accurate statement for the path actually taken. The pre-registration's 'did not clearly beat it' was written for the step-3 default path. Second, the line 'would also have kept 128 mm' does not lean on loads. Heat alone fails 160 mm: H_all differs by +0.102 against a tolerance of 0.035, and H_front by +0.137 against 0.10. The loads line is a counterfactual outside the verdict. The per-seed L values are in the report's own table, so the spread can be seen. It is a missing caveat, not a wrong claim, so I rate it low.",
+     "evidence": "grep -nE \"80 %|half the time|scatter|rough|resolve|power\" REPORT_FORELEG_D22.md returns only line 53 ('through'). grep 'rubber' finds nothing in the report or the appendix. Recomputing from the stored L values gives means 121.575 and 117.575 (ratio 0.967), SDs 3.91 and 13.19 N, Welch SE 6.88 N on 3.52 df, t about 2.97, a difference interval of -24.4 to +16.4 N and a ratio interval of about 0.80-1.135. This confirms the finding's numbers. From judge_d22.json: H_all means 0.8979 / 0.9999 and H_front means 0.8032 / 0.9398, so both heat tests fail without the loads test. PREREG:105 against REPORT:26-27 as quoted. PREREG:132 lists 'the foot's rubber'; REPORT:210-212 omits it."
+    },
+    {
+     "id": "P2",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The gaps the finding names are real. The D22 appendix is titled 'every measure' but carries no balance, slip, duty factor, head steadiness or command-sweep rows, while run 3's appendix carried balance, slip and the command sweep. But this is not a missing disclosure. Every per-run gait_report.md/json and sweep summary is committed in the repo, and the run log the report links (LOG:86) names those output folders. Nothing adverse is hidden: the command sweep has 0 falls everywhere. What remains is an inaccurate appendix title plus incomplete fulfilment of PREREG:113 within the appendix itself. That is low, not medium.",
+     "evidence": "grep -niE 'balance|slip|duty|speed tracking|support polygon' REPORT_FORELEG_D22_APPENDIX.md finds no such rows. The appendix's C section has speed, heat, gait/power/body and other cases only. analytics/results/fore128-s0/gait_report.md has sections c (Balance), f (Body and head steadiness), g (Feet: slip, touchdown, load rate) and h (Speed tracking). REPORT_RUN3_APPENDIX.md:56-70 and :92 carry slip, balance and the command sweep. git ls-files lists analytics/results/fore128-s0/gait_report.md and robustness/results/fore128-s0/summary_fore128-s0.md (all runs tracked). runs/trike60-d22_LOG.md:86: 'Outputs: analytics/results/<run>/, robustness/results/<run>/, analysis/results/d22/'. My extraction from gait_report.json: command-sweep falls are [0,0,0,0,0,0,0] for all 8 runs. CoM outside (target case) is 61.8, 52.9, 37.8, 33.8, 63.0, 43.8, 36.5 and 42.9 %, a range of 33.8-63.0 %."
+    },
+    {
+     "id": "P3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "All three points hold against the records. (a) The real fore160-s0 first session saved an interrupt checkpoint. So 'None of the stopped starts saved a checkpoint' is literally wrong; only the scheduled 250,000-step save and the evaluation were never reached. (b) After the mis-set, fore128-s0 was not stopped. Its only stopped start is 23:11:04, on 2 vCPUs, followed by the 23:24:48 run. So 'stopped all three runs ... The first restart was on 2 vCPUs' misdescribes fore128-s0. (c) The fore128-s0 2-vCPU start reached the 100,000-step progress line, where train.py prints training-rollout return and speed. The report does state the 100,000 figure. Also, the report calls the 13,936-step session a 'mis-set start', but it was the correctly set fore160-s0. No judged figure is affected.",
+     "evidence": "runs/d22_startup/fore160-s0_first-folder_run_record.json shows started 23:11:48, status interrupted, steps_reached 13936, saves ['trike60_13936_steps.zip'], last_checkpoint_finite True. fore128-s0_2vcpu-start_run_record_final.json shows started 23:11:04, cpu_count 2, steps_reached 100000, saves []. fore160-s0_2vcpu-restart is 23:18:21; fore128-s1_first-folder is 23:14:16; fore128-s1_2vcpu-restart is 23:18:43. The judged records start at fore128-s0 23:24:48 and fore160-s0 / fore128-s1 23:25:22, each a single completed session at 10,002,432 steps on 8 CPUs. LOG:9-10 says fore128-s0 'is the run that goes on' after the mis-set. LOG:39-42 describes the single 8-vCPU restart. train.py:472-493: the Progress callback records progress and prints rollout return and speed every --log-every steps."
+    },
+    {
+     "id": "P4",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Part of this is real: no owner decision covers the reading, the step sheet's 'never delete' rule is not mentioned, and no reason is given for abandoning the correct 23:14:16 fore128-s1 start. Two parts do not hold. First, the report already labels the exemption as the author's own reading ('I do not count these', in the first person). Second, it already discloses that the first files were not kept ('the first files went to the trash, with the five stopped records kept in runs/d22_startup/'). The report also says there were two restarts ('The first restart was on 2 vCPUs; the owner restarted again on 8-vCPU runtimes'), so the count beyond 'once' is visible. The pre-registration does not require an owner decision for a disclosed departure. 'Never delete' is an instruction to the owner, and the owner chose to trash the folders. No start reached a save at 250,000 steps or an evaluation, so nothing judged is touched.",
+     "evidence": "git diff --stat f84a6919 HEAD -- hardware/triceratops_build/DECISION_LOG.md is empty (rc 0). runs/trike60-d22_STEPS.md:17: 'Never delete anything on your Drive.' fore128-s1_first-folder_run_record.json shows started 23:14:16, status running, steps_reached 0, cpu_count 2. LOG:18-21 gives no reason for trashing that folder. REPORT:177-182 lists 'the RUN_IDs were reused; the first files went to the trash, with the five stopped records kept'. PREREG:28-30 as quoted."
+    },
+    {
+     "id": "P5",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The facts hold. Per-run rules and the walk-gate implication were published after rounds 1 and 2, against the step sheet's 'nothing is judged until I have read all eight runs'. A six-run dry run of judge_d22.py exists in the scratchpad and is mentioned nowhere. But the report's disclosure 2 already says the measured figures were sent after rounds 1 and 2 and that the walk gate's implication was named. The commitment sits in the step sheet, not in the pre-registration, which has no interim-look rule. The dry run output 'no choice' and only exercised the missing-run path. The interim figures equal the final judge output for every run, and no code or rule changed. What is left is a missing quotation and an unmentioned dry run.",
+     "evidence": "STEPS.md:26 holds the quoted commitment. grep for interim/until/blind in PREREG and PLAN finds nothing. per_run_round1.json was added in 6a7f711a (2026-11-24 05:11) and per_run_round2.json in d8e09e62 (2026-11-25 23:09). judge_d22.json, the report and d22_appendix.py arrived in 0133faa6 (2026-11-26 20:01). scratchpad/d22_measure/judge_d22_dryrun_six.json (mtime 2026-11-26 14:28:12) covers six runs, problems all empty, choice {choice: None, why: 'not judged: a run is missing or failed its checks'}. My comparison of per_run_round{1,2,3}.json against judge_d22.json on rules, L, L_hind, H_all, H_front, H_elbow, N and checkpoint_sha256 finds no differences for all 8 runs. cmp of judge_d22.py, judge_run3.py, foot_loads.py, loads.py, trike_env.py, gait_report.py, sweep.py and demo_course.py against the f84a6919 export: all identical."
+    },
+    {
+     "id": "P6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Disclosure 3 understates what was added. A new code file, d22_appendix.py (306 lines), was added under rl/, along with the two report files and results under analytics/results and robustness/results, not only under runs/ and analysis/results/. 'No code changed' is true for existing files only, apart from the step sheet. One small correction to the finding: two commits edited the step sheet before any run, 9d3efcc8 at 14:10 and aa8c612f at 14:43 on 23 Nov, not just aa8c612f.",
+     "evidence": "git diff --name-status f84a6919 HEAD -- hardware/triceratops_build/rl shows: A analysis/REPORT_FORELEG_D22.md, A analysis/REPORT_FORELEG_D22_APPENDIX.md, A analysis/d22_appendix.py, 44 A under analysis/results, 96 A under analytics/results, 64 A under robustness/results, 6 A under runs/d22_startup, A runs/trike60-d22_LOG.md, M runs/trike60-d22_STEPS.md. Nothing outside rl/ changed (filtered diff empty). wc -l d22_appendix.py = 306. git log for STEPS.md since f84a6919 shows aa8c612f (2026-11-23 14:43) and 9d3efcc8 (14:10); the first run started at 23:11."
+    },
+    {
+     "id": "P7",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The main point holds. 'One 128 mm seed reaches 1.00 and 1.005' is wrong: these are two different seeds, s3 at the sweep's nominal point and s2 in the gait report's noise-off case. The 1.00 is 0.997, so 'reaches' overstates it slightly. The proposed fix to 'What follows' is unnecessary, though: 1.0046 rounds to 1.00 at two decimals, so '0.83-1.00' agrees with the data at the precision used there.",
+     "evidence": "robustness/results/fore128-s3/sweep_fore128-s3.json.gz, point [0.25, 10, null, ...] summary.heat_worst = 0.996888. For 128 s0-s2 it is 0.865, 0.940 and 0.974. analytics/results/fore128-s2/gait_report.json cases.nominal_0.25 per_joint max rms_over_continuous.mean = left_fore_pitch 1.00461. The other 128 seeds give 0.878, 0.989 and 0.966. REPORT:110-111 shows 1.005 for s2 and 1.00 for s3; REPORT:31 says 'one 128 mm seed'."
+    },
+    {
+     "id": "P8",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The core holds. Run 3's foot-load outputs are not in the repo, appendix D has no run 3 columns, and run 3 s0's raw 1 ms peak of 418.1 N is above every D22 run's. But the finding wrongly agrees that run 3's checkpoints were not kept on this machine. Both final run 3 pairs are in the scratchpad, and their sha256 values match run 3's gait-report provenance. So the report's disclosure 5 ('run 3's checkpoints were not kept on this machine') is itself false, a small provenance inaccuracy the finding missed. The quoted run 3 L values are right: they match the stored outputs, and s0's output was made from that same checkpoint. No judged figure is affected.",
+     "evidence": "ls analysis/results/ shows no foot_loads_run3*. scratchpad/foot_loads_run3_s0_v2.json has provenance zip_sha256 f76ac23b..., run_commit efd1e1c7. foot_loads_run3_s1.json is an older format with no provenance. Recomputed from episodes: s0 front L 143.5, hind 135.2, max 10 ms 233.1, raw 418.1; s1 front L 110.6, hind 122.9, max 10 ms 192.7, raw 324.0. The D22 raw maximum is 367.0 N (160 s3). sha256sum scratchpad/run3_s0/checkpoints/trike60_10002432_steps.zip = f76ac23bfda4dd55..., and run3_s1 = b1c97ffde02c8781...; these equal analytics/results/run3-s{0,1}/gait_report.json policy.zip_sha256. REPORT:195-196 is the claim in question."
+    },
+    {
+     "id": "P9",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The demo-course outputs carry no provenance: no sha256, commit, model or trike_env hash. demo_course.py records none, and none of the helper scripts or logs records the demo command or TRIKE_ENV_DIR. So the log's 'from the same export' cannot be checked from the record. The demo course is reported only, so this is low.",
+     "evidence": "Keys of analysis/results/d22/demo/fore160-s0/demo_course.json: simulation_only, estimates, walker, loop, seed0, segments, valid, fallen_segments, loads_headline, pack, hotel_range_w, time_constants_s, minutes, minutes_is_one_pack, temperatures, battery, traces, chart. Searching the dumped JSON for 'sha256', 'commit', 'f84a6919' and 'trike_env' finds nothing. walker = 'policy trike60_10002432_steps.zip (checkpoints)'. grep -n 'sha256|provenance|run_commit' demo_course.py finds nothing. grep demo_course in scratchpad/d22_scripts/ finds nothing. The d22_demo/*.log files start with the walker line and no command. Values agree with the appendix: 160 s0 right_hind_pitch 109.9 C (8 min), 69 min."
+    },
+    {
+     "id": "P10",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Line 103 iterates only run 3's argument keys, so the two later arguments are never compared. The 20 steering env keys are covered only by the command_mode == 'none' test on line 106. All are at inert defaults: checks are off, and the yaw-tracking and turn terms in trike_env.py apply only when yaw_rate_cmd is not None. So the report's 'every session's arguments equal to run 3's' is effectively, but not literally, true.",
+     "evidence": "judge_d22.py:103: `if any(s[\"args\"].get(k) != v for s in sessions for k, v in ref_args.items() if k not in ARG_SKIP)`. My diff against run3_reference_settings.json: all 8 records have extra args {'checks_every': 0, 'checks': ''}, no missing args, no differing args, 20 extra env_config keys (cmd_*, track_yaw_sigma, track_yaw_tau_s, air_time_min_turn_rate, command_mode='none'). train.py:139-144 gives the defaults --checks-every 0 (off) and --checks ''. trike_env.py:474-482 adds r_track and r_yaw_rate only `if yaw_rate_cmd is not None`."
+    }
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "R1",
+     "verdict": "partly",
+     "severity_after": "medium",
+     "reasoning": "Every number in the finding reproduces, but three parts do not hold. (1) The claim that '0.83-1.00 is wrong even on the report's own figures' fails: the highest nominal value, 1.00461, rounds to 1.00 at the two decimals the sentence uses, and the report's table (L110) shows it as 1.005. (2) 'Never mentions any sweep heat figure' is true of the report body only. Appendix F, which the report names as the home of every figure (L4, L103), lists worst-joint RMS/rating at every sweep point for all ten policies, so this is a summary gap, not an undisclosed result. (3) 'Modest changes' overstates it. D9 calls 10 ms 'conservative, harder' (4 ms was the other option), so 20-60 ms is two to six times the conservative assumption. The off-nominal heat also does not tell the lengths apart: 160 mm is over at more points (52-61 of 70 on three seeds) and run 3 behaves the same. The verdict and the judged figures do not change, so 'high' is not justified. What holds: the 'heat margin' item in 'What follows' and the 'lower demo speed' option leave out points the owner should see, chiefly that 3 of 4 128 mm seeds go over at mass x1.1 (inside the training range, with masses still estimates under A-D22a), and that 0.15 m/s does not help at 20 ms or more. That is medium.",
+     "evidence": "Script review_d22final/claims-refute/sweep_heat.py counts points with heat_worst >= 1.0, of 70: fore128 14/16/20/30, fore160 53/52/61/13, run3 14/11. Values from sweep_detail.py: 128 at 20 ms 1.074/1.127/1.203/1.198; at 30 ms 1.113/1.092/1.224/1.220; 0.15 m/s at 20 ms 1.289/1.131/1.250/1.099 (s1 is also slightly hotter than at 0.25 m/s: 1.131 > 1.127); mass x1.1 0.936/1.006/1.022/1.064; payload 2 kg 1.022/1.019/1.016/1.111; s3 ramps 3/5/8 deg 1.096/1.151/1.216; run3 at 20 ms 1.236/1.199. Gait nominal_0.25 for 128 s2 is 1.00461 (left_fore_pitch), which rounds to 1.00. Demo walk_0.25 tau_drive_rms/rating: 128 s3 1.006 (left_hind_pitch), s2 0.998. REPORT_FORELEG_D22_APPENDIX.md:161-291 (section F) lists every sweep point's worst-joint heat, e.g. the delay 20 ms row: '0; 0.241; 0.23; 1.07 | ... 1.13 | ... 1.20 | ... 1.20'. DECISION_LOG.md:95 (D9): '10 ms, as the T. rex (recommended; conservative, harder, replaced by the bench value)'. gait cmd_0.15 for 128: 0.760/0.749/0.698/0.831, which matches the report's '0.70-0.83'."
+    },
+    {
+     "id": "R2",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Confirmed that the two values come from different seeds: s3 in the sweep (0.997, shown as 1.00) and s2 in the gait report's nominal case (1.0046). Read literally, 'one 128 mm seed reaches 1.00 and 1.005' names a single seed, so the sentence is inaccurate. The table directly below it (L110-111), however, gives every seed's value correctly (0.88/0.99/1.005/0.97 and 0.87/0.94/0.97/1.00), so the reader is not misled about any number. 'Understates how many seeds sit at the rating' is interpretation: s1 at 0.989 and s2 at 0.974 are below 1.0. This is a wording problem, so low rather than medium.",
+     "evidence": "Sweep nominal key [0.25, 10, null, 1.0, 0.0, 1.0, 1.0, 0.0, null, false]: fore128-s3 [0.996888, 'left_hind_pitch', heat_worst_episode 1.011]; s0 0.865, s1 0.940, s2 0.974. gait_report nominal_0.25 worst: s0 0.87831, s1 0.98909, s2 1.00461 (left_fore_pitch), s3 0.96558. REPORT_FORELEG_D22.md:31-32 against the table at L110-111."
+    },
+    {
+     "id": "R3",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The figures are right: T3 and T4 fail on all four 128 mm seeds; at 160 mm T3 fails on s0 and s1 and T4 on s0 and s3; mean N is 18.5 against 14.25; falls at +-1.25 m/s are 55 of 64 against 42 of 64. None of this is missing from the report: N and its means are at L83 and L90, 'Falls: pass' at L96, drift at L139-145. The point is only that the summary leaves it out. The suggested wording '128 mm was the weaker length on sideways drift' goes beyond the data. By R6's own figures (and mine), the seed scatter (SD 0.10-0.32 m) exceeds the difference between the length means, and the T-rules are reported, not judged. The falls test's result does not affect the outcome, since 160 mm had to meet all three tests. A useful clarity point, not a missing disclosure.",
+     "evidence": "judge.py on judge_d22.json. T3 worst point, 128: 0.352/0.577/0.329/0.481 (mean 0.435, SD 0.116); 160: 0.597/0.358/0.273/0.279 (mean 0.377, SD 0.152). T4, 128: 0.431/0.447/0.647/0.453 (SD 0.102); 160: 0.825/0.111/0.199/0.268 (SD 0.322). Push falls at +-1.25: 128 55/64, 160 42/64. N: 14/24/9/27 against 11/14/13/19. REPORT_FORELEG_D22.md:83, 90, 96, 139-145."
+    },
+    {
+     "id": "R4",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Confirmed for 160 mm s0. Standing holds right_hind_pitch at 11.837 N m (1.578 of 7.5), against 0.769 while walking, so standing supplies 58 % of that winding's heat over the loop. Its cycle RMS is 1.033 of rating, and walking alone would not reach the limit. Limit after 23.9 min, peak 109.9 C (8 min time constant). The 128 mm policies stand at 0.584-0.689 at most. Overstated for 160 mm s2: right_hind_flexion walks at 0.904 and stands at 1.176, so standing gives only 36 % of its heat; the claim that it 'also comes from standing' is half true. The report's figures themselves are correct; what is missing is an explanation of a reported-only figure. Low.",
+     "evidence": "demo.py and an inline calculation on analysis/results/d22/demo/*/demo_course.json. fore160-s0 stand tau_drive_rms[10] = 11.8369 (right_hind_pitch); walk_0.25 5.7675; tau_480s peak_c 109.90, minutes_to_limit 23.92; loop [['walk_0.25', 90.0], ['stand', 30.0]]. fore160-s2 right_hind_flexion walk 0.904, stand 1.176, stand share of heat 0.36. 128 mm stand maxima: 0.607/0.689/0.657/0.584."
+    },
+    {
+     "id": "R5",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Confirmed that the report body does not give the pre-registration's reasons (F18; a different fore-assembly). It does, however, present run 3 as a scale reference: 'For scale, run 3' at L99, which is the pre-registration's own wording at PREREG L59. The full caveat is in the appendix header, which the report points to for every figure. So 'never says that run 3 is a reference only' is partly wrong. Adding the reasons at L99 and L143 is still worth doing, because 'Run 3 passed both' could be read as a length effect on drift. Run 3 did pass T3 and T4.",
+     "evidence": "grep -n -i 'reference|F18|cannot be built|fore-assembly' REPORT_FORELEG_D22.md: no matches. REPORT_FORELEG_D22.md:99 'For scale, run 3 (188 mm, the same tools)'. PREREG_FORELEG_D22.md:59 'For scale, run 3's two seeds'; L113-115 is the reference-only caveat. REPORT_FORELEG_D22_APPENDIX.md:3 'as a reference only: its foreleg cannot be built (F18) and its fore-assembly differs besides the length'. Run 3 sweep drift: s0 step2/3 0.169/0.173, ramp5/8 0.144/0.075, friction 0.3 0.152; s1 0.255/0.260/0.213/0.216, friction 0.3 0.063. All are within 0.30 and 0.20."
+    },
+    {
+     "id": "R6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The T3 range '0.21-0.58 m' runs from the lowest point drift (128 s2, ramp 5 deg, 0.206 m, a pass) to the highest, so it is not the range of failing values. The worst-point range is 0.33-0.58 m. 160 mm s2 passed T4 at 0.1994 m against the 0.20 limit. Neither statement about seed against length scatter is quantified in the report. Wording and precision only.",
+     "evidence": "judge_d22.json 128_s2 T3 points: step_2cm 0.324 (fail), step_3cm 0.258, ramp_5deg 0.205755 (pass), ramp_8deg 0.329 (fail). Worst points 128: 0.352/0.577/0.329/0.481; 160 fails: s0 0.597, s1 0.358. 160_s2 T4 drift_m 0.199385, pass True. judge_run3.py:115 (<= 0.30) and :119 (<= 0.20)."
+    },
+    {
+     "id": "R7",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "'Same direction' is literally correct, and the report gives both means (0.678 and 0.757), so the effect size follows from them (+11.7 %). The PR's figures are right: 3.70 against 4.58 N m (+23.8 %) in a scripted slow walk at about 17 mm/s. Appendix D already carries the caveat ('for scale only (other controllers, other motions...)'). Adding the half-size effect and the caveat to the body would help; nothing is wrong.",
+     "evidence": "judge_d22.json H_elbow: 128 0.638/0.702/0.757/0.615 (mean 0.6779); 160 0.738/0.768/0.834/0.688 (mean 0.7570); ratio 1.1167; Welch t 1.784. git show 65a44fad:hardware/triceratops_build/refinement60/mid160/README.md L23 'Slow-walk speed 17.25-17.26 mm/s', L27 'Worst front elbow RMS torque during the slow walk | 3.70 N\u00b7m | 4.58 N\u00b7m', L36 'raised the slow walk's front-elbow RMS effort by 24%'. REPORT_FORELEG_D22_APPENDIX.md section D caption."
+    },
+    {
+     "id": "R8",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The lower bound rounds to 0.61, not 0.62.",
+     "evidence": "judge_d22.json runs['128_s3']['H_elbow'] = 0.614826; REPORT_FORELEG_D22.md:161 '0.62-0.76 at 128 mm'."
+    },
+    {
+     "id": "R9",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "First part confirmed: PR #697's recommendation rests on both 'the smaller impacts during turning' and 'the more legible elbow', and the report names only the loads. Second part not supported. D23, which the owner adopted, is '128 mm unless beaten', and 160 mm failed the walk gate on 3 of 4 seeds, so 'What follows' leaving out an 'adopt 160 mm' option is consistent with D23. The owner remains free to choose regardless, as the report says at L23-24.",
+     "evidence": "git show 65a44fad:.../mid160/README.md L3: 'the smaller impacts during turning and the more legible elbow are worth the extra elbow effort during the slow walk'. DECISION_LOG.md:109 (D23): '128 mm unless beaten: 128 mm is chosen unless 160 mm shows clearly lower foot loads ... without more falls or more drive heat'. REPORT_FORELEG_D22.md:34-35, 218."
+    },
+    {
+     "id": "R10",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The report's sequence is inaccurate. The first restart covered fore160-s0 and fore128-s1, not all three; fore128-s0 kept running until all three were restarted on 8 vCPUs. The 13,936-step session was fore160-s0's own correctly set one, so calling both 'mis-set starts' is loose. 'None of the stopped starts saved a checkpoint' contradicts the stored record and the run log: stop pairs were saved. No effect on what is judged, since no start reached 250,000 steps or an evaluation.",
+     "evidence": "runs/d22_startup/fore160-s0_first-folder_run_record.json sessions[0]: steps_reached 13936, last_checkpoint 'trike60_13936_steps.zip', last_checkpoint_finite True. runs/trike60-d22_LOG.md L16-18: 'stopped both: the mis-set session at 1,168 steps ... fore160-s0 at 13,936 steps ... Each left a stop pair in checkpoints/'. L19-22: restart of fore160-s0 (session 23:18:21) and fore128-s1 (folder 23:17:02). L36-38: 'stopped all three ... sessions 23:24:48, 23:25:22 and 23:25:22, 8 vCPUs'. fore128-s0_2vcpu-start_run_record_final.json steps_reached 100000."
+    },
+    {
+     "id": "R11",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Code was added under rl/ (analysis/d22_appendix.py), and results were added under analytics/results and robustness/results, not only under runs/ and analysis/results. The claim that matters holds: the judge and measuring tools are unchanged. judge_d22.py, judge_run3.py and foot_loads.py are byte-identical to the export and do not appear in the diff. Wording only.",
+     "evidence": "git diff --name-status f84a6919..HEAD -- hardware/triceratops_build/rl: A analysis/REPORT_FORELEG_D22.md, A analysis/REPORT_FORELEG_D22_APPENDIX.md, A analysis/d22_appendix.py, 44 A analysis/results, 96 A analytics/results, 64 A robustness/results, 6 A runs/d22_startup, A runs/trike60-d22_LOG.md, M runs/trike60-d22_STEPS.md. cmp against d22_export: 'same analysis/judge_d22.py', 'same analysis/judge_run3.py', 'same analysis/foot_loads.py'."
+    },
+    {
+     "id": "R12",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The labelling complaint mostly fails. L3 says 'Simulation only. Nothing here was measured on hardware.' L116 introduces the demo temperatures with 'the winding model has an 8 min time constant'. L210-212 states 'The heat figures are model estimates: the rating, the thermal model and the masses are estimates'. L208-209 says turning 'wait[s] for D20'. What holds: the present tense in 'the steering run (D20) measures' (D20 is 'Not yet trained') and 'The bench article measures' (bench/ holds only BENCH_PLAN_FORELEG.md), and the starting temperature (25 C, open air) is not given. Minor.",
+     "evidence": "DECISION_LOG.md:106 (D20): 'Not yet trained'. ls hardware/triceratops_build/bench: BENCH_PLAN_FORELEG.md. demo_course.py:9 'from 25 C in open air'. demo_course.json 'estimates': 'temperatures, battery and currents are model estimates'. REPORT_FORELEG_D22.md:3, 116, 136-137, 208-212."
+    },
+    {
+     "id": "R13",
+     "verdict": "refuted",
+     "severity_after": "none",
+     "reasoning": "The finding concedes that the inference is supported, and the data bear it out. Within one length (same model, same judged case), the hottest drive changes with the seed, so the policy and not the foreleg length decides where the heat goes. That is what the report says. That the hottest drive also changes with the condition (128 s3 moves to the right hind knee at mass x1.4; 160 s0 standing) is extra information, not a correction.",
+     "evidence": "judge_d22.json F2 worst_joint: 128 left_hind_pitch / right_hind_flexion / left_fore_pitch / left_hind_pitch; 160 left_fore_pitch / right_hind_flexion / left_hind_flexion / right_fore_pitch. Sweep 128 s3: mass 1.0 left_hind_pitch 0.997; mass 1.4 right_hind_flexion 1.280. REPORT_FORELEG_D22.md:114-115."
+    },
+    {
+     "id": "R14",
+     "verdict": "refuted",
+     "severity_after": "none",
+     "reasoning": "The report describes these eight runs and claims no population of modes. The split is clean on three measures at once, with a gap and no run in between: frequency 0.68-0.87 against 1.22-1.65 Hz, stride length 0.283-0.370 against 0.149-0.201 m, front clearance 78-112 against 19-33 mm. 'Settled into two kinds of stride' is a fair description. The finding's own suggested wording says almost the same thing. The trot/other label is a separate classifier the report does not invoke, so its not following the groups contradicts nothing.",
+     "evidence": "REPORT_FORELEG_D22_APPENDIX.md section C: stride frequency 0.68/0.69/1.22/1.29/0.73/1.57/1.65/0.87 Hz; stride length 0.362/0.370/0.201/0.186/0.335/0.156/0.149/0.283 m; front clearance 87/89/31/33/112/32/19/78 mm; pattern trot/other/other/other/other/trot/trot/other. REPORT_FORELEG_D22.md:154-157."
+    },
+    {
+     "id": "R15",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The bullets are simplified. F1 is a mean speed of at least 0.225 m/s with 0 falls in 5 episodes at the 0.25 m/s command, randomised, 10 ms delay. F2 is each joint's 5-episode mean RMS/rating below 1.0 in the same case. The judged table that follows (L79-80) gives the actual speeds and worst drives, and the heat table (L109) names F2's case. A summary-wording point.",
+     "evidence": "judge_run3.py:96-104: 'F1: mean speed (analysed episodes) >= 0.225 and no falls in 5' and 'F2: every joint's mean RMS torque / continuous rating < 1.0'. gait_report target_0.25 label '0.25 m/s (target), randomised', settings delay_ms 10. F1 speeds 0.235-0.246 (judge_d22.json). REPORT_FORELEG_D22.md:11-12, 79-80, 109."
+    }
+   ]
+  }
+ ]
+}
