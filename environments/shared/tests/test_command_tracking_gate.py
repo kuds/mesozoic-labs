@@ -40,8 +40,10 @@ from environments.shared.curriculum.command_tracking_gate import (
     WALK_THRESHOLD_KEYS,
     CommandTrackingEpisode,
     FollowThresholds,
+    PanelMeasurement,
     WalkThresholds,
     classify_cruise_episode,
+    classify_stand_episode,
     command_config_from,
     evaluate_command_tracking_gate,
     evaluate_follow_profile,
@@ -165,6 +167,7 @@ def _cruise(seed: int = 3042, **overrides: Any) -> CommandTrackingEpisode:
         eligible_turns=0,
         settled_turns=0,
         max_course_progress_m=3.6,
+        longest_stop_s=0.0,
         measurement=WALK_MEASUREMENT,
         gait_metrics=WALKING_GAIT,
     )
@@ -503,7 +506,8 @@ class TestMeasurement:
         assert measurement.tolerance("stop_speed_tolerance") == pytest.approx(0.1 * 2.6 / 1.5)
         assert measurement.tolerance("stop_yaw_rate_tolerance") == 0.15
         assert measurement.yaw_rate_max == config.yaw_rate_max
-        assert measurement.protocol == COMMAND_PANEL_PROTOCOL == "command_panel/v1"
+        assert measurement.protocol == COMMAND_PANEL_PROTOCOL == "command_panel/v2"
+        assert measurement.tracking_window_s == config.tracking_window_s == 0.0
 
     def test_a_recorded_command_config_rebuilds(self):
         record = env_kwargs_record({"command_config": WALK_CONFIG})["command_config"]
@@ -1133,3 +1137,140 @@ class TestCatalogHeadline:
         follow = _deliverable_headline(COMMAND_TRACKING_GATE_KIND, {}, dict(PROVISIONAL_FOLLOW_THRESHOLDS))
         assert [entry["key"] for entry in follow] == ["command_follow_success_lcb"]
         assert all(entry["value"] is None for entry in walk + follow)
+
+
+# ── the tracking window's protocol, command_panel/v2 (decision D-D64) ───────
+
+#: The walk command with a 1.4 s tracking window (14 steps of the reduction tests' 0.1 s).
+WINDOW_CONFIG = replace(WALK_CONFIG, tracking_window_s=1.4)
+WINDOW_MEASUREMENT = panel_measurement(WINDOW_CONFIG, WALK)
+
+
+class TestTrackingWindowProtocol:
+    def test_the_measurement_carries_the_window_under_v2(self):
+        assert WINDOW_MEASUREMENT.protocol == COMMAND_PANEL_PROTOCOL == "command_panel/v2"
+        assert WINDOW_MEASUREMENT.tracking_window_s == 1.4 and WALK_MEASUREMENT.tracking_window_s == 0.0
+        payload = WINDOW_MEASUREMENT.as_dict()
+        assert payload["tracking_window_s"] == 1.4
+        assert PanelMeasurement.from_dict(payload) == WINDOW_MEASUREMENT
+        # Another window is another measurement, whatever else agrees.
+        assert WINDOW_MEASUREMENT != WALK_MEASUREMENT
+        assert replace(WINDOW_MEASUREMENT, tracking_window_s=0.0) == WALK_MEASUREMENT
+
+    def test_a_v1_measurement_is_refused_naming_the_window(self):
+        payload = WALK_MEASUREMENT.as_dict()
+        payload.pop("tracking_window_s")
+        payload["protocol"] = "command_panel/v1"
+        with pytest.raises(ValueError, match=r"missing \['tracking_window_s'\]"):
+            PanelMeasurement.from_dict(payload)
+        for bad in (-0.1, math.nan, math.inf, "1.4", True, None):
+            with pytest.raises(ValueError, match="tracking_window_s"):
+                PanelMeasurement.from_dict({**WALK_MEASUREMENT.as_dict(), "tracking_window_s": bad})
+
+    def test_a_v1_episode_record_is_refused(self):
+        record = _cruise().as_dict()
+        record["measurement"].pop("tracking_window_s")
+        record["measurement"]["protocol"] = "command_panel/v1"
+        with pytest.raises(ValueError, match="tracking_window_s"):
+            CommandTrackingEpisode.from_dict(record)
+        record = _cruise().as_dict()
+        record.pop("longest_stop_s")
+        with pytest.raises(ValueError, match=r"missing \['longest_stop_s'\]"):
+            CommandTrackingEpisode.from_dict(record)
+        assert CommandTrackingEpisode.from_dict(_cruise(longest_stop_s=math.nan).as_dict()).longest_stop_s != 0.0
+
+    @pytest.mark.parametrize(
+        "measurement",
+        [replace(WALK_MEASUREMENT, protocol="command_panel/v1"), WINDOW_MEASUREMENT],
+        ids=["v1", "another-window"],
+    )
+    def test_the_gate_refuses_records_reduced_under_v1_or_another_window(self, measurement):
+        assert evaluate_walk_profile(_walk_panel(), WALK, measurement=WALK_MEASUREMENT).passed
+        panel = [replace(episode, measurement=measurement) for episode in _walk_panel()]
+        result = evaluate_walk_profile(panel, WALK, measurement=WALK_MEASUREMENT)
+        assert not result.passed
+        assert any("another measurement" in failure for failure in result.failures), result.failures
+
+    def test_the_window_fill_allowance(self):
+        """A moving event adds the window's unfilled part when it starts; a stop and a later event add nothing."""
+        events = _events((0.0, 0.15, 0.4), (0.6, 0.15, 0.4), (6.0, 0.15, 0.0), (12.0, 0.15, 0.4))
+        rows = _rows(events, steps=200)
+        common: dict[str, Any] = dict(planned_events=events, horizon_steps=200, initial_heading=0.0, yaw_rate_max=0.3)
+        per_step = summarize_episode(rows, DT, **common)
+        windowed = summarize_episode(rows, DT, window_fill_s=1.4, **common)
+        assert per_step == summarize_episode(rows, DT, window_fill_s=0.0, **common)
+        first = windowed["events"][0]
+        # base + |e0| / yaw_rate_max + W, for the event that starts at reset.
+        assert first["settling_allowance_s"] == pytest.approx(1.0 + 0.15 / 0.3 + 1.4)
+        added = [
+            after["settling_allowance_s"] - before["settling_allowance_s"]
+            for before, after in zip(per_step["events"], windowed["events"])
+        ]
+        assert added == pytest.approx([1.4, 0.8, 0.0, 0.0])
+        assert [event["heading_active"] for event in windowed["events"]] == [True, True, False, True]
+        assert windowed["events"][2]["settling_allowance_s"] == pytest.approx(1.0)
+        for bad in (-0.1, math.nan, math.inf):
+            with pytest.raises(ValueError, match="window_fill_s"):
+                summarize_episode(rows, DT, window_fill_s=bad, **common)
+
+    def test_the_reduction_passes_the_window_and_names_it_in_the_settle_reason(self):
+        events = _events((0.0, 0.15, 0.4))
+        # On the command from 2.5 s: past the per-step allowance (1.5 s), within the windowed one (2.9 s).
+        rows = _rows(events, steps=60, ok=lambda time_s, event: time_s >= 2.45)
+        assert not _reduce(rows, events, horizon=60).first_event_settled
+        windowed = _reduce(rows, events, horizon=60, measurement=WINDOW_MEASUREMENT)
+        assert windowed.first_event_settled and windowed.measurement == WINDOW_MEASUREMENT
+        late = replace(windowed, first_event_settled=False)
+        reasons = classify_cruise_episode(late, WALK)
+        assert any(reason.startswith("heading_settle") and "within 2.9 s" in reason for reason in reasons), reasons
+
+    def test_a_stop_keeps_the_v1_allowance(self):
+        events = _events((0.0, 0.0, 0.0))
+        rows = _rows(events, steps=60)
+        per_step, windowed = (
+            _reduce(rows, events, horizon=60, measurement=measurement)
+            for measurement in (WALK_MEASUREMENT, WINDOW_MEASUREMENT)
+        )
+        assert per_step.family == STAND_FAMILY
+        assert replace(windowed, measurement=WALK_MEASUREMENT).as_dict() == per_step.as_dict()  # NaN as None
+        assert classify_stand_episode(windowed, WALK) == classify_stand_episode(per_step, WALK)
+
+    def test_the_longest_stop_is_report_only(self):
+        events = _events((0.0, 0.0, 0.4))
+        steady = _rows(events, steps=100, ok=lambda time_s, event: True)
+        stopped = [dict(row) for row in steady]
+        for row in stopped:
+            if 4.0 < row["time_s"] < 4.55:  # five steps, 0.5 s, of no speed along the heading
+                row["actual_v_x"] = 0.0
+        assert _reduce(steady, events, horizon=100).longest_stop_s == 0.0
+        episode = _reduce(stopped, events, horizon=100)
+        assert episode.longest_stop_s == pytest.approx(0.5)
+        # Below a quarter of the request: 0.09 m/s of 0.4 is a stop, 0.1 m/s is not.
+        for row in stopped:
+            if 4.0 < row["time_s"] < 4.55:
+                row["actual_v_x"] = 0.1
+        assert _reduce(stopped, events, horizon=100).longest_stop_s == 0.0
+        # A stand has no active step to read.
+        stand_events = _events((0.0, 0.0, 0.0))
+        assert math.isnan(_reduce(_rows(stand_events, steps=60), stand_events, horizon=60).longest_stop_s)
+        # No classifier reads it: the verdict is the same at any value.
+        panel = _walk_panel()
+        verdicts = []
+        for value in (math.nan, 0.0, 0.5, 100.0):
+            edited = [replace(item, longest_stop_s=value) for item in panel]
+            assert {classify_cruise_episode(item, WALK) for item in edited if item.family == CRUISE_FAMILY} == {()}
+            verdicts.append(evaluate_walk_profile(edited, WALK, measurement=WALK_MEASUREMENT))
+        assert all(verdict == verdicts[0] for verdict in verdicts[1:])
+
+    def test_the_summary_reports_the_cruise_longest_stop(self):
+        panel = _walk_panel(3, 2)
+        panel = [
+            replace(item, longest_stop_s=value) for item, value in zip(panel, (0.1, 0.4, math.nan, math.nan, math.nan))
+        ]
+        cruise = summarize_command_panel(panel)["families"][CRUISE_FAMILY]["longest_stop_s"]
+        assert cruise == {"mean": pytest.approx(0.25), "max": 0.4, "unmeasured": 1}
+        assert summarize_command_panel(panel)["families"][STAND_FAMILY]["longest_stop_s"] == {
+            "mean": None,
+            "max": None,
+            "unmeasured": 0,
+        }

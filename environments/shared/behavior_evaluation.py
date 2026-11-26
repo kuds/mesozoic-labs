@@ -79,6 +79,7 @@ def summarize_episode(
     yaw_rate_max: float = 0.3,
     settling_base_s: float = 1.0,
     dwell_s: float = 1.0,
+    window_fill_s: float = 0.0,
 ) -> dict[str, Any]:
     """Summarize post-step samples and independently planned command events.
 
@@ -87,6 +88,14 @@ def summarize_episode(
     planned window of at least ``1 + abs(initial heading error)/yaw_rate_max
     + dwell_s`` seconds.  The first continuous in-tolerance run must begin
     within that settling allowance and continue for ``dwell_s`` seconds.
+
+    *window_fill_s* is the tracking window the rows' flags were judged on
+    (decision D-D64; 0, the default, for per-step flags, which the behavior
+    certificate passes).  A moving event's allowance adds the part of the
+    window still unfilled when it starts, ``max(0, window_fill_s - start)``:
+    the window fills from reset, so only an event starting within
+    *window_fill_s* of reset waits on it.  A stop's allowance is unchanged,
+    since a zero command is judged per step.
 
     An unfinished short final event cannot pass just because its few samples
     look good.  Planned events after a fall remain present and unsettled.
@@ -99,6 +108,8 @@ def summarize_episode(
             raise ValueError(f"{name} must be finite and positive")
     if _number(settling_base_s) is None or settling_base_s < 0.0:
         raise ValueError("settling_base_s must be finite and nonnegative")
+    if _number(window_fill_s) is None or window_fill_s < 0.0:
+        raise ValueError("window_fill_s must be finite and nonnegative")
     if horizon_steps is not None and (
         not isinstance(horizon_steps, Integral) or isinstance(horizon_steps, bool) or horizon_steps <= 0
     ):
@@ -163,6 +174,9 @@ def summarize_episode(
         if desired_speed == 0.0:
             initial_error = 0.0
         allowance = settling_base_s + initial_error / yaw_rate_max
+        if desired_speed > 0.0:
+            # The tracking window's unfilled part at the event's start (decision D-D64).
+            allowance += max(0.0, float(window_fill_s) - start)
         eligible = end - start + 1e-9 >= allowance + dwell_s
         acquisition = None
         dwell_complete = None

@@ -1414,12 +1414,14 @@ def test_a_recipe_env_keeps_the_spawn_anchors_and_the_none_course(model_id):
     [
         {"stand_weights": {"drift_penalty_weight": 0.3}},
         {"cruise_ramp_start_fraction": 0.25, "cruise_ramp_timesteps": 1000},
+        {"tracking_window_s": 1.12},
     ],
 )
-def test_a_recipe_declares_no_stand_block_and_no_cruise_ramp(commands):
+def test_a_recipe_declares_no_stand_block_no_cruise_ramp_and_no_tracking_window(commands):
+    """The recipe pipeline runs none of the three, and the behavior certificate reads the per-step signal (D-D64)."""
     from environments.shared.train_behaviors import create_behavior_env
 
-    with pytest.raises(ValueError, match="recipe pipeline runs neither"):
+    with pytest.raises(ValueError, match="recipe pipeline runs none of them.*D-D62, D-D64"):
         create_behavior_env(
             TYRANNOSAURUS_REX, commands=DirectionCommandConfig(**WALK, **commands), terrain=None, run_seed=0
         )

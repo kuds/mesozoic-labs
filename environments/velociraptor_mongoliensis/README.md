@@ -137,7 +137,12 @@ that read a forward direction measure along the commanded heading. On a zero com
 place. The commanded speeds ramp from 0.25 of their end values to the full range over the first 2M training steps.
 After training the walk is judged on its `command_tracking/v1` panel: the cruise family's survival and success bounds,
 the stand family's hold and the biped gait clause, with no flight cap since its cruise reaches Froude 0.82. The bars
-are provisional, and no controller has yet been shown to clear them (decision D-D62 (16)). No gait has been measured
+are provisional, and no controller has yet passed the committed panel (decision D-D62 (16)). The tracking term and the
+gate score a moving command on the trailing mean of the last 0.70 s, one stride of the reference walk (`[commands]
+tracking_window_s`, decision D-D64); at its own 0.257 m/s the reference walk clears the in-tolerance fraction and the
+speed ratio (quality 0.955, 0.785 a step on its own; at that command, inside the velocity tolerance, even the statue
+reads in tolerance), and one episode, seed 3045, falls at step 373 and its truncated trace also fails the lead-swap
+bar; the other 19 pass every bar. No gait has been measured
 in the commanded 1.05-2.1 m/s range (the reference walk runs at 0.257 m/s), and with no flight cap the staggered-hop
 risk of decision D-D61 (7) stays open (D-D62 (12)).
 

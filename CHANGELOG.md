@@ -2778,6 +2778,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every walk's task digest moved; no stance, recovery, recipe or gate
+  digest did** (decision D-D64). `configs/digest_snapshot.generated.txt`
+  moved 35 lines and added or removed none, all of them walk lines:
+  - on each of the seven walks, `task_sha256` and both
+    `stage_config_view_sha256` lines (21); the command manifest records the
+    window, and on the T. rex the views also carry the collapse floor;
+  - each walk's reward `rounded_values_sha256` (7);
+  - each walk's reward `summary`, except the velociraptor's, whose summed
+    rewards do not move at the printed precision (6);
+  - the Compsognathus robot walk's reward `shape_sha256` (1), since that
+    digest records the windowed in-tolerance booleans of its roll probe as
+    they are.
+
+  A walk trained before this change is a different task. `resume_same_stage`
+  refuses it, so it must be retrained from a stance. The none-stage golden and
+  the D-D60 pilot rollout golden replay exactly, so a certified stance or
+  recovery stays a valid ancestor.
+- **Command-tracking evidence measured under `command_panel/v1` is refused**
+  (decision D-D64):
+  - a `command_tracking_report.json`, which `reporting/gates.py`'s admission
+    refuses before it reads a record, as do `write_command_tracking_report`
+    and `choose_command_handoff`
+    (`reporting/command_tracking_report.require_current_protocol`);
+  - an episode record or a panel measurement without `tracking_window_s`;
+  - a `command_tracking_panel_selected.csv` without the `tracking_window_s`
+    stamp or the `longest_stop_s` column.
+
+  A walk's v1 `handoff_choice.json` is refused through its moved task digest.
+  Code that builds a `CommandTrackingEpisode` by hand passes the new
+  `longest_stop_s`.
 - **A schema-2 `summary.json` no longer validates** (decision D-D63 (5)).
   `results/` holds none, and no writer has emitted schema 2 since schema 3.
   To read the four summaries committed until D-D59, check them out with
@@ -3376,6 +3406,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The walk's command tracking is scored on a one-stride mean** (decision
+  D-D64, taken 2026-11-26, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). It
+  implements D-D63 (2) and resolves D-D62 (16)'s open risk (a): a walking gait
+  sways within its stride, so per step the T. rex, Allosaurus and
+  brachiosaurus reference walks read tracking quality 0.13-0.34 under a
+  command they match and failed the tracking bars.
+  - **The window.** `[commands] tracking_window_s`
+    (`DirectionCommandConfig`, its last field; default 0, which scores every
+    step on its own) is a trailing boxcar over that many seconds, a whole
+    number of control steps. It fills from the episode's first step and is
+    emptied only at reset (`direction_commands.TrackingWindow`). At a moving
+    command, the velocity, yaw-rate and requested-speed errors become
+    differences of window means of the heading-frame velocity, the yaw rate
+    and the executed command (`windowed_tracking_metrics`). The tracking
+    term, both in-tolerance flags and `tracking_dwell_s` read them. The
+    heading error, a zero command (the stop test and the stand episodes'
+    reward), and the info's `actual_*` values, which the gate's speed ratio
+    reads, stay per step.
+  - **The policy interface is unchanged**, so the term now reads up to one
+    stride of history that the observation does not hold. The docstring of
+    `BaseDinoEnv._reward_with_command_tracking` says why that is acceptable
+    here (D-D64 (8)). The field is recorded in the task and the command
+    manifest only when it is not 0, so no recipe, pilot, stance or recovery
+    moves. `extends` inherits it key by key, and the behavior env refuses a
+    recipe that declares one.
+  - **One rule sets each walk's window**: the stride at 0.5 x cruise. That
+    gives the velociraptor 0.70 s, the T. rex 1.12, the brachiosaurus 1.40,
+    the dibothrosuchus 0.80, the Allosaurus 1.31, the Compsognathus 1.22 and
+    the robot 1.50, each with its source in the walk TOML.
+  - **The panel protocol is `command_panel/v2`** (`COMMAND_PANEL_PROTOCOL`):
+    - the measurement records the window;
+    - a moving event's settle allowance adds the part of the window still
+      unfilled when the event starts (`behavior_evaluation.summarize_episode`'s
+      new `window_fill_s`; +W on the walk's cruise event);
+    - each episode record carries a report-only `longest_stop_s`, whose cruise
+      mean and max the panel summary and the report text give;
+    - `roll_command_panel` refuses an env whose window differs from its
+      measurement.
+
+    The gate kind, its keys and its bars are unchanged, so no gate digest
+    moves. The tolerances and sigmas are unchanged too, and every bar stays
+    provisional.
+  - **Measured on the real plants**, under a command each reference walk
+    matches, every reference walk now clears the in-tolerance fraction and
+    the speed ratio. Its in-tolerance fraction after the settle, on its worst
+    episode, is 0.889 on the T. rex, 0.957 on the Allosaurus, 1.000 on the
+    brachiosaurus and the dibothrosuchus, and 0.873 on the velociraptor
+    (0.10-0.86 per step).
+    - The brachiosaurus and the dibothrosuchus pass the whole walk gate
+      there.
+    - The T. rex and the Allosaurus fail `heading_settle` on 20 of 20, on
+      their scripted starts: the gate's trailing window first reads in
+      tolerance after their settle allowances.
+    - On the velociraptor one episode, seed 3045, falls, and its truncated
+      trace also fails the lead-swap bar; the other 19 pass every bar.
+    - At the dibothrosuchus' and the velociraptor's matched commands, which
+      lie inside their velocity tolerances, even the statue reads in
+      tolerance.
+
+    The statue still fails every walk, with 0 of 20 cruise successes, and
+    earns 0.0004-0.0043 tracking a cruise step. At the matched command a walk
+    out-earns the statue by 35-208% a cruise step (17-85% per step). No
+    controller has passed a committed walk panel.
+  - **The T. rex walk's collapse floor is raised** under D-D62 (15), as D-D64
+    reads that rule: `collapse_peak_floor_reference` 1248.9 -> 1248.7 and
+    `collapse_peak_floor_fraction` 0.45 -> 2.16, a floor of 2697.2. A
+    reference-quality walker now evaluates at 3077, above a stander's 2797 at
+    10 stands, and a simulated stander arms the floor on 0.061% of runs.
+  - **The statue references are re-measured** on the window. The T. rex
+    reads 1248.88 -> 1248.71 (cruise 800.24 -> 800.06), the robot 1614.80 ->
+    1615.00 and the Allosaurus 122.87 -> 120.41; the brachiosaurus moves by
+    0.01 (2359.74 -> 2359.75) and the dibothrosuchus by 0.01 (2286.05 ->
+    2286.04), the velociraptor and the anatomical Compsognathus are unchanged
+    at their precision, and every stand family is bit-identical. The walk TOMLs'
+    comments, section 4.6's table of the plan and D-D62's row (amended)
+    carry the new values.
+  - **Tests.** New `test_tracking_window.py` covers the window, the field,
+    the env against an offline recomputation, the stand family and the
+    refusals. The gate and wiring tests cover the protocol refusals, the
+    window-fill allowance and the longest stop. Each model's
+    `test_locomotion_walk.py` (new on the T. rex, the Allosaurus, the
+    velociraptor and the Compsognathus pair) pins its window, the matched
+    reference panel's verdicts and the statue's failure. The T. rex
+    collapse-backstop test is rewritten for the new floor, and
+    `test_curriculum_early_stopping.py`'s one-rule test now admits the T. rex
+    among the floors set above their statue.
+  - **Docs.** `docs/KNOWN_ISSUES.md` (the walk gate's HIGH item),
+    `docs/NEXT_STEPS.md`, `docs/ROADMAP.md`, the plan's top note, D-D61's and
+    D-D63's rows, `docs/RESULT_BUNDLES.md`,
+    `website/docs/training/hyperparameters.md` (Commands, the
+    command-tracking gate and the tuning playbook), the `recipes`, `ppo` and
+    `sac` training pages, the seven model pages and the six species READMEs
+    now describe the window.
+    `configs/digest_snapshot.generated.txt` is regenerated (Migration).
 - **The maintainer's answers to the series' open questions are recorded**
   (decision D-D63, taken 2026-11-25, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). The
   row records eight answers, and four of them change no code:

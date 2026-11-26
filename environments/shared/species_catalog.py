@@ -1587,8 +1587,10 @@ def _format_command_tracking_gate(gate: dict[str, Any]) -> str:
             f"cruise episodes (a non-zero reset command) success LCB95 ≥ {gate['min_cruise_success_lcb']:g} and "
             f"survival LCB95 ≥ {gate['min_cruise_survival_lcb']:g} over ≥ {gate['min_cruise_episodes']:g} episodes",
             "a cruise episode succeeds when it reaches the horizon, settles its initial heading within 1 s + "
-            "|error| / yaw_rate_max and holds it 1 s, stays in tolerance on ≥ "
-            f"{_format_percent(gate['min_cruise_tracking_fraction'])} of its steps after the settle, makes ≥ "
+            "|error| / yaw_rate_max + the stage's tracking window ([commands] tracking_window_s, decision D-D64) "
+            "and holds it 1 s, stays in tolerance on ≥ "
+            f"{_format_percent(gate['min_cruise_tracking_fraction'])} of its steps after the settle (its velocity "
+            "and yaw-rate errors read on that window's means), makes ≥ "
             f"{gate['min_cruise_speed_ratio']:g} × the commanded speed along the heading after 2 s and passes the "
             "gait clause",
             f"stand episodes (an exactly zero command) over ≥ {gate['min_stand_episodes']:g}: ≥ "

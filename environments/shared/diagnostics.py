@@ -218,7 +218,8 @@ class DiagnosticsCallback(_BaseCallback):
 
     #: The live command's per-step tracking keys (``BaseDinoEnv`` emits them only under a live command, D-D60):
     #: the in-tolerance flag at the env's tolerances, the velocity and yaw-rate errors, and the tracking reward term.
-    #: Recorded only by a run whose env emitted them (above).
+    #: Under a tracking window (``tracking_window_s`` > 0, D-D64) a moving command's flag, errors and term are the
+    #: window's (the stride mean), a stop's per step.  Recorded only by a run whose env emitted them (above).
     COMMAND_TRACKING_KEYS = ("tracking_in_tolerance", "tracking_error_v", "tracking_error_yaw", "reward_tracking")
 
     def __init__(

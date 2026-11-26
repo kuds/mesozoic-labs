@@ -129,13 +129,26 @@ class DirectionCommandConfig:
     environment never reads the two fields.  Both off (1.0 and 0) or both
     on (a start fraction in (0, 1) and a positive budget).
 
+    ``tracking_window_s`` is the tracking window (decision D-D64), in
+    seconds: at a moving command (a positive requested speed) the tracking
+    term, the error metrics, the in-tolerance flags and the dwell read the
+    trailing mean over the last ``tracking_window_s`` of samples
+    (:class:`TrackingWindow`, :func:`windowed_tracking_metrics`), so a gait's
+    within-stride sway is not charged as a tracking error.  0, the default,
+    scores every step on its own, the arithmetic every task before it ran.
+    A positive window is a whole number of the env's control steps
+    (``BaseDinoEnv`` refuses another); a zero command is always scored per
+    step.
+
     The fields after ``minimum_turn_speed_fraction`` came after the command
-    manifest's first schema.  Each is recorded (:meth:`task_record`, which
-    the command manifest and the task fingerprint read) only while it
-    differs from :attr:`UNRECORDED_VALUES`, the value every task before it
-    ran with, so adding one moved no recorded task.  The values are
-    declared there, not read off the field defaults: a changed default
-    moves the record.
+    manifest's first schema: the heading offset and the ``tracking_*``
+    parameters (decision D-D60), the stand block and the cruise ramp
+    (D-D62) and the tracking window (D-D64).  Each is recorded
+    (:meth:`task_record`, which the command manifest and the task
+    fingerprint read) only while it differs from :attr:`UNRECORDED_VALUES`,
+    the value every task before it ran with, so adding one moved no recorded
+    task.  The values are declared there, not read off the field defaults: a
+    changed default moves the record.
     """
 
     cruise_speed: float = 1.05
@@ -164,6 +177,7 @@ class DirectionCommandConfig:
     stand_weights: Any = ()
     cruise_ramp_start_fraction: float = 1.0
     cruise_ramp_timesteps: int = 0
+    tracking_window_s: float = 0.0
 
     UNRECORDED_VALUES: ClassVar[dict[str, Any]] = {
         "initial_heading_offset_max": 0.0,
@@ -178,6 +192,7 @@ class DirectionCommandConfig:
         "stand_weights": (),
         "cruise_ramp_start_fraction": 1.0,
         "cruise_ramp_timesteps": 0,
+        "tracking_window_s": 0.0,
     }
 
     def __post_init__(self) -> None:
@@ -247,6 +262,17 @@ class DirectionCommandConfig:
                 "a cruise ramp needs both a cruise_ramp_start_fraction below 1 and a positive "
                 "cruise_ramp_timesteps; with neither the commanded speeds start at their end state"
             )
+        window = self.tracking_window_s
+        window_error = "tracking_window_s must be finite and at least 0 (0 scores every step on its own)"
+        if isinstance(window, bool):
+            raise ValueError(window_error)
+        try:
+            window = float(window)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(window_error) from exc
+        if not math.isfinite(window) or window < 0.0:
+            raise ValueError(window_error)
+        object.__setattr__(self, "tracking_window_s", window)
 
     def task_record(self) -> dict[str, Any]:
         """Every field, except one that holds its :attr:`UNRECORDED_VALUES` value (see the class docstring).
@@ -662,6 +688,161 @@ def tracking_metrics(
         "tracking_command_in_tolerance": bool(command_ok),
         "tracking_in_tolerance": bool(goal_ok),
     }
+
+
+#: One tracking-window sample's channels (decision D-D64), each a key of a live step's info: the step's planar
+#: velocity in its own post-step heading frame and its heading rate (:func:`tracking_metrics`' ``actual_*``), the
+#: executed command (:meth:`DirectionCommandState.as_info`'s ``command_*``) and the requested speed.  The window
+#: averages the heading-frame samples, never a world-frame velocity projected afterwards, so a steady turn is
+#: scored exactly.
+TRACKING_WINDOW_CHANNELS: tuple[str, ...] = (
+    "actual_v_x",
+    "actual_v_y",
+    "actual_yaw_rate",
+    "command_v_x",
+    "command_v_y",
+    "command_yaw_rate",
+    "desired_speed",
+)
+
+
+def tracking_window_steps(window_s: float, dt: float) -> int:
+    """How many control steps of *dt* seconds a tracking window of *window_s* seconds spans; 0 for no window.
+
+    A positive window is a whole number of control steps, at least one:
+    ``N = round(window_s / dt) >= 1`` with ``|N * dt - window_s| <= 1e-6``,
+    else ``ValueError`` naming *dt*.
+    """
+    window_s = _finite(window_s, "tracking_window_s")
+    dt = _positive(dt, "dt")
+    if window_s < 0.0:
+        raise ValueError("tracking_window_s must be finite and at least 0 (0 scores every step on its own)")
+    if window_s == 0.0:
+        return 0
+    steps = int(round(window_s / dt))
+    if steps < 1 or abs(steps * dt - window_s) > 1e-6:
+        raise ValueError(
+            f"tracking_window_s = {window_s!r} s is not a whole number of control steps of dt = {dt!r} s: a "
+            f"tracking window spans a whole number of control steps (state a multiple of dt, or 0 to score every "
+            "step on its own)"
+        )
+    return steps
+
+
+def tracking_window_sample(info: Mapping[str, Any]) -> np.ndarray:
+    """A step's tracking-window sample: its :data:`TRACKING_WINDOW_CHANNELS`, read off its metrics and command info."""
+    return np.array([float(info[name]) for name in TRACKING_WINDOW_CHANNELS], dtype=np.float64)
+
+
+class TrackingWindow:
+    """The trailing boxcar mean of the last *size* tracking samples (decision D-D64).
+
+    :meth:`push` adds one step's sample (:data:`TRACKING_WINDOW_CHANNELS`,
+    :func:`tracking_window_sample`) and returns the channel means over the
+    window: the last *size* samples, or, while fewer have been pushed since
+    :meth:`clear`, the mean of the samples so far, never zero-padded, so the
+    first sample after a clear comes back exactly as it went in.  The
+    samples live in a ring buffer and each push recomputes the mean over
+    the filled rows (no running sum to drift), so the same samples always
+    give the same means.  At a window of exactly the stride period the mean
+    cancels the stride and all its harmonics.
+    """
+
+    def __init__(self, size: int) -> None:
+        if isinstance(size, bool) or not isinstance(size, (int, np.integer)) or size < 1:
+            raise ValueError(f"a tracking window holds a whole number of samples, at least 1, not {size!r}")
+        self.size = int(size)
+        self._buffer = np.zeros((self.size, len(TRACKING_WINDOW_CHANNELS)), dtype=np.float64)
+        self._count = 0
+        self._next = 0
+
+    def __len__(self) -> int:
+        """How many samples the window holds: at most :attr:`size`."""
+        return self._count
+
+    def clear(self) -> None:
+        """Empty the window (``BaseDinoEnv`` does at every reset, never at a command event)."""
+        self._count = 0
+        self._next = 0
+
+    def push(self, sample: Any) -> np.ndarray:
+        """Add *sample* (one finite value per channel) and return the window's channel means."""
+        values = np.asarray(sample, dtype=np.float64)
+        if values.shape != (len(TRACKING_WINDOW_CHANNELS),) or not np.all(np.isfinite(values)):
+            raise ValueError(
+                f"a tracking-window sample is {len(TRACKING_WINDOW_CHANNELS)} finite values "
+                f"({', '.join(TRACKING_WINDOW_CHANNELS)})"
+            )
+        self._buffer[self._next] = values
+        self._next = (self._next + 1) % self.size
+        self._count = min(self._count + 1, self.size)
+        filled = self._buffer if self._count == self.size else self._buffer[: self._count]
+        means: np.ndarray = filled.mean(axis=0)
+        return means
+
+
+def windowed_tracking_metrics(
+    metrics: Mapping[str, Any],
+    means: Any,
+    *,
+    velocity_tolerance: float = 0.2,
+    yaw_rate_tolerance: float = 0.15,
+    heading_tolerance: float = math.pi / 12.0,
+    stop_speed_tolerance: float = 0.1,
+    stop_yaw_rate_tolerance: float = 0.15,
+) -> dict[str, Any]:
+    """One step's :func:`tracking_metrics` with its errors and flags read off the tracking window (decision D-D64).
+
+    *means* is :meth:`TrackingWindow.push`'s return, in
+    :data:`TRACKING_WINDOW_CHANNELS` order; the tolerances are the keyword
+    set :func:`tracking_metrics` takes.  At a moving command
+    (``tracking_heading_active``) the errors are differences of window means,
+    with ``m`` the mean of a channel:
+
+    * ``tracking_error_v`` = ``|(m(v_x) - m(c_x), m(v_y) - m(c_y))|``;
+    * ``tracking_error_yaw`` = ``|m(yaw rate) - m(c_yaw)|`` (the mean yaw
+      rate is the net heading change over the window per its duration);
+    * ``tracking_error_requested_speed`` = ``| |(m(v_x), m(v_y))| - m(desired speed) |``;
+
+    and the two in-tolerance flags are :func:`tracking_metrics`' tests of
+    those errors, with the heading error per step.  The ``actual_*`` keys
+    and ``tracking_error_heading`` stay the step's own.  At a stop (or a
+    window holding one sample, whose means are the sample) the result equals
+    *metrics*: a zero command is scored per step, so stepping in place
+    cannot average into a stand.
+    """
+    for name, value in (
+        ("velocity_tolerance", velocity_tolerance),
+        ("yaw_rate_tolerance", yaw_rate_tolerance),
+        ("heading_tolerance", heading_tolerance),
+        ("stop_speed_tolerance", stop_speed_tolerance),
+        ("stop_yaw_rate_tolerance", stop_yaw_rate_tolerance),
+    ):
+        _positive(value, name)
+    result = dict(metrics)
+    if not metrics["tracking_heading_active"]:
+        return result
+    values = np.asarray(means, dtype=np.float64)
+    if values.shape != (len(TRACKING_WINDOW_CHANNELS),) or not np.all(np.isfinite(values)):
+        raise ValueError(f"the tracking-window means are {len(TRACKING_WINDOW_CHANNELS)} finite values")
+    velocity, command = values[0:2], values[3:5]
+    error_v = float(np.linalg.norm(velocity - command))
+    error_yaw = abs(float(values[2]) - float(values[5]))
+    requested_speed_error = abs(float(np.linalg.norm(velocity)) - float(values[6]))
+    command_ok = error_v <= velocity_tolerance and error_yaw <= yaw_rate_tolerance
+    goal_ok = (
+        command_ok
+        and float(metrics["tracking_error_heading"]) <= heading_tolerance
+        and requested_speed_error <= velocity_tolerance
+    )
+    result.update(
+        tracking_error_v=error_v,
+        tracking_error_yaw=error_yaw,
+        tracking_error_requested_speed=requested_speed_error,
+        tracking_command_in_tolerance=bool(command_ok),
+        tracking_in_tolerance=bool(goal_ok),
+    )
+    return result
 
 
 def gaussian_tracking_reward(

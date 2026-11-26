@@ -110,7 +110,8 @@ way and for its protocol, six-heading grid and certification seeds (decision
 D-D32; a directory holding only a v2 report is refused), re-derives a
 `command_tracking/v1` verdict only from a `command_tracking_report.json` the
 judge admits for the stage's gate, handoff pair, handoff choice, task and
-command (decision D-D61), refuses
+command (decision D-D61) and for the current panel protocol
+(`command_panel/v2` since decision D-D64, which refuses a v1 report), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
 the panel). It also refuses, `--force` or not and before it writes anything,

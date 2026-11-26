@@ -65,12 +65,22 @@ yaw_rate_max = 0.3
 # The tracking term: the Gaussian of D-D60, sigmas and tolerances at their speed_scale defaults.  2.5, the pilot
 # recipes' weight, on every model.
 tracking_weight = 2.5
-# Measured on this plant (2026-11-24): the reference walk (scripts/reference_walk.py, its root servo steered to the
-# commanded heading) under a command it matches (0.35 m/s) earns 0.80 a step of the 2.5 and is in tolerance on 27-30%
-# of its steps, though a one-stride trailing mean of its velocity tracks the command at 0.99: within the stride its
-# lateral speed swings 0.13 m/s RMS against the 0.167 m/s sigma.  It earns 2.62 a step there to the statue's 2.25
-# (+17%), its gait_symmetry (1.58) worth twice its tracking.  On the committed commands it earns 2.42 a step steered
-# and 2.03 unsteered, to the statue's 2.21: it walks its own speed, slower than most cruise commands.
+# Measured on this plant (2026-11-24, scored per step): the reference walk (scripts/reference_walk.py, its root servo
+# steered to the commanded heading) under a command it matches (0.35 m/s) earns 0.80 a step of the 2.5 and is in
+# tolerance on 27-30% of its steps, though a one-stride trailing mean of its velocity tracks the command at 0.99:
+# within the stride its lateral speed swings 0.13 m/s RMS against the 0.167 m/s sigma.
+# Measured on the window below (2026-11-26, the walk panel's 20 cruise episodes from 3042, matched at 0.35 m/s along
+# the spawn heading): tracking quality 0.98 after 2 s (0.34 per step), in tolerance on every step after the settle
+# (0.28-0.40 per step) and its heading settled on 20 of 20 (0 per step), so it passes the whole walk gate (also at a
+# 0.26 rad heading offset: quality 0.97, settled on 20 of 20).  It earns 3.93 a step there to the statue's 2.24 (+75%;
+# per step 2.71, +21%), its tracking (2.05) now above its gait_symmetry (1.65).  On the committed commands it earns
+# 2.62 a step steered and 2.11 unsteered (2.42 and 2.03 per step), to the statue's 2.22: it walks its own speed,
+# slower than most cruise commands, and steered it clears the cruise bars only on the 5 of 20 commanded at
+# 0.39-0.47 m/s.
+# The tracking window (D-D64): at a moving command the term, the metrics and the gate read the trailing mean of the
+# last 1.40 s (140 steps of 0.01 s), so the within-stride sway above cancels over a stride; a stop is scored per step.
+# The rule on every walk: the stride at the slowest end-state command, 0.5 x cruise (0.375 m/s).
+tracking_window_s = 1.40               # D-D64: the reference's own 1.40 s stride at 0.35 m/s, below 0.5 x cruise
 # The cruise ramp (D-D62 (5)): training commands start at 0.25 x these speeds and reach them at 2M steps; the
 # evaluation env and the gate panels run the end state.
 cruise_ramp_start_fraction = 0.25
@@ -179,8 +189,12 @@ collapse_peak_floor = 100.0             # Absolute: the value the backstop took 
                                         # walk (2505 an evaluation at the 15% stand rate), so a standing plateau
                                         # arms the backstop once past the warm-up below.  The stand count's spread
                                         # alone never stops it (0 of 400 simulated 16M runs; no evaluation under
-                                        # 0.79 of the peak), and a floor above the stander (2795 at 9 stands of
-                                        # 30) would not arm on a walk as steady as the reference either (2681).
+                                        # 0.79 of the peak).  The D-D62 (15) rule, as D-D64 reads it, puts a floor
+                                        # above the stander only where a walk as steady as the reference evaluates
+                                        # above the stander's 10-stand level (2860 at 10 stands of 30).  Here it
+                                        # does not: the steered reference walk's committed panel evaluates at 2849
+                                        # on the tracking window (2681 scored per step), between the 9-stand and
+                                        # 10-stand levels (2795, 2860), so the floor stays absolute.
 collapse_peak_warmup_timesteps = 3000000 # Evaluations before this step cannot SET the peak: the D-B5 bound,
                                          # warmup_timesteps + [commands] cruise_ramp_timesteps (1M + 2M; 4.0M with
                                          # the forward-weight ramp's 3M). The evaluation env runs the end-state

@@ -99,6 +99,23 @@ class CommandTrackingReportError(RuntimeError):
     """The panel cannot be rolled or judged for a reason the caller should see (an ``Exception``, never a SystemExit)."""
 
 
+def require_current_protocol(report: Mapping[str, Any]) -> None:
+    """Refuse a report rolled under another measurement protocol than :data:`COMMAND_PANEL_PROTOCOL`, naming both.
+
+    Checked before any of its records is parsed: a ``command_panel/v1``
+    report's in-tolerance flags were judged per step with no window-fill
+    allowance (decision D-D64), so its records answer another question, and
+    each record's own measurement would be refused one by one anyway.
+    Raises :class:`CommandTrackingReportError`.
+    """
+    protocol = report.get("protocol") if isinstance(report, Mapping) else None
+    if protocol != COMMAND_PANEL_PROTOCOL:
+        raise CommandTrackingReportError(
+            f"the command-tracking report was rolled under protocol {protocol!r}, not {COMMAND_PANEL_PROTOCOL!r}; "
+            "re-roll its panel under the current protocol"
+        )
+
+
 def _policy(
     model_id: ModelId,
     env_kwargs: Mapping[str, Any],
@@ -367,6 +384,22 @@ def _shown(value: Any, spec: str) -> str:
     return format(value, spec)
 
 
+def _window_line(report: Mapping[str, Any]) -> str:
+    """The tracking window the panel was judged on and the cruise family's report-only longest stop (decision D-D64)."""
+    measurement = report.get("measurement") or {}
+    window = measurement.get("tracking_window_s") if isinstance(measurement, Mapping) else None
+    shown = "per step" if window == 0 else (f"{_shown(window, 'g')} s (a moving command's errors are window means)")
+    summary = report.get("summary") or {}
+    cruise = ((summary.get("families") or {}).get(CRUISE_FAMILY) or {}) if isinstance(summary, Mapping) else {}
+    longest = cruise.get("longest_stop_s") if isinstance(cruise, Mapping) else None
+    if isinstance(longest, Mapping):
+        shown += (
+            f"; cruise longest stop {_shown(longest.get('mean'), '.3f')} s mean, {_shown(longest.get('max'), '.3f')} s "
+            "max (report-only)"
+        )
+    return shown
+
+
 def render_command_tracking_report(report: Mapping[str, Any]) -> str:
     """The text form of a command-tracking report: the binding, each family's numbers, the failing episodes, the verdict."""
     result = report.get("result") or {}
@@ -380,6 +413,7 @@ def render_command_tracking_report(report: Mapping[str, Any]) -> str:
         f"protocol            {report.get('protocol')}; {len(seeds)} seeds from {report.get('seed_start')} "
         f"(scanned {plan.get('scanned')}); horizon {report.get('horizon')} steps at {report.get('control_dt')} s",
         f"measurement         {report.get('measurement')}",
+        f"tracking window     {_window_line(report)}",
         f"task                {report.get('task_sha256')}",
         f"gate                {report.get('gate_sha256')}",
         "",
@@ -434,6 +468,7 @@ def write_command_tracking_report(stage_dir: "str | Path", report: Mapping[str, 
     """
     if report.get("schema") != COMMAND_TRACKING_REPORT_SCHEMA:
         raise ValueError(f"not a {COMMAND_TRACKING_REPORT_SCHEMA} report ({report.get('schema')!r})")
+    require_current_protocol(report)
     directory = Path(stage_dir)
     directory.mkdir(parents=True, exist_ok=True)
     rows = panel_rows(report)
@@ -602,6 +637,7 @@ def choose_command_handoff(
                 vecnorm_path=vecnorm,
                 seed_start=seed_start,
             )
+            require_current_protocol(report)
             result = report["result"]
             key = handoff_selection_key(
                 evaluate_command_tracking_gate(

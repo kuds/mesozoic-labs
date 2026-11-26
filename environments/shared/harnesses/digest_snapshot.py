@@ -662,7 +662,10 @@ def _posed_reward(env: Any, action: Any) -> tuple[Any, dict[str, Any]]:
     reward plus the tracking term and its metrics) inside the stand block
     (``_stand_block``, the stand weights at a zero command), with the heading
     the step's yaw rate is measured from set to the posed heading: a posed
-    state is scored without a physics step, so it turns at 0 rad/s.
+    state is scored without a physics step, so it turns at 0 rad/s.  Every
+    probe part starts from a reset, which empties a tracking window
+    (decision D-D64), so a posed state's window holds its one sample and its
+    errors are the per-step ones; the episode parts step through the window.
     """
     if getattr(env, "direction_controller", None) is None:
         reward, info = env._get_reward_info(action)

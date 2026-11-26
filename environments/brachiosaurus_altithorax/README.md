@@ -112,9 +112,10 @@ Species notes:
   (decision D-D59; `results/README.md`). Checkpoints from policy interface r11 or earlier fail the plant
   check and cannot seed a warm start or `--trunk-from`: r11 declared the model SB3-only (note 23), and r12 removed the
   food and made the observation heading-free (`configs/plant_versions.toml`).
-- **Reference walk speed.** The reference walk (about 0.35 m/s) sits at the slow end of the walk's commanded cruise
-  range (0.375-0.75 m/s), and it fails the walk gate's tracking bars even at a command it matches. It shows what the
-  plant can do mechanically, not a gait that would pass the gate.
+- **Reference walk speed.** The reference walk (about 0.35 m/s) sits just below the walk's commanded cruise range
+  (0.375-0.75 m/s). At a command it matches it passes the whole walk gate since decision D-D64 (it failed the tracking
+  bars when they were scored per step), but on the committed panel it clears the cruise bars only at the slowest
+  commands. It shows what the plant can do mechanically, not a gait that passes the committed gate.
 
 ## Task and rewards
 
@@ -136,9 +137,11 @@ place. The commanded speeds ramp from 0.25 of their end values to the full range
 standing-idle penalty is not paid on a zero command. After training the walk is judged on its `command_tracking/v1`
 panel: the cruise family's survival and success bounds, the stand family's hold and the quadruped gait clause (pair
 alternation, limb duty, the flight cap) and the lead-swap bar. The bars are provisional, and no controller has yet
-been shown to clear them; the reference walk reads tracking quality 0.32 a step at a command it matches, the
-gait-symmetry term pays a standing statue its whole weight, and the reference walk's hind-pair alternation is close to
-its bar (decision D-D62 (16)).
+passed the committed panel; the gait-symmetry term pays a standing statue its whole weight, and the reference walk's
+hind-pair alternation is close to its bar (decision D-D62 (16)). The tracking term and the gate score a moving command
+on the trailing mean of the last 1.40 s, one stride of the reference walk (`[commands] tracking_window_s`, decision
+D-D64): at a command it matches the reference walk reads tracking quality 0.98 (0.34 a step on its own) and is in
+tolerance on every step after the settle.
 
 The observation reads no world heading: it uses the torso's projected gravity and its velocity in a gravity-aligned
 heading frame, beside the joint positions and velocities, the torso gyro and accelerometer, one touch channel per foot

@@ -25,35 +25,66 @@ robustness, **LOW** = cosmetic / QoL.
 ## Training / RL
 
 - **HIGH** — **the walk's `command_tracking/v1` bars are provisional, and no
-  controller in the repository has been shown to clear them (2026-11-24,
-  decision D-D62 (16)).** Every committed walk follows a live command and is
-  judged by the gate's walk profile at `PROVISIONAL_WALK_THRESHOLDS` and the
-  model's gait clause. On the real plants the zero-action statue fails every
-  walk on the cruise family's success bound (0 of 20). The repository's
-  reference walks, under a command they match, read a per-step tracking
-  quality of 0.14 (T. rex, Allosaurus) and 0.32 (brachiosaurus), are in
-  tolerance on 14-30% of their steps and fail `heading_settle` and
-  `min_cruise_tracking_fraction` on every cruise episode: the tracking term
-  and the gate read the pelvis every step, and a gait sways within its
-  stride. At the cruise ramp's start the statue earns more tracking than a
-  reference-quality walk. Also open: the Compsognathus pair's tracking sigma
-  lies under an estimate of a home-width gait's lateral sway;
-  `gait_symmetry` pays a quadruped statue its whole weight; no controller
-  walks the dibothrosuchus inside its commanded speeds; the brachiosaurus
-  reference walk's hind-pair alternation reads 0.786 on its worst episodes
-  against the 0.75 bar; and a flightless quadruped bound whose feet swing
-  their lead clears every quadruped bar (measured on synthetic floor truth).
-  No weight, sigma or bar was changed for them. *Decided 2026-11-25
-  (decision D-D63 (2)):* the maintainer chose the stride-averaged tracking
-  measure for the per-step reading, not bars re-frozen from a pilot. It
-  applies to both the reward and the gate, on live-command stages only, with
-  a `COMMAND_PANEL_PROTOCOL` bump. It is implemented by the next decision
-  row. Until it lands, the per-step reading above holds, the other open
-  risks stay open, and no document calls the walk gate attainable. The
-  in-training evaluation keeps the declared end-state commands during the
-  cruise ramp (D-D63 (3)). Candidates are ranked on the task that is
-  certified, and the handoff is still chosen afterwards on the selection
-  panel.
+  controller in the repository has passed a committed walk panel (2026-11-24,
+  decision D-D62 (16); updated 2026-11-26, decision D-D64).** Every committed
+  walk follows a live command and is judged by the gate's walk profile at
+  `PROVISIONAL_WALK_THRESHOLDS` and the model's gait clause. On the real
+  plants the zero-action statue fails every walk on the cruise family's
+  success bound (0 of 20).
+  - *Resolved by D-D64:* the per-step tracking reading, D-D62 (16) (a),
+    which D-D63 (2) decided. At a moving command the tracking term and the
+    gate's in-tolerance test now read a trailing one-stride mean
+    (`[commands] tracking_window_s`, 0.70-1.50 s by model), under the panel
+    protocol `command_panel/v2`; stops and the speed ratio stay per step.
+    Under a command it matches, every reference walk now clears the
+    in-tolerance fraction and the speed ratio: in tolerance after the settle,
+    its worst episode reads 0.873-1.000, against 0.10-0.86 per step.
+    - The brachiosaurus (at 0.35 m/s) and the dibothrosuchus (at 0.157 m/s)
+      pass the whole walk gate there. Both commands lie below their
+      commanded ranges.
+    - The T. rex and the Allosaurus fail `heading_settle` on 20 of 20, on
+      their scripted starts. A centred stride mean of their speed reaches
+      the speed tolerance at 1.95 s and 2.70 s, so the gate's trailing
+      window first reads in tolerance at about 2.5 s and 3.5 s, after their
+      2.12 s and 2.31 s allowances. A quicker T. rex start passes every
+      episode.
+    - On the velociraptor one episode, seed 3045, falls at step 373, and its
+      truncated trace also fails the lead-swap bar; the other 19 pass every
+      bar.
+    - At the dibothrosuchus' and the velociraptor's matched commands, which
+      lie inside their velocity tolerances, even the statue reads in
+      tolerance; there the speed ratio and the gait clause are what the
+      panels demonstrate.
+  - *Still open:*
+    - No controller passes a committed walk panel. On the brachiosaurus'
+      committed panel its steered reference clears every cruise bar only on
+      its 5 slowest commands; no controller walks the dibothrosuchus inside
+      its commanded speeds; and the velociraptor reference runs at 0.12 x its
+      cruise.
+    - The Compsognathus pair's tracking sigma lies under an estimate of a
+      home-width gait's lateral sway. The window only partly relieves it:
+      the robot's home-width gait fits on 14% of plausible strides (D-D64
+      (7)).
+    - `gait_symmetry` pays a quadruped statue its whole weight.
+    - The brachiosaurus reference walk's hind-pair alternation reads 0.786
+      on its worst episodes, against the 0.75 bar.
+    - A flightless quadruped bound whose feet swing their lead clears every
+      quadruped bar (measured on synthetic floor truth).
+    - The window's own risks (D-D64 (11)). A learned stride in the boxcar's
+      sidelobe (window over stride about 1.2-1.6) keeps up to 0.22 of the
+      sway. A stop-and-go whose cycle divides the window earns full
+      tracking, and only the report-only `longest_stop_s` sees it, as a
+      panel maximum (per episode its values overlap). A quadruped start
+      sprint is charged little tracking under the expanding window and the
+      +W allowance, and out-earns the steady reference by 0.4-2.1% a step,
+      through `gait_symmetry`. The follow profile's mid-episode command
+      changes are unmeasured.
+
+    No weight, sigma or bar was changed for them; the bars are to be frozen
+    from a pilot. The in-training evaluation keeps the declared end-state
+    commands during the cruise ramp (D-D63 (3)). Candidates are ranked on
+    the task that is certified, and the handoff is still chosen afterwards
+    on the selection panel.
 - **HIGH** — **Completed short stance reward pilots remain uncertified;
   the base T-Rex stance reward is CoP-indifferent, and the velociraptor
   fails by an exploration-driven hop plus an unloaded digit IV.** The
@@ -1333,9 +1364,9 @@ robustness, **LOW** = cosmetic / QoL.
   whose walk profile judges every panel episode and whose gait clause reads
   each cruise episode's floor-truth footfalls (GAIT_QUALITY_PLAN GQ-8 (a),
   GQ-9 (a), GQ-18; D-D61 (7)). `locomotion_gait/v1` was not built; the walk
-  gate's gait clause takes its place. Its bars are provisional and no
-  controller has yet been shown to clear them (D-D62 (16), the first item of
-  this section). The item stays open until a walk certifies under that gate;
+  gate's gait clause takes its place. Its bars are provisional, and no
+  controller has passed a committed walk panel (D-D62 (16) and D-D64, the
+  first item of this section). The item stays open until a walk certifies under that gate;
   the hopping certificates named above are stranded in any case by plant note
   24, which refuses every earlier checkpoint.
 

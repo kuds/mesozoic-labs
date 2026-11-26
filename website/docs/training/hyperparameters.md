@@ -107,6 +107,7 @@ switch_jitter_s = 0.0
 turn_slowdown = true
 yaw_rate_max = 0.3
 tracking_weight = 2.5
+tracking_window_s = 1.12               # one stride: the moving command is scored on its trailing mean
 cruise_ramp_start_fraction = 0.25
 cruise_ramp_timesteps = 2000000
 
@@ -138,6 +139,24 @@ alive_bonus = 1.0                      # stance.toml:12
   five `tracking_*_tolerance` fields, `heading_error_rad` and
   `tracking_dwell_s` (consecutive seconds in tolerance, restarted by each new
   command). An unset speed sigma or tolerance scales with `speed_scale`.
+- **Tracking window.** `tracking_window_s` (seconds, a whole number of
+  control steps; default 0, which scores every step on its own) makes the
+  term and the metrics read a trailing mean over that window at a moving
+  command (decision D-D64). A walking gait sways within its stride, so per
+  step even a walk that matches its command reads a poor tracking quality
+  (0.13-0.34 on the T-Rex, Allosaurus and Brachiosaurus reference walks),
+  while its one-stride mean tracks it.
+  The window averages each step's velocity in that step's heading frame, the
+  yaw rate and the executed command, and the errors are differences of the
+  means. It fills from the episode's first step (the first step reads the
+  per-step values) and is emptied only at reset, never at a command change.
+  The heading error, a zero command (the stop test and the stand episodes'
+  reward) and the info's `actual_*` speeds stay per step. Every walk sets it
+  to its stride at half its cruise speed, 0.70-1.50 s (each walk TOML gives
+  the source). The observation does not hold the window, so the term reads
+  up to one stride of the policy's own history; the decision gives the
+  measurements that make this acceptable. It is part of the task only when it
+  is not 0, and a behavior recipe refuses one.
 - **Randomness.** Each episode's command schedule is seeded from its own
   stream (the reset seed, the episode index since that seed and a fixed
   domain word), never from the environment's reset stream, so a live stage's
@@ -261,9 +280,15 @@ A stage with a live command (a `[commands]` table, see [Commands](#commands))
 is judged by the `command_tracking/v1` gate kind (decision D-D61). Every
 model's walk declares it with the `walk` profile and the starting values
 below (decision D-D62), and the later follow nodes will use it too. The bars
-are provisional, and no controller has yet been shown to clear the walk's:
-the repository's reference walks fail its tracking bars even at a command
-they match (decision D-D62 (16)). The gate is judged once, after
+are provisional. Since decision D-D64 the gate's in-tolerance test, like
+the reward, reads the stage's tracking window at a moving command, and at a
+command it matches every reference walk in the repository clears the
+in-tolerance fraction and the speed ratio: the Brachiosaurus and
+Dibothrosuchus references pass the whole walk gate there, and the T-Rex and
+Allosaurus fail `heading_settle`, on their scripted starts. (At the
+Velociraptor's and Dibothrosuchus' matched commands, which lie inside the
+velocity tolerance, even the statue reads in tolerance.) No controller has yet passed a committed walk panel
+(decision D-D62 (16)). The gate is judged once, after
 the stage, on a fixed panel of deterministic episodes of the handoff
 checkpoint. The in-training curriculum manager refuses the kind, so such a
 stage never advances early and always trains its full `timesteps` budget.
@@ -273,7 +298,8 @@ The string key `profile` selects the rules:
   reset command puts it in: **cruise** (a non-zero speed) or **stand** (an
   exactly zero command for the whole episode). A cruise episode succeeds
   when it reaches the horizon, settles its initial heading error within
-  `1 s + |error| / yaw_rate_max` and holds it for 1 s, keeps
+  `1 s + |error| / yaw_rate_max + tracking_window_s` (the window still
+  filling at the start, decision D-D64) and holds it for 1 s, keeps
   `min_cruise_tracking_fraction` of its steps in tolerance after that
   settle, makes `min_cruise_speed_ratio` of the requested speed along the
   requested heading after 2 s, and passes the gait clause below. A stand
@@ -368,8 +394,14 @@ so the bar narrows the gap and does not close it. The stand family's gait is
 not judged, so stepping in place within the stop tolerances passes it; the
 stand episodes' recorded alternation and touchdown rate show it. Each
 episode record carries the left/right phase (about 0.5 on a walk, near 0 or
-1 on a hop) and the stance-foot slip speed for review. The
-in-tolerance test is the environment's own, at the tolerances the stage's
+1 on a hop) and the stance-foot slip speed for review, and a report-only
+`longest_stop_s`, the longest stretch after 2 s at under a quarter of the
+requested speed, which no verdict reads (a stop-and-go whose cycle fits
+inside the tracking window would show there, not in the in-tolerance
+fraction; decision D-D64). The
+in-tolerance test is the environment's own (at a moving command the
+windowed errors when the stage declares `tracking_window_s`, a stop per
+step), at the tolerances the stage's
 `[commands]` table resolves; the optional keys `gate_velocity_tolerance`,
 `gate_yaw_rate_tolerance`, `gate_heading_tolerance`,
 `gate_stop_speed_tolerance` and `gate_stop_yaw_rate_tolerance` replace one
@@ -395,7 +427,10 @@ After the stage, these files appear in the stage directory:
 - `command_tracking_report.json`, `command_tracking_report.txt` and
   `command_tracking_panel_selected.csv`: the certification panel, one record
   per episode with its classification. The verdict is derived again from
-  those records, and publication derives it again from the CSV.
+  those records, and publication derives it again from the CSV. Each record
+  carries the measurement it was reduced under, protocol `command_panel/v2`
+  with the tracking window since decision D-D64, and a report, record or CSV
+  of the earlier `command_panel/v1` is refused.
 - `figures/command_tracking.png`: commanded against achieved speed, yaw rate
   and heading error over the panel's first cruise and first stand episode
   (rolled again from `command_tracking_trace.csv`, the same episodes the gate
@@ -521,7 +556,7 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 | Crab-walks or turns off the commanded heading | The tracking term tolerates the error | Raise `[commands] tracking_weight` within 2.0–2.5, or narrow the lateral and yaw sigmas |
 | Walks but falls frequently | Balance reward zeroed too aggressively | Keep `env.posture_weight ≥ 0.3` and the walk's `env.alive_bonus` |
 | Unrealistic "ice-skating" gait | Symmetry and smoothness under-weighted | Raise `env.gait_symmetry_weight`, raise `env.smoothness_weight` |
-| Walks at the commanded speed but fails the gate's tracking bars | The tracking term and the gate read the pelvis every step, and a gait sways within its stride | Decision D-D62 (16) (a): the reference walks fail them too. Decision D-D63 (2) chose a stride-averaged tracking measure for the reward and the gate, which the next decision row implements; it is not a setting |
+| Walks at the commanded speed but fails the gate's tracking bars | Its stride does not divide the walk's `tracking_window_s`: the window cancels the sway of a stride that divides it, keeps up to about a fifth of it when the window is about 1.2-1.6 strides long, and more when the stride is longer than the window | Check the learned stride period against the window (decision D-D64 (1)); the window is part of the task, set by one rule on every walk, so do not tune it per run |
 
 ### Algorithm-specific notes
 

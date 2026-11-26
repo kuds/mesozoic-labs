@@ -240,7 +240,17 @@ certified. The library version a run records is read from the checkout's
 policy probe keeps 9 of its 10 bank rows. The SB3 notebook review
 ([reviews/SB3_NOTEBOOK_REVIEW_2026_11.md](reviews/SB3_NOTEBOOK_REVIEW_2026_11.md)) is committed with
 its status of this day; triaging its 110 open findings into KNOWN_ISSUES is pending, after the
-stride-averaged tracking lands.* Section 2 labels each
+stride-averaged tracking lands.* *2026-11-26 (decision D-D64): the stride-averaged tracking has
+landed. Each walk declares `[commands] tracking_window_s`, about one stride (0.70-1.50 s), and at
+a moving command the tracking term and the gate's in-tolerance test read a trailing boxcar mean
+over it, under the panel protocol `command_panel/v2`, which refuses v1 reports and records. Under
+a command it matches, every reference walk now clears the in-tolerance fraction and the speed
+ratio: the brachiosaurus and dibothrosuchus references pass the whole walk gate, and the T. rex and
+Allosaurus fail heading_settle on their scripted starts; the statue still fails every walk. The bars
+stay provisional and no controller has passed a committed walk panel (KNOWN_ISSUES). Every walk's
+task digest moved, so a walk session trains a walk afresh; the T. rex walk's collapse floor is
+2.16 x 1248.7 (D-D62 (15), as D-D64 reads it). The review triage the previous note deferred is
+no longer waiting on it.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.

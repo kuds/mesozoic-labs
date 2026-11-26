@@ -973,9 +973,10 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         (velociraptor, T. rex, brachiosaurus, dibothrosuchus) declares the D-B5 peak warm-up as exactly its stage-entry
         warm-up plus its cruise ramp; the Compsognathus pair and the Allosaurus carry none, by recorded decision.  The
         floor sits above a stander's evaluation mix only where a walk as steady as the model's reference walk
-        evaluates above that mix (the velociraptor, its species test derives it); elsewhere it stays where the model
-        had it (the T. rex's 0.45 of its statue, the quadrupeds' absolute 100) and the warm-up alone keeps a standing
-        plateau from arming it (their species tests replay the plateau)."""
+        evaluates above that mix (the velociraptor, and the T. rex since the stride-averaged tracking of decision
+        D-D64 lifted its reference walk above the mix's 10-stand level; their species tests derive it); elsewhere it
+        stays where the model had it (the quadrupeds' absolute 100) and the warm-up alone keeps a standing plateau
+        from arming it (their species tests replay the plateau)."""
         from environments.shared.config import load_all_stages
         from environments.shared.species_names import model_ids
 
@@ -994,7 +995,7 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
             assert settings["peak_warmup_timesteps"] == cur["warmup_timesteps"] + ramp, model_id
             # The 40-episode statue mean is the stander's evaluation mix to within its family-mix noise.
             above_the_statue = settings["peak_floor"] > cur.get("collapse_peak_floor_reference", float("inf"))
-            assert above_the_statue == (model_id == VELOCIRAPTOR_MONGOLIENSIS), model_id
+            assert above_the_statue == (model_id in {VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX}), model_id
         assert seen == armed
 
     def test_the_velociraptor_mongoliensis_locomotion_floor_keeps_the_scaled_standing_plateau_from_arming(self):

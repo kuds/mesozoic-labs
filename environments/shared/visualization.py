@@ -1110,10 +1110,15 @@ def plot_command_tracking(
     2. the commanded against the achieved yaw rate, with the yaw-rate
        tolerance (the stop yaw-rate tolerance on a stand);
     3. the heading error, with the heading tolerance and the first event's
-       settle deadline (1 s + |initial error| / yaw_rate_max); on a stand,
-       the distance from the spawn instead;
+       settle deadline (1 s + |initial error| / yaw_rate_max + the tracking
+       window, decision D-D64); on a stand, the distance from the spawn
+       instead;
 
-    and the steps the gate's per-step test holds shaded.  The tolerances
+    and the steps the gate's in-tolerance test holds shaded.  The plotted
+    lines are per step; under a tracking window (the measurement's
+    ``tracking_window_s`` above 0) the shaded band at a moving command is
+    judged on the window's means, the stride mean, so a swaying gait can be
+    shaded where its per-step line leaves the tolerance band.  The tolerances
     and each episode's verdict are the command-tracking report's; a title
     says whether the re-rolled episode's record equals the certified one.
     Only the trace rows rolled on the report's handoff checkpoint are drawn
@@ -1176,6 +1181,10 @@ def plot_command_tracking(
     measurement = _mapping(report.get("measurement"))
     tolerances = _mapping(measurement.get("tolerances"))
     yaw_rate_max = measurement.get("yaw_rate_max")
+    window_s = measurement.get("tracking_window_s")
+    if isinstance(window_s, bool) or not isinstance(window_s, (int, float)) or not math.isfinite(float(window_s)):
+        window_s = 0.0
+    band_label = f"in tolerance (a {float(window_s):g} s window mean while moving)" if window_s > 0 else "in tolerance"
     curriculum = dict(report.get("thresholds") or {})
     curriculum.update(curriculum_kwargs or {})
     evidence = {
@@ -1253,7 +1262,7 @@ def plot_command_tracking(
             third_axis.plot(times, np.degrees(column(rows, "heading_error_rad")), color="C4", label="heading error")
             initial = record.get("initial_heading_error_rad")
             if isinstance(initial, (int, float)) and isinstance(yaw_rate_max, (int, float)) and yaw_rate_max > 0:
-                deadline = SETTLE_BASE_S + abs(float(initial)) / float(yaw_rate_max)
+                deadline = SETTLE_BASE_S + abs(float(initial)) / float(yaw_rate_max) + float(window_s)
                 third_axis.axvline(deadline, color="0.5", linestyle=":", label=f"settle deadline {deadline:.2f} s")
             third_axis.axhline(0.0, color="0.7", linewidth=0.8)
             third_axis.set_ylabel("heading error (deg)")
@@ -1273,11 +1282,9 @@ def plot_command_tracking(
             fontsize=9,
         )
         for axis in axes:
-            # Over the tolerance bands, so the steps the gate's per-step test holds stay visible.
+            # Over the tolerance bands, so the steps the gate's in-tolerance test holds stay visible.
             for number, (start, end) in enumerate(_true_runs(times, flags)):
-                axis.axvspan(
-                    start, end, color="C2", alpha=0.15, linewidth=0, label="in tolerance" if number == 0 else None
-                )
+                axis.axvspan(start, end, color="C2", alpha=0.15, linewidth=0, label=band_label if number == 0 else None)
             axis.grid(alpha=0.3)
             _safe_legend(axis, loc="upper right", fontsize=7)
 

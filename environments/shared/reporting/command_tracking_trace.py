@@ -55,8 +55,9 @@ from ..model_id import ModelId
 
 #: The chart episodes' step trace, in the stage directory beside the command-tracking report.
 COMMAND_TRACKING_TRACE_CSV = "command_tracking_trace.csv"
-#: One row per step of a chart episode.  ``in_tolerance`` is the gate's per-step test
-#: (``command_tracking_gate.sample_in_tolerance``) at the report's measurement, and
+#: One row per step of a chart episode.  ``in_tolerance`` is the gate's test of the step
+#: (``command_tracking_gate.sample_in_tolerance``) at the report's measurement, which under a tracking window
+#: (D-D64) reads a moving command's window-mean errors while the speed and yaw-rate columns stay per step, and
 #: ``speed_along_heading_mps`` the root's speed along the requested heading, the quantity the gate's speed ratio
 #: averages; ``heading_error_rad`` is the env's (0 while no heading is commanded).
 COMMAND_TRACKING_TRACE_FIELDNAMES: tuple[str, ...] = (

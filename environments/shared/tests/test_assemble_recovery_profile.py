@@ -37,8 +37,9 @@ EDITED_SINCE_MEASUREMENT = {
     # keyed on a live command: under "none" the recovery's rollouts replay byte for byte
     # (test_none_stage_rollout_golden.py) and its task_sha256 is unchanged.  2026-11-24: a comment-only edit, no
     # behavior change (the is_success comment in _step_body now says no in-training reader collects it since
-    # decision D-D59).
-    "environments/shared/base_env.py": "c56fff1d42a74c21d32f53e90e649ed2ec2cf2fb67559ea3cd5b346251c74469",
+    # decision D-D59).  2026-11-26: D-D64 tracking window, live-only; the none golden replays (the window is built only
+    # for a live command config with tracking_window_s > 0, never under "none", and reset() is untouched).
+    "environments/shared/base_env.py": "14cf07b7ff68505f85b9118dd537fc607b53729aea3275c6719062dbfbf6d275",
     # Decision D-D62: the species reward reads BaseDinoEnv's forward reference and drift anchor, which under the
     # recovery's command_mode "none" are the spawn arrays it read before (the same golden proves it).
     "environments/compsognathus_longipes/base_env.py": "303d40f3aa13f5cf65159eb180061b7214f941eff4d9c47c531d1b4e8ee12ba8",

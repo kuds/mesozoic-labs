@@ -138,8 +138,13 @@ place. The commanded speeds ramp from 0.25 of their end values to the full range
 standing-idle penalty is not paid on a zero command. After training the walk is judged on its `command_tracking/v1`
 panel: the cruise family's survival and success bounds, the stand family's hold and the quadruped gait clause (pair
 alternation, limb duty, the flight cap) and the lead-swap bar. The bars are provisional, and no controller has yet
-been shown to clear them; no controller in the repository walks inside the commanded speed range (the reference walk
-reaches 0.16 m/s), and the gait-symmetry term pays a standing statue its whole weight (decision D-D62 (16)).
+passed the committed panel; no controller in the repository walks inside the commanded speed range (the reference walk
+reaches 0.16 m/s), and the gait-symmetry term pays a standing statue its whole weight (decision D-D62 (16)). The
+tracking term and the gate score a moving command on the trailing mean of the last 0.80 s, one stride of the reference
+walk (`[commands] tracking_window_s`, decision D-D64); at its own 0.157 m/s the reference walk passes the whole walk
+gate (tracking quality 0.999, 0.72 a step on its own). That command lies inside the 0.167 m/s velocity tolerance, where
+even the statue reads in tolerance (and settles), so the panel demonstrates the speed ratio and the gait clause, not
+the in-tolerance fraction or the settle, and none of it inside the commanded range.
 
 The observation reads no world heading: it uses the trunk's projected gravity and its velocity in a gravity-aligned
 heading frame, beside the joint positions and velocities, the trunk gyro and accelerometer, one touch channel per foot

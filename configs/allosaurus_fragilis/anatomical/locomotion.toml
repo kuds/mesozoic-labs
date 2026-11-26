@@ -50,11 +50,19 @@ yaw_rate_max = 0.3
 # The tracking term: the Gaussian of D-D60, sigmas and tolerances at their speed_scale defaults.  2.5, the pilot
 # recipes' weight, on every model.
 tracking_weight = 2.5
-# Measured on this plant (2026-11-24): the reference walk (scripts/reference_walk.py) under a command it matches
-# (0.345 m/s along the spawn heading) earns 0.33 a step of the 2.5 and is in tolerance on 14% of its steps after
-# 2 s, though a one-stride trailing mean of its velocity tracks the command at 0.99 and in tolerance on 99% of
-# them: the term and the gate read the pelvis per step, and its within-stride lateral speed (RMS 0.18 m/s) is
-# twice the 0.083 m/s velocity sigma and 0.067 m/s tolerance that speed_scale 0.5 gives.
+# Measured on this plant (2026-11-24), per step: the reference walk (scripts/reference_walk.py) under a command it
+# matches (0.345 m/s along the spawn heading) earned 0.33 a step of the 2.5 and was in tolerance on 14% of its steps
+# after 2 s, though a one-stride trailing mean of its velocity tracks the command at 0.99 and in tolerance on 99% of
+# them: its within-stride lateral speed (RMS 0.18 m/s) is twice the 0.083 m/s velocity sigma and 0.067 m/s
+# tolerance that speed_scale 0.5 gives.
+# The tracking window (D-D64): at a moving command the term, the metrics and the gate read the trailing mean of the
+# last 1.31 s (131 steps of 0.01 s), so the within-stride sway above cancels over a stride; a stop is scored per step.
+# The rule on every walk: the stride at the slowest end-state command, 0.5 x cruise (0.175 m/s).  Measured with it
+# (2026-11-26, the walk panel's 20 cruise episodes): the matched reference walk earns 1.86 a step of the 2.5
+# (quality 0.80 after 2 s) and is in tolerance on 96% of its steps after the settle, so it clears the tracking
+# fraction and the speed ratio on 20/20 and fails only heading_settle, on its scripted start; the statue earns 0.004
+# before it falls.
+tracking_window_s = 1.31               # D-D64: the reference's 1.00 s stride at 0.345 m/s x (0.175/0.345)^-0.4
 # The cruise ramp (D-D62 (5)): training commands start at 0.25 x these speeds and reach them at 2M steps; the
 # evaluation env and the gate panels run the end state.  The same fixed 2M steps on every walk: here 2M of the 6M
 # budget (33%; D-D62 (5)).
@@ -114,6 +122,7 @@ max_flight_fraction = 0.05
 #
 # Training-loop keys, read by no gate: none.  Deliberately omit a collapse floor until learned-controller runs
 # establish a baseline.  The statue anchors none: on this walk it falls in every episode (40 episodes from seed
-# 3042: 122.87 +/- 46.64, 86.3 of 3000 steps on average, 18 fallen and 22 body_contact; physics r2, measured
-# 2026-11-24 with environments/shared/scripts/zero_action_baseline.py --model-id allosaurus_fragilis anatomical
-# --stage 2 --episodes 40 --seed 3042).
+# 3042: 120.41 +/- 46.84, 86.3 of 3000 steps on average, 18 fallen and 22 body_contact; physics r2, measured
+# 2026-11-26 with environments/shared/scripts/zero_action_baseline.py --model-id allosaurus_fragilis anatomical
+# --stage 2 --episodes 40 --seed 3042; 122.87 +/- 46.64 under the per-step tracking of 2026-11-24, the same falls:
+# the tracking window averages out the per-step tracking a falling body's velocity briefly collects).

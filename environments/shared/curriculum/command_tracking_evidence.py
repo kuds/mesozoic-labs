@@ -19,7 +19,7 @@ Every CSV row is one episode record
 then each gait metric under ``gait_<metric>``), its recorded classification
 (``success`` and ``reasons``) and the stamps that bind the panel: the
 profile, the measurement (protocol, the five tolerances, ``yaw_rate_max``,
-the gait measurement), the handoff pair's digests, the reference pair's when
+the gait measurement, the tracking window), the handoff pair's digests, the reference pair's when
 the follow profile rolled one, the task and gate digests, the panel's first
 seed, horizon and control step, and whether the policy was rolled
 deterministically.  A reference row (``role`` ``reference``) is never
@@ -97,12 +97,14 @@ EPISODE_COLUMNS: tuple[str, ...] = tuple(
 #: One column per locomotion metric, ``gait_<metric>``, in ``LocomotionEpisodeMetrics`` order.
 GAIT_COLUMN_PREFIX = "gait_"
 GAIT_COLUMNS: tuple[str, ...] = tuple(f"{GAIT_COLUMN_PREFIX}{name}" for name in LOCOMOTION_METRIC_FIELDS)
-#: The measurement's stamps: the protocol, the gait measurement, ``yaw_rate_max`` and each tolerance.
+#: The measurement's stamps: the protocol, the gait measurement, ``yaw_rate_max``, each tolerance and the tracking
+#: window (``command_panel/v2``, decision D-D64; a panel written under v1 lacks the column and is refused).
 MEASUREMENT_COLUMNS: tuple[str, ...] = (
     "protocol",
     "gait_measurement",
     "yaw_rate_max",
     *(f"tolerance_{name}" for name in TOLERANCE_NAMES),
+    "tracking_window_s",
 )
 #: The panel-wide stamps that bind the rows: what was scored, under which task and gate, on which panel.
 STAMP_COLUMNS: tuple[str, ...] = (
@@ -184,6 +186,7 @@ def _measurement_cells(measurement: Mapping[str, Any]) -> dict[str, Any]:
         "gait_measurement": measurement.get("gait_measurement") or "",
         "yaw_rate_max": float_cell(measurement.get("yaw_rate_max")),
         **{f"tolerance_{name}": float_cell(tolerances.get(name)) for name in TOLERANCE_NAMES},
+        "tracking_window_s": float_cell(measurement.get("tracking_window_s")),
     }
 
 
@@ -345,6 +348,7 @@ def read_command_tracking_panel(csv_path: "str | Path") -> CommandTrackingPanelE
             "gait_measurement": stamps["gait_measurement"],
             "yaw_rate_max": _cell_float(stamps["yaw_rate_max"], column="yaw_rate_max", where=str(path)),
             "tolerances": tolerances,
+            "tracking_window_s": _cell_float(stamps["tracking_window_s"], column="tracking_window_s", where=str(path)),
         }
     )
     policy: list[CommandTrackingEpisode] = []

@@ -62,6 +62,12 @@ yaw_rate_max = 0.3
 # The tracking term: the Gaussian of D-D60, sigmas and tolerances at their speed_scale defaults.  2.5, the pilot
 # recipes' weight, on every model.
 tracking_weight = 2.5
+# The tracking window (D-D64): at a moving command the term, the metrics and the gate read the trailing mean of the
+# last 1.22 s (61 steps of 0.02 s), so a gait's within-stride sway cancels over a stride; a stop is scored per step.
+# The rule on every walk: the stride at the slowest end-state command, 0.5 x cruise (0.04 m/s).  No reference walk
+# runs on this plant, so the stride is the T. rex reference's dimensionless one (T sqrt(g/L) = 3.40 at Froude
+# 0.0445) scaled to this model's Froude number as T sqrt(g/L) ~ Fr^-0.2: L = 0.2396 m (the gait module's), Fr 6.8e-4.
+tracking_window_s = 1.22               # D-D64: 3.40 x (6.8e-4/0.0445)^-0.2 x sqrt(0.2396/9.81) = 1.227 s
 # The cruise ramp (D-D62 (5)): training commands start at 0.25 x these speeds and reach them at 2M steps; the
 # evaluation env and the gate panels run the end state.  The ramp is the same fixed 2M steps on every walk, here
 # 2M of the 3M budget (67%, against 12.5-33% on the other walks), so this walk trains only its last 1M steps at

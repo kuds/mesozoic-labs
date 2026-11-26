@@ -280,6 +280,7 @@ def cruise(gait: dict[str, float] | None, seed: int = 3042, **overrides: Any) ->
         eligible_turns=0,
         settled_turns=0,
         max_course_progress_m=3.6,
+        longest_stop_s=0.0,
         measurement=MEASUREMENT,
         gait_metrics=tuple((gait or {}).items()),
     )

@@ -42,6 +42,11 @@ with the step's end time, reward, termination flags and the root's radial
 course progress, and the episode is reduced by
 :func:`~environments.shared.curriculum.command_tracking_gate.reduce_command_episode`
 under the stage's :class:`~environments.shared.curriculum.command_tracking_gate.PanelMeasurement`.
+The rows carry the env's own tracking errors, which at a moving command are
+the windowed ones when the stage declares a tracking window
+(``tracking_window_s``, decision D-D64), and the measurement records that
+window, so the gate judges exactly the signal the env's metrics and reward
+read; the roll refuses an env whose window differs from the measurement's.
 The floor-truth recorder (``gait.recorder.SubstepContactRecorder``) rides
 the env's substep hook for the whole panel, and each episode's trace is
 reduced to the gait clause's metrics
@@ -264,8 +269,9 @@ def roll_command_panel(
 
     Raises :class:`CommandPanelError` for a stage with no live command, a
     plan that repeats a seed, pairs its seeds and families unevenly or was
-    planned for the other profile, and a reset whose family disagrees with
-    the plan.
+    planned for the other profile, a built env whose tracking window
+    (decision D-D64) is not the measurement's, and a reset whose family
+    disagrees with the plan.
     """
     env_kwargs, command_config = _live_command_kwargs(stage_config.get("env_kwargs") or {})
     if thresholds is None:
@@ -310,6 +316,14 @@ def roll_command_panel(
         horizon = int(raw.max_episode_steps)
         if not (math.isfinite(dt) and dt > 0.0 and horizon > 0):
             raise CommandPanelError("the environment's control step and horizon must be positive")
+        window = getattr(raw, "_tracking_window", None)
+        env_window_s = 0.0 if window is None else window.size * dt
+        if abs(env_window_s - measurement.tracking_window_s) > 1e-6:
+            raise CommandPanelError(
+                f"the environment judges a moving command on a {env_window_s:g} s tracking window and the panel's "
+                f"measurement records {measurement.tracking_window_s:g} s; the gate would read another signal than "
+                "the env's metrics"
+            )
         reset_predict = getattr(predict, "reset", None)
         for index, (seed, family) in enumerate(zip(plan.seeds, plan.families)):
             obs, _ = env.reset(seed=int(seed))

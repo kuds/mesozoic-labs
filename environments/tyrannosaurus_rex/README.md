@@ -147,9 +147,13 @@ the terms that read a forward direction measure along the commanded heading. On 
 it) pays the stance's reward weights, so zero means stand still, not march in place. The commanded speeds ramp from
 0.25 of their end values to the full range over the first 2M training steps. After training the walk is judged on its
 `command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
-gait clause with its flight cap (Froude 0.12 at cruise). The bars are provisional, and no controller has yet been
-shown to clear them; the reference walk sways within its stride, so at a command it matches it reads tracking quality
-0.14 a step and fails the tracking bars (decision D-D62 (16)).
+gait clause with its flight cap (Froude 0.12 at cruise). The bars are provisional, and no controller has yet passed
+the committed panel (decision D-D62 (16)). The reference walk sways within its stride, so the tracking term and the gate
+score a moving command on the trailing mean of the last 1.12 s, about one stride (`[commands] tracking_window_s`,
+decision D-D64). At a command it matches (0.633 m/s) the reference walk then reads tracking quality 0.84 (0.13 a step
+on its own), clears the in-tolerance fraction and the speed ratio, and fails `heading_settle` on 20 of 20, on its
+scripted start: a centred stride mean of its speed reaches the speed tolerance at about 1.95 s, so the gate's trailing
+window first reads in tolerance at about 2.5 s, after the 2.12 s allowance. A quicker start passes every episode.
 
 The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
 frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot (pad and toes) and the

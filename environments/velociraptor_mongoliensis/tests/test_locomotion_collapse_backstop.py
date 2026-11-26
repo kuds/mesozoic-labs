@@ -13,10 +13,11 @@ statue's cruise episodes alone come nowhere near it, while a walk that tracks it
 draw k afresh at every evaluation keep those per-evaluation draws as a superset of the real variance.
 
 The statue's family rewards below were measured on the committed walk with the zero action (physics r6,
-2026-11-24): the 37 cruise episodes of seeds 3042-3081 (``zero_action_baseline.score``), 499.76 +/- 0.93 (497.92 to
-503.28), and the first 10 stand seeds from 3042 (3052, 3060, 3074, 3082, 3112, 3117, 3120, 3121, 3127, 3130),
-5709.24 +/- 25.79 (5675.11 to 5740.73).  The real-plant tests re-measure one episode of each family and one of the
-reference walk.
+2026-11-26, with the tracking window of decision D-D64): the 37 cruise episodes of seeds 3042-3081
+(``zero_action_baseline.score``), 499.76 +/- 0.92 (497.92 to 503.26; 499.76 +/- 0.93 per step), and the first 10
+stand seeds from 3042 (3052, 3060, 3074, 3082, 3112, 3117, 3120, 3121, 3127, 3130), 5709.24 +/- 25.79 (5675.11 to
+5740.73; a stop is scored per step, so the stand family is unchanged).  The 40-episode statue reference, 891.35, did
+not move.  The real-plant tests re-measure one episode of each family and one of the reference walk.
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ from environments.velociraptor_mongoliensis.scripts.reference_walk import Refere
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 
 #: The statue's episode reward on the committed walk, per family: mean and standard deviation.
-STATUE_CRUISE = (499.76, 0.93)
+STATUE_CRUISE = (499.76, 0.92)
 STATUE_STAND = (5709.24, 25.79)
 #: Episodes per in-training evaluation (train_base._DEFAULT_EVAL_EPISODES) and its spacing in steps.
 EVAL_EPISODES = 30
@@ -219,9 +220,10 @@ def test_the_statue_reads_the_family_rewards_the_floor_is_derived_from(walk_env,
 def test_a_walk_that_tracks_its_command_clears_the_floor_and_its_collapse_still_stops(walk_env):
     """The reference walk under a command matched to its own speed, on the real plant, as the walking estimate.
 
-    Its episode reward (the alive bonus and the tracking term at quality about 0.8 once it walks) gives the cruise
-    family of a walker; with stand episodes at the statue's, its expected evaluation clears the floor, and a
-    simulated run that stands to 2.5M, walks to 5M and then falls is stopped from a peak above the floor.
+    Its episode reward (the alive bonus and the tracking term at quality about 0.97 once it walks, with the tracking
+    window of decision D-D64; about 0.8 per step) gives the cruise family of a walker, 2755 on seed 3042; with stand
+    episodes at the statue's, its expected evaluation clears the floor by half again (3198), and a simulated run
+    that stands to 2.5M, walks to 5M and then falls is stopped from a peak above the floor.
     """
     raw = walk_env.unwrapped
     walk_env.reset(seed=3042)
@@ -232,10 +234,11 @@ def test_a_walk_that_tracks_its_command_clears_the_floor_and_its_collapse_still_
         _, reward, terminated, truncated, _ = walk_env.step(walker.action(raw.data, raw.dt))
         total += float(reward)
     assert truncated and not terminated
+    assert 2700.0 <= total <= 2820.0
     stop_probability = _walk()["env_kwargs"]["command_config"].stop_probability
     settings = _settings()
     expected = (1 - stop_probability) * total + stop_probability * STATUE_STAND[0]
-    assert expected > 1.25 * settings["peak_floor"]
+    assert expected > 1.45 * settings["peak_floor"]
 
     rng = np.random.default_rng(2042)
     standing = [_mixed_evaluation(rng, stop_probability) for _ in range(50)]

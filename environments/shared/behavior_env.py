@@ -64,8 +64,10 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     the live rules would move no recipe reward, only diagnostics such as
     ``forward_vel`` and ``drift_distance`` (and the Allosaurus' course
     events), which the pilot rollout golden pins.  A recipe's command config
-    may declare no stand block and no cruise ramp: the recipe pipeline runs
-    neither (the follow nodes that supersede it will).
+    may declare no stand block, no cruise ramp and no tracking window
+    (decision D-D64): the recipe pipeline runs none of them (the follow
+    nodes that supersede it will), and the behavior certificate judges the
+    per-step signal.
     """
 
     model_id: ModelId
@@ -91,10 +93,12 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         if not np.isfinite(course_distance) or course_distance <= 0:
             raise ValueError("course_distance must be finite and positive")
         commands = commands or DirectionCommandConfig()
-        if commands.stand_weights or commands.has_cruise_ramp:
+        unrecorded_window = DirectionCommandConfig.UNRECORDED_VALUES["tracking_window_s"]
+        if commands.stand_weights or commands.has_cruise_ramp or commands.tracking_window_s != unrecorded_window:
             raise ValueError(
-                "a behavior recipe's commands declare no stand_weights and no cruise ramp: the recipe pipeline runs "
-                "neither (decision D-D62)"
+                "a behavior recipe's commands declare no stand_weights, no cruise ramp and no tracking window: the "
+                "recipe pipeline runs none of them, and the behavior certificate reads the per-step signal "
+                "(decisions D-D62, D-D64)"
             )
         unrecorded_weight = DirectionCommandConfig.UNRECORDED_VALUES["tracking_weight"]
         if commands.tracking_weight != unrecorded_weight:

@@ -33,9 +33,13 @@ from .direction_commands import (
     DirectionCommandConfig,
     DirectionCommandController,
     DirectionCommandState,
+    TrackingWindow,
     gaussian_tracking_reward,
     tracking_metrics,
+    tracking_window_sample,
+    tracking_window_steps,
     validate_command_task,
+    windowed_tracking_metrics,
     wrap_angle,
 )
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
@@ -214,8 +218,11 @@ class BaseDinoEnv(gym.Env, ABC):
     # (``_forward_reference_2d``, ``_drift_anchor_2d``), the idle penalty
     # is not paid at an exactly zero command, and a step taken under an
     # exactly zero command runs with the command config's stand weights
-    # (``_stand_block``; decision D-D62).  Under "none" all of these are the
-    # spawn's anchors and the constructor's weights, exactly as before.
+    # (``_stand_block``; decision D-D62).  A live config with a tracking
+    # window scores a moving command on the window's trailing means
+    # (``_tracking_window``; decision D-D64).  Under "none" all of these are
+    # the spawn's anchors and the constructor's weights, and no window
+    # exists, exactly as before.
     _command: "np.ndarray"
 
     # Optional zero-argument callable invoked after EVERY physics substep in
@@ -378,15 +385,22 @@ class BaseDinoEnv(gym.Env, ABC):
         # config, so they ride in the command manifest and no "none" stage's
         # task fingerprint carries them.  The metrics and the dwell (seconds
         # in tolerance since the event began) are per step and per episode.
+        # The tracking window (decision D-D64): with a positive
+        # tracking_window_s, the trailing means a moving command is scored on;
+        # None under "none" and for a per-step config (tracking_window_s 0).
         self._command_metrics: dict[str, Any] = {}
         self._tracking_dwell_s = 0.0
         self._heading_before = 0.0
+        self._tracking_window: TrackingWindow | None = None
         if command_config is not None:
             tracking = command_config.tracking_parameters()
             self.tracking_weight = float(tracking["weight"])
             self.tracking_velocity_sigma = float(tracking["velocity_sigma"])
             self.tracking_yaw_rate_sigma = float(tracking["yaw_rate_sigma"])
             self.tracking_tolerances: dict[str, float] = dict(tracking["tolerances"])
+            window_steps = tracking_window_steps(command_config.tracking_window_s, self.dt)
+            if window_steps:
+                self._tracking_window = TrackingWindow(window_steps)
         # The command stream's bookkeeping (_command_rng): the reset generator
         # the episode index counts from, and that index.
         self._command_stream_source: np.random.Generator | None = None
@@ -1350,8 +1364,10 @@ class BaseDinoEnv(gym.Env, ABC):
         nothing to the seeded reset draw stream.  Under a live mode: the
         controller's episode start, seeded from :meth:`_command_rng` (the
         command stream, which draws nothing from ``np_random``), at the root's
-        heading; the full state is kept for the reward.  Phase D replaced THIS body -- never reset(), whose source is
-        fingerprinted as the home_reset policy interface
+        heading; the full state is kept for the reward, and the tracking window
+        (decision D-D64) is emptied, so an episode's first step is scored on
+        its own sample.  Decision D-D60 replaced THIS body -- never reset(),
+        whose source is fingerprinted as the home_reset policy interface
         (plant_contract/policy_layer.py).
         """
         if self.direction_controller is None:
@@ -1359,6 +1375,8 @@ class BaseDinoEnv(gym.Env, ABC):
             return command
         self._tracking_dwell_s = 0.0
         self._command_metrics = {}
+        if self._tracking_window is not None:
+            self._tracking_window.clear()
         self._command_state = self.direction_controller.reset(self._command_rng(), self._heading())
         # The episode's first request, and the drift anchor of its event: the spawn (decision D-D62).
         self._reset_command_state = self._command_state
@@ -1440,6 +1458,36 @@ class BaseDinoEnv(gym.Env, ABC):
         (:func:`~environments.shared.direction_commands.tracking_metrics`, the
         command state's ``as_info`` and ``heading_error_rad``) are kept for the
         step's info, and the dwell grows by ``dt`` while in tolerance.
+
+        With a tracking window (``tracking_window_s > 0``, decision D-D64)
+        every step's sample enters the window (a stop's too; it is emptied
+        only at reset), and at a moving command the velocity, yaw-rate and
+        requested-speed errors, both in-tolerance flags, the dwell and the
+        tracking term read the window's means
+        (:func:`~environments.shared.direction_commands.windowed_tracking_metrics`):
+        a walking gait's within-stride sway, which is not a tracking error,
+        cancels over a stride.  The heading error, the ``actual_*`` keys and
+        everything at a zero command stay per step, so a stand is judged as
+        before and stepping in place cannot average into one.
+
+        At a moving command the term is then a function of the last
+        ``tracking_window_s`` of the episode, which the observation does not
+        hold (the policy interface is unchanged).  That is acceptable here:
+        the window holds the policy's own trajectory and the command, which
+        it observes; it is about one stride (0.7-1.5 s), within the walks'
+        discount horizon and the dwell and settle scales; it is emptied every
+        episode; in steady state it holds the policy's own periodic gait,
+        which the observed phase and velocities largely determine, and the
+        transients it does not determine are what the gate's window-fill
+        allowance excuses; measured on the reference gaits, the part of the
+        term the current observation leaves unexplained is comparable to the
+        per-step term's: slightly larger by an MLP fit (an RMS quality
+        residual of 0.010-0.050 against 0.006-0.039, 0.005-0.013 more by
+        model, at most about 0.03 reward a step) and smaller by a ridge fit (a
+        residual standard deviation a step after 4 s of 0.053-0.137 against
+        0.056-0.285); and it replaces a
+        per-step pelvis sway the observation could not predict either (a
+        per-step quality of 0.13-0.34 on walks that match the command).
         """
         reward, info = self._get_reward_info(action)
         state = self._command_state
@@ -1450,7 +1498,11 @@ class BaseDinoEnv(gym.Env, ABC):
         metrics = tracking_metrics(
             state, self.data.qvel[:2], yaw_rate, current_heading=heading, **self.tracking_tolerances
         )
-        self._command_metrics = {**state.as_info(), **metrics}
+        command_info = state.as_info()
+        if self._tracking_window is not None:
+            means = self._tracking_window.push(tracking_window_sample({**command_info, **metrics}))
+            metrics = windowed_tracking_metrics(metrics, means, **self.tracking_tolerances)
+        self._command_metrics = {**command_info, **metrics}
         self._command_metrics["heading_error_rad"] = (
             float(wrap_angle(state.desired_heading - heading)) if state.heading_active else 0.0
         )

@@ -63,6 +63,15 @@ yaw_rate_max = 0.3
 # The tracking term: the Gaussian of D-D60, sigmas and tolerances at their speed_scale defaults.  2.5, the pilot
 # recipes' weight, on every model.
 tracking_weight = 2.5
+# The tracking window (D-D64): at a moving command the term, the metrics and the gate read the trailing mean of the
+# last 0.70 s (70 steps of 0.01 s), so a gait's within-stride sway cancels over a stride; a stop is scored per step.
+# The rule on every walk: the stride at the slowest end-state command, 0.5 x cruise (1.05 m/s); the reference walks
+# slower, so its own stride is an upper bound (strides shorten with speed).  Measured with it (2026-11-26, the walk
+# panel's 20 cruise episodes): the reference walk under a command matched to its 0.257 m/s earns 2.22 a step of the
+# 2.5 (quality 0.96 after 2 s; 1.91 and 0.79 per step) and is in tolerance on 99% of its steps after the settle
+# (97% per step), settling 20/20 (18/20 per step); one episode, seed 3045, falls at step 373 and its truncated
+# trace also fails the lead-swap bar, the other 19 passing every bar.  The statue earns 0.0004.
+tracking_window_s = 0.70               # D-D64: the reference's own 0.70 s stride at 0.257 m/s (0.12 x cruise)
 # The cruise ramp (D-D62 (5)): training commands start at 0.25 x these speeds and reach them at 2M steps; the
 # evaluation env and the gate panels run the end state.
 cruise_ramp_start_fraction = 0.25
@@ -176,9 +185,11 @@ collapse_peak_floor_reference = 891.3   # The zero-action statue's reward on thi
                                         # episodes, seeds 3042-3081, 40/40 full horizon, physics r6, measured
                                         # 2026-11-24 with environments/shared/scripts/zero_action_baseline.py
                                         # --model-id velociraptor_mongoliensis anatomical --stage 2 --episodes 40
-                                        # --seed 3042. A mix of the two families: 37 cruise episodes 499.76 +/- 0.93
-                                        # (0.500 a step, the alive bonus; tracking 0.30 an episode: the statue tracks
-                                        # no cruise command) and 3 stand episodes (seeds 3052, 3060, 3074). Over
+                                        # --seed 3042, and again on 2026-11-26 with the tracking window (D-D64):
+                                        # unchanged at this precision. A mix of the two families: 37 cruise episodes
+                                        # 499.76 +/- 0.92 (+/- 0.93 per step; 0.500 a step, the alive bonus; tracking
+                                        # 0.30 an episode: the statue tracks no cruise command) and 3 stand episodes
+                                        # (seeds 3052, 3060, 3074; a stop is scored per step either way). Over
                                         # those 3 and the next 7 stand seeds (3082, 3112, 3117, 3120, 3121, 3127,
                                         # 3130) a stand episode reads 5709.2 +/- 25.8 (5.71 a step: 2743.4 of it the
                                         # stand block's weights, 2466.2 the stop's tracking, 499.7 the [env] terms);
@@ -198,9 +209,12 @@ collapse_peak_floor_fraction = 2.4      # floor = 2.4 x 891.3 = 2139.1, above ev
                                         # (499.8) is 0.23 of it.  A walker clears it at a mean cruise-episode reward
                                         # of (2139.1 - 0.15 x 5709.2) / 0.85 = 1509, a tracking quality of 0.40 on
                                         # top of the 0.5 alive bonus: the reference walk (scripts/reference_walk.py)
-                                        # under a command matched to its own 0.257 m/s reads 2.55 a step, quality
-                                        # 0.82 (decision D-D62; the shared forward walk's 0.45 put the floor at
-                                        # 401.1, under the cruise statue).
+                                        # under a command matched to its own 0.257 m/s reads 2623.4 a cruise episode
+                                        # on the walk panel with the tracking window (2.71 a step, quality 0.96 after
+                                        # 2 s; seed 3045's fall at step 373 included; per step 2322.1, 2.40 and
+                                        # 0.79), an expected evaluation of 0.85 x 2623.4 + 0.15 x 5709.2 = 3086,
+                                        # 1.44 x the floor (decisions D-D62, D-D64; the shared forward walk's 0.45
+                                        # put the floor at 401.1, under the cruise statue).
 statue_constants_physics_revision = 6   # The velociraptor PHYSICS revision the reference was measured on.
                                         # test_statue_constant_freshness.py holds this pin against the plant
                                         # manifest, so a plant bump that forgets the re-measure fails CI.

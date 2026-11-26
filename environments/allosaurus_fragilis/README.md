@@ -125,13 +125,17 @@ the environment reports `course_complete` on the step the pelvis has advanced 7.
 a 0.35 m tolerance) while at least one foot bears weight, and `success` from then on. It is an event, not a
 termination, and no gate criterion; a stand episode has no course. After training the walk is judged on its
 `command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
-gait clause with its flight cap. The bars are provisional, and no controller has yet been shown to clear them: the
-reference walk sways within its stride, so at a command it matches it reads tracking quality 0.14 a step and fails the
-tracking bars (decision D-D62 (16)). Under command_mode "none" the course runs along the spawn heading while the
-forward weight is positive and ends the episode. The finish is a line across the heading, so a sideways offset neither
-prevents nor causes it. Until policy interface r2 an invisible target sat 8 m ahead and the course ended within 0.35 m
-of it; the scene now holds only the animal and the floor. The stance deliverable is judged on supported standing
-instead; the catalog entry gives its definition.
+gait clause with its flight cap. The bars are provisional, and no controller has yet passed the committed panel
+(decision D-D62 (16)). The reference walk sways within its stride, so the tracking term and the gate score a moving
+command on the trailing mean of the last 1.31 s, the stride at half the cruise speed (`[commands] tracking_window_s`,
+decision D-D64). At a command it matches (0.345 m/s) the reference walk then reads tracking quality 0.80 (0.14 a step
+on its own), clears the in-tolerance fraction and the speed ratio, and fails `heading_settle` on 20 of 20, on its
+scripted start: a centred stride mean of its speed reaches the speed tolerance at about 2.70 s, so the gate's trailing
+window first reads in tolerance at about 3.5 s, after the 2.31 s allowance. Under command_mode
+"none" the course runs along the spawn heading while the forward weight is positive and ends the episode. The finish
+is a line across the heading, so a sideways offset neither prevents nor causes it. Until policy interface r2 an
+invisible target sat 8 m ahead and the course ended within 0.35 m of it; the scene now holds only the animal and the
+floor. The stance deliverable is judged on supported standing instead; the catalog entry gives its definition.
 
 The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
 frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot and the command, 41 values

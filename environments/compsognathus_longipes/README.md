@@ -154,7 +154,11 @@ end values to the full range over the first 2M training steps. After training th
 `command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
 gait clause with its flight cap. The bars are provisional, and no controller has yet been shown to clear them; the
 tracking width (0.02 m/s, the robot 0.01 m/s) lies under the estimated lateral sway of a stepping gait on these
-plants, and neither has a walking controller to measure it (decision D-D62 (16)).
+plants, and neither has a walking controller to measure it (decision D-D62 (16)). The tracking term and the gate score
+a moving command on the trailing mean of the last 1.22 s (the robot 1.50 s), a stride estimated from the leg length at
+half the cruise speed (`[commands] tracking_window_s`, decision D-D64). That only partly relieves the risk: on a
+pendulum model of the sway, the windowed error fits the tolerance for about half of the plausible strides at the
+anatomical model's home support width, and for about one in seven on the robot's (decision D-D64 (7)).
 
 Both observations read no world heading (`bipedal-heading-free/v1`): the joint positions and velocities, projected
 gravity, the pelvis gyro, the pelvis velocity in a gravity-aligned heading frame, the pelvis accelerometer, one force

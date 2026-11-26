@@ -32,10 +32,11 @@ A CRUISE episode succeeds when all of these hold:
 
 * it reaches the horizon (no fall, no termination);
 * its first command event settles: the first in-tolerance run starts within
-  ``SETTLE_BASE_S + |initial heading error| / yaw_rate_max`` and lasts
-  ``DWELL_S`` (``behavior_evaluation.summarize_episode``'s event logic, with
-  the episode's own initial heading error measured against the spawn
-  heading);
+  SETTLE_BASE_S + |e0|/yaw_rate_max + the unfilled tracking window (the
+  stage's ``tracking_window_s``, all of it for the walk's one event, which
+  starts at reset; decision D-D64) and lasts ``DWELL_S``
+  (``behavior_evaluation.summarize_episode``'s event logic, with ``e0`` the
+  episode's own initial heading error measured against the spawn heading);
 * its in-tolerance fraction over the steps after their event's settling
   allowance reaches ``min_cruise_tracking_fraction``;
 * its mean speed along the desired heading over the active steps after
@@ -174,13 +175,19 @@ Tolerances and the measurement
 The in-tolerance test is the env's own (``tracking_metrics``), with the
 tolerances the stage's command config resolves
 (``DirectionCommandConfig.tracking_parameters``); a ``gate_*_tolerance`` key
-replaces one for the gate.  Each episode record carries the
+replaces one for the gate.  At a moving command its velocity, yaw-rate and
+requested-speed errors are the env's windowed ones when the stage declares a
+tracking window (``tracking_window_s``, decision D-D64: differences of the
+trailing means over the window, so a gait's within-stride sway cancels),
+which every step row carries; the heading error, the speed ratio and the
+stop test read the step's own values.  Each episode record carries the
 :class:`PanelMeasurement` it was reduced under (the protocol, the five
-tolerances, ``yaw_rate_max`` and the gait metrics' definitions), and the
-gate refuses a record measured under another one: its fractions answer a
-different question.  The timing
-constants are part of the protocol (:data:`COMMAND_PANEL_PROTOCOL`), not
-threshold keys; another settle or dwell is another protocol.
+tolerances, ``yaw_rate_max``, the gait metrics' definitions and the tracking
+window), and the gate refuses a record measured under another one: its
+fractions answer a different question.  The timing constants and the
+window-fill allowance are part of the protocol
+(:data:`COMMAND_PANEL_PROTOCOL`), not threshold keys; another settle or
+dwell is another protocol.
 
 Provisional values
 ------------------
@@ -234,11 +241,19 @@ FAMILIES: tuple[str, ...] = (CRUISE_FAMILY, STAND_FAMILY)
 #: The measurement protocol every episode record is reduced under: the event
 #: logic's settle base and dwell, the walk speed window and the stand hold
 #: window below, and the certificate's turn test.  Another value of any of
-#: them is another protocol.
-COMMAND_PANEL_PROTOCOL = "command_panel/v1"
+#: them is another protocol.  v2 (decision D-D64) judges a moving command's
+#: in-tolerance flag on the env's windowed errors (the stage's
+#: ``tracking_window_s``; a stop stays per step), adds the window-fill
+#: allowance to a moving event's settle (the part of the window still
+#: unfilled when the event starts) and records the report-only longest stop
+#: (``CommandTrackingEpisode.longest_stop_s``); every v1 timing constant is
+#: unchanged.  A record or report measured under v1 is refused.
+COMMAND_PANEL_PROTOCOL = "command_panel/v2"
 
 #: ``summarize_episode``'s settling base: an event's settling allowance is
-#: this plus ``|initial heading error| / yaw_rate_max`` (seconds).
+#: this plus ``|initial heading error| / yaw_rate_max`` (seconds), and a
+#: moving event's adds the part of the tracking window still unfilled when it
+#: starts (protocol v2, decision D-D64).
 SETTLE_BASE_S = 1.0
 #: ``summarize_episode``'s dwell: a settled event's in-tolerance run lasts this long (seconds).
 DWELL_S = 1.0
@@ -246,6 +261,10 @@ DWELL_S = 1.0
 SPEED_SETTLE_S = 2.0
 #: The stand hold fraction reads the steps that end after this time (seconds).
 STAND_SETTLE_S = 1.0
+#: The report-only longest stop (``CommandTrackingEpisode.longest_stop_s``, decision D-D64) counts the active
+#: steps after :data:`SPEED_SETTLE_S` whose speed along the requested heading is below this fraction of the
+#: requested speed.
+LONGEST_STOP_SPEED_FRACTION = 0.25
 #: A turn is an active event whose requested heading differs from the previous
 #: event's by more than this (radians): the certificate's test.
 TURN_HEADING_CHANGE_RAD = 0.05
@@ -864,11 +883,15 @@ def thresholds_from_curriculum(curriculum: Mapping[str, Any]) -> CommandTracking
 
 @dataclass(frozen=True)
 class PanelMeasurement:
-    """What a panel's episodes were reduced under: the protocol, the five tolerances, ``yaw_rate_max`` and the gait metrics.
+    """What a panel's episodes were reduced under: the protocol, the five tolerances, ``yaw_rate_max``, the gait metrics and the tracking window.
 
     ``tolerances`` is ``(tracking_metrics keyword, value)`` pairs in
-    :data:`TOLERANCE_NAMES` order.  Two records answer the same question
-    only when their measurements are equal.
+    :data:`TOLERANCE_NAMES` order.  ``tracking_window_s`` is the window the
+    env judged a moving command's errors on (the stage's
+    ``DirectionCommandConfig.tracking_window_s``, decision D-D64; 0 per
+    step), which the window-fill allowance adds.  Two records answer the
+    same question only when their measurements are equal, the protocol and
+    the window included.
     """
 
     tolerances: tuple[tuple[str, float], ...]
@@ -877,6 +900,7 @@ class PanelMeasurement:
     #: What the episode's ``gait_metrics`` mean: the floor-truth measurement
     #: version and the locomotion metrics' (``gait.locomotion_metrics.GAIT_MEASUREMENT``).
     gait_measurement: str = GAIT_MEASUREMENT
+    tracking_window_s: float = 0.0
 
     def tolerance(self, name: str) -> float:
         return dict(self.tolerances)[name]
@@ -887,6 +911,7 @@ class PanelMeasurement:
             "tolerances": dict(self.tolerances),
             "yaw_rate_max": self.yaw_rate_max,
             "gait_measurement": self.gait_measurement,
+            "tracking_window_s": self.tracking_window_s,
         }
 
     @classmethod
@@ -894,14 +919,23 @@ class PanelMeasurement:
         """The inverse of :meth:`as_dict`, strict: exactly its keys, the five tolerances, finite numbers.
 
         A missing or extra key, a tolerance set other than :data:`TOLERANCE_NAMES`,
-        a non-finite or non-numeric value or a non-string protocol is a
-        ``ValueError``: a measurement read back is compared field by field
-        against the gate's, and a reading that guessed a field would compare
-        equal to nothing or to the wrong thing.
+        a non-finite or non-numeric value, a negative tracking window or a
+        non-string protocol is a ``ValueError``: a measurement read back is
+        compared field by field against the gate's, and a reading that
+        guessed a field would compare equal to nothing or to the wrong
+        thing.  A ``command_panel/v1`` measurement, which records no
+        ``tracking_window_s``, is refused naming it.
         """
         if not isinstance(payload, Mapping) or set(payload) != _MEASUREMENT_KEYS:
-            shown = sorted(payload) if isinstance(payload, Mapping) else type(payload).__name__
-            raise ValueError(f"a panel measurement records exactly {sorted(_MEASUREMENT_KEYS)}, not {shown}")
+            if not isinstance(payload, Mapping):
+                raise ValueError(
+                    f"a panel measurement records exactly {sorted(_MEASUREMENT_KEYS)}, not {type(payload).__name__}"
+                )
+            missing, extra = sorted(_MEASUREMENT_KEYS - set(payload)), sorted(set(payload) - _MEASUREMENT_KEYS)
+            raise ValueError(
+                f"a panel measurement records exactly {sorted(_MEASUREMENT_KEYS)} (missing {missing}, extra {extra}); "
+                f"a {COMMAND_PANEL_PROTOCOL} measurement records its tracking_window_s"
+            )
         tolerances = payload["tolerances"]
         if not isinstance(tolerances, Mapping) or set(tolerances) != set(TOLERANCE_NAMES):
             shown = sorted(tolerances) if isinstance(tolerances, Mapping) else tolerances
@@ -909,6 +943,9 @@ class PanelMeasurement:
         for key in ("protocol", "gait_measurement"):
             if not isinstance(payload[key], str) or not payload[key]:
                 raise ValueError(f"a panel measurement's {key} is a non-empty string, not {payload[key]!r}")
+        window = _record_number(payload["tracking_window_s"], field="tracking_window_s")
+        if window < 0.0:
+            raise ValueError(f"a panel measurement's tracking_window_s is at least 0, not {window!r}")
         return cls(
             tolerances=tuple(
                 (name, _record_number(tolerances[name], field=f"tolerance {name}")) for name in TOLERANCE_NAMES
@@ -916,10 +953,11 @@ class PanelMeasurement:
             yaw_rate_max=_record_number(payload["yaw_rate_max"], field="yaw_rate_max"),
             protocol=str(payload["protocol"]),
             gait_measurement=str(payload["gait_measurement"]),
+            tracking_window_s=window,
         )
 
 
-_MEASUREMENT_KEYS = frozenset({"protocol", "tolerances", "yaw_rate_max", "gait_measurement"})
+_MEASUREMENT_KEYS = frozenset({"protocol", "tolerances", "yaw_rate_max", "gait_measurement", "tracking_window_s"})
 
 
 def _record_number(value: Any, *, field: str, allow_unmeasured: bool = False) -> float:
@@ -959,13 +997,16 @@ def panel_measurement(command_config: Any, thresholds: CommandTrackingThresholds
     (``command_config.tracking_parameters()["tolerances"]``), each replaced
     by its ``gate_*_tolerance`` key where the thresholds declare one;
     ``yaw_rate_max`` is the command config's (the settling allowance divides
-    by it).  *command_config* is a ``direction_commands.DirectionCommandConfig``.
+    by it), and so is ``tracking_window_s`` (the window the env judges a
+    moving command on, decision D-D64).  *command_config* is a
+    ``direction_commands.DirectionCommandConfig``.
     """
     resolved = dict(command_config.tracking_parameters()["tolerances"])
     resolved.update(dict(thresholds.tolerance_overrides))
     return PanelMeasurement(
         tolerances=tuple((name, float(resolved[name])) for name in TOLERANCE_NAMES),
         yaw_rate_max=float(command_config.yaw_rate_max),
+        tracking_window_s=float(command_config.tracking_window_s),
     )
 
 
@@ -1008,6 +1049,25 @@ class CommandTrackingEpisode:
     locomotion metrics (``LocomotionEpisodeMetrics.as_gait_metrics()``, every
     field by name), which the gait clause reads; empty for a record reduced
     without them, whose gait bars then fail as unmeasured.
+
+    ``longest_stop_s`` (protocol v2, decision D-D64) is report-only: over the
+    active steps the speed ratio reads (a positive requested speed, ending
+    after :data:`SPEED_SETTLE_S`), the longest contiguous run whose speed
+    along the requested heading is below
+    :data:`LONGEST_STOP_SPEED_FRACTION` of the requested speed, in seconds;
+    NaN when no step qualifies.  No classifier reads it.  It is the one
+    statistic that sees a stop-and-go whose cycle divides the tracking
+    window, which the window's means cannot.  It separates panels, not
+    single episodes: as the panel maximum (``summarize_command_panel``'s
+    ``max``) the references and steady walkers read at most 0.20 s and every
+    stop-and-go scripted to a full stop at least 0.36 s.  It sees full stops
+    only: a pause the body coasts through above that fraction of the
+    requested speed reads 0.18-0.26 s (a T. rex at 2/3 duty and cycle W
+    0.18-0.21 s, a velociraptor at 2/3 duty 0.26 s).  Per episode the values
+    overlap
+    (a T. rex stop-and-go reads 0.15-0.44 s, 5 of 10 episodes at most
+    0.24 s; a brachiosaurus start sprint, no stop-and-go, 0.16-0.54 s; a
+    brachiosaurus heading wiggle 0.33-0.63 s; the reference walks 0.0 s).
     """
 
     episode: int
@@ -1036,6 +1096,7 @@ class CommandTrackingEpisode:
     eligible_turns: int
     settled_turns: int
     max_course_progress_m: float
+    longest_stop_s: float
     measurement: PanelMeasurement
     gait_metrics: tuple[tuple[str, float], ...] = field(default=())
 
@@ -1168,6 +1229,7 @@ _EPISODE_FLOAT_FIELDS: tuple[str, ...] = (
     "mean_desired_speed_mps",
     "stand_hold_fraction",
     "max_course_progress_m",
+    "longest_stop_s",
 )
 
 
@@ -1204,10 +1266,13 @@ def sample_in_tolerance(row: Mapping[str, Any], measurement: PanelMeasurement) -
     Active (a positive requested speed): the velocity and yaw-rate errors of
     the executed command within their tolerances, the heading error within
     the heading tolerance and the speed error against the request within the
-    velocity tolerance.  At a stop: the speed within the stop-speed
-    tolerance and ``|yaw rate|`` within the stop yaw-rate tolerance.  A step
-    missing a field the test or ``summarize_episode``'s tracking check reads
-    is not in tolerance.
+    velocity tolerance.  The three errors are the row's, which are the env's
+    windowed ones when the stage declares a tracking window (decision D-D64:
+    differences of the trailing means over ``measurement.tracking_window_s``),
+    and the heading error is the step's own.  At a stop, per step: the
+    step's speed within the stop-speed tolerance and its ``|yaw rate|``
+    within the stop yaw-rate tolerance.  A step missing a field the test or
+    ``summarize_episode``'s tracking check reads is not in tolerance.
     """
     actual_speed = _finite(row.get("actual_speed"))
     yaw_rate = _finite(row.get("actual_yaw_rate"))
@@ -1271,8 +1336,10 @@ def reduce_command_episode(
     which the first event's initial heading error is measured from.  Each
     row's in-tolerance flag is recomputed at *measurement*'s tolerances
     before ``summarize_episode`` reads it, so a gate override applies to
-    every statistic.  Raises ``ValueError`` for rows ``summarize_episode``
-    refuses or an empty schedule.
+    every statistic, and a moving event's settle allowance adds the unfilled
+    part of *measurement*'s tracking window (``window_fill_s``, decision
+    D-D64).  Raises ``ValueError`` for rows ``summarize_episode`` refuses or
+    an empty schedule.
     """
     if not planned_events:
         raise ValueError("a panel episode plans at least the command event its reset draws")
@@ -1287,6 +1354,7 @@ def reduce_command_episode(
         yaw_rate_max=measurement.yaw_rate_max,
         settling_base_s=SETTLE_BASE_S,
         dwell_s=DWELL_S,
+        window_fill_s=measurement.tracking_window_s,
     )
     events = summary["events"]
     by_id = {int(event["event_id"]): event for event in events}
@@ -1295,6 +1363,8 @@ def reduce_command_episode(
     along: list[float] = []
     requested: list[float] = []
     hold: list[bool] = []
+    stop_run = longest_stop = 0
+    stop_measured = False
     for row, flag in zip(judged, flags):
         time_s = float(row["time_s"])
         event = by_id.get(int(row["command_event_id"]))
@@ -1302,8 +1372,15 @@ def reduce_command_episode(
             after_settle.append(flag)
         speed = _finite(row.get("desired_speed"))
         if speed is not None and speed > 0.0 and time_s > SPEED_SETTLE_S + 1e-9:
-            along.append(speed_along_heading(row))
+            speed_along = speed_along_heading(row)
+            along.append(speed_along)
             requested.append(speed)
+            # The report-only longest stop: a NaN speed (unrecorded) is not a stop.
+            stop_measured = True
+            stop_run = stop_run + 1 if speed_along < LONGEST_STOP_SPEED_FRACTION * speed else 0
+            longest_stop = max(longest_stop, stop_run)
+        else:
+            stop_run = 0
         if time_s > STAND_SETTLE_S + 1e-9:
             hold.append(flag)
 
@@ -1354,6 +1431,7 @@ def reduce_command_episode(
         eligible_turns=len(turns),
         settled_turns=sum(1 for event in turns if event["settled"]),
         max_course_progress_m=float(summary["max_course_progress_m"]),
+        longest_stop_s=longest_stop * float(dt) if stop_measured else math.nan,
         measurement=measurement,
         gait_metrics=tuple((str(key), float(value)) for key, value in (gait_metrics or {}).items()),
     )
@@ -1434,7 +1512,11 @@ def classify_cruise_episode(episode: CommandTrackingEpisode, thresholds: WalkThr
     if horizon is not None:
         reasons.append(horizon)
     if not episode.first_event_settled:
-        allowance = SETTLE_BASE_S + episode.initial_heading_error_rad / episode.measurement.yaw_rate_max
+        # The walk's one event starts at reset, so the whole tracking window is unfilled (decision D-D64).
+        measurement = episode.measurement
+        allowance = (
+            SETTLE_BASE_S + episode.initial_heading_error_rad / measurement.yaw_rate_max + measurement.tracking_window_s
+        )
         reasons.append(
             f"{HEADING_SETTLE_REASON}: the initial heading error {episode.initial_heading_error_rad:.4g} rad did "
             f"not settle within {allowance:.3g} s and hold for {DWELL_S:g} s"
@@ -2052,7 +2134,8 @@ def summarize_command_panel(episodes: Iterable[CommandTrackingEpisode]) -> dict[
     of the tracking fractions, the speed ratio, the stand hold fraction and
     each gait criterion's metric over the episodes that measured them (an
     episode's NaN is left out here, and counted as ``unmeasured``; the gate
-    itself fails it).
+    itself fails it), and the report-only longest stop's mean and max over
+    the cruise episodes (decision D-D64).
     """
     rows = list(episodes)
 
@@ -2064,6 +2147,11 @@ def summarize_command_panel(episodes: Iterable[CommandTrackingEpisode]) -> dict[
                 "mean": _json_number(math.fsum(finite) / len(finite)) if finite else None,
                 "unmeasured": len(listed) - len(finite),
             }
+
+        def longest_of(values: Iterable[float]) -> dict[str, Any]:
+            listed = list(values)
+            finite = [value for value in listed if math.isfinite(value)]
+            return {**mean_of(listed), "max": _json_number(max(finite)) if finite else None}
 
         reasons: dict[str, int] = {}
         for episode in selected:
@@ -2081,6 +2169,9 @@ def summarize_command_panel(episodes: Iterable[CommandTrackingEpisode]) -> dict[
             "speed_ratio": mean_of(episode.speed_ratio for episode in selected if episode.family == CRUISE_FAMILY),
             "stand_hold_fraction": mean_of(
                 episode.stand_hold_fraction for episode in selected if episode.family == STAND_FAMILY
+            ),
+            "longest_stop_s": longest_of(
+                episode.longest_stop_s for episode in selected if episode.family == CRUISE_FAMILY
             ),
             "mean_reward": _json_number(_mean([episode.reward for episode in selected])),
             # The gait clause's metrics, by criterion metric: an episode without gait metrics counts as unmeasured.

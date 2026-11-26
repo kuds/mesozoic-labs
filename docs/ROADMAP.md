@@ -63,7 +63,13 @@ Brachiosaurus PPO; their provenance and metrics are shown in the generated
 > risks to the maintainer. *2026-11-25:* the first of them, per-step
 > tracking, is decided by D-D63 (2): a stride-averaged tracking measure in
 > the reward and the gate, implemented by the next decision row. The other
-> risks stay open. The follow-direction nodes that widen the walk
+> risks stay open. *2026-11-26:* D-D64 implements it: at a moving command
+> the walk's tracking is scored on a one-stride trailing mean, under the
+> panel protocol `command_panel/v2`, so at a command it matches every
+> reference walk clears the in-tolerance fraction and the speed ratio (the
+> T. rex and Allosaurus fail heading_settle on their scripted starts); the
+> bars stay provisional, no controller has passed a committed walk panel,
+> and the other risks stay open. The follow-direction nodes that widen the walk
 > are next and not built; until one exists, or a command-free walk config is
 > added, the terrain recipes have no parent a user can produce.
 

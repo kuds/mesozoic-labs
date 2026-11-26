@@ -180,6 +180,7 @@ def _record(seed: int, index: int, family: str, **overrides: Any) -> CommandTrac
         eligible_turns=0,
         settled_turns=0,
         max_course_progress_m=3.6,
+        longest_stop_s=0.0,
         measurement=MEASUREMENT,
         gait_metrics=WALKING_GAIT,
     )
@@ -936,6 +937,71 @@ class TestEvidence:
         ):
             with pytest.raises(ValueError, match=message):
                 read_command_tracking_panel(rewritten(edit))
+
+    def test_a_command_panel_v1_report_is_refused_before_a_record_is_read(self, stage_dir, tmp_path):
+        """The protocol bump (decision D-D64): the judge, the protocol guard and the writer refuse a v1 report.
+
+        ``choose_command_handoff`` runs the same guard on each report it rolls, which is always current.
+        """
+        from environments.shared.reporting.command_tracking_report import (
+            CommandTrackingReportError,
+            require_current_protocol,
+        )
+
+        report = _report(stage_dir, _panel())
+        assert report["protocol"] == "command_panel/v2" and report["measurement"]["tracking_window_s"] == 0.0
+        require_current_protocol(report)
+        v1 = {**report, "protocol": "command_panel/v1"}
+        # Records a v1 writer wrote: no window in the measurement, no longest stop.
+        v1["episode_evidence"] = [
+            {
+                **entry,
+                "record": {
+                    **{key: value for key, value in entry["record"].items() if key != "longest_stop_s"},
+                    "measurement": {
+                        **{
+                            key: value
+                            for key, value in entry["record"]["measurement"].items()
+                            if key != "tracking_window_s"
+                        },
+                        "protocol": "command_panel/v1",
+                    },
+                },
+            }
+            for entry in report["episode_evidence"]
+        ]
+        refusals = command_tracking_report_refusals(WALK_CURRICULUM, v1, stage=2, stage_dir=stage_dir)
+        assert any("'command_panel/v1'" in refusal and "'command_panel/v2'" in refusal for refusal in refusals)
+        assert not any("cannot be read back" in refusal for refusal in refusals), refusals
+        assert _judge(stage_dir, v1)[0] is False
+        with pytest.raises(CommandTrackingReportError, match="'command_panel/v1', not 'command_panel/v2'"):
+            require_current_protocol(v1)
+        target = tmp_path / "written"
+        with pytest.raises(CommandTrackingReportError, match="command_panel/v1"):
+            write_command_tracking_report(target, v1)
+        assert not target.exists() or not any(target.iterdir())
+
+    def test_the_panel_csv_stamps_the_window_and_refuses_a_v1_layout(self, stage_dir, tmp_path):
+        windowed = replace(MEASUREMENT, tracking_window_s=1.4)
+        report = _report(stage_dir, [replace(episode, measurement=windowed) for episode in _panel()])
+        report["measurement"] = windowed.as_dict()
+        path = write_command_tracking_report(stage_dir, report)["command_tracking_panel_csv"]
+        evidence = read_command_tracking_panel(path)
+        assert evidence.measurement == windowed and evidence.measurement.tracking_window_s == 1.4
+        assert all(episode.measurement == windowed for episode in evidence.policy)
+        assert all(episode.longest_stop_s == 0.0 for episode in evidence.policy)
+        with path.open(newline="") as source:
+            rows = list(csv.DictReader(source))
+        assert {row["tracking_window_s"] for row in rows} == {"1.4"}
+        for dropped in ("tracking_window_s", "longest_stop_s"):
+            target = tmp_path / f"without_{dropped}.csv"
+            with target.open("w", newline="") as sink:
+                fieldnames = [name for name in rows[0] if name != dropped]
+                writer = csv.DictWriter(sink, fieldnames=fieldnames, extrasaction="ignore")
+                writer.writeheader()
+                writer.writerows(rows)
+            with pytest.raises(ValueError, match=f"lacks the column\\(s\\) \\['{dropped}'\\]"):
+                read_command_tracking_panel(target)
 
     def _validate(self, stage_dir: Path, **overrides: Any) -> None:
         record = json.loads((stage_dir / "stage_config.json").read_text())
