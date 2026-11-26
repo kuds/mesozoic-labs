@@ -18,9 +18,10 @@ committed and independently reviewed before any judged run.
 
 ## The owner's choices (26 Nov 2026)
 
-- **D28, terrain:** flat for now. Steering trains on flat ground with pushes and the slippery-floor end; terrain
-  returns in a later run. So this run cannot train the longer climbs D26 asked for: ramps are measured and reported,
-  not trained or judged.
+- **D28, terrain:** flat for now. Steering trains on flat ground with pushes and the slippery-floor end. The owner
+  added the same day that the 60 cm robot will be demoed on flat ground only; uneven terrain may come later but is not
+  important now. So this run's rules judge flat-ground walking, turning and heat. Steps, ramps and the longer climbs
+  D26 named are measured and reported, not trained or judged.
 - **D29, heat cost:** price the hottest drive. Keep today's average, and add a cost on the hottest drive's running
   heat above a margin.
 - **D30, runs:** two dev runs of about 3 M steps, then two judged seeds of 10 M steps.
