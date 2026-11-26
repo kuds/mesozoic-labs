@@ -123,7 +123,7 @@ def judged(rows, judge):
 
 
 def rules_by_length(rows, r, judge):
-    rows.append("## B. Run 3's rules for each length (PASS: all four seeds; FAIL: none; MIXED otherwise)\n")
+    rows.append("## B. Run 3's rules for each length (PASS: every seed; FAIL: none; MIXED otherwise)\n")
     rows.append("| rule | 128 mm (s0 s1 s2 s3) | 160 mm (s0 s1 s2 s3) | 188 mm, run 3 (s0 s1; reference) |\n"
                 "|---|---|---|---|")
     for k in ("F1", "F2", "T1", "T2", "T3", "T4", "T5"):
@@ -136,7 +136,8 @@ def rules_by_length(rows, r, judge):
                      f"({' '.join('P' if x else 'F' for x in v)})")
         rows.append(f"| {k} | " + " | ".join(cells) + " |")
     rows.append("")
-    rows.append("Rule values per run (T3: drift on the four terrain points, limit 0.30 m; T4: friction 0.3, drift "
+    rows.append("Rule values per run (T1 and T2: no fall and speed at least 0.8 of nominal; T3: drift on the four "
+                "terrain points, limit 0.30 m; T4: friction 0.3, drift "
                 "limit 0.20 m and speed at least 0.8 of nominal; T5: falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s, "
                 "passing with none at +-1.0 and at most 2 at +-1.25. F1 and T1-T4 also need no fall; F2 has no fall "
                 "condition):\n")
@@ -282,6 +283,7 @@ def demo_tables(rows):
          f"{f(d[c]['battery']['runtime_minutes_by_hotel_w']['40'], 0)})"),
         ("pack current at low charge: mean / peak, A", lambda c: f"{f(d[c]['battery']['current_mean_a']['low_v'], 1)}"
          f" / {f(d[c]['battery']['current_peak_all_segments_a']['low_v'], 1)}"),
+        ("loads below: over the three measured segments (0.25 and 0.15 m/s walking, standing)", lambda c: ""),
         ("joint force, largest 99th percentile, body weights (joint)", lambda c: f"{f(d[c]['loads_headline']['joint_force_p99_bw']['value'], 2)} ({d[c]['loads_headline']['joint_force_p99_bw']['where']})"),
         ("bending, largest, N m (joint)", lambda c: f"{f(d[c]['loads_headline']['bending_max_nm']['value'], 1)} "
          f"({d[c]['loads_headline']['bending_max_nm']['where']})"),
@@ -290,10 +292,50 @@ def demo_tables(rows):
     ], "measure")
 
 
+TRAINING = "servo delay 0-10 ms; mass x0.9-1.1; kp x0.9-1.1; force limit x0.85-1.0; friction 0.3-1.0; steps to 4 cm; " \
+           "ramps to 10 deg; pushes to 1.0 m/s; no payload"
+
+
+def in_training(family, x):
+    """Whether a sweep point lies inside the D22 runs' training ranges (run records' env_config)."""
+    if family.startswith("delay"):
+        return x <= 10
+    if family == "friction":
+        return x is None or 0.3 <= x <= 1.0
+    lims = {"mass, every body": (0.9, 1.1), "force limit": (0.85, 1.0), "position gain kp": (0.9, 1.1)}
+    if family in lims:
+        return lims[family][0] <= x <= lims[family][1]
+    if family == "payload on the chassis":
+        return x == 0.0
+    if family == "sideways push":
+        return abs(x) <= 1.0
+    if family in ("step up", "ramp up"):
+        return x is None or (x[0] == "step" and x[1] <= 0.04) or (x[0] == "ramp" and x[1] <= 10)
+    raise ValueError(family)
+
+
 def sweep_tables(rows):
     s = {k: sweep(v) for k, v in ALL.items()}
     cols = list(ALL)
     rows.append("## F. Every sweep point (nominal model, noise on, 8 episodes, 0.25 m/s unless stated)\n")
+    over = {}
+    for k in cols:
+        seen, n, hot = set(), 0, []
+        for fam in s[k]["families"]:
+            for r in fam["rows"]:
+                if r["key"] in seen or not in_training(fam["family"], r["x"]):
+                    continue
+                seen.add(r["key"])
+                n += 1
+                h = s[k]["points"][r["key"]]["summary"].get("heat_worst")
+                if h is not None and h >= 1.0:
+                    hot.append(h)
+        over[k] = (n, len(hot), max(hot) if hot else None)
+    rows.append(f"Points inside the training ranges ({TRAINING}) where the worst drive is at or over its continuous "
+                "rating:\n")
+    table(rows, cols, [("points inside the training ranges", lambda c: str(over[c][0])),
+                       ("of which at or over the rating", lambda c: str(over[c][1])),
+                       ("the largest such value", lambda c: f(over[c][2], 3))], "")
     rows.append("Each cell: falls of 8; speed m/s; sideways drift, mean of its absolute value, m (the figure T3 and T4 "
                 "read); worst joint RMS / continuous rating. "
                 "Speed, drift and heat are over the episodes that did not fall; \"all fell\" has none.\n")

@@ -21,7 +21,8 @@ foot-load, fall and heat tests on the four-seed means were never reached.
 Had they been applied, the loads and heat tests would also have kept 128 mm:
 - **Loads:** 160 mm's mean front-foot load was 117.6 N against 128 mm's 121.6 N, a ratio of 0.967. The rule
   needed 0.85 or less.
-- **Heat:** 160 mm's mean heat was worse, both overall and on the front drives.
+- **Heat:** 160 mm's mean heat was worse overall (H_all 1.000 against 0.898; the rule allowed +0.035) and on the
+  front drives (H_front 0.940 against 0.803; allowed +0.10).
 
 This is a simulation result about this setup. It is an input to the owner's decision under D23 ("128 mm unless
 beaten"), not the decision itself.
@@ -29,19 +30,38 @@ beaten"), not the decision itself.
 **What it does not say.** "128 mm chosen" means 160 mm did not clearly beat it. Here, that is because 160 mm did not
 keep its drives within their ratings on every seed. It does not mean 128 mm is better in every respect. Where
 128 mm did worse:
-- **Drift:** it drifted sideways past run 3's terrain and slippery-floor limits (T3, T4) on all four seeds; 160 mm
-  did so on two of four.
+- **Drift:** it drifted sideways past run 3's terrain and slippery-floor limits (T3, T4) on all four seeds. 160 mm
+  failed each limit on two of four seeds (T3 on s0 and s1, T4 on s0 and s3). Four seeds do not separate the
+  lengths on drift (section 4).
 - **Falls:** it fell more in the sweep, a mean of 18.5 falls against 14.25. The falls test would have passed
   160 mm.
 - **Pushes:** it fell more under the hardest sideways pushes, 55 of 64 episodes at +-1.25 m/s against 42 of 64.
 
-**Both lengths run their drives close to the continuous rating.** In the judged case, 128 mm's worst drive is at
-0.83-0.95 of rating. In the cases that are reported but not judged:
-- with the nominal model, two 128 mm seeds come close: seed 2 reaches 1.005 in the gait report with observation
-  noise off, and seed 3 reaches 0.997 at the sweep's nominal point;
-- outside the training ranges, every 128 mm seed goes over its rating: at sensor and servo delays of 20 ms or more
-  (1.07-1.60), with every body 20 % heavier (1.04-1.12), and with 2 kg of payload (1.02-1.11). Run 3's 188 mm leg
-  also goes over at those delays (1.20-1.38).
+**128 mm runs its drives at about their continuous rating, and run 3's 188 mm leg did not.** In the judged case,
+128 mm's worst drive is at 0.83-0.95 of rating. In the cases that are reported but not judged:
+- **The nominal model:** two 128 mm seeds reach or pass the rating. Seed 2 is at 1.005 in the gait report with
+  observation noise off. Seed 3 is at 1.006 in the demo course's walking segment and 0.997 at the sweep's nominal
+  point.
+- **Inside the training ranges,** three of the four 128 mm seeds go over at some sweep points:
+  - on the trained 3-8 deg ramps: seed 1 at 1.020 at 8 deg, seed 2 at 1.035-1.155, seed 3 at 1.096-1.216;
+  - with every body 10 % heavier, the edge of the training range: 1.006-1.064.
+
+  The sweep has 37 points inside the training ranges. The number where the worst drive is at or over its rating:
+
+  | | s0 | s1 | s2 | s3 |
+  |---|---|---|---|---|
+  | 128 mm | 0 | 2 | 4 | 11 |
+  | 160 mm | 31 | 28 | 35 | 1 |
+  | run 3, 188 mm | 0 | 0 | | |
+
+- **Beyond the training ranges,** every 128 mm seed goes over:
+  - at servo (leg-command) delays of 20-30 ms: 1.07-1.22. D9 set 10 ms as a conservative estimate until the bench
+    measures it.
+  - with every body 20 % heavier: 1.04-1.12;
+  - with 2 kg of payload: 1.02-1.11.
+
+  Run 3's leg also goes over at those delays (1.20-1.26), but not at x1.2 mass on one seed (0.93) or with 2 kg on
+  one seed (0.91).
 
 **Straight walking only.** All eight policies walk straight. PR #697's case for 160 mm rested on lower turning and
 pivoting loads and a more legible elbow, and these runs test neither.
@@ -55,8 +75,12 @@ masses (A-D22a).
 The setup was run 3's, unchanged apart from the model:
 - `configs/run3_terrain.json`;
 - 10,000,000 steps, 8 envs, the same PPO settings;
-- training ranges: delay 0-10 ms, mass x0.9-1.1, friction 0.6-1.0, with steps, ramps, pushes and a 0.3 friction
-  floor;
+- training ranges:
+  - servo delay 0-10 ms;
+  - mass x0.9-1.1 per body, position gain x0.9-1.1, force limit x0.85-1.0;
+  - friction 0.6-1.0, its lower end moving to 0.3 as the terrain ramps in (1-4 M steps);
+  - steps up to 4 cm, ramps up to 10 deg, sideways pushes up to 1.0 m/s;
+  - no payload;
 - commit f84a6919, on Colab CPU High-RAM runtimes (8 vCPUs).
 
 Each judged run had one session, from step 0, completed at 10,002,432 steps, with a finite final pair. Training
@@ -71,16 +95,18 @@ Measurement used the run commit's tools from a `git archive` of f84a6919, throug
 - the demo course (reported only).
 
 **Run 3 is a reference, not a third arm.** Its 188 mm foreleg cannot be built (F18). Its fore-assembly also differs
-besides the length: the shoulder is 40 mm higher, the X6 sits elsewhere, and the forefoot travels about 14 % more per
-unit of action.
+besides the length: the shoulder is 40 mm higher, the X6 sits elsewhere, and its forefoot travels about 17 % more per
+unit of action (+-111 against +-95 mm per +-0.4 rad of shoulder pitch).
 
 ## Checks before judging
 
 `judge_d22.py` passed every check on all eight runs (`results/d22/judge_d22.json`, `"problems"` empty for each):
 - every session at the run commit with a clean tree, the last one completed;
 - the seed and the model;
-- the PPO settings, schedules, 8 envs, 10,000,000 steps and the whole environment config equal to run 3's;
-- every argument that run 3's record holds equal to run 3's;
+- the PPO settings, schedules, 8 envs, 10,000,000 steps, and every key of run 3's environment config, equal to
+  run 3's (the extra steering keys are below);
+- every other argument that run 3's record holds equal to run 3's, except the output folder and the notebook's
+  process id;
 - steering off;
 - the last checkpoint is the measured one;
 - the model's and `trike_env.py`'s sha256 in every tool equal to the run commit's;
@@ -130,8 +156,8 @@ and 0.722, N 25 and 18.
 
 The appendix's sections are B-F.
 
-**1. Drive heat: thin margins for both lengths.** Worst drive, RMS torque over its continuous rating, all at
-0.25 m/s:
+**1. Drive heat: a thin margin at 128 mm, none at 160 mm on three of four seeds.** Worst drive, RMS torque over its
+continuous rating, all at 0.25 m/s:
 
 | case | 128 mm (s0 / s1 / s2 / s3) | 160 mm (s0 / s1 / s2 / s3) | run 3, 188 mm (s0 / s1) |
 |---|---|---|---|
@@ -140,31 +166,51 @@ The appendix's sections are B-F.
 | Sweep's nominal point (noise on, 8 episodes) | 0.865 / 0.940 / 0.974 / 0.997 | 1.04 / 1.06 / 1.13 / 0.91 | 0.86 / 0.82 |
 | Demo course, walking segment (one 20 s episode) | 0.87 / 0.90 / 1.00 / 1.01 | 1.05 / 1.06 / 1.07 / 0.90 | not run |
 
-**Beyond the training ranges (the sweep, 8 episodes per point):**
-- **Delays of 20 ms or more:** every 128 mm seed goes over its rating: 1.07-1.22 at 20-30 ms and up to 1.60 at
-  60 ms. 160 mm goes over too, at 1.10-1.58, and run 3 at 1.20-1.38. At 0.15 m/s the figures are 1.10-1.71 at
-  128 mm, 1.01-1.75 at 160 mm and 1.20-1.50 for run 3.
+**Inside the training ranges (the sweep, 8 episodes per point).** Of its 37 points inside the training ranges, the
+number where the worst drive is at or over its rating is:
+- 128 mm: 0, 2, 4 and 11 (seeds 0-3);
+- 160 mm: 31, 28, 35 and 1;
+- run 3: 0 and 0.
+
+At 128 mm these points are mostly the trained 3-8 deg ramps (seed 1 at 1.020 at 8 deg, seed 2 at 1.035-1.155,
+seed 3 at 1.096-1.216) and every body 10 % heavier (1.006-1.064 on seeds 1-3). Seed 3 is also just over, at
+1.000-1.018, on a 3 cm step, at friction 1.0 and under several pushes.
+
+**Beyond the training ranges:**
+- **Servo (leg-command) delays of 20-30 ms:** every 128 mm seed goes over, at 1.07-1.22. 160 mm goes over at
+  1.10-1.36, and run 3 at 1.20-1.26. At 0.15 m/s the figures are 1.10-1.33 at 128 mm, 1.01-1.58 at 160 mm and
+  1.20-1.27 for run 3.
+- **At 40-60 ms** the figures run up to 1.60 at 0.25 m/s and 1.75 at 0.15 m/s, but several policies slow to
+  0.02-0.11 m/s there or fall, and heat is taken over the episodes that did not fall.
 - **Every body 20 % heavier:** 1.04-1.12 at 128 mm, 0.97-1.26 at 160 mm, and 1.03 and 0.93 for run 3.
 - **2 kg on the chassis:** 1.02-1.11 at 128 mm, 0.93-1.25 at 160 mm, and 1.01 and 0.91 for run 3.
 
-The training ranges were a delay of 0-10 ms, mass x0.9-1.1 and no payload. So the real robot's delay and mass
-decide how much headroom is left.
+So the real robot's terrain, mass and delay decide how much headroom is left, and run 3's leg had more.
 
 **Which drive runs hottest depends on the seed** (a pitch drive or a knee, front or hind) as much as on the length.
 
 **At 0.15 m/s** (the gait report, randomised) the worst drive is at 0.70-0.83 at 128 mm and 0.72-1.085 at 160 mm.
 
-**The demo course** is 90 s walking at 0.25 m/s and 30 s standing, repeated for one pack. Its temperatures are
-model estimates, with an 8 min thermal time constant and a 4-15 min range.
+**The demo course** is 90 s walking at 0.25 m/s and 30 s standing, repeated for one pack, starting from 25 C in open
+air. Its temperatures are model estimates, with an 8 min thermal time constant and a 4-15 min range.
 - At 128 mm the hottest winding peaks at an estimated 62.9-85.9 C, all under the 100 C limit.
 - At 160 mm it peaks at 68.9-84.8 C on three seeds.
 - On 160 mm seed 0 the right hind pitch winding crosses 100 C after about 24 min and peaks at 109.9 C.
 
-**This over-limit case comes from standing, not walking.** That policy stands on three feet, its right forefoot
-carrying no load throughout, with the right hind pitch drive at 1.58 of rating; while walking that drive is at 0.77.
+**This over-limit winding heats while standing.** That policy stands on three feet, its right forefoot carrying no
+load throughout, with the right hind pitch drive at 1.58 of rating; while walking that drive is at 0.77.
 - 160 mm seed 3 also stands on three feet, with its left forefoot unloaded (worst drive 0.82).
 - 160 mm seed 2 stands with a hind knee at 1.18.
 - All four 128 mm policies stand on four feet, at 0.58-0.69.
+
+**The demo's margins rest on its standing breaks.** Walking for 96 minutes with no break, the same model puts the
+hottest winding at:
+- 128 mm: seed 3 at 101.2 C (left hind pitch) and seed 2 at 99.6 C (left fore pitch);
+- 160 mm: seed 0 at 110.2 C (left fore pitch) and seed 1 at 101.8 C.
+
+These are model estimates from `demo_course.py --walk-s 120 --stand-s 0 --minutes 96` on those four runs
+(`results/d22/demo_walkonly/`). A pack lasts 63-79 min at that load, by which time the windings are near these
+settled values.
 
 **2. Power and runtime.** These are the gait report's estimates for the walking target case:
 - At 128 mm the drives draw 49.8-59.9 W on a shared bus. With a 30 W hotel load that gives 78-88 min of walking per
@@ -186,8 +232,8 @@ The pre-registration's power estimate is rough: from run 3's seed scatter of abo
 detect a true 25 % reduction about 80 % of the time. A 3 % difference, as here, is far below what four seeds can
 resolve. So "the loads test would also have kept 128 mm" is not evidence that 160 mm gives no load benefit.
 
-PR #697's scripted turning tests favoured 160 mm: on its moving courses the largest 10 ms mean was 260.8 N at 128 mm
-against 215.1 N at 160 mm. Those come from other controllers and motions. These runs have no turning to compare with;
+PR #697's scripted turning tests favoured 160 mm. On its moving courses the largest 10 ms mean was 260.8 N at
+128 mm against 215.1 N at 160 mm (seeds 101-103), and 329.6 against 247.8 N on six more (seeds 104-106). Those come from other controllers and motions. These runs have no turning to compare with;
 the steering run (D20, not yet trained) will measure turning loads under the RL policy.
 
 **4. Sideways drift.** No run fell on any step, ramp or friction point, but drift is large.
@@ -196,12 +242,13 @@ the steering run (D20, not yet trained) will measure turning loads under the RL 
 - **T4** (friction 0.3, 0.20 m limit) fails on all four 128 mm seeds, at 0.43-0.65 m. It fails on two 160 mm seeds,
   at 0.27 and 0.82 m. 160 mm seed 2 passed at 0.199 m, at the limit.
 - **Run 3** passed both.
-- **Seeds against lengths:** the spread between seeds is larger than the difference between the lengths.
+- **Seeds against lengths:** each length's range between seeds is larger than the difference between the length
+  means.
 
-| | 128 mm, mean (SD) | 160 mm, mean (SD) | difference of the means |
+| | 128 mm, mean (SD; range) | 160 mm, mean (SD; range) | difference of the means |
 |---|---|---|---|
-| T3, each seed's worst point | 0.435 m (0.116) | 0.377 m (0.152) | 0.058 m |
-| T4 | 0.494 m (0.102) | 0.351 m (0.322) | 0.143 m |
+| T3, each seed's worst point | 0.435 m (0.116; 0.248) | 0.377 m (0.152; 0.324) | 0.058 m |
+| T4 | 0.494 m (0.102; 0.216) | 0.351 m (0.322; 0.714) | 0.144 m |
 
 Drift matters for the steering run, which closes the heading loop.
 
@@ -216,9 +263,11 @@ as on run 3. Falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s:
 Run 3 fell 8 / 5 / 4 / 8 (s0) and 8 / 0 / 2 / 8 (s1).
 
 **6. Gait.** In these eight runs the strides fell into two groups, with no run in between, at both lengths:
-- **Long strides:** 0.68-0.87 Hz and 0.28-0.37 m, with the two front feet swinging 78-112 mm high on average. These
-  are 128 mm s0 and s1, and 160 mm s0 and s3.
-- **Short strides:** 1.22-1.65 Hz and 0.15-0.20 m, at 19-33 mm. These are 128 mm s2 and s3, and 160 mm s1 and s2.
+- **Long strides:** 0.68-0.87 Hz and 0.28-0.37 m. The mean of the two front feet's swing heights is 78-112 mm;
+  single front feet swing 47-116 mm, so the two sides differ widely. These are 128 mm s0 and s1, and 160 mm s0 and
+  s3.
+- **Short strides:** 1.22-1.65 Hz and 0.15-0.20 m. The two-foot mean swing height is 19-33 mm, and single feet swing
+  12-49 mm. These are 128 mm s2 and s3, and 160 mm s1 and s2.
 
 Irregular strides on the worst foot run 38-85 % at both lengths.
 
@@ -244,10 +293,13 @@ angle (the pre-registration's "posture") was not measured.
   - fore128-s1 under its right RUN_ID at 23:14:16, then again in a fresh folder at 23:18:43;
   - fore160-s0 in a fresh folder at 23:18:21.
   - fore128-s0's first session (23:11:04, 2 vCPUs), which was never affected, kept running.
-- At about 13 h per run on 2 vCPUs, the owner stopped all three and started them again on 8 vCPUs at 23:24:48 and
-  23:25:22. These are the judged runs.
-- Starts per RUN_ID: fore128-s0 2, fore160-s0 3, fore128-s1 3, plus the mis-set one. Every superseded folder was moved
-  to the Drive trash.
+- At about 13 h per run on 2 vCPUs, the owner stopped all three and started them again on 8 vCPUs. These are the
+  judged runs: fore128-s0 at 23:24:48, and fore160-s0 and fore128-s1 at 23:25:22.
+- **Why they were not resumed:**
+  - fore160-s0 was not resumed from its 13,936-step pair because its folder held another run's files.
+  - The owner gave no reason for restarting the correctly set 23:14:16 fore128-s1 session.
+- Starts per RUN_ID: fore128-s0 2, fore160-s0 3, fore128-s1 3, plus the mis-set one, which ran under fore160-s0's
+  RUN_ID. Every superseded folder was moved to the Drive trash.
 - No start reached the first scheduled checkpoint (250,000 steps) or an evaluation. The furthest, fore128-s0's
   2-vCPU session, had recorded 100,000 steps.
 - Records of five superseded sessions are kept in `runs/d22_startup/`. The sixth is the mis-set one, whose record was
@@ -289,16 +341,25 @@ first start stopped at once for that reason and measured nothing.
 
 **5. Run 3's foot loads.** The draft of this report said run 3's checkpoints were not kept on this machine and quoted
 its foot loads from the pre-registration. That was wrong: both final pairs are here, with the same sha256 as in run
-3's gait reports. Both were measured again on 26 Nov with the run commit's `foot_loads.py`. The front and hind
-figures equal the pre-registration's exactly: 143.46 and 110.56 N front, 135.24 and 122.94 N hind. The new files are
-`results/d22/foot_loads_run3-s{0,1}.json`.
+3's gait reports. Both were measured again on 26 Nov with the D22 run commit's (f84a6919) `foot_loads.py`:
+143.46 and 110.56 N front, 135.24 and 122.94 N hind. These round to the pre-registration's 143.5, 110.6, 135.2 and
+122.9 N. The new files are `results/d22/foot_loads_run3-s{0,1}.json`.
+
+Two details of those files:
+- Their provenance field `run_commit` reads efd1e1c7: run 3's training commit, which the tool copies from the run
+  record.
+- Run 3's reference columns therefore combine its gait report and sweep, made at its own commit, with foot loads made
+  with f84a6919's `trike_env.py`. The pre-registration rests their equivalence for this setup on the run-3 digest
+  test.
 
 **6. The demo course's provenance.** It records no checkpoint hash. Each was run from the run commit's export on the
 run's downloaded final pair; the command is in the run log.
 
-**7. An error in the pre-registration's text** (reported only, no rule affected). It gives run 3's elbows as
-0.53-0.66. In run 3's stored gait reports the four elbows span 0.51-0.66, and the worst elbow per seed is 0.66 and
-0.59.
+**7. Two errors in the pre-registration's text** (reported only, no rule affected).
+- **Run 3's elbows:** it gives them as 0.53-0.66. In run 3's stored gait reports the four elbows span 0.51-0.66, and
+  the worst elbow per seed is 0.66 and 0.59.
+- **Forefoot travel:** it says run 3's forefoot travels "about 14 % more" per unit of action. It is about 17 % more;
+  14 % is how much less the D22 legs travel.
 
 **8. What the tools leave out.** The elbow's angle is not measured by them; the body's pitch, roll and height are
 reported instead.
@@ -314,9 +375,14 @@ reported instead.
   above is rough, built from one pair of seeds on another leg.
 - **On turning:** nothing. These policies walk straight. Turning loads and heat under the RL policy are for the
   steering run (D20), which has not been trained yet.
-- **The heat and battery figures are model estimates:** the continuous ratings come from the maker's data, the
-  thermal model and the masses are estimates, the servo loops are idealised, and the policy observes the simulator's
-  true velocity. The planned foreleg bench will measure the real drives' temperature and current.
+- **The heat and battery figures are model estimates:**
+  - each drive's continuous rating comes from the maker's catalogue entry for that drive;
+  - the thermal model's time constants are fitted to the maker's overload figures for the X4-36-L and the X6-50-L;
+  - the demo starts from 25 C in open air, and a museum shell would be warmer;
+  - the masses are estimates, and the servo loops are idealised;
+  - the policy observes the simulator's true velocity.
+
+  The planned foreleg bench will measure the real drives' temperature and current.
 - **Not covered:** the moving pushrod, the dressed meshes' clearances, the shoulder crossmember (F19) and the foot's
   rubber.
 
@@ -326,15 +392,18 @@ reported instead.
   - adopt 128 mm for the build, under D23;
   - hold the choice until turning has been tested;
   - choose otherwise despite the gate. Choosing 160 mm would first need its drives brought under their ratings.
-- **The heat margin.** With 128 mm the worst drive sits at 0.83-1.01 of its continuous rating at 0.25 m/s across the
-  cases above, and above it beyond the training ranges. Options include:
+- **The heat margin.** With 128 mm, at 0.25 m/s, the worst drive sits at 0.83-1.01 of its continuous rating on
+  flat ground. It goes above the rating on trained ramps, at x1.1 mass and beyond the training ranges, and in a demo
+  walked without breaks. Run 3's leg stayed under at every trained sweep point. Options include, singly or together:
   - a stronger heat cost in training;
-  - a lower demo speed;
+  - a lower demo speed or longer standing breaks;
   - training over wider delay and mass ranges;
-  - the bench test of the real drives before anything else.
-- **The steering run (D20)** on the chosen leg, with terrain around the start. The drift (4) and the pushes (5) are
-  the weak points to watch.
-- **The museum renders** due 8 Dec show the 188 mm foreleg. Redrawing them with 128 mm is possible if wanted.
+  - the bench test of the real drives.
+- **The steering run (D20)** on the chosen leg. Run 3's terrain lies only along the reset heading, and a steering
+  policy turns away from it, so the steering run's terrain must lie all around the start, or be left out
+  (`PLAN_STEERING_AND_TELEMETRY.md`). The drift (4) and the pushes (5) are the weak points to watch.
+- **The museum renders** due 8 Dec show the 188 mm foreleg. Redrawing them with the chosen foreleg is possible if
+  wanted.
 - **F19,** the shoulder crossmember, is still open for either leg.
 
 ## The independent review (26 Nov)
@@ -355,8 +424,8 @@ A skeptical second reviewer then tested each finding.
 - The foot-load tool, re-run on two checkpoints (fore160-s0, fore128-s3), gave byte-identical output.
 - The D22 tests pass.
 
-**What the review found:** no finding of high severity held up. The medium and low findings it confirmed are the
-corrections made in this version:
+**What the review found:** no finding of high severity held up. It confirmed medium and low findings, which led to
+these corrections:
 - the two seeds behind the 128 mm heat figures;
 - several rounded or mis-stated ranges;
 - the account of round 1's start;
@@ -365,5 +434,26 @@ corrections made in this version:
 - the power caveat;
 - the record-to-checkpoint link;
 - run 3's foot loads, now re-measured.
+
+**A second check** of that revision (commit 6da391cf) had three reviewers:
+- one checked every first-round finding against the revision;
+- one audited the new figures with its own scripts;
+- one read the report as the owner would.
+
+Each was again followed by a skeptic.
+
+It found one medium point that held: the report had put 128 mm's heat overages only beyond the training ranges, when
+three of the four 128 mm seeds also go over on trained ramps and at x1.1 mass. It also found low points of wording
+and rounding:
+- the delay is a servo delay only;
+- PR #697's second moving-course panel;
+- the training ranges in full;
+- the per-foot swing heights;
+- the run 3 provenance;
+- the demo's dependence on its standing breaks;
+- the run log's wording.
+
+This version corrects all of them. The findings and verdicts of both rounds are in
+`results/d22/review_2026-11-26.json` and `results/d22/recheck_2026-11-26.json`.
 
 The findings and verdicts are in `results/d22/review_2026-11-26.json`.

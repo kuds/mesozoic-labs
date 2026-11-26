@@ -34,7 +34,7 @@ Four-seed means (the order of D24 stopped at the walk gate, so the mean tests be
 | H_front | 0.803 | 0.940 | H_front(160) <= H_front(128) + 0.10 | no |
 | H_elbow (reported) | 0.678 | 0.757 | none | - |
 
-## B. Run 3's rules for each length (PASS: all four seeds; FAIL: none; MIXED otherwise)
+## B. Run 3's rules for each length (PASS: every seed; FAIL: none; MIXED otherwise)
 
 | rule | 128 mm (s0 s1 s2 s3) | 160 mm (s0 s1 s2 s3) | 188 mm, run 3 (s0 s1; reference) |
 |---|---|---|---|
@@ -46,7 +46,7 @@ Four-seed means (the order of D24 stopped at the walk gate, so the mean tests be
 | T4 | FAIL (F F F F) | MIXED (F P P F) | PASS (P P) |
 | T5 | FAIL (F F F F) | FAIL (F F F F) | FAIL (F F) |
 
-Rule values per run (T3: drift on the four terrain points, limit 0.30 m; T4: friction 0.3, drift limit 0.20 m and speed at least 0.8 of nominal; T5: falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s, passing with none at +-1.0 and at most 2 at +-1.25. F1 and T1-T4 also need no fall; F2 has no fall condition):
+Rule values per run (T1 and T2: no fall and speed at least 0.8 of nominal; T3: drift on the four terrain points, limit 0.30 m; T4: friction 0.3, drift limit 0.20 m and speed at least 0.8 of nominal; T5: falls of 8 at -1.25 / -1.0 / +1.0 / +1.25 m/s, passing with none at +-1.0 and at most 2 at +-1.25. F1 and T1-T4 also need no fall; F2 has no fall condition):
 
 | rule value | 128 s0 | 128 s1 | 128 s2 | 128 s3 | 160 s0 | 160 s1 | 160 s2 | 160 s3 | 188 s0 (run 3) | 188 s1 (run 3) |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -159,11 +159,20 @@ Provenance: demo_course.py records no checkpoint hash. Each was run from the run
 | any winding reaching its limit | no | no | no | no | yes | no | no | no |
 | runtime per pack, 30 W hotel (25 / 40 W), min | 96 (103 / 84) | 86 (91 / 76) | 84 (90 / 75) | 89 (95 / 79) | 69 (73 / 63) | 73 (77 / 66) | 71 (75 / 65) | 90 (97 / 80) |
 | pack current at low charge: mean / peak, A | 1.7 / 21.5 | 2.0 / 26.2 | 2.0 / 18.5 | 1.9 / 26.6 | 2.4 / 29.0 | 2.3 / 19.8 | 2.4 / 16.6 | 1.9 / 28.0 |
+| loads below: over the three measured segments (0.25 and 0.15 m/s walking, standing) |  |  |  |  |  |  |  |  |
 | joint force, largest 99th percentile, body weights (joint) | 1.18 (left_fore_flexion) | 1.07 (right_fore_flexion) | 1.19 (right_hind_flexion) | 1.27 (left_fore_pitch) | 1.10 (left_fore_flexion) | 1.15 (right_hind_flexion) | 1.02 (left_fore_flexion) | 1.12 (left_hind_flexion) |
 | bending, largest, N m (joint) | 31.2 (left_fore_pitch) | 31.6 (right_fore_pitch) | 29.6 (left_fore_pitch) | 26.3 (right_hind_pitch) | 26.7 (left_fore_pitch) | 22.4 (right_hind_pitch) | 22.2 (left_fore_roll) | 27.6 (right_fore_roll) |
 | foot force, largest, body weights (foot) | 2.60 (right_fore_sole) | 1.91 (right_fore_sole) | 1.96 (right_hind_sole) | 1.97 (right_hind_sole) | 2.11 (left_hind_sole) | 2.06 (right_hind_sole) | 1.72 (right_hind_sole) | 2.46 (left_fore_sole) |
 
 ## F. Every sweep point (nominal model, noise on, 8 episodes, 0.25 m/s unless stated)
+
+Points inside the training ranges (servo delay 0-10 ms; mass x0.9-1.1; kp x0.9-1.1; force limit x0.85-1.0; friction 0.3-1.0; steps to 4 cm; ramps to 10 deg; pushes to 1.0 m/s; no payload) where the worst drive is at or over its continuous rating:
+
+|  | 128 s0 | 128 s1 | 128 s2 | 128 s3 | 160 s0 | 160 s1 | 160 s2 | 160 s3 | 188 s0 (run 3) | 188 s1 (run 3) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| points inside the training ranges | 37 | 37 | 37 | 37 | 37 | 37 | 37 | 37 | 37 | 37 |
+| of which at or over the rating | 0 | 2 | 4 | 11 | 31 | 28 | 35 | 1 | 0 | 0 |
+| the largest such value | - | 1.020 | 1.155 | 1.216 | 1.122 | 1.154 | 1.202 | 1.010 | - | - |
 
 Each cell: falls of 8; speed m/s; sideways drift, mean of its absolute value, m (the figure T3 and T4 read); worst joint RMS / continuous rating. Speed, drift and heat are over the episodes that did not fall; "all fell" has none.
 

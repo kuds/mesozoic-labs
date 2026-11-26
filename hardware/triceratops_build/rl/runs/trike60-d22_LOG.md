@@ -33,7 +33,7 @@ moved the first files to the trash. Copies of the two discarded run records are 
 - `fore160-s0_first-folder_run_record.json` (sha256 77d1fb08…): the 23:13:05 version, fore160-s0's session 0.
 - `fore128-s1_first-folder_run_record.json` (sha256 804e126c…): the first corrected start, trashed.
 
-The restarted runs are judged as the runs. This start-up error does not count as a run's one allowed restart. The
+The restarted runs are judged as the runs. In my reading, not a rule, this start-up error does not count as a run's one allowed restart. The
 D22 report repeats this note.
 
 **Machines, and a second restart.** Those three runtimes all had 2 vCPUs (run 3 had 8). `trike60-fore128-s0`
@@ -213,3 +213,16 @@ The review confirmed:
 
 No high-severity finding held up. The confirmed medium and low findings are corrected in the report, the appendix,
 its generator and this log. Findings and verdicts: `analysis/results/d22/review_2026-11-26.json`.
+
+**The second check, 26 Nov.** A second check of the revised report (commit 6da391cf) had three reviewers: one
+checked every first-round finding, one audited the new figures with its own scripts, and one read the report as the
+owner would. Each was followed by a skeptic.
+
+It found one medium point that held: 128 mm's heat overages are not only beyond the training ranges. On the 37 sweep
+points inside the training ranges, the worst drive is at or over its rating on 0, 2, 4 and 11 points at 128 mm, on
+31, 28, 35 and 1 at 160 mm, and on none for run 3. The 128 mm points are mostly the trained ramps and x1.1 mass.
+
+It also found low points of wording and rounding. All are corrected in the report and appendix. A walking-only demo
+(no standing breaks; `demo_course.py --walk-s 120 --stand-s 0 --minutes 96`, from the export, on fore128-s2, -s3 and
+fore160-s0, -s1) puts the hottest winding at an estimated 99.6-101.2 C at 128 mm and 101.8-110.2 C at 160 mm. Its
+outputs are in `analysis/results/d22/demo_walkonly/`. Findings and verdicts: `analysis/results/d22/recheck_2026-11-26.json`.
