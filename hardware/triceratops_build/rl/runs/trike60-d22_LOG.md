@@ -152,3 +152,14 @@ both were at 800,000 steps, with saves at 250,000, 500,000 and 750,000.
 |---|---|---|---|---|---|
 | trike60-fore128-s3 | 14:03:25 | 3 | fore128 | trike60-fore128-s3 | 8 |
 | trike60-fore160-s3 | 14:03:43 | 3 | fore160 | trike60-fore160-s3 | 8 |
+
+## Round 3 finished, 26 Nov 2026
+
+Each run had one session, from step 0, completed at 10,002,432 steps, with its final pair finite. Each record passes
+the record checks of `judge_d22.checks`. The final pairs were downloaded from Drive (the sizes match Drive's; each
+from its own run's `checkpoints/` folder). All eight runs of the study are now trained.
+
+| run | session (UTC) | hours | env steps/s | final pair, zip sha256 | vecnormalize sha256 |
+|---|---|---|---|---|---|
+| trike60-fore128-s3 | 14:03:25-18:54:23 | 4.85 | 573 | 652082b1… | 01a6cacc… |
+| trike60-fore160-s3 | 14:03:43-18:59:36 | 4.93 | 563 | e0dbaf08… | 6757ade8… |
