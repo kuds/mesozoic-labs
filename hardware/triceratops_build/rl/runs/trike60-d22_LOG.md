@@ -33,7 +33,8 @@ moved the first files to the trash. Copies of the two discarded run records are 
 - `fore160-s0_first-folder_run_record.json` (sha256 77d1fb08…): the 23:13:05 version, fore160-s0's session 0.
 - `fore128-s1_first-folder_run_record.json` (sha256 804e126c…): the first corrected start, trashed.
 
-The restarted runs are judged as the runs. In my reading, not a rule, this start-up error does not count as a run's one allowed restart. The
+The restarted runs are judged as the runs. In my reading, not a rule, this start-up error does not count as a run's
+one allowed restart. The
 D22 report repeats this note.
 
 **Machines, and a second restart.** Those three runtimes all had 2 vCPUs (run 3 had 8). `trike60-fore128-s0`
@@ -81,7 +82,8 @@ the record in place.
 ## Round 1 measured, 24 Nov 2026 (interim: figures per run, no choice until all eight)
 
 The measurements ran on 04:33-05:10 UTC with the run commit's tools (an export of f84a6919 through `TRIKE_ENV_DIR`).
-Each run's three outputs pass every check in `judge_d22.checks`, using the tree's `judge_d22.py`, which is byte-identical
+Each run's three outputs pass every check in `judge_d22.checks`, using the tree's `judge_d22.py`, which is
+byte-identical
 to the run commit's: the export has no git history to read the run commit's files from. Figures come from
 `judge_d22.measure` and `judge_run3.judge_seed`. Outputs: `analytics/results/<run>/`, `robustness/results/<run>/`,
 `analysis/results/d22/`.
@@ -95,7 +97,8 @@ to the run commit's: the export has no git history to read the run commit's file
 | run 3 s1 (188 mm, reference) | pass | pass (0.801) | pass | pass | pass | pass | fail | 110.6 (122.9) | 0.801 | 0.722 | | 18 |
 
 - No foot-load episode fell; no run fell on the steps, the ramps or the 0.3 friction floor.
-- T3 and T4 fail on sideways drift, not falls. T3's limit is 0.30 m: the runs drifted 0.27-0.35 m (fore128-s0; *corrected 26 Nov after the review: this first read 0.27-0.43 m, where 0.43 m is its T4 drift*),
+- T3 and T4 fail on sideways drift, not falls. T3's limit is 0.30 m: the runs drifted 0.27-0.35 m (fore128-s0;
+  *corrected 26 Nov after the review: this first read 0.27-0.43 m, where 0.43 m is its T4 drift*),
   0.46-0.60 m (fore160-s0) and 0.28-0.58 m (fore128-s1), against run 3's 0.08-0.26 m. T4's limit is 0.20 m: they
   drifted 0.43, 0.82 and 0.45 m, against run 3's 0.15 and 0.06 m.
 - T5 (pushes): falls at -1.25, -1.0, +1.0 and +1.25 m/s, out of 8 each: 8/0/0/6, 4/0/1/6 and 8/1/7/8.
@@ -211,8 +214,9 @@ The review confirmed:
 - the foot-load tool byte-identical on two checkpoints;
 - 29 D22 tests passing.
 
-No high-severity finding held up. The confirmed medium and low findings were corrected in the report, the appendix,
-its generator and this log; some only in part until the later checks below. Findings and verdicts: `analysis/results/d22/review_2026-11-26.json`.
+No high-severity finding held up. The confirmed medium and low findings were corrected in the report, the
+appendix, its generator and this log; some only in part until the later checks below. Findings and verdicts:
+`analysis/results/d22/review_2026-11-26.json`.
 
 **The second check, 26 Nov.** A second check of the revised report (commit 6da391cf) had three reviewers: one
 checked every first-round finding, one audited the new figures with its own scripts, and one read the report as the
@@ -222,10 +226,12 @@ It found one medium point that held: 128 mm's heat overages are not only beyond 
 points inside the training ranges, the worst drive is at or over its rating on 0, 2, 4 and 11 points at 128 mm, on
 31, 28, 35 and 1 at 160 mm, and on none for run 3. The final check below qualifies where these come from.
 
-It also found low points of wording and rounding, corrected in the report, the appendix and this log. A walking-only demo
+It also found low points of wording and rounding, corrected in the report, the appendix, its generator and this
+log. A walking-only demo
 (no standing breaks; `demo_course.py --walk-s 120 --stand-s 0 --minutes 96`, from the export, on fore128-s2, -s3 and
 fore160-s0, -s1) puts the hottest winding at an estimated 99.6-101.2 C at 128 mm and 101.8-110.2 C at 160 mm. Its
-outputs are in `analysis/results/d22/demo_walkonly/`. Findings and verdicts: `analysis/results/d22/recheck_2026-11-26.json`.
+outputs are in `analysis/results/d22/demo_walkonly/`. Findings and verdicts:
+`analysis/results/d22/recheck_2026-11-26.json`.
 
 **The final check, 26 Nov.** A last check of commit ad62d9a9, by one reviewer and a skeptic, confirmed the figures. It
 qualified the in-range heat: of the 37 points, five are longer or heavier than training produced. These are the
@@ -243,5 +249,15 @@ none.
 
 It also found three smaller points. Run 3's leg is no better under 20-30 ms delays (1.20-1.26 against 128 mm's
 1.07-1.22). The X6 elbow's rating is the X6-50-L's table as a stand-in. A few wording and rounding points remained.
-All are corrected in the report, the appendix and its generator. Findings and verdicts:
+All are corrected in the report, the appendix, its generator and this log. Findings and verdicts:
 `analysis/results/d22/finalcheck_2026-11-26.json`.
+
+**The confirmation, 26 Nov.** A reviewer confirmed the fixes F1-F3 and F5-F8, and F4 in part. It found low points:
+- the force limit's x0.85 on every drive at once is the same kind of corner as whole-body mass, so it now counts
+  with the points beyond what training produced. That changes only 160 mm's counts: 26 / 23 / 29 / 0 of 31 typical
+  points, 5 / 5 / 6 / 1 of 6;
+- the sweep's ramp is better described as a climb that does not end (about 4 m in an episode) than as 20 m;
+- the mass simulation now lives in `analysis/d22_appendix.py`;
+- some wording.
+
+All are corrected. Its output is in `analysis/results/d22/confirm_2026-11-26.json`.

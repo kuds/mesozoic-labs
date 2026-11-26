@@ -42,18 +42,19 @@ keep its drives within their ratings on every seed. It does not mean 128 mm is b
 - **The nominal model:** two 128 mm seeds reach or pass the rating. Seed 2 is at 1.005 in the gait report with
   observation noise off. Seed 3 is at 1.006 in the demo course's walking segment and 0.997 at the sweep's nominal
   point.
-- **Conditions typical of training:** 32 of the sweep's points are inside the training ranges and like what training
+- **Conditions typical of training:** 31 of the sweep's points are inside the training ranges and like what training
   produced. On these, 128 mm stays under its rating on seeds 0-2. Seed 3 is at or just over it on 7 points
-  (1.000-1.018: a 3 cm step, friction 1.0 and five pushes). 160 mm goes over on 27, 24, 30 and 0 of the 32, and
+  (1.000-1.018: a 3 cm step, friction 1.0 and five pushes). 160 mm goes over on 26, 23, 29 and 0 of the 31, and
   run 3's leg on none.
-- **Longer or heavier than training produced:** five more points are nominally inside the training ranges.
-  - The sweep's ramps (3, 5 and 8 deg) are one 20 m climb, which keeps the robot climbing for the whole episode.
-    Training ramps are 0.8-2.0 m up, then a 0.4-1.5 m top and a ramp down.
-  - The sweep's x0.9 and x1.1 masses are applied to every body at once. Training draws each body's mass separately,
-    so the whole robot's mass stayed within about x0.92-1.08.
+- **Beyond what training produced:** six more points are nominally inside the training ranges.
+  - The sweep's ramps (3, 5 and 8 deg) do not end, so the robot climbs for the whole episode: about 4 m and 18 s.
+    Training ramps are 0.8-2.0 m up (3-8 s), then a 0.4-1.5 m top and a ramp down.
+  - The sweep's x0.9 and x1.1 masses apply to every body at once, and its x0.85 force limit to every drive at once.
+    Training draws each body's mass and each drive's limit separately, so the whole robot's mass stayed within about
+    x0.92-1.08.
 
-  On these five points three of the four 128 mm seeds go over: on the ramps seed 1 at 1.020 (8 deg), seed 2 at
-  1.035-1.155 and seed 3 at 1.096-1.216; at x1.1 mass 1.006-1.064. 160 mm goes over on 4, 4, 5 and 1 of the five,
+  On these six points three of the four 128 mm seeds go over: on the ramps seed 1 at 1.020 (8 deg), seed 2 at
+  1.035-1.155 and seed 3 at 1.096-1.216; at x1.1 mass 1.006-1.064. 160 mm goes over on 5, 5, 6 and 1 of the six,
   and run 3's leg on none.
 
 - **Beyond the training ranges,** every 128 mm seed goes over:
@@ -169,17 +170,19 @@ continuous rating, all at 0.25 m/s:
 | Demo course, walking segment (one 20 s episode) | 0.87 / 0.90 / 1.00 / 1.01 | 1.05 / 1.06 / 1.07 / 0.90 | not run |
 
 **Inside the training ranges (the sweep, 8 episodes per point).** The sweep has 37 points inside the training
-ranges. 32 are like what training produced. The other five are:
-- its three ramps, each one 20 m climb, against training's 0.8-2.0 m up, a top and a ramp down;
-- its x0.9 and x1.1 masses on every body at once, against training's per-body draws, which kept the whole robot within
-  about x0.92-1.08 (SD 0.029; simulated over 200,000 draws on the 128 mm model).
+ranges. 31 are like what training produced. The other six are beyond it:
+- **Its three ramps** do not end, so the robot climbs for the whole episode (about 4 m). Training ramps are
+  0.8-2.0 m up, then a top and a ramp down.
+- **Its x0.9 and x1.1 masses on every body at once, and its x0.85 force limit on every drive at once.** Training
+  draws these per body and per drive, which kept the whole robot's mass factor within about x0.92-1.08. That figure
+  is SD 0.029, simulated over 200,000 draws on the 128 mm model by `d22_appendix.py`.
 
 Points where the worst drive is at or over its rating, seeds 0 / 1 / 2 / 3:
 
-| | 32 points typical of training | 5 ramp and whole-body mass points |
+| | 31 points typical of training | 6 points beyond what training produced |
 |---|---|---|
 | 128 mm | 0 / 0 / 0 / 7 (1.000-1.018) | 0 / 2 / 4 / 4 (1.006-1.216) |
-| 160 mm | 27 / 24 / 30 / 0 (1.001-1.147) | 4 / 4 / 5 / 1 (1.010-1.202) |
+| 160 mm | 26 / 23 / 29 / 0 (1.001-1.147) | 5 / 5 / 6 / 1 (1.010-1.202) |
 | run 3, 188 mm | 0 / 0 | 0 / 0 |
 
 At 128 mm the larger overages are the long climbs: seed 1 at 1.020 at 8 deg, seed 2 at 1.035-1.155 and seed 3 at
@@ -472,9 +475,10 @@ some sweep points nominally inside them also go over. It also found low points o
 - the run log's wording.
 
 **A third, final check** of that revision (commit ad62d9a9), by one reviewer and a skeptic, confirmed the figures.
-It found that the in-range overages come almost entirely from points longer or heavier than training produced: the
-sweep's 20 m climbs, and x1.1 mass on every body at once. Training-typical points show only seed 3's marginal
-overages. It also found that run 3's leg is no better under delay, and that the X6 elbow's rating is a stand-in. A
+It found that at 128 mm the larger in-range overages, all above 1.018, come from points beyond what training
+produced: the sweep's endless climbs and x1.1 mass on every body at once. On training-typical points only 128 mm seed
+3 goes over, marginally. 160 mm still goes over on most of them. It also found that run 3's leg is no better under
+delay, and that the X6 elbow's rating is a stand-in. A
 few wording and rounding points remained. This version corrects those findings.
 
 The findings and verdicts of all three rounds are in `results/d22/review_2026-11-26.json`,

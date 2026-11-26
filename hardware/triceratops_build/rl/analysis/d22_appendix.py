@@ -315,10 +315,23 @@ def in_training(family, x):
 
 
 def atypical(family, x):
-    """Inside the ranges, but longer or heavier than training produced: the sweep's ramps are one 20 m climb (training:
-    0.8-2.0 m up, a top and a ramp down), and its mass points scale every body at once (training draws each body's
-    mass separately, which kept the whole robot within about x0.92-1.08)."""
-    return (family == "ramp up" and x is not None) or (family == "mass, every body" and x != 1.0)
+    """Inside the ranges, but beyond what training produced. The sweep's ramps do not end, so the robot climbs for the
+    whole episode, against training's 0.8-2.0 m up, a top and a ramp down. Its mass and force-limit points scale every
+    body or every drive at once, where training draws each body's mass and each drive's limit separately."""
+    return ((family == "ramp up" and x is not None) or (family == "mass, every body" and x != 1.0)
+            or (family == "force limit" and x != 1.0))
+
+
+def whole_robot_mass_range(draws=200_000, seed=0):
+    """The whole robot's mass factor that training's per-body draws give (U(0.9, 1.1) per body, weighted by the 128 mm
+    model's body masses): min, max and SD over `draws` episodes."""
+    import mujoco
+    import numpy as np
+
+    m = mujoco.MjModel.from_xml_path(str(RL.parent / "sim" / "generated" / "trike60_C_closed_capsule_fore128.xml"))
+    w = m.body_mass
+    s = (np.random.default_rng(seed).uniform(0.9, 1.1, size=(draws, m.nbody)) * w).sum(1) / w.sum()
+    return float(s.min()), float(s.max()), float(s.std())
 
 
 def sweep_tables(rows):
@@ -339,14 +352,22 @@ def sweep_tables(rows):
                 if h is not None and h >= 1.0:
                     b[1].append(h)
         over[k] = cnt
+    lo, hi, sd = whole_robot_mass_range()
     rows.append(f"Points inside the training ranges ({TRAINING}) where the worst drive is at or over its continuous "
-                "rating. \"Typical of training\": like what training produced; \"long climbs and whole-body mass\": the "
-                "sweep's ramps (one 20 m climb, against training's 0.8-2.0 m up, a top and a ramp down) and its x0.9 and "
-                "x1.1 masses on every body at once (training's per-body draws kept the whole robot within about "
-                "x0.92-1.08):\n")
-    cell = lambda b: f"{len(b[1])} of {b[0]}" + (f" ({f(min(b[1]), 3)}-{f(max(b[1]), 3)})" if b[1] else "")  # noqa: E731
+                "rating. \"Typical of training\": like what training produced. \"Beyond what training produced\": the "
+                "sweep's ramps, which do not end, so the robot climbs for the whole episode (about 4 m), against "
+                "training's 0.8-2.0 m up, a top and a ramp down; and its x0.9 and x1.1 masses on every body at once and "
+                "x0.85 force limit on every drive at once, where training draws them per body and per drive (the whole "
+                f"robot's mass factor in training: {lo:.3f}-{hi:.3f}, SD {sd:.4f}, over 200,000 simulated draws on the "
+                "128 mm model):\n")
+
+    def cell(b):
+        if not b[1]:
+            return f"{len(b[1])} of {b[0]}"
+        rng = f(min(b[1]), 3) if min(b[1]) == max(b[1]) else f"{f(min(b[1]), 3)}-{f(max(b[1]), 3)}"
+        return f"{len(b[1])} of {b[0]} ({rng})"
     table(rows, cols, [("typical of training", lambda c: cell(over[c][False])),
-                       ("long climbs and whole-body mass", lambda c: cell(over[c][True]))], "")
+                       ("beyond what training produced", lambda c: cell(over[c][True]))], "")
     rows.append("Each cell: falls of 8; speed m/s; sideways drift, mean of its absolute value, m (the figure T3 and T4 "
                 "read); worst joint RMS / continuous rating. "
                 "Speed, drift and heat are over the episodes that did not fall; \"all fell\" has none.\n")

@@ -1,0 +1,114 @@
+{
+ "date": "2026-11-26",
+ "report_commit_checked": "90ceb3d2",
+ "method": "one reviewer confirming the final check findings F1-F8 against the revision, with own scripts",
+ "result": {
+  "status": [
+   {
+    "id": "F1",
+    "status": "fixed",
+    "note": "The caveat is now in every place F1 named: the headline (REPORT L45-57), section 1 (L171-187 and its new table), 'What follows' (L409-416), the round-2 review summary (L464-465), the log (L223 and L230-242) and appendix F. My script review_d22confirm/scripts/split.py takes the limits from each run's env_config (run 3's from results/run3_reference_settings.json; the same for all 10 runs). It reproduces every count and range. On the 32 typical points: 128 mm 0/0/0/7 (1.0002-1.018), 160 mm 27/24/30/0 (1.0011-1.1467), run 3 0/0. On the 5 ramp and mass points: 128 mm 0/2/4/4 (1.0061-1.2165), 160 mm 4/4/5/1 (1.0101-1.2016), run 3 0/0 (at most 0.9407/0.9721). Seed 3's 7 points are friction 1.0, pushes -0.75/-0.5/-0.4/-0.3/+1.0 and the 3 cm step, at 1.0002-1.018. The geometry checks out. sweep.py:182-187 builds the ramp as one box of half-length 10 m starting 0.6 m ahead, and sweep.py is unchanged since f84a6919. At trike_env.py@f84a6919, :197-198 and :374-383 give a 0.8-2.0 m up-ramp (horizontal length), a 0.4-1.5 m top and a ramp down. :724 draws mass per body (size=m.nbody) and :739 holds the world body at 1. My Monte Carlo (mc_mass.py, mujoco 3.10, fore128.xml: 21 bodies, 12.7506 kg) gives an exact SD of 0.02859. 200k draws on each of 3 seeds give min 0.920-0.922 and max 1.0747-1.0762, so 'about x0.92-1.08' and 'SD 0.029' hold; fore160 gives the same. grep finds no 'trained ramp', 'trained 3-8' or 'trained sweep' left. The new wording has small problems of its own (new problems 1, 2, 4)."
+   },
+   {
+    "id": "F2",
+    "status": "fixed",
+    "note": "L199-200 now says run 3 had more headroom on the trained conditions and the long climbs, but not under 20-30 ms delays. The L40 headline no longer contrasts run 3. My delay.py at 0.25 m/s, 20/30 ms: 128 mm 1.0743-1.224 (mean 1.156), run 3 1.1989-1.2634 (mean 1.225); at 0.15 m/s: 128 mm 1.099-1.3305, 160 mm 1.0056-1.5788, run 3 1.1955-1.2683. All match L190-192. The rewritten L65-66 is correct: x1.2 mass gives run 3 1.0295/0.9342 and 2 kg gives 1.010/0.9087. 'And by more (1.20-1.26)' holds on the means and the range ends, though 128 s2 at 30 ms (1.224) is above run 3 s1 (1.1989/1.2005). Leaving out mass, where run 3 did have more headroom (1.03/0.93 against 1.04-1.12), is not an error."
+   },
+   {
+    "id": "F3",
+    "status": "fixed",
+    "note": "L392-393 now says the ratings come from the maker's temperature-rise table, and the X6 elbow's from the X6-50-L table as a stand-in. This matches drives.json: _about says thermal_eq_nm is the maker's temperature-rise table value, and leg_drives.X6-60.thermal_eq_note reads 'X6-50-L table at 0 rpm used as a stand-in: the V4 X6-60 has no published table'. 'The elbow never sets the worst-drive figure' holds. No point in any of the 10 sweeps has a fore_flexion heat_worst_joint. In every gait-report case of all 10 runs (target, cmd_0.15, nominal, otherfoot) the worst drive is not an elbow; the elbow reaches at most 0.846. In every demo and walk-only demo segment, neither the worst drive nor the hottest winding is an elbow."
+   },
+   {
+    "id": "F4",
+    "status": "partly fixed",
+    "note": "The report's 'corrects all of them' is now 'This version corrects those findings'. In the log, the round-1 sentence (L214-215) now adds 'some only in part until the later checks below', and round 2 (L225) adds 'and this log'. Two problems remain. First, the new final-round sentence (LOG L246, 'All are corrected in the report, the appendix and its generator') leaves out the log. Yet this revision's own fixes include log edits: L214-215, L223 and L225, per git diff ad62d9a9 90ceb3d2. That is the same defect F4 named for round 2. Second, the rewritten round-2 list (L225: 'the report, the appendix and this log') now leaves out the generator, although d22_appendix.py changed in that round (git diff --stat 6da391cf ad62d9a9: 46 lines). The report's own summary of the final check also misstates its finding (new problem 1)."
+   },
+   {
+    "id": "F5",
+    "status": "fixed",
+    "note": "L264 now reads 0.217. In judge_d22.json, T4 drift_m for the 128 mm seeds is 0.430609/0.447056/0.647154/0.452591: range 0.216545, mean 0.4944, SD 0.1023. For 160 mm: SD 0.3225, range 0.714008."
+   },
+   {
+    "id": "F6",
+    "status": "fixed",
+    "note": "L280-281: the forefeet differ by '7-12 mm in three of these runs, and by 62 mm in 160 mm s3 (109.5 against 47.1 mm)'. In gait_report.json target_0.25 swing_clearance_mm, the left/right fore means are 128 s0 80.8/93.2 (12.3), 128 s1 92.8/85.9 (6.9), 160 s0 108.0/116.3 (8.3) and 160 s3 109.5/47.1 (62.4). The 78-112 and 47-116 mm ranges still hold."
+   },
+   {
+    "id": "F7",
+    "status": "fixed",
+    "note": "L193-195 now names the tops. My delay.py: 1.601 at 0.25 m/s is fore128-s1 at 60 ms, 0.2172 m/s, 0 falls. 1.749 at 0.15 m/s is fore160-s1 at 60 ms, 0.1852 m/s, 0 falls. 'Several other policies slow to 0.02-0.11 m/s' matches the slowed cells at 0.0185-0.1055 m/s, and the cells with falls are other ones."
+   },
+   {
+    "id": "F8",
+    "status": "fixed",
+    "note": "The duplicate closing sentence is gone: 'The findings and verdicts' now occurs once, at L480. awk finds no non-table line over 122 characters in the report, and the old L236 is rewrapped (L247-250). The revision added one overlong line in the log (new problem 6)."
+   }
+  ],
+  "new_problems": [
+   {
+    "severity": "low",
+    "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:474-478",
+    "problem": "The report's summary of the final check overstates the finding and does not say it applies only to 128 mm. It says the in-range overages 'come almost entirely from points longer or heavier than training produced' and that 'Training-typical points show only seed 3's marginal overages'. At 128 mm, 7 of the 17 in-range overage points are training-typical. At 160 mm, 81 of 95 are training-typical, up to 1.147. The report's own table at L179-183 shows this.",
+    "evidence": "split.py: 128 mm overages 0/0/0/7 typical against 0/2/4/4 ramp or mass, so 10 of 17 come from the five points. 160 mm: 27/24/30/0 typical against 4/4/5/1. The final check (finalcheck JSON F1) said only that seeds 1 and 2's overages are all ramp or mass points and that seed 3 has 7 typical ones.",
+    "fix": "For example: 'It found that at 128 mm the larger in-range overages (all above 1.018) come from points longer or heavier than training produced ...; on training-typical points only 128 mm seed 3 goes over, marginally (160 mm still goes over on most of them).'"
+   },
+   {
+    "severity": "low",
+    "location": "REPORT_FORELEG_D22.md:49 and 475; runs/trike60-d22_LOG.md:231",
+    "problem": "The label 'Longer or heavier than training produced' covers the x0.9 mass point, which is lighter. Elsewhere the text correctly says 'x0.9 and x1.1 masses'.",
+    "evidence": "REPORT L52 and L174, and the generator's atypical() (family == 'mass, every body' and x != 1.0), include x0.9. Its heat is 0.874-0.937 at 128 mm (split.py), so no count changes.",
+    "fix": "'Longer, heavier or lighter than training produced', or 'beyond what training produced'."
+   },
+   {
+    "severity": "low",
+    "location": "REPORT_FORELEG_D22.md:45-47, 171-172; analysis/d22_appendix.py atypical()",
+    "problem": "The split is not applied consistently. Whole-body mass counts as untypical because training draws mass per body. The force limit x0.85 on all 12 drives at once counts as 'like what training produced', but training draws force limits per actuator, so every drive at 0.85 together is just as much a corner case.",
+    "evidence": "trike_env.py@f84a6919 _draw_factors: force_limit_scale = rng.uniform(0.85, 1.0, size=m.nu), and kp likewise. Sweep key [0.25,10,null,1.0,0.0,0.85,...]: heat 0.859/0.933/0.939/0.984 at 128 mm and 0.844/0.820 for run 3, all below nominal, so no 128 mm or run 3 count changes. It is 1.018/1.049/1.128/0.881 at 160 s0-s3, so three 160 mm typical counts would each drop by one.",
+    "fix": "Add one clause noting that the force-limit point applies x0.85 to every drive at once (and runs cooler than nominal), or classify it with the mass points."
+   },
+   {
+    "severity": "low",
+    "location": "REPORT_FORELEG_D22.md:50-51, 173; appendix F header; LOG:232",
+    "problem": "Setting 'one 20 m climb' against training's '0.8-2.0 m up' suggests a 10-25x difference. The ramp box is 20 m long, but in a 20 s episode the robot climbs only about 4.3 m of it. What separates the two is the climb's length walked and its duration (about 18 s against 3-8 s). The clause 'keeps the robot climbing for the whole episode' is right.",
+    "evidence": "sweep.py:182-187 (half-length 10 m from x0 = 0.6 m). Ramp points' speed_mps is 0.236-0.245 at 128 mm and for run 3 s0, so 4.24-4.41 m over the 2-20 s window. env_config episode_seconds is 20.0.",
+    "fix": "For example: 'a ramp that does not end, so the robot climbs for the whole episode (about 4.4 m at 0.25 m/s), against training's 0.8-2.0 m up, a top and a ramp down'."
+   },
+   {
+    "severity": "low",
+    "location": "REPORT_FORELEG_D22.md:175; analysis/d22_appendix.py atypical() docstring and section F text",
+    "problem": "The report gives the whole-robot range 'x0.92-1.08 (SD 0.029; simulated over 200,000 draws on the 128 mm model)', but no script or output for that simulation is in the repository. The generator hard-codes the range as a string, and the finalcheck JSON names only the reviewer's scratch scripts (review_d22final3/.../mc_mass.py).",
+    "evidence": "grep -rln 'mc_mass|200,000|200_000' finds no such script under rl/; the 200000 hits are sweep seeds. I reproduced the figure independently: SD 0.02859, range 0.920-1.076 over 200k draws.",
+    "fix": "Either commit the small Monte Carlo, for example as a function in d22_appendix.py that computes the range from the model, or cite the finalcheck JSON as its source."
+   },
+   {
+    "severity": "low",
+    "location": "hardware/triceratops_build/rl/runs/trike60-d22_LOG.md:215",
+    "problem": "The revision left a new unwrapped line in the log (145 characters), the kind of problem F8 fixed in the report.",
+    "evidence": "awk on non-table lines over 122 characters: LOG L215 is 145 characters and was not over the limit at ad62d9a9. L36, L98 and L228 were already over.",
+    "fix": "Rewrap L214-215 at about 120 characters."
+   },
+   {
+    "severity": "low",
+    "location": "REPORT_FORELEG_D22_APPENDIX.md section F (from d22_appendix.py cell())",
+    "problem": "A one-value cell prints as a range: '1 of 5 (1.010-1.010)' for 160 s3.",
+    "evidence": "cell = lambda b: ... f\" ({f(min(b[1]), 3)}-{f(max(b[1]), 3)})\". 160 s3 has a single ramp or mass overage, 1.0101.",
+    "fix": "Print a single value when min equals max."
+   }
+  ],
+  "checked_ok": [
+   "I regenerated the appendix with the scratchpad venv python (mujoco 3.10) from hardware/triceratops_build/rl: analysis/d22_appendix.py --out /tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_d22confirm/appendix.md. diff and cmp against the committed REPORT_FORELEG_D22_APPENDIX.md find it byte-identical.",
+   "git status --short was empty before and after my work (status_before.txt and status_after.txt in /tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_d22confirm/). I ran Python with PYTHONDONTWRITEBYTECODE=1.",
+   "Split counts, reproduced independently (/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_d22confirm/scripts/split.py, output split.json there). Every run has 37 in-range points (32 typical, 5 atypical). Typical: 128 mm 0/0/0/7 (1.0002-1.018); 160 mm 27/24/30/0 (s0 1.0011-1.1219, s1 1.0486-1.087, s2 1.0228-1.1467); run 3 0/0. Atypical: 128 mm 0/2/4/4 (s1 1.0061-1.0201, s2 1.0219-1.1553, s3 1.0642-1.2165); 160 mm 4/4/5/1 (1.0574-1.1164, 1.0494-1.1538, 1.0477-1.2016, 1.0101); run 3 0/0. These match REPORT L45-57 and L179-187, LOG L236-242 and appendix F cell for cell.",
+   "The generator's new atypical() selects exactly the 3 ramps and the x0.9/x1.1 mass points. Each key is classified once, through the 'seen' set; the nominal key is met first in 'delay, 0.25 m/s' and so counts as typical, which agrees with my point-by-point classification.",
+   "Training geometry and mass draws at f84a6919. env_config has terrain_slope_len_m [0.8, 2.0], terrain_plateau_len_m [0.4, 1.5], terrain_boxes 8, slope max 10 deg and episode_seconds 20. terrain_layout builds up, plateau, down. Mass is drawn per body, with the world body at 1. robustness/sweep.py and trike_env.py are unchanged between f84a6919 and HEAD (empty git diff --stat).",
+   "Whole-robot mass Monte Carlo (/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_d22confirm/scripts/mc_mass.py) on fore128.xml (nbody 21, 20 with mass, 12.7506 kg, chassis 47 % of the mass): exact SD 0.02859, z(1.1) = 3.50. 200k draws on seeds 0-2 give min 0.9203-0.9219 and max 1.0747-1.0762; 10k and 50k draws, about training's episode count, give 0.926-1.072. fore160.xml gives the same.",
+   "Beyond the training ranges: 128 mm x1.2 mass 1.0445-1.1191 and 2 kg 1.0156-1.1111. 160 mm 0.9716-1.2606 and 0.934-1.2479. Run 3 1.0295/0.9342 and 1.010/0.9087.",
+   "'What follows' list (L409-416): s1-s3 each go over both on a ramp and at x1.1 mass. All four 128 mm seeds go over at 20-30 ms, at x1.2 and with 2 kg. Run 3's worst typical points are 0.924/0.860 and its worst ramp or mass points 0.941/0.972, so 'stayed under' holds.",
+   "The 20 s episode window starts at t = 2 s (sweep window_from_s), and the ramp foot is 0.6 m ahead, so 'climbing for the whole episode' is approximately right.",
+   "No leftover 'trained ramp', 'trained 3-8' or 'trained sweep' wording in the report, appendix or log. LOG L222 keeps the 37-point counts 0/2/4/11 but qualifies them at once (L223).",
+   "The appendix diff touches only section F's header and the two new rows. Sections A-E are unchanged.",
+   "Ratings in the env and the sweep: roll and pitch 7.5, front elbow 10.8, hind knee 6.75 (trike_env.py:152-157; sweep settings.continuous_rating_nm)."
+  ]
+ }
+}
