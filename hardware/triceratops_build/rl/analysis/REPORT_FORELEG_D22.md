@@ -37,22 +37,24 @@ keep its drives within their ratings on every seed. It does not mean 128 mm is b
   160 mm.
 - **Pushes:** it fell more under the hardest sideways pushes, 55 of 64 episodes at +-1.25 m/s against 42 of 64.
 
-**128 mm runs its drives at about their continuous rating, and run 3's 188 mm leg did not.** In the judged case,
-128 mm's worst drive is at 0.83-0.95 of rating. In the cases that are reported but not judged:
+**128 mm runs its drives close to their continuous rating.** In the judged case, 128 mm's worst drive is at
+0.83-0.95 of rating. In the cases that are reported but not judged:
 - **The nominal model:** two 128 mm seeds reach or pass the rating. Seed 2 is at 1.005 in the gait report with
   observation noise off. Seed 3 is at 1.006 in the demo course's walking segment and 0.997 at the sweep's nominal
   point.
-- **Inside the training ranges,** three of the four 128 mm seeds go over at some sweep points:
-  - on the trained 3-8 deg ramps: seed 1 at 1.020 at 8 deg, seed 2 at 1.035-1.155, seed 3 at 1.096-1.216;
-  - with every body 10 % heavier, the edge of the training range: 1.006-1.064.
+- **Conditions typical of training:** 32 of the sweep's points are inside the training ranges and like what training
+  produced. On these, 128 mm stays under its rating on seeds 0-2. Seed 3 is at or just over it on 7 points
+  (1.000-1.018: a 3 cm step, friction 1.0 and five pushes). 160 mm goes over on 27, 24, 30 and 0 of the 32, and
+  run 3's leg on none.
+- **Longer or heavier than training produced:** five more points are nominally inside the training ranges.
+  - The sweep's ramps (3, 5 and 8 deg) are one 20 m climb, which keeps the robot climbing for the whole episode.
+    Training ramps are 0.8-2.0 m up, then a 0.4-1.5 m top and a ramp down.
+  - The sweep's x0.9 and x1.1 masses are applied to every body at once. Training draws each body's mass separately,
+    so the whole robot's mass stayed within about x0.92-1.08.
 
-  The sweep has 37 points inside the training ranges. The number where the worst drive is at or over its rating:
-
-  | | s0 | s1 | s2 | s3 |
-  |---|---|---|---|---|
-  | 128 mm | 0 | 2 | 4 | 11 |
-  | 160 mm | 31 | 28 | 35 | 1 |
-  | run 3, 188 mm | 0 | 0 | | |
+  On these five points three of the four 128 mm seeds go over: on the ramps seed 1 at 1.020 (8 deg), seed 2 at
+  1.035-1.155 and seed 3 at 1.096-1.216; at x1.1 mass 1.006-1.064. 160 mm goes over on 4, 4, 5 and 1 of the five,
+  and run 3's leg on none.
 
 - **Beyond the training ranges,** every 128 mm seed goes over:
   - at servo (leg-command) delays of 20-30 ms: 1.07-1.22. D9 set 10 ms as a conservative estimate until the bench
@@ -60,8 +62,8 @@ keep its drives within their ratings on every seed. It does not mean 128 mm is b
   - with every body 20 % heavier: 1.04-1.12;
   - with 2 kg of payload: 1.02-1.11.
 
-  Run 3's leg also goes over at those delays (1.20-1.26), but not at x1.2 mass on one seed (0.93) or with 2 kg on
-  one seed (0.91).
+  Run 3's leg goes over at those delays too, and by more (1.20-1.26). It goes over on one seed at x1.2 mass (1.03,
+  against 0.93 on the other) and on one seed with 2 kg (1.01, against 0.91).
 
 **Straight walking only.** All eight policies walk straight. PR #697's case for 160 mm rested on lower turning and
 pivoting loads and a more legible elbow, and these runs test neither.
@@ -166,26 +168,36 @@ continuous rating, all at 0.25 m/s:
 | Sweep's nominal point (noise on, 8 episodes) | 0.865 / 0.940 / 0.974 / 0.997 | 1.04 / 1.06 / 1.13 / 0.91 | 0.86 / 0.82 |
 | Demo course, walking segment (one 20 s episode) | 0.87 / 0.90 / 1.00 / 1.01 | 1.05 / 1.06 / 1.07 / 0.90 | not run |
 
-**Inside the training ranges (the sweep, 8 episodes per point).** Of its 37 points inside the training ranges, the
-number where the worst drive is at or over its rating is:
-- 128 mm: 0, 2, 4 and 11 (seeds 0-3);
-- 160 mm: 31, 28, 35 and 1;
-- run 3: 0 and 0.
+**Inside the training ranges (the sweep, 8 episodes per point).** The sweep has 37 points inside the training
+ranges. 32 are like what training produced. The other five are:
+- its three ramps, each one 20 m climb, against training's 0.8-2.0 m up, a top and a ramp down;
+- its x0.9 and x1.1 masses on every body at once, against training's per-body draws, which kept the whole robot within
+  about x0.92-1.08 (SD 0.029; simulated over 200,000 draws on the 128 mm model).
 
-At 128 mm these points are mostly the trained 3-8 deg ramps (seed 1 at 1.020 at 8 deg, seed 2 at 1.035-1.155,
-seed 3 at 1.096-1.216) and every body 10 % heavier (1.006-1.064 on seeds 1-3). Seed 3 is also just over, at
-1.000-1.018, on a 3 cm step, at friction 1.0 and under several pushes.
+Points where the worst drive is at or over its rating, seeds 0 / 1 / 2 / 3:
+
+| | 32 points typical of training | 5 ramp and whole-body mass points |
+|---|---|---|
+| 128 mm | 0 / 0 / 0 / 7 (1.000-1.018) | 0 / 2 / 4 / 4 (1.006-1.216) |
+| 160 mm | 27 / 24 / 30 / 0 (1.001-1.147) | 4 / 4 / 5 / 1 (1.010-1.202) |
+| run 3, 188 mm | 0 / 0 | 0 / 0 |
+
+At 128 mm the larger overages are the long climbs: seed 1 at 1.020 at 8 deg, seed 2 at 1.035-1.155 and seed 3 at
+1.096-1.216. At x1.1 mass they are 1.006-1.064 on seeds 1-3. Seed 3's seven training-typical points are a 3 cm
+step, friction 1.0 and five pushes, all at 1.000-1.018.
 
 **Beyond the training ranges:**
 - **Servo (leg-command) delays of 20-30 ms:** every 128 mm seed goes over, at 1.07-1.22. 160 mm goes over at
   1.10-1.36, and run 3 at 1.20-1.26. At 0.15 m/s the figures are 1.10-1.33 at 128 mm, 1.01-1.58 at 160 mm and
   1.20-1.27 for run 3.
-- **At 40-60 ms** the figures run up to 1.60 at 0.25 m/s and 1.75 at 0.15 m/s, but several policies slow to
-  0.02-0.11 m/s there or fall, and heat is taken over the episodes that did not fall.
+- **At 40-60 ms** the figures run up to 1.60 at 0.25 m/s (128 mm seed 1, still walking at 0.22 m/s) and 1.75 at
+  0.15 m/s (160 mm seed 1). Several other policies slow to 0.02-0.11 m/s there or fall, and heat is taken over the
+  episodes that did not fall.
 - **Every body 20 % heavier:** 1.04-1.12 at 128 mm, 0.97-1.26 at 160 mm, and 1.03 and 0.93 for run 3.
 - **2 kg on the chassis:** 1.02-1.11 at 128 mm, 0.93-1.25 at 160 mm, and 1.01 and 0.91 for run 3.
 
-So the real robot's terrain, mass and delay decide how much headroom is left, and run 3's leg had more.
+So the real robot's terrain, mass and delay decide how much headroom is left. Run 3's leg had more on the trained
+conditions and the long climbs, but not under longer delays (20-30 ms: 1.20-1.26 against 128 mm's 1.07-1.22).
 
 **Which drive runs hottest depends on the seed** (a pitch drive or a knee, front or hind) as much as on the length.
 
@@ -233,8 +245,9 @@ detect a true 25 % reduction about 80 % of the time. A 3 % difference, as here, 
 resolve. So "the loads test would also have kept 128 mm" is not evidence that 160 mm gives no load benefit.
 
 PR #697's scripted turning tests favoured 160 mm. On its moving courses the largest 10 ms mean was 260.8 N at
-128 mm against 215.1 N at 160 mm (seeds 101-103), and 329.6 against 247.8 N on six more (seeds 104-106). Those come from other controllers and motions. These runs have no turning to compare with;
-the steering run (D20, not yet trained) will measure turning loads under the RL policy.
+128 mm against 215.1 N at 160 mm (seeds 101-103), and 329.6 against 247.8 N on six more (seeds 104-106). Those
+come from other controllers and motions. These runs have no turning to compare with; the steering run (D20, not yet
+trained) will measure turning loads under the RL policy.
 
 **4. Sideways drift.** No run fell on any step, ramp or friction point, but drift is large.
 - **T3** (steps and ramps, 0.30 m limit) fails on all four 128 mm seeds, their worst points drifting 0.33-0.58 m. It
@@ -248,7 +261,7 @@ the steering run (D20, not yet trained) will measure turning loads under the RL 
 | | 128 mm, mean (SD; range) | 160 mm, mean (SD; range) | difference of the means |
 |---|---|---|---|
 | T3, each seed's worst point | 0.435 m (0.116; 0.248) | 0.377 m (0.152; 0.324) | 0.058 m |
-| T4 | 0.494 m (0.102; 0.216) | 0.351 m (0.322; 0.714) | 0.144 m |
+| T4 | 0.494 m (0.102; 0.217) | 0.351 m (0.322; 0.714) | 0.144 m |
 
 Drift matters for the steering run, which closes the heading loop.
 
@@ -264,8 +277,8 @@ Run 3 fell 8 / 5 / 4 / 8 (s0) and 8 / 0 / 2 / 8 (s1).
 
 **6. Gait.** In these eight runs the strides fell into two groups, with no run in between, at both lengths:
 - **Long strides:** 0.68-0.87 Hz and 0.28-0.37 m. The mean of the two front feet's swing heights is 78-112 mm;
-  single front feet swing 47-116 mm, so the two sides differ widely. These are 128 mm s0 and s1, and 160 mm s0 and
-  s3.
+  single front feet swing 47-116 mm. The two forefeet differ by 7-12 mm in three of these runs, and by 62 mm in
+  160 mm s3 (109.5 against 47.1 mm). These are 128 mm s0 and s1, and 160 mm s0 and s3.
 - **Short strides:** 1.22-1.65 Hz and 0.15-0.20 m. The two-foot mean swing height is 19-33 mm, and single feet swing
   12-49 mm. These are 128 mm s2 and s3, and 160 mm s1 and s2.
 
@@ -376,7 +389,8 @@ reported instead.
 - **On turning:** nothing. These policies walk straight. Turning loads and heat under the RL policy are for the
   steering run (D20), which has not been trained yet.
 - **The heat and battery figures are model estimates:**
-  - each drive's continuous rating comes from the maker's catalogue entry for that drive;
+  - each drive's continuous rating comes from the maker's temperature-rise table. The X6 elbow's comes from the
+    X6-50-L's table as a stand-in, since the X6-60 has none published; the elbow never sets the worst-drive figure;
   - the thermal model's time constants are fitted to the maker's overload figures for the X4-36-L and the X6-50-L;
   - the demo starts from 25 C in open air, and a museum shell would be warmer;
   - the masses are estimates, and the servo loops are idealised;
@@ -393,8 +407,13 @@ reported instead.
   - hold the choice until turning has been tested;
   - choose otherwise despite the gate. Choosing 160 mm would first need its drives brought under their ratings.
 - **The heat margin.** With 128 mm, at 0.25 m/s, the worst drive sits at 0.83-1.01 of its continuous rating on
-  flat ground. It goes above the rating on trained ramps, at x1.1 mass and beyond the training ranges, and in a demo
-  walked without breaks. Run 3's leg stayed under at every trained sweep point. Options include, singly or together:
+  flat ground. It goes above the rating:
+  - on one seed, marginally, under training-typical conditions;
+  - on three seeds on long climbs and with the whole robot 10 % heavier;
+  - on all seeds at servo delays of 20 ms or more, with 20 % more mass or with 2 kg of payload;
+  - in a demo walked without breaks.
+
+  Run 3's leg stayed under on the trained conditions and the long climbs. Options include, singly or together:
   - a stronger heat cost in training;
   - a lower demo speed or longer standing breaks;
   - training over wider delay and mass ranges;
@@ -442,9 +461,8 @@ these corrections:
 
 Each was again followed by a skeptic.
 
-It found one medium point that held: the report had put 128 mm's heat overages only beyond the training ranges, when
-three of the four 128 mm seeds also go over on trained ramps and at x1.1 mass. It also found low points of wording
-and rounding:
+It found one medium point that held: the report had put 128 mm's heat overages only beyond the training ranges, but
+some sweep points nominally inside them also go over. It also found low points of wording and rounding:
 - the delay is a servo delay only;
 - PR #697's second moving-course panel;
 - the training ranges in full;
@@ -453,7 +471,11 @@ and rounding:
 - the demo's dependence on its standing breaks;
 - the run log's wording.
 
-This version corrects all of them. The findings and verdicts of both rounds are in
-`results/d22/review_2026-11-26.json` and `results/d22/recheck_2026-11-26.json`.
+**A third, final check** of that revision (commit ad62d9a9), by one reviewer and a skeptic, confirmed the figures.
+It found that the in-range overages come almost entirely from points longer or heavier than training produced: the
+sweep's 20 m climbs, and x1.1 mass on every body at once. Training-typical points show only seed 3's marginal
+overages. It also found that run 3's leg is no better under delay, and that the X6 elbow's rating is a stand-in. A
+few wording and rounding points remained. This version corrects those findings.
 
-The findings and verdicts are in `results/d22/review_2026-11-26.json`.
+The findings and verdicts of all three rounds are in `results/d22/review_2026-11-26.json`,
+`results/d22/recheck_2026-11-26.json` and `results/d22/finalcheck_2026-11-26.json`.

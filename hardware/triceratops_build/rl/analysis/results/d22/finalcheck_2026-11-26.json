@@ -1,0 +1,346 @@
+{
+ "date": "2026-11-26",
+ "report_commit_checked": "ad62d9a9",
+ "method": "one reviewer (second-check fixes; audit of the new figures with own scripts; appendix regenerated) followed by a skeptic",
+ "reviews": [
+  {
+   "findings": [
+    {
+     "id": "F1",
+     "severity": "medium",
+     "title": "The in-range heat overages are put down to 'the trained 3-8 deg ramps' and to x1.1 mass, without the caveat that all three skeptics asked for",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:45-47, 169-177, 395-397, 445-446; runs/trike60-d22_LOG.md:222-224",
+     "evidence": "My script review_d22final3/main/scripts/inrange.py reads the limits from each run record's env_config. It reproduces 0/2/4/11, 31/28/35/1 and 0/0 of 37, and the values 1.006-1.064 (mass x1.1) and 1.020 / 1.035-1.155 / 1.096-1.216 (ramps). Every in-range overage for 128 s1 (mass1.1 1.0061, ramp8 1.0201) and s2 (mass1.1 1.0219, ramps 1.0354/1.073/1.1553) is either a ramp or the every-body mass point. The sweep's ramp is one box with half-length L = 10 m, starting 0.6 m ahead (robustness/sweep.py:182-187), so the policy climbs for the whole window. Training up-ramps are 0.8-2.0 m long, followed by a plateau and a down-ramp (trike_env.py@f84a6919:196-198, 374-383). Training draws mass per body (f84a6919:724, size=m.nbody). My Monte Carlo on fore128.xml (21 bodies, 200k draws) gives a total-mass scale SD of 0.0286 and a maximum of 1.076, so training never saw x1.1 on the whole robot. The A1, NEW1 and RD1 verdicts each said not to call the ramps simply inside the training ranges. The text says 'the trained 3-8 deg ramps' and 'Run 3's leg stayed under at every trained sweep point', with no length caveat. Only seed 3's seven points (1.000-1.018: friction 1.0, 3 cm step, pushes) are typical of training. 'Three of the four 128 mm seeds go over inside the training ranges' therefore rests on the two kinds of point that the skeptics qualified.",
+     "suggested_fix": "After the in-range bullets add: 'The sweep's ramp is a single 20 m climb, longer than any trained ramp (0.8-2.0 m up, then a plateau and a ramp down). x1.1 on every body at once is beyond any whole-robot mass that the per-body draws produced in training (at most about x1.08). On points typical of training, only seed 3 goes over, at 1.000-1.018.' Use the same wording in 'What follows', the review section and the log."
+    },
+    {
+     "id": "F2",
+     "severity": "medium",
+     "title": "'Run 3's leg had more' headroom is contradicted at the 20-30 ms delays, one of the three factors named in the same sentence",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:40 (headline), 188",
+     "evidence": "My script delay.py, run on robustness/results/<run>/sweep_<run>.json.gz at 0.25 m/s, gives heat_worst at 20/30 ms of 128 s0 1.074/1.113, s1 1.127/1.092, s2 1.203/1.224 and s3 1.198/1.220 (mean 1.156, minimum 1.074). Run 3 gives s0 1.236/1.263 and s1 1.199/1.2005 (mean 1.225, minimum 1.199). Run 3's least-loaded delay point is hotter than four of 128 mm's eight. Run 3 s0 also goes over at x1.2 mass (1.030) and with 2 kg (1.010). L188 nevertheless says 'So the real robot's terrain, mass and delay decide how much headroom is left, and run 3's leg had more', and the L40 headline sets 128 mm against 'run 3's 188 mm leg did not'. Both are true only for the nominal and in-range cases and for extra mass, not under delay.",
+     "suggested_fix": "L188: '... and run 3's leg had more inside the training ranges and under extra mass, but not under delay (20-30 ms: 1.20-1.26 against 1.07-1.22 at 128 mm).' L40: '128 mm runs its drives at about their continuous rating; in the trained conditions run 3's 188 mm leg stayed under it.'"
+    },
+    {
+     "id": "F3",
+     "severity": "medium",
+     "title": "The new limitations bullet says each drive's continuous rating is the maker's entry for that drive, but the X6 elbow's comes from the X6-50-L as a stand-in (RD16's confirmed point, still not fixed)",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:379",
+     "evidence": "sim/data/drives.json leg_drives.X6-60.thermal_eq_note reads 'X6-50-L table at 0 rpm used as a stand-in: the V4 X6-60 has no published table'. The front-elbow rating in the env and the sweep is 10.8 = 12.0 x 0.9 (trike_env.py:156; the sweep's settings.continuous_rating_nm 'front elbow' 10.8). The old text, 'come from the maker's data', was only incomplete. The new text, 'comes from the maker's catalogue entry for that drive', is wrong for one drive. The effect on the verdict is small, since the elbow never sets H_all.",
+     "suggested_fix": "'each drive's continuous rating comes from the maker's temperature-rise table, the X6 elbow's from the X6-50-L's table as a stand-in (the X6-60 has none published)'."
+    },
+    {
+     "id": "F4",
+     "severity": "low",
+     "title": "'This version corrects all of them' (report) and 'All are corrected' (log) overstate the second-round fixes",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:456; runs/trike60-d22_LOG.md:225",
+     "evidence": "RD16's confirmed part (the X6 stand-in) is not corrected and is now stated wrongly (F3). The caveat the skeptics attached to A1/NEW1/RD1 is missing (F1). The log's round-1 sentence, 'The confirmed medium and low findings are corrected in the report, the appendix, its generator and this log' (LOG:214-215), is unchanged. The log also says the second-round fixes are 'in the report and appendix', but RD11's fix is in the log itself. This is the overclaim NEW6 described, repeated for the second round.",
+     "suggested_fix": "After fixing F1 and F3, say 'corrects them' only if all are corrected; otherwise list what remains. In the log, add 'and this log'."
+    },
+    {
+     "id": "F5",
+     "severity": "low",
+     "title": "T4's 128 mm seed range is 0.217 m, not 0.216 (the same round-then-subtract slip as the 0.143 that A4 fixed)",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:251",
+     "evidence": "judge_d22.json runs.128_s*.rule_values.T4.drift_m are 0.430609, 0.447056, 0.647154 and 0.452591. Max minus min is 0.216545, which rounds to 0.217. The 0.216 comes from 0.647 - 0.431. The other cells reproduce: T3 0.248 / 0.324, T4 160 0.714, SDs 0.116/0.152/0.102/0.322, differences 0.058 / 0.144.",
+     "suggested_fix": "Change 0.216 to 0.217."
+    },
+    {
+     "id": "F6",
+     "severity": "low",
+     "title": "'So the two sides differ widely' generalises from one long-stride run",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:266-267",
+     "evidence": "gait_report.json cases.target_0.25.summary.feet.swing_clearance_mm, mean of the left and right fore. In the long-stride group: 128 s0 80.8/93.2, 128 s1 92.8/85.9, 160 s0 108.0/116.3 (each pair differs by 7-12 mm), and 160 s3 109.5/47.1 (62 mm). The 78-112, 47-116, 19-33 and 12-49 mm ranges are correct.",
+     "suggested_fix": "'single front feet swing 47-116 mm; 160 mm s3's two forefeet differ by 62 mm (109.5 against 47.1 mm)'."
+    },
+    {
+     "id": "F7",
+     "severity": "low",
+     "title": "The 40-60 ms caveat reads as if the 1.60 and 1.75 tops came from policies that slowed down, but both are full-speed points with no falls",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:183-184",
+     "evidence": "delay.py: the 1.601 top at 0.25 m/s is fore128-s1 at 60 ms, 0.217 m/s, 0 falls. The 1.749 top at 0.15 m/s is fore160-s1 at 60 ms, 0.185 m/s, 0 falls. The slowed points (0.019-0.106 m/s: 128 s0 40/60 ms, 128 s3 60 ms with 3 falls, 160 s2 60 ms, run 3 s1 60 ms) and the points with falls are other cells. The figures themselves (up to 1.60 and 1.75; 0.02-0.11 m/s) are correct.",
+     "suggested_fix": "'... up to 1.60 at 0.25 m/s (128 mm seed 1, still walking at 0.22 m/s) and 1.75 at 0.15 m/s; several other policies slow to 0.02-0.11 m/s there or fall ...'."
+    },
+    {
+     "id": "F8",
+     "severity": "low",
+     "title": "Leftover duplicate closing sentence and one unwrapped line",
+     "location": "hardware/triceratops_build/rl/analysis/REPORT_FORELEG_D22.md:459, 236",
+     "evidence": "L456-457 already say 'The findings and verdicts of both rounds are in results/d22/review_2026-11-26.json and results/d22/recheck_2026-11-26.json'. L459 repeats the older 'The findings and verdicts are in results/d22/review_2026-11-26.json'. L236 is 195 characters, where the rest of the prose wraps at about 120.",
+     "suggested_fix": "Delete L459 and rewrap L236."
+    }
+   ],
+   "second_check_status": [
+    {
+     "id": "A1",
+     "status": "partly fixed",
+     "note": "The in-range overages are added, with correct numbers (reproduced: 0/2/4/11 of 37, mass x1.1 1.006-1.064, ramps 1.020/1.035-1.155/1.096-1.216). Terrain is added to the 'decide' sentence and the review section mentions the point. Still missing is the skeptic's caveat that the ramps are a 20 m sustained climb and that x1.1 on every body is a corner of per-body draws (see F1)."
+    },
+    {
+     "id": "A2",
+     "status": "fixed",
+     "note": "L42-44: 'reach or pass'; seed 2 1.005 (gait nominal 1.00461) and seed 3 1.006 (demo walk 7.5468/7.5) and 0.997 (sweep 0.996888) verified."
+    },
+    {
+     "id": "A3",
+     "status": "fixed",
+     "note": "L78-83 list kp x0.9-1.1, force x0.85-1.0, and friction 0.6-1.0 moving to 0.3 over 1-4 M steps (terrain_ramp_from/to 1,000,000/4,000,000 in the run records)."
+    },
+    {
+     "id": "A4",
+     "status": "fixed",
+     "note": "0.144 m (0.143686). The new range column has the same kind of slip (0.216 should be 0.217, F5)."
+    },
+    {
+     "id": "A5",
+     "status": "fixed",
+     "note": "Now 'each length's range between seeds' with ranges in the table: 0.248/0.324 and 0.217/0.714 against 0.058/0.144. The claim holds."
+    },
+    {
+     "id": "A6",
+     "status": "fixed",
+     "note": "'about 17 % more (+-111 against +-95 mm)' matches PLAN_FORELEG_D22.md:45-46 (111/95 = 1.168); disclosure 7 notes the pre-registration's inversion."
+    },
+    {
+     "id": "A7",
+     "status": "fixed",
+     "note": "Per-foot ranges 47-116 and 12-49 mm and two-foot means 78-112 and 19-33 mm verified against gait_report.json. 'Differ widely' over-generalises (F6)."
+    },
+    {
+     "id": "A8",
+     "status": "fixed",
+     "note": "'These round to the pre-registration's 143.5, 110.6, 135.2 and 122.9 N'; files give 143.4622/110.5568/135.2418/122.9400."
+    },
+    {
+     "id": "A9",
+     "status": "fixed",
+     "note": "Disclosure 5 now states run_commit efd1e1c7 (verified in both files) and the mix of trike_env versions (402819fc for run 3's gait and sweep, 6774a962 for the foot loads; both hashes verified with git show | sha256sum)."
+    },
+    {
+     "id": "A10",
+     "status": "fixed",
+     "note": "The 40-60 ms caveat was added and the speeds 0.02-0.11 m/s verified. The wording implies the maxima are slowed points, which they are not (F7)."
+    },
+    {
+     "id": "A11",
+     "status": "fixed",
+     "note": "'servo (leg-command) delays'; grep finds no 'sensor' left in the report."
+    },
+    {
+     "id": "A12",
+     "status": "fixed",
+     "note": "'except the output folder and the notebook's process id'; train.py:31 confirms --exit-with-parent takes the notebook kernel's PID."
+    },
+    {
+     "id": "NEW1",
+     "status": "partly fixed",
+     "note": "Same as A1. The figures are correct and 'What follows' names ramps and x1.1 mass, but the ramps are called 'trained' with no note of their 20 m length (F1)."
+    },
+    {
+     "id": "NEW2",
+     "status": "fixed",
+     "note": "Both panels quoted: 260.8/215.1 N (seeds 101-103) and 329.6/247.8 N (104-106), matching git show 65a44fad README:30-31."
+    },
+    {
+     "id": "NEW3",
+     "status": "fixed",
+     "note": "Servo delay wording, as for A11."
+    },
+    {
+     "id": "NEW4",
+     "status": "fixed",
+     "note": "'160 mm failed each limit on two of four seeds (T3 on s0 and s1, T4 on s0 and s3)' matches judge_d22.json; the seed-scatter caveat was added."
+    },
+    {
+     "id": "NEW5",
+     "status": "fixed",
+     "note": "'every key of run 3's environment config ... (the extra steering keys are below)'."
+    },
+    {
+     "id": "NEW6",
+     "status": "partly fixed",
+     "note": "The round-1 sentence now reads 'which led to these corrections'. The open items it named (R1 in-range, P4 reasons, R12 25 C, P10) are addressed. But the new 'This version corrects all of them' and the log's 'All are corrected' repeat the overclaim (F4), and the log's round-1 sentence is unchanged."
+    },
+    {
+     "id": "NEW7",
+     "status": "fixed",
+     "note": "Disclosure 5 says the run_commit field is run 3's training commit, copied from the run record."
+    },
+    {
+     "id": "NEW8",
+     "status": "fixed",
+     "note": "0.144 m."
+    },
+    {
+     "id": "RD1",
+     "status": "partly fixed",
+     "note": "In-range bullets, table and 'What follows' were added, and the counts reproduce exactly. The skeptic said the ramps should not be called clearly inside training (a 20 m climb against 0.8-2.0 m trained ramps); the report still calls them 'trained' (F1)."
+    },
+    {
+     "id": "RD2",
+     "status": "fixed",
+     "note": "'reach or pass the rating', with the demo's 1.006 included."
+    },
+    {
+     "id": "RD3",
+     "status": "fixed",
+     "note": "New paragraph: walk-only 101.2/99.6 C (128 s3/s2) and 110.2/101.8 C (160 s0/s1), matching demo_walkonly temperatures.<joint>.tau_480s.peak_c (101.226, 99.553, 110.151, 101.816). Pack 63-79 min (62.8-78.8). 'Heats while standing' is consistent: 160 s0's right hind pitch reaches 64.6 C when walking only."
+    },
+    {
+     "id": "RD4",
+     "status": "fixed",
+     "note": "Title now 'a thin margin at 128 mm, none at 160 mm on three of four seeds' (H_all 1.014/1.013/1.094/0.878)."
+    },
+    {
+     "id": "RD5",
+     "status": "fixed",
+     "note": "Servo delay wording and the D9 note added (DECISION_LOG.md:95)."
+    },
+    {
+     "id": "RD6",
+     "status": "fixed",
+     "note": "Same as NEW2."
+    },
+    {
+     "id": "RD7",
+     "status": "fixed",
+     "note": "Same as NEW4."
+    },
+    {
+     "id": "RD8",
+     "status": "not applicable (refuted)",
+     "note": "The skeptic refuted it. The sentence was reworded anyway (for A5), and the new wording holds."
+    },
+    {
+     "id": "RD9",
+     "status": "fixed",
+     "note": "'with the D22 run commit's (f84a6919) foot_loads.py ... These round to the pre-registration's ...'."
+    },
+    {
+     "id": "RD10",
+     "status": "fixed",
+     "note": "'before anything else' removed, the D20 terrain sentence explained (matches PLAN_STEERING_AND_TELEMETRY.md:88), 'with the chosen foreleg', 'singly or together'."
+    },
+    {
+     "id": "RD11",
+     "status": "fixed",
+     "note": "LOG:36 now says 'In my reading, not a rule'. The L43-44 part was judged weak and is unchanged, which is acceptable."
+    },
+    {
+     "id": "RD12",
+     "status": "fixed",
+     "note": "Appendix E has the row 'loads below: over the three measured segments (0.25 and 0.15 m/s walking, standing)'. The regenerated appendix is identical."
+    },
+    {
+     "id": "RD13",
+     "status": "fixed",
+     "note": "Caption 'PASS: every seed'; the T1/T2 speed condition is stated, matching judge_run3.py:106-109."
+    },
+    {
+     "id": "RD14",
+     "status": "fixed",
+     "note": "Same as A7."
+    },
+    {
+     "id": "RD15",
+     "status": "fixed",
+     "note": "Same as A3; steps 4 cm, ramps 10 deg and pushes 1.0 m/s match the env_config."
+    },
+    {
+     "id": "RD16",
+     "status": "not fixed",
+     "note": "The confirmed part, that the X6 elbow's rating is the X6-50-L table as a stand-in, is not added. The rewritten bullet now says 'the maker's catalogue entry for that drive', which is wrong for the X6-60 (F3). The unconfirmed parts (L24 numbers, start times, RUN_ID) were done."
+    }
+   ],
+   "checked_ok": [
+    "Regenerated appendix (d22_appendix.py --out review_d22final3/main/appendix.md) is byte-identical to the committed REPORT_FORELEG_D22_APPENDIX.md (diff empty); git status --short stayed empty.",
+    "In-training-range counts, independently scripted from run records' env_config (delay 0-10, mass/kp 0.9-1.1, force 0.85-1.0, friction min(0.6, friction_low_hard 0.3)-1.0, step <=0.04, ramp <=10, |push| <=1.0, command within speed_range 0-0.27, no payload): 37 points per run; 128 mm 0/2/4/11, 160 mm 31/28/35/1, run 3 0/0; largest 1.020/1.155/1.216 and 1.122/1.154/1.202/1.010 as in appendix F. Run 3's reference env_config has the same ranges.",
+    "128 mm in-range details: mass x1.1 1.0061/1.0219/1.0642 (s0 0.9365); ramps s1 8 deg 1.0201, s2 1.0354/1.073/1.1553, s3 1.096/1.1513/1.2165; s3 friction 1.0 1.0031, 3 cm step 1.018, pushes -0.75/-0.5/-0.4/-0.3/+1.0 at 1.0002-1.0045.",
+    "Delay 20-30 ms at 0.25 m/s: 128 1.074-1.224, 160 1.099-1.358, run 3 1.199-1.263; at 0.15 m/s: 128 1.099-1.331, 160 1.006-1.579, run 3 1.196-1.268. 40-60 ms tops 1.601 (0.25) and 1.749 (0.15); slowed points 0.019-0.106 m/s; falls at 128 s3, 160 s1/s3, run 3 s0.",
+    "x1.2 mass 128 1.0445-1.1191, 160 0.9716-1.2606, run 3 1.0295/0.9342; 2 kg 128 1.0156-1.1111, 160 0.934-1.2479, run 3 1.010/0.9087.",
+    "Nominal-model figures: gait nominal_0.25 128 s2 left_fore_pitch 1.00461; demo walk_0.25 128 s3 left_hind_pitch 7.5468/7.5 = 1.0062; sweep nominal 128 s3 0.9969.",
+    "Walking-only demo: loop [walk_0.25 120 s, stand 0], 96 min, seed0 700000; peaks (tau 480 s) 128 s3 left_hind_pitch 101.226 C, 128 s2 left_fore_pitch 99.553 C, 160 s0 left_fore_pitch 110.151 C, 160 s1 right_fore_pitch 101.816 C; pack runtimes 78.8/73.4/62.8/63.9 min (63-79); temperatures at pack end within 0.25 C of the 96 min peaks; demo_course.py has --walk-s, --stand-s, --minutes and starts from 25 C in open air (lines 9, 289, 322-324).",
+    "Drift: T3 worst points 128 mean 0.435 (SD 0.116, range 0.248), 160 0.377 (0.152, 0.324), difference 0.058; T4 0.494 (0.102), 0.351 (0.322, 0.714), difference 0.1437; T3 fails 160 s0/s1, T4 fails 160 s0/s3.",
+    "H_all means 0.8979/0.9999 and H_front 0.8032/0.9398; PREREG:87 tolerances +0.035 and +0.10.",
+    "PR #697 panels (git show 65a44fad:.../refinement60/mid160/README.md:30-31): 416.3/260.8 vs 280.7/215.1 N and 424.0/329.6 vs 302.7/247.8 N.",
+    "Per-foot swing clearance means (target_0.25): long group two-foot means 78.3-112.2, single feet 47.1-116.3 mm; short group 19.0-33.2 and 12.0-48.6 mm.",
+    "Restart times: run records' sessions start 23:24:48 (fore128-s0) and 23:25:22 (fore160-s0, fore128-s1); d22_startup records 23:11:04, 23:11:48 (interrupted, saves trike60_13936_steps.zip), 23:14:16, 23:18:21, 23:18:43; log L29-31 gives the not-resumed reason; no reason is logged for the 23:14:16 restart.",
+    "Forefoot travel 111/95 = 1.168 (17 %) from PLAN_FORELEG_D22.md:45-46.",
+    "Run 3 foot loads 143.4622/110.5568 front, 135.2418/122.9400 hind; provenance run_commit efd1e1c7, trike_env 6774a962 (= f84a6919's); run 3 gait report and sweep trike_env 402819fc (= efd1e1c7's); foot_loads.py absent at efd1e1c7.",
+    "Training ranges in the new list match env_config (terrain_ramp 1-4 M steps; slope/step/push maxima); trike_env draws mass per body, kp/force per actuator.",
+    "D9 wording (DECISION_LOG.md:95), thermal-model time constants fitted to X4-36-L and X6-50-L overload figures (telemetry/thermal.py:16-22), exit_with_parent = notebook kernel PID (train.py:31), T1/T2 speed rule (judge_run3.py:106-109), steering terrain sentence (PLAN_STEERING_AND_TELEMETRY.md:88)."
+   ],
+   "not_checked": [
+    "No simulation was re-run: the walking-only demo and the sweeps were taken from the stored JSON, not regenerated, and their link to the f84a6919 export and to the checkpoints rests on the log (the demo records no hash).",
+    "Steady-state temperatures were not recomputed with telemetry/thermal.py; I used the stored peak_c and end_c values.",
+    "The maker overload figures behind the thermal time constants live in a T. rex catalogue file, which was not opened.",
+    "The pre-registration's run-3 digest-test equivalence claim was not verified.",
+    "The gait report's nominal_0.25 case was not re-checked as 'observation noise off'; I relied on the case name and the earlier reviews.",
+    "Report sections and appendix content outside the 6da391cf..ad62d9a9 diff were not re-audited, beyond the byte-identical regeneration.",
+    "Drive and Colab records (folder listings, revision times) were not consulted; restart facts were checked only against the stored run records and the run log."
+   ]
+  }
+ ],
+ "verifications": [
+  {
+   "verdicts": [
+    {
+     "id": "F1",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "The finding holds. The report calls the sweep's ramps 'the trained 3-8 deg ramps' (L46, L175, L396 'trained ramps'), and the log does the same at L223. The text never says that the sweep's ramp is a single climb about 20 m long, while training ramps are 0.8-2.0 m up, followed by a plateau and a ramp down. For a continuous (thermal) rating, how long the load lasts is exactly what matters. On mass, the report says only 'the edge of the training range' (L47) and 'mass x0.9-1.1 per body' (L80). It does not say that x1.1 on every body is about 3.5 SD beyond any whole-robot mass that training produced. The A1, NEW1 and RD1 verdicts each asked for this caveat, and the revision does not include it. Without the ramps and the x1.1 mass point, only fore128-s3 goes over, at 1.0002-1.018. Medium is right: the claim is misleading, but the verdict does not change.",
+     "evidence": "review_d22final3/skeptic/scripts/sweep_check.py, using the limits from run_record env_config (delay 0-10, mass 0.9-1.1, kp 0.9-1.1, force 0.85-1.0, friction 0.3-1.0, |push|<=1.0, step<=0.04, ramp<=10, no payload). It finds 37 in-range points per run, with 0/2/4/11 at 128 mm, 31/28/35/1 at 160 mm and 0/0 for run 3. 128 s1: mass1.1 1.0061, ramp8 1.0201. s2: mass1.1 1.0219, ramp3/5/8 1.0354/1.073/1.1553. s3: mass1.1 1.0642, ramps 1.096/1.1513/1.2165, and 7 other points at 1.0002-1.018. robustness/sweep.py:182-187 builds the ramp box with L=10.0 (half-length) and x0=TERRAIN_EDGE_M=0.6. trike_env.py@f84a6919:196-198 gives terrain_slope_len_m (0.8, 2.0) and a plateau of 0.4-1.5 m, with the up/plateau/down build at :374-383; :724 draws mass_scale with size=m.nbody. scripts/mc_mass.py on trike60_C_closed_capsule_fore128.xml (21 bodies, 12.7506 kg, 200k draws) gives a total-mass scale SD of 0.02861, a maximum of 1.0747 and z(1.1)=3.50. grep of the report, appendix and log finds no '20 m', 'climb', 'sustain' or whole-robot caveat."
+    },
+    {
+     "id": "F2",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The L188 part holds. 'run 3's leg had more' is wrong at 20-30 ms, which is one of the three factors named in the same sentence. There, run 3's lowest point (1.199) is hotter than four of 128 mm's eight points, and its mean is 1.225 against 1.156. The L40 part does not hold. The headline paragraph itself says at L62-63, 'Run 3's leg also goes over at those delays (1.20-1.26)', and the headline is about the judged and nominal cases (run 3 at 0.80-0.86). The run 3 x1.2 mass (1.03) and 2 kg (1.01) overages are already stated at L185-186 and L62-63. The delay figures that contradict L188 sit directly above it at L180-182, so the reader has the numbers and the sentence is an over-general summary. That is a wording-level problem, not a misleading number.",
+     "evidence": "sweep_check.py, delay family at 0.25 m/s, heat_worst at 20/30 ms: 128 s0 1.0743/1.1127, s1 1.1265/1.0920, s2 1.2029/1.2240, s3 1.1979/1.2199 (mean 1.1563). Run 3 s0 1.2364/1.2634, s1 1.1989/1.2005 (mean 1.2248). Run 3 s0 mass1.2 1.0295 and payload 2 kg 1.010. REPORT L62-63: 'Run 3's leg also goes over at those delays (1.20-1.26), but not at x1.2 mass on one seed (0.93) or with 2 kg on one seed (0.91).' L180-182 gives the same ranges. L188: '... and run 3's leg had more.' This sentence is new in git diff 6da391cf ad62d9a9."
+    },
+    {
+     "id": "F3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The new text at L379 says each rating 'comes from the maker's catalogue entry for that drive'. That is wrong for the X6-60 elbow, whose thermal_eq is the X6-50-L table used as a stand-in. The old wording ('the maker's data') was only incomplete, so the revision made a confirmed RD16 point worse. Severity is low, as RD16 rated it. The elbow is never the worst drive at any sweep point, and so it never sets H_all.",
+     "evidence": "sim/data/drives.json leg_drives.X6-60: thermal_eq_nm 12.0, thermal_eq_note 'X6-50-L table at 0 rpm used as a stand-in: the V4 X6-60 has no published table'. trike_env.py:152-153 gives the X6 front elbow as 10.8. The sweep's settings.continuous_rating_nm 'front elbow' is 10.8. git diff 6da391cf ad62d9a9 replaces 'the continuous ratings come from the maker's data' with 'each drive's continuous rating comes from the maker's catalogue entry for that drive'. Across all 8 sweeps no point has heat_worst_joint *_fore_flexion; the largest elbow mean is 1.156 (160 s2), below that point's worst drive."
+    },
+    {
+     "id": "F4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "'This version corrects all of them' (REPORT L456) and 'All are corrected in the report and appendix' (LOG L225) overstate what was done. RD16's confirmed part (the X6 stand-in) is not corrected and is now stated wrongly. The caveat that the A1, NEW1 and RD1 verdicts asked for is missing. The log's round-1 sentence 'The confirmed medium and low findings are corrected in the report, the appendix, its generator and this log' (LOG L214-215), which NEW6 found overstated, is unchanged. The only second-round log change, the RD11 L36 fix, is in the log itself, yet the log says the corrections are 'in the report and appendix'.",
+     "evidence": "git diff 6da391cf ad62d9a9 -- runs/trike60-d22_LOG.md changes only L36 and the new tail; L213-215 are unchanged. recheck_2026-11-26.json verdicts: RD16 partly/low (X6 stand-in), NEW6 confirmed/low, and A1, NEW1 and RD1 partly/medium, each saying not to call the ramps simply inside training. REPORT L379 is as described under F3."
+    },
+    {
+     "id": "F5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The 128 mm T4 range from the unrounded values is 0.216545, which rounds to 0.217. The 0.216 comes from 0.647 - 0.431. The other cells reproduce.",
+     "evidence": "judge_d22.json runs.128_s*.rule_values.T4.drift_m = [0.430609, 0.447056, 0.647154, 0.452591]: mean 0.4944, SD 0.1023, range 0.216545. T3 per-seed worst: 128 mean 0.4348, SD 0.1162, range 0.248003; 160 mean 0.3769, SD 0.1520, range 0.323896; difference 0.057948. T4 160: SD 0.3225, range 0.714008; difference of the means 0.143686. REPORT L251 reads '0.494 m (0.102; 0.216)'."
+    },
+    {
+     "id": "F6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "In the long-stride group only 160 s3 has widely different forefoot heights (62 mm apart). The other three differ by 7-12 mm on means of 81-116 mm. 'So the two sides differ widely' is drawn from the single-foot range, which is wide only because of that one run. The quoted ranges themselves are correct.",
+     "evidence": "analytics/results/<run>/gait_report.json cases.target_0.25.summary.feet.swing_clearance_mm.{left_fore,right_fore}.mean: 128 s0 80.8/93.2 (diff 12.3), 128 s1 92.8/85.9 (6.9), 160 s0 108.0/116.3 (8.3), 160 s3 109.5/47.1 (62.4). Two-foot means are 87.0/89.3/112.2/78.3 (78-112) and single feet 47.1-116.3. Short group: 128 s2 14.2/48.6, 128 s3 28.8/37.7, 160 s1 42.0/21.4, 160 s2 12.0/26.0 (two-foot means 19.0-33.2, single 12.0-48.6)."
+    },
+    {
+     "id": "F7",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Both quoted tops come from policies still walking near the commanded speed with no falls. The 'but several policies slow ... or fall' caveat applies to other cells. The A10 skeptic had already said the caveat does not apply to 128 mm's 1.60 or to the 1.75, so the 'but' wrongly discounts the figures it follows. The figures themselves are correct. This is a wording point.",
+     "evidence": "sweep_check.py, delay family: at 0.25 m/s the maximum at 40-60 ms over all 10 runs is 1.601 (fore128-s1, 60 ms, 0.217 m/s, 0 falls). At 0.15 m/s the maximum is 1.749 (fore160-s1, 60 ms, 0.185 m/s, 0 falls). The slowed or fallen cells are 128 s0 40/60 ms (0.086/0.019), 128 s3 60 ms (0.106, 3 falls), 160 s2 60 ms (0.084), run3-s1 60 ms (0.059; 0.070 at 0.15) and run3-s0 0.15 m/s 60 ms (7 falls). recheck A10 verdict: 'It does not hold for 128 mm's headline up to 1.60 ... 160 mm (1.75, s1, 0.185 m/s, no falls) are also walking points.'"
+    },
+    {
+     "id": "F8",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "L459 is the old closing sentence left behind after the new L456-457 text was inserted above it, so the sentence now appears twice. L236 is the only overlong prose line in the report.",
+     "evidence": "git diff 6da391cf ad62d9a9 shows the new block inserted before the existing line 'The findings and verdicts are in `results/d22/review_2026-11-26.json`.', which was line 369 at 6da391cf and is line 459 at ad62d9a9. An awk check for non-table lines longer than 122 characters in REPORT_FORELEG_D22.md returns only L236 (195 characters). The same check on the log also flags L36 (140), which the RD11 edit left unwrapped."
+    }
+   ]
+  }
+ ]
+}

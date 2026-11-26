@@ -166,13 +166,12 @@ Provenance: demo_course.py records no checkpoint hash. Each was run from the run
 
 ## F. Every sweep point (nominal model, noise on, 8 episodes, 0.25 m/s unless stated)
 
-Points inside the training ranges (servo delay 0-10 ms; mass x0.9-1.1; kp x0.9-1.1; force limit x0.85-1.0; friction 0.3-1.0; steps to 4 cm; ramps to 10 deg; pushes to 1.0 m/s; no payload) where the worst drive is at or over its continuous rating:
+Points inside the training ranges (servo delay 0-10 ms; mass x0.9-1.1; kp x0.9-1.1; force limit x0.85-1.0; friction 0.3-1.0; steps to 4 cm; ramps to 10 deg; pushes to 1.0 m/s; no payload) where the worst drive is at or over its continuous rating. "Typical of training": like what training produced; "long climbs and whole-body mass": the sweep's ramps (one 20 m climb, against training's 0.8-2.0 m up, a top and a ramp down) and its x0.9 and x1.1 masses on every body at once (training's per-body draws kept the whole robot within about x0.92-1.08):
 
 |  | 128 s0 | 128 s1 | 128 s2 | 128 s3 | 160 s0 | 160 s1 | 160 s2 | 160 s3 | 188 s0 (run 3) | 188 s1 (run 3) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| points inside the training ranges | 37 | 37 | 37 | 37 | 37 | 37 | 37 | 37 | 37 | 37 |
-| of which at or over the rating | 0 | 2 | 4 | 11 | 31 | 28 | 35 | 1 | 0 | 0 |
-| the largest such value | - | 1.020 | 1.155 | 1.216 | 1.122 | 1.154 | 1.202 | 1.010 | - | - |
+| typical of training | 0 of 32 | 0 of 32 | 0 of 32 | 7 of 32 (1.000-1.018) | 27 of 32 (1.001-1.122) | 24 of 32 (1.049-1.087) | 30 of 32 (1.023-1.147) | 0 of 32 | 0 of 32 | 0 of 32 |
+| long climbs and whole-body mass | 0 of 5 | 2 of 5 (1.006-1.020) | 4 of 5 (1.022-1.155) | 4 of 5 (1.064-1.216) | 4 of 5 (1.057-1.116) | 4 of 5 (1.049-1.154) | 5 of 5 (1.048-1.202) | 1 of 5 (1.010-1.010) | 0 of 5 | 0 of 5 |
 
 Each cell: falls of 8; speed m/s; sideways drift, mean of its absolute value, m (the figure T3 and T4 read); worst joint RMS / continuous rating. Speed, drift and heat are over the episodes that did not fall; "all fell" has none.
 

@@ -211,8 +211,8 @@ The review confirmed:
 - the foot-load tool byte-identical on two checkpoints;
 - 29 D22 tests passing.
 
-No high-severity finding held up. The confirmed medium and low findings are corrected in the report, the appendix,
-its generator and this log. Findings and verdicts: `analysis/results/d22/review_2026-11-26.json`.
+No high-severity finding held up. The confirmed medium and low findings were corrected in the report, the appendix,
+its generator and this log; some only in part until the later checks below. Findings and verdicts: `analysis/results/d22/review_2026-11-26.json`.
 
 **The second check, 26 Nov.** A second check of the revised report (commit 6da391cf) had three reviewers: one
 checked every first-round finding, one audited the new figures with its own scripts, and one read the report as the
@@ -220,9 +220,28 @@ owner would. Each was followed by a skeptic.
 
 It found one medium point that held: 128 mm's heat overages are not only beyond the training ranges. On the 37 sweep
 points inside the training ranges, the worst drive is at or over its rating on 0, 2, 4 and 11 points at 128 mm, on
-31, 28, 35 and 1 at 160 mm, and on none for run 3. The 128 mm points are mostly the trained ramps and x1.1 mass.
+31, 28, 35 and 1 at 160 mm, and on none for run 3. The final check below qualifies where these come from.
 
-It also found low points of wording and rounding. All are corrected in the report and appendix. A walking-only demo
+It also found low points of wording and rounding, corrected in the report, the appendix and this log. A walking-only demo
 (no standing breaks; `demo_course.py --walk-s 120 --stand-s 0 --minutes 96`, from the export, on fore128-s2, -s3 and
 fore160-s0, -s1) puts the hottest winding at an estimated 99.6-101.2 C at 128 mm and 101.8-110.2 C at 160 mm. Its
 outputs are in `analysis/results/d22/demo_walkonly/`. Findings and verdicts: `analysis/results/d22/recheck_2026-11-26.json`.
+
+**The final check, 26 Nov.** A last check of commit ad62d9a9, by one reviewer and a skeptic, confirmed the figures. It
+qualified the in-range heat: of the 37 points, five are longer or heavier than training produced. These are the
+sweep's three ramps, each one 20 m climb against training's 0.8-2.0 m up with a top and a ramp down, and its x0.9 and
+x1.1 masses on every body at once. Training's per-body draws kept the whole robot within about x0.92-1.08, simulated
+over 200,000 draws on the 128 mm model.
+
+On the 32 training-typical points:
+- 128 mm is at or over its rating on 0 / 0 / 0 / 7 points (1.000-1.018);
+- 160 mm on 27 / 24 / 30 / 0;
+- run 3 on none.
+
+On the five long-climb and whole-body-mass points: 128 mm 0 / 2 / 4 / 4 (up to 1.216), 160 mm 4 / 4 / 5 / 1, run 3
+none.
+
+It also found three smaller points. Run 3's leg is no better under 20-30 ms delays (1.20-1.26 against 128 mm's
+1.07-1.22). The X6 elbow's rating is the X6-50-L's table as a stand-in. A few wording and rounding points remained.
+All are corrected in the report, the appendix and its generator. Findings and verdicts:
+`analysis/results/d22/finalcheck_2026-11-26.json`.

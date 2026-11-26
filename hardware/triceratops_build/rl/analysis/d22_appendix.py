@@ -314,28 +314,39 @@ def in_training(family, x):
     raise ValueError(family)
 
 
+def atypical(family, x):
+    """Inside the ranges, but longer or heavier than training produced: the sweep's ramps are one 20 m climb (training:
+    0.8-2.0 m up, a top and a ramp down), and its mass points scale every body at once (training draws each body's
+    mass separately, which kept the whole robot within about x0.92-1.08)."""
+    return (family == "ramp up" and x is not None) or (family == "mass, every body" and x != 1.0)
+
+
 def sweep_tables(rows):
     s = {k: sweep(v) for k, v in ALL.items()}
     cols = list(ALL)
     rows.append("## F. Every sweep point (nominal model, noise on, 8 episodes, 0.25 m/s unless stated)\n")
     over = {}
     for k in cols:
-        seen, n, hot = set(), 0, []
+        seen, cnt = set(), {False: [0, []], True: [0, []]}
         for fam in s[k]["families"]:
             for r in fam["rows"]:
                 if r["key"] in seen or not in_training(fam["family"], r["x"]):
                     continue
                 seen.add(r["key"])
-                n += 1
+                b = cnt[atypical(fam["family"], r["x"])]
+                b[0] += 1
                 h = s[k]["points"][r["key"]]["summary"].get("heat_worst")
                 if h is not None and h >= 1.0:
-                    hot.append(h)
-        over[k] = (n, len(hot), max(hot) if hot else None)
+                    b[1].append(h)
+        over[k] = cnt
     rows.append(f"Points inside the training ranges ({TRAINING}) where the worst drive is at or over its continuous "
-                "rating:\n")
-    table(rows, cols, [("points inside the training ranges", lambda c: str(over[c][0])),
-                       ("of which at or over the rating", lambda c: str(over[c][1])),
-                       ("the largest such value", lambda c: f(over[c][2], 3))], "")
+                "rating. \"Typical of training\": like what training produced; \"long climbs and whole-body mass\": the "
+                "sweep's ramps (one 20 m climb, against training's 0.8-2.0 m up, a top and a ramp down) and its x0.9 and "
+                "x1.1 masses on every body at once (training's per-body draws kept the whole robot within about "
+                "x0.92-1.08):\n")
+    cell = lambda b: f"{len(b[1])} of {b[0]}" + (f" ({f(min(b[1]), 3)}-{f(max(b[1]), 3)})" if b[1] else "")  # noqa: E731
+    table(rows, cols, [("typical of training", lambda c: cell(over[c][False])),
+                       ("long climbs and whole-body mass", lambda c: cell(over[c][True]))], "")
     rows.append("Each cell: falls of 8; speed m/s; sideways drift, mean of its absolute value, m (the figure T3 and T4 "
                 "read); worst joint RMS / continuous rating. "
                 "Speed, drift and heat are over the episodes that did not fall; \"all fell\" has none.\n")
