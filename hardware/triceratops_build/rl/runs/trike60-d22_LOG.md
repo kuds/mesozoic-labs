@@ -142,3 +142,13 @@ Measured on 22:26-23:09 UTC, as round 1. Each run's three outputs pass every che
 - So far, 128 mm passes F1 and F2 on seeds 0, 1 and 2. 160 mm fails F2 on seeds 0, 1 and 2, on a different drive
   each time (left fore pitch, right hind flexion, left hind flexion). Under D24's order the choice is 128 mm if
   fore128-s3 passes F1 and F2, and none if it does not; it is made only once all eight runs are measured and checked.
+
+## Round 3 started, 26 Nov 2026
+
+Each record passes the record checks of `judge_d22.checks`, with each run in its own folder on 8 vCPUs. At 14:26 UTC
+both were at 800,000 steps, with saves at 250,000, 500,000 and 750,000.
+
+| run | session start (UTC) | seed | model | output folder | vCPUs |
+|---|---|---|---|---|---|
+| trike60-fore128-s3 | 14:03:25 | 3 | fore128 | trike60-fore128-s3 | 8 |
+| trike60-fore160-s3 | 14:03:43 | 3 | fore160 | trike60-fore160-s3 | 8 |
