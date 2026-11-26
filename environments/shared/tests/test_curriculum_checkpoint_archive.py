@@ -54,7 +54,8 @@ def _main_prune(directory: Path, max_checkpoints: int) -> set[str]:
 
 
 class TestTheTwelveMillionStepRun:
-    """The notebook's stance cadence: a checkpoint every 100,000 steps to 12,000,000, A = 500,000, N = 5."""
+    """The notebook's stance cadence to 12,000,000 (the T. rex stance budget before 2026-11-26): a checkpoint every
+    100,000 steps, A = 500,000, N = 5."""
 
     def test_it_keeps_one_per_half_million_and_the_newest_five(self, tmp_path):
         cadence, archive, newest = 100_000, 500_000, 5

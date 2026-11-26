@@ -1137,8 +1137,8 @@ def _build_core_callbacks(
         verbose=max(verbose, 1),
         callback_on_new_best=save_vecnorm_cb,
         # eval_episodes.csv on the checkpoint cadence and at training end, not
-        # rewritten whole after every evaluation (about 31 MB by the end of a
-        # 12M T. rex stance); this callback runs before the CheckpointCallback,
+        # rewritten whole after every evaluation (about 28 MB by the end of an
+        # 11M T. rex stance); this callback runs before the CheckpointCallback,
         # so a checkpoint's evaluation rows are on disk before it is saved.
         ledger_flush_every_calls=checkpoint_stride,
     )

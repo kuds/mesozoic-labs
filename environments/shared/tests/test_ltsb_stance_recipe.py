@@ -9,7 +9,7 @@ recipe digest with the critic-phase launch switch on (the notebook's ``CRITIC_PH
 critic_phase = true``) and with it off, the gate digest, the plant identity, and the reward weights,
 hyperparameters and curriculum ``save_stage_config`` records.  The screens used their own evaluation and checkpoint cadence.
 The r11 plant changes the physical, interface and visual identities. Its remeasured statue floor and calibration
-revision, and the 11M budget every stance trains since 2026-11-26 (the screens trained 12M), are the further curriculum
+revision, and the 11M budget every stance has had since 2026-11-26 (the screens trained 12M), are the further curriculum
 differences; the budget enters no task, gate or recipe digest. The screen runs themselves never count
 (``run_exclusions.py``).
 """
@@ -127,7 +127,7 @@ def test_the_recorded_blocks_match_the_screens_with_r11_calibration_and_producti
     assert expected.pop("checkpoint_freq") == 262144
     assert expected["max_checkpoints"] == 0
     assert (expected["statue_constants_physics_revision"], expected["collapse_peak_floor_reference"]) == (10, 4470.4)
-    # The screens trained 12M; every stance trains 11M since 2026-11-26 (a schedule key, in no digest).
+    # The screens trained 12M; every stance's budget has been 11M since 2026-11-26 (a schedule key, in no digest).
     assert expected["timesteps"] == 12_000_000
     assert written["curriculum"] == {
         **expected,

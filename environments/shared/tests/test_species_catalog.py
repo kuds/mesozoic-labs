@@ -128,10 +128,11 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     # evaluation was its last, at 6.0M of 6M. Raised 10M -> 11M on main
     # (08a66b3) for the seeded replicate campaign, then 11M -> 12M on main
     # (3261967b), when the velociraptor stance also went 6M -> 12M
-    # (cdffea89). Both returned to 11M, and the allosaurus (3M), brachiosaurus
-    # (6M) and dibothrosuchus (6M) stances rose to it, so a 40-episode,
-    # 50,000-step evaluation cadence run trains, judges and publishes inside
-    # one ~24 h Colab session.
+    # (cdffea89). Both returned to 11M so that a T. rex stance at the
+    # 40-episode, 50,000-step evaluation cadence trains, judges and publishes
+    # inside one ~24 h Colab session; the allosaurus (3M), brachiosaurus (6M)
+    # and dibothrosuchus (6M) stances rose to it so that every stance shares
+    # one budget.
     #
     # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
     # sits between stance and locomotion, labelled by its semantic id — it

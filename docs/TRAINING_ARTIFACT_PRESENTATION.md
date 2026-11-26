@@ -1701,8 +1701,8 @@ policy zip and its VecNormalize pickle, measured on the T. rex):
 | **Archive every 500,000 steps (the T. rex stance)** | **28** | **113.1 MB** | **0.5M steps** |
 | Archive every 250,000 steps | 51 | 205.9 MB | 0.25M steps |
 
-Every stance has trained 11M steps since 2026-11-26; at 11M the T. rex
-stance's archive keeps 26 pairs (about 105 MB).
+Every stance's budget has been 11M steps since 2026-11-26; at 11M the
+T. rex stance's archive keeps 26 pairs (about 105 MB).
 
 The result bundle's manifest reads each kept pair once when the bundle is
 written. At a cadence of 1,048,576 steps the rule keeps every checkpoint,
