@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decision or commit), moot (20: the hunt, the prey, the deleted gait
   metrics) or open (110, naming what remains). `docs/README.md`'s review list
   and `docs/KNOWN_ISSUES.md`'s review table list it. Its open findings are
-  not yet folded into KNOWN_ISSUES.
+  folded into KNOWN_ISSUES by decision D-D65 (4) (Changed).
 - **The walk follows a live command on all seven models** (decision D-D62;
   every locomotion task and gate digest moves, no stance or recovery one
   does). Each `configs/<species>/<embodiment>/locomotion.toml` declares a
@@ -3479,9 +3479,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - D-D64's boxcar, its window rule and its window-fill settle allowance are
     accepted as recorded, and the triangular-window fallback stays on record.
   - The SB3 notebook review's 110 open findings are folded into
-    KNOWN_ISSUES by the next change.
+    KNOWN_ISSUES (the next entry).
 
   No code changes for these three.
+- **The SB3 notebook review's open findings are folded into
+  `docs/KNOWN_ISSUES.md`** (decision D-D65 (4), taken 2026-11-26,
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). Re-checked on that day's tree, none
+  of the 141 findings of `docs/reviews/SB3_NOTEBOOK_REVIEW_2026_11.md`
+  changed status: 11 are addressed, 20 moot and 110 open.
+  - **The entries.** The 110 open ones are carried by 52 new entries and 8
+    amendments to existing ones, each entry naming the ids it carries in a
+    closing "(2026-11 notebook review: ...)". By the entry that carries it,
+    1 id is HIGH, 31 MEDIUM, 76 LOW and 2 unrated (the Post-training
+    artifacts list has no severities); 38 sit under Notebooks, 33 under
+    Infrastructure, 21 under Training / RL, 15 under Configs, docs &
+    website, 2 under Post-training artifacts and 1 under Testing / CI.
+  - **The amendments.** Six extend an entry (the HIGH stance-gate entry, the
+    anatomical Compsognathus `stance_quality/v2` entry, the heading,
+    action-saturation and run-level-records entries, and Post-training
+    item 2) and two replace one (the `EvalCallback` cadence entry and the
+    notebook's SAC entry, NB9).
+  - **Corrected on the way.** The certification entry's last sentence (the
+    velociraptor's stance declares the hop-or-fall rail too), the HIGH
+    stance-gate entry's "all six by design" and the `stance_quality/v1`
+    entry's count of v1 stances, now dated and recounted, and the
+    `collapse_peak_floor` entry's title, which names the two stances it
+    still covers.
+  - **Records.** The review's row in the KNOWN_ISSUES table records the
+    outcome. The review gains a dated addendum, "Folded on 2026-11-26", with
+    the counts, the amendments and what the re-check corrected in its status;
+    from here it is a findings record. `docs/NEXT_STEPS.md` §1 closes the
+    triage its 2026-11-25 note left pending, D-D65 (4) names where the fold
+    lives, and `docs/README.md`'s review list says the findings are folded. A test docstring that said the Compsognathus walks omit the
+    collapse floor without a comment is corrected. No code changes.
 - **The walk's command tracking is scored on a one-stride mean** (decision
   D-D64, taken 2026-11-26, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). It
   implements D-D63 (2) and resolves D-D62 (16)'s open risk (a): a walking gait

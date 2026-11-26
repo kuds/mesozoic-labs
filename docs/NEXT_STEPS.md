@@ -255,9 +255,13 @@ questions. The collapse floor's walker is now measured on the matched basis on e
 brachiosaurus and dibothrosuchus walks' floors are raised from the absolute 100 to 1.20 x 2359.7 =
 2831.6 and 1.31 x 2286.0 = 2994.7; on those walks a standing plateau no longer arms the backstop.
 `longest_stop_s` stays report-only until the pilot, D-D64's window design is accepted as recorded,
-and the notebook review's 110 open findings are folded into KNOWN_ISSUES next.* Section 2 labels each
-audited node except the in-training dibothrosuchus re-run, which section 3's
-session-4 row describes, and the plan's §10 holds a prompt for continuing the
+and the notebook review's 110 open findings are folded into KNOWN_ISSUES next.* *2026-11-26
+(decision D-D65 (4), done): the SB3 notebook review is folded into KNOWN_ISSUES. Re-checked on
+this day's tree, no finding changed status (11 addressed, 20 moot, 110 open), and the 110 open
+ones are carried by 52 new entries and 8 amendments, each naming its ids; the review's addendum
+"Folded on 2026-11-26" records the counts and the amendments. The triage the 2026-11-25 note left
+pending is done.* Section 2 labels each audited node except the in-training dibothrosuchus re-run,
+which section 3's session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
 
 The notebook ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb)) is the one SB3 training

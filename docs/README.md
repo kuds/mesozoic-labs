@@ -152,8 +152,8 @@ findings are in KNOWN_ISSUES),
 post-training artifact across all seven models, written before the hunt's
 removal and the command-driven walk; its appended status of 2026-11-25,
 decision D-D63 (7), marks each of its 141 findings addressed, moot or open on
-that day's tree; its open findings are listed there and not yet folded into
-KNOWN_ISSUES),
+that day's tree; its 110 open findings are folded into KNOWN_ISSUES by
+decision D-D65 (4), as its addendum of 2026-11-26 records),
 [CODE_REVIEW.md](reviews/CODE_REVIEW.md) (superseded). Open findings live in
 [KNOWN_ISSUES.md](KNOWN_ISSUES.md), not here.
 

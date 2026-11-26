@@ -1198,3 +1198,70 @@ The open ones are mostly the notebook's own presentation and Colab handling (the
 the older figures and the training-history defaults (3.11 and 3.23), SAC (3.13), and the per-species tooling and
 docs (3.16, 3.17, 3.24, 3.26 and 3.30). They are not yet folded into `docs/KNOWN_ISSUES.md`, whose review table
 points here.
+
+## Folded on 2026-11-26
+
+*Appended 2026-11-26 (decision D-D65 (4)). Every finding was re-checked on HEAD `9784a48`, which adds `d7d53cc`
+(D-D63) and `9784a48` (D-D64) to the tree the status above was written on; D-D65's collapse floors (its item (1))
+touch no finding. From here this document is a findings record, and
+[`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) tracks the open items: the PR that fixes one deletes or amends its
+entry there.*
+
+**Counts.** No status changed: of the 141 findings, 11 are addressed, 20 moot and 110 open. The 110 open ones are
+carried by 52 new KNOWN_ISSUES entries and 8 amendments to existing entries, and every entry names the ids it
+carries in its closing "(2026-11 notebook review: ...)", so a search of KNOWN_ISSUES for an id finds its entry. By
+the entry that carries it, 1 id is HIGH, 31 MEDIUM, 76 LOW and 2 unrated (the Post-training artifacts list has no
+severities); 38 sit under Notebooks, 33 under Infrastructure, 21 under Training / RL, 15 under Configs, docs &
+website, 2 under Post-training artifacts and 1 under Testing / CI. Findings that share one fix share an entry; three
+ids are split across two entries (`figure-labels-units`, `collected-results-dead-and-kind-dependent-columns` and
+`brachiosaurus-stale-recipe-comments`); each is counted once, so
+`collected-results-dead-and-kind-dependent-columns`, whose Drive half sits under Notebooks, counts under
+Infrastructure. The amendments:
+
+- the HIGH stance-gate entry takes `dibothrosuchus-three-legged-stance-certified-unflagged-r3`;
+- the MEDIUM `stance_quality/v2` Compsognathus entry takes `compsognathus-manual-liftoff-check-not-automated`;
+- the MEDIUM heading entry takes `cmp-allosaurus-heading-probe-on-heading-free-plant`;
+- the MEDIUM (perf) `EvalCallback` entry is replaced by the `eval-cadence-dominates-wallclock` entry;
+- the MEDIUM action-saturation entry's metric-hazard paragraph takes
+  `fu-offline-analysis-tools-species-coverage-action-bound-model-mode-measures-clipped-actions`;
+- the MEDIUM (operational) run-level-records entry takes `no-republish-cell`;
+- Post-training artifacts item 2 takes `cli-notebook-judging-parity`;
+- the LOW NB9 SAC entry (Notebooks) is replaced by the entry carrying `sac-path-second-class`,
+  `sac-path-second-class-unflagged` and `fu-sac-artifact-path-trex-recovery-sac-recipe-unrecorded`.
+
+**What the re-check corrected in the status above.** None of these moves a status:
+
+- `no-colab-cap-awareness-or-auto-resume`: a resumed stage does not record "the resumed session's duration only".
+  `train_base.train` sums the durations of the sessions that reach a final save (`train_base.py:2496-2498`,
+  `:2531-2533`, `:2571`, D-A15); a session the Colab cap cuts off before its final save records none, so a capped
+  segment still drops out.
+- `knobs-validated-after-write`: besides `BEHAVIOR` and `RETRAIN_FROM`, a pinned `TRUNK_FROM` that is this run, not
+  a run, or another model's is still refused only after the storage cell wrote the run directory (cell 8,
+  `notebooks/sb3_training.ipynb:480-505`).
+- `cmp-catalog-gate-semantics-by-kind`: four catalog rows read "3 consecutive passes", not two: the Compsognathus
+  robot's and the Allosaurus' `stance_quality/v1` rows too (`docs/SPECIES_CATALOG.md:183`, `:214`).
+- `compsognathus-recipe-review-protocol-stale`: all four Compsognathus stance and walk TOMLs cite the recipe review,
+  the robot's included.
+- `eval-protocol-provenance-mismatch`: the walk's in-training evaluations are paired since D-D62 (the evaluation env
+  is reseeded each time); the stance and recovery ones are not.
+- `brachiosaurus-stale-recipe-comments`: the statue values are re-measured on physics r7
+  (`configs/brachiosaurus_altithorax/anatomical/stance.toml:68-86`); the height and `[sac]` "Match PPO" comments
+  remain.
+- `results-readme-and-strict-cell-drift`: since D-D63 retired result schema 2, `results/README.md:32-35` crediting
+  schema 2 is stale as well.
+- `supplementary-log-key-mismatch`: `evaluate()` also never prints the heading alignment, since it tests a key the
+  aggregate never holds (`evaluation.py:857`).
+- `success-terminations-counted-as-falls` stays moot, but two stale sentences say the Allosaurus walk ends on
+  `course_complete` (`docs/TRAINING_ARTIFACT_PRESENTATION.md:938-946` and the `DiagnosticsCallback` docstring,
+  `environments/shared/diagnostics.py:97-100`); the artifact-guide entry carries them.
+- The fix of 3.21 names `promote_result_bundle`, which never existed; the promotion entry asks for a tool.
+
+**Sections 1, 2, 4, 5 and 6.** The open part of each ranked fix (section 2) is carried by its theme's entries:
+fix 2 by 3.2, 3.16, 3.19 and 3.22; fix 3 by 3.3; fix 5 by 3.4; fix 7 by 3.12; fix 8 by 3.14 and 3.17; fix 9 by
+3.5, 3.6 and 3.7; fix 10's per-step CSV by 3.18; the smaller wins by 3.13, 3.22, 3.28, 3.29 and 3.30. Fixes 1, 4 and
+6 and the getting-started docs are addressed or moot. Sections 1 and 4 restate the themes' findings. Section 6's two
+observations without an id are not known issues: the T. rex recovery's ~9 env steps/s, which the review called
+unverified, is not the env's (one T. rex env steps 697 times a second on the recovery, 637 on the stance and 675
+on the walk, single process, 2026-11-26), and the manual cell's "contiguous curriculum prefix" refusal is by design
+(`reporting/bundles.py:289-300`). Section 5's deliberate differences stay deliberate; what it asked to change is
+carried by the entries of 3.5, 3.16, 3.17, 3.18 and 3.23.

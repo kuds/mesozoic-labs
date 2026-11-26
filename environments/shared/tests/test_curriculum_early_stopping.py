@@ -480,13 +480,16 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
         that as a decision ("Deliberately omit a collapse floor: the shared
         detector stays unarmed until this plant has a learning history"; the
         recovery TOMLs say "Keep collapse detection unarmed"); their
-        locomotion TOMLs omit the floor WITHOUT a comment (as their behavior
-        TOMLs did until decision D-D59 removed them), so
-        for those stage rows this assertion holds by the species-level
-        exemption alone (follow-up: a maintainer config decision to add the
-        pair or the unarmed statement there would let the exemption narrow
-        to per-stage statements). The new Allosaurus stance and walk each
-        record the decision in their own TOML pending learned-policy runs.
+        locomotion TOMLs omit the floor with only a parenthetical beside the
+        stage-entry warm-up keys, "(no collapse backstop is declared on this
+        model)", since decision D-D62 (their behavior TOMLs omitted it
+        without a comment until decision D-D59 removed them). This test does
+        not read that wording, so for those stage rows this assertion holds
+        by the species-level exemption alone (follow-up: a maintainer config
+        decision to add the pair or the stance TOMLs' unarmed statement there
+        would let the exemption narrow to per-stage statements). The new
+        Allosaurus stance and walk each record the decision in their own TOML
+        pending learned-policy runs.
         """
         from environments.shared.config import load_all_stages
         from environments.shared.species_names import model_ids
