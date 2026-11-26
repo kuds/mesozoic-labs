@@ -675,8 +675,9 @@ robustness, **LOW** = cosmetic / QoL.
   records stay stance-only, with stance at replication 1, although the
   seed-44 sibling `20260920_010912` counts this run at 2; nothing reads them
   for reuse. Remedy in general: a `partial` bundle is rebuilt by the next
-  session that trains or judges a node in the run; PR-14a's complete-run
-  refusal does not change this
+  session that trains or judges a node in the run, or, since 2026-11-26, by
+  the notebook's publish cell (`PUBLISH_RUN = True`) under the target the
+  run records; PR-14a's complete-run refusal does not change this
   ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
 - **LOW (operational)** — **a re-entry that only reuses a `partial` or
   `failed` run's nodes stops at the bundle-verification cell (verified
@@ -717,6 +718,19 @@ robustness, **LOW** = cosmetic / QoL.
   differs in something other than `captured_at` (a new plant, env kwargs or
   score), so on an unchanged plant it is not one of the files that differ;
   `provenance.json` still is.
+  *Update (2026-11-26):* the publish cell after the chain loop
+  (`PUBLISH_RUN = True`; the maintainer's decision of 2026-11-26) does not
+  rebuild the bundle in such a re-entry. In a `partial` run, a session whose
+  chain loop reuses every node has a shallower `BEHAVIOR` than the run's
+  target (under the recorded one the loop raises on the failed node or
+  trains the missing one), and the cell refuses a `BEHAVIOR` whose target is
+  not the one the run's `provenance.json` records, before it writes
+  anything, since publishing would retarget the run. So the remedy above
+  stands for it. Run with the recorded `BEHAVIOR`, the cells above section 5
+  and then the publish cell rebuild a `partial` run's bundle over
+  `provenance.json` and `trunk_run.json`, and the bundle verifies again
+  (`environments/shared/tests/test_publish_cell.py`). A `complete` run is
+  refused there, which this entry does not affect.
 - **LOW (operational)** — **a re-entry that is not a resume, under another
   trunk than the run's `trunk_run.json` records, is only warned (ROW-4/6;
   executed against the notebook cells 2026-10-03).** Since ROW-4/6's

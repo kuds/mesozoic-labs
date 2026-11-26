@@ -2550,7 +2550,9 @@ class TestPublication:
                 assert [ast.unparse(arg) for arg in call.args] == ["RUN_DIR", "chain_results()"], (
                     f"cell {index} line {call.lineno}"
                 )
-        assert bundle_calls == 2 and summary_calls == 2, "the chain loop and the manual cell each write once"
+        assert bundle_calls == 3 and summary_calls == 3, (
+            "the chain loop, the publish cell (test_publish_cell.py) and the manual cell each write once"
+        )
         infra = cells[_cell_index(cells, INFRA_CELL_MARKER)]
         bundle_def = _top_level_def(infra, "save_run_bundle")
         forwarded = _call(bundle_def, "_lib_save_result_bundle")
@@ -2792,8 +2794,9 @@ class TestEscapeHatch:
         manual_at = _cell_index(cells, MANUAL_CELL_MARKER)
         resume_at = _cell_index(cells, RESUME_CELL_MARKER)
         assert infra_at < resume_at < chain_at < manual_at
-        assert sum(cell.startswith("# ===== ") for cell in cells) == 4, (
-            "the four `# ===== ` cells: species selection, chain loop, manual node, resume"
+        assert sum(cell.startswith("# ===== ") for cell in cells) == 5, (
+            "the five `# ===== ` cells: species selection, resume, chain loop, publish (test_publish_cell.py), "
+            "manual node"
         )
         assert len([cell for cell in cells if "for NODE in CHAIN:" in cell]) == 1
         callers = [index for index, cell in enumerate(cells) if _calls(ast.parse(cell), "train_stage")]

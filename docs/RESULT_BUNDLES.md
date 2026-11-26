@@ -350,15 +350,18 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   finds them and the SB3 notebook passes them as `save_result_bundle(replicates=...)`.
   The count is recorded at publication (decision D-B10): a replicate that finishes
   later is counted when the run's bundle is written again with the
-  sibling present (the SB3 notebook has no stand-alone publication cell: its
-  `save_run_bundle` cell only defines the call, and a session that reuses
-  every node writes no bundle, so it takes a hand-typed
-  `save_run_bundle(...)` call or a later committed cell), which rebuilds a `partial` bundle and regenerates a
+  sibling present, which rebuilds a `partial` bundle and regenerates a
   `complete` bundle's derived artifacts (`provenance.json`, `summary.json`,
   the CSV, the manifest) when the replication record is the ONLY thing that
   changed — every certified artifact and every other result of a complete
   bundle stays immutable, and a re-run that would change anything else is
-  still refused.  A key naming a deliverable the run holds outside the
+  still refused.  In the SB3 notebook a session that reuses every node
+  writes no bundle, so a `partial` run is written again by its publish cell
+  (`PUBLISH_RUN = True`, [Colab workflow](#colab-workflow)), a chain stopped
+  at a failed node included; that cell refuses a `complete` run, so a
+  complete bundle's replication record is regenerated only by a hand-typed
+  `save_run_bundle(chain_results(), model_id=MODEL_ID)` call once the chain
+  loop has re-entered the run.  A key naming a deliverable the run holds outside the
   published chain is dropped (its node has no record in this bundle); a
   key naming no deliverable of the model is refused.
   `certification_seeds` is the stage's declared `[curriculum]` value
@@ -389,7 +392,50 @@ readable but are labelled `legacy-unverified` or `legacy-conflict`.
 The SB3 notebook calls the shared bundle functions. A new run ID starts an
 independent experiment. SB3's chain runs in one ordered notebook session
 because its stage objects are kept in memory; the bundle is saved after every
-node, growing from `partial` to `complete` when the target certifies.
+node the chain loop trains or judges, growing from `partial` to `complete`
+when the target certifies.
+
+A node the chain loop reuses from the run's own records writes nothing, so a
+session that reuses every node writes no bundle. The notebook's publish cell,
+after the chain loop (section 6, `PUBLISH_RUN = True`; the maintainer's
+decision of 2026-11-26), writes the training summary and the bundle from the
+run's own records with the chain loop's two calls, then validates the bundle
+and prints its status and what it certified. It is for a run cut off after
+its last verdict but before its bundle (a stance node's probes run last and
+are report only, so a runtime lost during them leaves the verdict, the stage
+summary, figures and replays, and no `summary.json`, `collected_results.csv`
+or `artifact_manifest.json`), and for a `partial` run re-entered to count a
+replicate that certified later. A `partial` run usually holds a failed node,
+on which the chain loop raises, so the cell is run without it: every cell
+above section 5, then the publish cell, with `BEHAVIOR` and the other knobs
+as the run's session had them.
+
+It trains, judges and probes nothing and changes no stage file. It walks the
+chain as the chain loop does: root first, an ancestor's `ancestors/<id>/`
+record standing for it (the target never, D-A18), and stopping after the
+first failed verdict, where the chain loop halted after its write. Every
+other node of that walk must hold a `gate_verdict.json` in its stage
+directory (found as the reuse rule finds one, `stage_dir_candidates`), whose
+`stage_result` re-enters the bundle, as the chain loop's reuse of a node of
+this run does. Before it writes anything it refuses a `complete` run (it is
+published and immutable; the cell's message says how a late replicate is
+counted into one), a `BEHAVIOR` whose target differs from the
+`target_deliverable` the run's `provenance.json` records (it would retarget
+the run, and a shallower target seals it `complete` without the nodes below),
+a node of the walk that is neither judged nor recorded (the chain loop judges
+or trains it first), and a node judged in the run that the bundle would leave
+out (off the chain, or below the failed node). A run that never wrote a
+bundle records no target, so for it the cell trusts `BEHAVIOR`. A missing
+report-only file, such as a probe the cut-off skipped, does not block it. A
+stage result recorded under another root (a run copied off Drive) is found
+again from its verdict's stage-directory-relative, hash-bound pair, and each
+node's control step, which a verdict does not record, comes from a bare env of
+its task, so the summary's sim time is right for the Compsognathus pair (0.02
+s). A bundle write the writer refuses puts the summary back. In a new
+runtime the storage cell appends its session to a `partial` run's
+`provenance.json`, which the verify cell then refuses
+([KNOWN_ISSUES.md](KNOWN_ISSUES.md)); the publish cell rebuilds the bundle
+over it.
 
 `publication_gate_passed` is the promotion decision recomputed from the fixed
 publication evaluation and the frozen stage thresholds. A recorded pass must

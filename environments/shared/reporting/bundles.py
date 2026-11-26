@@ -722,8 +722,9 @@ def save_result_bundle(
                 # The replication record is a property of the SET of sibling
                 # runs, not of this run's results (plan §4.5, D-B10/D-B16):
                 # a replicate that certified after publication changes it,
-                # and a re-run of the publication cell counts it by
-                # regenerating the derived artifacts.  Every certified
+                # and writing the bundle again counts it by regenerating the
+                # derived artifacts (in the SB3 notebook a hand-typed call:
+                # its publish cell refuses a complete run).  Every certified
                 # artifact and every other result stays immutable.
                 if _without_replication(existing_summary) != _without_replication(prospective_summary):
                     raise ResultBundleError(

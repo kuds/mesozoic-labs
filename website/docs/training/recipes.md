@@ -402,6 +402,32 @@ node's algorithm block prints a warning naming the differing keys and points
 at `RETRAIN_FROM`. A stage directory that already records a node is refused,
 so a new variant is a new `RUN_ID`.
 
+**Publishing a run the loop does not write.** A node the loop reuses from
+this run's own records writes nothing, so a session that reuses every node
+writes no bundle: a run re-entered after a runtime ended between its last
+verdict and its bundle (a stance node's probes run last and are report only),
+or a `partial` run re-entered to count a replicate that certified later. The
+opt-in publish cell after the loop (`PUBLISH_RUN = True`; the maintainer's
+decision of 2026-11-26) writes the training summary and the bundle from the
+run's own records with the loop's two calls, checks the bundle and prints its
+status and what it certified. Set `RUN_ID` to the run and every other knob as
+its session had them (`ALGORITHM`, `SEED` and `N_ENVS` too, and `BEHAVIOR`
+above all: it sets the chain and the target). Then run every cell above
+section 5 and then the publish cell. Skip the loop: it raises on a failed
+node, which most `partial` runs hold, and trains any node the run lacks. Run
+all works too when every node of the chain passed. The cell trains, judges and
+probes nothing and changes no stage file. It walks the chain as the loop does,
+an ancestor's `ancestors/` record standing for it, and stops after the first
+failed verdict, where the loop halted. Before it writes anything it refuses a
+`complete` run (already published and immutable), a `BEHAVIOR` whose target is
+not the one the run's `provenance.json` records (publishing would retarget the
+run), a node of the walk that is neither judged in the run (a
+`gate_verdict.json` in its stage directory) nor recorded under `ancestors/`
+(the loop judges or trains it first), and a node judged in the run that the
+bundle would leave out. A judged node's results re-enter the bundle from its
+verdict, as the loop's reuse does, and a missing report-only file, such as a
+probe the cut-off skipped, does not block it.
+
 **Hunt on a walk trunk.** An earlier run `20260901_120000` certified stance
 and locomotion for the Velociraptor under PPO. In a fresh session:
 
@@ -678,12 +704,15 @@ schema-2 summaries still read):
   the label from the current config — no T-Rex stance bundle is committed
   yet; see `docs/KNOWN_ISSUES.md`). A replicate that certifies later is counted when the
   bundle of the run that should count it is written again with the sibling
-  present (a hand-typed `save_run_bundle(...)` call or a later committed
-  cell: the SB3 notebook has no stand-alone publication cell): a `partial`
-  bundle is rebuilt, and a `complete` bundle
+  present: a `partial` bundle is rebuilt, and a `complete` bundle
   regenerates its derived artifacts when the replication record is its
   only change — anything else on a complete bundle is still refused as
-  immutable.
+  immutable. In the SB3 notebook the publish cell writes a `partial` run's
+  bundle again, a chain stopped at a failed node included
+  (`PUBLISH_RUN = True`, [In the notebook](#in-the-notebook)); it refuses a
+  `complete` run, whose record a hand-typed
+  `save_run_bundle(chain_results(), model_id=MODEL_ID)` call regenerates
+  once the chain loop has re-entered the run.
 - `target_deliverable` names the node the run aimed at and
   `primary_deliverable` the published model — the target when certified,
   else the deepest certified deliverable; `selected_model_path` is the
