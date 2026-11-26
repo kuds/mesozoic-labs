@@ -119,22 +119,26 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     }
 
     assert [stage["timesteps"] for stage in models[VELOCIRAPTOR_MONGOLIENSIS]["stages"]] == [
-        12_000_000,
+        11_000_000,
         8_000_000,
         12_000_000,
     ]
-    # Stage 1 is 12M, not the 6M of the quadrupeds: trex 1a is the
-    # stance-gated stage, and its 6M budget ran out mid-improvement -- run
-    # 20260802_203215's best evaluation was its last, at 6.0M of 6M. Raised
-    # 10M -> 11M on main (08a66b3) for the seeded replicate campaign, then
-    # 11M -> 12M on main (3261967b), when the velociraptor stance also went
-    # 6M -> 12M (cdffea89).
+    # Every model's stance is 11M (2026-11-26). The trex 1a stance-gated
+    # stage outgrew its 6M budget first -- run 20260802_203215's best
+    # evaluation was its last, at 6.0M of 6M. Raised 10M -> 11M on main
+    # (08a66b3) for the seeded replicate campaign, then 11M -> 12M on main
+    # (3261967b), when the velociraptor stance also went 6M -> 12M
+    # (cdffea89). Both returned to 11M so that a T. rex stance at the
+    # 40-episode, 50,000-step evaluation cadence trains, judges and publishes
+    # inside one ~24 h Colab session; the allosaurus (3M), brachiosaurus (6M)
+    # and dibothrosuchus (6M) stances rose to it so that every stance shares
+    # one budget.
     #
     # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
     # sits between stance and locomotion, labelled by its semantic id — it
     # has no legacy number and none is invented for it.
     assert [stage["timesteps"] for stage in models[TYRANNOSAURUS_REX]["stages"]] == [
-        12_000_000,
+        11_000_000,
         3_000_000,
         8_000_000,
         8_000_000,
@@ -166,12 +170,12 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         assert [stage["warm_start_from"] for stage in models[model_id]["stages"]] == [None, "stance", "locomotion"]
         assert [stage["recipe"] for stage in models[model_id]["stages"]] == ["stance", "walk", "hunt"]
     assert [stage["timesteps"] for stage in models[BRACHIOSAURUS_ALTITHORAX]["stages"]] == [
-        6_000_000,
+        11_000_000,
         16_000_000,
         12_000_000,
     ]
     assert [stage["timesteps"] for stage in models[DIBOTHROSUCHUS_ELAPHROS]["stages"]] == [
-        6_000_000,
+        11_000_000,
         12_000_000,
         8_000_000,
     ]

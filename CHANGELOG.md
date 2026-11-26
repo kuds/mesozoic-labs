@@ -2664,6 +2664,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every model's stance trains 11M steps** (the maintainer's decision of
+  2026-11-26). `[curriculum] timesteps` is 11,000,000 in every
+  `configs/<species>/<embodiment>/stance.toml`: the T. rex and velociraptor
+  stances drop from 12M, the allosaurus rises from 3M and the brachiosaurus
+  and dibothrosuchus from 6M; both Compsognathus stances were already 11M.
+  Every other stage keeps its budget. At the notebook's stance cadence (40
+  episodes every 50,000 steps, about half the wall clock) the two certified
+  r10 T. rex stances trained 12M in 23h06m55s and 23h28m58s on Colab L4s,
+  which left no margin under the ~24 h runtime cap: seed 44 was judged and
+  bundled about 5 minutes before it, and seed 43 hit it and needed a resume
+  to be judged. At their rates 11M trains in about 21h11m–21h31m, leaving
+  about 2.5 h for setup, the certificate and the bundle (together about
+  50 min). Their evaluations from 10M to
+  12M were flat; truncated at 11M, the two runs' recorded series select the
+  10.85M checkpoint (seed 44's certified handoff) and the 9.0M one (seed 43,
+  in place of its 11.35M handoff; its six-heading certificate on seeds
+  3042–3081 is clean on 40/40 seeds at every heading). A truncated 12M series
+  is not an 11M run (the schedules below differ). The other stances rose so
+  that every stance shares one budget.
+  The budget is a schedule key: no task, gate or recipe digest moves (the
+  T. rex stance stays `433d4add` / `d26c34e6` / `054ab483`, `c64211e8` with
+  `CRITIC_PHASE = True`), so replicate pairing is unchanged, and only each
+  changed stance's two `stage_config_view_sha256` lines of the digest
+  snapshot move. Recorded runs and bundles read as before: the audits read
+  each run's own `stage_config.json`. Training is not unchanged:
+  - Learning-rate schedules run over the budget. The T. rex's (linear, 3e-5
+    to 1e-5) is about 2.6% lower at 4M and 14% lower at 11M than under 12M,
+    and the velociraptor's (cosine, 3e-5 to 5e-6) 10–19% lower over 6M–9M.
+    The brachiosaurus (cosine) and dibothrosuchus (linear) anneal over almost
+    twice the steps, so their rate at 6M is about 3.1x and 1.9x what it was.
+    The allosaurus's 1e-4 is constant.
+  - Every entropy-decay anchor (`ent_coef_decay_timesteps`) and hop-watch
+    step stays where it was, so the brachiosaurus and dibothrosuchus stances
+    spend 77% and 73% of their budget at their entropy floor (58% and 50%
+    before), and the T. rex and velociraptor 36% (42%). The allosaurus has no
+    entropy decay.
+  - The allosaurus, brachiosaurus and dibothrosuchus gates advance on a pass,
+    so their budget is a cap; the allosaurus stance has no collapse backstop,
+    so a run that never passes trains all 11M.
+  - A stance run launched before this change is resumed with `REPO_REF` set
+    to its recorded commit: on this budget a resume trains only to 11M, a 12M
+    run interrupted past 11M without its final pair is refused, and its
+    bundle warns that it fell short of its run budget.
+  The species catalog (`docs/SPECIES_CATALOG.md`,
+  `website/src/data/species.generated.json`), `test_species_catalog.py`,
+  `test_ltsb_stance_recipe.py`, a dated note in `docs/NEXT_STEPS.md` §3 and
+  the config, notebook and code comments that quoted the old budgets follow.
 - **The Drive summary labels each run's kind.** Its rows gain `run_kind`:
   `certify`, `screen` or `quick_test`, read off the tree the run sits in. A
   run of `<algo>/` that `run_exclusions.py` names reads `screen` too, and
