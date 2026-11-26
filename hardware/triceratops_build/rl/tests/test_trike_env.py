@@ -1339,7 +1339,7 @@ def test_penalty_ramp_defaults():
     assert train.late_scale_at(1_000_001, 1_000_000, 1_000_000) == 1.0  # a step when from == to
     from trike_env import LATE_TERMS, RAMPED_TERMS
 
-    assert set(RAMPED_TERMS) == {"r_energy", "r_slip"} and set(LATE_TERMS) == {"r_heat", "r_saturation"}
+    assert set(RAMPED_TERMS) == {"r_energy", "r_slip"} and set(LATE_TERMS) == {"r_heat", "r_saturation", "r_heat_peak"}
 
 
 def test_late_scale_and_air_time_cap_in_the_env():
