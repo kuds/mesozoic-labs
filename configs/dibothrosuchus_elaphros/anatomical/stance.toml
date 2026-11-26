@@ -54,6 +54,7 @@ clip_range = 0.2
 ent_coef = 0.005
 ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefDecayCallback). Every balance stage in this
 ent_coef_decay_timesteps = 3000000      # repository that ran without decay destabilized late; anchor at half the 6M budget
+                                        # it was set for (27% of the 11M budget since 2026-11-26, which kept the anchor)
                                         # so ent_coef reaches its floor before any late action-std drift.
                                         # See docs/investigations/TREX_STAGE1_LEG_JITTER.md.
 target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
@@ -67,7 +68,7 @@ batch_size = 256
 gamma = 0.99                      # Off-policy replay staleness at high gamma causes value overestimation; 0.99 is sufficient for balance
 tau = 0.005
 ent_coef = "auto"                 # Auto-tuned entropy — replaces PPO's manual ent_coef=0.005
-buffer_size = 300_000             # Sufficient for a 6M-step stage 1; a smaller buffer keeps transitions recent
+buffer_size = 300_000             # Sized for a 6M-step stage 1 (now 11M); a smaller buffer keeps transitions recent
 learning_starts = 10_000
 train_freq = 16
 gradient_steps = 8                # 2:1 data-to-update ratio
@@ -78,7 +79,7 @@ net_arch = [512, 256]             # Match PPO architecture (obs is 80 with the P
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
-timesteps = 6000000
+timesteps = 11000000
 min_avg_reward = 1560.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.60 x the statue's
                                         # standing reward at noise 0.05 (2598.3 +/- 0.9, 40 episodes). Only
                                         # rejects a policy that discarded most of the available return; 0.60
@@ -106,4 +107,5 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # followed read as a collapse, and it stopped at 1.45M of 6M, certifying
                                          # the statue-level 50k checkpoint. Replayed on that run's 29 evaluations,
                                          # any warm-up >= 400k never arms (the statue plateau lasts to 450k); 1.0M
-                                         # keeps that margin 2.5x and leaves 5M of the budget protected.
+                                         # keeps that margin 2.5x and leaves 10M of the 11M budget protected (5M of
+                                         # the 6M budget it was set for).

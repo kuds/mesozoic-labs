@@ -2664,6 +2664,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every model's stance trains 11M steps** (the maintainer's decision of
+  2026-11-26). `[curriculum] timesteps` is 11,000,000 in every
+  `configs/<species>/<embodiment>/stance.toml`: the T. rex and velociraptor
+  stances drop from 12M, the allosaurus rises from 3M and the brachiosaurus
+  and dibothrosuchus from 6M; both Compsognathus stances were already 11M.
+  Every other stage keeps its budget. At the notebook's stance cadence (40
+  episodes every 50,000 steps, about half the wall clock) a 12M T. rex stance
+  took 23h06m–23h59m to train on a Colab L4, so judging and the bundle
+  overran the ~24 h runtime cap and every such run needed a resume to be
+  judged; 11M trains in 21h13m–21h59m and leaves about 1–2 h for the
+  verdict. On the two certified r10 T. rex runs the evaluations from 10M to
+  12M were flat, and an 11M cap would have handed off the 10.85M checkpoint
+  (seed 44, the one certified) and the 9.0M one (seed 43, whose six-heading
+  certificate passes 240/240). The budget is a schedule key: no task, gate or
+  recipe digest moves (the T. rex stance stays `433d4add` / `d26c34e6` /
+  `054ab483`, `c64211e8` with `CRITIC_PHASE = True`), so replicate pairing is
+  unchanged, and only each changed stance's two `stage_config_view_sha256`
+  lines of the digest snapshot move. Training is not unchanged: PPO's
+  learning rate anneals linearly over the budget (the T. rex's 3e-5 to 1e-5,
+  about 2.6% lower at 4M than under 12M), and every entropy-decay anchor
+  (`ent_coef_decay_timesteps`) and hop-watch step stays where it was, so the
+  allosaurus, brachiosaurus and dibothrosuchus stances now spend a larger
+  share of their budget at their entropy floor. The species catalog
+  (`docs/SPECIES_CATALOG.md`, `website/src/data/species.generated.json`) and
+  `test_species_catalog.py` / `test_ltsb_stance_recipe.py` follow, and the
+  config comments that quoted the old budgets are updated.
 - **The Drive summary labels each run's kind.** Its rows gain `run_kind`:
   `certify`, `screen` or `quick_test`, read off the tree the run sits in. A
   run of `<algo>/` that `run_exclusions.py` names reads `screen` too, and
