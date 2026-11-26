@@ -345,7 +345,7 @@ BEHAVIOR = "auto"  # the model's final deliverable, a recipe label, or a deliver
 TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
-RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run (letters, digits, _ and - only; refused if, in this ALGORITHM's trees, it names only another model's run: SPECIES and EMBODIMENT pick the model); an existing run id re-enters that run to finish an interrupted or partial run (section 5)
 RUN_KIND = "certify"  # "certify" = a run that may certify, under <algo>/, the tree TRUNK_FROM = "auto" and seed replication scan; "screen" = a branch screen, pilot or other experiment, under <algo>_screen/: never a trunk or a seed replicate of a certification run, though it reuses certified ancestors; set it again to re-enter or resume a screen; QUICK_TEST wins (<algo>_quick_test/)
 ```
 
@@ -383,7 +383,21 @@ a new id starts a fresh run, and an existing run's id re-enters that run in
 place, to resume an interrupted node or finish a `partial` run; the storage
 cell prints whether it minted a new run or re-entered one. To start a fresh
 run in a runtime that already resolved one, set a new id (a timestamp such
-as `"20260924_120000"`, the format the storage cell mints). A run whose bundle
+as `"20260924_120000"`, the format the storage cell mints). `SPECIES` and
+`EMBODIMENT` select the model, never the id (the maintainer's decisions of
+2026-11-26). Before anything is written, the storage cell refuses an
+explicit id that names no run of the model but a run of another model under
+`<LOG_BASE>`, in the trees of this `ALGORITHM`, naming every run of that id
+and the knobs that reach it; and it refuses a new id with characters other
+than letters, digits, `_` and `-` (a run the tree already holds is
+re-entered whatever its characters, with a note). Every explicit id prints
+a banner naming the model, its species and embodiment, the algorithm, the
+run tree, whether the run is new or re-entered, and every other run of that
+id under `<LOG_BASE>`, of any model and either algorithm (a run of the id
+under the other algorithm alone is named, not refused). These rules cover
+the notebook's `RUN_ID` only: a run directory named on the command line
+(`--output-dir`, or `widen_checkpoint --to-stage-dir` below) is not checked,
+so name it by the same rule. A run whose bundle
 is `complete` is immutable: a session that would judge or train a node into
 it is refused before anything is trained or written (in the resolve cell, or
 in the chain loop for what the resolve cell cannot predict, such as a node

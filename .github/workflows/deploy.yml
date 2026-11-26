@@ -56,7 +56,10 @@ jobs:
       - name: Type-check website
         run: npx tsc --noEmit
 
-      # The cookie-consent and analytics code (node:test, no extra deps).
+      # The website's unit tests (node:test, no extra deps): the cookie-consent
+      # and analytics code, and the animal pages' labels against the generated
+      # catalog (a regenerated catalog can fail them on purpose, e.g. when the
+      # Compsognathus robot's stance gate changes).
       - name: Test website
         run: npm test
 

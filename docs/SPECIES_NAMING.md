@@ -4,6 +4,11 @@ A **species ID** is the species' binomial in snake_case (genus, underscore,
 epithet). An **embodiment** is `anatomical`, the animal-proportioned research
 model, or `robot`, a buildable robot of that species. A robot's hardware
 iterations are physics revisions of the same embodiment, not new embodiments.
+A species has one `robot`, and only the adopted design becomes it:
+alternative designs studied in parallel, such as the 75 cm and 60 cm bodies
+the [hardware notes](hardware/README.md) compare, stay in `examples/` or on
+hardware branches until one is adopted (the maintainer's decision of
+2026-11-26).
 A **model** is the pair (species, embodiment); in code it is a `ModelId`
 (`environments/shared/model_id.py`), held in variables named `model_id`
 (`model` means a policy or an MjModel). There are no aliases: machine
