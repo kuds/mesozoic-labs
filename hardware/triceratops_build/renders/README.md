@@ -33,9 +33,16 @@ and clip is a simulation render**, labelled "SIMULATION" with a badge top left a
 - **What the model shows:** `render_stills.py` checks that the frill's top stands at 60 cm after the 2 s settle.
 - **What is not modelled:**
   - The body and legs are shown as frame, drives and ribs; the head, frill and tail as shells.
-  - The capsule is drawn as a full rigid capsule.
-  - The schematic shoulder crossmember passes through the shoulder drives in this model, as in the earlier ones
-    (F19, open). The pushrod that drives the elbow is fixed in the model.
+  - The capsule is drawn as a full rigid capsule. A real foot would be a moulded rubber rocker under the ankle
+    (`../sim/REPORT_FEET60.md`).
+  - Two schematic chassis bars pass into leg drives (F19, F21). Neither collides in the simulation, and a viewer does
+    not see it, since each bar lies inside the drive cylinders.
+    - The shoulder crossmember touches the front pitch drives: 1.1 mm standing, up to 5.3 mm over the clip's
+      episode, and up to 29 mm at the front roll joint's +24 deg limit.
+    - The pelvic crossmember passes about 40 mm into the hip roll and pitch drives, in every 60 cm model.
+  - The pushrod that drives the elbow is fixed in the model.
+  - Fit: the 128 mm fore-assembly passes the model's packaging check (clearances 4.7-8.7 mm: X6 to upper strut 8.7, X6 to chassis 7.7, X6 to output crank 7.2, motor plate to rail 4.7). Whether the real X6 mount,
+    pushrod and guards fit is for the bench article.
 
 **Clip, on the data branch (D11):** `walk60_fore128_trot_0.25_1x.mp4`, 20 s shown at actual speed, 1280 × 720,
 H.264, 6.8 MB (data-branch commit 9c020943; the capsule-188 clip there is marked superseded).

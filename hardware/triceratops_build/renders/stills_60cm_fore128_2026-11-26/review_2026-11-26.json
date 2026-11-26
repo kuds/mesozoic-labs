@@ -1,0 +1,127 @@
+{
+ "date": "2026-11-26",
+ "commit_reviewed": "29b6c9c7",
+ "method": "one reviewer (images, re-renders, trot re-check, captions, README) followed by a skeptic",
+ "reviews": [
+  {
+   "findings": [
+    {
+     "id": "F1",
+     "severity": "medium",
+     "title": "The 'not modelled' crossmember caveat points at the wrong end of the 128 mm model and leaves out the 40 mm overlap at the hips",
+     "location": "hardware/triceratops_build/renders/README.md, 128 mm section, 'What is not modelled', third bullet ('The schematic shoulder crossmember passes through the shoulder drives in this model, as in the earlier ones (F19, open)'); DECISION_LOG.md F19",
+     "evidence": "I measured mj_geomDistance after the 2 s settle that render_stills uses. In the 128 mm model the shoulder_crossmember overlaps left_fore_x4_pitch_stator by 1.2 mm and the x4_roll_stator by 1.1 mm. It is clear of the other parts: shoulder_yoke +15.1 mm, upper_strut +15.3 mm, upper_limb_cover +2.5 mm. In the 188 mm model the same pairs overlap by 40.1, 41.1, 24.8, 20.8 and 33.6 mm. Over the clip's own episode (seed 101, 20 s, walk60 controller) the 128 mm front overlap peaks at 5.3 mm (X4 pitch), 1.8 mm (limb cover) and 1.1 mm (roll stator). Front roll stays within 4.7 deg. So 'as in the earlier ones' is not true for the front. The hips are different: in the 128 mm model the pelvic_crossmember overlaps left_hind_x4_roll_stator by 41.1 mm, x4_pitch_stator by 40.1 mm, shoulder_yoke by 24.8 mm, upper_strut by 20.8 mm and upper_limb_cover by 33.6 mm. These are exactly the front figures F19 gives for the 188 mm model. The crossmember runs through the middle of the chassis-fixed hind roll drive. A grep of all .md files finds this nowhere in F19, the README or any report. A viewer would not see it: the bar lies on the hip pitch axis, inside the drive cylinders. The images are not misleading, but the README's caveat is.",
+     "suggested_fix": "Reword the bullet. Suggested text: 'The schematic shoulder crossmember touches the shoulder drives in this model (about 1 mm standing, up to 5 mm in the clip). The schematic pelvic crossmember passes through the hip roll and pitch drives by about 40 mm, as the shoulder one did in the 188 mm model. Neither collides in the simulation.' Also add the pelvic crossmember to F19 or log it as a new finding, and add it to the --packaging sweep."
+    },
+    {
+     "id": "F2",
+     "severity": "medium",
+     "title": "A SUPERSEDED note still sends readers to the capsule set, and the capsule folder has no SUPERSEDED marker",
+     "location": "hardware/triceratops_build/renders/stills_60cm_2026-11-22/SUPERSEDED.md line 4; hardware/triceratops_build/renders/stills_60cm_capsule_2026-11-22/ (no SUPERSEDED.md)",
+     "evidence": "SUPERSEDED.md says: 'Show `../stills_60cm_capsule_2026-11-22/` instead'. That set is now superseded. The README heading says '(22 Nov 2026; superseded by the 128 mm set above: do not show)', and it shows the 188 mm foreleg (F18). The earlier set was marked with a SUPERSEDED.md in its own folder. `ls stills_60cm_capsule_2026-11-22` shows only the four JPEGs and no marker. Someone browsing the folders before 8 Dec would be sent to the unbuildable 188 mm stills.",
+     "suggested_fix": "Change the pointer in stills_60cm_2026-11-22/SUPERSEDED.md to ../stills_60cm_fore128_2026-11-26/. Add a SUPERSEDED.md to stills_60cm_capsule_2026-11-22/ saying 'shows the 188 mm foreleg (F18); superseded 26 Nov 2026 by ../stills_60cm_fore128_2026-11-26/ (D25, D27); do not show'."
+    },
+    {
+     "id": "F3",
+     "severity": "low",
+     "title": "Build README, F18 and D27 do not record that the renders were redrawn",
+     "location": "hardware/triceratops_build/README.md lines 66-68 (task 9) and 77-79 (next step 3); DECISION_LOG.md F18 and D27 status",
+     "evidence": "The build README still says the renders were '60 cm stills and the model-based trot clip 22 Nov 2026, redone the same day on the capsule feet' and 'Done 22 Nov 2026 ... redone on the capsule feet (D19)'. It does not mention the 26 Nov 128 mm redraw. F18 still says '... and the museum renders use this foreleg'. D27's status is 'adopted' with no completion note, although commit 29b6c9c7 does the work.",
+     "suggested_fix": "Append '; redrawn 26 Nov 2026 with the 128 mm foreleg (D25, D27; data-branch 9c020943)' to both README items. Mark D27 as done (29b6c9c7, clip 9c020943). Add 'until 26 Nov (redrawn, D27)' to F18's mention of the renders."
+    },
+    {
+     "id": "F4",
+     "severity": "low",
+     "title": "The README implies the 128 mm fore-assembly is buildable as modelled; the real fit is still open",
+     "location": "hardware/triceratops_build/renders/README.md, 128 mm section, first paragraph and 'What changes in the picture'",
+     "evidence": "The section contrasts the new set with 'the 188 mm foreleg, which cannot be built as modelled (F18)', which invites the reading that the 128 mm one can be. PLAN_FORELEG_D22.md lists under 'What this does not settle': 'Whether the real X6 mount, pushrod and guards fit: the bench article measures that'. The moving pushrod and the dressed meshes are 'taken from PR #697's evidence', not checked in this build. F19 also says a real chassis needs the crossmember reshaped. The README states none of this. The images themselves say 'Not hardware; nothing is built yet', so the risk is low.",
+     "suggested_fix": "Add one bullet: 'The 128 mm fore-assembly passes the model's packaging check (clearances 7-9 mm); whether the real X6 mount, pushrod and guards fit is for the bench article.'"
+    },
+    {
+     "id": "F5",
+     "severity": "low",
+     "title": "The foot caveat lost its explanation in the new section",
+     "location": "hardware/triceratops_build/renders/README.md, 128 mm section, 'What is not modelled', second bullet",
+     "evidence": "The new section says only 'The capsule is drawn as a full rigid capsule.' The capsule section it replaces went on: 'A real foot would be a moulded rubber rocker under the ankle (../sim/REPORT_FEET60.md)'. F17 adds that the simulated shapes pass through the lower strut. Without that sentence, the new set (the one to show) does not say how the drawn foot differs from the real one.",
+     "suggested_fix": "Restore the sentence: 'A real foot would be a moulded rubber rocker under the ankle (../sim/REPORT_FEET60.md).'"
+    },
+    {
+     "id": "F6",
+     "severity": "low",
+     "title": "F19's worst-case figures, cited by the README, come from roll angles the front roll joint cannot reach",
+     "location": "hardware/triceratops_build/DECISION_LOG.md F19 ('by up to 36.4 mm at roll +30 deg ... roll swept from -30 to +30 deg')",
+     "evidence": "In trike60_C_closed_capsule_fore128.xml both front roll joints have range=\"-18 24\" (deg). So the +30 deg worst case (36.4 mm, and the cover and yoke overlaps 'from +14 deg') partly lies outside reachable poses. In the clip's episode front roll stays at or below 4.7 deg and the overlap at or below 5.3 mm.",
+     "suggested_fix": "Restate F19's 128/160 mm worst case within the joint range (-18 to +24 deg). Optionally also give the overlap seen during the trot (up to 5.3 mm)."
+    }
+   ],
+   "checked_ok": [
+    "SIMULATION badges: all four new JPEGs have both badges (top left and bottom right), checked by eye with Read. All 600 clip frames have both badges: a red-pixel test at both badge positions found 0 misses. The caption band is identical on every frame (largest mean abs difference from frame 0: 0.53). I also looked at 16 frames spread over 0-19.96 s: captions legible, robot in frame, ground shadow present to the last frame, no fall.",
+    "Captions are legible and match the README table word for word: stills title, stills caption, trot frame (3 lines) and clip ('shown at actual speed (1x)').",
+    "Stills come from the 128 mm model: the README command (render_stills.py --robot ../sim/generated/trike60_C_closed_capsule_fore128.xml --size 60 --scale 0.8 --no-reflection --second-badge, output to scratch) gives byte-identical robot_three_quarter, robot_side and robot_head (pixel difference 0). The same command on trike60_C_closed_capsule.xml reproduces the capsule (188 mm) set byte for byte. The 128 mm and 188 mm stills differ in 11,052-49,686 pixels (>30 levels). Side by side, the front leg is visibly different: X6 at shoulder height, elbow higher, ToF arms.",
+    "The trot frame re-rendered with --still-at 8.0 is byte-identical. It matches clip frame 240 (t = 8.0 s) to within compression: mean abs difference 1.9, against 4.0-4.2 at frames 237 and 243.",
+    "The clip re-rendered at 29b6c9c7 with the data-branch README's command is byte-identical to FETCH_HEAD:walk60_fore128_trot_0.25_1x.mp4: H.264, yuv420p, 1280x720, 30 fps, 600 frames, 20.0 s, 6,793,423 bytes (6.8 MB). render_walk_clip.py, walk60 and the model are unchanged between 8e704d2d (named in the data README) and 29b6c9c7. The data README row (12.8 kg, D25, D19, seed 101, 0.250-0.252 m/s, 0.66-0.70) is correct, and the capsule-188 row is marked superseded. Data-branch commit 9c020943 changes only the clip and README.md.",
+    "trot_seed_check.py re-run on all ten seeds for both models (about 35 s each) reproduces both committed JSONs exactly (dict equality).",
+    "Every README table figure matches the JSONs. 128 mm vs 188 mm: falls 0 and 0; speed from 2 s 0.2500-0.2516 and 0.2479-0.2489; worst RMS 0.655-0.699 and 0.711-0.733; front pitch at its limit 0.57-0.83 % and 1.81-2.06 %; drift up to 0.266 and 0.268 m; heading up to 5.00 and 5.58 deg; front touchdowns 3.28-4.22 and 4.17-4.28 per s. The 188 mm figures reproduce the capsule set's (seed 101: 0.248, 0.73, 2.0 %, 0.07 m, 2.1 deg, 4.2/s). The 128 mm seed 101 figures (0.250, 0.69 left hind pitch, right fore pitch 0.83 %, 0.09 m, 2.2 deg, 3.9/s) and the IK error (0.020 mm max) also match.",
+    "Caption claims: body-mass sum 12.7506 kg, shown as 12.8 (the clip uses env.nominal_mass, the same sum); frill top 59.995 cm after the 2 s settle; capsule sole geom; command 0.25 m/s, 0.250 m/s from 2 s; delay is 10 physics steps of 1 ms; observation_noise=True with no randomisation; the still is at 8.00 s. The capsule foot's date (22 Nov 2026) matches D19.",
+    "Picture changes: shoulder (upper-link origin) z 0.3190 to 0.2793 m, 39.7 mm lower; elbow z 0.1743 to 0.1929 m, 18.6 mm higher (and 25 mm further forward); upper link 188.0 to 128.0 mm. The X6 cylinder now sits at shoulder height. offset_motor_mount, mount_standoff and drop_bracket geoms are present. The pushrod is a geom fixed to the upper link. All of this agrees with PLAN_FORELEG_D22.md (shoulder pivot 40 mm lower, X6 in a shoulder pocket on an offset mount).",
+    "No new artefacts from the redraw: at the standing pose, the 128 mm model has no overlap between visible geoms of different bodies that is new or more than 3 mm worse than in the 188 mm model (83 vs 93 overlaps over 5 mm, all inherited).",
+    "README Reproduce block and versions: mujoco 3.10.0, numpy 2.5.5, gymnasium 1.4.0, Pillow 13.0.0, imageio 2.38.2 and ffmpeg 6.1.1 match the venv. JPEG sizes are 107,986-148,186 bytes, all under 150 KB. The 'irregular strides' statement is supported by REPORT_FORELEG_D22.md line 288. walk60 solves its IK on the loaded model (mj_jacBody).",
+    "Repository untouched: git status --short empty before and after, HEAD 29b6c9c7, no checkout, commit or push. Scratch files only under /tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_renders/."
+   ],
+   "not_checked": [
+    "Not all 600 clip frames were looked at by eye: 16 frames by eye, plus the programmatic badge and caption-band test on every frame. Whether the robot stays in frame was checked only on the sampled frames, though the camera tracks the chassis.",
+    "PR #697's own files (the 'shoulder pocket' geometry and the 12.844 kg mass) were not checked, because the PR is not on this branch. The 'pocket' wording was checked against PLAN_FORELEG_D22.md and the model only.",
+    "The 75 cm set and the adult stills (stills_2026-11-18) were not re-checked: out of scope, and marked superseded in the README.",
+    "The T. rex files were not opened, as instructed."
+   ]
+  }
+ ],
+ "verifications": [
+  {
+   "verdicts": [
+    {
+     "id": "F1",
+     "verdict": "partly",
+     "severity_after": "medium",
+     "reasoning": "The hip half holds and is new. The front half does not. The README sentence 'passes through the shoulder drives in this model, as in the earlier ones' is defensible for the 128 mm model. At standing the overlap is only about 1 mm, but in poses the front roll joint can reach it is large: 29.0 mm on the X4 pitch drive at roll +24 deg. F19 already gives the 128 mm figures. So 'not true for the front' overstates the case. The pelvic crossmember is another matter. It runs through the middle of both chassis-fixed hind X4 roll drives (41.1 mm) and overlaps the hind pitch drive, cover, yoke and strut by 20-40 mm in every pose of the clip. I found no record of this in any .md file. The --packaging sweep does not test it: it checks only the front legs, and only leg geoms against chassis geoms. It belongs in the 'not modelled' caveat and in F19 or a new finding. The bar sits inside the drive cylinders, so it is a missing caveat, not a misleading image. Medium stands.",
+     "evidence": "I used my own mj_geomDistance script (scratchpad/review_renders/scripts/xdist.py and xdist2.py), measured after render_stills' 2 s settle with ctrl=0. 128 mm model, shoulder_crossmember: x4_pitch_stator -1.2 mm, x4_roll_stator -1.1 mm, upper_limb_cover +2.5 mm, shoulder_yoke +15.1 mm, upper_strut +15.3 mm. 128 mm model, pelvic_crossmember: hind x4_roll_stator -41.1 mm, x4_pitch_stator -40.1 mm, upper_limb_cover -33.6 mm, shoulder_yoke -24.8 mm, upper_strut -20.8 mm; the 188 mm model gives the same hind figures. 188 mm model, shoulder_crossmember: -41.1 (roll stator), -40.1, -33.6, -24.8, -20.8 mm. Roll sweep of the 128 mm model (rollsweep.py, keyframe 0, left fore roll only): X4 pitch -0.0 mm at -1.8 deg, -1.1 at 0, -29.0 at +24 (joint limit), -36.4 at +30. Seed-101 episode, 20 s, walk60, front-to-shoulder-crossmember distances sampled every 5 ms (trot_overlap.py): worst X4 pitch -5.3/-4.9 mm (left/right), cover -1.8/-1.4, roll stator -1.1, yoke and strut +11.0 mm or more. Pelvic overlaps fixed at -40.1/-41.1/-33.6/-24.8/-20.8 mm; no fall. Front roll reached 3.97 deg at most (F1 says 4.7). Grep: 'pelvic' appears in .md files only in PARTS_60CM.md (mass row), REPORT_60CM.md:75 (tail servo raised onto it) and the stand_sensitivity table (battery gap). build_foreleg60.py packaging() loops only over ('left_fore','right_fore') and checks leg geoms against chassis geoms."
+    },
+    {
+     "id": "F2",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "The old folder's marker still points readers to the capsule set, which is now superseded. That folder has no marker of its own. Someone browsing folders before 8 Dec would land on the 188 mm stills, captioned 12.7 kg. The renders README and the data-branch README are both correct, so the risk comes from browsing the folders. A missing caveat and pointer: medium.",
+     "evidence": "stills_60cm_2026-11-22/SUPERSEDED.md reads: 'Show `../stills_60cm_capsule_2026-11-22/` instead (`../README.md`).' 'ls -la stills_60cm_capsule_2026-11-22/' lists only the four JPEGs, with no SUPERSEDED.md. The renders README heading reads 'At 60 cm with the capsule feet (22 Nov 2026; superseded by the 128 mm set above: do not show)'. HEAD 29b6c9c7 touches only README.md, the fore128 folder and trot_seed_check.py. Its message says 'The capsule set (188 mm foreleg) is marked superseded', but that marking is only in the README."
+    },
+    {
+     "id": "F3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The build README's task 9 and next step 3 still end at the 22 Nov capsule redo. D27's status is a bare 'adopted', while D20 and D21 carry 'built ...' notes, so a completion note is the log's convention. F18's 'the museum renders use this foreleg' is now stale. Record-keeping only.",
+     "evidence": "README.md lines 66-68: '60 cm stills and the model-based trot clip 22 Nov 2026, redone the same day on the capsule feet the owner chose (D19...)'. Lines 77-79: 'Done 22 Nov 2026: ... redone on the capsule feet (D19)'. The README has no 128 mm or 26 Nov entry for the renders. DECISION_LOG status column: 'D27 | adopted'; 'D20 | adopted; built 23 Nov (b89390ff...'. The F18 row reads: '...the steering and demo work and the museum renders use this foreleg.'"
+    },
+    {
+     "id": "F4",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "It is true that the README does not say the real X6 mount, pushrod and guard fit is still open: PLAN_FORELEG_D22 leaves it to the bench article. But the README never claims the 128 mm assembly is buildable. The 'cannot be built' contrast applies only to the 188 mm leg. The same section's caveats already flag gaps: the pushrod is fixed in the model and the crossmember passes through the shoulder drives. Every image says 'Not hardware; nothing is built yet.' So the 'implies buildable' reading is an inference. Adding the open-fit point is a fair wording improvement.",
+     "evidence": "PLAN_FORELEG_D22.md line 78: 'Whether the real X6 mount, pushrod and guards fit: the bench article measures that.' build_foreleg60.py packaging() docstring: 'Not here: the moving pushrod ..., the dressed meshes' clearances ...: PR #697's own evidence gives those.' The renders README 128 mm section says 'The pushrod that drives the elbow is fixed in the model' and 'The schematic shoulder crossmember passes through the shoulder drives'. It does not mention bench verification of the real fit."
+    },
+    {
+     "id": "F5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The capsule section explains how the drawn foot differs from the real one. The new section, the one to show, dropped that sentence. Its readers no longer learn that the real foot is a moulded rubber rocker. A small caveat lost.",
+     "evidence": "New section, 'What is not modelled', second bullet: 'The capsule is drawn as a full rigid capsule.' Capsule section: 'The capsule is drawn as a full rigid capsule. A real foot would be a moulded rubber rocker under the ankle (`../sim/REPORT_FEET60.md`).' F17: 'Simulated shapes are full shapes that pass through the lower strut (a real part is a half-capsule rocker).'"
+    },
+    {
+     "id": "F6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "F19's 'up to' figures come from roll +30 deg, past the front roll joint's +24 deg limit. The onset angles it gives (-1.8, +2.5 and +14 deg) are inside the range. F19 does state its sweep range, so it is transparent, but its worst case is overstated by about 6-7 mm. The real worst case is still a large overlap. The README does not quote these figures. This is a decision-log number only.",
+     "evidence": "All three generated models have left_fore_roll and right_fore_roll at range=\"-18 24\". My roll sweep of the 128 mm model (keyframe 0, neutral pitch and flexion) gives X4 pitch / limb cover / yoke / strut of -29.0/-23.6/-10.8/-10.8 mm at +24 deg and -36.4/-29.6/-16.8/-16.8 mm at +30 deg. The +30 values match F19's 36.4, 29.6 and 16.8. In the seed-101 trot the front roll reached at most 3.97 deg (my 5 ms sampling) and the X4 pitch overlap at most 5.3 mm."
+    }
+   ]
+  }
+ ]
+}
