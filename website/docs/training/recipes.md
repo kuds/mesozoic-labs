@@ -173,6 +173,53 @@ published by the run that certified them (D-A18) and appear here only under
 `provenance.ancestors`, so a trunked run whose target fails has nothing
 certified to publish.
 
+### Before a walk: the warm-start noise scan
+
+A walk node (`locomotion`, recipe `walk`) warm-starts PPO from its parent's
+handoff and keeps the parent's learned action std, `exp(log_std)`. With too
+little noise the walk explores nothing: the T-Rex's walking pilot 1 stood
+still on all three seeds from a parent of std 0.095. With too much, the
+parent falls at once: walking pilot 3's parent stood in 9 of 120 episodes at
+a uniform `log_std` of −1.5. `[curriculum] warm_start_log_std` in the walk's
+TOML resets every actuator's `log_std` at the warm start. No committed walk
+stage declares it.
+
+`environments/shared/scripts/warm_start_noise_scan.py` measures how much
+noise a parent tolerates in the walk's own env, for any model, before its
+first walk:
+
+```bash
+python -m environments.shared.scripts.warm_start_noise_scan \
+  --species velociraptor_mongoliensis --embodiment anatomical \
+  --stage-dir logs/<run>/01_stance --jobs 4 --out-dir scratch/noise_scan
+```
+
+It loads the stage's handoff pair (or `--model` and `--vecnorm`), checked
+against the current plant, into the walk stage's env, built from its
+committed config with the parent's VecNormalize statistics frozen. Two
+reference settings come first: the policy's mean action with no noise, and
+the parent's own learned `log_std`. Each further setting writes one value
+into every actuator's `log_std`, in memory only. By default there are 13
+values: the parent's largest learned `log_std` is rounded to a multiple of
+0.125, and the grid runs from 0.5 below it to 1.0 above it in steps of
+0.125 (`--log-std` names others). Each noisy setting rolls seeds 3042–3081
+in three noise streams, 120 episodes, with actions sampled from the policy's
+own distribution, up to the walk's episode length. An episode stands when it
+reaches that horizon without a termination. The tool prints a table and
+writes it with a JSON file into `--out-dir`. The table gives the stand
+counts per stream, the causes of the early ends, and the lift-offs and slide
+of the standing episodes. Below it is the largest grid value at which every
+episode stood. If a smaller value fell, the line also names the largest
+value with every smaller value standing too. The tool refuses an output
+directory inside a run or one that already holds a scan, and it changes no
+config. The default scan is 1.72 million control steps on the T-Rex, about
+43 minutes of one CPU; `--jobs N` divides that.
+
+Whether to declare `warm_start_log_std` from a scan is the maintainer's
+decision, per model. A value does not carry from one model or plant
+revision to another: walking pilot 3's −2.0 was measured on a physics-r10
+T-Rex parent, and r11 changed the T-Rex legs.
+
 ## The reuse rule
 
 `environments/shared/ancestors.py` owns the rule; `curriculum --trunk-from`

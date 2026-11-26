@@ -1146,13 +1146,82 @@ The trace writes to `--out-dir` (default `episode_trace_<checkpoint stem>`
 in the current directory) and refuses one inside a run directory (the
 nearest ancestor holding `provenance.json`) or inside the stage directory of
 the checkpoint or its statistics (`result_bundle.refuse_output_inside_run`,
-which `stance_gate_report.py` and `harnesses/recovery_offdist_panel.py`
-share; `plot_gate_progress.py` has its own, narrower guard: it refuses an
-`--out` inside the run of the stage directory it plots): a result bundle's
+which `stance_gate_report.py`, `warm_start_noise_scan.py` and
+`harnesses/recovery_offdist_panel.py` share; `plot_gate_progress.py` has
+its own, narrower guard: it refuses an `--out` inside the run of the stage
+directory it plots): a result bundle's
 manifest hashes every file under the run. It changes no gate, reward,
 observation, action, task, checkpoint selection or plant, and the digest
 snapshot does not move. It traces the training heading only, not the
 certificate's turned headings.
+
+## Walk warm-start noise scan: `warm_start_noise_scan.py`
+
+A walk stage warm-starts PPO from its parent's handoff and keeps the
+parent's learned `log_std`. `environments/shared/scripts/warm_start_noise_scan.py`
+measures, offline and report-only, how much noise the parent tolerates in
+the walk stage's env, so a `[curriculum] warm_start_log_std` can be chosen
+from a measurement (the maintainer's decision of 2026-11-26; no committed
+walk stage declares one):
+
+```bash
+python -m environments.shared.scripts.warm_start_noise_scan \
+    --species tyrannosaurus_rex --embodiment anatomical \
+    --stage-dir RUN/01_stance --jobs 4 --out-dir scratch/noise_scan
+```
+
+`--stage-dir` scans the stage's handoff pair (`select_handoff_checkpoint`),
+or `--model` and `--vecnorm` name a pair (a missing file is refused by name).
+The pair loads frozen and checked against the current plant, as the episode
+trace loads it (`--allow-legacy-plant` admits a pre-contract checkpoint and
+records `checkpoint_plant_validated` false), and its recorded task must be
+the walk's declared parent. The walk stage defaults to the manifest's `walk`
+node that warm-starts from the parent (`locomotion`). Its env is built
+through `config.build_env` from the committed `[env]` keys, with the forward
+weight at the reward ramp's start value. Two reference settings come first:
+`mean`, the policy's mean action with no noise, rolled once per seed, and
+`own`, the parent's learned `log_std`. Then each grid value is written into
+every entry of the policy's `log_std`, in memory, and restored. The default
+grid is the parent's largest learned `log_std` rounded to a multiple of
+0.125, from 0.5 below it to 1.0 above it in steps of 0.125. Every noisy
+setting rolls seeds 3042-3081 in three noise streams to the walk's episode
+length (`--seeds`, `--streams`, `--horizon`). Actions are
+`clip(mean + std z)` from the policy's own distribution, with `z` from
+`numpy.random.default_rng(SeedSequence([seed, 20261126, stream]))`, the same
+draws for every setting.
+
+An episode stands when it reaches the horizon and `env.step` reported no
+termination; `info["termination_reason"]` names the cause of an early end.
+`warm_start_noise_scan.txt` (the printed table) and
+`warm_start_noise_scan.json` (`mesozoic.warm-start-noise-scan/v1`) hold, per
+setting:
+
+| Field | Meaning |
+|---|---|
+| `stood_per_stream`, `stood`, `episodes` | Standing episodes per noise stream and in total |
+| `ends` | The early ends by `termination_reason` |
+| `mean_length`, `mean_return` | Over every episode, the return at the warm start's reward weights (over the finite returns) |
+| `nonfinite_episodes` | Episodes whose return or displacement was not finite (a `nonfinite_state` end); their record holds `None` |
+| `lift_offs_per_standing_episode`, `standing_episodes_with_lift_off` | Touch-sensor lift-offs of the standing episodes after the 0.1 s spawn grace: a foot is down when its touch force exceeds 0.1 N on at least half the substeps, debounced over 20 ms (the gait rule, in seconds: 2 steps at 0.01 s, 1 step, so no debounce, on the Compsognathus models' 0.02 s; the JSON's `lift_off_debounce_steps`) |
+| `forward_displacement_mean_m`, `forward_displacement_sd_m` | The slide of the standing episodes along the walk reward's forward reference at reset |
+| `clipped_fraction` | The share of action entries the clip changed |
+| `episode_records` | Every episode's seed, stream, length, end, return, lift-offs and displacement |
+
+`largest_all_standing` is the largest grid value at which every episode
+stood (`docs/NEXT_STEPS.md`'s "largest value at which 120/120 episodes
+stand"), with the next value up and how it stood.
+`below_first_failure_log_std` is the largest value with every smaller grid
+value standing too; it differs only when a smaller value fell
+(`failing_below`). The printed recommendation line states those
+measurements, the two reference rows and, for a shortened panel, how it was
+shortened, and nothing else. The JSON also records the inputs and their
+sha256 (checked unchanged after the scan), the parent's per-actuator
+`log_std`, the policy's classes and the definitions. `--out-dir` is refused
+inside a run directory or the parent's stage directory
+(`result_bundle.refuse_output_inside_run`), and when it already holds a
+scan. The tool changes no config, gate, reward, task, checkpoint or plant.
+The default T. rex scan is 1.72M control steps, about 43 minutes of one
+CPU; `--jobs N` splits it over N processes with the same records.
 
 ## Training progress: `progress.json`
 

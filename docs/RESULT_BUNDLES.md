@@ -490,6 +490,7 @@ cell's `RUNS_ON_DRIVE`, which stays False for the runtime once a run went to
 the VM's disk, never the knob. The report tools refuse an output directory
 inside a run (`result_bundle.refuse_output_inside_run`:
 `stance_gate_report.py --out-dir`, `episode_trace_report.py --out-dir`,
+`warm_start_noise_scan.py --out-dir`,
 `harnesses/recovery_offdist_panel.py --out`). `widen_checkpoint.py` refuses a
 target in a run whose bundle is `complete`, and
 `harnesses/freeze_recovery_gate.py` refuses such a run and a stage directory

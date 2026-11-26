@@ -516,6 +516,7 @@ jobs:
             environments/shared/tests/test_stance_gate_report.py \
             environments/shared/tests/test_train_base.py \
             environments/shared/tests/test_train_wiring.py \
+            environments/shared/tests/test_warm_start_noise_scan.py \
             environments/shared/tests/test_widen_checkpoint.py \
             environments/shared/tests/test_write_guards.py \
             -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_longipes_training and compsognathus_longipes-robot)' || '' }}" \
