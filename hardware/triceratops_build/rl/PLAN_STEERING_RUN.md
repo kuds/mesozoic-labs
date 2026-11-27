@@ -71,7 +71,7 @@ fixed again before any run (`rl/README.md`, "The steering run's training additio
   review found that at about 3 M steps the heat cost reaches full weight only at the last step: train.py's late ramp
   runs from 1 M to 3 M and the push and friction ramp from 1 M to 4 M, and the learning rate follows TOTAL_STEPS, so
   a 3 M run also anneals faster than a judged 10 M run. With TOTAL_STEPS 10 M, the 5 M save has had 2 M steps at full
-  heat weight and 1 M at full pushes and friction, on a judged run's schedule. Steps: `runs/trike60-steer1-dev_STEPS.md`.
+  heat weight and 1 M at full pushes and friction, on a judged run's schedule. Steps: `runs/trike60-steer1-dev_STEPS.md` (FINAL, code commit 37d390ca).
 - **Judged runs:** the pre-registered seeds at 10 M steps each, run as run 3 was. Each takes about 4.5-5 h on Colab
   High-RAM CPU (the 128 mm foreleg runs took 4.5-5.1 h; all eight foreleg runs 3.6-5.1 h).
 - **Measurement:** the gait report, the sweep and the foot loads as for D22, plus `steer_eval.py`'s courses and the

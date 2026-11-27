@@ -1,11 +1,12 @@
 <!-- Step sheet for the two steering dev runs (decisions D20, D25, D26, D28-D31; plan rl/PLAN_STEERING_RUN.md).
 Built from the foreleg comparison's sheet (runs/trike60-d22_STEPS.md); the notebook and train.py are the same; MODEL,
-ENV_PRESET and RUN_ID differ. The code the notebook runs is commit <<REPO_REF>>; this file only fills in the sheet. -->
+ENV_PRESET and RUN_ID differ. The code the notebook runs is commit 37d390caf5f48295d6ebc53585a65cb1e2cc14fd; this file only fills in the sheet. -->
 
 # Triceratops 60 cm: the steering dev runs on Colab. The steps.
 
-*** DRAFT, 27 Nov 2026: do not start. The code is being re-checked independently; this line changes to FINAL, with the
-commit filled in, once that check is clean. ***
+*** FINAL SHEET for the two steering dev runs, 27 Nov 2026. *** Every value is filled in: the commit
+(37d390caf5f48295d6ebc53585a65cb1e2cc14fd), and for each run its name and preset (the table in 1).
+The code and the rule in section 5 were checked independently six times (records in rl/analysis/results/steer1/).
 
 Everything here is a simulation on Google's computers. Nothing touches the robot.
 
@@ -24,7 +25,7 @@ Three rules for the whole sheet (as before):
                   that cost's weight, 1 and 2. They are NOT judged: they show whether steering learns and which
                   weight to use. The rules for the judged runs come after them.
     The code:     one fixed commit of the repository,
-                    <<REPO_REF>>
+                    37d390caf5f48295d6ebc53585a65cb1e2cc14fd
                   This is REPO_REF below, the same for both runs.
     The machine:  Runtime type "CPU" with "High-RAM" on. No GPU.
     The length:   TOTAL_STEPS = 10000000, so the learning rate and every ramp are those of a judged run (D31). I read
@@ -47,7 +48,7 @@ Three rules for the whole sheet (as before):
 ## 2. EACH RUN (do this once per row of the table)
 
   2.1  Open this address:
-         https://colab.research.google.com/github/kuds/mesozoic-labs/blob/<<REPO_REF>>/hardware/triceratops_build/rl/trike60_training.ipynb
+         https://colab.research.google.com/github/kuds/mesozoic-labs/blob/37d390caf5f48295d6ebc53585a65cb1e2cc14fd/hardware/triceratops_build/rl/trike60_training.ipynb
        Expect a notebook titled "Mesozoic Labs: Triceratops 60 cm, walking-policy training (simulation only)".
        Its first text names COLAB_STEPS.md and a 2 M-step pipeline test: that is from the first run; follow this
        sheet instead.
@@ -58,7 +59,7 @@ Three rules for the whole sheet (as before):
   2.3  Menu Runtime > Change runtime type. Choose CPU. Switch High-RAM on. Save.
 
   2.4  In the first grey box ("1. PARAMETERS") set exactly, with this row's RUN_ID and ENV_PRESET:
-         REPO_REF           <<REPO_REF>>
+         REPO_REF           37d390caf5f48295d6ebc53585a65cb1e2cc14fd
          RUN_ID             <RUN_ID>
          MODEL              trike60_C_closed_capsule_fore128
          TOTAL_STEPS        10000000
@@ -75,7 +76,7 @@ Three rules for the whole sheet (as before):
 
   2.6  Check these lines as they appear:
        (a) Under box 2:
-             Repository commit: <<REPO_REF>> (matches REPO_REF: yes; checkout clean: yes)            (seen in run 3)
+             Repository commit: 37d390caf5f48295d6ebc53585a65cb1e2cc14fd (matches REPO_REF: yes; checkout clean: yes)            (seen in run 3)
        (b) Under box 3:
              Packages: mujoco 3.10.0, numpy 2.5.5, gymnasium 1.4.0, stable-baselines3 2.9.2, torch 2.15.0+cpu, cloudpickle 3.1.2
              All pins hold: yes                                                                  (seen in run 3)
