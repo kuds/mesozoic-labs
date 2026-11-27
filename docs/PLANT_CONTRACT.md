@@ -262,9 +262,10 @@ and builds environments another way calls `clear_plant_identity_cache()`.
 ## Opt-in per-episode features
 
 The shared env's opt-in per-episode features are task, not plant (design record
-[TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §4-§6). They live in `step()` and in an
+[TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §4-§7). They live in `step()` and in an
 episode-start hook, outside every method the policy layer hashes, so no feature moves a plant identity, on or off.
-Two exist, the actuation delay and the per-episode physics randomisation; every model has both off.
+Three exist, the actuation delay, the per-episode physics randomisation and the observation noise; every model has all
+three off.
 
 - **The hook.** `BaseDinoEnv` derives from `episode_start.EpisodeStartHook`, whose `reset` calls `_begin_episode(seed)`
   right after gymnasium seeds `np_random` and before the keyframe is loaded. `BaseDinoEnv.reset`, hashed as
@@ -335,6 +336,27 @@ Two exist, the actuation delay and the per-episode physics randomisation; every 
   without a force-limited actuator; and a payload on a body with no mass. A behavior pool model of another `nbody` or
   `nu` than the constructor's is refused at its first episode. The symmetry module's state mirror refuses an env
   that holds a randomised plant: it mirrors the state, not the plant.
+- **The observation noise.** `observation_noise_std` (`None`, off, or a table of observation segment to standard
+  deviation, in the segment's own units) and `observation_noise_eval` (`False` or `True`), in
+  `environments/shared/observation_noise.py`. The noise is task, not plant: `step()` adds it to the observation it
+  returns, after `_get_obs()` and the command recompute, outside the hashed `_get_obs` and `reset`. So the plant
+  contract's observation probe, `validate_environment_plant`, `validate_compiled_plant` and the reset observation
+  of every episode are clean, and no plant identity moves with the noise on or off. The table's names are the policy
+  layer's own observation segments, `policy_layer.observation_segments(model, env, observation_schema)`, the table
+  the policy payload records (its `foot_contact` width is the number of the env's foot channels); a table naming
+  another segment, a std that is not a finite nonnegative number (in float32, the observation's dtype, too), a
+  positive std on the command, a table with no positive std, and the eval flag without a table are refused at
+  construction. Each noised step draws one standard normal per observation entry from the noise's own stream, never
+  `np_random`, and renormalises each unit segment with a positive std. An episode is noised in a trainer's rollout
+  env, and in any other env only while `observation_noise_eval` is true, latched at the episode's start; the policy
+  probe's state bank sets the flag false (`policy_probe.bank_env_kwargs`). The behavior env's `set_direction` noises
+  the observation it returns as `step()` does. The symmetry module's state mirror refuses an env whose episode is
+  noised: the physics would step as the mirror image, but each env's step observations carry its own draws. The task
+  fingerprint records the two keys in its `env` section and, while the table is set, an `observation_noise` section
+  naming `OBSERVATION_NOISE_IMPLEMENTATION`; `resume_same_stage` and behavior transitions name that section when it
+  differs. A species that lists the keys declares the carve-out
+  `("observation_noise_std", None, OBSERVATION_NOISE_ENV_KEYS)`, so a stage that leaves the table off keeps its task
+  hash.
 
 ## Checkpoints and legacy artifacts
 

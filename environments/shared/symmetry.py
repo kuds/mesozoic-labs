@@ -1255,7 +1255,10 @@ def mirror_env_state(src: Any, dst: Any, em: EnvMirror, *, forward: bool = True)
     state.  Mid-episode the source's own derived quantities are those of its last substep's pre-integration state,
     so mirror a source after an ``mj_forward`` of its own when comparing observations at that instant; every later
     step is consistent either way.  Both envs must share the model and the opt-in actuation delay's configuration,
-    and neither may hold a randomised plant (``SymmetryError`` otherwise): the state is mirrored, not the plant.
+    and neither may hold a randomised plant (``SymmetryError`` otherwise): the state is mirrored, not the plant.  Nor
+    may either env's episode be noised by the opt-in observation noise (``observation_noise_active``): its physics
+    would step as the mirror image, but its step observations carry each env's own draws, in observation order, so
+    they would not be.
     """
     if dst.model.nq != src.model.nq or dst.model.nu != src.model.nu:
         raise SymmetryError("the source and destination envs must share the model")
@@ -1268,6 +1271,13 @@ def mirror_env_state(src: Any, dst: Any, em: EnvMirror, *, forward: bool = True)
             raise SymmetryError(
                 f"the {role} env holds a randomised plant (the opt-in per-episode physics randomisation), which the "
                 "state mirror does not mirror; mirror envs on their nominal plants"
+            )
+        if getattr(env, "observation_noise_active", False):
+            # The opt-in observation noise draws per env, in observation order, from each env's own stream: a noised
+            # episode's step observations are not the mirror images of its source's, though its physics is.
+            raise SymmetryError(
+                f"the {role} env's episode is noised (the opt-in observation noise), and the state mirror does not "
+                "mirror its step observations; mirror envs whose episodes are not noised"
             )
     src_delay, dst_delay = getattr(src, "_actuation_delay", None), getattr(dst, "_actuation_delay", None)
     if src_delay != dst_delay:

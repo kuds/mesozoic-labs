@@ -508,13 +508,20 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     def set_direction(self, heading: float, speed: float) -> np.ndarray:
         """Set a persistent world heading (radians) and speed (m/s).
 
-        Returns the updated observation to use for the next policy action.
+        Returns the updated observation to use for the next policy action.  In
+        an episode the opt-in observation noise noises
+        (``observation_noise_active``) it carries one draw of the noise, as
+        ``step()``'s observation does, so the policy never acts on a clean
+        mid-episode observation; otherwise it is the array ``_get_obs`` built.
         """
         assert self.direction_controller is not None
         self.direction_controller.set_target(heading, speed, time_s=self._step_count * self.dt)
         self._command = self._update_command()
         self._tracking_dwell_s = 0.0
-        return self._get_obs()
+        obs = self._get_obs()
+        if self._observation_noise is not None:
+            obs = self._noisy_observation(obs)
+        return obs
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         if self._command_state is None:

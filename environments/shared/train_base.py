@@ -1074,9 +1074,9 @@ def _build_core_callbacks(
     callers that predate the parameter.  ``seed`` is the run's seed, which
     ``progress.json`` records (``None``: not recorded).
     ``policy_probe_env_factory(horizon)`` builds a bare env of the stage
-    with that ``max_episode_steps`` and any scheduled pushes off
-    (``policy_probe.bank_env_kwargs``), the policy probe's state-bank env
-    (``None``: no probe).
+    with that ``max_episode_steps``, any scheduled pushes off and the opt-in
+    observation noise held off (``policy_probe.bank_env_kwargs``), the policy
+    probe's state-bank env (``None``: no probe).
     """
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
@@ -1785,9 +1785,9 @@ def _train_stage_body(
         total_timesteps=target_timesteps,
         seed=seed,
         # The policy probe's state bank runs on its own bare env of this
-        # stage, at a horizon it chooses and with any scheduled pushes off:
-        # never make_env (which seeds the global generators) and never a
-        # training or evaluation env.
+        # stage, at a horizon it chooses, with any scheduled pushes off and
+        # the opt-in observation noise held off: never make_env (which seeds
+        # the global generators) and never a training or evaluation env.
         policy_probe_env_factory=lambda horizon: species_cfg.env_class(
             **bank_env_kwargs(config["env_kwargs"], horizon)
         ),

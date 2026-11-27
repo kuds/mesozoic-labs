@@ -15,7 +15,7 @@ from __future__ import annotations
 import contextlib
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Mapping
 from typing import Any
 
 import gymnasium as gym
@@ -35,8 +35,11 @@ from .direction_commands import DirectionCommandConfig, DirectionCommandControll
 from .episode_physics import EpisodePhysicsRandomizer as _EpisodePhysicsRandomizer
 from .episode_physics import validate_episode_physics as _validate_episode_physics
 from .episode_start import ACTUATION_DELAY_STREAM_KEY as _ACTUATION_DELAY_STREAM_KEY
+from .episode_start import OBSERVATION_NOISE_STREAM_KEY as _OBSERVATION_NOISE_STREAM_KEY
 from .episode_start import EpisodeStartHook
 from .episode_start import feature_stream as _feature_stream
+from .observation_noise import ObservationNoise as _ObservationNoise
+from .observation_noise import resolve_observation_noise as _resolve_observation_noise
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
 from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
@@ -244,6 +247,20 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     # selection's restore).
     _episode_physics: "_EpisodePhysicsRandomizer | None" = None
 
+    # The opt-in observation noise (environments/shared/observation_noise.py),
+    # None (off) unless the species lists observation_noise_std and a stage
+    # sets it.  It begins each episode third in _begin_episode, latching
+    # whether the episode is noised (a trainer's rollout env, or any env while
+    # observation_noise_eval is true; None before the first reset) and
+    # continuing or rebuilding its stream; step() adds it to the observation
+    # it returns, after the command recompute (and the behaviour env's
+    # set_direction to the one it returns).  The reset observation is never
+    # noised.  Off, step() pays one `is not None` check and returns the very
+    # object _get_obs built.
+    _observation_noise: "_ObservationNoise | None" = None
+    _observation_noise_rng: "np.random.Generator | None" = None
+    _observation_noise_active: "bool | None" = None
+
     metadata = {
         "render_modes": ["human", "rgb_array"],
         "render_fps": 50,
@@ -284,6 +301,8 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         randomize_actuator_force_limit_scale: tuple[float, float] | None = None,
         randomize_total_mass_scale: tuple[float, float] | None = None,
         randomize_payload_kg: tuple[float, float] | None = None,
+        observation_noise_std: Mapping[str, float] | None = None,
+        observation_noise_eval: bool = False,
     ):
         super().__init__()
 
@@ -443,6 +462,12 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
             shape=obs.shape,
             dtype=np.float32,
         )
+
+        # The opt-in observation noise (the class attributes above): off unless
+        # a stage sets observation_noise_std.  Resolved here, once the
+        # observation space exists, against the plant contract's segment table
+        # of the model's observation schema.
+        self._configure_observation_noise(observation_noise_std, observation_noise_eval)
 
         # Rendering
         self.render_mode = render_mode
@@ -1420,6 +1445,29 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         if self._episode_physics is not None:
             self._episode_physics.refuse_inside_nominal("a reset")
 
+    def _configure_observation_noise(self, std_by_segment: Any, eval_noise: Any) -> None:
+        """Validate and install the opt-in observation noise against this env's observation (``None``: off).
+
+        ``__init__`` calls it with its two noise kwargs, once the observation
+        space exists; a test subclass of a species that does not forward them
+        may call it again after ``super().__init__()``, before the first reset.
+        The table's names are the plant contract's observation segments of the
+        model's observation schema (``observation_noise.observation_layout``).
+        """
+        self._observation_noise = _resolve_observation_noise(self, std_by_segment, eval_noise)
+        self._observation_noise_rng = None
+        self._observation_noise_active = None
+
+    @property
+    def observation_noise_active(self) -> bool:
+        """Whether this episode's step observations are noised (never the reset observation).
+
+        Latched when the episode begins: true in a trainer's rollout env, or in
+        any env while ``observation_noise_eval`` is true.  ``False`` while the
+        noise is off and before the first reset.
+        """
+        return self._observation_noise is not None and bool(self._observation_noise_active)
+
     def _begin_episode(self, seed: int | None) -> None:
         """Where each opt-in feature begins its episode (``episode_start.EpisodeStartHook``).
 
@@ -1428,12 +1476,15 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         feature is behind one ``is not None`` check on a class attribute that
         defaults to ``None``; with every feature off this calls nothing, reads
         no generator and writes nothing.  The physics randomisation begins
-        first, so every later feature's episode starts on this episode's plant.
+        first, so every later feature's episode starts on this episode's plant;
+        then the actuation delay, then the observation noise.
         """
         if self._episode_physics is not None:
             self._episode_physics.begin_episode(self, seed)
         if self._actuation_delay is not None:
             self._begin_actuation_delay_episode(seed)
+        if self._observation_noise is not None:
+            self._begin_observation_noise_episode(seed)
 
     def _begin_actuation_delay_episode(self, seed: int | None) -> None:
         """Choose this episode's delay k and clear the FIFO (primed again at the first step).
@@ -1457,6 +1508,32 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
             k = int(self._actuation_delay_rng.integers(lo, hi + 1))
         self._actuation_delay_k = k
         self._actuation_delay_fifo = None
+
+    def _begin_observation_noise_episode(self, seed: int | None) -> None:
+        """Latch whether this episode's step observations are noised, and continue or rebuild the noise's stream.
+
+        Noised in a trainer's rollout env, and in any env while
+        ``observation_noise_eval`` is true.  The stream
+        (``episode_start.feature_stream``) is rebuilt on a seeded reset and on
+        the first, and continued across unseeded ones; it is drawn only while
+        an episode is noised, once per step.
+        """
+        noise = self._observation_noise
+        assert noise is not None
+        if seed is not None or self._observation_noise_rng is None:
+            self._observation_noise_rng = _feature_stream(self, seed, _OBSERVATION_NOISE_STREAM_KEY)
+        self._observation_noise_active = bool(self.training_rollouts or noise.eval_noise)
+
+    def _noisy_observation(self, obs: np.ndarray) -> np.ndarray:
+        """*obs* with one draw of this episode's noise, or *obs* itself while the episode is not noised."""
+        noise, rng = self._observation_noise, self._observation_noise_rng
+        if noise is None or rng is None or self._observation_noise_active is None:
+            raise RuntimeError(
+                "an env with observation noise steps only after reset(), which begins the noise's episode"
+            )
+        if not self._observation_noise_active:
+            return obs
+        return noise.apply(obs, rng)
 
     def _actuation_delay_fifo_for_step(self) -> "deque[np.ndarray]":
         """The FIFO this step appends to: primed from ``data.ctrl`` as reset left it at the episode's first step."""
@@ -1639,6 +1716,14 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
             # returned observation carries the next one.
             self._command = self._update_command()
             obs = self._get_obs()
+
+        # The opt-in observation noise (observation_noise.py), on the returned
+        # observation only, after the command recompute: never in the hashed
+        # _get_obs or reset, so the reset observation, plant validation and the
+        # plant contract's probe stay clean.  Off, this check is all it costs
+        # and obs is the very object _get_obs built.
+        if self._observation_noise is not None:
+            obs = self._noisy_observation(obs)
 
         # Render if needed
         if self.render_mode == "human":

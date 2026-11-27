@@ -1294,6 +1294,27 @@ def test_transition_refuses_a_changed_episode_physics_section(learned_behavior):
     _validate_behavior_transition(switched_on, copy.deepcopy(switched_on))
 
 
+def test_transition_refuses_a_changed_observation_noise_section(learned_behavior):
+    """The opt-in observation noise's section (its implementation tag) is task identity across a behavior
+    transition, as the delay's and the randomisation's are: switching it on or off, or bumping its tag, is refused by
+    name."""
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+    from environments.shared.observation_noise import OBSERVATION_NOISE_IMPLEMENTATION
+
+    previous = copy.deepcopy(learned_behavior[-1])
+    assert "observation_noise" not in previous
+    switched_on = copy.deepcopy(previous)
+    switched_on["observation_noise"] = {"implementation": OBSERVATION_NOISE_IMPLEMENTATION}
+    bumped = copy.deepcopy(switched_on)
+    bumped["observation_noise"]["implementation"] += "+next"
+    for old, new in ((previous, switched_on), (switched_on, previous), (switched_on, bumped)):
+        with pytest.raises(
+            BehaviorCheckpointError, match="Incompatible behavior transition fields: observation_noise$"
+        ):
+            _validate_behavior_transition(old, new)
+    _validate_behavior_transition(switched_on, copy.deepcopy(switched_on))
+
+
 def test_interrupted_bundle_save_finishes_a_resumable_pair(stubbed_cli, tmp_path, monkeypatch):
     _, parent, normalization = stubbed_cli
     output = tmp_path / "interrupted-save"

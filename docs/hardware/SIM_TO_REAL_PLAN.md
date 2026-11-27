@@ -8,25 +8,31 @@
 > `hardware_prototype` is `planned` and `sim_to_real_validation` is
 > `not_started`. Nothing here has been built or transferred to hardware.
 
-> **Status note, 2026-11-27:** two pieces of the plumbing that §1, §2 and the
+> **Status note, 2026-11-27:** three pieces of the plumbing that §1, §2 and the
 > §3.4 table call absent now exist, as opt-in shared features of `BaseDinoEnv`,
 > off for every model (design record
 > [`TRICERATOPS_ROBOT_PORT_2026_11.md`](../TRICERATOPS_ROBOT_PORT_2026_11.md)
-> §4-§6): an **actuation delay** (`environments/shared/actuation_delay.py`, a
+> §4-§7): an **actuation delay** (`environments/shared/actuation_delay.py`, a
 > whole number of physics steps, drawn per episode in a trainer's rollout envs,
 > and fixed in evaluation when `actuation_delay_eval_s` is set, drawn from the
-> range otherwise) and **per-episode physics randomisation**
+> range otherwise), **per-episode physics randomisation**
 > (`environments/shared/episode_physics.py`: floor friction, per-body mass,
 > servo kp and force limits, and a whole-animal mass factor and payload in
-> training only), both beginning each episode in
-> `environments/shared/episode_start.py`. A species opts in by listing their
-> `[env]` keys in its constructor; none does yet. The `domain_randomization`
-> capability is therefore `experimental` in `configs/species_manifest.toml`,
-> not `planned` as the table in §2 says. Of the §3.4 rows that say "not
-> implemented", ground-friction and actuator-strength / gain randomisation, the
-> mass part of joint-damping / gravity / mass randomisation, and the action half
-> of action / sensor delay are now implemented, opt-in and off. Sensor noise, a
-> HAL, a ROS 2 bridge and a policy-export path are still absent.
+> training only) and **sensor noise**
+> (`environments/shared/observation_noise.py`: zero-mean Gaussian noise with a
+> standard deviation per observation segment, added to the observation `step()`
+> returns, never to the reset observation, in a trainer's rollout envs and, when
+> `observation_noise_eval` is set, in evaluation envs too), all three beginning
+> each episode in `environments/shared/episode_start.py`. A species opts in by
+> listing their `[env]` keys in its constructor; none does yet. The
+> `domain_randomization` capability is therefore `experimental` in
+> `configs/species_manifest.toml`, not `planned` as the table in §2 says. Of the
+> §3.4 rows that say "not implemented", ground-friction and actuator-strength /
+> gain randomisation, the mass part of joint-damping / gravity / mass
+> randomisation, per-step observation / sensor noise (white noise only: no IMU
+> bias drift or encoder bias) and the action half of action / sensor delay are
+> now implemented, opt-in and off. A HAL, a ROS 2 bridge and a policy-export
+> path are still absent.
 
 > **Status note, 2026-11-23:** the shared observation builder cited below,
 > `environments/shared/obs_functions.py` (`build_bipedal_obs`), was deleted with

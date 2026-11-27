@@ -225,10 +225,13 @@ def test_the_payload_body_is_the_root_or_the_heaviest_welded_body_as_the_push_ta
 
 # ---------------------------------------------------------------------------------------------------- off by default
 def test_the_base_env_takes_the_six_keys_after_the_delay_keys_off_by_default():
+    """Right after the delay's two keys, which follow command_config; the observation noise's keys follow them
+    (test_observation_noise.py)."""
     parameters = list(inspect.signature(BaseDinoEnv.__init__).parameters.values())
     names = [parameter.name for parameter in parameters]
-    assert names[-8:] == [*ACTUATION_DELAY_ENV_KEYS, *EPISODE_PHYSICS_ENV_KEYS]
-    assert all(parameter.default is None for parameter in parameters[-6:])
+    start = names.index("command_config") + 1
+    assert names[start : start + 8] == [*ACTUATION_DELAY_ENV_KEYS, *EPISODE_PHYSICS_ENV_KEYS]
+    assert all(parameter.default is None for parameter in parameters[start + 2 : start + 8])
     assert BaseDinoEnv._episode_physics is None
 
 

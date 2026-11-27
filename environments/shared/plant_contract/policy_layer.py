@@ -331,46 +331,58 @@ def _heading_free_observation_segments(
     ]
 
 
-def _policy_interface_payload(
-    model: mujoco.MjModel,
-    env: Any,
-    version: PlantVersion,
-) -> dict[str, Any]:
+def observation_segments(model: mujoco.MjModel, env: Any, observation_schema: str) -> list[dict[str, Any]]:
+    """The observation segment table the policy payload records for *observation_schema*, in observation order.
+
+    Segment labels come from the plant itself rather than a species
+    allow-list: the root follows the declared observation schema and the
+    target follows the MJCF mocap body name.  The heading-free table describes
+    each foot channel by its touch sensors, so its widths sum to the
+    observation width (the payload checks that, on that schema only); the
+    legacy tables' ``foot_contact`` lists every touch sensor instead.  Also
+    read by the opt-in observation noise, which names its segments by this
+    table (``observation_noise.observation_layout``).
+    """
+    root_label = "torso" if observation_schema == "quadrupedal-target/v1" else "pelvis"
+    target_label = _mocap_target_name(model)
+    if observation_schema == HEADING_FREE_OBSERVATION_SCHEMA:
+        return _heading_free_observation_segments(model, env, root_label, target_label)
     touch_sensor_names = [
         name
         for index, name in enumerate(_names(model, mujoco.mjtObj.mjOBJ_SENSOR, model.nsensor))
         if int(model.sensor_type[index]) == int(mujoco.mjtSensor.mjSENS_TOUCH)
     ]
-    # Segment labels come from the plant itself rather than a species
-    # allow-list: the root follows the declared observation schema and the
-    # target follows the MJCF mocap body name.
-    root_label = "torso" if version.observation_schema == "quadrupedal-target/v1" else "pelvis"
-    target_label = _mocap_target_name(model)
+    # Kept byte-identical for every species on the two legacy schemas.
+    return [
+        {"name": "joint_position", "components": _joint_component_names(model, velocity=False)},
+        {"name": "joint_velocity", "components": _joint_component_names(model, velocity=True)},
+        {"name": f"{root_label}_orientation_quaternion", "width": 4},
+        {"name": f"{root_label}_angular_velocity", "width": 3},
+        {"name": f"{root_label}_linear_velocity", "width": 3},
+        {"name": f"{root_label}_linear_acceleration", "width": 3},
+        {"name": "foot_contact", "components": touch_sensor_names},
+        {"name": f"{target_label}_direction", "width": 3, "normalization_epsilon": _canonical_float(1e-8)},
+        {"name": f"{target_label}_distance", "width": 1},
+        _command_segment(),
+    ]
+
+
+def _policy_interface_payload(
+    model: mujoco.MjModel,
+    env: Any,
+    version: PlantVersion,
+) -> dict[str, Any]:
+    segments = observation_segments(model, env, version.observation_schema)
     heading_free = version.observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
     if heading_free:
-        observation_segments = _heading_free_observation_segments(model, env, root_label, target_label)
-        segment_widths = [_segment_width(segment) for segment in observation_segments]
+        segment_widths = [_segment_width(segment) for segment in segments]
         observation_width = int(np.prod(env.observation_space.shape))
-        if sum(segment_widths) != observation_width or observation_segments[-1]["name"] != COMMAND_SEGMENT_NAME:
+        if sum(segment_widths) != observation_width or segments[-1]["name"] != COMMAND_SEGMENT_NAME:
             raise PlantContractError(
                 f"{version.model_id}'s {HEADING_FREE_OBSERVATION_SCHEMA} segments must sum to the observation "
                 f"width {observation_width} and end with the command; widths {segment_widths} sum to "
-                f"{sum(segment_widths)}, last segment {observation_segments[-1]['name']!r}"
+                f"{sum(segment_widths)}, last segment {segments[-1]['name']!r}"
             )
-    else:
-        # Kept byte-identical for every species on the two legacy schemas.
-        observation_segments = [
-            {"name": "joint_position", "components": _joint_component_names(model, velocity=False)},
-            {"name": "joint_velocity", "components": _joint_component_names(model, velocity=True)},
-            {"name": f"{root_label}_orientation_quaternion", "width": 4},
-            {"name": f"{root_label}_angular_velocity", "width": 3},
-            {"name": f"{root_label}_linear_velocity", "width": 3},
-            {"name": f"{root_label}_linear_acceleration", "width": 3},
-            {"name": "foot_contact", "components": touch_sensor_names},
-            {"name": f"{target_label}_direction", "width": 3, "normalization_epsilon": _canonical_float(1e-8)},
-            {"name": f"{target_label}_distance", "width": 1},
-            _command_segment(),
-        ]
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
     action_mapping = _action_mapping_contract(model, env)
@@ -408,7 +420,7 @@ def _policy_interface_payload(
         "observation_schema": version.observation_schema,
         "observation": _space_payload(env.observation_space),
         "observation_probe": sb3_observation_probe,
-        "observation_segments": observation_segments,
+        "observation_segments": segments,
         "action": _space_payload(env.action_space),
         "action_mapping": action_mapping,
         "interface_implementations": interface_implementations,

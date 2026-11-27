@@ -279,12 +279,24 @@ critical bridge between "cool demo" and "transferable research."
     it randomises in both its stages, stance included, as its build does.
   - _Dependency: Phase 1 (need working trained policies to evaluate against)_
 
-- [-] **Sensor noise & action delay** — the action delay is done, as an opt-in
-  shared feature (below); sensor noise is not started
-  - **Observation noise** (`obs_noise_scale`): Additive Gaussian noise applied
-    to the full observation vector each step (e.g. std dev 0.01). Simulates
-    sensor imprecision and prevents reliance on unrealistically precise state.
-    Implemented in `BaseDinoEnv.step()` after `_get_obs()`.
+- [-] **Sensor noise & action delay** — observation noise and the action delay
+  are done, as opt-in shared features (below); accelerometer bias drift and
+  touch-sensor thresholds are not started
+  - [x] **Observation noise** (2026-11, design record
+    [TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §7;
+    `environments/shared/observation_noise.py`): per-segment keys in place of
+    one `obs_noise_scale`. `observation_noise_std` is `None` (off) or a table
+    of observation segment (the plant contract's segment names for the
+    model's observation schema) to standard deviation, in each segment's own
+    units; the command is never noised. Additive Gaussian noise on the
+    observation `BaseDinoEnv.step()` returns, after `_get_obs()` and the
+    command recompute, never on the reset observation; each noised unit
+    segment (quaternion, projected gravity, target direction) is
+    renormalised. A
+    trainer's rollout envs are noised, and every other env only when
+    `observation_noise_eval` is true. It draws from its own stream, never
+    `np_random`, and sits inside the env, before `VecNormalize`. Off for every
+    model: a species opts in by listing the keys in its constructor.
   - Add accelerometer bias drift model
   - Add touch sensor activation thresholds
   - [x] **Action delay** (2026-11, design record

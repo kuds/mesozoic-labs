@@ -341,9 +341,12 @@ until one is adopted (the maintainer's decision of 2026-11-26):
 
 Code that robots share (servo and IMU models, system identification, and the
 ROS 2 bridge behind an optional extra) belongs in one shared package, never
-per species (decision D-D33). Its first member is the opt-in actuation delay,
-`environments/shared/actuation_delay.py`, with the episode-start hook, the
-per-feature streams and the trainer's role flag it uses
+per species (decision D-D33). Its first members are three opt-in per-episode
+features in `environments/shared/`: `actuation_delay.py`, `episode_physics.py`
+and `observation_noise.py`, each off for every model. The first is the
+actuation delay, `environments/shared/actuation_delay.py`, with the
+episode-start hook, the per-feature streams and the trainer's role flag all
+three use
 (`environments/shared/episode_start.py`; design record
 `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §4-§5). A model opts in by listing
 `actuation_delay_range_s` and `actuation_delay_eval_s` in its constructor,
@@ -357,7 +360,14 @@ declaring one carve-out per key, `(name, None, (name,))`. It may narrow the
 geoms whose friction is randomised by overriding
 `BaseDinoEnv._randomized_friction_geoms()` (integer ids of colliding animal
 geoms, such as its soles), and must write no randomised model field after
-construction (`docs/PLANT_CONTRACT.md`). Every other model is
+construction (`docs/PLANT_CONTRACT.md`). The third is the opt-in
+observation noise, `environments/shared/observation_noise.py` (design record
+§7): a model opts in by listing `observation_noise_std` (default `None`) and
+`observation_noise_eval` (default `False`), forwarding them to `BaseDinoEnv`,
+and declaring the carve-out
+`("observation_noise_std", None, OBSERVATION_NOISE_ENV_KEYS)`; its table names
+the plant contract's observation segments of the model's observation schema
+(`plant_contract.policy_layer.observation_segments`). Every other model is
 unchanged.
 
 ## Pull Request Process

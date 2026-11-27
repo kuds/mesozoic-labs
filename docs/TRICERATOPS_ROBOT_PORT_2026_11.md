@@ -551,6 +551,45 @@ shared robot code's first members (commit 2 starts it; P13).
 setting (brachiosaurus, 1600 steps: 0.00500, 0.04995, 0.02027, 0.01984, 2.526 N); the build's own noise: 0.00499,
 0.04994, 0.02032, 0.01999, load 0.02026 of weight. Cost 5.4-6.3 us per call.
 
+**Built in commit 4, where it differs from the text above** (changed after the build and its review, not after any
+training result):
+
+- `observation_noise.observation_schema(env)` finds the model's observation schema: the model is the manifest model
+  whose `env_entrypoint` class is nearest in `type(env).__mro__`, so a behaviour env and a test subclass read their
+  model's schema; any other class is refused with `ValueError`. `observation_layout(env, schema=None)` and
+  `resolve_observation_noise(env, std, eval, *, schema=None)` take an optional schema, the model's own by default.
+- `BaseDinoEnv._configure_observation_noise(std, eval)` validates and installs the noise; `__init__` calls it once the
+  observation space exists, and the test subclasses (`environments/shared/tests/observation_noise_helpers.py`) of
+  species that do not forward the keys call it again after `super().__init__()`, as commits 2 and 3 do. The
+  `observation_noise_active` property reads the episode's latch: `False` while off and before the first reset.
+- A noisy env that steps before its first reset, or after `_configure_observation_noise` until the next reset, raises
+  `RuntimeError`, since the latch and the stream begin at reset.
+- More refusals: a non-bool `observation_noise_eval` is refused even while the table is off, and so is a std that is
+  finite in float64 but not in float32, the observation's dtype (`1e39` would make every noisy observation `inf`).
+- `policy_probe.OBSERVATION_NOISE_EVAL_KWARG` names the flag `bank_env_kwargs` holds false, as `PUSH_MULTIPLE_KWARG`
+  names the push multiple.
+- The behaviour env's `set_direction`, which returns the observation the policy acts on next, noises it in a noised
+  episode (one draw of the stream, as `step()`), so no mid-episode observation reaches a policy clean.
+- `symmetry.mirror_env_state` refuses an env whose episode is noised (source, destination or in place): its physics
+  steps as the mirror image, but each env draws its own noise in observation order, so its step observations are not
+  mirror images, and copying the stream would not make them so. An env with the noise configured but its episode not
+  noised mirrors as before.
+- Files beyond §3's commit-4 list: `behavior_env.py` (`set_direction`), `symmetry.py` (the mirror refusal), the
+  bank's descriptions in `train_base.py` and `docs/TRAINING_ARTIFACT_PRESENTATION.md`, and tests outside
+  `test_observation_noise.py`: `tests/test_episode_physics.py` (its signature test now places the six keys right
+  after the delay's two, which follow `command_config`, since the noise's two follow them),
+  `tests/test_episode_start.py` (the feature-off hook test also refuses the noise's episode start and checks its
+  attributes stay unset),
+  `tests/test_behavior_checkpoint.py` (a changed `observation_noise` section is refused by name) and
+  `tests/test_symmetry.py` (the mirror refusal).
+- Tests: the stream policy is pinned directly (after an unseeded reset the stream is the same generator, at the state
+  the previous episode ended in, not the stream a reset of the env's seed would build), and the unseeded episodes'
+  realised noise is compared on the joint velocities with a margin far above float32 rounding. A unit segment at std
+  0, as the robot's target direction is, is tested on both schemas: through `apply()` on a vector not of unit length,
+  and over 300 noised steps. The plain `dict` is pinned on the stage kwargs, where `SubprocVecEnv` pickles it (the
+  env keeps only the frozen `ObservationNoise`): a table read from a stage TOML, set by `--override` into it and
+  passed through `bank_env_kwargs` stays a `dict`, and the kwargs pickle to an env with the same noise.
+
 ## 8. The triceratops_horridus/robot model (commit 5)
 
 ### 8.1 Asset derivation and provenance

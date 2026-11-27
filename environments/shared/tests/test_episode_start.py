@@ -142,11 +142,12 @@ def test_with_every_feature_off_the_hook_reads_and_writes_nothing(model_id, monk
         raise AssertionError("a feature that is off began an episode")
 
     monkeypatch.setattr(BaseDinoEnv, "_begin_actuation_delay_episode", refuse)
+    monkeypatch.setattr(BaseDinoEnv, "_begin_observation_noise_episode", refuse)
     monkeypatch.setattr(EpisodePhysicsRandomizer, "begin_episode", refuse)
     monkeypatch.setattr(EpisodePhysicsRandomizer, "refuse_inside_nominal", refuse)
     env = species_registry.env_class(model_id)()
     try:
-        assert env._episode_physics is None
+        assert env._episode_physics is None and env._observation_noise is None
         env.reset(seed=3)
         before = _snapshot(env)
         assert {"model", "data", "_np_random", "_distance_traveled", "training_rollouts"} <= set(before)
@@ -156,6 +157,7 @@ def test_with_every_feature_off_the_hook_reads_and_writes_nothing(model_id, monk
         assert after.keys() == before.keys()
         assert [name for name in before if after[name] != before[name]] == []
         assert env._actuation_delay_rng is None and env._actuation_delay_k is None
+        assert env._observation_noise_rng is None and env._observation_noise_active is None
     finally:
         env.close()
 

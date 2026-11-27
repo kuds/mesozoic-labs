@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Opt-in observation (sensor) noise for every model, off by default (design
+  record `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §7, the third shared feature
+  of the 60 cm Triceratops robot's port; the build's decision-log rows D32 and
+  D37).** Two `[env]` keys in `environments/shared/observation_noise.py`:
+  `observation_noise_std`, `None` (off) or a table of observation segment to
+  standard deviation in the segment's own units, and `observation_noise_eval`
+  (default `False`). The segment names are the plant contract's own, now read
+  from a public `plant_contract.policy_layer.observation_segments(model, env,
+  observation_schema)` that the policy payload calls (a refactor that moves no
+  digest). `BaseDinoEnv.step()` adds zero-mean Gaussian noise to the
+  observation it returns, after the command recompute, drawing one standard
+  normal per observation entry from its own stream (so one segment on or off
+  never changes another's draw, and `np_random` is never drawn) and
+  renormalising each unit segment it noises. The reset observation, the plant
+  contract's probe and plant validation stay clean, and the command is never
+  noised. A trainer's rollout envs are noised, any other env only while
+  `observation_noise_eval` is true, latched at the episode's start as the third
+  feature of the episode-start hook; the policy probe's state bank sets the
+  flag false. Off, `step()` returns the very array `_get_obs` built. The
+  behavior env's `set_direction` noises the observation it returns as `step()`
+  does, and the symmetry module's state mirror refuses an env whose episode is
+  noised (its step observations would not be mirror images). A table naming
+  another segment, a std that is not a finite nonnegative number (in float32
+  too), a positive std on the command, a table with no positive std and the
+  eval flag without a table are refused at construction. The task
+  fingerprint gains an `observation_noise` section while the table is set,
+  which `resume_same_stage` and behavior transitions name when it differs. No
+  model lists the keys, so no digest, golden, plant manifest entry, task hash
+  or checkpoint moves, and the digest harness's `--exact` capture is
+  byte-identical to `main`'s.
 - **Opt-in per-episode physics randomisation for every model, off by default
   (design record `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §6, the second shared
   feature of the 60 cm Triceratops robot's port; the build's decision-log rows

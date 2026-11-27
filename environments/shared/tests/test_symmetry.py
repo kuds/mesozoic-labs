@@ -747,6 +747,67 @@ def test_the_state_mirror_refuses_a_randomised_plant():
             env.close()
 
 
+def test_the_state_mirror_refuses_an_episode_the_observation_noise_noises():
+    """The opt-in observation noise draws per env, from each env's own stream and in observation order, so a mirrored
+    noised pair would step as the physical mirror image while its step observations are not mirror images.  A source
+    or destination whose episode is noised (in place included) is refused before anything is written; an env whose
+    noise is configured but whose episode is not noised (an evaluation env without the eval flag) mirrors as before
+    and steps as the mirror image to the last bit, until a trainer marks it and its next episode is noised."""
+    from environments.shared.episode_start import mark_training_rollouts
+    from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
+
+    from .observation_noise_helpers import with_observation_noise
+
+    noisy = with_observation_noise(VelociraptorMongoliensisAnatomicalEnv)
+    table = {"joint_position": 0.01, "joint_velocity": 0.05}
+    envs = {
+        "off": VelociraptorMongoliensisAnatomicalEnv(),
+        "noised": noisy(observation_noise_std=table, observation_noise_eval=True),
+        "also noised": noisy(observation_noise_std=table),
+        "quiet": noisy(observation_noise_std=table),
+    }
+    try:
+        em = _env_mirror(envs["off"])
+        mark_training_rollouts(envs["also noised"], True)
+        for index, env in enumerate(envs.values()):
+            env.reset(seed=3071 + index)
+            for action in _velociraptor_mongoliensis_actions(5, index, 0.2):
+                env.step(action)
+        assert [env.observation_noise_active for env in envs.values()] == [False, True, True, False]
+        for source, destination in (
+            ("noised", "off"),
+            ("off", "noised"),
+            ("noised", "also noised"),
+            ("noised", "noised"),
+            ("quiet", "also noised"),
+        ):
+            dst = envs[destination]
+            before = (dst.data.qpos.copy(), dst.data.qvel.copy(), dst._step_count)
+            role = "source" if "noised" in source else "destination"
+            with pytest.raises(SY.SymmetryError, match=f"the {role} env's episode is noised"):
+                SY.mirror_env_state(envs[source], dst, em)
+            assert np.array_equal(dst.data.qpos, before[0]) and np.array_equal(dst.data.qvel, before[1])
+            assert dst._step_count == before[2]
+        source, mirror = envs["off"], envs["quiet"]
+        mujoco.mj_forward(source.model, source.data)
+        SY.mirror_env_state(source, mirror, em)
+        worst = float(np.max(np.abs(mirror._get_obs() - em.obs.apply(source._get_obs()))))
+        for action in _velociraptor_mongoliensis_actions(20, 9, 0.2):
+            obs_source, _, terminated_source, truncated_source, _ = source.step(action)
+            obs_mirror, _, terminated_mirror, truncated_mirror, _ = mirror.step(em.action.apply(action))
+            worst = max(worst, float(np.max(np.abs(obs_mirror.astype(np.float64) - em.obs.apply(obs_source)))))
+            if terminated_source or truncated_source or terminated_mirror or truncated_mirror:
+                break
+        assert worst == 0.0
+        mark_training_rollouts(mirror, True)
+        mirror.reset(seed=3079)
+        with pytest.raises(SY.SymmetryError, match="the destination env's episode is noised"):
+            SY.mirror_env_state(source, mirror, em)
+    finally:
+        for env in envs.values():
+            env.close()
+
+
 # ---------------------------------------------------------------------------------------------------- [ppo] keys
 def test_absent_or_none_symmetry_keys_are_stock_ppo():
     kwargs = {"n_steps": 2048}

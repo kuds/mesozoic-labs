@@ -427,6 +427,7 @@ def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mappin
             "perturbation",
             "actuation_delay",
             "episode_physics",
+            "observation_noise",
         )
         if previous.get(name) != requested.get(name)
     ]

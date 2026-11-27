@@ -60,6 +60,7 @@ from .actuation_delay import ACTUATION_DELAY_IMPLEMENTATION
 from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE, RETIRED_COMMAND_ENV_KEYS
 from .episode_physics import EPISODE_PHYSICS_ENV_KEYS, EPISODE_PHYSICS_IMPLEMENTATION
 from .model_id import ModelId
+from .observation_noise import OBSERVATION_NOISE_IMPLEMENTATION
 from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
 
 if TYPE_CHECKING:
@@ -291,6 +292,12 @@ def compute_task_fingerprint(
     # is off, so a stage that leaves them off keeps its hash.
     if any(payload["env"].get(name) is not None for name in EPISODE_PHYSICS_ENV_KEYS):
         payload["episode_physics"] = {"implementation": EPISODE_PHYSICS_IMPLEMENTATION}
+    # The opt-in observation noise (observation_noise.py): its table and eval
+    # flag are in the env section, and while the table is set this section
+    # names what the noise means.  An opted-in species carves both keys out
+    # while the table is off, so a stage that leaves it off keeps its hash.
+    if payload["env"].get("observation_noise_std") is not None:
+        payload["observation_noise"] = {"implementation": OBSERVATION_NOISE_IMPLEMENTATION}
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     ).hexdigest()
@@ -331,6 +338,7 @@ def _differing_sections(recorded: Mapping[str, Any], current: Mapping[str, Any])
         "command",
         "actuation_delay",
         "episode_physics",
+        "observation_noise",
     )
     return [name for name in sections if _canonical(recorded.get(name)) != _canonical(current.get(name))]
 
