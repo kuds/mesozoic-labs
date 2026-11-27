@@ -177,9 +177,13 @@ N`` splits each pass's (setting, stream) pairs across N processes.  Each
 process loads its own copy of the pair and gives torch one thread, and the
 records are the same for any N.  The allosaurus's 3000-step episodes triple
 the cost; ``--horizon`` shortens them.  Run the scan as a session of its
-own, after the parent's run is certified and published: it needs no GPU,
-and an 11M-step T. rex stance session leaves under two hours of Colab's
-24-hour limit, which the run's own certificate and bundle need.
+own, once the parent's run is certified and published: only a certified
+stance is a walk's parent, and the scan needs no GPU.  An 11M-step T. rex
+stance trains in about 21h11m-21h31m on an L4, and setup, its certificate
+and its bundle take about 50 minutes more, so a training session ends with
+about 1.6 to 2 hours of Colab's 24-hour limit left: margin for a slow
+session, not time to spend on a scan whose rate on a Colab CPU has not
+been measured.
 
 Usage::
 

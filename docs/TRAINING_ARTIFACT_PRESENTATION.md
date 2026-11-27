@@ -1186,10 +1186,10 @@ grid has two passes: the parent's largest learned `log_std` rounded to a
 multiple of 0.125, from 0.5 below it to 1.0 above it in steps of 0.25, then
 one value 0.125 above the largest first-pass value at which every episode
 stood (none when no value or the largest value stood every episode). A
-`--log-std` grid is rolled as given. Every noisy
-setting rolls seeds 3042-3081 in three noise streams to the walk's episode
-length (`--seeds`, `--streams`, `--horizon`). Actions are
-`clip(mean + std z)` from the policy's own distribution, with `z` from
+`--log-std` grid is rolled as given. Every noisy setting rolls seeds
+3042-3081 in three noise streams to the walk's episode length (`--seeds`,
+`--streams`, `--horizon`). Actions are `clip(mean + std z)` from the
+policy's own distribution, with `z` from
 `numpy.random.default_rng(SeedSequence([seed, 20261126, stream]))`, the same
 draws for every setting.
 

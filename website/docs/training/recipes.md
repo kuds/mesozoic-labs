@@ -222,9 +222,13 @@ running or interrupted, and it changes no config. The default scan is at
 most 1.12 million control steps on the T-Rex, about 28 minutes of one CPU
 on the machine it was measured on; a Colab CPU runtime is slower, and
 `--jobs N` divides the time. Run it as a session of its own once the
-parent's run is published, not inside a training session: it needs no GPU,
-and an 11M-step T-Rex stance leaves under two hours of Colab's 24-hour
-limit, which the run's certificate and bundle need.
+parent's run is certified and published, not inside a training session:
+only a certified stance is a walk's parent, and the scan needs no GPU. An
+11M-step T-Rex stance trains in about 21h11m–21h31m on an L4, and setup,
+its certificate and its bundle take about 50 minutes more, so a training
+session ends with about 1.6 to 2 hours of Colab's 24-hour limit left:
+margin for a slow session, not time for a scan whose rate on a Colab CPU
+has not been measured.
 
 Whether to declare `warm_start_log_std` from a scan is the maintainer's
 decision, per model. A value does not carry from one model or plant
