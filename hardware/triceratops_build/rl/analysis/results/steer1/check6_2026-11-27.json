@@ -1,0 +1,138 @@
+{
+ "what": "Independent sixth check (focused) of the fifth-check fixes at f421ffaf, before the steering dev runs: one reviewer and one skeptic.",
+ "date": "2026-11-27",
+ "commit_reviewed": "f421ffaf",
+ "results_in_order": [
+  "review",
+  "verify"
+ ],
+ "results": [
+  {
+   "findings": [
+    {
+     "id": "C6-1",
+     "severity": "medium",
+     "title": "The new noise-reader test never reaches its null row, so it would also pass on the unfixed reader. Its 'gap' is only the not-reached case past the end of the log.",
+     "evidence": "tests/test_steer_heat.py, test_noise_reader_keeps_the_latest_branch_and_skips_bad_rows. The null is set on rows[-1], the last row of session B at 3,995,184. The points asked for are 1 M, 3 M and 5 M, and that row is never the nearest one within 8192 steps of any of them: 5 M is about 1.0 M away and gives null either way. I copied e1f3025e's d22_action_std.py (filter `\"action_std\" in r`, which raises TypeError on float(None)) into my scratch folder and ran the test's scenario on it. All four of the test's assertions pass, with 3 M = 3,003,952 at 0.12 and 5 M = None. So the test does not guard the C5-3 fix. When I moved the null to the row nearest 3 M (3,003,952), the old reader raised 'TypeError: float() argument must be ... not NoneType'. The new reader gave 2,995,760 at 0.12, which is correct. The other two cases are really exercised. Resumed branch: with latest_branch replaced by a plain step-count filter, 3 M returns session A's 2,998,272 at 0.15, so the 0.12 assertion would fail. Torn line: read_health has to skip it or json.loads raises. The only null-point case is 5 M, which lies past the last row, so no mid-log gap is built (the code branch is the same). The test passes (31 of 31 in the file, exit 0).",
+     "suggested_fix": "Put the null on the row nearest 3 M, i.e. the session-B row at 2,750,000 + 31x8192 = 3,003,952, and assert that 3 M reads 2,995,760 at 0.12. Add a mid-log gap, for example by dropping B's rows between 2.99 M and 3.02 M in a second log, and assert that 3 M is None."
+    },
+    {
+     "id": "C6-2",
+     "severity": "low",
+     "title": "Section 5 does not say what happens to a weight whose 3 M noise reading is missing (null) or whose run has no 5 M save. Every other outcome I tried is decided.",
+     "evidence": "I coded the rule literally (scratch rule.py) and ran these cases. w1 out on speed and w2 left with H 0.86: come back. w2 out on noise 0.1268 and w1 left with H 0.86: come back. Both left, H1 0.84 and H2 0.80: w1. Both left, H1 0.80 and H2 0.84: w1. w2 noise 0.1241 (over 0.1240, so out) and w1 H 0.83: w1. H1 0.95 and H2 0.84: w2. H1 0.86 and H2 0.84: w2. H1 0.90 and H2 0.88: come back. Both out: come back. Edge values H 0.85, speed 0.20, noise 0.1240, falls 1 behave as the complements. An undefined speed or H means every target episode ended early. gait_report counts those short episodes as falls, so 2 or more falls puts the weight out. That leaves the noise. d22_action_std.py writes null for 3 M when no usable row lies within 8192 steps, for example after a Drive loss of log rows when the machine goes away, or rows with a null std near 3 M. A weight that fails before 5 M has no 5 M save at all. 'noise over its limit' cannot be evaluated on a null (my literal coding raises TypeError), and no branch covers a missing save. These cases are unlikely, but the rule is meant to be fixed before the runs.",
+     "suggested_fix": "Add one line under 'A weight is out if any of': 'its 5 M save, or its 3 M noise reading (null in d22_action_std.py's JSON), is missing'. Alternatively say 'then I come back to you'."
+    },
+    {
+     "id": "C6-3",
+     "severity": "low",
+     "title": "The stated crossings 0.1242 and 0.1577 come from the unrounded means in the episode JSON, not from the two-decimal cells the sentence quotes and the .md tables it names",
+     "evidence": "From the committed episodes (heat_weight_episodes.json and _d22noise_3M_5M.json), the worst-of-four nominal margins are: w2 at 0.25 m/s, +0.3668 at 0.12 and +0.2880 at 0.125, crossing 0.3 at 0.12424; w1 at 0.15 m/s, +0.3762 at 0.15 and +0.1284 at 0.175, crossing at 0.15769. The other speed crosses later in both cases (0.1340 for w2, 0.1617 for w1), so these bind. Those values give 0.1242 and 0.1577, so the sheet is right. The sheet quotes '+0.37 at 0.12 and +0.29 at 0.125' and '+0.38 at 0.15 and +0.13 at 0.175' and names the .md tables. Interpolating those cells gives 0.12438 (0.1244) and 0.1580. Both versions round to the same limits, 0.124 and 0.158, so the rule is unaffected. An analyst checking the sheet's arithmetic from its own numbers gets different 4-decimal crossings.",
+     "suggested_fix": "Write 'crossing at 0.1242 (from the unrounded means in heat_weight_episodes*.json: +0.3668 and +0.2880)' and the same for weight 1 (+0.3762 and +0.1284, giving 0.1577)."
+    },
+    {
+     "id": "C6-4",
+     "severity": "low",
+     "title": "'each output's checkpoint sha256 is checked against that pair' cannot be done for steer_eval.py and demo_course.py, which record only the checkpoint name",
+     "evidence": "These tools record a sha256 of the zip: gait_report.json policy.zip_sha256 (gait_report.py line 1025), sweep checkpoint.zip_sha256 (robustness/sweep.py line 967) and foot_loads provenance zip_sha256 (line 93). steer_eval.py writes \"checkpoint\": ckpt, which is zp.name (lines 113 and 195). demo_course.py writes only 'policy <name> (<dir>)' (line 78). In a folder that holds only the 5 M pair the name check is enough, so nothing is lost. The sentence still overstates what can be checked.",
+     "suggested_fix": "Write: 'each output's checkpoint (its sha256 where the tool records one: gait report, sweep, foot loads; its name otherwise) is checked against that pair'."
+    }
+   ],
+   "earlier_findings": [
+    {
+     "id": "S1",
+     "status": "fixed",
+     "evidence": "STEPS.md lines 176-177 now read 'one left: that one if its H is under 0.85; otherwise I come back to you'. In my literal coding of the rule, w2 alone with H 0.86 and w1 alone with H 0.86 both give 'come back', and the both-left branch is unchanged and consistent."
+    },
+    {
+     "id": "S2",
+     "status": "fixed",
+     "evidence": "Lines 159-161 and 165 say the noise is the 4-decimal action_std in the JSON, out if 'over 0.1240 for weight 2, over 0.1580 for weight 1', and give the unrounded crossings. d22_action_std.py line 49 writes round(float(std), 4) and its print uses 3 decimals. I re-ran the tool on the D22 logs and its output is byte-identical to the committed d22_action_std.json (3 M values 0.1268, 0.123, 0.1282, 0.128). Python's JSON writes 0.1230 as 0.123, which has the same value."
+    },
+    {
+     "id": "S3",
+     "status": "fixed",
+     "evidence": "Lines 96-97 (2.7) and 134-135 (section 4) give 10000000-10008184 after a restart. train.py line 820 calls learn(remaining, reset_num_timesteps=False) with 8192-step rollouts. Resume points are multiples of 8, since PairSaver saves at absolute multiples of 250,000 and an interrupt save also lands on a multiple of 8. So a run ends at 10M + (8192 - r) with r a multiple of 8, at most 10,008,184. evaluate.py line 250 names the file eval_{steps}.json."
+    },
+    {
+     "id": "S4",
+     "status": "fixed",
+     "evidence": "Section 5 names the JSON paths. In analytics/results/fore128-s0/gait_report.json, cases.target_0.25.summary.speed.forward_speed_mps = 0.234773, summary.falls exists for target_0.25 and cmd_0.15, and drives.per_joint is a dict of 12 joints, each with rms_over_continuous.mean. Applied to s0-s3, these paths give H 0.8276/0.8877/0.9309/0.9454, the same as judge_run3's F2 'worst' (H_all) and the sheet's 0.83-0.95. trike_env reset holds the command for a steering env (lines 866-879)."
+    },
+    {
+     "id": "S5",
+     "status": "fixed",
+     "evidence": "PLAN_STEERING_RUN.md line 62 now points to the section 5 rule ('each run's 3 M noise against 0.124 for weight 2 and 0.158 for weight 1'). A grep of the build tree finds no remaining '1-3 M' or 'a little lower'."
+    },
+    {
+     "id": "S6",
+     "status": "fixed",
+     "evidence": "STEPS.md 2.1 lines 52-53 add 'Its first text names COLAB_STEPS.md and a 2 M-step pipeline test ... follow this sheet instead', which matches notebook cell 0 ('Follow the step sheet ... COLAB_STEPS.md. The first run is a pipeline test (about one hour, 2 million steps)')."
+    },
+    {
+     "id": "C5-1",
+     "status": "fixed",
+     "evidence": "README line 448 now reads 'Weight 2 needs its 3 M noise at or under 0.124'. PLAN line 62 holds the noise against 0.124 and 0.158. Sheet lines 172-173 now say 'at the bottom of that range or lower'. All agree with the rule's 'over 0.1240' and with my recomputed crossing of 0.12424."
+    },
+    {
+     "id": "C5-2",
+     "status": "fixed",
+     "evidence": "Section 5 lines 140-142 add that the 5 M pair and run_record.json are copied into their own folder and every tool is pointed there. gait_report (line 988), the sweep (928), foot_loads (91), steer_eval (103) and demo_course (69) all read <ckpt_dir>/run_record.json and take the newest pair, so this works. The sha256 part overstates things for two tools (see C6-4)."
+    },
+    {
+     "id": "C5-3",
+     "status": "partly fixed",
+     "evidence": "Code: d22_action_std.py lines 37-39 keep only rows whose action_std is a non-bool int or float, after latest_branch. With a null on the row nearest 3 M, the new reader returns the neighbour 2,995,760 (0.12) where e1f3025e raised TypeError. Test: added, and it exercises the resumed branch and the torn line. Its null sits on the last row and is never read, so it also passes on the unfixed reader (C6-1)."
+    },
+    {
+     "id": "C5-4",
+     "status": "fixed",
+     "evidence": "steer_heat_weight.py line 141 uses f\"({len(runs)} policies)\". I regenerated all six committed margin tables from their committed episode files with the repository's margins_md (stds and late scale taken from each file), and all six are byte-identical."
+    },
+    {
+     "id": "C5-5",
+     "status": "fixed",
+     "evidence": "README and D29 now say 'for the policies with noise 0.125-0.2 (2.1 at 0.11, up to 4.3 for the robot x1.1, 4.4 for noise alone)'. I recomputed the pooled cost_sum_w1/cost_w1 ratios: nominal policies at noise 0.125-0.2 give 2.38-4.10, 0.11 gives 2.14 (0.15 m/s), x1.1 reaches 4.28, noise alone 4.42, and 0.673 vs 0.210 at weight 1, noise 0.125, 0.25 m/s."
+    },
+    {
+     "id": "C5-6",
+     "status": "fixed",
+     "evidence": "Line 3 of the two default tables now has the clause \"'cost at weight 1' is at this late scale\" and '4 policies'. Regenerating from heat_weight_episodes.json reproduces both files byte for byte."
+    },
+    {
+     "id": "C5-7",
+     "status": "fixed",
+     "evidence": "(a) The test docstring at lines 75-79 now says 'when started in stance (started in swing it would pass, so both phases are run)'. (b) D29 says 'checked four more times 27 Nov 2026 (records in rl/analysis/results/steer1/)', which matches the recheck, check3, check4 and check5 records. (c) The README states the r_track windows. From the D22 logs with latest_branch I get, for the mean within 100 k of 3 M, 1.287/1.252/1.288/1.198 (1.20-1.29), and for the last 200 k steps 1.319/1.337/1.271/1.311 (1.27-1.34)."
+    }
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "C6-1",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "I rebuilt the test's log exactly: session A with rows 8192..3,276,800 at 0.15, session B from 2,758,192 to 3,995,184 at 0.12, the null on rows[-1] (3,995,184) and the torn line at len//2. I ran it through e1f3025e's d22_action_std.py (copied to scratch, filter `\"action_std\" in r`) and through the current one. The old reader passes every assertion in the test: 1 M is 999,424 at 0.15, 3 M is 3,003,952 at 0.12, 5 M is None, and last_timesteps is 3,995,184, which is under 4 M. The null row is the one nearest 5 M, but it is about 1.0 M away, so the old code reaches `continue` before float(None). The test therefore does not guard the C5-3 fix, though its docstring says it does. When I moved the null to 3,003,952, the old reader raised 'TypeError: float() argument must be a string or a real number, not NoneType'. The new reader returned 2,995,760 at 0.12, so the fix itself is correct. The other parts of the test are really exercised. With latest_branch removed, 3 M comes back as session A's 2,998,272 at 0.15, so the 0.12 assertion would catch that. read_health's skip is what keeps json.loads from raising on the torn line. For the suggested gap case (B's rows from 2.99 M to 3.02 M dropped), both readers return None at 3 M, so it works as a test. The test passes now (1 passed, exit 0). This is a real defect in the test, but it has no effect on the runs or the rule, so medium (not high)."
+    },
+    {
+     "id": "C6-2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Section 5 of the sheet (lines 148-181) defines noise as 'the 4-decimal action_std that analysis/d22_action_std.py writes to its JSON'. That tool writes null when no usable row lies within MAX_GAP=8192 of the point (trajectory(), the `continue` branch), or when the nearby rows have a null std, which the new filter drops. The 'out' list and the 'Then' cases have no line for a null noise value, and nothing in the sheet, PLAN_STEERING_RUN.md or the README covers missing data. I grepped for missing, null and come back. I checked the finding's claim that undefined speed or H always shows up as falls. gait_report.py line 1051 builds `summary = summarise_case(eps, pays) if eps else {\"falls\": 0}`, then lines 1053-1054 add the short episodes' `fell` to falls. A short episode ends by termination, and fell = bool(terminated) at line 241. So an all-short target case means 5 falls, which puts the weight out, as the finding says. Realistically a null at 3 M needs lost health rows on Drive. A resume cannot make the gap: latest_branch keeps A's rows up to the save and B writes from save+8192, so they are never more than 8192 apart around any point. A missing 5 M save is mostly handled before the rule (2.9 resume, section 3 'stop and tell me'). Still, the rule as written is silent on both cases. This is unlikely and wording-level, so low."
+    },
+    {
+     "id": "C6-3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "I recomputed the worst-of-four nominal margins from heat_weight_episodes.json (360 rows) and heat_weight_episodes_d22noise_3M_5M.json (264 rows), using margins_md's formula paired by seed. Weight 2 at 0.25 m/s: +0.3668 at 0.12 and +0.2880 at 0.125, crossing 0.3 at 0.12424. Weight 2 at 0.15 m/s crosses later, at 0.13396. Weight 1 at 0.15 m/s: +0.3762 at 0.15 and +0.1284 at 0.175, crossing at 0.15769. Weight 1 at 0.25 m/s crosses at 0.16174. So the sheet's 0.1242 and 0.1577 are right and are the binding speeds. The sentence quotes the rounded .md cells (+0.37 and +0.29; +0.38 and +0.13), and interpolating those gives 0.12438 and 0.1580. Both versions round to the same limits, 0.124 and 0.158, so the rule is unchanged. The only problem is that the quoted inputs don't reproduce the quoted 4-decimal crossings."
+    },
+    {
+     "id": "C6-4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Three tools record a sha256 of the zip: gait_report.py line 1025 (zip_sha256 and vecnormalize_sha256), robustness/sweep.py line 967 (checkpoint.zip_sha256) and analysis/foot_loads.py line 93 (zip_sha256). steer_eval.load_policy returns zp.name (line 113), and that is written as \"checkpoint\": ckpt (line 195). demo_course.policy_factory reuses steer_eval.load_policy and records only f\"policy {name} ({ckpt_dir.name})\" (line 78). Neither file has a sha256. So 'each output's checkpoint sha256 is checked against that pair' cannot be done for two of the five outputs. Because the folder holds only the 5 M pair, and find_pair takes the newest matched pair, a name check is enough, so nothing is lost. This is an overstatement in wording only."
+    }
+   ]
+  }
+ ]
+}

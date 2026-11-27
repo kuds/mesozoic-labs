@@ -139,7 +139,8 @@ Three rules for the whole sheet (as before):
 
     - The 5 M save: trike60_5000000_steps.zip and its vecnormalize pair, copied with the run's run_record.json into a
       folder of their own, and every tool pointed there (the tools take the newest pair in a folder, and a stopped or
-      finished run has newer ones); each output's checkpoint sha256 is checked against that pair.
+      finished run has newer ones); each output's checkpoint is checked against that pair: its sha256 where the tool
+      records one (gait report, sweep, foot loads), its file name otherwise (steer_eval.py, demo_course.py).
     - From the 5 M save of each run: the gait report, the sweep (with its x1.1 mass, payload and 20 ms delay points),
       the foot loads, steer_eval.py's courses and the demo course with turns, all on the flat floor with per-body
       randomisation only (README, "The steering run's training additions").
@@ -160,17 +161,20 @@ Three rules for the whole sheet (as before):
                action_std that analysis/d22_action_std.py writes to its JSON (it keeps a resumed run's latest
                branch).
       A weight is out if any of:
+        - its run has no 5 M save, or its 3 M noise reading is missing (null in d22_action_std.py's JSON: no usable
+          rollout within 8192 steps of 3,000,000);
         - speed under 0.20 m/s;
         - 2 or more falls of the 10;
         - noise over its limit: over 0.1240 for weight 2, over 0.1580 for weight 1 (the 4-decimal value). Each
-          limit is where that weight's worst
-          margin over standing, at the two nominal speeds on the four D22 policies at full scale
-          (analysis/results/steer1/heat_weight/heat_weight_margins_d22noise_3M_5M.md and heat_weight_margins.md),
-          crosses the README's 0.3, by straight-line interpolation between the measured noise rows (weight 2: +0.37 at
-          0.12 and +0.29 at 0.125, at 0.25 m/s, crossing at 0.1242; weight 1: +0.38 at 0.15 and +0.13 at 0.175, at
-          0.15 m/s, crossing at 0.1577), rounded to three decimals. Weight 2 is on that line at the D22 runs' own 3 M
-          noise (0.1230, 0.1268, 0.1280, 0.1282): it stays in only if its run's noise is at the bottom of that range
-          or lower, which r_heat_peak itself may cause, since it also prices noise.
+          limit is where that weight's worst margin over standing, at the two nominal speeds on the four D22
+          policies at full scale (analysis/results/steer1/heat_weight/heat_weight_margins_d22noise_3M_5M.md and
+          heat_weight_margins.md), crosses the README's 0.3, by straight-line interpolation between the measured
+          noise rows (weight 2: +0.37 at 0.12 and +0.29 at 0.125, at 0.25 m/s; weight 1: +0.38 at 0.15 and +0.13 at
+          0.175, at 0.15 m/s). From the unrounded means in heat_weight_episodes*.json (weight 2: +0.3668 and
+          +0.2880; weight 1: +0.3762 and +0.1284) the crossings are 0.1242 and 0.1577; from the two-decimal cells,
+          0.1244 and 0.1580. Both round to the limits above. Weight 2 is on that line at the D22 runs' own 3 M noise
+          (0.1230, 0.1268, 0.1280, 0.1282): it stays in only if its run's noise is at the bottom of that range or
+          lower, which r_heat_peak itself may cause, since it also prices noise.
       Then:
         - none left: I come back to you before any judged run;
         - one left: that one if its H is under 0.85; otherwise I come back to you (as below, the planned heat rule

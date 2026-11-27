@@ -329,23 +329,30 @@ def test_weight_script_refuses_bad_options_before_running(args, tmp_path):
 
 def test_noise_reader_keeps_the_latest_branch_and_skips_bad_rows(tmp_path):
     """analysis/d22_action_std.py, which the judged-weight rule reads a dev run's 3 M noise with: a resumed run's
-    discarded branch is dropped, a torn line is skipped, a null action_std counts as missing, and a point with no
-    rollout within 8192 steps is null."""
+    discarded branch is dropped, a torn line is skipped, a null action_std counts as missing (the row nearest 3 M is
+    null here, so the next nearest is read), and a point with no rollout within 8192 steps is null (a gap inside the
+    log, and a point past its end)."""
     sys.path.insert(0, str(RL_DIR / "analysis"))
     import d22_action_std as das
 
-    rows = []
-    for n in range(8192, 3_280_000, 8192):  # session A, killed at 3.28 M
-        rows.append({"session": 0, "session_start": 0, "timesteps": n, "action_std": 0.15})
-    for n in range(2_750_000 + 8192, 4_000_000, 8192):  # session B resumes from 2.75 M
-        rows.append({"session": 1, "session_start": 2_750_000, "timesteps": n, "action_std": 0.12})
-    rows[-1]["action_std"] = None  # a non-finite std, written as null
-    lines = [json.dumps(r) for r in rows]
-    lines.insert(len(lines) // 2, '{"session": 1, "timest')  # a torn line
-    p = tmp_path / "run.jsonl"
-    p.write_text("\n".join(lines) + "\n")
-    t = das.trajectory(p, points=(1_000_000, 3_000_000, 5_000_000))
+    def log(rows, torn_at=None):
+        lines = [json.dumps(r) for r in rows]
+        if torn_at is not None:
+            lines.insert(torn_at, '{"session": 1, "timest')  # a torn line
+        p = tmp_path / f"run{len(list(tmp_path.iterdir()))}.jsonl"
+        p.write_text("\n".join(lines) + "\n")
+        return p
+
+    a = [{"session": 0, "session_start": 0, "timesteps": n, "action_std": 0.15} for n in range(8192, 3_280_000, 8192)]
+    b = [{"session": 1, "session_start": 2_750_000, "timesteps": n, "action_std": 0.12}
+         for n in range(2_750_000 + 8192, 4_000_000, 8192)]  # session B resumes from 2.75 M
+    nearest = min(b, key=lambda r: abs(r["timesteps"] - 3_000_000))
+    assert nearest["timesteps"] == 3_003_952
+    nearest["action_std"] = None  # a non-finite std, written as null, on the row nearest 3 M
+    rows = a + b
+    t = das.trajectory(log(rows, torn_at=len(rows) // 2), points=(1_000_000, 3_000_000, 5_000_000))
     assert t["action_std"]["1000000"]["action_std"] == 0.15  # before the resume point: session A's row stands
-    assert t["action_std"]["3000000"]["action_std"] == 0.12  # A's discarded rows past 2.75 M are not used
-    assert t["action_std"]["5000000"] is None  # not reached
-    assert t["last_timesteps"] < 4_000_000 and all(isinstance(v, dict) or v is None for v in t["action_std"].values())
+    assert t["action_std"]["3000000"] == {"timesteps": 2_995_760, "action_std": 0.12}  # B's next row, not A's
+    assert t["action_std"]["5000000"] is None  # past the end of the log
+    gap = [r for r in a + b if not (r.get("session") == 1 and 2_990_000 < r["timesteps"] < 3_020_000)]
+    assert das.trajectory(log(gap), points=(3_000_000,))["action_std"]["3000000"] is None  # a gap inside the log
