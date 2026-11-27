@@ -8,6 +8,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Run reports and a per-model run index.** `python -m
+  environments.shared.scripts.run_report RUN_DIR` (or `--model-dir
+  LOG_BASE/<species>/<embodiment>` for every run of a model) writes
+  `<model>/reports/<tree>/<run_id>/report.md` and `index.json`, then rebuilds
+  `<model>/reports/INDEX.md` and `index.json`, beside the run trees and
+  outside every run (the maintainer's decision of 2026-11-26). A run's page
+  gives its state, a row per node (verdict, gate kind, handoff, or the trunk
+  run it was reused from, linked once that run's report exists), the
+  certificate and probe lines from the `.txt` reports, links to its figures,
+  training history and replays, and warnings with a next step: files no writer
+  names, declared probes a stage that `generate_stage_artifacts` judged lacks,
+  and evidence paths that no longer exist. The index lists every run grouped
+  by state, newest first, with an `unreadable` group, showing the error, for a
+  run whose records cannot be read. The tool only reads runs and copies sizes
+  and digests from `artifact_manifest.json` without hashing anything. It
+  rewrites nothing whose text is unchanged, and replaces a run's report folder
+  whole, keeping the old one if a build fails and copying in what another tool
+  left there. It refuses a model directory that is not a
+  `<species>/<embodiment>` directory, a run tree, and any output inside a run
+  (`environments/shared/reporting/run_index.py`).
+- **The notebooks write the reports.** The SB3 notebook rewrites the run's
+  report and the model index after every `save_run_bundle` and in the verify
+  cell, best-effort: a failure prints one warning line with the command that
+  rebuilds it. The storage cell prints the first lines of the model's
+  `reports/INDEX.md`. The Drive summary notebook's last cell rebuilds every
+  model's reports and names each run that fails; this is also the backfill for
+  runs already on Drive.
+- **A map of the Drive tree, `docs/DRIVE_LAYOUT.md`.** It is a living
+  reference (the maintainer's decision of 2026-11-26) to everything under
+  `LOG_BASE`. It covers the model level (the run trees,
+  `zero_action_baselines/`, the `runs_summary.csv` files and the derived
+  `reports/` tree with its eight run states), the run level and the stage
+  level. Each item names its writers and readers by code path. It also covers
+  the three layout generations, the quick-test, screen, pilot and scratch
+  trees, the storage cell's `RUN_ID` rules and where each came from, the
+  placement rule and retention. No retention policy is set, and inside a run
+  checkpoint pruning in `models/` is the only deletion. `docs/README.md` lists
+  it, and the root README, `results/README.md`, `RESULT_BUNDLES.md`, the
+  behavior recipes page and both notebooks link it.
+- **A test that keeps the Drive map in step with the code.**
+  `environments/shared/tests/test_drive_layout.py` fails when the page cites a
+  file or a `module.name` that no longer exists, misses a stage directory of
+  any of the seven models, or has a broken link to or from it. Once the run
+  index is present, it also fails when the run-state table no longer lists
+  `run_index.RUN_STATES` in order.
+- **A website test for each model's images.**
+  `website/tests/animal_images.test.mjs` fails when a model of the generated
+  catalog has no still image
+  `website/static/img/animals/<species>-<embodiment>.webp`, or lacks the
+  turntable poster or the light and dark videos derived from it. Each failure
+  names the next step. The build does not catch either case, because the page
+  names the files at run time.
 - **A walk warm-start noise-tolerance scan for every model (the maintainer's
   decision of 2026-11-26).**
   `environments/shared/scripts/warm_start_noise_scan.py` measures how much
@@ -2737,6 +2789,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The Drive summary notebook never walks `reports/`.** Its run walker skips
+  the reports tree at the top of each model directory.
+- **One rule for which stance probes a stage rolls.**
+  `stage_artifacts._run_stance_probes` now rolls exactly the probes
+  `declared_stance_probes` names from a stage's `[curriculum]` block, the rule
+  the run report reads; the heading probe's entry is
+  `stance_report.declares_heading_probe`. Each writer's own switch agrees, so
+  what training writes is unchanged.
+- **The embodiment checklist covers images and statue numbers.** The 'Adding
+  an embodiment' checklist in `CONTRIBUTING.md` no longer quotes model counts.
+  It names the lines that state them: the Key Features line of `intro.md` and
+  the registration sentence of `api/overview.md`. Once the model is in the
+  manifest, every number set from a zero-action statue (such as a stance
+  `min_avg_reward`) is measured again on the new embodiment on the 40-seed
+  panel the stage files cite. The commands are `zero_action_baseline
+  --episodes 40`, and `stance_quality_baseline` at the stance file's
+  `reset_noise_scale`. The checklist also adds the model page's still image
+  and the `website/scripts/render_turntables.py` rerun. The species checklist
+  and the custom models page now list the image step too.
+- **`train --output-dir` help names the stage directory.** The help now reads
+  "Stage directory (overrides --log-dir)", which is what `train_base.train`
+  does with the flag. It used to read "Base output directory".
 - **The publication docs name the publish cell.** `docs/RESULT_BUNDLES.md`,
   the website recipes page, `docs/BEHAVIOR_RECIPES_PLAN.md` (§4.5 and a dated
   D-B16 note), the notebook's section 6 text and `save_run_bundle` docstring,
@@ -5496,6 +5570,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **Stale layout statements are corrected.** `RESULT_BUNDLES.md` now draws a
+  trained and a reused stance apart. It says that a run can hold both a stage
+  directory and an `ancestors/` record for one node, when its own verdict no
+  longer passes the reuse rule and the chain loop reused the trunk's node. The
+  record then stands for the node, and the stage directory is not published.
+  It also adds `zero_action_baseline.json` and says the `NN` prefix is the
+  manifest position. The Drive summary notebook and `RESULT_BUNDLES.md` now
+  put the pre-2026-03-31 flat runs, the March 2026 sweeps and the pre-rename
+  quick tests under the retired-id trees `logs/<old id>/`, which the notebook
+  skips, not under the model directories. `results/README.md` now says the
+  bundle is saved after every node, and `summary.json` is written whenever a
+  deliverable is certified. The recipes page's run tree gains the run-level
+  files. The stage-end training history has twenty pages, not nineteen. The
+  SB3 notebook's zero-action markdown no longer counts six models. The
+  `stage_layout.py` and `stage_artifacts.py` docstrings no longer count about
+  35 runs or say the backfill tool records every artifact. The probe comment
+  now says a runtime lost during the probes also loses the training summary
+  and bundle, which the notebook writes after the probes.
 - **The Compsognathus robot page describes the robot.** It showed the
   anatomical model's "the foot pads and toes share the load", and a header
   saying the robot walks. The animal page now prefers a robot's own study
