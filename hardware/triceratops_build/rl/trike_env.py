@@ -171,17 +171,19 @@ class TrikeEnvConfig:
     # The hottest drive (D29; 0 = off, the default: the term is then exactly 0 and nothing else changes). From
     # heat_peak_start_s on (F2's window starts at 2 s), each drive's (torque / continuous rating)^2, averaged over the
     # step's physics steps, is low-passed with heat_peak_tau_s (heat_peak_update), starting from heat_peak_margin^2:
-    # a cool drive starts at the margin and falls below it, a hot one rises from it. Every step's heat then carries
-    # the same weight wherever it falls in the window (a bias-corrected average, tried first, put up to 13x the weight
-    # on the steps just after 2 s: README). The cost is w_heat_peak x late_scale x max(0, sqrt(the largest of the 12)
-    # - heat_peak_margin), in units of the rating's RMS; over 2-20 s it comes to about 0.8 of F2's own price
-    # (900 steps x the excess of F2's 2-20 s RMS). w_heat's mean over 12 drives prices a single hot drive at a twelfth
-    # of its own heat; this prices the drive that fails F2 (RMS torque at or over the continuous rating). The average
-    # is not in the observation; while it is over the margin, a step's heat reaches the return (gamma 0.99) with
-    # alpha / (1 - 0.99 (1 - alpha)) of the weight of an unfiltered per-step cost: 0.33 at tau 4 s (0.67 at 1 s,
-    # 0.5 at 2 s, 0.2 at 8 s). A shorter tau prices sooner but also charges short bursts (a push recovery) that the
-    # windings' 4-15 min time constants would not notice. The weight: README, "The steering run's training additions"
-    # (exploration noise makes the hottest drive hotter; too high a weight makes standing pay better than a noisy gait).
+    # a hot drive's average rises from the margin, a cool one tends below it. The average weighs every step's heat
+    # alike (the second version, bias-corrected, put up to 13x the weight on the steps just after 2 s: README). The
+    # cost is w_heat_peak x late_scale x max(0, sqrt(the largest of the 12) - heat_peak_margin), in units of the
+    # rating's RMS. On gaits well over the margin it comes to 0.80-0.82 of F2's own price over 2-20 s (900 steps x
+    # the excess of F2's 2-20 s RMS); near or under the margin the stride ripple of the 4 s average and the maximum
+    # over 12 drives make it charge a little more than F2 would. w_heat's mean over 12 drives prices a single hot
+    # drive at a twelfth of its own heat; this prices the drive that fails F2 (RMS torque at or over the continuous
+    # rating). The average is not in the observation; while it is over the margin, a step's heat reaches the return
+    # (gamma 0.99) with alpha / (1 - 0.99 (1 - alpha)) of the weight of an unfiltered per-step cost: 0.33 at tau 4 s
+    # (0.67 at 1 s, 0.5 at 2 s, 0.2 at 8 s). A shorter tau prices sooner but also charges short bursts (a push
+    # recovery) that the windings' 4-15 min time constants would not notice. The weight: README, "The steering run's
+    # training additions" (exploration noise makes the hottest drive hotter; too high a weight makes standing pay
+    # better than a noisy gait).
     w_heat_peak: float = 0.0
     heat_peak_margin: float = 0.8  # RMS / continuous rating below which a drive costs nothing
     heat_peak_tau_s: float = 4.0  # low-pass time constant of each drive's (torque / rating)^2, s

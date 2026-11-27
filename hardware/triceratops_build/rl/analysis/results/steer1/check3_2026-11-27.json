@@ -1,0 +1,353 @@
+{
+ "what": "Independent third check of the steering additions at 8f054953 (the heat average started from the margin, the averages comparison, the weight table, the documents): two reviewers (code; measurement and documents), each followed by a skeptic who re-checked every finding.",
+ "date": "2026-11-27",
+ "commit_reviewed": "8f054953",
+ "results_in_order": [
+  "review: code (C1-C4)",
+  "review: measurement and documents (M1, L1-L7)",
+  "verify: code (C1-C4)",
+  "verify: measurement and documents (M1, L1-L7)"
+ ],
+ "results": [
+  {
+   "findings": [
+    {
+     "id": "C1",
+     "severity": "low",
+     "title": "Docs overstate how well the warm-started average follows F2 near and under the margin ('0.80-0.82 of F2's price', 'below the margin it adds nothing', 'a cool drive starts at the margin and falls below it')",
+     "location": "hardware/triceratops_build/rl/README.md, 'The steering run's training additions' (heat bullets: 'over 2-20 s the cost comes to 0.80-0.82 of F2's own price ... walking or with action noise' and 'below the margin it adds nothing'); trike_env.py w_heat_peak comment (lines 171-184: 'a cool drive starts at the margin and falls below it', 'about 0.8 of F2's own price'); DECISION_LOG D29 and PLAN_STEERING_RUN.md status ('prices 0.80-0.82 of F2's own price')",
+     "evidence": "I reproduced heat_average_comparison.md byte for byte and kept the per-step logs (72 episodes). The 0.80-0.82 share holds only for groups well over the margin. The walking group at 0.15 m/s (deterministic) is 1.26 in the committed table. Per episode with 'warm':\n- F2 0.803 costs 0.0256/step against F2's 0.0023 (11x).\n- F2 0.805 costs 0.0145 against 0.0048.\n- F2 0.825 costs 0.0271 against 0.0228.\n\nAll 8 episodes with F2 under 0.8 (0.72-0.78) pay 0.0006-0.0156 per step, and their last charged step is at 4.5-20 s (16.2 s and 20 s in two of them). On A1's own example (fore128-s0, seed 100001, 0.15 m/s, F2 0.729) the env, which I checked equals the offline 'warm' exactly, charges 0.0047/step, peaks at 0.087 in 2-3 s, and puts 98 % of that small cost in 2-4 s (bc: 0.029/step, peak 0.795).\n\nThe cause is the ripple of a 4 s average on a ~1.5 s stride, plus the max over 12 drives and local 4 s hot spells. That is inherent to tau 4 s, not caused by the warm start. A synthetic square wave at RMS 0.78-0.79 is still charged on 26-39 % of steps after 8 s. The README's later bullet does say '1.26 on the lowest group' and '0.005 per step on gaits under the margin', so this is a matter of wording.",
+     "suggested_fix": "Qualify the claims. 0.80-0.82 of F2's price applies to gaits well over the margin. Near or under it, the stride ripple of the 4 s average and the max over 12 drives still charge a little: about 0.005 per step on average and up to 0.016, until late in the episode, even when F2 is under 0.8. In the w_heat_peak comment, replace 'falls below it' with 'tends below it'."
+    },
+    {
+     "id": "C2",
+     "severity": "low",
+     "title": "The new stride-like test's bound sits just above the value it measures, so a harmless 2 % change in the stride period fails it",
+     "location": "hardware/triceratops_build/rl/tests/test_steer_heat.py::test_heat_peak_prices_a_stride_like_gait_without_an_early_spike (assert cool.max() < 0.05)",
+     "evidence": "Recomputed with the test's own input. With 'warm', stance first, period 74, cool.max is 0.0497, against a bound of 0.05. Period 76 gives 0.0508 and period 80 gives 0.0532, and both fail; period 90 also fails cool[400:] == 0 (0.0025).\n\nThe test does fail on the bias-corrected version. In my scratch mutant M2 (bias correction with the new signature) cool.max is 0.2607 and the hot share 1.21. That discrimination comes only from the stance-first phase: with stance second, bc gives cool.max 0 and a hot share of 0.857, inside 0.7-0.9. The floor-200 variant (M12) passes this test, although tests 1 and 3 catch it.",
+     "suggested_fix": "Set the bound with headroom, for example 0.06, or state it relative to the bias-corrected price (for example under 0.3 x bc's first-stride peak). Also assert the share of the cost in the first 100 steps, so the test does not rest on one threshold fitted to period 74."
+    },
+    {
+     "id": "C3",
+     "severity": "low",
+     "title": "D29 says the dev weights 'keep the README's 0.3 margin' at the assumed noise; at 0.15 m/s, weight 0.5 and std 0.175 give +0.28",
+     "location": "hardware/triceratops_build/DECISION_LOG.md row D29 ('which keep the README's 0.3 margin if the noise has fallen to about 0.175 and 0.15 by 3 M steps')",
+     "evidence": "Recomputed from heat_weight_episodes.json, paired by seed: nominal, 0.15 m/s, policy+0.175, w 0.5 gives worst-of-four +0.282 +-0.034 (README and margins.md: +0.28). The README ('sits at the rule', 'the edge of the rule') and the PLAN ('sit at') are accurate; only D29 says 'keep'.",
+     "suggested_fix": "In D29, write 'sit at the README's 0.3 margin rule (+0.35 and +0.28 at weight 0.5 and std 0.175; +0.38 at weight 1 and std 0.15)'."
+    },
+    {
+     "id": "C4",
+     "severity": "low",
+     "title": "The planned re-check 're-run steer_heat_weight.py at that noise' needs a code change, and heavy-robot margins exist only at std 0 and 0.2 and are not in the README",
+     "location": "hardware/triceratops_build/rl/analysis/steer_heat_weight.py (STDS hard-coded; argparse has only --runs-dir, --out, --workers; x1.1 specs only standing, policy+0, policy+0.2); README 'Before the judged weight is fixed' bullet; runs/trike60-steer1-dev_STEPS.md section 5",
+     "evidence": "STDS = (0.0, 0.05, 0.1, 0.15, 0.175, 0.2) is a module constant with no CLI option, so running 'at the dev runs' measured noise' means editing the script, and that edit would then need review.\n\nThe training robot spans x0.864-1.230 total mass, but x1.1 is measured only at std 0 and 0.2. Recomputed at 0.15 m/s, std 0.2: x1.1 gives +0.051 +-0.049 at w 0.5 and -0.128 +-0.046 at w 1, against nominal +0.07 and -0.09. The README's weight section does not mention the heavy-robot margins (it did not at 09da2491 either).",
+     "suggested_fix": "Add a --stds option (and run the x1.1 cases at the same noise levels) before the dev runs end. Add one line to the README with the x1.1 margins, so the judged-weight decision has them."
+    }
+   ],
+   "earlier_findings": [
+    {
+     "id": "A1",
+     "status": "fixed",
+     "evidence": "heat_peak_update now low-passes from heat_peak_margin^2 with no correction (trike_env.py:461-467, 745). I re-ran steer_heat_average.py in scratch and its output is byte-identical to the committed heat_average_comparison.md (72 episodes, 0 falls). With 'warm':\n- 4-5 % of the cost falls in 2-4 s (bc: 13-21 %).\n- Gaits under the margin pay 0.0049 per step (bc: 0.0179).\n- The env's r_heat_peak equals the offline 'warm' cost exactly (max diff 0) on 3 D22 policy episodes.\n\nOn A1's own example (fore128-s0, seed 100001, 0.15 m/s) the cost is 0.0047/step against bc's 0.0290, and the 2-3 s peak is 0.087 against 0.795. A periodic-input test was added, and it fails on a bias-corrected mutant (cool max 0.2607). The weight table was re-measured: 132 of 132 episodes for s1 and s2 reproduce bit for bit. Residual wording issues: C1."
+    },
+    {
+     "id": "A2",
+     "status": "fixed",
+     "evidence": "Rows for std 0.175 were added; I recomputed the cells (e.g. +0.204 +-0.073 and +0.282 +-0.034) and they match the README. The README, PLAN and D29 now state the assumption (0.15-0.175 at 3 M) and that the rule is not met at 0.2. They also say today's w 0 already misses it at 0.15 m/s (+0.22), and that action_std at 1, 2 and 3 M is read from train_health.jsonl (health.py logs action_std) before the judged weight is fixed.\n\nD31 puts the dev runs on the 10 M schedule, read at 5 M: train.py's late ramp is 1-3 M and the terrain ramp 1-4 M, and with 8 envs PairSaver writes trike60_5000000_steps.zip exactly, with no pruning. The noise figures check out with torch weights_only: 0.1775 at 1.0 M, 0.1723 at 1.5 M (run3 probe), 0.1722 at 2.0 M (pipe1), and D22 final 0.083-0.091. Minor leftovers: C3 and C4."
+    },
+    {
+     "id": "A3",
+     "status": "fixed",
+     "evidence": "With the warm start, a step's discounted weight is 0.33 at every time from 2.02 s to 15 s (committed and reproduced comparison table: bc gave 4.43 at 2.02 s). The README and the config comment now say 'a third' while the average is over the margin and explain the bias-corrected history (13x = 4.43/0.34)."
+    },
+    {
+     "id": "A4",
+     "status": "fixed",
+     "evidence": "D29 now says: weight 3 earns 0.62 less than standing; at weight 1 the worst of four is about even (+0.02 at 0.25 m/s, -0.09 at 0.15 m/s); and weight 1 is kept on the noise assumption. The PLAN status says the same. All of these match heat_weight_margins.md (-0.62 +-0.07, +0.02 +-0.04, -0.09 +-0.04)."
+    },
+    {
+     "id": "A5",
+     "status": "fixed",
+     "evidence": "Cells are now given to two decimals as worst-of-four +- the largest SE (per-seed margins paired with standing). I recomputed this independently from the episodes JSON, e.g. 0.25 m/s, std 0.175, w 1: +0.204 +-0.073, shown as '+0.20 +-0.07'. The README states the SEs are 0.02-0.09; the table's SEs range from 0.02 to 0.09."
+    },
+    {
+     "id": "A6",
+     "status": "fixed",
+     "evidence": "The README now says the learning rate follows TOTAL_STEPS and the late ramp (1-3 M) and the push and friction ramp (1-4 M) are fixed in steps. That matches train.py: --late-ramp-from/to default 1,000,000/3,000,000, --terrain-ramp-from/to 1,000,000/4,000,000, and LinearSchedule over total steps."
+    },
+    {
+     "id": "A7",
+     "status": "fixed",
+     "evidence": "The README says 0.035-0.057. The column now reads \"hottest drive's average at 20 s\", and margins.md notes that 'hottest drive' is the env's average (tau 4 s) at 20 s. The steer_heat_weight.py docstring lists all three outputs."
+    },
+    {
+     "id": "N1",
+     "status": "fixed",
+     "evidence": "Same change as A1. In the reproduced comparison, a burst at 3 s costs 1.13x a burst at 10 s (bc 1.80). On 40 hot episodes, cost per unit of excess is 0.44 in 2-6 s and 0.97 in 10-20 s, so the warm start lowers the early level, not the per-step marginal weight, and gives no incentive to move heat earlier. The 'F2's own estimator' wording is gone from the README and config. The periodic-input test exists. The dev weights were re-measured with the new estimator (reproduced)."
+    },
+    {
+     "id": "N2",
+     "status": "fixed",
+     "evidence": "I rendered chart_mass from the committed fore128-s0 sweep with sweep.training_ranges of steer1_dev_heat1 (scratch chart_check.py). The subtitle is 488 characters and wraps to 2 lines at width 263, and the PNG (check3_steer/charts/steer1_mass.png) shows no overlap with the panel titles. The stored-range render is unchanged (477 characters, 2 lines)."
+    }
+   ],
+   "checked_ok": [
+    "Tests at 8f054953:\n- test_steer_heat.py: 20 passed.\n- test_trike_env.py: 94 passed, exit 0. test_default_env_regression_digest and test_run3_env_regression_digest were run separately with -rA: both PASSED (mujoco 3.10.0), so the default config and run 3's preset are unchanged.\n- robustness/tests/test_robustness.py together with test_steer_heat.py: 37 passed.",
+    "Repository untouched: git status --short is empty before and after, HEAD is 8f054953. Mutants were built only in scratch (check3_steer/mut, run via PYTHONPATH), and my large scratch files were deleted.",
+    "No stale users of the removed bias correction or the old 4-argument signature. git grep for heat_peak_update, _heat_n and _heat_ema finds only:\n- trike_env.py;\n- test_steer_heat.py;\n- steer_heat_weight.py (now sqrt(env._heat_ema), with the same step condition as the env);\n- steer_heat_average.py's own candidate implementations;\n- documentation of the history.\n\nThe notebook has no reference, and no T. rex path matches heat_peak.",
+    "The env's average equals an independent offline recomputation from the substep torques exactly (max |diff| 0):\n- 3 D22 policy episodes;\n- 12 steer1_dev_heat1 episodes (DR on, terrain scale 1, late 1), 6 of them with a 20 ms delay and 5 with pushes at 4.8-14.3 s;\n- configs with margin 0.5 and 1.2, where the start follows each config's own margin^2.",
+    "Start and off-by-one: heat_peak_rms and r_heat_peak are exactly 0 for steps 1-100. The first priced step is 101 (2.00-2.02 s), with RMS 0.8007-0.8059. The late scale multiplies only the cost; the average keeps updating at late scale 0.",
+    "Reset: after a fall at 12 s (tilt limit 12 deg, RMS 1.63 at the fall) and after a 150-step partial episode, the next episode's r_heat_peak and heat_peak_rms traces equal a fresh env's.",
+    "Mutation testing of the heat tests (scratch copies of trike_env.py). Every mutant except the identity copy is caught by at least one test:\n- The 09da2491 module fails all 3 heat tests (2 by TypeError on the old signature, 1 on values).\n- Bias correction with the new signature fails all 3.\n- Floor-200 fails 2 of the 3.\n- Each of the following fails at least test 3: reset only in __init__; start hard-coded at 0.64; >= start; cold start; heat_peak_rms not reset; margin not squared; update not in place; mean instead of max; wrong frame_skip divisor.\n- Removing the late scale fails the arithmetic test.",
+    "Re-ran steer_heat_weight.job for fore128-s1 and s2: 132 of 132 episodes are bit-identical to the committed heat_weight_episodes.json. Every README cell and number matches the committed margins files:\n- the 0.25 m/s table and the 0.15 m/s figures;\n- every-drive 1.217 against 0.297 per step (4.1x), and -0.01 at w 0.5, std 0.175;\n- standing hottest 0.464-0.511;\n- 264 episodes, 0 falls.",
+    "No perverse incentive found at the chosen weights:\n- Standing is never charged (its hottest drive's average is 0.46-0.56).\n- Falling early does not pay: at w <= 1 the lowest per-step total (base minus cost) is -0.017 (x1.1, 0.15 m/s, std 0.2), above the -0.05 at which the termination penalty 5 x (1 - gamma) breaks even. At w 3 it would be -0.79, but w 3 is not used.\n- Because every drive starts at margin^2, the first-step cost is about alpha x excess / 1.6, with no spike.",
+    "Dev-run step sheet:\n- The 'Running:' line matches the notebook's print of TRAIN_CMD[3:].\n- The package versions match requirements-colab.txt.\n- 10002432 = 8 x 1024 x 1221 matches n_steps 1024.\n- 5 M / (550-909 steps/s) = 1.5-2.5 h.\n- The notebook guard refuses steer1 presets off fore128, and train_health.jsonl carries action_std.",
+    "The heat_average comparison script loads policies only through gait_pipe1's safe loaders, and its windows match the env (K0 = 100, i.e. step 101; F2 over steps 101-1000)."
+   ],
+   "not_checked": [
+    "No training was run, so the learning effect of the warm start and of weights 0.5 against 1 is measured on fixed straight-task policies only. No steering-trained policy exists.",
+    "steer_heat_weight.py was re-run for 2 of the 4 policies (132 of 264 episodes); s0 and s3 rely on the committed records.",
+    "The notebook was not run on Colab, and no train.py smoke run was made at 8f054953.",
+    "F2's exact physics-sample window (about a 1 ms offset at 2.0 s) was not re-derived; the earlier re-check covered it.",
+    "The return weight of heat in the last seconds of a 20 s episode (fewer future steps; the critic does not see the average) was reasoned about, not measured. It is the same for every average considered.",
+    "Another process shares check3_steer (folders avg, hw, old09, pt_meas2, scripts). I left those untouched. My own files: check3_steer/make_mutants.py, env_check.py, chart_check.py, weight_repro.py, mut/, charts/, avg_out/heat_average_comparison.md and the logs.",
+    "T. rex files were not opened."
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "M1",
+     "severity": "medium",
+     "title": "The noise assumption behind weights 0.5 and 1 rests on a false claim: the D22 10 M runs did record action noise all through training",
+     "location": "hardware/triceratops_build/rl/README.md, 'The weight' bullet ('No 10 M run has a noise figure before its end ... So the assumption is 0.15-0.175 at 3 M'); DECISION_LOG.md D29 ('earlier runs: 0.17-0.18 at 1-2 M'); PLAN_STEERING_RUN.md status; runs/trike60-steer1-dev_STEPS.md section 5",
+     "evidence": "The D22 runs were trained at commit f84a6919 (run_record git.commit). At that commit train.py (lines 541-544) always attaches TrainingHealth(out / 'train_health.jsonl'), and telemetry/health.py line 146 writes 'action_std' (the mean of exp(log_std)) on every rollout. out is the run's Drive folder (args.out = /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-fore128-s0). runs/trike60-d22_LOG.md line 41 even cites a D22 train_health.jsonl (213 env steps/s). The D22 runs had the same log_std_init (-1.6), the same 10 M schedule and LR 3e-4 to 3e-5, and the same late ramp (1 M to 3 M) and terrain ramp (1 M to 4 M) as the dev runs (run_record args). So eight 10 M noise trajectories, four of them on the 128 mm model, should be on the owner's Drive. The author reads that Drive. Instead the docs infer the 3 M noise from short runs whose LR annealed to 0 at 1.5-2 M, and from final checkpoints. I reproduced those figures (weights-only loads of log_std): run3_dev probe 0.1775 at 1.0 M, 0.1745 at 1.25 M, 0.172 at 1.5 M; pipe1 0.172 at 2.0 M; fore128-s0..s3 at 10 M 0.0855, 0.0830, 0.0884, 0.0911. The weight choice depends on this number. From the committed table, weight 1 is +0.38 at std 0.15 but +0.20/+0.13 at 0.175, and weight 0.5 is +0.35/+0.28 at 0.175. I could not see the Drive files themselves.",
+     "suggested_fix": "Before the dev runs, read action_std at 1, 2, 3 and 5 M from the four fore128 train_health.jsonl files. Put the measured range in README, PLAN and D29 in place of 'no 10 M run has a noise figure'. Then re-check whether 0.5 and 1 is still the pair that brackets the 0.3 rule. D22 had no r_heat_peak, so its noise is an upper bound for the dev runs' noise."
+    },
+    {
+     "id": "L1",
+     "severity": "low",
+     "title": "The margin-started average still loads the start of the window for cool gaits and for drives other than the hottest; 'same weight wherever it falls' and the 1.13 burst ratio are best cases",
+     "location": "rl/README.md 'every step's heat carries the same weight wherever it falls in the window ... below the margin it adds nothing' and 'a burst at 3 s costs 1.13 times one at 10 s'; trike_env.py w_heat_peak comment; analysis/steer_heat_average.py (the burst test uses the hottest drive of deterministic episodes only)",
+     "evidence": "From my rerun's logs (scripts a2.py, a4.py, a6.py in scratchpad/check3_steer/scripts). The 8 episodes under the margin pay 39.6 in total under warm. 48 % of that falls in 2-4 s and 66 % in 2-6 s, against 11 % and 22 % of the window's time. The cost rate is 0.024 per step in 2-4 s against 0.0015 in 10-20 s. Including the hinge and the max, the discounted marginal weight on a cool gait's hottest drive is 0.058 at 2.02 s and 0.014-0.019 from 4 s on. On the 2nd-hottest drive (deterministic) it is 0.055 at 2.02 s and 0.012 at 10 s. The 0.5 s burst at 2x rating, with warm: hottest drive 1.13 deterministic but 1.24 at std 0.1 and 1.22 at std 0.2; 2nd-hottest 1.37 deterministic and 1.48 at std 0.2; median drive 5.1 deterministic and 6.0 at std 0.1. bc is worse in every case (2nd-hottest 2.36, median 10.4), so the ranking holds. The magnitudes are an order below bc's (cool gaits 0.0049 against 0.0179 per step).",
+     "suggested_fix": "Qualify the wording: each drive's mean square weighs every step alike. With the hinge, a cool or non-hottest drive's heat in the first 2-4 s is priced 3-6 times later heat, which is still small. Say the 1.13 is for the hottest drive in deterministic episodes (1.22-1.24 under noise). Optionally add the cool-episode 2-4 s share and a non-hottest-drive burst row to heat_average_comparison.md."
+    },
+    {
+     "id": "L2",
+     "severity": "low",
+     "title": "'0.80-0.82 of F2's price, a near-constant share' holds for group sums of hot gaits, not near the margin where the deterministic dev policies will sit",
+     "location": "rl/README.md first heat bullet ('0.80-0.82 ... walking or with action noise'); PLAN status; DECISION_LOG D29; trike_env.py comment ('about 0.8 of F2's own price')",
+     "evidence": "heat_average_comparison.md gives 1.26 for the 0.15 m/s deterministic group (walking, no noise), so 'walking or with action noise' is true for 5 of 6 groups only. The README states the exception only in the later bullet, and PLAN and D29 omit it. Per episode (a1.py), the warm share is 0.75-0.96 for F2 >= 0.86 but 1.19 at F2 0.825, 3.06 at 0.805 and 11.1 at 0.803. Episodes with F2 0.72-0.78 pay 0.6-15.6 per episode, where F2's price is 0. The square-wave test function gives the same picture: RMS 0.78 and 0.79 inputs cost 0.0066 and 0.0098 per step (stance first). The D22 deterministic hottest drives were 0.83-0.95, so the effective margin of a trained policy is a few hundredths below 0.8 and the weight does not absorb this.",
+     "suggested_fix": "Write '0.80-0.82 on five of six groups (1.26 on the coolest)'. Add one sentence: near or under the margin the term prices more than F2's hinge (shares of 1.2-11 for F2 0.80-0.83), because the 4 s average ripples with the stride and the cost takes the maximum of 12 drives."
+    },
+    {
+     "id": "L3",
+     "severity": "low",
+     "title": "The 2-4 s share is presented as favouring the adopted average, but at training noise bc is closer to the time share than warm",
+     "location": "rl/README.md 'How the average was chosen' ('13-21 % of the cost fell in 2-4 s (11 % of the time)' for bc; '4-5 % of the cost in 2-4 s' for warm)",
+     "evidence": "From the committed table (reproduced byte for byte), against the 11 % time share: at std 0.2 bc is 0.13 (2 points off) and warm 0.04 (7 points off). At std 0.1 they are 0.16 (5 points off) and 0.04 (7 points off). Only at std 0 is bc further off (0.21 against 0.05). Warm's low share comes from its start below a hot drive's level (it charges heat later), not from equal weighting. The equal-weight case rests on the discounted-weight table (0.33 throughout against 4.43 at 2.02 s) and the cool-gait cost.",
+     "suggested_fix": "Cite the discounted weights and the cool-gait cost as the reasons for warm. Describe warm's 4-5 % as its start-up deficit on hot drives, the cause of the 0.8 price share, not as a match to the time share."
+    },
+    {
+     "id": "L4",
+     "severity": "low",
+     "title": "The step sheet's training speeds are run 3's, not the foreleg runs', so the 5 M read comes later than stated for the 128 mm model",
+     "location": "rl/runs/trike60-steer1-dev_STEPS.md section 1 ('At the foreleg runs' speeds (550-909 steps per second) that is 1.5-2.5 hours in'); PLAN 'Cost and time' ('1.5-2.5 h in')",
+     "evidence": "env_steps_per_s in the run records: fore128-s0..s3 542, 617, 548, 573; fore160-s0..s3 753, 569, 779, 563. So the foreleg runs ran at 542-779 steps/s. 550 and 910 are run3_s1 and run3_s0. On the 128 mm model the steering runs use, 5 M takes 2.25-2.56 h and 10 M 4.5-5.1 h (the D22 128 mm wall times were 4.51-5.13 h). The PLAN's '3.6-5.1 h' for the foreleg runs is correct.",
+     "suggested_fix": "Write 'At the 128 mm foreleg runs' speeds (540-620 steps per second) that is about 2.3-2.6 hours in; the whole run takes 4.5-5 hours', and update PLAN's 'Cost and time' to match."
+    },
+    {
+     "id": "L5",
+     "severity": "low",
+     "title": "The planned re-check 're-run steer_heat_weight.py at that noise' cannot be done with the script as committed",
+     "location": "rl/analysis/steer_heat_weight.py (STDS constant, job() loads only fore128-s{i}); README 'Before the judged weight is fixed'; STEPS section 5",
+     "evidence": "STDS = (0.0, 0.05, 0.1, 0.15, 0.175, 0.2) is hard-coded, and the CLI takes only --runs-dir, --out and --workers. main() builds the run names 'fore128-s0'..'fore128-s3'. A measured noise of, say, 0.16 or 0.13 needs an unreviewed code edit or interpolation between rows whose SEs reach 0.07. The script also cannot measure the dev runs' own 5 M steering policies, which are the relevant subjects, since the README says the D22 margins 'predict nothing' for the steering task.",
+     "suggested_fix": "Add --stds and --runs (or a run-name pattern) to steer_heat_weight.py now, under this review. State in section 5 whether the judged weight will be checked on the D22 policies at the measured noise, on the dev runs' 5 M policies, or on both."
+    },
+    {
+     "id": "L6",
+     "severity": "low",
+     "title": "The sheet and plan give no rule for choosing the judged weight when the two single-seed dev runs differ by less than the 0.1 noise band",
+     "location": "rl/runs/trike60-steer1-dev_STEPS.md section 5; PLAN 'The runs' ('set the heat cost's weight'); D29",
+     "evidence": "Section 5 says a hottest-drive difference under about 0.1 'is not read as a weight effect'. The D22 128 mm 5-episode worst drives were 0.828, 0.888, 0.931 and 0.945 (recomputed from analytics/results/fore128-s*/gait_report_episodes.json.gz), so 0.1 is the right size of band. With one seed per weight, the runs can therefore only reject a weight (drift to standing, falls, a failed noise check). The sheet does not say which weight is taken if both pass and the heat differs by less than 0.1. Before 1 M the two runs are the same (r_heat_peak x late scale 0, same seed), so only 1-5 M differs between them.",
+     "suggested_fix": "Add one line to section 5 or the PLAN: if both runs walk and their hottest drives are within 0.1, take the weight the measured 3 M noise supports under the 0.3 rule (or the higher weight that meets it)."
+    },
+    {
+     "id": "L7",
+     "severity": "low",
+     "title": "Small wording and number slips in D29, README, the config comment and the test docstring",
+     "location": "DECISION_LOG.md D29; rl/README.md 'The weight'; trike_env.py w_heat_peak comment; tests/test_steer_heat.py docstring; analysis/steer_heat_average.py docstring",
+     "evidence": "(a) D29 says every-drive pricing 'costs about 4x under that noise', meaning 0.175 and 0.15. heat_weight_episodes.json gives cost_sum_w1 / cost_w1 = 3.79 and 2.96 at std 0.175, 3.42 and 2.74 at 0.15, and 4.10 only at std 0.2 and 0.25 m/s (3.31 at 0.15 m/s). (b) D29 says 0.5 'keep[s] the README's 0.3 margin' at 0.175, but at 0.15 m/s it is +0.28 (README correctly says 'at the edge'). (c) D29 calls -0.09 +-0.04 at 0.15 m/s 'about even'; that is about 2 SE below zero. (d) '0.018 and 0.005 per step' are averaged over all 1000 steps, including the 100 unpriced ones; per priced step they are 0.020 and 0.0055. (e) The config comment and the test docstring say the bias-corrected average was 'tried first'; it was the second version, after the start-at-0 one. (f) 'figures within about 0.05 of each other are not told apart': the SE reaches 0.07-0.09 in the 0.175 row, where the weight-0.5 case rests. (g) The steer_heat_average docstring says the logs are about 8 MB; they are 6.6 MB.",
+     "suggested_fix": "Correct the figures as listed. For example, D29: 'about 3-4x', and 'at 0.175, +0.35 and +0.28: at the rule'."
+    }
+   ],
+   "earlier_findings": [
+    {
+     "id": "A1",
+     "status": "partly fixed",
+     "evidence": "The bias correction is gone: heat_peak_update starts from margin^2, and the env's r_heat_peak equals the script's 'warm' at every step on two episodes (difference 0), and to 3e-15 relative on all 72 episode means. The share of cost in 2-4 s fell from 13-21 % to 4-5 %, and the cool-gait cost from 0.0179 to 0.0049 per step. A 74-step square-wave test was added (its max is 0.0497 against a bound of 0.05). Still present: on the 8 cool episodes, 48 % of the remaining cost falls in 2-4 s (L1)."
+    },
+    {
+     "id": "A2",
+     "status": "partly fixed",
+     "evidence": "The README now says the rule is applied at the noise expected at 3 M (0.15-0.175), gives the 0.175 row with SEs, states the w 0 miss at 0.15 m/s (+0.22), and defers to the dev runs' action_std. D31 makes the runs reach full weight. But the claim that no 10 M run has noise data is false: the D22 train_health.jsonl files should have it (M1)."
+    },
+    {
+     "id": "A3",
+     "status": "fixed",
+     "evidence": "Under warm the hinge-free discounted weight is 0.33 at every time from 2.02 to 15 s (the table's weight(), which I re-derived). The README now limits 'a third' to while the average is over the margin."
+    },
+    {
+     "id": "A4",
+     "status": "fixed",
+     "evidence": "D29 now gives +0.02 / -0.09 at weight 1 and the reason for keeping it (noise expected to fall by 3 M). PLAN gives -0.62 at weight 3 and the conditional on noise. Both match heat_weight_margins.md. The 'about even' wording is noted in L7."
+    },
+    {
+     "id": "A5",
+     "status": "fixed",
+     "evidence": "The tables use two decimals with +- the largest per-policy SE. I recomputed five cells independently (for example 0.25 m/s, std 0.175, w 0.5: per-policy +0.370/+0.462/+0.352/+0.414, min +0.35, max SE 0.070) and they match. The SE range in the hottest-drive table is 0.02-0.09, as the README says."
+    },
+    {
+     "id": "A6",
+     "status": "fixed",
+     "evidence": "The README now says only the LR follows TOTAL_STEPS and the late (1-3 M) and terrain (1-4 M) ramps are fixed in steps. This matches the D22 run_record args (late_ramp_from 1e6, late_ramp_to 3e6, terrain 1e6-4e6)."
+    },
+    {
+     "id": "A7",
+     "status": "fixed",
+     "evidence": "Recomputed from analytics/results/fore128-s*/gait_report_episodes.json.gz: single-episode minus 5-episode worst = 0.057, 0.035, 0.044, 0.053, so 0.035-0.057 is right. The column now reads 'the env's average (tau 4 s) at 20 s', and the docstring lists all three outputs."
+    },
+    {
+     "id": "N1",
+     "status": "fixed",
+     "evidence": "The estimator was chosen before the dev runs, from seven candidates (the comparison reproduces byte for byte). Hottest-drive burst ratio 1.80 to 1.13 (deterministic). Including the hinge, bc's marginal weight is 0.46-0.75 at 2.02 s against 0.10-0.13 at 15 s, while warm's is flat at 0.08-0.14. 'F2's own estimator' was removed, a periodic-input test was added, and steer_heat_weight.py was re-run with the new average. The residual on cool or non-hottest drives is L1."
+    },
+    {
+     "id": "N2",
+     "status": "fixed",
+     "evidence": "The shaded text is shorter (50 characters against 95). With the steer1 ranges on the fore128-s0 sweep result, the subtitle is now 488 characters and textwrap.fill at 263 gives 2 lines; the old text gives 537 characters and 3 lines. I did not render the PNG."
+    }
+   ],
+   "checked_ok": [
+    "steer_heat_average.py rerun (4 workers, 50 s): heat_average_comparison.md is byte-identical to the committed file",
+    "steer_heat_weight.py rerun (3.5 min): heat_weight_margins.md, heat_weight_margins_every_drive.md and heat_weight_episodes.json are all byte-identical, 264 episodes, 0 falls",
+    "The script's 'warm' equals the env's r_heat_peak at every step (fore128-s2, 0.15 m/s deterministic and 0.25 m/s std 0.2: max difference 0). Over all 72 episodes, the offline warm mean cost matches heat_weight_episodes.json cost_w1 to 2.7e-15 relative. The script's 'bc' equals the 09da2491 env at every step (difference 0)",
+    "Candidate implementations: K0 = 100 matches the env's _step_count > _heat_start_step; floorN, cold and bc_price4 match their descriptions; F2 = sqrt of the hottest drive's mean over steps 101-1000; the 2-4 s share uses indices 100-199; the burst replaces 25 steps from t/0.02 on the 2-20 s-hottest drive; weight() is the correct derivative of the discounted mean-square estimate",
+    "README margin table, 0.15 m/s figures, 'weight 0.5 at 0.175 (+0.35/+0.28)' and 'weight 1 at 0.15 (+0.38 both)' match the committed and rerun tables",
+    "Standing's hottest drive at 20 s is 0.464-0.511 (nominal); standing's cost_w1 is 0",
+    "Every drive priced: 1.217 against 0.297 per step at std 0.2 and 0.25 m/s (ratio 4.10); -0.01 against +0.35 at w 0.5, std 0.175",
+    "4.43 against 0.34; 13-21 %; 0.018 and 0.005; burst ratios 1.80, 1.27, 1.13; floor200 0.83-0.89 and 1.6x early weight; the 1.26 group at 0.015 per step: all match the table",
+    "Square-wave test claims: RMS 0.75 max 0.0497 in the first stride, last nonzero step 261 (< 400); RMS 0.95 gives 0.734-0.854 of 0.15",
+    "Noise levels from weights-only loads: 0.1775 / 0.1745 / 0.172 at 1.0 / 1.25 / 1.5 M (run3 dev probe), 0.172 at 2.0 M (pipe1), 0.083-0.091 at 10 M (fore128-s0..s3)",
+    "The isotropic noise in steer_heat_weight.py is conservative for the hot drives: PPO's per-dimension std is lowest on the pitch drives (0.044-0.079 at 10 M, 0.136-0.157 at 1-2 M), and those are the hottest drives (indices 1, 7, 10)",
+    "20 ms delay share: delay_steps_range [0, 20] drawn with rng.integers(lo, hi + 1), so 20 ms in 1/21 of episodes and 15-20 ms in 6/21",
+    "D31, PLAN 'The runs': the 5 M save has 2 M steps at full late weight and 1 M at full pushes and friction; the 5 M checkpoint name trike60_5000000_steps.zip matches D22's 250k cadence with 8 envs (5000000 appears in their eval logs)",
+    "Step sheet: about 90 MB per run is consistent (2.1 MB zip x 40 pairs); the notebook's refusal text, ENV_PRESET menu, 'Running:' line and stop-sequence lines exist in trike60_training.ipynb; the presets differ only in w_heat_peak (0.5 / 1.0), with tau and start at their defaults (4 s, 2 s)",
+    "The first review's 38-61 % for the start-at-0 version matches review_2026-11-26.json",
+    "Tests: test_steer_heat.py 20 passed; test_trike_env.py 94 passed (the straight-task digests hold)",
+    "git status --short is empty (the repository was not modified); large scratch files were deleted"
+   ],
+   "not_checked": [
+    "Whether the D22 runs' train_health.jsonl files are still on the owner's Drive, and the action_std values in them (no Drive access); M1 rests on the code at f84a6919 and the D22 log's citation of one",
+    "Rendering the mass chart PNG for N2 (only the wrapped line count was checked)",
+    "The notebook running end to end on Colab, and the stop and resume sequence in the step sheet",
+    "Margins for steering-task policies (none exist yet), and the x1.1 rows beyond reading them",
+    "Code-level review of the rest of the diff (the other reviewer's scope), and mutation testing of test_steer_heat.py",
+    "Any training run (none needed)"
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "C1",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Most of the evidence holds and I reproduced it. Two of the three quoted phrases do overstate.\n\n1. '0.80-0.82 of F2's own price ... walking or with action noise' (README) and the unqualified 'about 0.8' (trike_env comment), 'prices 0.80-0.82' (D29, PLAN) are true for 5 of the 6 groups. The 6th, 0.15 m/s deterministic, is 1.26, and episodes near or under the margin pay several times their F2 price.\n\n2. 'A cool drive starts at the margin and falls below it' is a simplification. In A1's episode, a drive whose 2-20 s RMS is 0.60 rises from 0.80 to 0.887 by 2.6 s before falling. That drive really is hot early (its 2-4 s RMS is 0.82), so this is a real transient, not an artefact of the warm start.\n\n3. 'Below the margin it adds nothing' is not an overstatement in context. The sentence is about the hottest drive's average ('while the hottest drive's average is over the margin ... below the margin it adds nothing'), so it states the hinge correctly. It is not a claim that gaits whose F2 is under the margin cost nothing.\n\nThe README itself already gives '1.26 on the lowest group' and '0.005 per step on gaits under the margin'. So this is wording only; it does not affect the dev runs (the noisy groups that matter are 0.82).",
+     "evidence": "I reran analysis/steer_heat_average.py with --logs into my scratch (check3_steer/skc). Its heat_average_comparison.md is byte-identical to the committed file (cmp). Per-episode figures from scripts/c1.py:\n- The 8 episodes with F2 under 0.8 (0.723-0.782) pay 0.0006-0.0156 per step with 'warm'. Their last charged step is at 4.54-20.0 s.\n- F2 0.803: 0.0256 against a price of 0.0026 x 0.9.\n- F2 0.805: 0.0145 against 0.0048.\n- F2 0.825: 0.0271 against 0.0228.\n\nThe env against the offline average (scripts/c1_env.py: fore128-s0, seed 100001, 0.15 m/s, w_heat_peak 1, late_scale 1). The env's r_heat_peak equals the offline 'warm' cost with a max abs diff of 0.0. It averages 0.00467 per step, peaks at 0.0871 at 2.62 s, and 2-4 s holds 97.9 % of the cost. bc on the same episode: 0.029 per step over 1000 steps, peak 0.795.\n\nOn that peak (scripts/c1b.py): drive 10 reads 0.798, 0.878, 0.869, 0.787, 0.717, 0.640 and 0.556 at 2.02, 2.5, 3, 4, 6, 10 and 20 s. Its 2-20 s RMS is 0.598 and its 2-4 s RMS 0.820.\n\nA square wave (scripts/sq.py, period 74): at RMS 0.78 and 0.79 it is charged on 26 % and 39 % of steps after 8 s with stance first, and on 22 % and 36 % with stance second.\n\nREADME lines 363-365 give the context for the 'below the margin' sentence.",
+     "severity_after_note": ""
+    },
+    {
+     "id": "C2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The bound has about 0.6 % headroom over the adopted average's own value, so it is fitted to period 74 (and the mean bound 0.003 against 0.0025 is tight too). The test is deterministic, so it is not flaky; it fails only if its inputs or the implementation change. It does catch the bias-corrected version it was written against, but only through the stance-first phase. A floor-200 bias correction passes it, though tests 1 and 3 catch that. All of the finding's numbers reproduce.",
+     "evidence": "From scripts/sq.py, which uses the repo's heat_peak_update at the test's alpha with RMS 0.75 and stance first. cool.max:\n- 0.0497 at period 74 (bound 0.05);\n- 0.0508 at 76, 0.0520 at 78, 0.0532 at 80: all fail;\n- at period 90, cool[400:].max is 0.0025, which fails the '== 0' check;\n- at period 84 the mean is 0.0032, which fails 'mean < 0.003'.\n\nBias-corrected, from scripts/sq2.py: with stance first, cool.max is 0.2607 and the hot share 1.211, so it fails. With stance second, cool.max is 0 and the hot share 0.857, so it passes.\n\nFloor 200: cool.max is 0.0084 and the hot share 0.879 with stance first, and 0 and 0.786 with stance second, so it passes. Floor 100 fails (0.0685).\n\ntests/test_steer_heat.py passes at 8f054953 (pytest, 20 passed)."
+    },
+    {
+     "id": "C3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "D29 pairs weight 0.5 with noise 0.175 and weight 1 with 0.15, and says they 'keep the README's 0.3 margin'. The README's rule (lines 209-213) is a margin of at least 0.3 over standing.\n- Weight 1 at 0.15 holds at both speeds.\n- Weight 0.5 at 0.175 gives +0.35 at 0.25 m/s but +0.28 at 0.15 m/s, just under the rule.\n\nThe gap is within one standard error, and the README says figures within about 0.05 are not told apart. So this is wording: the README's 'sits at the rule' and the PLAN's 'sit at' are accurate, and only D29's 'keep' is not.",
+     "evidence": "scripts/c3.py works from heat_weight_episodes.json, with each margin paired by seed against standing. Nominal, worst of the four policies, +- the largest standard error:\n- 0.15 m/s, policy+0.175, w 0.5: +0.282 +- 0.034 (the four policies: 0.29, 0.40, 0.28, 0.44);\n- 0.25 m/s, policy+0.175, w 0.5: +0.352 +- 0.070;\n- policy+0.15, w 1: +0.385 at 0.25 m/s and +0.376 at 0.15 m/s.\n\nThese match heat_weight_margins.md (+0.28 +-0.03, +0.35 +-0.07, +0.38). D29's text is at DECISION_LOG.md line 117."
+    },
+    {
+     "id": "C4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Both facts hold.\n\n1. STDS is a module constant and the CLI offers only --runs-dir, --out and --workers. Re-running unchanged just reproduces the committed grid, so 're-run at that noise' (README; STEPS section 5) means editing the script whenever the measured noise is off the 0.15/0.175/0.2 grid. On the grid, or by interpolation, the existing table is enough, so the practical cost is small. train_health's action_std is the mean of the 12 per-joint stds, and the script's isotropic noise is a reasonable stand-in for it.\n\n2. The x1.1 robot is measured only at std 0 and 0.2, and the README's weight section never mentions the x1.1 margins. Those margins sit about 0.02-0.03 below nominal at std 0.2, within one standard error, so the omission matters little but is real for the judged-weight decision.",
+     "evidence": "In analysis/steer_heat_weight.py:\n- line 47: STDS = (0.0, 0.05, 0.1, 0.15, 0.175, 0.2);\n- lines 151-153: the only arguments are --runs-dir, --out and --workers;\n- line 103: the x1.1 specs are only standing, policy+0 and policy+0.2.\n\nscripts/c3.py on heat_weight_episodes.json, x1.1 at 0.15 m/s, policy+0.2: +0.051 +- 0.049 at w 0.5 and -0.128 +- 0.046 at w 1, against nominal +0.066 +- 0.032 and -0.095 +- 0.042. At 0.25 m/s: x1.1 +0.213 and +0.031, against nominal +0.187 and +0.025.\n\nGrepping rl/README.md for x1.1 finds only lines 125-126 (the randomisation table) and 390 and 439 (the mass span and the presets), none in the weight section (lines 402-436). The README at 09da2491 had no x1.1 either. health.py line 18 defines action_std as the mean of the policy's stds.\n\nThe repository is unchanged (git status --short is identical to my earlier snapshot)."
+    }
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "M1",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "The README's 'No 10 M run has a noise figure before its end' is false. The eight D22 10 M runs were trained at a commit that wrote action_std to train_health.jsonl in each run's Drive folder on every rollout. They also kept a checkpoint pair every 250k steps, so log_std at 1, 2, 3 and 5 M is recorded twice over. The author reads that Drive. The dev weights rest on a guessed 3 M noise, and the margins change a lot over 0.15-0.175, so measuring it before spending two multi-hour runs is a real but limited fix. It stays medium, not high, because the plan already re-checks noise in the dev runs before the judged weight is fixed. Two small errors in the finding, neither of which changes the verdict: (1) the short runs' LR annealed to lr_end 3e-5, not to 0; (2) 'D22 noise is an upper bound for the dev runs' is a heuristic, since the steering task differs.",
+     "evidence": "All 8 run_record.json files in scratchpad/d22_runs give git.commit f84a6919, clean. They also give out=/content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-fore*-s*, total 10 M, log_std_init -1.6, lr 3e-4 to 3e-5, late ramp 1-3 M, terrain ramp 1-4 M, checkpoint_every 250000. In `git show f84a6919:.../train.py`, lines 541-544 always add TrainingHealth(out / 'train_health.jsonl'). In health.py at that commit, line 146 writes action_std = mean exp(log_std) in _write on every rollout. PairSaver (lines 420-439) never deletes checkpoints. Run 3's commit efd1e1c7 has no TrainingHealth (it came in 21f4bf5d), but D22 does. trike60-d22_LOG.md line 41 cites a D22 train_health.jsonl and a record read from the Drive trash, and d22_STEPS 2.9 says 'I read each run's folder on your Drive myself'. My own weights-only reads of log_std: probe 0.1775 at 1.0 M, 0.1745 at 1.25 M and 0.1723 at 1.5 M; pipe1 0.1722 at 2.0 M; fore128-s0..s3 0.0855, 0.0830, 0.0884, 0.0911; fore160-s0..s3 0.0845, 0.0871, 0.0884, 0.0821 (so the README's 0.083-0.091 also misses 0.082). My rerun of steer_heat_weight.py (scratchpad/check3_steer/skeptic/hw) matches all three committed outputs byte for byte: w1 +0.38/+0.38 at std 0.15 and +0.20/+0.13 at 0.175; w0.5 +0.35/+0.28 at 0.175. I could not read the Drive itself (no network)."
+    },
+    {
+     "id": "L1",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "'Same weight wherever it falls' is true of the linear average (heat_peak_update), not of the cost. The warm start puts every drive at the margin at 2 s, and the cost takes a hinge and a max. So for cool gaits and for drives other than the hottest, heat early in the window is priced several times later heat. The magnitudes are small, and bc is worse in every case, so the choice of warm stands. Only the wording needs qualifying, and the README's 1.13 is the most favourable hottest-drive figure.",
+     "evidence": "I regenerated the logs with the committed script; heat_average_comparison.md matched byte for byte. I wrote my own EMA and checked it equals sha.cost (sc/k1.py, sc/k2.py). The 8 cool episodes (F2<0.8, all deterministic at 0.15 m/s) pay 39.59 in total under warm. Of that, 47.7 % falls in 2-4 s and 66.2 % in 2-6 s. The rate is 0.0236 per step in 2-4 s against 0.00149 in 10-20 s (bc: 79 % in 2-4 s). The discounted marginal weight on a cool gait's hottest drive, with hinge and max, is 0.058 at 2.02 s, then 0.041, 0.026, 0.019, 0.017, 0.019 and 0.014 at 2.5-15 s (bc 0.93 at 2.02 s). Burst ratios (3 s against 10 s), warm/bc: hottest drive 1.13/1.80 deterministic, 1.24/1.87 at std 0.1, 1.22/1.80 at std 0.2; 2nd-hottest 1.37/2.36 deterministic, 1.10/1.83 at 0.1, 1.48/2.37 at 0.2; 6th-hottest 5.09/10.36 deterministic, 5.95/12.24 at 0.1."
+    },
+    {
+     "id": "L2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The 0.80-0.82 share holds on 5 of 6 groups. The deterministic 0.15 m/s group (walking, no noise) is 1.26, so 'walking or with action noise' in the first README bullet is wrong for that group. PLAN and D29 state 0.80-0.82 with no exception. Near or under the margin, the cost is well above F2's hinge price. This is a docs-accuracy issue with small absolute magnitudes.",
+     "evidence": "In the committed table (which I reproduced), 0.15 m/s std 0.0 gives warm 1.26 and the other five groups 0.80-0.82. Per episode, warm cost over F2 price is 0.75-0.96 for F2>=0.86 (61 episodes). Near the margin it is 1.19 at F2 0.825, 3.06 at 0.805 and 11.10 at 0.803. Episodes with F2 0.723-0.782 have F2 price 0 but pay 0.57-15.63. The test helper _square_wave_cost (stance first) costs 0.0025 per step at RMS 0.75, 0.0044 at 0.77, 0.0066 at 0.78 and 0.0098 at 0.79. Above 0.75, cost goes on to step ~850-900, so 'nothing after 8 s' holds only near 0.75. PLAN line 54 and D29 give 0.80-0.82 unqualified. The README's later bullet does mention the 1.26. The D22 gait reports give worst drives 0.83, 0.89, 0.93 and 0.95."
+    },
+    {
+     "id": "L3",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The numbers hold. At std 0.1 and 0.2, bc's 2-4 s share is closer to the 11 % time share than warm's. On a constant input, warm's 4-5 % is its start-up deficit from the margin, the same cause as its ~0.8 price share, not a sign of equal weighting. But the README already gives the discounted weights (4.43 against 0.34; 'the same weight for every step') and the cool-gait cost (0.018 against 0.005) as its reasons. So the only remaining defect is how the 4-5 % is framed.",
+     "evidence": "2-4 s shares in the reproduced table: bc 0.21/0.16/0.13 and warm 0.05/0.04/0.04 at std 0/0.1/0.2. My constant-input calculation, warm from margin^2 with tau 4 s over 900 steps: at RMS 0.9, 1.0 and 1.2 it gives 0.79, 0.79 and 0.80 of F2's price, with 3.2-3.5 % of the cost in the first 100 steps against 11 % for an unbiased estimator. README lines 375-379 already cite the discounted weights and the cool-gait costs."
+    },
+    {
+     "id": "L4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "550-909 steps/s are run 3's speeds, not the foreleg runs'. The 128 mm runs, the model the dev runs use, ran at 542-617 steps/s. That puts 5 M at about 2.25-2.6 h and the full run at 4.5-5.1 h, not 1.5-2.5 h and 3-5 h. My single-process timing shows the steer1 preset steps at the same speed as the D22 env, so the 128 mm basis applies. This is a logistics estimate only.",
+     "evidence": "run_record env_steps_per_s: fore128-s0..s3 541.9, 616.6, 547.7, 572.9 (wall 18459, 16221, 18263, 17458 s, i.e. 4.51-5.13 h); fore160-s0..s3 752.9, 569.2, 778.9, 563.4. trike60-d22_STEPS.md line 31 says 'Run 3's two runs took 3.05 and 5.05 hours (909 and 550 steps per ...'. 5e6/617 = 2.25 h and 5e6/542 = 2.56 h. sc/speed.py, one env, 3000 steps x2: D22 config 512/523 steps/s against steer1_dev_heat1 507/523. PLAN's 3.6-5.1 h for the foreleg runs is correct."
+    },
+    {
+     "id": "L5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The planned step 're-run steer_heat_weight.py at that noise' needs a code edit unless the measured noise is exactly one of six hard-coded values. The script also cannot point at runs not named fore128-s0..s3. It is a small gap in the follow-up tooling, not a defect in the runs.",
+     "evidence": "analysis/steer_heat_weight.py line 47 has STDS = (0.0, 0.05, 0.1, 0.15, 0.175, 0.2). main() (lines 149-155) takes only --runs-dir, --out and --workers, and builds runs = [f'fore128-s{i}' for i in range(4)]. job() loads the last checkpoint of each. README line 430 and STEPS section 5 both prescribe the re-run 'at that noise'."
+    },
+    {
+     "id": "L6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Section 5 says a hottest-drive difference under about 0.1 is not read as a weight effect, and that band is the right size given the D22 spread. Neither the sheet nor the PLAN says which weight is taken when both single-seed runs pass and differ by less than that. Stating the rule before the runs would keep the choice from being driven by the result. The two runs are identical until 1 M (late scale 0).",
+     "evidence": "D22 gait_report.md 'worst RMS torque / continuous rating': fore128-s0..s3 0.83, 0.89, 0.93, 0.95. STEPS section 5 has only 'Compare the two weights ... not read as a weight effect' and then the pre-registration. grep of PLAN_STEERING_RUN.md for 'weight' finds no selection rule. train.py late_scale_at returns 0.0 for steps <= ramp_from (1 M), and the test shows reward_terms gives r_heat_peak 0.0 at late_scale 0."
+    },
+    {
+     "id": "L7",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "Items (a), (b), (c), (e), (f) and (g) hold as small slips. Item (d) is not a slip: 'cost per step' is averaged over all of an episode's steps, the same per-step convention as steer_heat_weight.py's reward margins (base/n over every step), and the md labels it that way.",
+     "evidence": "(a) Means over 4 policies x 3 seeds from heat_weight_episodes.json (reproduced byte for byte), cost_sum_w1/cost_w1: 3.79 (0.25 m/s) and 2.96 (0.15 m/s) at std 0.175; 3.42 and 2.74 at 0.15; 4.10 and 3.31 at 0.2. D29 says 'about 4x under that noise' right after the 0.175/0.15 sentence. (b) At w0.5 std 0.175, 0.15 m/s gives +0.28 < 0.3, but D29 says it 'keep[s]' the margin. (c) w1 std 0.2 at 0.15 m/s is -0.09 +-0.04, about 2 SE below zero. (d) Cool episodes: bc 0.0179 and warm 0.0049 over 1000 steps (0.0199 and 0.0055 over 900); the 1000-step mean matches the repo's per-step convention. (e) The trike_env comment and the test docstring say bc was 'tried first', but README lines 371-375 make it the second version. (f) The 0.25 m/s std 0.175 row has SE +-0.07 for w0-1, 0.08 at w1.5 and 0.09 at w3, so a 0.05 resolution is optimistic there. (g) logs.npz written by the script is 6,576,676 bytes, against the docstring's 'about 8 MB'. Repo unchanged (git status --short identical before and after); my large logs file is deleted."
+    }
+   ]
+  }
+ ]
+}

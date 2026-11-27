@@ -12,12 +12,15 @@ and low-passes with tau 4 s; the cost per step at weight 1 is max(0, sqrt(the la
 - bc_price4: bias-corrected, priced from 4 s only.
 Measures: the cost over 2-20 s as a share of F2's own price (900 steps x max(0, F2 - 0.8), F2 = sqrt of the largest
 drive's 2-20 s mean); the share of the cost in 2-4 s (11 % of the window's time); the cost per step on episodes
-whose F2 is under the margin (ideally 0); the extra cost of a 0.5 s burst at twice the rating on the hottest drive at
-3 s against 10 s; and the linearised discounted weight (gamma 0.99) of one step's heat at several times.
+whose F2 is under the margin (ideally 0) and the share of it in 2-4 s; the extra cost of a 0.5 s burst at twice the
+rating at 3 s against 10 s, on the hottest and on the second-hottest drive, deterministic and with noise; and the
+linearised discounted weight (gamma 0.99) of one step's heat in the average at several times (the cost's hinge and
+maximum over drives are left out of that last measure; they make early heat on a cool or not-hottest drive cost more
+than later heat, which the burst rows show).
 
 Usage:
   python steer_heat_average.py --runs-dir DIR --out OUT_DIR [--logs LOGS.npz]
-DIR as for steer_heat_weight.py. Writes OUT_DIR/heat_average_comparison.md; the logs (about 8 MB) are kept only
+DIR as for steer_heat_weight.py. Writes OUT_DIR/heat_average_comparison.md; the logs (about 6.6 MB) are kept only
 with --logs.
 """
 from __future__ import annotations
@@ -163,26 +166,38 @@ def report(logs: dict) -> str:
             cells.append(f"{sum(c[100:200].sum() for c in cs) / tot:.2f}" if tot else "-")
         L.append(f"| std {std} | " + " | ".join(cells) + " |")
     cool = [x for v in groups.values() for x in v if f2(x) < MARGIN]
-    L += ["", f"## Cost per step on episodes whose F2 is under the margin ({len(cool)} episodes; ideally 0)", "",
-          "| " + " | ".join(ESTS) + " |", "|---" * len(ESTS) + "|",
-          "| " + " | ".join(f"{np.mean([cost(x, e).mean() for x in cool]):.4f}" for e in ESTS) + " |"]
-    det = [x for (c, s), v in groups.items() if s == "0.0" for x in v]
-    L += ["", "## Extra cost of a 0.5 s burst at 2x rating on the hottest drive (deterministic episodes, mean)", "",
-          "| average | at 3 s | at 10 s | ratio |", "|---|---|---|---|"]
+    L += ["", f"## Episodes whose F2 is under the margin ({len(cool)} episodes): cost per step over all 1000 steps "
+          "(ideally 0), and the share of it in 2-4 s", "",
+          "| measure | " + " | ".join(ESTS) + " |", "|---" * (1 + len(ESTS)) + "|",
+          "| cost per step | " + " | ".join(f"{np.mean([cost(x, e).mean() for x in cool]):.4f}" for e in ESTS) + " |"]
+    cells = []
     for e in ESTS:
-        d = {}
-        for t in (3.0, 10.0):
-            tot = 0.0
-            for x in det:
-                j = int(x[K0:].mean(0).argmax())
-                y = x.copy()
-                k = int(t / 0.02)
-                y[k:k + 25, j] = 4.0
-                tot += cost(y, e).sum() - cost(x, e).sum()
-            d[t] = tot / len(det)
-        L.append(f"| {e} | {d[3.0]:.1f} | {d[10.0]:.1f} | {d[3.0] / d[10.0]:.2f} |")
+        cs = [cost(x, e) for x in cool]
+        tot = sum(c.sum() for c in cs)
+        cells.append(f"{sum(c[100:200].sum() for c in cs) / tot:.2f}" if tot else "-")
+    L.append("| share in 2-4 s | " + " | ".join(cells) + " |")
+    L += ["", "## Extra cost of a 0.5 s burst at 2x rating (25 steps at (torque / rating)^2 = 4), mean over the "
+          "episodes, at 3 s and at 10 s", "",
+          "| average | drive | noise | at 3 s | at 10 s | ratio |", "|---|---|---|---|---|---|"]
+    for e in ESTS:
+        for rank, rank_name in ((0, "hottest"), (1, "2nd hottest")):
+            for std in ("0.0", "0.1", "0.2"):
+                xs = [x for (c, s), v in groups.items() if s == std for x in v]
+                d = {}
+                for t in (3.0, 10.0):
+                    tot = 0.0
+                    for x in xs:
+                        j = int(np.argsort(x[K0:].mean(0))[::-1][rank])
+                        y = x.copy()
+                        k = int(t / 0.02)
+                        y[k:k + 25, j] = 4.0
+                        tot += cost(y, e).sum() - cost(x, e).sum()
+                    d[t] = tot / len(xs)
+                L.append(f"| {e} | {rank_name} | {std} | {d[3.0]:.1f} | {d[10.0]:.1f} | "
+                         f"{d[3.0] / d[10.0] if d[10.0] else float('nan'):.2f} |")
     ts = (2.02, 2.5, 3.0, 4.0, 6.0, 10.0, 15.0)
-    L += ["", "## Discounted weight (gamma 0.99) of one step's heat in the estimate, by time (hinge ignored)", "",
+    L += ["", "## Discounted weight (gamma 0.99) of one step's heat in the average, by time (hinge and maximum "
+          "over drives left out)", "",
           "| average | " + " | ".join(f"{t:g} s" for t in ts) + " |", "|---" * (1 + len(ts)) + "|"]
     for e in ESTS:
         L.append(f"| {e} | " + " | ".join(f"{weight(e, t):.2f}" for t in ts) + " |")

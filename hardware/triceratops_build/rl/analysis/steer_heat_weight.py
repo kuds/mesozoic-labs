@@ -16,7 +16,11 @@ cost of the alternative D29 did not choose, every drive priced (the sum over the
 0.8), from the env's own averages), is recorded beside it as cost_sum_w1.
 
 Usage:
-  python steer_heat_weight.py --runs-dir DIR --out OUT_DIR
+  python steer_heat_weight.py --runs-dir DIR --out OUT_DIR [--stds 0,0.05,0.1] [--late 0.5] [--tag _x] [--runs a,b]
+--stds sets the policies' action-noise levels (default the six above), --late the late scale (default 1, full scale:
+r_heat, r_saturation, the negative part of r_air_time and r_heat_peak are multiplied by it, as train.py's late ramp
+does), --runs the run folders (default fore128-s0 ... s3); the x1.1 cases use the same noise levels, and the output
+file names carry --tag.
 DIR holds fore128-s0 ... fore128-s3, each with run_record.json and checkpoints/ (the final pair is used), loaded with
 the gait analysis's safe loaders. Writes OUT_DIR/heat_weight_episodes.json, OUT_DIR/heat_weight_margins.md and
 OUT_DIR/heat_weight_margins_every_drive.md. Each margin is given for the worst of the four policies, with the largest
@@ -45,7 +49,7 @@ SEEDS = (100000, 100001, 100002)
 COMMANDS = (0.25, 0.15)
 HEAT = dict(w_heat_peak=1.0, heat_peak_margin=0.8, heat_peak_tau_s=4.0, heat_peak_start_s=2.0)
 STDS = (0.0, 0.05, 0.1, 0.15, 0.175, 0.2)
-WEIGHTS = (0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0)
+WEIGHTS = (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
 TERMS = ("r_track", "r_heat", "r_saturation", "r_air_time", "r_slip", "r_energy")
 
 
@@ -86,7 +90,7 @@ def episode(env, policy, stats, seed, command, std):
 def job(args):
     import torch
 
-    runs_dir, run = args
+    runs_dir, run, stds, late = args
     torch.set_num_threads(1)
     rd = Path(runs_dir) / run
     s = json.loads((rd / "run_record.json").read_text())["settings"]
@@ -96,36 +100,39 @@ def job(args):
     ec = {**s["env_config"], "model_path": str(gp.GEN / Path(s["env_config"]["model_path"]).name)}
     cfg = flat_floor(TrikeEnvConfig.from_dict(ec)).replace(**HEAT)
     nominal, heavy = TrikeEnv(cfg), TrikeEnv(cfg.replace(mass_scale_whole_range=(1.1, 1.1)))
+    for e in (nominal, heavy):  # train.py's schedules at this stage (the penalty ramp is full from 2 M steps)
+        e.late_scale, e.penalty_scale = late, 1.0
     stats = gp.load_obs_stats(pkl)
     policy = gp.build_policy(nominal, ck, s["net"], s["log_std_init"])
     specs = [("nominal", "standing", None, 0.0), ("nominal", "noise", None, 0.2)]
-    specs += [("nominal", f"policy+{std:g}", policy, std) for std in STDS]
-    specs += [("x1.1", "standing", None, 0.0), ("x1.1", "policy+0", policy, 0.0), ("x1.1", "policy+0.2", policy, 0.2)]
+    specs += [("nominal", f"policy+{std:g}", policy, std) for std in stds]
+    specs += [("x1.1", "standing", None, 0.0)] + [("x1.1", f"policy+{std:g}", policy, std) for std in stds]
     out = []
     for cond, case, pol, std in specs:
         env = nominal if cond == "nominal" else heavy
         for command in COMMANDS:
             for seed in SEEDS:
                 out.append({"run": run, "checkpoint": ck.name, "cond": cond, "case": case, "command": command,
-                            "seed": seed, **episode(env, pol, stats, seed, command, std)})
+                            "seed": seed, "late_scale": late, **episode(env, pol, stats, seed, command, std)})
     return out
 
 
-def margins_md(rows, key="cost_w1") -> str:
+def margins_md(rows, key="cost_w1", stds=STDS, late=1.0) -> str:
     g = defaultdict(list)
     for r in rows:
         g[(r["cond"], r["command"], r["case"], r["run"])].append(r)
     runs = sorted({r["run"] for r in rows})
     m = lambda rs, k: st.mean(x[k] for x in rs)  # noqa: E731
     title = "the hottest drive priced (D29)" if key == "cost_w1" else "every drive priced (reference, not used)"
-    L = [f"# Reward margin over standing at full scale, by heat weight: {title} (steer_heat_weight.py)", "",
+    stage = "at full scale (late scale 1)" if late == 1.0 else f"at late scale {late:g}"
+    L = [f"# Reward margin over standing {stage}, by heat weight: {title} (steer_heat_weight.py)", "",
          f"Falls: {sum(r['fell'] for r in rows)} of {len(rows)} episodes. Per-step means over 3 seeds; margin = "
          "(case's base - w x cost at weight 1) - (standing's base - w x standing's cost), paired by seed; standing "
          "pays no r_heat_peak. Each cell: the worst of the four policies' 3-seed means, +- the largest of their four "
          "standard errors, then all four means. 'hottest drive' is the env's average (tau 4 s) at 20 s.", ""]
     for cond in ("nominal", "x1.1"):
         for cmd in COMMANDS:
-            cases = [c for c in ["noise"] + [f"policy+{s:g}" for s in STDS] if (cond, cmd, c, runs[0]) in g]
+            cases = [c for c in ["noise"] + [f"policy+{s:g}" for s in stds] if (cond, cmd, c, runs[0]) in g]
             L += [f"## {cond}, {cmd} m/s", "",
                   "| case | hottest drive at 20 s (4 policies) | " + " | ".join(f"w {w:g}" for w in WEIGHTS) + " |",
                   "|---" * (2 + len(WEIGHTS)) + "|"]
@@ -151,15 +158,23 @@ def main():
     ap.add_argument("--runs-dir", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--stds", default=",".join(f"{x:g}" for x in STDS), help="action-noise stds, comma-separated")
+    ap.add_argument("--late", type=float, default=1.0, help="late scale (train.py: 0 until 1 M, 1 from 3 M)")
+    ap.add_argument("--runs", default="fore128-s0,fore128-s1,fore128-s2,fore128-s3", help="run folders in --runs-dir")
+    ap.add_argument("--tag", default="", help="suffix for the output file names")
     a = ap.parse_args()
-    runs = [f"fore128-s{i}" for i in range(4)]
+    stds = tuple(float(x) for x in a.stds.split(","))
+    if not 0.0 <= a.late <= 1.0 or any(x < 0 for x in stds):
+        raise SystemExit("--late must lie in [0, 1] and --stds must be >= 0")
+    runs = a.runs.split(",")
     with Pool(a.workers) as p:
-        rows = [x for chunk in p.map(job, [(a.runs_dir, r) for r in runs]) for x in chunk]
+        rows = [x for chunk in p.map(job, [(a.runs_dir, r, stds, a.late) for r in runs]) for x in chunk]
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "heat_weight_episodes.json").write_text(json.dumps(rows, indent=1) + "\n")
-    (out / "heat_weight_margins.md").write_text(margins_md(rows) + "\n")
-    (out / "heat_weight_margins_every_drive.md").write_text(margins_md(rows, "cost_sum_w1") + "\n")
+    (out / f"heat_weight_episodes{a.tag}.json").write_text(json.dumps(rows, indent=1) + "\n")
+    (out / f"heat_weight_margins{a.tag}.md").write_text(margins_md(rows, stds=stds, late=a.late) + "\n")
+    (out / f"heat_weight_margins_every_drive{a.tag}.md").write_text(
+        margins_md(rows, "cost_sum_w1", stds=stds, late=a.late) + "\n")
     print(f"{len(rows)} episodes, {sum(r['fell'] for r in rows)} falls; wrote {out}")
 
 

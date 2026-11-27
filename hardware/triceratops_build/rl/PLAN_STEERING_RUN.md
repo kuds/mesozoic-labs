@@ -53,23 +53,25 @@ fixed again before any run (`rl/README.md`, "The steering run's training additio
   second, bias-corrected from 2 s, front-loaded the cost onto the first second after 2 s (the re-check). It now
   starts at 2 s from the margin, which weights every step alike and prices 0.80-0.82 of F2's own price; chosen
   from seven candidates measured on the D22 policies (`rl/analysis/steer_heat_average.py`);
-- the dev-run weights are 0.5 and 1, not 1 and 3: at weight 3 a gait with the initial exploration noise earns
-  0.62 per step less than standing at full scale. 0.5 and 1 sit at the README's 0.3 margin rule if the noise
-  is 0.175 and 0.15 when the cost reaches full weight at 3 M; that assumption is checked in the dev runs (their
-  action noise at 1, 2 and 3 M) before the judged weight is fixed;
+- the dev-run weights are 1 and 2. The README's rule (a gait with exploration noise earns 0.3 per step more than
+  standing) is applied at the noise when the cost reaches full weight, 3 M steps: 0.123-0.128 in the D22 runs on
+  the same schedules (their train_health logs). There weight 1 keeps +0.52-0.57, weight 2 sits at the rule
+  (+0.27-0.31) and weight 3 does not (+0.01-0.09). Earlier picks, both before any run: 1 and 3, then 0.5 and 1
+  on an assumed noise. Each dev run's own noise at 1-3 M is checked before the judged weight is fixed;
 - the notebook refuses a steer1 preset on any model but the 128 mm one.
 
 ## The runs
 
-- **Dev runs** (proposed): two trainings on Colab, heat weights 0.5 and 1 (`steer1_dev_heat05`, `steer1_dev_heat1`),
+- **Dev runs** (proposed): two trainings on Colab, heat weights 1 and 2 (`steer1_dev_heat1`, `steer1_dev_heat2`),
   the same seed. They check that the steering task learns on the 128 mm model and set the heat cost's weight before
-  the rules are written. They are not judged. **Length (D31, 27 Nov 2026): the 10 M schedule, read at 5 M.** The
+  the rules are written, by a rule fixed before the runs (`runs/trike60-steer1-dev_STEPS.md`, section 5). They are
+  not judged. **Length (D31, 27 Nov 2026): the 10 M schedule, read at 5 M.** The
   review found that at about 3 M steps the heat cost reaches full weight only at the last step: train.py's late ramp
   runs from 1 M to 3 M and the push and friction ramp from 1 M to 4 M, and the learning rate follows TOTAL_STEPS, so
   a 3 M run also anneals faster than a judged 10 M run. With TOTAL_STEPS 10 M, the 5 M save has had 2 M steps at full
   heat weight and 1 M at full pushes and friction, on a judged run's schedule. Steps: `runs/trike60-steer1-dev_STEPS.md`.
-- **Judged runs:** the pre-registered seeds at 10 M steps each, run as run 3 was. Each takes about 3-5 h on Colab
-  High-RAM CPU (the foreleg runs took 3.6-5.1 h).
+- **Judged runs:** the pre-registered seeds at 10 M steps each, run as run 3 was. Each takes about 4.5-5 h on Colab
+  High-RAM CPU (the 128 mm foreleg runs took 4.5-5.1 h; all eight foreleg runs 3.6-5.1 h).
 - **Measurement:** the gait report, the sweep and the foot loads as for D22, plus `steer_eval.py`'s courses and the
   demo course with turns. Randomised measurements draw the per-body factors only, so the target case is comparable
   with F20; the whole robot x1.1, the payloads and the 20 ms delay are the sweep's points.
@@ -92,5 +94,5 @@ fixed again before any run (`rl/README.md`, "The steering run's training additio
 ## Cost and time
 
 - **Session work:** building and reviewing the four pieces above is about 1-2 days.
-- **Colab:** two dev runs, read at 5 M steps (1.5-2.5 h in; 3-5 h if left to finish), then the judged runs at
-  3-5 h each, run in parallel as before.
+- **Colab:** two dev runs, read at 5 M steps (2.3-2.6 h in at the 128 mm foreleg runs' 542-617 steps per second;
+  4.5-5.1 h if left to finish), then the judged runs at 4.5-5.1 h each, run in parallel as before.

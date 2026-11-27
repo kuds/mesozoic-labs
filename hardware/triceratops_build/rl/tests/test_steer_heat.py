@@ -70,15 +70,18 @@ def _square_wave_cost(rms, stance_first=True, steps=900, period=74, margin=0.8):
     return np.array(out)
 
 
-def test_heat_peak_prices_a_stride_like_gait_without_an_early_spike():
-    """A gait under the margin (RMS 0.75) costs at most 0.05 in its first stride and nothing after 400 steps (8 s);
-    over the margin (RMS 0.95) the 18 s cost is 0.7-0.9 of F2's own price, 0.15 per step. A bias-corrected average,
-    tried first, priced the cool gait's first step at its stance peak (cost 0.26) and put most of its cost there."""
+@pytest.mark.parametrize("period", [50, 60, 74, 90])  # strides of 1.0-1.8 s at 20 ms steps (the trot: about 74)
+def test_heat_peak_prices_a_stride_like_gait_without_an_early_spike(period):
+    """A gait under the margin (RMS 0.75) costs at most 0.06 per step (in its first stride, when it starts in stance)
+    and under 0.005 after 8 s; over the margin (RMS 0.95) the 18 s cost is 0.7-0.9 of F2's own price, 0.15 per step,
+    with under 8 % of it in the first 100 steps (11 % of the time). The bias-corrected average, the second version,
+    gave 0.26 on the cool gait's first step, 1.16-1.25 of the price and 20-23 % in the first 100 steps."""
     for first in (True, False):
-        cool = _square_wave_cost(0.75, first)
-        assert cool.max() < 0.05 and cool[400:].max() == 0.0 and cool.mean() < 0.003
-        hot = _square_wave_cost(0.95, first)
+        cool = _square_wave_cost(0.75, first, period=period)
+        assert cool.max() < 0.06 and cool[400:].max() < 0.005 and cool.mean() < 0.005
+        hot = _square_wave_cost(0.95, first, period=period)
         assert 0.7 * 0.15 < hot.mean() < 0.9 * 0.15
+        assert hot[:100].sum() < 0.08 * hot.sum()
 
 
 def test_heat_peak_follows_an_independent_recomputation():
@@ -271,7 +274,7 @@ def test_steering_presets_match_the_plan_and_the_notebook_menu():
     D26, D28-D30). The notebook's ENV_PRESET menu and its check list exactly the presets in configs/."""
     presets = sorted(p.stem for p in CONFIGS.glob("*.json"))
     steer = [p for p in presets if p.startswith("steer1_")]
-    assert steer == ["steer1_dev_heat05", "steer1_dev_heat1"]
+    assert steer == ["steer1_dev_heat1", "steer1_dev_heat2"]
     weights = []
     for name in steer:
         d = json.loads((CONFIGS / f"{name}.json").read_text())
@@ -284,7 +287,7 @@ def test_steering_presets_match_the_plan_and_the_notebook_menu():
         weights.append(cfg.w_heat_peak)
         assert (cfg.w_lateral_drift, cfg.slip_at_contact) == (100.0, True)  # as run 3
         assert cfg.domain_randomization and cfg.observation_noise
-    assert weights == [0.5, 1.0]  # the dev runs' two weights (README: the reward margin over standing)
+    assert weights == [1.0, 2.0]  # the dev runs' two weights (README: the reward margin over standing)
     nb = json.loads((RL_DIR / "trike60_training.ipynb").read_text())
     src = "".join(nb["cells"][1]["source"])
     menu = src[src.index("ENV_PRESET = "):].splitlines()[0]

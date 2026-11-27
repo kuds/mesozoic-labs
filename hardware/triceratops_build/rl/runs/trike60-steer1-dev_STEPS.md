@@ -21,15 +21,15 @@ Three rules for the whole sheet (as before):
     The purpose:  the first training of the steering task (D20): the robot follows speed and heading requests that
                   change every 3-5 s, on flat ground (D28) with pushes and slippery floors, on the 128 mm foreleg
                   (D25), with the new cost on the hottest drive's heat (D26, D29). Two runs that differ only in
-                  that cost's weight, 0.5 and 1. They are NOT judged: they show whether steering learns and which
+                  that cost's weight, 1 and 2. They are NOT judged: they show whether steering learns and which
                   weight to use. The rules for the judged runs come after them.
     The code:     one fixed commit of the repository,
                     <<REPO_REF>>
                   This is REPO_REF below, the same for both runs.
     The machine:  Runtime type "CPU" with "High-RAM" on. No GPU.
     The length:   TOTAL_STEPS = 10000000, so the learning rate and every ramp are those of a judged run (D31). I read
-                  the save at 5,000,000 steps. At the foreleg runs' speeds (550-909 steps per second) that is
-                  1.5-2.5 hours in; the whole run takes 3-5 hours. Once I tell you the 5 M save is on your Drive,
+                  the save at 5,000,000 steps. At the 128 mm foreleg runs' speeds (542-617 steps per second) that is
+                  2.3-2.6 hours in; the whole run takes 4.5-5.1 hours. Once I tell you the 5 M save is on your Drive,
                   you may stop the runs (2.8) or let them finish: either is fine. Both runs can go at the same
                   time, each in its own notebook copy and its own runtime.
     Drive:        each run in  My Drive / mesozoic-labs / triceratops60 / <RUN_ID> ; about 90 MB each.
@@ -37,8 +37,8 @@ Three rules for the whole sheet (as before):
     The two runs:
 
       RUN_ID                          MODEL                               SEED   ENV_PRESET
-      trike60-steer1-dev-heat05       trike60_C_closed_capsule_fore128    0      steer1_dev_heat05
       trike60-steer1-dev-heat1        trike60_C_closed_capsule_fore128    0      steer1_dev_heat1
+      trike60-steer1-dev-heat2        trike60_C_closed_capsule_fore128    0      steer1_dev_heat2
 
     The same values for both: TOTAL_STEPS 10000000, N_ENVS 8, SEED 0, EVAL_EPISODES 5, USE_GOOGLE_DRIVE ticked,
     AUTO_DISCONNECT ticked.
@@ -62,7 +62,7 @@ Three rules for the whole sheet (as before):
          TOTAL_STEPS        10000000
          N_ENVS             8
          SEED               0
-         ENV_PRESET         <ENV_PRESET>     (the menu offers steer1_dev_heat05 and steer1_dev_heat1)
+         ENV_PRESET         <ENV_PRESET>     (the menu offers steer1_dev_heat1 and steer1_dev_heat2)
          EVAL_EPISODES      5
          USE_GOOGLE_DRIVE   ticked
          AUTO_DISCONNECT    ticked
@@ -137,10 +137,17 @@ Three rules for the whole sheet (as before):
       the foot loads, steer_eval.py's courses and the demo course with turns, all on the flat floor with per-body
       randomisation only (README, "The steering run's training additions").
     - Read each run's action noise at 1, 2 and 3 M steps (train_health.jsonl) and re-run
-      analysis/steer_heat_weight.py at that noise: the weights 0.5 and 1 assume about 0.175 and 0.15 at 3 M.
+      analysis/steer_heat_weight.py --stds <that noise>: weight 2 sits at the README's margin rule only if the noise
+      at 3 M is near the D22 runs' 0.123-0.128 (at 0.15 its margin over standing falls to +0.11).
     - Compare the two weights: the hottest drive (target case and stress points), walking and turning, falls under
       pushes, and whether either run drifted towards standing still. Both runs use seed 0, so the weight is the
       only setting that differs; a difference in the hottest drive under about 0.1 of its rating is within the
       seed-to-seed spread seen in D22 (0.83-0.95 over four seeds) and is not read as a weight effect.
+    - The judged weight, by this rule, fixed before the runs: a weight is out if its run drifts towards standing
+      (forward speed at a 0.25 m/s request under 0.2 m/s, or more falls than the other run, at 5 M) or if its noise
+      check above leaves a margin over standing under 0.3. Of the weights left: if only one has its hottest drive
+      (the gait report's target case) under 0.85 of its rating, that one; otherwise the higher if its hottest drive
+      is at least 0.1 cooler than the lower weight's, else the lower, since a smaller difference is within the
+      seed-to-seed spread. If both are out, I come back to you before any judged run.
     - Then the pre-registration of the judged runs (rules, seeds, stop rules), independently reviewed before any
       judged run.
