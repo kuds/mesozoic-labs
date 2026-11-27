@@ -1033,141 +1033,42 @@ read 0.63 at the settled statue against 0.16 for `bank_value_now`. There
 initial statistics, not a meaningful earlier normalizer; compare rows of
 `bank_value_now` with `obs_rms_*` instead.
 
-## The in-run K3 noise panel: `k3_panel.csv` and `k3_panel.json`
+## The in-run K3 noise panel (retired): `k3_panel.csv` and `k3_panel.json`
 
-K3, the stance judges' robustness criterion
-(`docs/investigations/stance_2026_10/stance5/replication/criteria.txt`:
-"joint-space noise falls at most 2 of 20, and own-sigma falls at most 1 of
-20" at 6,291,456 and the final), was measured only offline, by the judge,
-on checkpoints fetched after a run. The in-run panel
-(`environments/shared/k3_panel.py`) rolls the same two tests during
-training, so a run's K3 history is in its own stage directory. It is report
-only: the offline judge's K3 stays the K3 of record, and nothing (no gate,
-verdict, plateau, collapse stop, checkpoint selection or handoff) reads the
-panel.
+The in-run K3 noise panel (`environments/shared/k3_panel.py`, decision
+D-D48) rolled the stance5 replication judge's two K3 noise tests (20 spawns
+each, own-sigma and joint-space) on the live policy every 1,048,576 steps
+and at the end of the stance stage, into `k3_panel.csv` and `k3_panel.json`
+in the stage directory. It was report only and off unless the launch
+enabled it (the notebook's `K3_PANEL`, `train --k3-panel`,
+`train_base.train(..., k3_panel=...)`).
 
-**Enabling.** Off unless the launch turns it on, and only on the stance
-stage: the notebook's configuration cell (`K3_PANEL = True`, with
-`K3_PANEL_SIGMA_FILE` and `K3_PANEL_SIGMA_KEY`), the command line's
-`train --k3-panel [--k3-panel-sigma-file JSON --k3-panel-sigma-key KEY]`,
-or `train_base.train(..., k3_panel=K3PanelConfig(...))`. It is never a stage
-TOML key, so no stage-config, task or hyperparameter digest records it. The
-joint-space sigma is read once, at launch, from the JSON file: a dotted key
-(`control_sigma.80`) or a bare seed, looked up as `source_vectors.<seed>`,
-then `control_sigma.<seed>` (the stance5 replication sidecar
-`sigma_s70_s80.json`: `42` and `60` are those seeds' own frozen control
-sigma, `80` the mean of the three). Its vector, mean and sha256 (of its
-little-endian float64 bytes), and the file's path and sha256 are recorded.
-Without a usable sigma (no file, a missing key, a vector of another width,
-a non-positive entry) the joint-space test does not run and the reason is
-recorded; the own-sigma test still runs.
+It is retired, with its module, its launch options and its report reader,
+by the maintainer's decision of 2026-11-26. Its purpose, a K3 readout for
+the first r10 T. rex stance round, was met on 2026-10-28: it equalled the
+offline judge's K3 in falls and in the falling seeds at all 18 judged
+checkpoints of that round's three runs (D-14 in
+`investigations/stance_2026_10/stance6_results/review/REVIEW.txt`; §27.3 of
+`investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). It ran only in
+r10 screen runs, all among the nine that never count
+(`environments/shared/run_exclusions.py`; the record has it on in the three
+`stance6_r10LTSB` runs). No gate, certificate, scheduled session or roadmap
+item read it. Its joint-space sigma came from r9-era control runs (the
+stance5 replication's `sigma_s70_s80.json`) and is 15 wide, so its joint
+test could run on the T. rex alone: not on the Velociraptor's 17 actuators
+or any other model's. It cost about 20 minutes per 11M-step stance (11
+panels of about 1.5 to 2 minutes, the notebook's estimate), near Colab's
+24-hour session cap. No training run changes: the panel was never a stage
+key, so no digest moves.
 
-**What a panel is.** At the first step on or past every multiple of
-1,048,576 (with 4 environments, exactly the multiple: 11 panels to
-11,534,336) and once when training ends (the final weights, the last
-`train()` done), right after `train_base` saves the final checkpoint pair
-(`K3PanelCallback.roll_final_panel`; not after an interruption), so an
-interruption during that panel cannot cost the final pair: 20 spawns (3042-3061) of each test, own-sigma then
-joint-space, 40 episodes, with the stance5 replication judge's arithmetic
-(`noise_matched`, unchanged): per episode seed s, `rng =
-numpy.random.default_rng(s)` and `env.reset(seed=s)`; each step the
-observation normalized in numpy (`clip((obs - mean) / sqrt(var + eps),
--clip_obs, clip_obs)` as float32) and the policy's mean action `mu` read
-under `torch.no_grad` (float64); own-sigma `a = clip(mu + exp(log_std) z)`,
-joint-space `a = clip(clip(mu) + sigma z)`, `z = rng.standard_normal(15)`;
-a fall is an episode shorter than the stage's horizon. The env is the
-judge's: the stage's own `env_kwargs`, a fresh bare env per test, no
-recorder (the recorder is inert), never a training or evaluation env.
-
-**Inertness.** Training is bit for bit the same with the panel on: the
-in-suite proof (`test_curriculum_balance_telemetry.py`) enables it in its
-full run at test scale (every 128 steps, so three of its panels fall inside
-a rollout of 256 steps, two spawns per test; the final one after the final
-pair is saved) and switches it off by its builder in the plain run, with
-stock PPO and again with mirror-symmetric PPO (`[ppo] symmetry =
-"mirror_kl"`, the stance5 LTSB arm's), and every rollout-buffer add, every
-PPO update's state digest (parameters, optimizer, numpy, `random` and torch
-generators), `evaluations.npz`, the checkpoints' tensors and the
-VecNormalize statistics are the same. The panel draws no global random
-number (each episode's own `Generator` and the env's own reset seed; the
-whole panel inside `GlobalRngGuard`, which restores numpy's legacy
-generator, `random`, torch's CPU and CUDA generators on exit, an exception
-included, and records whether any moved); it copies the live policy's
-parameters to the CPU into a twin built once per session (whose weight
-initialisation draws, under the guard) and never calls `predict()` or
-`deepcopy` on the live policy; it copies the training VecNormalize's
-`obs_rms` arrays and never calls its `normalize_obs`, `step` or `reset`;
-torch runs one thread during a panel and the count is restored. It records
-no TensorBoard key and no `progress.json` entry, and writes none of
-`gate_progress.npz`, `evaluations.npz`, `eval_episodes.csv`,
-`gate_verdict.json` or `policy_probe.npz`. A failure is logged once and
-recorded for that panel; training goes on. The panel is synchronous:
-training waits while it runs, so its seconds are in the run's wall-clock
-figures (`progress.json`'s `steps_per_s`, `wall_clock_s` and
-`projected_finish`, `stage_config.json`'s `run.duration_seconds`, SB3's
-`time/fps`); to compare throughput with a run without the panel, subtract
-`k3_panel.json`'s per-panel `seconds`.
-
-**Files** (stage directory, rewritten atomically after each panel).
-`k3_panel.csv`: one row per episode: `panel`, `timesteps`, `kind` (`grid`,
-`final`, or `resume`, below), `test` (`own`, `joint`), `episode`, `seed`,
-`length`, `fall` (0/1), `termination_reason` (the env's; empty at the time
-limit), `return`, `sigma_sha256`. `k3_panel.json`
-(`mesozoic.k3-panel/v1`): the definition (`spec`: the arithmetic, the
-seeds, the horizon, the grid, the joint sigma record), `session_problem`
-(why a session ran no panel: a policy without `log_std`, say), and per
-panel its step, grid point and kind, per test `n`, `falls`, `fall_seeds` and
-`fall_lengths` (or why the joint test was skipped), the own sigma vector
-(`exp(log_std)`), its mean and sha256, the joint sigma's sha256, the sha256
-of the CPU state dict and of the copied observation mean and variance (so
-an offline reader can match the checkpoint pair saved at the same step),
-seconds, the library versions, whether a global generator moved, and a
-failure reason. No within-bar flags are written there; the training-history
-report sets them at K3's checkpoints only (`17_exploration_k3`).
-
-**Resume.** A same-stage resume keeps the prior session's panels and rows at
-or before the resumed step (`seed_prior_record`, as the other ledgers do)
-and, before its first rewrite, copies the prior files aside as
-`k3_panel.prior_<UTC>.csv` and `.json` (a superseded panel is moved aside,
-never deleted). A resume exactly on a grid step whose panel is missing (a
-session cut off during the panel, which runs right after the checkpoint pair
-of that step is saved) rolls it when training starts (`kind` `resume`) on
-the restored checkpoint pair's statistics, copied before `learn()` resets
-the training env (whose VecNormalize then updates its statistics with the
-reset observations). The next panel is the next grid multiple. A session
-reads the sigma file again; a different vector than before is recorded per
-row (`sigma_sha256`), and the report never joins two sigma hashes into one
-series.
-
-**Validation against the judge** [measured, 2026-10-25]. On a scratch tree of
-the judge's own clone (cf80ecb1, the LTSB arm on r9 physics) with this
-module overlaid, the panel's callback path (training-start catch-up at the
-checkpoint's step: the CPU twin, the copied statistics, the guard, the
-files) and an offline `run_k3_panel` on the loaded policy itself, against
-the judge files of two checkpoints: the stance5 replication's
-`stance5_LTSB_s80` at 4,194,304 (`judge_4194304.json`, `stance5r-judge/v1`,
-the sidecar's mean sigma `control_sigma.80`: joint-space falls 2 of 20, at
-seeds 3051 and 3061, lengths 335 and 265; own-sigma 0) and stance5's
-`stance5_LTSB_s42` at 4,194,304 (`stance5-judge/v1`, `source_vectors.42`:
-0 and 0). Both sigma vectors equal the judge's bit for bit; every one of the
-80 episodes' seed, length, termination reason and return equals the judge
-file's bit for bit (return difference 0.0); the twin's panel equals the
-live policy's offline run bit for bit; no global generator moved, and the
-policy's training flag and the VecNormalize arrays were unchanged.
-
-**Cost.** [measured] A 40-episode panel of the s80 checkpoint (38 of its
-40 episodes reached the horizon: 38,600 env steps) took 84.8 and 85.0 s
-alone on the 4-vCPU Xeon @ 2.10 GHz host (2.2 ms per step, 2.12 s per
-episode; load average 0.6 to 1.2), and 84.6 and 90.5 s with two panels at
-once; falls end episodes early, so a falling policy's panel is cheaper.
-[inferred] A policy that holds all 40 episodes (40,000 steps) takes about
-88 s here, so a 12M-step run's 12 panels about 17.6 min. On a Colab L4
-runtime [inferred, not measured: its vCPUs are of the same class and the
-panel is one CPU thread; a factor of 1.0 to 1.5]: about 18 to 26 min per
-run, about 2 to 3% of a 14.4 to 15.4 h run (the first r10 round's
-estimate, which includes the panel), added to each run's wall clock
-because training waits. Memory: one env and one CPU copy of the policy
-(about 3 MB).
+The `k3_panel.csv` and `k3_panel.json` files those screen runs wrote stay
+on Drive as they are, and nothing reads them any more: the
+training-history report reads K3 from the judge files alone (`--judged`;
+page `17_exploration_k3`, below). The offline judges' K3 stays the K3 of
+record for r9 and r10. Those are the T. rex stance judges (stance3 to the
+stance5 replication); no other model has a K3 judge, so page 17 draws no
+K3 falls for the Velociraptor, the Allosaurus, the Brachiosaurus, the
+Dibothrosuchus or either Compsognathus.
 
 ## Single-episode trace: `episode_trace_report.py`
 
@@ -1245,13 +1146,96 @@ The trace writes to `--out-dir` (default `episode_trace_<checkpoint stem>`
 in the current directory) and refuses one inside a run directory (the
 nearest ancestor holding `provenance.json`) or inside the stage directory of
 the checkpoint or its statistics (`result_bundle.refuse_output_inside_run`,
-which `stance_gate_report.py` and `harnesses/recovery_offdist_panel.py`
-share; `plot_gate_progress.py` has its own, narrower guard: it refuses an
-`--out` inside the run of the stage directory it plots): a result bundle's
+which `stance_gate_report.py`, `warm_start_noise_scan.py` and
+`harnesses/recovery_offdist_panel.py` share; `plot_gate_progress.py` has
+its own, narrower guard: it refuses an `--out` inside the run of the stage
+directory it plots): a result bundle's
 manifest hashes every file under the run. It changes no gate, reward,
 observation, action, task, checkpoint selection or plant, and the digest
 snapshot does not move. It traces the training heading only, not the
 certificate's turned headings.
+
+## Walk warm-start noise scan: `warm_start_noise_scan.py`
+
+A walk stage warm-starts PPO from its parent's handoff and keeps the
+parent's learned `log_std`. `environments/shared/scripts/warm_start_noise_scan.py`
+measures, offline and report-only, how much noise the parent tolerates in
+the walk stage's env, so a `[curriculum] warm_start_log_std` can be chosen
+from a measurement (the maintainer's decision of 2026-11-26; no committed
+walk stage declares one):
+
+```bash
+python -m environments.shared.scripts.warm_start_noise_scan \
+    --species tyrannosaurus_rex --embodiment anatomical \
+    --stage-dir RUN/01_stance --jobs 4 --out-dir scratch/noise_scan
+```
+
+`--stage-dir` scans the stage's handoff pair (`select_handoff_checkpoint`),
+or `--model` and `--vecnorm` name a pair (a missing file is refused by name).
+The pair loads frozen and checked against the current plant, as the episode
+trace loads it (`--allow-legacy-plant` admits a pre-contract checkpoint and
+records `checkpoint_plant_validated` false), and its recorded task must be
+the walk's declared parent. The walk stage defaults to the manifest's `walk`
+node that warm-starts from the parent (`locomotion`). Its env is built
+through `config.build_env` from the committed `[env]` keys, with the forward
+weight at the reward ramp's start value. Two reference settings come first:
+`mean`, the policy's mean action with no noise, rolled once per seed, and
+`own`, the parent's learned `log_std`. Then each grid value is written into
+every entry of the policy's `log_std`, in memory, and restored. The default
+grid has two passes: the parent's largest learned `log_std` rounded to a
+multiple of 0.125, from 0.5 below it to 1.0 above it in steps of 0.25, then
+one value 0.125 above the largest first-pass value at which every episode
+stood (none when no value or the largest value stood every episode). A
+`--log-std` grid is rolled as given. Every noisy setting rolls seeds
+3042-3081 in three noise streams to the walk's episode length (`--seeds`,
+`--streams`, `--horizon`). Actions are `clip(mean + std z)` from the
+policy's own distribution, with `z` from
+`numpy.random.default_rng(SeedSequence([seed, 20261126, stream]))`, the same
+draws for every setting.
+
+An episode stands when it reaches the horizon and `env.step` reported no
+termination; `info["termination_reason"]` names the cause of an early end.
+`warm_start_noise_scan.txt` (the printed table) and
+`warm_start_noise_scan.json` (`mesozoic.warm-start-noise-scan/v1`) hold, per
+setting:
+
+| Field | Meaning |
+|---|---|
+| `stood_per_stream`, `stood`, `episodes` | Standing episodes per noise stream and in total |
+| `ends` | The early ends by `termination_reason` |
+| `mean_length`, `mean_return` | Over every episode, the return at the warm start's reward weights (over the finite returns) |
+| `nonfinite_episodes` | Episodes whose return or displacement was not finite (a `nonfinite_state` end); their record holds `None` |
+| `lift_offs_per_standing_episode`, `standing_episodes_with_lift_off` | Touch-sensor lift-offs of the standing episodes after the 0.1 s spawn grace: a foot is down when its touch force exceeds 0.1 N on at least half the substeps, debounced over 20 ms (the gait rule, in seconds: 2 steps at 0.01 s, 1 step, so no debounce, on the Compsognathus models' 0.02 s; the JSON's `lift_off_debounce_steps`) |
+| `forward_displacement_mean_m`, `forward_displacement_sd_m` | The slide of the standing episodes along the walk reward's forward reference at reset |
+| `clipped_fraction` | The share of action entries the clip changed |
+| `episode_records` | Every episode's seed, stream, length, end, return, lift-offs and displacement |
+
+`largest_all_standing` is the largest grid value at which every episode
+stood (`docs/NEXT_STEPS.md`'s "largest value at which 120/120 episodes
+stand"), with the next value up and how it stood.
+`below_first_failure_log_std` is the largest value with every smaller grid
+value standing too; it differs only when a smaller value fell
+(`failing_below`). The printed recommendation line states those
+measurements, the two reference rows and, for a shortened panel, how it was
+shortened, and nothing else. The JSON also records the inputs and their
+sha256 (checked unchanged after the scan), the parent's per-actuator
+`log_std`, the policy's classes and the definitions. `--out-dir` is refused
+inside a run directory or the parent's stage directory
+(`result_bundle.refuse_output_inside_run`), and when it already holds a
+scan, finished, running or interrupted. The scan creates
+`warm_start_noise_scan.partial.json` before its first setting rolls and is
+refused if another scan created it first, so two scans started into one
+directory at once never both roll, and a JSON or table another scan wrote
+there meanwhile is refused at the end, never replaced. The file is
+rewritten as each pass starts and as each setting finishes (`complete`
+false, the pass's grid and rule, the rows so far and the current pass's
+`pending` settings), so an interrupted scan keeps what it measured; a
+rewrite that fails is warned about and the scan goes on. It is removed once
+both outputs are written. The tool changes no config, gate,
+reward, task, checkpoint or plant. The default T. rex scan is at most 1.12M
+control steps, about 28 minutes of one CPU at the measured 1.5 ms per step;
+`--jobs N` splits each pass over N processes with the same records. It runs
+as a session of its own, never inside a training session.
 
 ## Training progress: `progress.json`
 
@@ -1346,7 +1330,7 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 | Tail and body (`14_tail_body`) | `tail_tip_chord_mean_deg` shaded from the lowest episode's window minimum to the highest's window maximum; the `tail_<n>_<pitch\|yaw>_mean_deg` hinges; `root_height_mean_m` and `root_height_min_m`; `root_pitch_mean_deg` and `root_roll_mean_deg`, each shaded over its episodes' window range |
 | Energy (`15_energy`) | Per actuator group (legs, tail, neck_head, other where present): absolute work (log), net work, peak power (log), torque RMS as a fraction of the force limit, command jitter; each leg's absolute work (log) |
 | Drift and slip (`16_drift_slip`) | `window_displacement_fore_aft_m` and `_lateral_m`; `window_path_length_m` beside `window_displacement_m`; `window_yaw_change_signed_deg`; per foot, `<label>_slip_m` and `<label>_site_travel_m` (log) |
-| Exploration and K3 (`17_exploration_k3`) | The leg actuators' exploration std over training (below) beside K3's noise falls from the in-run K3 panel and the judge files |
+| Exploration and K3 (`17_exploration_k3`) | The leg actuators' exploration std over training (below) beside K3's noise falls from the judge files (`--judged`) |
 | Normalization (`18_obs_normalization`) | The observation normalization's drift per checkpoint, from the VecNormalize pickles in `models/` (below) |
 | Body dynamics (`19_body_dynamics`) | The four MjData-derived extras: each limited joint's stop share and mean stop torque (only joints ever on a stop), the tail-base and neck-base pitch moment and load, the CoM's and capture point's toe and heel margins, the centroidal angular momentum RMS, the head's angular-rate RMS |
 | Gait ledger (`20_gait_ledger`) | The gait columns over the run's last 6 evaluations (`--gait-evaluations`), as text lines, and each per evaluation (its median): `window_yaw_change_signed_deg` (+ left) led by its same-sign share, since it runs from the settle step to the episode end and so includes steering toward the task's target ("magnitude includes target steering"); `window_displacement_lateral_m`; the `leg_q_<left>_minus_<right>_<joint>_deg` offsets (window-mean angle from home, + = left above right); the right-over-left `<foot>_leg_work_abs_j` and `<foot>_slip_m` ratios (per episode, then the median); `root_roll_mean_deg` (+ right side down); `saturated_actuator` and `saturated_actuator_fraction`; each `<joint>_stop_share`; `head_angular_rate_rms_dps`. Report-only flags on a locomotion stage only, each bar a choice set on three seeds and three hand-built walks: VEER (same-sign share >= 0.8; only that half of the gait report's bar, with no turn-rate bar, so a consistent turn of any size fires it), ASYMMETRY (`<foot>_leg_work_abs_j` max/min > 1.3, a proxy for the gait report's leg-power bar), LEAN (\|roll\| > 2 deg), ON STOP (`<joint>_stop_share` > 0.05). The numbers, their trend and the rules are the JSON's per-run `gait_ledger` block; a column the ledger lacks is listed as absent, and a run with no full-horizon evaluation episode says so |
@@ -1498,10 +1482,10 @@ applied here). Without `--judged` (the stage-end report) the panel is not
 drawn.
 
 Pages 13 to 19 come after the hip roll page, so every earlier page keeps its
-name; they draw the body columns ("The body columns", above) and the in-run
-K3 panel ("The in-run K3 noise panel", below), report only. A ledger written
-before the body columns, or a model whose evaluation runs no recorder, draws
-them as labelled absent panels and says so in the captions and the JSON's
+name; they draw the body columns ("The body columns", above) and the judge
+files' K3 (page 17), report only. A ledger written before the body
+columns, or a model whose evaluation runs no recorder, draws them as
+labelled absent panels and says so in the captions and the JSON's
 `absent`; a column the model has no part for (no tail, no neck) reads nan on
 every episode and its panel says "the model has no such part". The rail and
 parked counts are never smoothed and are drawn like the saturation page's
@@ -1523,28 +1507,25 @@ column, a line per run.
   The names need the run's physics, as the std page's do. A pair is drawn
   right solid, left dashed, as on every other page (the specification
   asked for left solid, right dashed; kept for consistency). Below: K3's
-  two noise tests at each K3 point, the in-run panel's (`k3_panel.json`;
-  lines with markers, one series per joint-space sigma, never joined across
-  two, and broken where a panel has no value: a skipped joint test, a
-  failed panel, which is marked `x` at 0) and the judge files' where
-  `--judged` names them (large markers on top): joint-space and own-sigma
-  falls; K3's bars (in the legend) where a point has 20 episodes, and
-  `joint/own` written at K3's checkpoints (6,291,456 and the final; named
-  `panel` and `judge` and stacked where a run has both), with
-  `joint_within_bar` and `own_within_bar` in the JSON, withheld where a
-  panel is not 20 episodes on spawns 3042-3061. A comparison draws each
-  run's mean leg std and its falls in its colour. The JSON's `exploration`
-  gives each leg actuator's std at every K3 point (`leg_std_at_k3`): the
-  point's own sigma where it is recorded (the panel's `own_sigma`, the
-  judge's `noise_matched_own` `sigma_vector`: `exp(log_std)` of the very
-  weights K3 rolled), else the last update at or before it, which at a
-  final point is the update before the last `train()`; `std_source` says
-  which. `k3_panel` keeps the panel's points, and the checkpoint table adds
-  `K3 panel joint` and `K3 panel own` at a step with a panel, and `tail
-  chord deg` and `legs work J`, the row's evaluation's
-  `tail_tip_chord_mean_deg` and `legs_work_abs_j` (their means over its
-  full-horizon episodes), where the ledger has them. Without either source
-  the lower panel says so.
+  two noise tests at each checkpoint the judge files judged, where
+  `--judged` names them (filled markers with a dark edge: diamonds for the
+  joint-space falls, crosses for the own-sigma falls); K3's bars (in the
+  legend) where a point has 20 episodes, and `joint/own` written at K3's
+  checkpoints (6,291,456 and the final; stacked where two points share a
+  step), with `joint_within_bar` and `own_within_bar` in the JSON's
+  `judge_k3`, withheld where a panel is not 20 episodes on spawns
+  3042-3061. A comparison draws each run's mean leg std and its falls in
+  its colour. The JSON's `exploration` gives each leg actuator's std at
+  every judged K3 point (`leg_std_at_k3`): the point's own sigma where the
+  judge recorded it (`noise_matched_own`'s `sigma_vector`: `exp(log_std)`
+  of the very weights K3 rolled), else the last update at or before it,
+  which at a final point is the update before the last `train()`;
+  `std_source` says which. The checkpoint table adds `tail chord deg` and
+  `legs work J`, the row's evaluation's `tail_tip_chord_mean_deg` and
+  `legs_work_abs_j` (their means over its full-horizon episodes), where the
+  ledger has them. Without judge files the lower panel says so. A
+  `k3_panel.json` left in a stage directory by a run trained before the
+  in-run panel was retired (2026-11-26) is not read.
 - **Normalization** (`18_obs_normalization`). From each periodic
   (`<prefix>_vecnormalize_<steps>_steps.pkl`) and the final
   (`<prefix>_final_vecnorm.pkl`) VecNormalize pickle in `models/`, the pairs
@@ -1726,11 +1707,6 @@ terms split by outcome, the mirror-even leg DC, and, on PPO,
 | Dibothrosuchus elaphros | yes | no | no (`reward_and_length/v1`) | no | 2 |
 | Velociraptor mongoliensis | no (no box pad) | no | no (no recorder) | no | 1 |
 | Brachiosaurus altithorax | no (no box pad) | no | no | no | 2 |
-
-The in-run K3 noise panel (`k3_panel.csv`, `k3_panel.json`) is written only
-where the launch enabled it, and only on the stance stage; its arithmetic
-is general to an SB3 Gaussian policy on a box action space, but the option
-is documented for the T. rex stance, the judge's test.
 
 Behaviour stages trained by `train_behaviors.py` build their own callbacks
 and get none of these, nor `progress.json`.

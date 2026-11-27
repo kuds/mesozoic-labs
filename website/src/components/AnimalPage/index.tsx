@@ -9,7 +9,7 @@ import {headlineFor, posterFor, type Species} from '@site/src/data/species';
 import {AnimalHeader} from './AnimalHeader';
 import BrachiosaurusEvidence from './BrachiosaurusEvidence';
 import MovementStudy from './MovementStudy';
-import {INTERPRETATIONS} from './interpretation';
+import {INTERPRETATIONS, studyLabel} from './interpretation';
 import styles from './styles.module.css';
 
 const REPO = 'https://github.com/kuds/mesozoic-labs';
@@ -30,7 +30,7 @@ function MovementStudies({animal, model}: {animal: Animal; model: Species}) {
         </div>
         <div className={styles.studyGrid}>
           {model.stages.map((stage) => {
-            const label = study?.studies[stage.id];
+            const label = studyLabel(study, model.embodiment, stage.id);
             const video = stage.video;
             const reference = label?.referenceRecording;
             const path = reference?.path ?? video?.path;
@@ -58,7 +58,7 @@ function MovementStudies({animal, model}: {animal: Animal; model: Species}) {
         </div>
       </section>
       <dl className={styles.specs}>
-        <div><dt>Support</dt><dd>{model.gait === 'Quadrupedal' ? 'Four limbs' : 'Two hind limbs'}</dd></div>
+        <div><dt>Support</dt><dd>{model.gait === 'Quadrupedal' ? 'Four limbs' : model.embodiment === 'robot' ? 'Two legs' : 'Two hind limbs'}</dd></div>
         <div>
           <dt>{details?.detailLabel ?? 'Observations'}</dt>
           <dd>{details?.detail ?? model.observationDim}</dd>

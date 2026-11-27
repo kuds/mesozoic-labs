@@ -28,7 +28,12 @@ and its strict promotion cell, which refuses a screen or a quick test), and the
 storage cell refuses, before anything is written, a ``RUN_ID`` that names a run in
 another tree of the model (:func:`refuse_run_id_of_another_tree`: a fresh runtime
 resets ``RUN_KIND`` and ``QUICK_TEST``) and a certification run's ``TRUNK_FROM``
-that pins a screen or a quick test (:func:`refuse_uncertified_trunk`).
+that pins a screen or a quick test (:func:`refuse_uncertified_trunk`).  The storage cell's own
+``RUN_ID`` rules (the maintainer's decisions of 2026-11-26: an id that names only another
+model's run, the characters of a new id, the banner an explicit id prints) are written in the
+cell over :func:`run_tree_names`, :func:`run_kind_of` and :data:`TREE_KNOBS`: the cell imports
+nothing this module lacked on 2026-11-24, so a ``REPO_REF`` at any commit that has it still runs
+the cell (``tests/test_run_id_rules.py``).
 
 The tree guards those two scans and the pinned trunk only.  Nothing here refuses a
 certification run that loads, resumes or widens a screen's checkpoint (the manual
