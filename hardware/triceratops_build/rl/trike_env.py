@@ -56,7 +56,8 @@ STEERING_TERMS = ()  # terms only a steering command_mode adds (none since the r
 REWARD_BONUSES = ("r_track", "r_alive")  # >= 0; r_diagonal and r_air_time may take either sign; every other is <= 0
 # Two schedules (train.py sets both in every env before each rollout):
 RAMPED_TERMS = ("r_energy", "r_slip")  # x penalty_scale: from the first steps (pipe1's schedule, 0.1 -> 1 over 2 M)
-LATE_TERMS = ("r_heat", "r_saturation", "r_heat_peak")  # x late_scale, and so is the NEGATIVE part of r_air_time (0 until 1 M)
+# x late_scale (0 until 1 M), and so is the NEGATIVE part of r_air_time
+LATE_TERMS = ("r_heat", "r_saturation", "r_heat_peak")
 DRIVE_GROUPS = ("roll", "pitch", "front elbow", "hind knee")
 
 
@@ -167,14 +168,22 @@ class TrikeEnvConfig:
     # exploration noise (std 0.2) 0.99 (cost 0.30); every drive exactly at its rating, 1. 0.3 rather than 0.5 so that
     # at full scale a noisy walking policy still beats standing by about 0.37 per step (README's reward table).
     w_heat: float = 0.3
-    # The hottest drive (D29; 0 = off, the default: the term is then exactly 0 and nothing else changes). Each drive's
-    # (torque / continuous rating)^2, averaged over the step's physics steps, is low-passed with heat_peak_tau_s; the
-    # cost is w_heat_peak x late_scale x max(0, sqrt(the largest of the 12) - heat_peak_margin), in units of the
-    # rating's RMS. w_heat's mean over 12 drives prices a single hot drive at a twelfth of its own heat; this prices
-    # the drive that fails F2 (RMS torque at or over its continuous rating).
+    # The hottest drive (D29; 0 = off, the default: the term is then exactly 0 and nothing else changes). From
+    # heat_peak_start_s on (F2's window starts at 2 s), each drive's (torque / continuous rating)^2, averaged over the
+    # step's physics steps, is low-passed with heat_peak_tau_s, bias-corrected (heat_peak_update): until about tau
+    # it is the running mean since the start, F2's own estimator, and then an exponential average. The cost is
+    # w_heat_peak x late_scale x max(0, sqrt(the largest of the 12) - heat_peak_margin), in units of the rating's RMS.
+    # w_heat's mean over 12 drives prices a single hot drive at a twelfth of its own heat; this prices the drive that
+    # fails F2 (RMS torque at or over the continuous rating). The average is not in the observation, and under gamma
+    # 0.99 a step's heat reaches the return through it with a weight of about alpha / (1 - 0.99 (1 - alpha)) of an
+    # unfiltered per-step cost: 0.33 at tau 4 s (0.67 at 1 s, 0.5 at 2 s, 0.2 at 8 s). A shorter tau prices sooner but
+    # also charges short bursts (a push recovery) that the windings' 4-15 min time constants would not notice. The
+    # weight: README, "The steering run's training additions" (exploration noise makes the hottest drive hotter, and
+    # at weight 1 and the initial noise a noisy walking gait earns no more than standing).
     w_heat_peak: float = 0.0
-    heat_peak_margin: float = 0.8  # RMS / continuous rating below which the hottest drive costs nothing
+    heat_peak_margin: float = 0.8  # RMS / continuous rating below which a drive costs nothing
     heat_peak_tau_s: float = 4.0  # low-pass time constant of each drive's (torque / rating)^2, s
+    heat_peak_start_s: float = 2.0  # the average starts this long after reset (the cost is 0 before)
     saturation_frac: float = 0.95  # a drive "saturates" at this fraction of its (randomised) force limit
     # x fraction of the 12 drives x physics steps that saturate, against the EPISODE'S randomised force limit (that
     # is the limit the drive would hit; 0.85-1.0 x nominal under domain randomisation)
@@ -402,12 +411,15 @@ def terrain_layout(cfg: "TrikeEnvConfig", scale: float, u) -> dict:
     return {"kind": kind, "boxes": boxes, "profile": (np.array(ps), np.array(pz))}
 
 
-FLAT_FLOOR = {"terrain_boxes": 0, "push_prob": 0.0, "friction_low_hard": None}
+FLAT_FLOOR = {"terrain_boxes": 0, "push_prob": 0.0, "friction_low_hard": None, "mass_scale_whole_range": None,
+              "payload_kg_range": None}
 
 
 def flat_floor(cfg: "TrikeEnvConfig") -> "TrikeEnvConfig":
-    """``cfg`` with the training-only terrain, pushes and low-friction end off: what evaluations and the analysis
-    tools measure on (the robustness sweep adds its own steps, ramps and pushes). An older run's config is unchanged."""
+    """``cfg`` with the training-only terrain, pushes, low-friction end and whole-robot mass and payload draws off:
+    what evaluations and the analysis tools measure on (the robustness sweep adds its own steps, ramps, pushes, masses
+    and payloads), so a randomised measurement draws the per-body factors only, as every run before them did. An
+    older run's config is unchanged."""
     return cfg.replace(**FLAT_FLOOR)
 
 
@@ -442,6 +454,15 @@ def diagonal_score(contact) -> float:
     together, diagonals apart), 0 for a pace, a pronk, all four down or all four up. Order: ``CORNERS``."""
     c = [bool(x) for x in contact]
     return 0.5 * (float(c[0] == c[3]) + float(c[1] == c[2])) - 0.5 * (float(c[0] == c[1]) + float(c[2] == c[3]))
+
+
+def heat_peak_update(ema: np.ndarray, n: int, x: np.ndarray, alpha: float) -> np.ndarray:
+    """One control step of ``r_heat_peak``'s average, in place on ``ema`` (zeros at the start): each drive's step mean
+    ``x`` of (torque / rating)^2, low-passed with ``alpha``; returns each drive's RMS over its rating, bias-corrected
+    by 1 - (1 - alpha)^n for the ``n`` steps averaged so far, so a constant input gives that input's RMS from the first
+    step (the running mean since the start while n alpha is small, then the exponential average)."""
+    ema += alpha * (x - ema)
+    return np.sqrt(ema / (1.0 - (1.0 - alpha) ** n))
 
 
 def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: float, yaw_rate: float, yaw_err: float,
@@ -520,8 +541,10 @@ class TrikeEnv(gym.Env):
         self.cfg = cfg
         if cfg.command_mode not in ("none", "heading", "heading_and_speed"):
             raise ValueError(f"command_mode must be none, heading or heading_and_speed, got {cfg.command_mode!r}")
-        if cfg.w_heat_peak < 0 or not 0.0 < cfg.heat_peak_margin <= 2.0 or cfg.heat_peak_tau_s <= 0:
-            raise ValueError("w_heat_peak must be >= 0, heat_peak_margin in (0, 2] and heat_peak_tau_s > 0")
+        if (cfg.w_heat_peak < 0 or not 0.0 < cfg.heat_peak_margin <= 2.0 or cfg.heat_peak_tau_s <= 0
+                or cfg.heat_peak_start_s < 0):
+            raise ValueError("w_heat_peak must be >= 0, heat_peak_margin in (0, 2], heat_peak_tau_s > 0 and "
+                             "heat_peak_start_s >= 0")
         for name in ("mass_scale_whole_range", "payload_kg_range"):
             r = getattr(cfg, name)
             if r is not None and not (len(r) == 2 and 0.0 <= r[0] <= r[1]):
@@ -555,6 +578,9 @@ class TrikeEnv(gym.Env):
                       if cfg.terrain_boxes > 0 else mujoco.MjModel.from_xml_path(str(cfg.model_path)))
         self.data = mujoco.MjData(self.model)
         m = self.model
+        # mj_setConst rewrites the qpos of the data it is given (to qpos_spring), so the whole-robot factors, applied
+        # after the reset state is placed, recompute the constants on this scratch copy (the constants are the same)
+        self._const_data = mujoco.MjData(self.model)
 
         self.physics_dt = float(m.opt.timestep)
         self.dt = self.physics_dt * cfg.frame_skip
@@ -568,6 +594,8 @@ class TrikeEnv(gym.Env):
         self._ground = None  # (origin, heading, profile s, profile z) of the episode's terrain; None: flat floor
         self._drift_alpha = 1.0 - math.exp(-self.dt / cfg.lateral_drift_tau_s) if cfg.lateral_drift_tau_s > 0 else 1.0
         self._yaw_alpha = 1.0 - math.exp(-self.dt / cfg.track_yaw_tau_s) if cfg.track_yaw_tau_s > 0 else 1.0
+        self._heat_alpha = 1.0 - math.exp(-self.dt / cfg.heat_peak_tau_s)
+        self._heat_start_step = int(round(cfg.heat_peak_start_s / self.dt))  # control steps before the average starts
 
         # --- ids ---
         self._leg_act = np.array([m.actuator(n).id for n in LEG_ACTUATORS], dtype=np.int64)
@@ -712,7 +740,8 @@ class TrikeEnv(gym.Env):
         self.touchdowns = 0  # debounced touchdowns this episode (diagnostic)
         self._v_lat_slow = 0.0  # sideways speed, low-passed (r_lateral_drift)
         self._heat_ema = np.zeros(12)  # each drive's (torque / rating)^2, low-passed (r_heat_peak)
-        self.heat_peak_rms = 0.0  # sqrt of the largest of them, this step
+        self._heat_n = 0  # control steps in that average
+        self.heat_peak_rms = 0.0  # sqrt of the largest of them (bias-corrected), this step
         self._yaw_err_slow = 0.0  # steering: turn-rate error, low-passed (r_track)
         self._phys_step = 0  # physics steps since reset (the push's clock)
         self._push_dv, self._push_start, self._push_end = 0.0, -1, -1  # no push unless reset draws one
@@ -846,7 +875,8 @@ class TrikeEnv(gym.Env):
             self._set_command(st)
 
         # 8. whole-robot factors (only when configured: 2 uniforms, after every other draw), applied under domain
-        # randomisation on top of the per-body factors, then the derived constants and the state recomputed
+        # randomisation on top of the per-body factors, then the derived constants (on the scratch data, so the
+        # state placed in step 4 is kept) and the derived quantities of the state recomputed
         if cfg.mass_scale_whole_range is not None or cfg.payload_kg_range is not None:
             u_whole, u_pay = rng.random(2)
             if cfg.domain_randomization:
@@ -861,7 +891,7 @@ class TrikeEnv(gym.Env):
                     ratio = (m.body_mass[c] + payload) / m.body_mass[c]
                     m.body_mass[c] += payload
                     m.body_inertia[c] *= ratio
-                mujoco.mj_setConst(m, d)
+                mujoco.mj_setConst(m, self._const_data)
                 mujoco.mj_forward(m, d)
                 self.factors["mass_scale_whole"] = whole
                 self.factors["payload_kg"] = payload
@@ -935,10 +965,10 @@ class TrikeEnv(gym.Env):
         mean_power = energy / cfg.frame_skip
         heat_index = heat / (12 * cfg.frame_skip)
         heat_peak_excess = 0.0
-        if peak_on:  # each drive's step mean of (torque / rating)^2, low-passed; the hottest one's RMS over the margin
-            self._heat_ema += (1.0 - math.exp(-self.dt / cfg.heat_peak_tau_s)) * (heat_vec / cfg.frame_skip -
-                                                                                  self._heat_ema)
-            self.heat_peak_rms = math.sqrt(float(self._heat_ema.max()))
+        if peak_on and self._step_count > self._heat_start_step:  # each drive's step mean of (torque / rating)^2
+            self._heat_n += 1
+            rms = heat_peak_update(self._heat_ema, self._heat_n, heat_vec / cfg.frame_skip, self._heat_alpha)
+            self.heat_peak_rms = float(rms.max())
             heat_peak_excess = max(0.0, self.heat_peak_rms - cfg.heat_peak_margin)
         saturated_fraction = saturated / (12 * cfg.frame_skip)
 
@@ -1020,11 +1050,12 @@ class TrikeEnv(gym.Env):
             "tilt_deg": tilt, "height": z, "mean_power_w": mean_power, "foot_contacts": contact.astype(np.int8),
             "delay_steps": self.delay_steps, "termination": reason, "time_s": t, "penalty_scale": self.penalty_scale,
             "late_scale": self.late_scale,
-            "heading_drift": self._heading_drift, "heat_index": heat_index, "heat_peak_rms": self.heat_peak_rms,
-            "saturated_fraction": saturated_fraction,
+            "heading_drift": self._heading_drift, "heat_index": heat_index, "saturated_fraction": saturated_fraction,
             "touchdowns": touchdowns, "air_time_gain": air_gain, "air_time_shortfall": air_short,
             "lateral_speed_slow": self._v_lat_slow,
         })
+        if peak_on:  # the hottest drive's average (0 before heat_peak_start_s); absent when the term is off
+            info["heat_peak_rms"] = self.heat_peak_rms
         if self._steer:  # the executed command and its tracking (the shared contract's field names)
             err_h = _wrap(executed["desired_heading"] - yaw) if executed["observe_heading"] else 0.0
             info.update({

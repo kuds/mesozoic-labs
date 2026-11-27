@@ -3,16 +3,18 @@ mass and payload factors. Each is off by default; the regression digests in test
 
 from __future__ import annotations
 
+import json
 import math
+import sys
 
-import mujoco
 import numpy as np
 import pytest
 from conftest import RL_DIR  # noqa: F401
 
-from trike_env import TrikeEnv, TrikeEnvConfig, reward_terms
+from trike_env import FLAT_FLOOR, TrikeEnv, TrikeEnvConfig, flat_floor, heat_peak_update, reward_terms
 
 FORE128 = str(RL_DIR.parent / "sim" / "generated" / "trike60_C_closed_capsule_fore128.xml")
+CONFIGS = RL_DIR / "configs"
 
 
 def total_mass(env):
@@ -24,7 +26,7 @@ def test_heat_peak_term_is_exactly_zero_when_off():
     e.reset(seed=3)
     for _ in range(20):
         _, _, _, _, info = e.step(np.zeros(12))
-    assert info["r_heat_peak"] == 0.0 and e.heat_peak_rms == 0.0
+    assert info["r_heat_peak"] == 0.0 and "heat_peak_rms" not in info  # no figure that looks like a measurement
 
 
 def test_heat_peak_reward_term_arithmetic():
@@ -37,31 +39,52 @@ def test_heat_peak_reward_term_arithmetic():
     assert reward_terms(cfg, late_scale=0.0, heat_peak_excess=0.2, **base)["r_heat_peak"] == 0.0
 
 
+def test_heat_peak_update_is_bias_corrected():
+    """A constant input gives its own RMS from the first step; a changing one, the running mean while n alpha is small
+    (F2's estimator) and the exponential average later."""
+    alpha = 1.0 - math.exp(-0.02 / 4.0)
+    ema = np.zeros(3)
+    x = np.array([0.25, 0.81, 1.44])
+    for n in range(1, 400):
+        assert np.allclose(heat_peak_update(ema, n, x, alpha), np.sqrt(x), rtol=1e-12)
+    ema = np.zeros(1)
+    xs = np.random.default_rng(0).uniform(0.0, 2.0, 30)
+    for n, xi in enumerate(xs, 1):
+        got = heat_peak_update(ema, n, np.array([xi]), alpha)[0]
+        assert got == pytest.approx(math.sqrt(xs[:n].mean()), rel=0.08)  # 30 alpha = 0.15: close to the plain mean
+
+
 def test_heat_peak_follows_an_independent_recomputation():
-    """With the cost on, the env's hottest-drive RMS equals a recomputation from the per-physics-step torques (read by
-    a substep hook): each drive's step mean of (torque / rating)^2, low-passed with heat_peak_tau_s."""
-    cfg = TrikeEnvConfig(model_path=FORE128, w_heat_peak=1.0, heat_peak_margin=0.05, heat_peak_tau_s=0.5,
-                         domain_randomization=False, observation_noise=False)
+    """With the cost on, the env's hottest-drive RMS and cost equal a recomputation from the per-physics-step torques
+    (read by a substep hook): from heat_peak_start_s on, each drive's step mean of (torque / rating)^2, low-passed with
+    heat_peak_tau_s and bias-corrected; 0 before."""
+    cfg = TrikeEnvConfig(model_path=FORE128, w_heat_peak=1.5, heat_peak_margin=0.05, heat_peak_tau_s=0.5,
+                         heat_peak_start_s=0.2, domain_randomization=False,
+                         observation_noise=False)
     e = TrikeEnv(cfg)
     e.reset(seed=5)
     e.late_scale = 1.0
     inv_c2 = e._inv_cont2.copy()
     acc = []
     e.substep_hook = lambda env: acc.append(env.data.actuator_force[env._leg_ctrl_index] ** 2 * inv_c2)
-    ema = np.zeros(12)
+    ema, n = np.zeros(12), 0
     alpha = 1.0 - math.exp(-e.dt / cfg.heat_peak_tau_s)
     rng = np.random.default_rng(0)
-    for _ in range(40):
+    for k in range(1, 41):
         acc.clear()
         _, _, term, trunc, info = e.step(rng.uniform(-0.5, 0.5, 12))
-        ema += alpha * (np.mean(acc, axis=0) - ema)
-        peak = math.sqrt(ema.max())
-        assert e.heat_peak_rms == pytest.approx(peak, rel=1e-12)
-        assert info["heat_peak_rms"] == pytest.approx(peak, rel=1e-12)
-        assert info["r_heat_peak"] == pytest.approx(-1.0 * max(0.0, peak - 0.05), rel=1e-12)
+        if (k - 1) * e.dt < cfg.heat_peak_start_s - 1e-9:  # this step began before the start
+            assert info["r_heat_peak"] == 0.0 and info["heat_peak_rms"] == 0.0
+        else:
+            n += 1
+            ema += alpha * (np.mean(acc, axis=0) - ema)
+            rms = np.sqrt(ema / (1.0 - (1.0 - alpha) ** n))
+            assert e.heat_peak_rms == pytest.approx(rms.max(), rel=1e-12)
+            assert info["heat_peak_rms"] == pytest.approx(rms.max(), rel=1e-12)
+            assert info["r_heat_peak"] == pytest.approx(-1.5 * max(0.0, rms.max() - 0.05), rel=1e-12)
         if term or trunc:
             break
-    assert e.heat_peak_rms > 0.05  # the term was exercised
+    assert n == 30 and e.heat_peak_rms > 0.05  # the term was exercised from step 11 (0.2 s) on
 
 
 def test_whole_robot_mass_and_payload_apply_without_accumulating():
@@ -81,6 +104,36 @@ def test_whole_robot_mass_and_payload_apply_without_accumulating():
         assert np.allclose(e.model.body_inertia[c], 1.2 * e._nominal["body_inertia"][c] * ratio, rtol=1e-12)
         # the derived constants follow (mj_setConst): the root's subtree mass is the whole robot
         assert e.model.body_subtreemass[1] == pytest.approx(total_mass(e), rel=1e-9)
+
+
+def _steps(env, n=200):
+    out = []
+    for _ in range(n):
+        env.step(np.zeros(12))
+        out.append(env.data.qpos.copy())
+    return np.array(out)
+
+
+def test_whole_robot_factors_keep_the_reset_state():
+    """The factors are applied after the reset state is placed (home keyframe, leg joint noise, root at the sole
+    clearance); recomputing the constants must not move it. With factors that change no mass, the reset state and a
+    200-step trajectory equal those of the config without them, bit for bit; the neck stays inside its range."""
+    base = TrikeEnvConfig(model_path=FORE128, observation_noise=False)
+    unit = base.replace(mass_scale_whole_range=(1.0, 1.0), payload_kg_range=(0.0, 0.0))
+    heavy = base.replace(mass_scale_whole_range=(1.2, 1.2), payload_kg_range=(1.0, 1.0))
+    a, b, c = TrikeEnv(base), TrikeEnv(unit), TrikeEnv(heavy)
+    neck = c.model.joint("neck_pitch")
+    for seed in (0, 1, 2):
+        a.reset(seed=seed)
+        b.reset(seed=seed)
+        c.reset(seed=seed)
+        assert np.array_equal(a.data.qpos, b.data.qpos) and np.array_equal(a.data.qpos, c.data.qpos)
+        legs = a.data.qpos[a._leg_qadr] - a.model.key_qpos[a._key][a._leg_qadr]
+        assert np.abs(legs).max() > 1e-3  # the reset noise is there
+        assert c._lowest_sole_z() == pytest.approx(c.cfg.reset_sole_clearance, abs=1e-9)
+        lo, hi = neck.range
+        assert lo <= c.data.qpos[neck.qposadr[0]] <= hi
+        assert np.array_equal(_steps(a), _steps(b))
 
 
 def test_whole_robot_factors_draw_after_every_other_draw_and_only_apply_with_randomisation():
@@ -117,7 +170,7 @@ def test_steering_draw_unchanged_by_the_new_factors():
 
 @pytest.mark.parametrize("bad", [dict(w_heat_peak=-1.0), dict(heat_peak_margin=0.0), dict(heat_peak_tau_s=0.0),
                                  dict(mass_scale_whole_range=(1.1, 0.9)), dict(mass_scale_whole_range=(0.0, 1.0)),
-                                 dict(payload_kg_range=(-0.5, 1.0))])
+                                 dict(payload_kg_range=(-0.5, 1.0)), dict(heat_peak_start_s=-1.0)])
 def test_bad_settings_are_refused(bad):
     with pytest.raises(ValueError):
         TrikeEnv(TrikeEnvConfig(model_path=FORE128, **bad))
@@ -130,4 +183,79 @@ def test_delay_range_to_20_ms_reaches_its_ends():
     e.reset(seed=0, options={"delay_steps": 20})
     for _ in range(5):
         e.step(np.zeros(12))
-    assert len(e._fifo) == 21 and np.isfinite(e.data.qpos).all() and mujoco.__version__
+    assert len(e._fifo) == 21 and np.isfinite(e.data.qpos).all()
+
+
+def test_measuring_configs_drop_the_whole_robot_draws():
+    """Evaluations and the analysis tools measure with the per-body draws only, as every run before the steering run:
+    the three flat-floor reductions turn the whole-robot mass and payload draws off, and the measured robot's mass
+    is that of the same config without them. The sweep's mass and payload points carry the heavy cases."""
+    sys.path.insert(0, str(RL_DIR / "analysis"))
+    sys.path.insert(0, str(RL_DIR / "robustness"))
+    import gait_pipe1
+    import sweep
+    from train import flat_eval_config
+
+    cfg = TrikeEnvConfig.from_dict({**TrikeEnvConfig(model_path=FORE128).to_dict(),
+                                    **json.loads((CONFIGS / "steer1_dev_heat1.json").read_text())})
+    assert cfg.mass_scale_whole_range is not None and cfg.payload_kg_range is not None
+    plain = cfg.replace(mass_scale_whole_range=None, payload_kg_range=None)
+    for f in (flat_floor, flat_eval_config, gait_pipe1.flat_floor):
+        c = f(cfg)
+        assert c.mass_scale_whole_range is None and c.payload_kg_range is None and c.domain_randomization
+        e, p = TrikeEnv(c), TrikeEnv(flat_floor(plain))
+        for seed in (100000, 100001):
+            e.reset(seed=seed)
+            p.reset(seed=seed)
+            assert np.array_equal(e.model.body_mass, p.model.body_mass)
+    assert sweep.FLAT_FLOOR == FLAT_FLOOR
+    ec = json.loads(json.dumps(cfg.to_dict()))
+    assert sweep.config_diffs(ec, flat_floor(cfg)) == {}
+
+
+def test_sweep_reads_the_training_ranges_from_the_record():
+    sys.path.insert(0, str(RL_DIR / "robustness"))
+    import sweep
+
+    cfg = TrikeEnvConfig.from_dict({**TrikeEnvConfig(model_path=FORE128).to_dict(),
+                                    **json.loads((CONFIGS / "steer1_dev_heat1.json").read_text())})
+    tr = sweep.training_ranges(json.loads(json.dumps(cfg.to_dict())))
+    assert tr["delay_ms"] == (0, 20) and tr["friction"] == (0.3, 1.0) and tr["mass_scale"] == (0.9, 1.1)
+    assert tr["mass_whole"] == (0.9, 1.1) and tr["payload_kg"] == (0.0, 1.0)
+    assert tr["terrain_boxes"] == 0 and tr["pushes"] == (0.5, 1.0)
+    line = sweep.training_line(tr)
+    assert "delay 0-20 ms" in line and "x0.9-1.1 for the whole robot" in line and "0-1 kg payload" in line
+    assert line.endswith("flat floor, sideways pushes in 50 % of episodes, up to 1 m/s.")
+    old = sweep.training_ranges(TrikeEnvConfig().to_dict())
+    assert {k: old[k] for k in sweep.TRAINING} == sweep.TRAINING and old["mass_whole"] is None
+    assert sweep.training_line(old).endswith("flat floor, no pushes.")
+    assert sweep.training_line(dict(sweep.TRAINING)) == sweep.OLD_TRAINING_LINE  # a result written before
+
+
+def test_steering_presets_match_the_plan_and_the_notebook_menu():
+    """Each steer1 preset, as train.py merges it over the defaults: the plan's settings (PLAN_STEERING_RUN.md; D25,
+    D26, D28-D30). The notebook's ENV_PRESET menu and its check list exactly the presets in configs/."""
+    presets = sorted(p.stem for p in CONFIGS.glob("*.json"))
+    steer = [p for p in presets if p.startswith("steer1_")]
+    assert steer == ["steer1_dev_heat05", "steer1_dev_heat1"]
+    weights = []
+    for name in steer:
+        d = json.loads((CONFIGS / f"{name}.json").read_text())
+        cfg = TrikeEnvConfig.from_dict({**TrikeEnvConfig(model_path=FORE128).to_dict(), **d})
+        assert cfg.command_mode == "heading_and_speed" and cfg.terrain_boxes == 0  # D20; D28: flat
+        assert (cfg.push_prob, cfg.push_dv_max_mps, cfg.friction_low_hard) == (0.5, 1.0, 0.3)
+        assert cfg.delay_steps_range == (0, 20) and cfg.mass_scale_whole_range == (0.9, 1.1)  # D26
+        assert cfg.payload_kg_range == (0.0, 1.0) and cfg.w_heat == 0.3  # D29: today's average kept
+        assert (cfg.heat_peak_margin, cfg.heat_peak_tau_s, cfg.heat_peak_start_s) == (0.8, 4.0, 2.0)
+        weights.append(cfg.w_heat_peak)
+        assert (cfg.w_lateral_drift, cfg.slip_at_contact) == (100.0, True)  # as run 3
+        assert cfg.domain_randomization and cfg.observation_noise
+    assert weights == [0.5, 1.0]  # the dev runs' two weights (README: the reward margin over standing)
+    nb = json.loads((RL_DIR / "trike60_training.ipynb").read_text())
+    src = "".join(nb["cells"][1]["source"])
+    menu = src[src.index("ENV_PRESET = "):].splitlines()[0]
+    assert sorted(x for x in json.loads(menu[menu.index("["):menu.index("]") + 1]) if x) == presets
+    check = src[src.index("if ENV_PRESET not in ("):].splitlines()[0]
+    assert sorted(x.strip(' "') for x in check[check.index("(") + 1:check.index(")")].split(",") if x.strip(' "')) \
+        == presets
+    assert 'ENV_PRESET.startswith("steer1_") and MODEL != "trike60_C_closed_capsule_fore128"' in src

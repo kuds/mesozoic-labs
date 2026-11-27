@@ -233,13 +233,21 @@ def chart_mass(res, out):
     series = [("every body's mass and inertia scaled", SERIES[0], rows_m, fm["nominal_speed"]),
               ("payload on the chassis", SERIES[1], rows_p, fp["nominal_speed"])]
     brk = [x * nom for x in _breaks_of(fm)] + [nom + x for x in _breaks_of(fp)]
-    standard_panels(axes, series, (0.9 * nom, 1.1 * nom), "robot mass (kg)", breaks_x=brk,
+    tr = res["settings"]["training_ranges"]
+    whole, pay = tr.get("mass_whole"), tr.get("payload_kg")
+    if whole or pay:  # the whole-robot factor and the payload (the steering run on), on top of the per-body draws
+        w, p = whole or (1.0, 1.0), pay or (0.0, 0.0)
+        band = (w[0] * nom + p[0], w[1] * nom + p[1])
+        shaded = (f"x{w[0]:g}-{w[1]:g} for the whole robot plus a {p[0]:g}-{p[1]:g} kg payload, the training range "
+                  "(on top of per-body draws).")
+    else:
+        band, shaded = (0.9 * nom, 1.1 * nom), "x0.9-1.1, the per-body training range."
+    standard_panels(axes, series, band, "robot mass (kg)", breaks_x=brk,
                     drop_lines=[(0.8 * fm["nominal_speed"], "-20 % of nominal")] if fm["nominal_speed"] else (),
                     xticks=list(range(int(rows_m[0][0]) // 2 * 2, int(rows_m[-1][0]) + 2, 2)))
     header(fig, res, "mass sweep",
            _common_sub(res, f"Nominal {nom:.1f} kg. Payload +{fp['rows'][1]['x']:g} to +{fp['rows'][-1]['x']:g} kg at the "
-                            "chassis's centre of mass. Shaded: "
-                            "x0.9-1.1, the per-body training range."),
+                            "chassis's centre of mass. Shaded: " + shaded),
            _handles([(n, c) for n, c, _, _ in series]))
     fig.subplots_adjust(left=0.035, right=0.985, top=0.74, bottom=0.14, wspace=0.28)
     return _save(fig, out / f"{res['run']}_mass.png")

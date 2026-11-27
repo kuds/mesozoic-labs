@@ -43,14 +43,30 @@ committed and independently reviewed before any judged run.
 
 Each piece has its own tests and its own independent review before any run relies on it.
 
+**Status, 26 Nov 2026:** built (925550e0) and independently reviewed; the review's findings are fixed and checked
+again before any run (`rl/README.md`, "The steering run's training additions"):
+- the whole-robot factors had reset every episode to the model's spring pose (no leg noise, soles at 0 mm): fixed;
+- the evaluations and analysis tools had inherited the whole-robot draws, so the target case would have measured a
+  robot about 4 % heavier on average: they now draw the per-body factors only, as for F20, and the heavy robots
+  are the sweep's stress points;
+- the heat average now starts at 2 s and is bias-corrected, so it prices from the start of F2's window;
+- the dev-run weights are 0.5 and 1, not 1 and 3: measured, a gait with the initial exploration noise earns less
+  than standing at weights 1 and 3 at full scale;
+- the notebook refuses a steer1 preset on any model but the 128 mm one.
+
 ## The runs
 
-- **Dev runs** (proposed): two short trainings, about 3 M steps each, on Colab. They check that the steering task
-  learns on the 128 mm model and set the heat cost's weight before the rules are written. They are not judged.
+- **Dev runs** (proposed): two trainings on Colab, heat weights 0.5 and 1 (`steer1_dev_heat05`, `steer1_dev_heat1`),
+  the same seed. They check that the steering task learns on the 128 mm model and set the heat cost's weight before
+  the rules are written. They are not judged. **Length: open (asked 26 Nov 2026).** The review found that at about
+  3 M steps the heat cost reaches full weight only at the last step: train.py's late ramp runs from 1 M to 3 M and
+  the push and friction ramp from 1 M to 4 M, and the learning rate follows TOTAL_STEPS, so a 3 M run also anneals
+  faster than a judged 10 M run.
 - **Judged runs:** the pre-registered seeds at 10 M steps each, run as run 3 was. Each takes about 3-5 h on Colab
   High-RAM CPU (the foreleg runs took 3.6-5.1 h).
 - **Measurement:** the gait report, the sweep and the foot loads as for D22, plus `steer_eval.py`'s courses and the
-  demo course with turns.
+  demo course with turns. Randomised measurements draw the per-body factors only, so the target case is comparable
+  with F20; the whole robot x1.1, the payloads and the 20 ms delay are the sweep's points.
 
 ## Rules to pre-register (a sketch, to be fixed after the dev runs)
 

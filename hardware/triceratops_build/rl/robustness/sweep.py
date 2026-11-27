@@ -64,15 +64,56 @@ REPRO_SEEDS = G.SEEDS  # gait_pipe1's target case
 TRAINING = {"delay_ms": (0, 10), "friction": (0.6, 1.0), "mass_scale": (0.9, 1.1), "kp_scale": (0.9, 1.1),
             "force_scale": (0.85, 1.0)}
 
+OLD_TRAINING_LINE = ("Training ranges: delay 0-10 ms, friction 0.6-1.0, mass and inertia x0.9-1.1 per body (drawn per "
+                     "body, so the robot's total varied less), kp x0.9-1.1 and force limits x0.85-1.0 per drive; flat "
+                     "floor, no pushes.")  # the fixed line of the results written before 26 Nov 2026
+
+
 def training_ranges(env_config: dict) -> dict:
-    """TRAINING with the friction range the run trained on (shaded in the charts): the record's friction_range, its
-    low end moved to friction_low_hard when set (run 3: 0.3-1.0). An older record gives TRAINING's 0.6-1.0."""
+    """The ranges the run trained on (shaded in the charts and listed in the report), from its record's env config,
+    TRAINING's value where the record lacks a field: the servo delay (delay_steps_range; one physics step is 1 ms), the
+    friction range with its low end moved to friction_low_hard when set (run 3: 0.3-1.0), the per-body mass, kp and
+    force-limit ranges; and, None when not trained, the whole-robot mass factor and the payload (the steering run on),
+    the terrain boxes and the pushes (probability, largest dv)."""
     tr = dict(TRAINING)
+    ds = env_config.get("delay_steps_range")
+    if ds:
+        tr["delay_ms"] = (int(ds[0]), int(ds[1]))
     fr = env_config.get("friction_range")
     if fr:
         low = env_config.get("friction_low_hard")
         tr["friction"] = (float(low if low is not None else fr[0]), float(fr[1]))
+    for key, field in (("mass_scale", "mass_scale_range"), ("kp_scale", "kp_scale_range"),
+                       ("force_scale", "force_limit_scale_range")):
+        r = env_config.get(field)
+        if r:
+            tr[key] = (float(r[0]), float(r[1]))
+    for key, field in (("mass_whole", "mass_scale_whole_range"), ("payload_kg", "payload_kg_range")):
+        r = env_config.get(field)
+        tr[key] = (float(r[0]), float(r[1])) if r else None
+    tr["terrain_boxes"] = int(env_config.get("terrain_boxes") or 0)
+    pp = float(env_config.get("push_prob") or 0.0)
+    tr["pushes"] = (pp, float(env_config.get("push_dv_max_mps", 1.0))) if pp > 0 else None
     return tr
+
+
+def training_line(tr: dict) -> str:
+    """The report's line on the training ranges, from ``training_ranges``; a result written before the line was
+    generated (no "pushes" key) gets the fixed line it was written with."""
+    if "pushes" not in tr:
+        return OLD_TRAINING_LINE
+    rng = lambda r: f"{r[0]:g}-{r[1]:g}"  # noqa: E731
+    s = (f"Training ranges: delay {rng(tr['delay_ms'])} ms, friction {rng(tr['friction'])}, mass and inertia "
+         f"x{rng(tr['mass_scale'])} per body (drawn per body, so the robot's total varied less)")
+    if tr.get("mass_whole"):
+        s += f", then x{rng(tr['mass_whole'])} for the whole robot"
+    if tr.get("payload_kg"):
+        s += f" and a {rng(tr['payload_kg'])} kg payload on the chassis"
+    s += f", kp x{rng(tr['kp_scale'])} and force limits x{rng(tr['force_scale'])} per drive; "
+    s += "flat floor" if not tr["terrain_boxes"] else f"steps and ramps ({tr['terrain_boxes']} terrain boxes)"
+    s += ", no pushes." if not tr["pushes"] else (f", sideways pushes in {100 * tr['pushes'][0]:.0f} % of episodes, "
+                                                  f"up to {tr['pushes'][1]:g} m/s.")
+    return s
 
 
 DEFAULT_POINT = {"command": COMMAND, "delay_ms": NOMINAL_DELAY_MS, "friction": None, "mass_scale": 1.0,
@@ -196,13 +237,15 @@ def terrain_xml(model_path: str, terrain) -> str:
     return spec.to_xml()
 
 
-FLAT_FLOOR = {"terrain_boxes": 0, "push_prob": 0.0, "friction_low_hard": None}  # gait_pipe1.flat_floor's fields
+FLAT_FLOOR = {"terrain_boxes": 0, "push_prob": 0.0, "friction_low_hard": None, "mass_scale_whole_range": None,
+              "payload_kg_range": None}  # gait_pipe1.flat_floor's fields
 
 
 def config_diffs(env_config: dict, cfg) -> dict:
     """The run record's env-config fields that the measuring env's config ``cfg`` does not reproduce, as
-    {field: (env's, expected)}. The flat-floor fields (run 3's training terrain, pushes and low-friction end) are
-    expected at their flat values, since every measurement here is on the flat floor (``build_env``)."""
+    {field: (env's, expected)}. The flat-floor fields (run 3's training terrain, pushes and low-friction end; the
+    steering run's whole-robot mass and payload draws) are expected at their flat values, since every measurement here
+    is on the flat floor (``build_env``)."""
     mine = json.loads(json.dumps(cfg.to_dict()))
     want = {**env_config, **{k: v for k, v in FLAT_FLOOR.items() if k in env_config}}
     return {k: (mine.get(k), v) for k, v in want.items() if k != "model_path" and mine.get(k) != v}
@@ -677,8 +720,7 @@ def markdown(res: dict) -> str:
         lo = cell("low")
         hi = cell("high")
         L.append(f"| {fam['family']} | {fmt_x(fam['x_key'], fam['nominal_x'])} | {lo} | {hi} |")
-    L += ["", "Training ranges: delay 0-10 ms, friction 0.6-1.0, mass and inertia x0.9-1.1 per body (drawn per body, so "
-          "the robot's total varied less), kp x0.9-1.1 and force limits x0.85-1.0 per drive; flat floor, no pushes.", ""]
+    L += ["", training_line(res["settings"]["training_ranges"]), ""]
     for fam in res["families"]:
         L += [f"## {fam['family']}", ""]
         if fam["x_key"] == "push_dv":

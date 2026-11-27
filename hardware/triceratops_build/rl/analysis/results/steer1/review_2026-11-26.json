@@ -1,0 +1,337 @@
+{
+ "what": "Independent review of the steering run additions at 925550e0 (r_heat_peak, whole-robot mass and payload, dev presets, notebook menu): two reviewers (correctness, design), each followed by a skeptic who re-checked every finding. Given the code and the records, not the author's conclusions.",
+ "date": "2026-11-26",
+ "commit_reviewed": "925550e0",
+ "results_in_order": [
+  "review: correctness",
+  "verify: correctness",
+  "review: design",
+  "verify: design"
+ ],
+ "results": [
+  {
+   "findings": [
+    {
+     "id": "H1",
+     "severity": "high",
+     "title": "Step 8's mj_setConst overwrites the reset state: every episode with the whole-robot ranges starts from qpos_spring (neck at -0.54 rad, outside its limit; no leg joint noise; soles at 0 mm, not 2 mm)",
+     "location": "hardware/triceratops_build/rl/trike_env.py, reset() step 8, the line mujoco.mj_setConst(m, d) followed by mujoco.mj_forward(m, d) (about line 863)",
+     "evidence": "MuJoCo 3.10.0's mj_setConst rewrites d.qpos. After 10 steps of an episode, a call to mj_setConst changed qpos by up to 0.56, while qvel, ctrl, act, mocap_pos and sensordata stayed the same (scratchpad/review_steer/setconst_state.py). In reset, step 4 has already set the home keyframe, the +-0.02 rad leg noise and the 2 mm sole clearance, and step 8 then calls mj_setConst, which overwrites all of it. Same seed, with and without the ranges (reset_state.py, reset_state2.py): the 12 leg joints come out exactly 0 (the noise is gone), the root sits at z 0.3200 instead of about 0.323, and the lowest sole is at -0.0000 instead of 0.0020. neck_pitch is -0.5395, which is the model's qpos_spring for that joint (neck.py) and lies outside its range of +-0.349 rad. One joint-limit constraint is active at every reset. The ranges set to (1.0, 1.0) and (0.0, 0.0), which change no mass, give the identical clobbered state. Effect on the preset steer1_dev_heat1 (transient.py, snap.py): the neck snaps back at a peak of 8.1 rad/s against 1.0 rad/s without the ranges. Every reset is now the same settled pose: the chassis's peak angular velocity in the first 0.5 s is 0.008 rad/s against 0.107 rad/s. So reset_joint_noise and the clearance drop are silently off in both dev presets and in any judged run that uses them. Every randomised evaluation (H2) also starts this way. The existing test checks only total mass, inertia and subtree mass, so it passes. The tests and both digests pass because the default config never reaches step 8.",
+     "suggested_fix": "Keep the state across the constant recomputation. In step 8: q, v = d.qpos.copy(), d.qvel.copy(); mujoco.mj_setConst(m, d); d.qpos[:] = q; d.qvel[:] = v; mujoco.mj_forward(m, d). Tested in a scratch subclass (fix_check.py): qpos and masses then match the no-range config exactly for seeds 0-2, and the sole clearance is back at 0.002. The reset obs still differ, as expected, because the two extra uniforms shift the later observation-noise stream. Add a test: for the same seed, the config with mass_scale_whole_range=(1,1) and payload_kg_range=(0,0) gives a d.qpos after reset array_equal to the config without them, with the neck inside its range and _lowest_sole_z() equal to reset_sole_clearance."
+    },
+    {
+     "id": "H2",
+     "severity": "high",
+     "title": "The evaluation tools inherit the whole-robot ranges. flat_floor() does not clear them, so every randomised measure (gait report target case, steer_eval, PeriodicEval, evaluate.py, the sweep's reproduction point) now runs on a robot about 4 % heavier on average, up to x1.15",
+     "location": "hardware/triceratops_build/rl/trike_env.py FLAT_FLOOR / flat_floor(); consumers: train.py PeriodicEval (domain_randomization=True) and the checks' steering courses, steer_eval.make_env, analytics/gait_report.py CASES target_0.25 and cmd_0.15, evaluate.py (randomisation on by default), robustness/sweep.py build_env(randomise=True) (the reproduction point)",
+     "evidence": "Built each tool's env from the run record that train.py writes for steer1_dev_heat1 (tools_inherit.py). PeriodicEval, steer_eval.make_env, gait_report target_0.25, evaluate.py's default and the sweep's reproduction point all have DR on, apply the whole factor and the payload, and start with neck -0.54 (H1). gait_report nominal_0.25, the sweep's points (randomise=False), foot_loads.py and demo_course.py run with DR off and stay nominal. The D22 judge takes F2's figure (H_all) from gait_report's target_0.25 case (judge_d22.py lines 15 and 144). On the five gait_pipe1.SEEDS of that case, the mass/nominal ratios are [1.145, 1.000, 0.961, 1.030, 0.933] with the new ranges and [1.034, 0.949, 0.995, 1.018, 0.963] without. Over 300 seeds: mean 1.044 (5-95 %: 0.939-1.146) with them, against 1.000 (0.958-1.044) without (target_mass.py). The plan treats 'the whole robot 10 % heavier' as a separate stress point and the target case as nominal whole mass. As built, one of the five target-case seeds is already heavier than that stress point. The target-case heat figure would then be biased against the new run and could not be compared with F20's 0.83-0.95 for 128 mm. The dev runs' eval_during_training heat lines (3 episodes) carry this extra mass spread too.",
+     "suggested_fix": "Make it an explicit choice before the dev runs. Recommended: add 'mass_scale_whole_range': None and 'payload_kg_range': None to FLAT_FLOOR (and to the copy in robustness/sweep.py FLAT_FLOOR, which config_diffs uses). The evaluations then randomise per body only, as in D22; older runs' configs are unchanged, since they hold None. The stress points (x1.1 whole mass, payload) stay in the sweep. Add a test that flat_floor() of a steer1 preset config builds an env whose total mass after reset matches the same config without the ranges. If the owner instead wants evaluations inside the widened training distribution, say so in the pre-registration and keep a nominal-whole-mass target case for the heat rule."
+    },
+    {
+     "id": "M1",
+     "severity": "medium",
+     "title": "In 2-3 M step dev runs the hottest-drive cost almost never reaches full weight (default late ramp 1 M -> 3 M), so the dev runs cannot set w_heat_peak for 10 M judged runs",
+     "location": "train.py --late-ramp-from / --late-ramp-to defaults (1,000,000 / 3,000,000); trike60_training.ipynb (TOTAL_STEPS default 2,000,000; no late-ramp parameter); r_heat_peak listed in LATE_TERMS",
+     "evidence": "r_heat_peak = -w_heat_peak x late_scale x excess (trike_env.py reward_terms), and train.py ramps late_scale linearly from 1 M to 3 M steps. Computed: a 3 M step run (D30's 'about 3 M') ends at late_scale 1.00, with a mean of 0.33 and 0.0 % of its steps at full weight. A run at the notebook's default TOTAL_STEPS of 2 M ends at 0.50, with a mean of 0.13. The notebook's train command passes no --late-ramp-*, and a preset cannot set them because they are train.py arguments, not env config. Pushes and the slippery-floor end follow --terrain-ramp 1 M -> 4 M, so they reach only 0.67 of full scale by 3 M. In the 4096-step check run with the ramp forced to 0 -> 1, r_heat_peak at weight 3 was -0.37 to -0.83 per step against r_heat's -0.21 (train_health.jsonl). So the weight matters, but the default schedule hides it in a 3 M step run.",
+     "suggested_fix": "For the dev runs, either expose LATE_RAMP_FROM and LATE_RAMP_TO (and the terrain ramp) in the notebook and use an earlier, shorter ramp (for example 0.5 M -> 1.5 M), or make the dev runs long enough to spend at least 1-2 M steps at full weight. State in the run steps that TOTAL_STEPS must be 3 M or more and which ramp the judged 10 M runs will use, so that the dev runs test the same schedule."
+    },
+    {
+     "id": "M2",
+     "severity": "medium",
+     "title": "The effective weight of the low-passed cost is much lower than w_heat_peak suggests (cold-start EMA each reset, 4 s tau against gamma 0.99, state hidden from the critic). Undocumented, and it matters for choosing between weights 1 and 3",
+     "location": "hardware/triceratops_build/rl/trike_env.py step() heat_peak block; _reset_episode_state (self._heat_ema = np.zeros(12)); TrikeEnvConfig w_heat_peak/heat_peak_tau_s comments",
+     "evidence": "The formula is right: the per-drive sum over physics steps / frame_skip, then EMA alpha = 1 - exp(-0.02/4) = 0.00499 per control step, then max, then sqrt, then max(0, . - margin). The independent recomputation test agrees to 1e-12. But the EMA restarts at 0 on every reset. For a drive held exactly at its rating (RMS 1.0), the cost first appears at t = 4.08 s, and the mean cost over a 20 s episode is 61 % of the steady 0.20. At RMS 0.90 the cost first appears at 6.24 s and the mean is 50 %; at 0.85, 8.66 s and 38 %. An episode that ends early pays almost nothing. With gamma 0.99, a step's (torque/rating)^2 reaches the discounted return through the EMA with a weight of sum g^k alpha (1-alpha)^k = 0.334, against 1.0 for an unfiltered per-step cost. Neither the EMA nor the elapsed time is in the observation (phase clock off), so the critic cannot predict the term. In effect, weights 1 and 3 behave roughly like 0.2-0.33 and 0.6-1.0 of a per-step cost, which the config comments do not say.",
+     "suggested_fix": "Document the effective scaling next to w_heat_peak and in the dev-run notes. Consider starting each episode's EMA at a warm value (for example the first step's mean, or a nominal standing value) rather than 0, and/or a shorter heat_peak_tau_s (1-2 s), or give the critic the 12 EMAs (or the hottest one) as a privileged observation. Decide before the dev runs, since changing it afterwards invalidates the weight they choose."
+    },
+    {
+     "id": "L1",
+     "severity": "low",
+     "title": "The steer1 presets do not pin the model and the notebook's MODEL default is trike60_C_closed, so selecting a steer1 preset alone trains on the wrong model (D25: fore128)",
+     "location": "hardware/triceratops_build/rl/trike60_training.ipynb cell 1 (MODEL default, ENV_PRESET check); configs/steer1_dev_heat1.json, steer1_dev_heat3.json",
+     "evidence": "In the notebook, MODEL = \"trike60_C_closed\" is the default. train.env_config builds model_path from --model, and the presets carry no model_path. No guard ties ENV_PRESET steer1_* to MODEL trike60_C_closed_capsule_fore128, and no run-steps file for the steering runs exists yet (grep steer1 finds only the notebook). A run on the wrong model would show up only in run_record.json, after the Colab time is spent.",
+     "suggested_fix": "In cell 1, refuse ENV_PRESET steer1_* unless MODEL == \"trike60_C_closed_capsule_fore128\" ('Nothing was run.'), or write the model into the run-steps document for these runs."
+    },
+    {
+     "id": "L2",
+     "severity": "low",
+     "title": "The sweep's training-range shading and report text still say delay 0-10 ms and per-body mass only, so for the steering runs the plan's stress points (20 ms, x1.1 whole mass, payload) would be shown as outside training",
+     "location": "hardware/triceratops_build/rl/robustness/sweep.py TRAINING / training_ranges() (about lines 64-75) and the hard-coded 'Training ranges: ...' line (about line 680)",
+     "evidence": "training_ranges(ec) on the steer1 run record returns {'delay_ms': (0, 10), 'friction': (0.3, 1.0), 'mass_scale': (0.9, 1.1), ...}. It reads friction from the record, but not delay_steps_range [0, 20], mass_scale_whole_range or payload_kg_range. The report text is a fixed string ('delay 0-10 ms ... mass and inertia x0.9-1.1 per body ... flat floor, no pushes'). The fixed string was already stale for run 3; the new ranges add to that.",
+     "suggested_fix": "Read delay_steps_range, mass_scale_whole_range and payload_kg_range (and push_prob) from the record in training_ranges(), and generate the report's 'Training ranges' sentence from it."
+    },
+    {
+     "id": "L3",
+     "severity": "low",
+     "title": "Minor: the LATE_TERMS line is 127 characters (repo line length 120), and heat_peak_rms is not in the training-health log",
+     "location": "hardware/triceratops_build/rl/trike_env.py line 59; telemetry/health.py collects only keys with the prefixes r_ and reward_",
+     "evidence": "awk finds trike_env.py:59 at 127 characters; pyproject.toml has line-length = 120. info['heat_peak_rms'] is computed every step but has no r_ prefix, so train_health.jsonl records only r_heat_peak (a cost that is 0 below the margin and before the late ramp). The quantity the dev runs are meant to tune, the hottest drive's running RMS, is therefore not visible during training.",
+     "suggested_fix": "Wrap the comment. Optionally have TrainingHealth or the Monitor also average heat_peak_rms (for example by passing it as an extra key), so the dev runs show the hottest drive's running RMS over time."
+    }
+   ],
+   "checked_ok": [
+    "Tests: test_steer_heat.py, 13 passed; test_trike_env.py, all 94 passed (exit 0). Both regression digests (test_default_env_regression_digest and test_run3_env_regression_digest) PASS and are not skipped (mujoco 3.10.0); git status --short is empty before and after.",
+    "Heat term arithmetic: per-drive tau^2/rating^2 summed over the 20 physics steps and divided by frame_skip; EMA alpha = 1 - exp(-control dt / tau), updated once per control step (correct for dt = 0.02 s); sqrt of the max = max of the sqrt; max(0, . - margin); sign negative; multiplied by late_scale; exactly -0.0 == 0 when w_heat_peak = 0 (no accumulation, heat_peak_rms stays 0). heat_vec uses the same idx/inv_c2 ordering as the existing r_heat, so its sum / (12 frame_skip) equals heat_index.",
+    "r_heat_peak is in REWARD_TERMS and LATE_TERMS; the test assertion on LATE_TERMS is updated; train.py has no hard-coded term list; telemetry/health.py picks it up through the r_ prefix (seen in a real train_health.jsonl: -0.37 to -0.83 at weight 3 with late_scale 1); analytics/training_dashboard and the checks have no fixed term list; REWARD_BONUSES' '<= 0' convention holds.",
+    "Whole-robot factors: applied after _apply_factors (per-body) and undone by _restore_nominal on the next reset (no accumulation, as tested); world body excluded via [1:]; inertia scaled with mass; payload on the chassis with chassis inertia x the same mass ratio, the same as robustness/sweep.apply_point; mj_setConst then mj_forward; factors recorded; DR off draws but does not apply; the draws come after the steering draw, so the request schedule is unchanged (tested); terrain arrays (mocap pose, geom_size, rbound, aabb, bvh) are not disturbed by the extra mj_setConst (terrain_check.py).",
+    "Cached values: nominal_height is not materially stale (standing height 0.3190 at 15.03 kg against 0.3192 nominal; r_height about 0); the model has no gravcomp; the push force uses the current total mass (model.body_mass.sum() at onset), so dv is preserved under payload; _sat_limit depends only on forcerange; the foot-load observation is normalised by the fixed nominal weight (as a real robot's would be).",
+    "Validation: negative w_heat_peak, margin 0, tau 0, reversed range, whole low 0 and negative payload are refused (tested). Edge cases reasoned or run: a margin above every value gives 0; a tiny tau gives alpha -> 1 (the step mean); payload 0 skips the chassis change; whole (1,1) leaves masses unchanged (but still triggers H1).",
+    "Delay 0-20 ms: the FIFO length is delay+1 (21), both ends are drawn over 200 seeds, and the state stays finite.",
+    "Vectorised path: a 4096-step train.py run with --vec subproc, 2 envs, steer1_dev_heat3 completed with checkpoints and PeriodicEval; the run record stores w_heat_peak 3.0, margin 0.8, tau 4.0, the whole range [0.9, 1.1], payload [0.0, 1.0] and delay [0, 20]; the config survives to_dict/from_dict into the workers.",
+    "DR-off tools (gait_report nominal_0.25, the sweep's points, the training checks' sweep points, foot_loads.py, demo_course.py) run the nominal model, unaffected by the new ranges except for two extra unapplied uniforms that shift later observation-noise draws (harmless)."
+   ],
+   "not_checked": [
+    "No trained 128 mm steering policy was available, so the size of H1/H2's effect on trained-policy measures (F2, steering errors) was not measured; only masses, reset states and transients were.",
+    "Long training (more than about 20k steps) was not run, so the learning effect of weights 1 against 3 and of the EMA design (M2) is analysed, not measured.",
+    "The notebook was not executed end to end on Colab; only its parameter cell, its preset check and its train command were read.",
+    "T. rex files were out of scope and not opened."
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "H1",
+     "verdict": "confirmed",
+     "severity_after": "high",
+     "reasoning": "I re-ran it myself and it holds. In reset(), step 4 sets the keyframe, the leg noise and the 2 mm sole clearance. Step 8 then calls mujoco.mj_setConst(m, d), which in MuJoCo 3.10.0 leaves d.qpos equal to m.qpos_spring. The leg noise and the clearance are lost, and the neck starts outside its joint limit. This happens whenever either range is set, even (1,1)/(0,0), whether or not any mass changes. Both dev presets reach it. The default config never reaches step 8, so the digests and the new tests (13 passed) do not catch it. Restoring qpos and qvel around mj_setConst fixes it.",
+     "evidence": "scratchpad/review_steer/v2/h1.py (steer1_dev_heat1 preset, fore128, seeds 0-2). 'with' and 'unit' (1,1)/(0,0) give: leg deviation from the keyframe 0.0000, root z 0.3200, lowest sole -0.0000, neck_pitch -0.5395 against range +-0.349, nefc 17 (efc types include 3 = joint limit). 'without' gives: leg deviation 0.018-0.020, root z 0.3226-0.3239, sole 0.0020, neck 0.0, nefc 0. Directly checked: np.allclose(d.qpos, m.qpos_spring) is True; max|qpos - key_qpos| = 0.539. h1b.py, first 0.5 s, 5 seeds: neck peak speed 7.9-8.3 rad/s against 0.79-1.09 without; chassis peak angular velocity 0.007-0.009 against 0.056-0.149 rad/s. h1c.py, with q and v kept across mj_setConst: the unit-range qpos is array_equal to the no-range qpos for seeds 0-2, the sole is at 0.0020 and nefc is 0. pytest test_steer_heat.py: all pass; git status clean."
+    },
+    {
+     "id": "H2",
+     "verdict": "confirmed",
+     "severity_after": "high",
+     "reasoning": "This holds. FLAT_FLOOR in trike_env.py and in robustness/sweep.py, and gait_pipe1.flat_floor, clear only terrain_boxes, push_prob and friction_low_hard. Every evaluation built from a steer1 run record therefore keeps mass_scale_whole_range and payload_kg_range, and applies them wherever DR is on: PeriodicEval forces domain_randomization=True, as do gait_report's target_0.25 and cmd_0.15 cases, evaluate.py's default and the sweep's randomise=True. The established pattern is to strip training-only widening from evaluations: flat floor, and steer_eval and PeriodicEval fix the delay at 10 ms. The plan also keeps 'whole robot 10% heavier' as a separate stress point beside the target case. So the target case drifting to a heavier robot is a defect, not an intended choice. F2 and H_all come from the target case (judge_d22.py measure() reads gait['cases']['target_0.25']), so the judged heat figure would be biased and could not be compared with F20. Training itself is unaffected, and the evaluations can be rerun after a fix without retraining. It still has to be settled before the dev-run analysis and the pre-registration.",
+     "evidence": "scratchpad/review_steer/v2/h2.py: te.flat_floor(steer1_dev_heat1 cfg) keeps (0.9,1.1), (0.0,1.0) and DR True. On gait_pipe1.SEEDS 100000-100004, mass/nominal is [1.145, 1.000, 0.961, 1.030, 0.933] with the ranges and [1.034, 0.949, 0.995, 1.018, 0.963] without, the same values the finding gives. Over 300 seeds: mean 1.046 (5-95%: 0.942-1.149, max 1.196) against 1.000 (0.953-1.045); 22% of seeds are above x1.10 with the ranges, 0% without. Code read: train.py:503-504 (PeriodicEval DR=True), gait_report.py CASES target_0.25 {} and _env() through gp.flat_floor, sweep.py:199-219, evaluate.py:140-141, judge_d22.py:15 and 144."
+    },
+    {
+     "id": "M1",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "This holds. r_heat_peak is in LATE_TERMS and is multiplied by late_scale. train.py's defaults ramp late_scale from 1 M to 3 M. The notebook passes no --late-ramp-*, and a preset cannot set them: they are train.py arguments, and TrikeEnvConfig.from_dict rejects unknown keys. A run of D30's 'about 3 M' steps reaches full weight only at its final step, and a 2 M run (the notebook default) ends at 0.5. So the dev runs, whose stated purpose (D29, PLAN) is to set w_heat_peak, would barely train under the cost they are meant to tune. This is a run-setup gap, not a code bug.",
+     "evidence": "train.py:126-134 (late 1,000,000 -> 3,000,000; terrain 1 M -> 4 M) and late_scale_at() at lines 304-311. Notebook cell 5 TRAIN_CMD = [..., '--total-steps', '--n-envs', '--seed', '--model', '--resume', '--exit-with-parent'] plus only '--env-config'; cell 1 TOTAL_STEPS = 2000000. Integrating the linear ramp gives a mean late_scale of 0.333 over 3 M with 0% of steps at 1.0, and an end value of 0.5 and mean of 0.125 at 2 M. trike_env.py:293-299 (from_dict raises on unknown fields). I did not reproduce the 4096-step train_health figures."
+    },
+    {
+     "id": "M2",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The arithmetic holds: the EMA restarts at zero, the 4 s time constant delays the cost, the discounted weight is about 0.33, and neither the EMA nor the elapsed time is observed. But this is a documented design choice: the low-pass and its tau are in the config comment, and the reset to zeros is visible. It is not a defect that makes the runs wrong. The env already uses unobserved low-passed states in its costs (lateral_drift_tau_s 1 s, track_yaw_tau_s 0.5 s). The dev runs choose the weight from measured outcomes, so the effective scaling is built into whatever weight they pick. The claim that it 'matters for choosing between 1 and 3' is overstated. The one valid point: the formulation (warm start or tau) must be frozen before the dev runs, and a note on the effective scaling would help. That is a low-severity documentation item.",
+     "evidence": "scratchpad/review_steer/v2/m2.py: alpha = 0.00499. At RMS 1.0 the cost first appears at 4.10 s, with a 20 s mean of 0.61 of steady. At 0.9: 6.26 s and 0.50. At 0.85: 8.68 s and 0.38. alpha/(1 - 0.99(1-alpha)) = 0.334. train.py:114 gamma 0.99; trike_env.py:130 phase_clock_hz 0.0; trike_env.py:231 and 283 show the other low-pass taus (1.0 s and 0.5 s), equally unobserved; _reset_episode_state sets self._heat_ema = np.zeros(12)."
+    },
+    {
+     "id": "L1",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "This holds. The notebook's MODEL defaults to trike60_C_closed. Neither steer1 preset carries model_path, and nothing ties a steer1 preset to fore128. A preset could pin it, since from_dict accepts model_path and it would override --model. No steer1 run-steps document exists yet. run3_terrain did not pin its model either, so this follows precedent, but D25 makes fore128 mandatory here. This is a usability risk, low.",
+     "evidence": "Notebook cell 1: MODEL = \"trike60_C_closed\" # @param [...], and the ENV_PRESET check names only the allowed presets. configs/steer1_dev_heat1.json and steer1_dev_heat3.json have no model_path. train.py env_config() (lines 217-223) builds model_path from --model, then overlays the preset JSON. grep -rl steer1 finds only trike60_training.ipynb (and the configs)."
+    },
+    {
+     "id": "L2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "This holds. training_ranges() overrides only friction from the record. TRAINING hard-codes delay (0, 10) and per-body mass, and the report's 'Training ranges' sentence is a fixed string. For a steer1 run the sweep would shade 20 ms, x1.1 whole mass and payload as outside training. This is a display and report issue; the measurements are unaffected.",
+     "evidence": "robustness/sweep.py:64-75 (TRAINING dict; training_ranges reads only friction_range and friction_low_hard) and line 680 (fixed string 'Training ranges: delay 0-10 ms, friction 0.6-1.0, mass and inertia x0.9-1.1 per body ...'). The preset sets delay_steps_range [0, 20], mass_scale_whole_range [0.9, 1.1] and payload_kg_range [0.0, 1.0]."
+    },
+    {
+     "id": "L3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Both points hold. The edited LATE_TERMS line is 127 characters, over pyproject's 120. The file already had three over-long lines before the change, so the limit is not strictly enforced. TrainingHealth collects only keys with the r_ or reward_ prefixes, so heat_peak_rms (no prefix) is not logged; only r_heat_peak is, and that is 0 below the margin and before the late ramp.",
+     "evidence": "awk: trike_env.py:59 is 127 characters (new); lines 153, 459 and 727 are over 120 but were already over 120 before the change (old 146:130, 443:121, 698:122). pyproject.toml:119 line-length = 120. telemetry/health.py:66-70 and 114 filter keys with k.startswith(self.prefixes); the build passes ('r_', 'reward_')."
+    }
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "H1",
+     "severity": "high",
+     "title": "Step 8's mj_setConst(m, d) overwrites the placed reset state: no leg reset noise, soles start in contact instead of 2 mm up, in every episode of both presets",
+     "location": "hardware/triceratops_build/rl/trike_env.py:864 (reset step 8; also mj_forward at 865)",
+     "evidence": "MuJoCo 3.10.0. mj_setConst(m, d) rewrites d.qpos indices 7-26, so the leg joints go back to 0, and resets the root z to 0.3200. Step 8 runs after the state was placed in step 4. Test: with unit factors (mass_scale_whole_range (1,1), payload_kg_range (0,0)), the masses are identical, but reset seeds 0-2 give a different qpos from the config without the factors. The leg joints read all 0.000 instead of the +-0.02 rad reset noise. Chassis z is 0.3200 instead of 0.3239. The lowest sole is at -1e-10 m instead of the 2 mm clearance. Over 200 identical steps (obs noise and drift off) qpos then diverges by up to 0.46. When qpos is saved before mj_setConst and restored after, the same comparison is bit-identical (max qpos diff 0.0 over 200 steps). Also, mj_setConst on a scratch MjData gives identical model constants (subtreemass, invweight0, acc0, length0). Both presets have randomisation on, so this hits every training reset. It also hits every randomised measurement: the gait report target case (verified: seeds 100000-100004 have no leg noise and sole z 0.0000), steer_eval, evaluate.py and train.py's periodic evals. Terrain mocap positions survive, so a later terrain run would only lose qpos. test_steer_heat.py checks masses and subtree mass, never the state.",
+     "suggested_fix": "In step 8, compute the constants without touching the live state. Either call mujoco.mj_setConst(m, self._const_data), where self._const_data = mujoco.MjData(m) is made once in __init__, or save d.qpos (and d.qvel) before mj_setConst(m, d) and restore them before mj_forward. Add a test: with unit factors and observation noise and drift off, reset qpos and a 200-step trajectory equal the config without the factors bit for bit, and _lowest_sole_z() is about reset_sole_clearance."
+    },
+    {
+     "id": "H2",
+     "severity": "high",
+     "title": "The new mass and payload draws leak into the judged measurements: the flat-floor reductions keep them, so the F1/F2 target case and the 0.85 heat rule are measured on a robot of random total mass",
+     "location": "hardware/triceratops_build/rl/trike_env.py:405 (FLAT_FLOOR); rl/analysis/gait_pipe1.py:82-88 (flat_floor, own copy); rl/robustness/sweep.py:199 (FLAT_FLOOR copy); callers analytics/gait_report.py:630, steer_eval.py:51, train.py:503",
+     "evidence": "flat_floor's docstring calls itself 'what evaluations and the analysis tools measure on', but it resets only terrain_boxes, push_prob and friction_low_hard. I rebuilt the gait report's target-case env exactly (gait_pipe1.flat_floor on the steer1_dev_heat1 config, DR on, delay 10). It keeps mass_scale_whole_range (0.9,1.1) and payload_kg_range (0,1). The five judged seeds 100000-100004 get total mass x1.145, 1.000, 0.961, 1.030 and 0.933. With per-body draws only (the F20/D22/run 3 target case) they would be x1.034, 0.949, 0.995, 1.018 and 0.963. Seed 100000 is heavier than the plan's x1.1 stress point. Over 2000 training resets the total mass is x0.868-1.214, mean 1.042, against per-body only x0.930-1.073, mean 1.000. F2 and the plan's 'worst drive under 0.85 in the target case' would then be judged on a heavier and more spread robot, not comparable with F20's 0.83-0.95. steer_eval's courses and train.py's periodic evals (domain_randomization=True) get the same draws. The sweep's points are unaffected (randomisation off).",
+     "suggested_fix": "Add \"mass_scale_whole_range\": None and \"payload_kg_range\": None to all three copies: trike_env.FLAT_FLOOR, gait_pipe1.flat_floor's list, and sweep.FLAT_FLOOR (keep the sweep's config_diffs consistent). Then the target case keeps run 3's and D22's per-body randomisation, and the sweep's mass x1.1 and payload points carry the heavy cases, as the plan's stress rule intends. If the owner instead wants the target case to include them, the pre-registration must say so and the F20 baseline must be re-measured that way. Add a test that the measuring configs drop the training-only factors."
+    },
+    {
+     "id": "M1",
+     "severity": "medium",
+     "title": "A 3 M-step dev run never trains with the heat cost at full weight, so it cannot set the weight the 10 M judged runs will use",
+     "location": "hardware/triceratops_build/rl/train.py:126-134 (late ramp 1 M to 3 M, terrain ramp 1 M to 4 M), :734 (LR linear over total steps); rl/PLAN_STEERING_RUN.md 'The runs'",
+     "evidence": "r_heat_peak is in LATE_TERMS. In a 3 M run, late_scale is 0 until 1 M, 0.5 at 2 M and 1.0 only at the last rollout: a mean of 0.75 over the last 1 M and 0 steps at full weight, against about 7 M steps in a 10 M judged run. The learning rate (3e-4 to 3e-5 linear over TOTAL_STEPS) is 2.1e-4, 1.2e-4 and 3e-5 at 1, 2 and 3 M in a 3 M run, against 2.7e-4, 2.5e-4 and 2.2e-4 in a 10 M run. So the dev policy is annealing just as the cost arrives. The terrain scale reaches only 0.67 at 3 M: pushes up to 0.67 m/s instead of 1.0, and a friction low end of 0.40 instead of 0.30. A weight-driven change in gait, or a late collapse towards standing (M2), would appear in the judged runs but not in the dev runs. Seed noise: fore128's hottest drive spans 0.828-0.945 over 4 seeds at identical settings (gait reports). One seed per weight cannot resolve differences under about 0.1.",
+     "suggested_fix": "Start each dev run with TOTAL_STEPS = 10,000,000, so the LR, late and terrain schedules are identical to the judged runs, and stop it with the notebook's stop button at about 5 M. Read the 5 M checkpoint: about 2.5 h each at the plan's 1.5 h per 3 M, with 2 M steps at full heat weight and 1 M at full pushes and friction. The second-best option is TOTAL_STEPS 5 M (the LR then differs). Give both dev runs the same SEED, read the per-episode worst drive and the sweep's x1.1 and 20 ms points, and treat a weight effect under about 0.1 RMS as unresolved. Update the plan's '3 M, 1.5 h' wording."
+    },
+    {
+     "id": "M2",
+     "severity": "medium",
+     "title": "Weight 3 likely makes standing beat a noisy 128 mm gait at full scale, the failure the README's weight rule was set to avoid; weight 1 halves that margin",
+     "location": "hardware/triceratops_build/rl/configs/steer1_dev_heat1.json, steer1_dev_heat3.json (w_heat_peak); rl/README.md reward-table section (0.366 margin rule)",
+     "evidence": "Measured with the README's method: seeds 100000-100002, 0.25 m/s, delay 10 ms, randomisation on, late and penalty scale 1, 20 s. The initial-policy noise (std 0.2 around 0) has its hottest drive at EMA RMS 1.07-1.15 and costs r_heat_peak -0.22 per step at w=1 (-0.66 at w=3). Standing's hottest drive is 0.47-0.58 (0.58 at x1.1 plus 1 kg), so standing pays 0. That makes the new term alone at w=3 about 1.5x all existing late costs on noise (README: heat -0.22, saturation -0.08, air-time -0.13). The next figures are estimated, not measured (no checkpoint was run). A walking gait at F20's 0.95 with noise is about 1.08 (the README's noise ratio 0.99/0.76 in mean square), which costs 0.28 per step steady and 0.19 as a 20 s episode mean per unit w. The README's noisy walking minus standing margin of +0.366 then becomes about +0.18 at w=1 and -0.20 at w=3; the README rejected heat 0.5 / saturation 5 for -0.03. At F20's x1.1-mass worst of 1.22 the cost is 0.42 (w=1) or 1.26 (w=3) per step. The policy can sense extra mass through foot_load_over_weight (normalised by nominal weight), so it can learn to slow or stand in heavy episodes. Two things soften this. Under gamma 0.99 the 4 s lag means the return sees only f = alpha/(1-gamma(1-alpha)) = 0.33 of the price, so the effective weights are about 0.33 and 1.0. And the cost bites mostly on fast requests: the hottest drive is 0.70-0.83 at 0.15 m/s against 0.83-0.95 at 0.25 m/s. Tracking still dominates small speed shortfalls: 0.03 m/s under costs 0.36 per step against at most 0.21 saved at w=3.",
+     "suggested_fix": "Before the dev runs, add r_heat_peak to the README's 'reward per step at three stages' measurement for a fore128 policy plus noise against standing (a few minutes), and pick weights that keep the noisy-walking margin at 0.3 or more at full scale, or record why not. Consider bracketing 0.5-1 and 1.5-2 rather than 1 and 3, or keep 1 and 3 only with the 10 M-schedule dev runs from M1 so a collapse would show. In the pre-registration, require walking (F1-like speed, no falls) at the heat stress points, not heat alone. State the effective weight (w x f) next to the nominal one."
+    },
+    {
+     "id": "M3",
+     "severity": "medium",
+     "title": "The heat average restarts from 0 at every reset, so the cost is off for the first 5-9 s of each 20 s episode exactly where 128 mm sits (0.83-0.95)",
+     "location": "hardware/triceratops_build/rl/trike_env.py:714 (_heat_ema = zeros in _reset_episode_state), :939-942",
+     "evidence": "With a constant per-step heat r^2, tau 4 s and margin 0.8, the first costed step comes at 8.7, 6.3, 4.9 and 4.1 s for a steady hottest RMS of 0.85, 0.90, 0.95 and 1.00. The 20 s episode cost is then 0.38, 0.50, 0.57 and 0.61 of the steady cost, and 0.42-0.68 over F2's own 2-20 s window. F2 counts the whole 18 s window at full value. So the cost under-prices most strongly the band it is meant to move (F20: 0.83-0.95). The average is not observed, so the critic sees identical observations at 1 s (cost 0) and 15 s (cost on): added value noise.",
+     "suggested_fix": "Use a bias-corrected average: keep a step count n since reset and price sqrt(E_n / (1 - (1-alpha)^n)). It equals the running mean since reset early on, which is F2's own estimator, and the EMA later. If the settling transient matters, start the average at 2 s, as F2's window does. Add a test that a constant heat input gives a constant heat_peak_rms from the first step."
+    },
+    {
+     "id": "M4",
+     "severity": "medium",
+     "title": "Tests miss the things that broke: the reset state under step 8, the presets' contents, and what the measuring configs inherit",
+     "location": "hardware/triceratops_build/rl/tests/test_steer_heat.py",
+     "evidence": "All 13 new tests and the full test_trike_env.py pass (including run 3's bit-identity digest), yet H1 and H2 are present. No test compares the reset qpos or trajectory with and without the factors. No test loads configs/steer1_dev_heat1.json or _heat3.json through train.env_config and checks them against the plan: command_mode, terrain_boxes 0, push_prob 0.5, friction_low_hard 0.3, delay (0,20), whole (0.9,1.1), payload (0,1), w_heat 0.3 kept, w_heat_peak 1 or 3. No test checks that flat_floor and gait_pipe1.flat_floor drop or keep the new factors. Only run3_terrain.json is loaded in tests (test_trike_env.py:1392, 1884).",
+     "suggested_fix": "Add the reset-state identity test from H1. Add a preset test that builds each steer1 preset, asserts the plan's values and checks that the notebook's ENV_PRESET menu equals the configs present. Add a test pinning what the three flat-floor reductions do with mass_scale_whole_range and payload_kg_range."
+    },
+    {
+     "id": "L1",
+     "severity": "low",
+     "title": "The 4 s filter charges short push-recovery bursts that neither F2's 18 s window nor the 4-15 min windings register",
+     "location": "hardware/triceratops_build/rl/trike_env.py:177 (heat_peak_tau_s = 4.0)",
+     "evidence": "Against a stride the 4 s time constant is fine: at 0.67-1 Hz the average passes 1/17-1/25 of the stride's oscillation. Against physics, the thermal constants are 240-900 s (telemetry/thermal.py TIME_CONSTANTS_S), 60-225x longer. Example: a drive held at 0.70 that bursts to 2x rating for 0.5 s (a push recovery; the X4 limit is about 2.8x) keeps its 18 s RMS at 0.766, under the margin. That burst costs 14.3 per unit w (7.1 discounted) at tau 4 s, 24.8 at tau 2 s and 0 at tau 18 s. At w=3 that is about 43, about 9 termination penalties. Pushes come in 50 % of the preset's episodes, and F20 found 128 mm already falls more under hard pushes. Longer tau is not free: under gamma 0.99 the share of the price seen is 0.67, 0.50, 0.33, 0.20 and 0.10 at tau 1, 2, 4, 8 and 18 s.",
+     "suggested_fix": "If push robustness drops in the dev runs, gate the price instead: charge each drive's per-step excess heat, w x (x_i,t - m^2)/(2m), only while that drive's slow average (tau 10-18 s, bias-corrected) is above the margin. That gives F2-like selection with immediate credit (f about 1), and bursts on a cool drive stay free. Either way, document tau's trade-off in the config comment."
+    },
+    {
+     "id": "L2",
+     "severity": "low",
+     "title": "Only the single hottest drive is priced, though 128 mm usually has two or three drives above 0.8",
+     "location": "hardware/triceratops_build/rl/trike_env.py:941 (max over the 12 drives)",
+     "evidence": "Target-case hottest and next drives in the fore128 gait reports: s0 0.828/0.815; s1 0.888/0.811; s2 0.931/0.857/0.822; s3 0.945/0.901. With max(), cooling the hottest drive pays only down to the runner-up's level, and the gradient falls on one drive at a time, which changes from episode to episode. D29's wording ('the hottest drive') is followed literally.",
+     "suggested_fix": "Keep the max form per D29, or ask the owner whether a sum of hinges, sum_i max(0, r_i - 0.8), is acceptable. It prices every drive that could fail F2 ('every joint under 1.0'). At the 128 mm baselines it costs 1.0-1.7x the max form (s3: 0.246 against 0.145), so the weights would need rescaling."
+    },
+    {
+     "id": "L3",
+     "severity": "low",
+     "title": "The 20 ms stress point sits at the edge of the training delay range, and the sweep still labels the old ranges as 'training-typical'",
+     "location": "hardware/triceratops_build/rl/configs/steer1_dev_heat*.json (delay_steps_range [0, 20]); rl/robustness/sweep.py:64 (TRAINING)",
+     "evidence": "A uniform integer draw over 0..20 gives 20 ms in 1/21 = 4.8 % of episodes. F20 found over-rating at 20 ms or more. The sweep's TRAINING table is hard-coded to delay (0, 10) and mass (0.9, 1.1); training_ranges() updates only friction. So the sweep's charts and the 'training-typical' counts F20 relied on would mislabel the 15-20 ms points and the payload points for the steering runs.",
+     "suggested_fix": "Consider delay_steps_range (0, 25), so that 20 ms is inside the trained range. Make sweep.training_ranges() read delay_steps_range, mass_scale_whole_range and payload_kg_range from the run record."
+    },
+    {
+     "id": "L4",
+     "severity": "low",
+     "title": "The notebook lets a steer1 preset run on the wrong model (default MODEL is PR #669's)",
+     "location": "hardware/triceratops_build/rl/trike60_training.ipynb cell 1 (MODEL default \"trike60_C_closed\", TOTAL_STEPS 2000000)",
+     "evidence": "The presets do not set model_path, and train.py's --model comes from MODEL. Picking ENV_PRESET steer1_dev_heat1 with the default MODEL trains on trike60_C_closed, not D25's trike60_C_closed_capsule_fore128. COLAB_STEPS.md has no steer1 sheet yet.",
+     "suggested_fix": "In the parameter cell, refuse ENV_PRESET values starting with steer1_ unless MODEL == \"trike60_C_closed_capsule_fore128\" ('Nothing was run.'). Write the step sheet with MODEL and TOTAL_STEPS stated (see M1)."
+    },
+    {
+     "id": "L5",
+     "severity": "low",
+     "title": "Documentation and diagnostics gaps",
+     "location": "hardware/triceratops_build/rl/README.md (reward table, randomisation section); trike_env.py:1023; tests/test_steer_heat.py:133",
+     "evidence": "README's reward table and randomisation section do not mention r_heat_peak or the whole-mass and payload factors (grep finds none). info['heat_peak_rms'] reads 0.0 whenever w_heat_peak is 0, which looks like a measurement but is not one. test_delay_range_to_20_ms_reaches_its_ends ends with 'and mujoco.__version__', which is always true.",
+     "suggested_fix": "Add the term (form, weight, margin, tau, late schedule) and the two factors to the README. Either compute heat_peak_rms always or leave it out of info when the term is off. Drop the vacuous assert clause."
+    }
+   ],
+   "checked_ok": [
+    "Default-off paths: with w_heat_peak 0 and both ranges None, r_heat_peak is exactly 0, no new random draws are made, and the full test_trike_env.py passes (run 3's bit-identity digest included), as does test_steer_heat.py (MuJoCo 3.10.0, the given venv). HEAD has moved to 830c101f, a docs-only commit with the D28 owner note; trike_env.py is byte-identical to 925550e0.",
+    "r_heat_peak arithmetic: each drive's per-physics-step (torque/continuous rating)^2 is averaged over the 20 physics steps, passed through an EMA with alpha = 1-exp(-dt/tau), and the cost is w x late_scale x max(0, sqrt(max) - margin). This matches the config comment and docstring. Ratings are the nominal continuous ratings, as F2 uses. r_heat_peak is in LATE_TERMS, so train.py's late_scale applies.",
+    "Random streams: the two new uniforms come after the steering draw. Delay, command, friction and per-body factors per seed are unchanged, and the steering request schedule is unchanged for 6 s (tests pass). The uniforms are drawn even with randomisation off, so the stream stays aligned.",
+    "Mass application: masses restart from nominal every reset (no accumulation). The payload inertia scaling is identical to sweep.apply_point. The push impulse uses the current (randomised) total mass at onset. The training total-mass ratio spans x0.868-1.214 (mean 1.042, 21 % at x1.10 or more), so the plan's x1.1 stress point lies inside the training distribution. The per-body draws alone give x0.93-1.07, as the config comment says.",
+    "Presets against the plan, D26 and D28-D30: steering heading_and_speed; flat (terrain_boxes default 0, per D28 and the owner's flat-only note); pushes 0.5 at a 1.0 m/s dv maximum; slippery end 0.3; w_lateral_drift 100 and slip_at_contact as in run 3; delay 0-20 ms; whole mass x0.9-1.1; payload 0-1 kg; today's w_heat 0.3 kept beside the new term (D29); two weights for two dev runs (D30). Longer climbs are absent, consistent with D28.",
+    "Margin 0.8 against the rule's 0.85: the 0.05 buffer is about the per-episode spread above the 5-episode mean in D22's fore128 target cases (0.04-0.06: 0.884/0.828, 0.923/0.888, 0.975/0.931, 0.999/0.945). Consistent.",
+    "The 4 s time constant against a stride of about 1-1.5 s: it passes 1/17-1/25 of the stride-rate oscillation, so the hottest-drive estimate does not ripple with the gait.",
+    "Standing never pays r_heat_peak: its hottest drive is 0.48 (nominal) to 0.58 (x1.1 whole mass plus 1 kg) after 20 s.",
+    "A 4096-step train.py smoke run with steer1_dev_heat3 on fore128 (2 envs, late ramp forced on, periodic evals) completes without error; git status stays clean.",
+    "Notebook: the menu and the validation list both presets, and cell 5 passes rl/configs/<preset>.json via --env-config. train.py's env_config merges the JSON over the defaults, and from_dict turns the lists into tuples.",
+    "Validation refuses negative weights, a margin outside (0, 2], a non-positive tau, inverted or negative ranges and a zero whole-mass factor (tests pass)."
+   ],
+   "not_checked": [
+    "No trained checkpoint was run, per the instructions. The noisy-walking-gait cost in M2 is an estimate: F20's hottest-drive values scaled by the README's noise ratio. Only the initial-noise and standing cases were measured.",
+    "No dev-length training was run, so learning behaviour under the presets, including the effect on pushes and any collapse towards standing, is reasoned, not observed.",
+    "evaluate.py, steer_eval.py and the gait report were not run end to end with a checkpoint. Their env construction was read and reproduced: the gait report's target-case config was rebuilt and reset.",
+    "telemetry/checks.py periodic checks under the steering presets were not exercised. The notebook does not pass --checks-every.",
+    "The thermal model's demo-course heat (demo_course.py) under the new mass ranges was not run.",
+    "No T. rex files were opened."
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "H1",
+     "verdict": "confirmed",
+     "severity_after": "high",
+     "reasoning": "Reproduced exactly. Step 8's mujoco.mj_setConst(m, d) runs after step 4 placed the state, and it rewrites d.qpos. The leg joints go back to 0, the root z goes back to 0.32 and the reset noise and sole clearance are lost. The older code path never hit this, because _apply_factors calls mj_setConst before mj_resetDataKeyframe, and the sweep's PointEnv applies its factors in _apply_factors too. Step 8 runs whenever either new range is set and randomisation is on. That covers every training reset of both presets, and every randomised measurement built from the run's config: the gait report target case, steer_eval, evaluate.py and train.py's PeriodicEval (domain_randomization=True). Restoring qpos/qvel around the call removes the divergence completely, and a scratch MjData gives identical constants, so the suggested fix is correct and safe.",
+     "evidence": "scripts/h1.py, h1b.py and h2.py in /tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/review_steer/scripts/ (MuJoCo 3.10.0).\n- On a reset env, mj_setConst(m, d) changed qpos indices [2, 7, 11-13, 15-17, 19-21, 23-25]; z went from 0.32387 to 0.32.\n- base vs unit factors ((1,1), (0,0)), seeds 0-2, observation noise off: the masses are identical, but qpos is not equal. The leg q of the unit config are all 0.0, against +-0.02 in the base. z is 0.3200 against 0.3226-0.3239. Lowest sole -1e-10 against 0.002. Max qpos diff over 200 zero-action steps 0.467-0.470.\n- With mj_setConst patched to save and restore qpos/qvel: reset qpos equal and max diff over 200 steps 0.0 for all 3 seeds. mj_setConst on mujoco.MjData(m) leaves subtreemass, dof/body invweight0, actuator acc0/length0 and tendon invweight0/length0 bit-identical (True).\n- flat_floor(steer1_dev_heat1) target case, seeds 100000-100004 with delay 10: sole z -0.0 and leg |q| max 0.0 on every seed.\n- No test covers it: test_steer_heat.py only checks masses and subtree mass."
+    },
+    {
+     "id": "H2",
+     "verdict": "confirmed",
+     "severity_after": "high",
+     "reasoning": "All three flat-floor reductions reset only terrain_boxes, push_prob and friction_low_hard (trike_env.FLAT_FLOOR, gait_pipe1.flat_floor's tuple list, sweep.FLAT_FLOOR). So the new whole-mass and payload ranges pass into the gait report's target case, steer_eval and train.py's periodic evals, which all keep randomisation on. The measuring envs already neutralise the other widened training range: they fix the delay at 10 ms (gait report options, steer_eval delay_steps_fixed=10, PeriodicEval delay_steps_fixed=10). Keeping the mass and payload widening while fixing the delay is therefore inconsistent with how the tools treat training-only ranges. It also makes the target case incomparable with F20's 0.83-0.95, which was measured with per-body draws only. Training is unaffected and the fix needs no retraining. But the dev-run readout that sets the weight, and any judged measurement made with today's tools, would sit on a heavier robot with a wider mass spread. The sweep's own points run with randomisation off and are unaffected. Its reproduction point (randomise=True) is affected.",
+     "evidence": "scripts/h2.py:\n- gp.flat_floor and te.flat_floor on the steer1_dev_heat1 config both keep (0.9, 1.1), (0.0, 1.0) and DR True.\n- Target case seeds 100000-100004, total mass over nominal (12.7506 kg): x1.145, 1.000, 0.961, 1.030, 0.933 with the new factors, against x1.034, 0.949, 0.995, 1.018, 0.963 per-body only.\n- 2000 training resets (seeds 0-1999): x0.864-1.230, mean 1.038, against per-body only x0.930-1.073, mean 1.000. The reviewer's 0.868-1.214 / 1.042 differs slightly but agrees in substance.\n- Code read: gait_pipe1.py:82-88, trike_env.py:405-411, sweep.py:199 and 207-218, gait_report.py:630, steer_eval.py:51-57, train.py:503-504."
+    },
+    {
+     "id": "M1",
+     "verdict": "partly",
+     "severity_after": "medium",
+     "reasoning": "The schedule arithmetic is correct. In a 3 M run, late_scale is 0 until 1 M and reaches 1.0 only at 3 M, a mean of 0.75 over the last 1 M. The LR is linear over total steps (LinearSchedule over SB3 progress_remaining) and the terrain or push scale reaches only 0.667 at 3 M. The notebook passes no --late-ramp-* or --terrain-ramp-* flags, so a 3 M dev run cannot reach full heat weight for any length of time. Seed spread 0.828-0.945 is confirmed from the D22 appendix. However, this is a critique of the owner's D30 choice (about 3 M dev runs), not a defect in the change. 'Cannot set the weight' is overstated: the dev runs still show the term's effect at scale 0.5-1.0, so they give some evidence. Kept at medium as a real planning risk with a cheap remedy.",
+     "evidence": "train.py:126-134 (late 1 M -> 3 M, terrain 1 M -> 4 M defaults), train.py:734 (LinearSchedule(3e-4, 3e-5)), environments/shared/curriculum/schedules.py:75-76 (final + progress_remaining*(initial-final)).\n- LR in a 3 M run: 2.1e-4, 1.2e-4 and 3e-5 at 1, 2 and 3 M. In a 10 M run: 2.73e-4, 2.46e-4 and 2.19e-4.\n- Friction low end at scale 0.667: 0.6 + 0.667*(0.3-0.6) = 0.40.\n- Notebook cell 5 TRAIN_CMD has no ramp flags.\n- REPORT_FORELEG_D22_APPENDIX.md heat table, 128 mm worst drives: 0.828, 0.888, 0.931, 0.945. DECISION_LOG D30 chose about 3 M dev runs."
+    },
+    {
+     "id": "M2",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The measured parts hold. Initial-policy noise (std 0.2) puts the hottest drive's EMA RMS at about 1.07-1.14 at episode end, at a cost of -0.17 to -0.26 per step at w=1. Standing's hottest drive is 0.45-0.60, so standing pays 0. At w=3 the noise cost is about 1.5-1.7x the existing late costs on noise. The effective-weight factor f = 0.334 is also correct. The central claim, that w=3 'likely makes standing beat' noisy walking, is unmeasured. It rests on the README's +0.366 margin, which was measured with pipe1's policy on the older model under the straight-task reward. The steering env's r_track and standing reward differ, and no fore128 checkpoint is available to check. The dev runs at w=1 and w=3 exist precisely to find whether a weight is too strong (D29: the dev runs set the weight), and a collapse to standing would be visible in a dev run's speed. So this is a reasonable caution about the bracket, not a demonstrated defect.",
+     "evidence": "scripts/m2.py: steer1_dev_heat1 on fore128, seeds 100000-100002, command 0.25, delay 10, late=penalty=1, 1000 steps.\n- Standing: hottest 0.587, 0.452 and 0.598 max; r_heat_peak 0.000 on all 3.\n- Noise: hottest at end 1.140, 1.065 and 1.137 (max 1.203, 1.108, 1.194). r_heat_peak -0.261, -0.173 and -0.264 per step. r_heat -0.19 to -0.25, r_saturation -0.06 to -0.10, r_air_time -0.10 to -0.14.\n- f = alpha/(1-0.99(1-alpha)) = 0.3339.\n- README.md:199-213: the margin table is for pipe1 + noise on the old model."
+    },
+    {
+     "id": "M3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "_heat_ema is zeroed in _reset_episode_state and the observation holds neither time nor heat state, so every number in the finding reproduces. Two things reduce the impact below medium. First, both dev and judged runs share the same pricing, and the dev runs calibrate the weight against it, so a roughly constant under-pricing factor is absorbed. Second, the remaining effect amounts to moving the hinge up by a few hundredths and flattening its slope: the episode-mean cost is 0.019, 0.050, 0.085 and 0.122 at 0.85, 0.90, 0.95 and 1.00, against a steady 0.05, 0.10, 0.15 and 0.20. That matters next to a 0.85 rule, and early pushes (window 3-17 s) are cheaper. Still, it is a design limitation with a simple fix, not a correctness bug.",
+     "evidence": "trike_env.py:714 (zeros at reset), 937-942 (EMA update). _get_obs (trike_env.py:1170-1212) has no time or heat input; phase_clock_hz defaults to 0.\n- scripts/m3.py, constant heat, tau 4 s, margin 0.8. First costed step at 8.68, 6.26, 4.94 and 4.10 s for r = 0.85, 0.90, 0.95, 1.00. 20 s cost ratio 0.381, 0.500, 0.566, 0.610. 2-20 s ratio 0.423, 0.556, 0.629, 0.678.\n- push_window_s = (3.0, 17.0) at trike_env.py:221."
+    },
+    {
+     "id": "M4",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "The test gaps are real, and they are exactly the ones that let H1 and H2 through. No test compares reset qpos or trajectories with and without the new factors, or checks _lowest_sole_z for a config that has them. No test loads either steer1 preset. test_tools_measure_on_the_flat_floor checks only terrain_boxes, push_prob and friction_low_hard. All existing tests pass with both bugs present.",
+     "evidence": "pytest test_steer_heat.py: 13 passed. pytest test_trike_env.py: all passed (4 m 48 s), including run 3's digest.\n- grep 'steer1|mass_scale_whole|payload_kg_range' in tests: no hits outside test_steer_heat.py and .pyc files. Presets are loaded only as run3_terrain.json (test_trike_env.py:1392, 1884).\n- The flat-floor test (test_trike_env.py:1527-1540) asserts only (terrain_boxes, push_prob, friction_low_hard).\n- The reset clearance is checked only for default configs (test_trike_env.py:449, 1647)."
+    },
+    {
+     "id": "L1",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The arithmetic reproduces: 18 s RMS 0.766, burst cost 14.35 per unit w (7.10 discounted) at tau 4, 24.81 at tau 2, 0 at tau 18. The share of the price seen is 0.67, 0.50, 0.33, 0.20 and 0.10 at tau 1, 2, 4, 8 and 18 s. The comparison with '9 termination penalties' is misleading, though. A fall forfeits the rest of the episode's positive reward (tens of discounted reward units), not just the 5.0 penalty, so the burst cost does not make falling preferable. tau is an explicit, documented parameter, and the suggestion is conditional on the dev runs showing a problem. A fair low note.",
+     "evidence": "scripts/m3.py, burst from a steady 0.49 to 4.0 (2x rating) for 25 steps:\n- undiscounted cost: tau 1 30.74, tau 2 24.81, tau 4 14.35, tau 8 2.68, tau 18 0.00;\n- discounted (gamma 0.99): 20.13, 13.97, 7.10, 1.45, 0.00;\n- 18 s RMS sqrt((17.5*0.49 + 0.5*4)/18) = 0.7665.\ntermination_penalty = 5.0 (trike_env.py:155); heat_peak_tau_s = 4.0 (trike_env.py:177)."
+    },
+    {
+     "id": "L2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The figures match the D22 appendix's per-drive table, and the max-over-12 form is in the code. As the finding itself says, this follows D29 ('price the hottest drive') literally, so it is a question for the owner rather than a defect.",
+     "evidence": "REPORT_FORELEG_D22_APPENDIX.md, drive-heat table, 128 mm hottest / next drives:\n- s0: 0.828 (left_hind_pitch) / 0.815 (right_hind_flexion);\n- s1: 0.888 / 0.811;\n- s2: 0.931 / 0.857 / 0.822;\n- s3: 0.945 / 0.901.\ns3 hinge sum = 0.145 + 0.101 = 0.246. trike_env.py:941 uses self._heat_ema.max()."
+    },
+    {
+     "id": "L3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "Both parts of the finding hold. The delay draw is rng.integers(lo, hi+1), so 20 ms comes in 1/21 of episodes. The sweep's TRAINING table hard-codes delay (0, 10) and mass (0.9, 1.1), and training_ranges() overrides only friction. charts.py shades the delay and mass panels from these values, so a steer1 run's charts would mislabel the trained range.",
+     "evidence": "trike_env.py reset step 2: rng.integers(cfg.delay_steps_range[0], cfg.delay_steps_range[1] + 1). robustness/sweep.py:64-75 (TRAINING; training_ranges only sets 'friction'), sweep.py:937 (stored in the settings). charts.py:197, 215, 265 (shading reads the settings' training_ranges)."
+    },
+    {
+     "id": "L4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The MODEL parameter defaults to trike60_C_closed and is passed as --model. env_config() builds model_path from --model, and neither steer1 preset sets model_path. A steer1 preset run with the default MODEL therefore trains on the wrong model. COLAB_STEPS.md has no steer1 sheet yet. run3_terrain follows the same pattern and relies on its step sheet, so this is a footgun, not a defect.",
+     "evidence": "Notebook cell 1: MODEL = \"trike60_C_closed\". Cell 5: TRAIN_CMD has '--model', MODEL and '--env-config', _preset. train.py:217-224 (TrikeEnvConfig(model_path=resolve_model(args.model)), then the preset merged in). steer1_dev_heat1.json and steer1_dev_heat3.json have no model_path. grep 'steer' COLAB_STEPS.md: no hits."
+    },
+    {
+     "id": "L5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "All three points hold. The README does not mention r_heat_peak or the two factors. heat_peak_rms is only updated when w_heat_peak > 0, so info reports 0.0 when the term is off, and a test even asserts that. The trailing 'and mujoco.__version__' in the delay test is a non-empty string, so that clause is always true.",
+     "evidence": "grep 'heat_peak|r_heat_peak|payload|mass_scale_whole|whole-robot|whole robot' README.md: no hits. trike_env.py:937-941 (only computed if peak_on), :1023 (info['heat_peak_rms'] = self.heat_peak_rms). test_steer_heat.py:27 asserts e.heat_peak_rms == 0.0 when off; test_steer_heat.py:133 ends with 'and mujoco.__version__'."
+    }
+   ]
+  }
+ ]
+}

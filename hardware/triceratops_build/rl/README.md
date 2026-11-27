@@ -341,10 +341,78 @@ edited.
   about 10 s more per check; the checks chart gives them a third panel (heading error 3 s after a request).
 - **Provenance:** the gait report records the shared direction-command module's sha256 beside the run commit's, so a
   run's exported `trike_env.py` used with a newer shared module shows.
-- **Not yet decided:** the settings above are starting points, set before any steering run. The steering run's
-  rules, its preset and step sheets come after run 3's results (D20). One known point for that preset: run 3's
-  terrain (`configs/run3_terrain.json`) is laid along the reset heading, so a robot that turns walks off it; a
-  steering preset needs terrain around the start, or none.
+- **Not yet decided:** the settings above are starting points, set before any steering run. Run 3's terrain
+  (`configs/run3_terrain.json`) is laid along the reset heading, so a robot that turns walks off it; the steering
+  presets have none (D28, flat for now). The presets and the training additions are in the next section; the rules
+  come in a pre-registration after the dev runs.
+
+## The steering run's training additions (D26, D29; built and reviewed 26 Nov 2026, not yet trained)
+
+Each is off by default: the straight task and run 3's preset are unchanged, and both regression digests hold.
+
+- **The hottest drive's heat cost, `r_heat_peak` (D29),** a late term (x late scale, like `r_heat`):
+  - each drive's (torque / continuous rating)^2, averaged over the step's physics steps;
+  - from `heat_peak_start_s` (2 s, where F2's window starts) on, low-passed with `heat_peak_tau_s` (4 s) and
+    bias-corrected (`heat_peak_update`). Until about tau it is the running mean since 2 s, F2's own estimator, and
+    after that the exponential average; a constant heat gives its own RMS from the first step (tested);
+  - cost = `w_heat_peak` x late scale x max(0, sqrt(the largest of the 12) - `heat_peak_margin`), margin 0.8
+    (against a heat rule near 0.85: in D22's 128 mm target cases, the hottest single episode sat 0.035-0.056 above
+    the 5-episode figure; `analytics/results/fore128-s*/`);
+  - `info["heat_peak_rms"]`, the hottest drive's average (0 before 2 s), is there only when the term is on;
+  - the average is not observed. Under gamma 0.99, a step's heat reaches the return with about a third of the weight
+    of an unfiltered per-step cost (tau 4 s);
+  - changed after the review of 26 Nov 2026, before any run: the first version started the average at 0 at every
+    reset, so over a 20 s episode it priced a drive at 0.85-1.0 of its rating at 38-61 % of its steady cost.
+- **Whole-robot mass and payload (D26),** `mass_scale_whole_range` and `payload_kg_range`:
+  - two uniforms drawn after every older draw, so a seed's delay, command, friction and per-body factors are as
+    without them;
+  - under randomisation, every body's mass and inertia x one factor, then a payload on the chassis at its centre of
+    mass, with the chassis inertia scaled by the same mass ratio (as the sweep's payload);
+  - with the presets' x0.9-1.1 and 0-1 kg, the training robot's total mass spans x0.864-1.230 of nominal (mean
+    1.038, 5-95 % 0.928-1.151; 2000 resets), against x0.930-1.073 from the per-body draws alone;
+  - the constants are recomputed on a scratch copy of the data, so the reset state is kept: the keyframe, the leg
+    joint noise and the 2 mm sole clearance. The review found that the first version, recomputing them on the live
+    data, reset every episode to the model's spring pose: no leg noise, soles at 0 mm and the neck outside its
+    range. Fixed and tested: with factors that change no mass, the reset state and a 200-step trajectory are those of
+    the config without them, bit for bit.
+- **Measuring:** the evaluations and the analysis tools turn both draws off (`flat_floor`, `gait_pipe1.flat_floor`,
+  `sweep.FLAT_FLOOR`). A randomised measurement draws the per-body factors only, as for every earlier run, so the
+  target case compares with F20; the heavier robots are the sweep's mass and payload points. The sweep reads the
+  training ranges from the run record for its shading and its report line: delay, friction, per-body and whole-robot
+  mass, payload, terrain and pushes.
+- **The weight** (measured; `analysis/steer_heat_weight.py`, results in `analysis/results/steer1/heat_weight/`).
+  The README's method above, on the four D22 128 mm policies in their own env with the heat cost added, at full
+  scale, 0.25 m/s. The margin is the reward per step a walking gait with action noise earns over standing (standing
+  pays no `r_heat_peak`; its hottest drive is at 0.48). Worst of the four policies; no falls in 240 episodes:
+
+  | Action noise (std) | hottest drive | w 0 | w 0.5 | w 1 | w 3 |
+  |---|---|---|---|---|---|
+  | 0.2 (the initial policy's) | 1.18-1.26 | +0.350 | +0.147 | -0.055 | -0.864 |
+  | 0.15 | 1.10-1.16 | +0.656 | +0.483 | +0.310 | -0.382 |
+  | 0.1 | 0.98-1.06 | +0.868 | +0.749 | +0.630 | +0.156 |
+  | 0 (deterministic) | 0.88-0.96 | +1.133 | +1.071 | +1.003 | +0.672 |
+
+  - Exploration noise makes the hottest drive hotter, so the cost falls mostly on the noise. With weights 1 and 3,
+    the first presets, a gait with the initial noise would earn 0.06 and 0.86 per step less than standing at full
+    scale. That is the failure the 0.3 margin rule above guards against.
+  - The noise shrinks as training goes on: the D22 runs ended at std 0.083-0.091 (final checkpoints). Weight 1
+    keeps the margin at +0.31 at std 0.15, and 0.5 keeps it positive (+0.147) even at 0.2. So the dev runs use 0.5
+    and 1 (`configs/steer1_dev_heat05.json`, `steer1_dev_heat1.json`).
+  - Pricing every drive over the margin, rather than the hottest, would cost about four times as much under the
+    initial noise: -0.426 at weight 0.5 (`heat_weight_margins_every_drive.md`, from the same averages). D29's
+    hottest drive is kept.
+  - At 0.15 m/s the margins are lower at std 0.2 (+0.021 at weight 0.5) and close at 0.15 (+0.314 at weight 1).
+  - These are straight-task policies; the steering task's tracking reward differs, so this guides the dev runs and
+    predicts nothing.
+- **The presets** (`configs/steer1_dev_heat05.json`, `steer1_dev_heat1.json`): speed and heading commands
+  (`heading_and_speed`); flat floor (D28); pushes in half the episodes, up to 1.0 m/s; the slippery end at 0.3; the
+  drift cost and slip at the contact as in run 3; servo delay 0-20 ms; the whole-robot factor x0.9-1.1 and a 0-1 kg
+  payload; today's `w_heat` 0.3 kept, plus `r_heat_peak` at 0.5 or 1 (margin 0.8, tau 4 s, from 2 s). The model is
+  `trike60_C_closed_capsule_fore128` (D25); the notebook refuses a steer1 preset with another MODEL. The presets set
+  no schedule: the learning rate, the late ramp (1 M to 3 M) and the push and friction ramp (1 M to 4 M) are
+  train.py's, and follow TOTAL_STEPS.
+- **During training,** the evaluations' per-drive RMS over rating (`eval_during_training.jsonl`) shows the hottest
+  drive; `train_health.jsonl` shows `r_heat_peak`.
 
 ## Heat, battery and loads over a demo (decision D21; `demo_course.py`)
 

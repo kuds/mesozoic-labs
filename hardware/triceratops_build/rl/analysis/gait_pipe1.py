@@ -80,12 +80,14 @@ class _RestrictedUnpickler(pickle.Unpickler):
 
 
 def flat_floor(cfg):
-    """``cfg`` with the training-only terrain, pushes and low-friction end off, for an env that has them (run 3 on);
-    an env exported from an older commit has none of these fields and is returned unchanged."""
+    """``cfg`` with the training-only terrain, pushes, low-friction end and whole-robot mass and payload draws off,
+    for an env that has them (run 3 on; the whole-robot draws from the steering run on); an env exported from an older
+    commit has none of these fields and is returned unchanged. The same fields as trike_env.FLAT_FLOOR."""
     import dataclasses
 
     names = {f.name for f in dataclasses.fields(cfg)}
-    off = {k: v for k, v in (("terrain_boxes", 0), ("push_prob", 0.0), ("friction_low_hard", None)) if k in names}
+    off = {k: v for k, v in (("terrain_boxes", 0), ("push_prob", 0.0), ("friction_low_hard", None),
+                             ("mass_scale_whole_range", None), ("payload_kg_range", None)) if k in names}
     return cfg.replace(**off) if off else cfg
 
 
