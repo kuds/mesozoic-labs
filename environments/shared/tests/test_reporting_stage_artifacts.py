@@ -1284,10 +1284,20 @@ class TestStanceHeadingStageGate:
 
         calls = self._record_probes(monkeypatch)
         report = heading_report(tmp_path)
+        # A certificate stage declaring every probe the runner rolls only when declared (declared_stance_probes);
+        # a recorded heading-probe key does not make the heading probe due there.
+        config = self._config()
+        config["curriculum_kwargs"].update(
+            stance_probe_filter_hz=[5.0],
+            stance_probe_hold_constant=True,
+            stance_probe_release_ablation=True,
+            stance_probe_impulse_speeds=[1.0],
+            stance_probe_spawn_yaw_deg=[90.0],
+        )
         _run_stance_probes(
             model_id=TYRANNOSAURUS_REX,
             stage=1,
-            stage_config=self._config(),
+            stage_config=config,
             stage_dir=tmp_path,
             model_dir=tmp_path / "models",
             report=report,

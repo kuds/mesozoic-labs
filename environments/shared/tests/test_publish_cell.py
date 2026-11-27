@@ -205,7 +205,8 @@ def _namespace(
     quick_test: bool = False,
 ) -> dict[str, Any]:
     """What the publish cell reads after sections 1-6: the resolve cell's chain (``MANIFEST.resolve_behavior``,
-    ``chain_for``), the storage cell's run and seeds, and the helpers cell's real wrappers over the library."""
+    ``chain_for``), the storage cell's run, seeds and ``LOG_BASE``, and the helpers cell's real wrappers over the
+    library, ``save_run_bundle``'s run report (``write_run_report_quietly``) included."""
     manifest = load_stage_manifest(model_id)
     target = manifest.resolve_behavior(behavior)
     calls: list[dict[str, Any]] = []
@@ -223,6 +224,8 @@ def _namespace(
     namespace: dict[str, Any] = {
         "Path": Path,
         "RUN_DIR": run_dir,
+        # The storage cell's log base: <LOG_BASE>/<species>/<embodiment>/<tree>/<run_id>.
+        "LOG_BASE": run_dir.parents[3],
         "_ACTIVE_RUN_ID": run_dir.name,
         "MODEL_ID": model_id,
         "BEHAVIOR": behavior,
@@ -248,7 +251,7 @@ def _namespace(
         "bundle_calls": calls,
     }
     infra = _cell(INFRA_CELL_MARKER)
-    for name in ("chain_results", "write_training_summary", "save_run_bundle"):
+    for name in ("chain_results", "write_training_summary", "write_run_report_quietly", "save_run_bundle"):
         exec_top_level_def(infra, name, namespace)
     return namespace
 
@@ -572,6 +575,11 @@ class TestPublishing:
         out = capsys.readouterr().out
         assert "Result bundle published and checked: complete (canonical-valid), target 'stance'" in out
         assert "  stance: certified, 1 run of 1 seed" in out
+        # save_run_bundle then wrote the run's report and the model's index outside the run, which still verifies.
+        reports = model_id.path(tmp_path / "logs") / "reports"
+        assert f"Run report: {reports / tree / run_dir.name / 'report.md'}" in out
+        assert "**State: complete.**" in (reports / tree / run_dir.name / "report.md").read_text(encoding="utf-8")
+        assert f"| {run_dir.name} | {tree} | complete | stance |" in (reports / "INDEX.md").read_text(encoding="utf-8")
         # The summary's sim time is the episode length times the node's own control step (a verdict records none:
         # the cell takes it from a bare env of the task, 0.02 s for the Compsognathus pair, 0.01 s for the rest).
         summary = (run_dir / "training_summary.txt").read_text(encoding="utf-8")

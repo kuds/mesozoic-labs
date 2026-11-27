@@ -825,14 +825,18 @@ def _run_stance_probes(
             ),
         ),
     )
+    # The one rule for which probes roll, which run_index reads too: each writer's own switch agrees with it.
+    declared = declared_stance_probes(curriculum)
     for label, run_probe in probe_calls:
+        if label not in declared:
+            continue
         try:
             run_probe()
         except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
             logger.warning("Stance probe (%s) failed for stage %s", label, stage, exc_info=True)
 
 
-def _probe_cutoffs(raw: Any) -> list[float]:
+def _probe_cutoffs(raw: Any, *, warn: bool = True) -> list[float]:
     """Normalise ``stance_probe_filter_hz`` to a sorted list of cutoffs.
 
     Accepts a single number or a list, because the useful reading is a curve
@@ -843,6 +847,9 @@ def _probe_cutoffs(raw: Any) -> list[float]:
     can actually move is how long the filtered policy survives, and reading
     that against cutoff shows *how much* high-frequency content the policy
     depends on rather than merely that it depends on some.
+
+    *warn* ``False`` drops the warning for an entry that is not a number
+    (:func:`declared_stance_probes`, which a report tool calls).
     """
     values = raw if isinstance(raw, (list, tuple)) else [raw]
     cutoffs: list[float] = []
@@ -850,11 +857,92 @@ def _probe_cutoffs(raw: Any) -> list[float]:
         try:
             number = float(value)
         except (TypeError, ValueError):
-            logger.warning("stance_probe_filter_hz entry is not a number: %r; ignoring it", value)
+            if warn:
+                logger.warning("stance_probe_filter_hz entry is not a number: %r; ignoring it", value)
             continue
         if number > 0:
             cutoffs.append(number)
     return sorted(set(cutoffs))
+
+
+def _probe_speeds(raw: Any, *, warn: bool = True) -> list[float]:
+    """The positive shove speeds ``stance_probe_impulse_speeds`` names, in its order; empty when unset.
+
+    :func:`_write_impulse_probe`'s switch, shared with :func:`declared_stance_probes`.
+    """
+    if not raw:
+        return []
+    values = raw if isinstance(raw, (list, tuple)) else [raw]
+    speeds: list[float] = []
+    for value in values:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            if warn:
+                logger.warning("stance_probe_impulse_speeds entry is not a number: %r; ignoring it", value)
+            continue
+        if number > 0:
+            speeds.append(number)
+    return speeds
+
+
+def _probe_offsets(raw: Any) -> list[float]:
+    """The finite, non-zero spawn turns ``stance_probe_spawn_yaw_deg`` names, in its order; empty when unset.
+
+    :func:`_write_heading_probe`'s switch; ``stance_report.declares_heading_probe``
+    (:func:`declared_stance_probes`) reads the same values.
+    """
+    if not raw:
+        return []
+    values = raw if isinstance(raw, (list, tuple)) else [raw]
+    offsets: list[float] = []
+    for value in values:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            logger.warning("stance_probe_spawn_yaw_deg entry is not a number: %r; ignoring it", value)
+            continue
+        if math.isfinite(number) and number != 0.0:
+            offsets.append(number)
+    return offsets
+
+
+#: The labels :func:`_run_stance_probes` logs its probes under, in the order it rolls them.
+STANCE_PROBE_LABELS = ("filtered action", "constant hold", "release ablation", "impulse", "heading")
+
+
+def declared_stance_probes(curriculum: Mapping[str, Any]) -> tuple[str, ...]:
+    """The probes :func:`_run_stance_probes` rolls on a stage whose ``[curriculum]`` block is *curriculum*.
+
+    By their :data:`STANCE_PROBE_LABELS`, in that order: ``stance_probe_filter_hz``
+    names a positive cutoff (:func:`_probe_cutoffs`), ``stance_probe_hold_constant``
+    and ``stance_probe_release_ablation`` are set, ``stance_probe_impulse_speeds``
+    names a positive speed (:func:`_probe_speeds`), and the heading probe is due
+    (``stance_report.declares_heading_probe``: a finite non-zero
+    ``stance_probe_spawn_yaw_deg``, never under the six-heading certificate, whose
+    gate judged every heading).  Empty for a stage whose gate is no stance kind
+    (``gate_schema.STANCE_GATE_KINDS``): it rolls no certification report, so
+    nothing is probed.  :func:`_run_stance_probes` rolls exactly these, each
+    writer's own switch agreeing, and only from :func:`generate_stage_artifacts`,
+    last, after the verdict, the summary, the figures and the replays: a runtime
+    lost before the end of the stage leaves them out, and the command-line
+    curriculum's judge (``train_base._post_training_stance_verdict``) writes the
+    certification report and rolls no probe.  Reads *curriculum* only and logs
+    nothing (``run_index`` names a declared probe a stage lacks).
+    """
+    from ..curriculum.gate_schema import STANCE_GATE_KINDS
+    from .stance_report import declares_heading_probe
+
+    if curriculum.get("gate_kind") not in STANCE_GATE_KINDS:
+        return ()
+    switches = {
+        "filtered action": bool(_probe_cutoffs(curriculum.get("stance_probe_filter_hz"), warn=False)),
+        "constant hold": bool(curriculum.get("stance_probe_hold_constant")),
+        "release ablation": bool(curriculum.get("stance_probe_release_ablation")),
+        "impulse": bool(_probe_speeds(curriculum.get("stance_probe_impulse_speeds"), warn=False)),
+        "heading": declares_heading_probe(curriculum),
+    }
+    return tuple(label for label in STANCE_PROBE_LABELS if switches[label])
 
 
 def _write_filtered_action_probe(
@@ -1110,19 +1198,7 @@ def _write_impulse_probe(
     because the statue side doubles it.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
-    raw = curriculum.get("stance_probe_impulse_speeds")
-    if not raw:
-        return
-    values = raw if isinstance(raw, (list, tuple)) else [raw]
-    speeds: list[float] = []
-    for value in values:
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            logger.warning("stance_probe_impulse_speeds entry is not a number: %r; ignoring it", value)
-            continue
-        if number > 0:
-            speeds.append(number)
+    speeds = _probe_speeds(curriculum.get("stance_probe_impulse_speeds"))
     if not speeds:
         return
     try:
@@ -1193,19 +1269,7 @@ def _write_heading_probe(
     offsets) panels of ``_HEADING_EPISODES``.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
-    raw = curriculum.get("stance_probe_spawn_yaw_deg")
-    if not raw:
-        return
-    values = raw if isinstance(raw, (list, tuple)) else [raw]
-    offsets: list[float] = []
-    for value in values:
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            logger.warning("stance_probe_spawn_yaw_deg entry is not a number: %r; ignoring it", value)
-            continue
-        if math.isfinite(number) and number != 0.0:
-            offsets.append(number)
+    offsets = _probe_offsets(curriculum.get("stance_probe_spawn_yaw_deg"))
     if not offsets:
         return
     try:

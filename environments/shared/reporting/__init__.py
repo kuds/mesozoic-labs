@@ -44,6 +44,11 @@ from that layout:
   ``figures/training_history/`` by ``generate_stage_artifacts``; report only,
   and not re-exported here either (it draws with matplotlib), so import it by
   path
+* :mod:`~environments.shared.reporting.run_index` — what a run holds, read
+  back without touching it: each file's role, the run's state, its report
+  page and the per-model run index, behind ``scripts/run_report.py``, which
+  writes them under ``<model>/reports/``, outside every run; report only, so
+  import it by path
 """
 
 from __future__ import annotations

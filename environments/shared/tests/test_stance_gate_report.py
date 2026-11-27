@@ -2968,8 +2968,18 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
 
     @staticmethod
     def _probe_stage_config() -> dict:
+        """A stance stage that declares all five probes: the runner rolls only the ones a stage declares
+        (``stage_artifacts.declared_stance_probes``)."""
         return {
-            "curriculum_kwargs": {"gate_kind": "stance_quality/v1", "min_eval_episodes": 40},
+            "curriculum_kwargs": {
+                "gate_kind": "stance_quality/v1",
+                "min_eval_episodes": 40,
+                "stance_probe_filter_hz": [5.0],
+                "stance_probe_hold_constant": True,
+                "stance_probe_release_ablation": True,
+                "stance_probe_impulse_speeds": [1.0],
+                "stance_probe_spawn_yaw_deg": [90.0],
+            },
             "env_kwargs": {"max_episode_steps": 1000},
         }
 
