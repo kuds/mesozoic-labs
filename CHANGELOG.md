@@ -27,10 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value standing too. It writes a text table and a JSON file outside any run,
   never over an earlier scan, and sets no config: whether to declare
   `[curriculum] warm_start_log_std` stays with the maintainer.
-  `warm_start_noise_scan.partial.json` keeps the finished rows of an
-  interrupted scan. The default T. rex scan is at most 1.12M control steps,
-  about 28 min of one CPU, and runs as a session of its own, not inside a
-  training session.
+  `warm_start_noise_scan.partial.json`, created before the first setting
+  rolls, keeps the finished rows of an interrupted scan, and a second scan
+  started into the same directory at the same time is refused before it
+  rolls; a failed rewrite of the file only warns. The default T. rex scan is
+  at most 1.12M control steps, about 28 min of one CPU, and runs as a session
+  of its own, not inside a training session.
 - **The SB3 notebook can publish a run the chain loop does not write.** A new
   opt-in cell after the chain loop (`PUBLISH_RUN = True`; the maintainer's
   decision of 2026-11-26) writes the training summary and result bundle from

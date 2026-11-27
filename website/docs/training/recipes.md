@@ -213,17 +213,18 @@ gives the stand counts per stream, the causes of the early ends, and the
 lift-offs and slide of the standing episodes. Below it is the largest grid
 value at which every episode stood. If a smaller value fell, the line also
 names the largest value with every smaller value standing too. While it
-runs,
-`warm_start_noise_scan.partial.json` holds the settings finished so far, so
-an interrupted scan keeps what it measured. The tool refuses an output
-directory inside a run or one that already holds a scan, finished or
-interrupted, and it changes no config. The default scan is at most 1.12
-million control steps on the T-Rex, about 28 minutes of one CPU on the
-machine it was measured on; a Colab CPU runtime is slower, and `--jobs N`
-divides the time. Run it as a session of its own once the parent's run is
-published, not inside a training session: it needs no GPU, and an 11M-step
-T-Rex stance leaves under two hours of Colab's 24-hour limit, which the
-run's certificate and bundle need.
+runs, `warm_start_noise_scan.partial.json` holds the settings finished so
+far, so an interrupted scan keeps what it measured; the scan creates it
+before its first setting rolls, so a second scan started into the same
+directory at the same time is refused before it rolls. The tool refuses an
+output directory inside a run or one that already holds a scan, finished,
+running or interrupted, and it changes no config. The default scan is at
+most 1.12 million control steps on the T-Rex, about 28 minutes of one CPU
+on the machine it was measured on; a Colab CPU runtime is slower, and
+`--jobs N` divides the time. Run it as a session of its own once the
+parent's run is published, not inside a training session: it needs no GPU,
+and an 11M-step T-Rex stance leaves under two hours of Colab's 24-hour
+limit, which the run's certificate and bundle need.
 
 Whether to declare `warm_start_log_std` from a scan is the maintainer's
 decision, per model. A value does not carry from one model or plant

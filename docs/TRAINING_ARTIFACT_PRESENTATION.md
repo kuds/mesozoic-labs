@@ -1222,10 +1222,16 @@ sha256 (checked unchanged after the scan), the parent's per-actuator
 `log_std`, the policy's classes and the definitions. `--out-dir` is refused
 inside a run directory or the parent's stage directory
 (`result_bundle.refuse_output_inside_run`), and when it already holds a
-scan, finished or interrupted. While it runs,
-`warm_start_noise_scan.partial.json` holds the rows finished so far
-(`complete` false, with the current pass's `pending` settings); it is
-removed once both outputs are written. The tool changes no config, gate,
+scan, finished, running or interrupted. The scan creates
+`warm_start_noise_scan.partial.json` before its first setting rolls and is
+refused if another scan created it first, so two scans started into one
+directory at once never both roll, and a JSON or table another scan wrote
+there meanwhile is refused at the end, never replaced. The file is
+rewritten as each pass starts and as each setting finishes (`complete`
+false, the pass's grid and rule, the rows so far and the current pass's
+`pending` settings), so an interrupted scan keeps what it measured; a
+rewrite that fails is warned about and the scan goes on. It is removed once
+both outputs are written. The tool changes no config, gate,
 reward, task, checkpoint or plant. The default T. rex scan is at most 1.12M
 control steps, about 28 minutes of one CPU at the measured 1.5 ms per step;
 `--jobs N` splits each pass over N processes with the same records. It runs

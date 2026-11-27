@@ -148,17 +148,22 @@ in the current directory): ``warm_start_noise_scan.json``
 the printed table.  The JSON holds the inputs and their sha256, the
 parent's per-actuator ``log_std``, the policy's classes, the grid, the
 definitions above, the summary per setting with every episode's record,
-and the answer.  While the scan runs, ``warm_start_noise_scan.partial.json``
-is rewritten as each setting finishes (``complete`` false, the rows so far
-and the settings still ``pending`` in the current pass), so an interrupted
-scan keeps what it measured; it is removed once the JSON and the table are
-written, and when the pair changed on disk during the scan.  An ``--out-dir`` that already holds a scan, finished or
-interrupted, is refused, so a second parent's scan never replaces the
-first's; so is one inside a run
-directory (the nearest ancestor holding ``provenance.json``), or inside the
-stage directory of the checkpoint or its statistics
-(``result_bundle.refuse_output_inside_run``): a result bundle's manifest
-hashes every file under the run.  Each is refused before anything loads.
+and the answer.  An ``--out-dir`` that already holds a scan, finished,
+running or interrupted, is refused, so a second parent's scan never
+replaces the first's; so is one inside a run directory (the nearest
+ancestor holding ``provenance.json``), or inside the stage directory of
+the checkpoint or its statistics (``result_bundle.refuse_output_inside_run``):
+a result bundle's manifest hashes every file under the run.  Each is
+refused before anything loads.  Before its first setting rolls, the scan
+creates ``warm_start_noise_scan.partial.json``, and is refused if the file
+is already there: of two scans started into one ``--out-dir`` at once, only
+the first to create it rolls, and a JSON or table another scan wrote there
+meanwhile is never replaced.  The file is rewritten as each pass starts and
+as each setting finishes (``complete`` false, the pass's grid and rule, the
+rows so far and the settings still ``pending`` in the current pass), so an
+interrupted scan keeps what it measured; a rewrite that fails is warned
+about once on stderr and the scan goes on.  It is removed once the JSON and
+the table are written, and when the pair changed on disk during the scan.
 The tool changes no config, gate, reward, task, checkpoint or plant, and
 writes nothing into any run.
 
@@ -192,7 +197,10 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import json
 import math
+import os
+import sys
 from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -211,7 +219,8 @@ from environments.shared.stage_manifest import StageEntry, StageManifest
 SCAN_SCHEMA = "mesozoic.warm-start-noise-scan/v1"
 SCAN_JSON = "warm_start_noise_scan.json"
 SCAN_TEXT = "warm_start_noise_scan.txt"
-#: Rewritten as each setting finishes, and removed once the scan's JSON and table are written.
+#: Created before the first setting rolls (it claims the out-dir), rewritten as each pass starts and each setting
+#: finishes, and removed once the scan's JSON and table are written.
 SCAN_PROGRESS = "warm_start_noise_scan.partial.json"
 #: The default panel: seeds 3042-3081 in three noise streams (walking pilot 3's).
 DEFAULT_EPISODES = 40
@@ -433,11 +442,15 @@ def checkpoint_files(model: Path, vecnorm: Path) -> tuple[Path, Path]:
 
 
 def refuse_existing_scan(out_dir: Path) -> None:
-    """Refuse an *out_dir* that already holds a scan, finished or interrupted: a scan must not replace another's."""
+    """Refuse an *out_dir* that already holds a scan, finished, running or interrupted: a scan must not replace
+    another's."""
     present = [name for name in (SCAN_JSON, SCAN_TEXT, SCAN_PROGRESS) if (out_dir / name).exists()]
     if present:
         interrupted = (
-            f" ({SCAN_PROGRESS} holds the rows an interrupted scan finished)" if SCAN_PROGRESS in present else ""
+            f" ({SCAN_PROGRESS} is the record of a scan that is still running or was interrupted, with the rows it "
+            "finished)"
+            if SCAN_PROGRESS in present
+            else ""
         )
         raise NoiseScanError(
             f"{out_dir} already holds {', '.join(present)} from an earlier scan{interrupted}; pass another --out-dir "
@@ -1058,8 +1071,38 @@ def render_scan(report: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def claim_progress(out_dir: Path, report: Mapping[str, Any]) -> Path:
+    """Create :data:`SCAN_PROGRESS` in *out_dir* before the first setting rolls, refusing one that exists.
+
+    The exclusive create claims *out_dir* for this scan.  Two scans started
+    into one directory at the same time both pass
+    :func:`refuse_existing_scan`, which runs before the pair loads; only one
+    of them creates the file, and the other is refused here, before it rolls
+    anything.
+    """
+    text = json.dumps(report, indent=2, allow_nan=False) + "\n"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / SCAN_PROGRESS
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+    except FileExistsError:
+        raise NoiseScanError(
+            f"{out_dir} already holds {SCAN_PROGRESS}: another scan into it started while this one loaded, and is "
+            "running or was interrupted; pass another --out-dir (one per parent checkpoint), or remove that file to "
+            "scan again once no scan is running there"
+        ) from None
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(text)
+    except BaseException:
+        # A claim whose record could not be written is no claim: nothing has rolled yet.
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
 def write_progress(out_dir: Path, report: Mapping[str, Any]) -> Path:
-    """Write :data:`SCAN_PROGRESS`: the rows finished so far, so an interrupted scan keeps what it measured."""
+    """Rewrite :data:`SCAN_PROGRESS`: the rows finished so far, so an interrupted scan keeps what it measured."""
     from environments.shared.file_io import atomic_write_json
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1070,10 +1113,19 @@ def write_scan(out_dir: Path, report: Mapping[str, Any], text: str) -> dict[str,
     """Write :data:`SCAN_JSON`, then :data:`SCAN_TEXT`, into *out_dir*, then remove :data:`SCAN_PROGRESS`.
 
     The JSON goes first: a write that fails leaves no table without its
-    record, and the progress file stays until both are written.
+    record, and the progress file stays until both are written.  Either
+    output already there (another scan's, written while this one ran after
+    its progress file was removed) is refused, never replaced.
     """
     from environments.shared.file_io import atomic_write_json, atomic_write_text
 
+    present = [name for name in (SCAN_JSON, SCAN_TEXT) if (out_dir / name).exists()]
+    if present:
+        raise NoiseScanError(
+            f"{out_dir} now holds {', '.join(present)}, which another scan wrote while this one ran; this scan "
+            "replaces neither and writes no output of its own (its table is printed above): pass another --out-dir "
+            "and scan again"
+        )
     out_dir.mkdir(parents=True, exist_ok=True)
     written = {SCAN_JSON: atomic_write_json(out_dir / SCAN_JSON, report, allow_nan=False)}
     atomic_write_text(out_dir / SCAN_TEXT, text)
@@ -1165,11 +1217,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     out_dir = args.out_dir if args.out_dir is not None else default_out
     try:
         report, text = _scan(args, model_id, seeds, out_dir)
+        print(text, end="")
+        written = write_scan(out_dir, report, text)
     except NoiseScanError as exc:
         # The CLI boundary is where a diagnosable failure becomes an exit status.
         raise SystemExit(str(exc)) from exc
-    print(text, end="")
-    for path in write_scan(out_dir, report, text).values():
+    for path in written.values():
         print(f"written: {path}")
     return 0
 
@@ -1246,6 +1299,7 @@ def _scan(
     sha256 = {"checkpoint": sha256_file(model_path), "vecnorm": sha256_file(vecnorm_path)}
     protocol = _protocol_note(seeds=seeds, streams=int(args.streams), horizon=horizon, episode_steps=episode_steps)
     context = open_context(spec)
+    claimed = False
     try:
         trained = context.policy.model
         parent_log_std = policy_log_std(trained).detach().cpu().double().numpy().copy()
@@ -1294,20 +1348,44 @@ def _scan(
             "pending": [],
         }
         rows: list[dict[str, Any]] = []
+        failed_writes: list[OSError] = []
+
+        def keep_progress() -> None:
+            """Rewrite :data:`SCAN_PROGRESS`.  It is bookkeeping: a failed write (a Drive mount that dropped, a full
+            disk) is warned about once on stderr and the scan goes on to print and write its outputs."""
+            try:
+                write_progress(out_dir, report)
+            except OSError as exc:
+                if not failed_writes:
+                    print(
+                        f"warning: could not rewrite {out_dir / SCAN_PROGRESS} ({exc}); the scan goes on, and it "
+                        "prints and writes its table and JSON when it finishes",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                failed_writes.append(exc)
 
         def roll(settings: Sequence[Setting]) -> None:
-            """Roll one pass of *settings*, writing :data:`SCAN_PROGRESS` as each finishes."""
+            """Roll one pass of *settings*: :data:`SCAN_PROGRESS` records the pass (its grid, rule and pending
+            settings) before it rolls, and each setting as it finishes.  The first pass creates the file, claiming
+            *out_dir* (:func:`claim_progress`)."""
+            nonlocal claimed
 
             def record(index: int, by_stream: list[list[dict[str, Any]]]) -> None:
                 rows.append(summarize_setting(settings[index], by_stream, parent_log_std=parent_log_std.tolist()))
                 report["settings"] = ordered_rows(rows)
                 report["pending"] = [setting_label(setting) for setting in settings[index + 1 :]]
-                write_progress(out_dir, report)
+                keep_progress()
 
             report["pending"] = [setting_label(setting) for setting in settings]
+            if claimed:
+                keep_progress()
+            else:
+                claim_progress(out_dir, report)
+                claimed = True
+                print(f"progress: {out_dir / SCAN_PROGRESS} (rewritten as each setting finishes)", flush=True)
             run_scan(spec, settings, streams=int(args.streams), jobs=args.jobs, context=context, on_setting=record)
 
-        print(f"progress: {out_dir / SCAN_PROGRESS} (rewritten as each setting finishes)", flush=True)
         if args.log_std is None:
             first = default_grid(parent_log_std)
             report["grid"] = list(first)
@@ -1334,6 +1412,12 @@ def _scan(
             report["grid"] = list(grid)
             report["grid_rule"] = "--log-std " + " ".join(f"{value:g}" for value in grid)
             roll([MEAN, OWN, *grid])
+    except NoiseScanError:
+        # A refusal once this scan claimed out_dir removes the claim with its rows: none is kept.  An interruption
+        # or another error keeps them, and the out-dir stays refused until the file is removed.
+        if claimed:
+            (out_dir / SCAN_PROGRESS).unlink(missing_ok=True)
+        raise
     finally:
         context.close()
     after = {"checkpoint": sha256_file(model_path), "vecnorm": sha256_file(vecnorm_path)}

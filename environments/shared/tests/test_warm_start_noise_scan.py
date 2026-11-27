@@ -806,11 +806,14 @@ def test_the_scan_is_the_same_across_processes(tyrannosaurus_rex_parent, tmp_pat
     assert not (tmp_path / "parallel" / scan.SCAN_PROGRESS).exists()
 
 
-def _fake_rolls(monkeypatch, stands, *, interrupt_at: float | None = None) -> list[Any]:
-    """Replace the rollouts with records that stand when ``stands(setting)``; returns the settings rolled, per stream."""
+def _fake_rolls(monkeypatch, stands, *, interrupt_at: float | None = None, before: Any = None) -> list[Any]:
+    """Replace the rollouts with records that stand when ``stands(setting)``; returns the settings rolled, per stream.
+    *before*, if given, is called with each setting and stream before it rolls."""
     rolled: list[Any] = []
 
     def roll_setting(context, setting, stream):
+        if before is not None:
+            before(setting, stream)
         if interrupt_at is not None and setting == interrupt_at:
             raise KeyboardInterrupt
         rolled.append(setting)
@@ -891,9 +894,175 @@ def test_an_interrupted_scan_keeps_the_settings_it_finished_and_its_out_dir_is_t
     assert "largest_all_standing" not in progress
     assert not (out / scan.SCAN_JSON).exists() and not (out / scan.SCAN_TEXT).exists()
     # The interrupted rows are never replaced by a second scan into the same directory.
-    with pytest.raises(SystemExit, match="holds the rows an interrupted scan finished"):
+    with pytest.raises(SystemExit, match="the record of a scan that is still running or was interrupted"):
         scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out))
     assert json.loads((out / scan.SCAN_PROGRESS).read_text(encoding="utf-8")) == progress
+
+
+def test_an_interrupted_refinement_records_its_pass_and_what_is_pending(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    """The progress file records the second pass (its grid, rule and pending value) before the pass rolls, so a scan
+    interrupted during the refinement says so, not that its first pass finished with nothing pending."""
+    first = scan.default_grid(tyrannosaurus_rex_parent.log_std)
+    _fake_rolls(monkeypatch, lambda setting: isinstance(setting, str) or setting <= -2.0, interrupt_at=-1.875)
+    out = tmp_path / "out"
+    with pytest.raises(KeyboardInterrupt):
+        scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out))
+    progress = json.loads((out / scan.SCAN_PROGRESS).read_text(encoding="utf-8"))
+    assert progress["complete"] is False and progress["pending"] == ["-1.875"]
+    assert progress["grid"] == sorted([*first, -1.875])
+    assert "then -1.875, 0.125 above -2" in progress["grid_rule"]
+    assert [row["label"] for row in progress["settings"]] == [
+        "mean",
+        "own",
+        *[scan.setting_label(value) for value in first],
+    ]
+
+
+def test_the_jobs_path_rolls_both_passes_and_records_each_setting_once_in_order(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    """``--jobs`` rolls the first pass and the refinement each in its own pool and records each setting once, after
+    all of its streams, in order, as the serial path does.  The pool here runs its tasks in this process, in task
+    order as ``ProcessPoolExecutor.map`` returns them, so the fake rollouts apply (the real pool is the smoke
+    test's)."""
+    import concurrent.futures
+
+    pools: list[int] = []
+
+    class InProcessPool:
+        def __init__(self, *, max_workers: int, mp_context: Any, initializer: Any, initargs: Any) -> None:
+            pools.append(max_workers)
+
+        def __enter__(self) -> "InProcessPool":
+            return self
+
+        def __exit__(self, *exc: Any) -> None:
+            return None
+
+        def map(self, function: Any, tasks: Any) -> list[Any]:
+            return [function(task) for task in tasks]
+
+    monkeypatch.setattr(concurrent.futures, "ProcessPoolExecutor", InProcessPool)
+    monkeypatch.setattr(scan, "_WORKER", SimpleNamespace(seeds=(3042, 3043)))
+    snapshots: list[tuple[list[str], list[str]]] = []
+    real_write_progress = scan.write_progress
+
+    def spy(out_dir: Path, report: Any) -> Path:
+        snapshots.append((list(report["pending"]), [row["label"] for row in report["settings"]]))
+        return cast(Path, real_write_progress(out_dir, report))
+
+    monkeypatch.setattr(scan, "write_progress", spy)
+    _fake_rolls(monkeypatch, lambda setting: isinstance(setting, str) or setting <= -2.0)
+    first_pass = [scan.MEAN, scan.OWN, *scan.default_grid(tyrannosaurus_rex_parent.log_std)]
+    labels = [scan.setting_label(setting) for setting in first_pass]
+    refined = [*labels[:2], *[scan.setting_label(value) for value in sorted([*first_pass[2:], -1.875])]]
+    expected = [(labels[index + 1 :], labels[: index + 1]) for index in range(len(labels))]
+    expected += [(["-1.875"], labels), ([], refined)]
+    reports, recorded = {}, {}
+    for mode, extra in (("serial", []), ("jobs", ["--jobs", "2"])):
+        snapshots.clear()
+        out = tmp_path / mode
+        assert scan.main([*_default_grid_argv(tyrannosaurus_rex_parent, out), "--streams", "2", *extra]) == 0
+        reports[mode] = json.loads((out / scan.SCAN_JSON).read_text(encoding="utf-8"))
+        recorded[mode] = list(snapshots)
+    assert pools == [2, 2], "one pool per pass"
+    assert recorded["jobs"] == recorded["serial"] == expected
+    for key in ("settings", "grid", "grid_rule", "largest_all_standing"):
+        assert reports["jobs"][key] == reports["serial"][key], key
+    assert [row["label"] for row in reports["jobs"]["settings"]] == refined
+
+
+def test_a_scan_into_a_directory_another_scan_is_running_in_is_refused_before_it_rolls(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    """Two scans of one model with no --out-dir share the default directory.  The second, started while the first
+    rolls its first setting, is refused before it rolls anything, and the first's outputs are its own."""
+    out = tmp_path / "out"
+    second: list[Any] = []
+
+    def start_another(setting: Any, stream: int) -> None:
+        if second:
+            return
+        second.append("started")
+        try:
+            second.append(scan.main([*_default_grid_argv(tyrannosaurus_rex_parent, out), "--log-std", "-1.5"]))
+        except SystemExit as refused:
+            second.append(str(refused))
+
+    rolled = _fake_rolls(monkeypatch, lambda setting: True, before=start_another)
+    assert scan.main([*_default_grid_argv(tyrannosaurus_rex_parent, out), "--log-std", "-2.0"]) == 0
+    assert "the record of a scan that is still running or was interrupted" in str(second[1])
+    assert rolled == [scan.MEAN, scan.OWN, -2.0]
+    report = json.loads((out / scan.SCAN_JSON).read_text(encoding="utf-8"))
+    assert report["grid"] == [-2.0] and not (out / scan.SCAN_PROGRESS).exists()
+
+
+def test_a_scan_that_another_scan_beat_to_the_directory_is_refused_and_leaves_its_record(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    """Started at the same moment, both scans pass the check made before the pair loads; the one that creates the
+    progress file second is refused before it rolls, and the other's record is untouched."""
+    out = tmp_path / "out"
+    theirs = '{"complete": false, "settings": []}\n'
+    real_open_context = scan.open_context
+
+    def open_while_another_claims(spec: Any) -> Any:
+        context = real_open_context(spec)
+        out.mkdir(parents=True, exist_ok=True)
+        (out / scan.SCAN_PROGRESS).write_text(theirs, encoding="utf-8")
+        return context
+
+    monkeypatch.setattr(scan, "open_context", open_while_another_claims)
+    rolled = _fake_rolls(monkeypatch, lambda setting: True)
+    with pytest.raises(SystemExit, match="another scan into it started while this one loaded"):
+        scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out))
+    assert rolled == [] and (out / scan.SCAN_PROGRESS).read_text(encoding="utf-8") == theirs
+    assert sorted(path.name for path in out.iterdir()) == [scan.SCAN_PROGRESS]
+
+
+def test_a_json_another_scan_wrote_meanwhile_is_never_replaced(tyrannosaurus_rex_parent, tmp_path, monkeypatch, capsys):
+    """A scan whose progress file was removed by hand while it ran, and into whose directory another scan then wrote,
+    prints its table and writes nothing over the other scan's outputs."""
+    out = tmp_path / "out"
+
+    def another_finishes(setting: Any, stream: int) -> None:
+        if setting == scan.OWN:
+            (out / scan.SCAN_JSON).write_text("{}", encoding="utf-8")
+
+    _fake_rolls(monkeypatch, lambda setting: True, before=another_finishes)
+    with pytest.raises(SystemExit, match="now holds warm_start_noise_scan.json, which another scan wrote"):
+        scan.main([*_default_grid_argv(tyrannosaurus_rex_parent, out), "--log-std", "-2.0"])
+    assert (out / scan.SCAN_JSON).read_text(encoding="utf-8") == "{}" and not (out / scan.SCAN_TEXT).exists()
+    printed = capsys.readouterr().out
+    assert "Warm-start noise scan: tyrannosaurus_rex/anatomical" in printed and "written:" not in printed
+
+
+def test_a_failed_progress_rewrite_is_warned_about_and_the_scan_still_finishes(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch, capsys
+):
+    """The progress file is bookkeeping: a rewrite that fails (a Drive mount that dropped) costs no measurement."""
+    out = tmp_path / "out"
+    calls: list[int] = []
+    real_write_progress = scan.write_progress
+
+    def flaky_write_progress(out_dir: Path, report: Any) -> Path:
+        calls.append(len(calls))
+        if len(calls) >= 3:
+            raise OSError(107, "Transport endpoint is not connected")
+        return cast(Path, real_write_progress(out_dir, report))
+
+    monkeypatch.setattr(scan, "write_progress", flaky_write_progress)
+    _fake_rolls(monkeypatch, lambda setting: True)
+    assert scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out)) == 0
+    assert len(calls) > 3, "every later setting still tries to rewrite the file"
+    report = json.loads((out / scan.SCAN_JSON).read_text(encoding="utf-8"))
+    first = scan.default_grid(tyrannosaurus_rex_parent.log_std)
+    assert report["complete"] is True and len(report["settings"]) == 2 + len(first)
+    assert (out / scan.SCAN_TEXT).is_file() and not (out / scan.SCAN_PROGRESS).exists()
+    warnings = [line for line in capsys.readouterr().err.splitlines() if line.startswith("warning: could not rewrite")]
+    assert len(warnings) == 1 and "Transport endpoint is not connected" in warnings[0]
 
 
 def test_a_parent_from_another_plant_is_refused(compsognathus_longipes_robot_parent, tmp_path):
