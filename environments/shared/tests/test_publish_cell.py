@@ -741,11 +741,17 @@ class TestPublishing:
     @pytest.mark.parametrize("model_id", MODELS, ids=str)
     @pytest.mark.parametrize("tree", ["ppo", "ppo_screen", "ppo_quick_test"])
     def test_a_run_cut_off_before_its_bundle_is_sealed_without_touching_a_stage_file(
-        self, tmp_path, capsys, model_id, tree
+        self, tmp_path, capsys, monkeypatch, model_id, tree
     ):
         """The r11 T. rex stance case, for every model and every run tree: the stance verdict, summary, figures and
         replays are on disk and the stance probes are not (the runtime ended during them). The bundle appears,
-        complete, and verifies; the stage directory is byte-for-byte what it was."""
+        complete, and verifies; the stage directory is byte-for-byte what it was. The helpers' plant is the current
+        one here, as for a run trained on this checkout, so the run report reads the run as not stranded."""
+        from environments.shared.reporting import run_index
+
+        from .test_run_index import _committed_entry
+
+        monkeypatch.setattr(run_index, "_committed_plant", lambda model: _committed_entry(_plant(model).to_dict()))
         run_dir = _run_dir(tmp_path, model_id, tree)
         configs = _judged_run(run_dir, model_id, (1,))
         stage_dir = run_dir / stage_dirname(model_id, 1)
