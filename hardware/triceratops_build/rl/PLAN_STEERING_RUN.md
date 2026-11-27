@@ -58,10 +58,11 @@ again before any run (`rl/README.md`, "The steering run's training additions"):
 
 - **Dev runs** (proposed): two trainings on Colab, heat weights 0.5 and 1 (`steer1_dev_heat05`, `steer1_dev_heat1`),
   the same seed. They check that the steering task learns on the 128 mm model and set the heat cost's weight before
-  the rules are written. They are not judged. **Length: open (asked 26 Nov 2026).** The review found that at about
-  3 M steps the heat cost reaches full weight only at the last step: train.py's late ramp runs from 1 M to 3 M and
-  the push and friction ramp from 1 M to 4 M, and the learning rate follows TOTAL_STEPS, so a 3 M run also anneals
-  faster than a judged 10 M run.
+  the rules are written. They are not judged. **Length (D31, 27 Nov 2026): the 10 M schedule, read at 5 M.** The
+  review found that at about 3 M steps the heat cost reaches full weight only at the last step: train.py's late ramp
+  runs from 1 M to 3 M and the push and friction ramp from 1 M to 4 M, and the learning rate follows TOTAL_STEPS, so
+  a 3 M run also anneals faster than a judged 10 M run. With TOTAL_STEPS 10 M, the 5 M save has had 2 M steps at full
+  heat weight and 1 M at full pushes and friction, on a judged run's schedule. Steps: `runs/trike60-steer1-dev_STEPS.md`.
 - **Judged runs:** the pre-registered seeds at 10 M steps each, run as run 3 was. Each takes about 3-5 h on Colab
   High-RAM CPU (the foreleg runs took 3.6-5.1 h).
 - **Measurement:** the gait report, the sweep and the foot loads as for D22, plus `steer_eval.py`'s courses and the
@@ -86,4 +87,5 @@ again before any run (`rl/README.md`, "The steering run's training additions"):
 ## Cost and time
 
 - **Session work:** building and reviewing the four pieces above is about 1-2 days.
-- **Colab:** two dev runs of about 1.5 h each, then the judged runs at 3-5 h each, run in parallel as before.
+- **Colab:** two dev runs, read at 5 M steps (1.5-2.5 h in; 3-5 h if left to finish), then the judged runs at
+  3-5 h each, run in parallel as before.
