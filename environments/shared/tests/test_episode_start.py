@@ -20,6 +20,7 @@ from gymnasium.utils import seeding
 from environments.shared import species_registry
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.behavior_env import SpeciesBehaviorMixin, get_behavior_env_class
+from environments.shared.episode_physics import EpisodePhysicsRandomizer
 from environments.shared.episode_start import (
     ACTUATION_DELAY_STREAM_KEY,
     EPISODE_PHYSICS_STREAM_KEY,
@@ -78,6 +79,35 @@ def test_the_hook_begins_the_episode_after_gymnasium_seeds_np_random():
     assert calls == [(17, 17, expected), (None, 17, expected)]
 
 
+def test_the_hook_may_refuse_a_reset_before_gymnasium_seeds_anything():
+    """_check_episode_may_begin runs first: a reset it refuses reseeds nothing and begins no episode."""
+    calls = []
+
+    class Probe(EpisodeStartHook):
+        observation_space = gym.spaces.Box(-1.0, 1.0, shape=(1,))
+        action_space = gym.spaces.Box(-1.0, 1.0, shape=(1,))
+        refuse = False
+
+        def _check_episode_may_begin(self):
+            calls.append("check")
+            if self.refuse:
+                raise RuntimeError("no episode now")
+
+        def _begin_episode(self, seed):
+            calls.append(("begin", seed))
+
+    probe = Probe()
+    probe.reset(seed=17)
+    state = probe.np_random.bit_generator.state
+    probe.refuse = True
+    for seed in (5, None):
+        with pytest.raises(RuntimeError, match="no episode now"):
+            probe.reset(seed=seed)
+    assert probe.np_random_seed == 17 and probe.np_random.bit_generator.state == state
+    assert calls == ["check", ("begin", 17), "check", "check"]
+    assert EpisodeStartHook._check_episode_may_begin(probe) is None  # nothing by default
+
+
 def test_the_hook_runs_before_the_keyframe_is_loaded():
     env = DelayedCompsognathusLongipesRobotEnv(actuation_delay_range_s=(0.0, 0.010))
     seen = []
@@ -112,8 +142,11 @@ def test_with_every_feature_off_the_hook_reads_and_writes_nothing(model_id, monk
         raise AssertionError("a feature that is off began an episode")
 
     monkeypatch.setattr(BaseDinoEnv, "_begin_actuation_delay_episode", refuse)
+    monkeypatch.setattr(EpisodePhysicsRandomizer, "begin_episode", refuse)
+    monkeypatch.setattr(EpisodePhysicsRandomizer, "refuse_inside_nominal", refuse)
     env = species_registry.env_class(model_id)()
     try:
+        assert env._episode_physics is None
         env.reset(seed=3)
         before = _snapshot(env)
         assert {"model", "data", "_np_random", "_distance_traveled", "training_rollouts"} <= set(before)

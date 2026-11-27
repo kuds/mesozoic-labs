@@ -58,6 +58,7 @@ from typing import TYPE_CHECKING, Any, Mapping
 
 from .actuation_delay import ACTUATION_DELAY_IMPLEMENTATION
 from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE, RETIRED_COMMAND_ENV_KEYS
+from .episode_physics import EPISODE_PHYSICS_ENV_KEYS, EPISODE_PHYSICS_IMPLEMENTATION
 from .model_id import ModelId
 from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
 
@@ -284,6 +285,12 @@ def compute_task_fingerprint(
     # task keeps its hash.
     if payload["env"].get("actuation_delay_range_s") is not None:
         payload["actuation_delay"] = {"implementation": ACTUATION_DELAY_IMPLEMENTATION}
+    # The opt-in per-episode physics randomisation (episode_physics.py): its
+    # six ranges are in the env section, and while any is on this section
+    # names what they mean.  An opted-in species carves each key out while it
+    # is off, so a stage that leaves them off keeps its hash.
+    if any(payload["env"].get(name) is not None for name in EPISODE_PHYSICS_ENV_KEYS):
+        payload["episode_physics"] = {"implementation": EPISODE_PHYSICS_IMPLEMENTATION}
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     ).hexdigest()
@@ -323,6 +330,7 @@ def _differing_sections(recorded: Mapping[str, Any], current: Mapping[str, Any])
         "perturbation",
         "command",
         "actuation_delay",
+        "episode_physics",
     )
     return [name for name in sections if _canonical(recorded.get(name)) != _canonical(current.get(name))]
 

@@ -277,7 +277,8 @@ training result):
   test subclass of a species that does not forward the keys calls it again after `super().__init__()`.
 - `set_training_rollouts` refuses a non-bool (`TypeError`); stepping a delayed env before its first reset raises
   `RuntimeError`, since k is chosen at reset; the FIFO is primed again if it is missing mid-episode.
-- All three stream keys of §4.2 are defined now, with a `FEATURE_STREAM_KEYS` tuple; only the delay's is used.
+- All three stream keys of §4.2 are defined now, with a `FEATURE_STREAM_KEYS` tuple; in commit 2 only the delay's is
+  used (commit 3 uses the physics key).
 - The training-draw test uses the range 0-40 ms on the 2 ms Compsognathus-robot subclass (21 values), since 0-20 ms is
   only 11 values at 2 ms.
 - The Velociraptor mirror test uses a delay of 6-12 physics steps (`frame_skip` 5): with k below `frame_skip` the FIFO
@@ -400,6 +401,65 @@ sandbox failures base also fails. Restore bit-identical to a fresh compile on al
 over 2000 resets: per-body factors x0.928-1.072 of the 12.7506 kg animal (build: x0.930-1.073); with the whole-robot
 factor and payload x0.865-1.211, mean 1.039 (build: x0.864-1.230, mean 1.038; `rl/README.md:400-401`). Reset 233 us
 off, 429 us on; step time unchanged. The prototype wrote friction to 33 geoms; this design writes 5 on the robot.
+
+**Built in commit 3, where it differs from the text above** (changed after the build and its review, not after any
+training result):
+
+- `BaseDinoEnv._configure_episode_physics(**ranges)` validates and installs the randomisation, restoring any randomised
+  model first; `__init__` calls it after `_cache_ids` and the push derivation, and the test subclasses
+  (`environments/shared/tests/episode_physics_helpers.py`) of species that do not forward the keys call it again after
+  `super().__init__()`, as commit 2's delay subclasses call `_configure_actuation_delay`.
+- `episode_physics_factors` holds the applied values by quantity, for the enabled keys only: `friction`,
+  `body_mass_scale` (one per animal body), `actuator_kp_scale` (per position servo), `actuator_force_limit_scale` (per
+  force-limited actuator), `total_mass_scale` (1.0 in an evaluation env) and `payload_kg` (0.0 there); `None` while
+  off, before the first reset and after an episode whose values could not be written (a refusal when its model's
+  record is taken, or a raise mid-write). A reset refused before it begins (inside `nominal_physics()`, below) leaves
+  them, and everything else, as they were.
+- More refusals than the list above, each a `ValueError` naming the key, at construction and again when a model's
+  record is taken (its first episode; so a species edit made after `super().__init__()` also decides the payload
+  body, the servo and force sets and the friction geoms, R16): friction with no static floor geom; a
+  `_randomized_friction_geoms()` that returns no geom, anything but a 1-D array of integer ids (a boolean mask would
+  index as geoms 0 and 1), an id outside the model, or a geom that is not a colliding animal geom; a behaviour pool
+  model of another `nbody` or `nu` (at its first episode, since the draw layout is the constructor model's);
+  `animal_bodies` refuses a model with no free joint. The construction check leaves the env's geom caches as it found
+  them, so a collision-mask edit made after `super().__init__()` still reaches the settle.
+- `nominal_physics()` blocks nest and write the episode's values back when they raise; a reset inside one raises
+  `RuntimeError`, since the block's exit would write the previous episode's values over the new one, and so does
+  reconfiguring the randomisation (`_configure_episode_physics`), whose new records would take the episode's values as
+  nominal. Both are refused before anything moves: the hook's `reset` gains a first call,
+  `self._check_episode_may_begin()`, before `super().reset` (so gymnasium reseeds nothing; nothing by default,
+  `BaseDinoEnv`'s one `is not None` check while randomisation is off), and the behaviour mixin's `reset` calls it first
+  too, before it moves its episode counters or selects a pool model. No committed digest hashes either source (§4.1:
+  `episode_start.py` is not fingerprinted, and the policy layer's `home_reset` is the canonical env's
+  `BaseDinoEnv.reset`, unchanged), so no digest moves (gates 2 and 3); a refused reset changes no attribute of the env
+  (tested on the Compsognathus robot and its `mixed_terrain` behaviour env, where the refused reset would have swapped
+  the plane for the heightfield). A raise while an episode's values are written restores the nominal plant before it
+  propagates.
+- `symmetry.mirror_env_state` refuses an env that holds a randomised plant (source, destination or in place): it
+  mirrors the state, not the plant, and per-body and per-servo draws are not mirror-symmetric (pair-tied draws, §11).
+- The scratch `MjData` is defensive: `begin_episode` runs before the keyframe load, which overwrites the live data, so
+  setConst on the live data inside `reset` would not move the reset pose (it does anywhere else). The test checks
+  which data setConst sees.
+- The payload rule spreads the payload like the payload body's own mass, so it assumes a body heavy against the
+  payload: a 1 kg payload on a 0.5 kg body triples that body's inertia, and only a massless body is refused. The
+  robot's chassis (6 kg, up to 1 kg, x1.17) satisfies it; the module docstring and `docs/PLANT_CONTRACT.md` say so.
+- setConst runs only when an episode wrote a mass, not whenever a mass key is on: in an evaluation env with only the
+  two training-only keys on, nothing is written and the model stays exactly nominal, so the validators pass there (a
+  test pins it). The values are the same either way.
+- `TRAINING_ONLY_ENV_KEYS` names the two training-only keys, `GEOMETRIC_STAT_FIELDS` the three statistics put back
+  after setConst, and `colliding_animal_geoms` is `_root_subtree_geoms()`'s definition read without its cache.
+- Files beyond §3's commit-3 list: `episode_start.py` (the pre-reset check above), `symmetry.py` (the mirror refusal)
+  and `tests/test_actuation_delay.py`, whose signature test now places the two delay keys right after
+  `command_config` rather than last, since the six randomisation keys follow them.
+- Tests: the payload range is 0 to a tenth of each model's animal mass; the pool test runs 16 resets (seed 0, then 15
+  unseeded), which return to each pool model while the other's record is the newer; the draw layout is pinned index by
+  index on every model, in training and evaluation.
+- Handed to commit 5, besides the four readers named under "Pushes, settle, readers": `Morphology.from_env` reads
+  `body_subtreemass` for `body_weight_n` (`floor_contact/morphology.py:498`), and `actuator_force_limits`
+  (`gait/balance_telemetry.py:128`) the live force ranges, so the layouts built from them after a reset are
+  per-episode: `reporting/stance_report.py:294`, `evaluation.py:482`, `eval_diagnostics.py:723, 954` and
+  `rollout_ledger._layout_of` (`rollout_ledger.py:311`, built after the first reset and cached). On the robot env
+  they are built inside `nominal_physics()` or before the first reset, or documented as per-episode.
 
 ## 7. Observation noise (commit 4)
 

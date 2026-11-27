@@ -1254,11 +1254,21 @@ def mirror_env_state(src: Any, dst: Any, em: EnvMirror, *, forward: bool = True)
     With *forward*, ``mj_forward`` recomputes every derived quantity (positions, sensors, contacts) at the mirrored
     state.  Mid-episode the source's own derived quantities are those of its last substep's pre-integration state,
     so mirror a source after an ``mj_forward`` of its own when comparing observations at that instant; every later
-    step is consistent either way.  Both envs must share the model and the opt-in actuation delay's configuration
-    (``SymmetryError`` otherwise).
+    step is consistent either way.  Both envs must share the model and the opt-in actuation delay's configuration,
+    and neither may hold a randomised plant (``SymmetryError`` otherwise): the state is mirrored, not the plant.
     """
     if dst.model.nq != src.model.nq or dst.model.nu != src.model.nu:
         raise SymmetryError("the source and destination envs must share the model")
+    for role, env in (("source", src), ("destination", dst)):
+        physics = getattr(env, "_episode_physics", None)
+        if physics is not None and physics.holds_episode_values(env.model):
+            # The opt-in per-episode physics randomisation draws per body and per servo, so a randomised plant is not
+            # mirror-symmetric, and each env keeps its own: the image would not step as the mirror of its source.
+            # Pair-tied draws are a follow-up (design record docs/TRICERATOPS_ROBOT_PORT_2026_11.md section 11).
+            raise SymmetryError(
+                f"the {role} env holds a randomised plant (the opt-in per-episode physics randomisation), which the "
+                "state mirror does not mirror; mirror envs on their nominal plants"
+            )
     src_delay, dst_delay = getattr(src, "_actuation_delay", None), getattr(dst, "_actuation_delay", None)
     if src_delay != dst_delay:
         # The in-flight targets and the episode's delay are mirrored, so both envs must run the same delay: a delay-off

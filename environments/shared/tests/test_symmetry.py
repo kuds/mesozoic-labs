@@ -698,6 +698,55 @@ def test_the_state_mirror_refuses_envs_whose_delays_differ():
             env.close()
 
 
+def test_the_state_mirror_refuses_a_randomised_plant():
+    """The state is mirrored, not the plant: the opt-in per-episode physics randomisation draws per body and per
+    servo, so a randomised plant is not mirror-symmetric and each env keeps its own.  A source or destination holding
+    a randomised plant (in place included) is refused before anything is written; an env whose randomiser holds no
+    episode values (the training-only keys in an evaluation env) mirrors as before."""
+    from environments.shared.episode_start import mark_training_rollouts
+    from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
+
+    from .episode_physics_helpers import with_episode_physics
+
+    randomized = with_episode_physics(VelociraptorMongoliensisAnatomicalEnv)
+    envs = {
+        "off": VelociraptorMongoliensisAnatomicalEnv(),
+        "randomised": randomized(randomize_body_mass_scale=(0.9, 1.1), randomize_actuator_kp_scale=(0.9, 1.1)),
+        "also randomised": randomized(randomize_body_mass_scale=(0.9, 1.1)),
+        "nominal": randomized(randomize_total_mass_scale=(0.9, 1.1), randomize_payload_kg=(0.0, 0.1)),
+    }
+    try:
+        em = _env_mirror(envs["off"])
+        for index, env in enumerate(envs.values()):
+            env.reset(seed=3047 + index)
+            for action in _velociraptor_mongoliensis_actions(5, index, 0.2):
+                env.step(action)
+        for source, destination in (
+            ("randomised", "off"),
+            ("off", "randomised"),
+            ("randomised", "also randomised"),
+            ("randomised", "randomised"),
+            ("nominal", "randomised"),
+        ):
+            dst = envs[destination]
+            before = (dst.data.qpos.copy(), dst.data.qvel.copy(), dst._step_count)
+            role = "source" if "randomised" in source else "destination"
+            with pytest.raises(SY.SymmetryError, match=f"the {role} env holds a randomised plant"):
+                SY.mirror_env_state(envs[source], dst, em)
+            assert np.array_equal(dst.data.qpos, before[0]) and np.array_equal(dst.data.qvel, before[1])
+            assert dst._step_count == before[2]
+        assert not envs["nominal"]._episode_physics.holds_episode_values(envs["nominal"].model)
+        SY.mirror_env_state(envs["off"], envs["nominal"], em)
+        SY.mirror_env_state(envs["nominal"], envs["off"], em)
+        mark_training_rollouts(envs["nominal"], True)
+        envs["nominal"].reset(seed=3051)
+        with pytest.raises(SY.SymmetryError, match="the destination env holds a randomised plant"):
+            SY.mirror_env_state(envs["off"], envs["nominal"], em)
+    finally:
+        for env in envs.values():
+            env.close()
+
+
 # ---------------------------------------------------------------------------------------------------- [ppo] keys
 def test_absent_or_none_symmetry_keys_are_stock_ppo():
     kwargs = {"n_steps": 2048}

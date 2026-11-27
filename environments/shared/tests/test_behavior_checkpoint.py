@@ -1276,6 +1276,24 @@ def test_transition_refuses_a_changed_actuation_delay_section(learned_behavior):
     _validate_behavior_transition(switched_on, copy.deepcopy(switched_on))
 
 
+def test_transition_refuses_a_changed_episode_physics_section(learned_behavior):
+    """The opt-in physics randomisation's section (its implementation tag) is task identity across a behavior
+    transition, as the actuation delay's is: switching it on or off, or bumping its tag, is refused by name."""
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+    from environments.shared.episode_physics import EPISODE_PHYSICS_IMPLEMENTATION
+
+    previous = copy.deepcopy(learned_behavior[-1])
+    assert "episode_physics" not in previous
+    switched_on = copy.deepcopy(previous)
+    switched_on["episode_physics"] = {"implementation": EPISODE_PHYSICS_IMPLEMENTATION}
+    bumped = copy.deepcopy(switched_on)
+    bumped["episode_physics"]["implementation"] += "+next"
+    for old, new in ((previous, switched_on), (switched_on, previous), (switched_on, bumped)):
+        with pytest.raises(BehaviorCheckpointError, match="Incompatible behavior transition fields: episode_physics$"):
+            _validate_behavior_transition(old, new)
+    _validate_behavior_transition(switched_on, copy.deepcopy(switched_on))
+
+
 def test_interrupted_bundle_save_finishes_a_resumable_pair(stubbed_cli, tmp_path, monkeypatch):
     _, parent, normalization = stubbed_cli
     output = tmp_path / "interrupted-save"

@@ -8,6 +8,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Opt-in per-episode physics randomisation for every model, off by default
+  (design record `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §6, the second shared
+  feature of the 60 cm Triceratops robot's port; the build's decision-log rows
+  D32, D37 and D38).** Six `[env]` keys, each `None` (off) or `(low, high)`, in
+  `environments/shared/episode_physics.py`: `randomize_friction` (an absolute
+  sliding coefficient on every floor geom and on the geoms
+  `BaseDinoEnv._randomized_friction_geoms()` returns, every colliding animal
+  geom by default), `randomize_body_mass_scale` (per animal body, mass and
+  inertia), `randomize_actuator_kp_scale` (per position servo, kp and its bias
+  term together), `randomize_actuator_force_limit_scale` (per force-limited
+  actuator, both ends of `forcerange`), and `randomize_total_mass_scale` and
+  `randomize_payload_kg`, which apply in a trainer's rollout envs only. Each
+  episode begins with it, first in the episode-start hook: every model the env
+  changed goes back to its exact nominal copies, then one block of
+  `3 + nbody + 2 x nu` uniforms from its own stream is drawn whatever is
+  enabled, so enabling one key moves no other's draw and a seed's per-body
+  factors are the same in training and evaluation. A changed mass recomputes
+  the derived constants with `mj_setConst` on a scratch `MjData`. The plant
+  identity stays the nominal plant: after a randomised reset both plant
+  validators refuse the live model, and pass inside `env.nominal_physics()`.
+  A behavior env restores every pool model before it selects one. Friction on
+  a model with explicit contact pairs or no floor geom, a friction hook that
+  returns anything but colliding animal geom ids, the kp key without a position
+  servo, the force key without a force limit and a payload on a massless body
+  are refused at construction and again at each model's first episode. A reset
+  inside a `nominal_physics()` block raises before any of it runs (no reseed,
+  no pool model selected), as does reconfiguring it there, and the symmetry
+  state mirror refuses a randomised plant. The task fingerprint gains an `episode_physics`
+  section while any key is on, which `resume_same_stage` and behavior
+  transitions name when it differs. The `domain_randomization` capability becomes `experimental`.
+  No model lists the keys, so no digest, golden, plant manifest entry, task
+  hash or checkpoint moves, and the digest harness's `--exact` capture is
+  byte-identical to `main`'s.
 - **An opt-in actuation delay for every model, off by default (design record
   `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §4-§5, the first shared feature of
   the 60 cm Triceratops robot's port; the build's decision-log rows D33 and

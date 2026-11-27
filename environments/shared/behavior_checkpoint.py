@@ -417,7 +417,17 @@ def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mappin
         _validate_sampler_config(fingerprint["env"].get("terrain_sampler"))
     differences = [
         name
-        for name in ("schema", "species", "embodiment", "stage", "backend", "plant", "perturbation", "actuation_delay")
+        for name in (
+            "schema",
+            "species",
+            "embodiment",
+            "stage",
+            "backend",
+            "plant",
+            "perturbation",
+            "actuation_delay",
+            "episode_physics",
+        )
         if previous.get(name) != requested.get(name)
     ]
     old_command, new_command = previous["command"], requested["command"]

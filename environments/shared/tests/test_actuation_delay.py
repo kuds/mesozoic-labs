@@ -188,10 +188,12 @@ def test_the_primed_fifo_holds_float64_copies_with_room_for_one_more():
 
 # ---------------------------------------------------------------------------------------------------- off by default
 def test_the_base_env_takes_both_keys_after_the_command_kwargs_off_by_default():
+    """Right after command_config; the later opt-in features' keys follow them (test_episode_physics.py)."""
     parameters = list(inspect.signature(BaseDinoEnv.__init__).parameters.values())
     names = [parameter.name for parameter in parameters]
-    assert names[-3:] == ["command_config", *ACTUATION_DELAY_ENV_KEYS]
-    assert all(parameter.default is None for parameter in parameters[-2:])
+    start = names.index("command_config") + 1
+    assert names[start : start + 2] == list(ACTUATION_DELAY_ENV_KEYS)
+    assert all(parameter.default is None for parameter in parameters[start : start + 2])
 
 
 def test_the_models_listing_a_key_are_exactly_the_opted_in_table():

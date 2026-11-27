@@ -8,9 +8,12 @@ with every feature off none of them reads a generator or writes anything:
   ``BaseDinoEnv`` in the MRO.  ``BaseDinoEnv.reset``'s own
   ``super().reset(seed=seed)`` lands in it: gymnasium seeds ``np_random``,
   then :meth:`EpisodeStartHook._begin_episode` runs, before the keyframe is
-  loaded.  ``BaseDinoEnv.reset``'s source is unchanged (the policy layer
-  hashes it as ``home_reset``), and nothing hashes class bases, so no digest
-  moves.
+  loaded.  Before gymnasium seeds anything,
+  :meth:`EpisodeStartHook._check_episode_may_begin` may refuse the reset
+  (``BaseDinoEnv``'s refuses one inside a ``nominal_physics()`` block), so a
+  refused reset reseeds nothing.  ``BaseDinoEnv.reset``'s source is
+  unchanged (the policy layer hashes it as ``home_reset``), and nothing
+  hashes class bases, so no digest moves.
 * **The streams.** Each feature draws from its own PCG64 stream,
   :func:`feature_stream`, never from ``np_random``, so the reset draws (joint,
   velocity and height noise, the target, the push schedule, the command) are
@@ -51,9 +54,13 @@ class EpisodeStartHook(gym.Env):
     """A ``gymnasium.Env`` whose reset calls :meth:`_begin_episode` right after gymnasium seeds ``np_random``."""
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> Any:
+        self._check_episode_may_begin()  # before gymnasium reseeds anything
         result = super().reset(seed=seed, options=options)  # gymnasium seeds np_random
         self._begin_episode(seed)
         return result
+
+    def _check_episode_may_begin(self) -> None:
+        """Raise if no episode may begin now, before anything of the reset runs. Nothing by default."""
 
     def _begin_episode(self, seed: int | None) -> None:
         """Where each opt-in feature begins its episode. Nothing by default."""

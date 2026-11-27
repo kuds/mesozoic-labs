@@ -350,7 +350,15 @@ per-feature streams and the trainer's role flag it uses
 forwarding them to `BaseDinoEnv`, and declaring the carve-out
 `("actuation_delay_range_s", None, ACTUATION_DELAY_ENV_KEYS)` in its
 `OPT_IN_TASK_KWARGS`, so a stage that leaves the delay off keeps its task
-hash. Every other model is unchanged.
+hash. The second is the opt-in per-episode physics randomisation,
+`environments/shared/episode_physics.py` (design record §6): a model opts in
+by listing the six `randomize_*` keys, forwarding them to `BaseDinoEnv`, and
+declaring one carve-out per key, `(name, None, (name,))`. It may narrow the
+geoms whose friction is randomised by overriding
+`BaseDinoEnv._randomized_friction_geoms()` (integer ids of colliding animal
+geoms, such as its soles), and must write no randomised model field after
+construction (`docs/PLANT_CONTRACT.md`). Every other model is
+unchanged.
 
 ## Pull Request Process
 

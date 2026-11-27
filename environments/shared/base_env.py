@@ -12,6 +12,7 @@ across all dinosaur species. Subclasses override species-specific methods:
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Collection
@@ -31,6 +32,8 @@ from .command_frame import validate_command_mode as _validate_command_mode
 from .command_frame import zero_command as _zero_command
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
 from .direction_commands import DirectionCommandConfig, DirectionCommandController, DirectionCommandState
+from .episode_physics import EpisodePhysicsRandomizer as _EpisodePhysicsRandomizer
+from .episode_physics import validate_episode_physics as _validate_episode_physics
 from .episode_start import ACTUATION_DELAY_STREAM_KEY as _ACTUATION_DELAY_STREAM_KEY
 from .episode_start import EpisodeStartHook
 from .episode_start import feature_stream as _feature_stream
@@ -231,6 +234,16 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     _actuation_delay_k: "int | None" = None
     _actuation_delay_fifo: "deque[np.ndarray] | None" = None
 
+    # The opt-in per-episode physics randomisation
+    # (environments/shared/episode_physics.py), None (off) unless the species
+    # lists a randomize_* key and a stage sets one.  It begins each episode
+    # first in _begin_episode, restoring the nominal plant and writing the
+    # episode's draws into self.model; off, a reset pays two `is not None`
+    # checks (_check_episode_may_begin and _begin_episode) and a behavior
+    # env's reset two more (its own _check_episode_may_begin and the model
+    # selection's restore).
+    _episode_physics: "_EpisodePhysicsRandomizer | None" = None
+
     metadata = {
         "render_modes": ["human", "rgb_array"],
         "render_fps": 50,
@@ -265,6 +278,12 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         command_config: DirectionCommandConfig | None = None,
         actuation_delay_range_s: tuple[float, float] | None = None,
         actuation_delay_eval_s: float | None = None,
+        randomize_friction: tuple[float, float] | None = None,
+        randomize_body_mass_scale: tuple[float, float] | None = None,
+        randomize_actuator_kp_scale: tuple[float, float] | None = None,
+        randomize_actuator_force_limit_scale: tuple[float, float] | None = None,
+        randomize_total_mass_scale: tuple[float, float] | None = None,
+        randomize_payload_kg: tuple[float, float] | None = None,
     ):
         super().__init__()
 
@@ -394,6 +413,19 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         free_joints = np.flatnonzero(self.model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
         self._root_body_id = int(self.model.jnt_bodyid[free_joints[0]])
         self._command = _zero_command()
+
+        # The opt-in per-episode physics randomisation (the class attribute
+        # above): off unless a stage sets a randomize_* range.  Checked here,
+        # after _cache_ids and the push derivation, against the model as
+        # constructed; it first changes the model when an episode begins.
+        self._configure_episode_physics(
+            randomize_friction=randomize_friction,
+            randomize_body_mass_scale=randomize_body_mass_scale,
+            randomize_actuator_kp_scale=randomize_actuator_kp_scale,
+            randomize_actuator_force_limit_scale=randomize_actuator_force_limit_scale,
+            randomize_total_mass_scale=randomize_total_mass_scale,
+            randomize_payload_kg=randomize_payload_kg,
+        )
 
         # Define action space (normalized to [-1, 1])
         self.action_space = gym.spaces.Box(
@@ -1305,6 +1337,89 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         """
         return self._actuation_delay_k if self._actuation_delay is not None else None
 
+    def _configure_episode_physics(self, **ranges: Any) -> None:
+        """Validate and install the opt-in per-episode physics randomisation (every key ``None``: off).
+
+        Takes the six ``randomize_*`` keys by name
+        (``episode_physics.EPISODE_PHYSICS_ENV_KEYS``).  ``__init__`` calls it
+        with its six kwargs; a test subclass of a species that does not
+        forward them may call it again after ``super().__init__()``, before
+        the first reset.  The ranges are checked here against ``self.model``
+        (contact pairs, the floor and the friction hook's geoms, position
+        servos, force limits, the payload body's mass), and again on each
+        model at the first episode on it; the model is first changed when an
+        episode begins, so a species edit made after ``super().__init__()`` is
+        part of the nominal plant.  Refused with ``RuntimeError`` inside a
+        :meth:`nominal_physics` block, before anything moves: the block's exit
+        would write the episode's values back over the plant the new
+        randomisation records as nominal.
+        """
+        if self._episode_physics is not None:
+            self._episode_physics.refuse_inside_nominal("reconfiguring the randomisation")
+        self._restore_episode_physics()
+        config = _validate_episode_physics(**ranges)
+        self._episode_physics = None if config is None else _EpisodePhysicsRandomizer(self, config)
+
+    def _randomized_friction_geoms(self) -> "np.ndarray":
+        """The animal geoms whose sliding friction ``randomize_friction`` writes, with every static floor geom.
+
+        Every colliding animal geom by default (:meth:`_root_subtree_geoms`), so
+        each floor contact takes the episode's coefficient whichever geom's
+        friction MuJoCo picks.  A species narrows it (to its soles, say) to
+        keep its self-contacts at their authored friction.  It returns a 1-D
+        array of integer geom ids, each a colliding animal geom (a boolean
+        mask, an id outside the model or any other geom is refused with
+        ``ValueError``).  Read when the randomisation is constructed and once
+        per model, at the first episode on it.
+        """
+        return self._root_subtree_geoms()
+
+    def _restore_episode_physics(self) -> None:
+        """Every model this env randomised back to its nominal values (nothing while randomisation is off)."""
+        if self._episode_physics is not None:
+            self._episode_physics.restore_all()
+
+    def nominal_physics(self) -> "contextlib.AbstractContextManager[None]":
+        """A block in which ``self.model`` holds its nominal values, the episode's written back after it.
+
+        For a diagnostic that needs the nominal plant after a randomised reset,
+        such as plant validation, which refuses the randomised model.  The
+        episode's values come back whether the block returns or raises, and
+        blocks nest.  Off, or before the first randomised episode, the block
+        changes nothing.  Reset no env inside it: a reset inside the block
+        raises ``RuntimeError`` before anything of it runs
+        (:meth:`_check_episode_may_begin`), and so does reconfiguring the
+        randomisation.
+        """
+        if self._episode_physics is None:
+            return contextlib.nullcontext()
+        return self._episode_physics.nominal(self)
+
+    @property
+    def episode_physics_factors(self) -> "dict[str, Any] | None":
+        """This episode's applied draws, by quantity.
+
+        ``None`` while randomisation is off, before the first reset, and after
+        an episode whose values could not be written (a refusal when its
+        model's record is taken, or a raise while the values are written).  A
+        reset refused before it begins (inside a :meth:`nominal_physics`
+        block) changes nothing, these factors included.
+        """
+        return None if self._episode_physics is None else self._episode_physics.factors
+
+    def _check_episode_may_begin(self) -> None:
+        """Refuse a reset inside a :meth:`nominal_physics` block with ``RuntimeError``, before anything of it runs.
+
+        ``EpisodeStartHook.reset`` calls it before gymnasium reseeds
+        ``np_random``, and the behaviour mixin's ``reset`` before it moves its
+        episode counters or selects a pool model, so a refused reset leaves
+        the env as it was: its model, data, generators and
+        :attr:`episode_physics_factors`.  One ``is not None`` check while
+        randomisation is off.
+        """
+        if self._episode_physics is not None:
+            self._episode_physics.refuse_inside_nominal("a reset")
+
     def _begin_episode(self, seed: int | None) -> None:
         """Where each opt-in feature begins its episode (``episode_start.EpisodeStartHook``).
 
@@ -1312,8 +1427,11 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         gymnasium seeds ``np_random`` and before the keyframe is loaded.  Each
         feature is behind one ``is not None`` check on a class attribute that
         defaults to ``None``; with every feature off this calls nothing, reads
-        no generator and writes nothing.
+        no generator and writes nothing.  The physics randomisation begins
+        first, so every later feature's episode starts on this episode's plant.
         """
+        if self._episode_physics is not None:
+            self._episode_physics.begin_episode(self, seed)
         if self._actuation_delay is not None:
             self._begin_actuation_delay_episode(seed)
 
