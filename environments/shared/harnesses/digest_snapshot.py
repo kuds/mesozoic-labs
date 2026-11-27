@@ -31,8 +31,8 @@ every behavior recipe's file and task fingerprint digests, and (CU-11) what
 each stage's reward, info and termination code computes: a fixed capture per
 stage (a noisy roll that ends in a held kick, an unseeded second reset, zero
 action through the pushes of a stage that has them, one-step probes: the
-target moved onto the effector, the root lifted, rolled, both, and a
-three-step horizon; and state probes, scored without a physics step: twelve
+root displaced to the success point (only for a model that declares success keys),
+the root lifted, rolled, both, and a three-step horizon; and state probes, scored without a physics step: twelve
 root and neck poses sized by the stage's own thresholds and a non-finite
 velocity), printed as a summary (steps, end and reward sum per stepped
 part), the end of each state probe, a digest of the discrete
@@ -154,8 +154,16 @@ WRITE_COMMAND = "python -m environments.shared.harnesses.digest_snapshot --block
 #: The reward captures (CU-11).  Every part starts from ``reset(seed=REWARD_SEED)`` unless it says otherwise.
 REWARD_SEED, REWARD_ACTION_SEED = 1042, 7
 #: The roll: uniform action noise at the model's amplitude, then a held-sign kick until the episode ends.  The
-#: amplitude (half the largest that kept every stage of the model up for 300 steps and past the first push) and
-#: the MJCF element the success probe moves the target (mocap body 0) onto are the env class's ``REWARD_PROBE``.
+#: amplitude (half the largest that kept every stage of the model up for 300 steps and past the first push) and,
+#: for a class that declares ``SUCCESS_KEYS``, the success probe's effector are the env class's ``REWARD_PROBE``:
+#: ``(amplitude, kind, name)``, or ``(amplitude,)`` and no success probe for a class without success keys
+#: (decision D-D59 removed the hunt's).  The only effector kind, ``"root_displacement"``
+#: (:data:`SUCCESS_PROBE_KINDS`), translates the free root in the plane along the episode's forward reference
+#: (``_forward_reference_2d``: ``_reference_heading_2d`` under command_mode "none", the commanded heading under a live
+#: command) by the value of the env attribute *name*, in metres (the Allosaurus' course length), after which the
+#: probe takes one zero-action step.  The state probes score a live stage as its ``step()`` does: the tracking term
+#: and the stand block included (:func:`_posed_reward`, decision D-D62).
+SUCCESS_PROBE_KINDS = ("root_displacement",)
 REWARD_NOISE_STEPS, REWARD_KICK_STEPS = 300, 200
 #: State probes: (name, root dz as a fraction of the healthy_z_range width, root pitch about world y as
 #: (sign, kind): zero, mid (half max_tilt_angle), in / out (max_tilt_angle -/+ REWARD_TILT_MARGIN), roll about
@@ -359,15 +367,24 @@ def _stage_lines(
     prefix = f"stage.{_label(model_id)}.{entry.id}"
     out.emit("stage", label, "config_file", entry.config_file)
     if identity is not None:
-        # The call train_base makes before it writes stage_config.json.
+        # The derivation train_base makes before it writes stage_config.json,
+        # called here directly with the literal backend so the line stays an
+        # oracle of stage_task_fingerprint (CU-8a).  The command section is the
+        # manifest the stage's env reports, the one training checks the
+        # fingerprint against, not the helper's derivation from the config: a
+        # stage with a [commands] table hashes its controller manifest
+        # (decision D-D60), and a "none" stage's env reports none.
+        env_kwargs = config.get("env_kwargs", {})
         fingerprint = out.guard(
             f"{prefix}.task",
-            derive_stage_task_fingerprint,
-            model_id=model_id,
-            stage=ref,
-            backend="stable-baselines3",
-            env_kwargs=config.get("env_kwargs", {}),
-            plant_identity=identity.to_dict(),
+            lambda: derive_stage_task_fingerprint(
+                model_id=model_id,
+                stage=ref,
+                backend="stable-baselines3",
+                env_kwargs=env_kwargs,
+                plant_identity=identity.to_dict(),
+                command_manifest=_env_command_manifest(model_id, env_kwargs),
+            ),
         )
         if fingerprint is not None:
             out.emit("stage", label, "task_sha256", fingerprint["task_sha256"])
@@ -384,6 +401,21 @@ def _stage_lines(
         digest = out.guard(f"{prefix}.view", _stage_config_view_sha256, model_id, ref, config, algorithm, stage_dir)
         if digest is not None:
             out.emit("stage", label, f"stage_config_view_sha256.{algorithm}", digest)
+
+
+def _env_command_manifest(model_id: ModelId, env_kwargs: dict[str, Any]) -> Any:
+    """The command manifest the stage's env reports (``command_manifest()``; ``None`` under ``command_mode = "none"``).
+
+    Built with the env class and ``[env]`` block train_base passes; ``_train_stage_body`` refuses a stage whose
+    built env reports another manifest than its fingerprint's ``command`` section (``check_env_command_manifest``).
+    """
+    from environments.shared.species_registry import get_species_config
+
+    env = get_species_config(model_id).env_class(**env_kwargs)
+    try:
+        return env.command_manifest()
+    finally:
+        env.close()
 
 
 def _stage_config_view_sha256(
@@ -518,11 +550,25 @@ def _reward_envs(out: _Snapshot, behaviors: bool) -> Iterator[tuple[ModelId, str
 def _stage_parts(env: Any) -> list[_Part]:
     """(part, set-up, actions or zero-action steps): the roll, zero action if the stage pushes, the probes.
 
-    The roll's amplitude and the success probe's element are the env class's ``REWARD_PROBE``.
+    The roll's amplitude and the success probe's effector are the env class's ``REWARD_PROBE``.  The success probe
+    runs only for a class that declares ``SUCCESS_KEYS``, and its effector is required exactly then: an effector
+    without success keys would probe a termination no code has, and success keys without one would go unprobed.
     """
     import numpy as np
 
-    shape, (amplitude, *effector) = env.action_space.shape, type(env).REWARD_PROBE
+    cls = type(env)
+    shape, (amplitude, *effector) = env.action_space.shape, cls.REWARD_PROBE
+    if bool(effector) != bool(cls.SUCCESS_KEYS):
+        raise ValueError(
+            f"{cls.__name__}.REWARD_PROBE {cls.REWARD_PROBE!r} must name a success-probe effector (kind, name) "
+            f"exactly when the class declares SUCCESS_KEYS (it declares {tuple(cls.SUCCESS_KEYS)!r})"
+        )
+    if effector and (len(effector) != 2 or effector[0] not in SUCCESS_PROBE_KINDS):
+        raise ValueError(
+            f"{cls.__name__}.REWARD_PROBE {cls.REWARD_PROBE!r}: the success-probe effector must be (kind, name) "
+            f"with kind one of {SUCCESS_PROBE_KINDS}"
+        )
+    success: list[_Part] = [("success", {"displace": effector[1]}, 1)] if effector else []
 
     def roll() -> Iterator[Any]:
         rng = np.random.default_rng(REWARD_ACTION_SEED)
@@ -538,7 +584,7 @@ def _stage_parts(env: Any) -> list[_Part]:
         ("roll", {}, roll()),
         ("second_reset", {"seed": None}, 0),
         *pushes,
-        ("success", {"target": effector}, 1),
+        *success,
         ("too_high", {"lift": True}, 1),
         ("tilt", {"roll": True}, 1),
         ("high_tilt", {"lift": True, "roll": True}, 1),
@@ -581,7 +627,7 @@ def _capture(env: Any, parts: list[_Part]) -> list[tuple[str, Any, list[Any]]]:
             _pose(env, **setup)
             mujoco.mj_forward(env.model, env.data)
         # The reset record rounds the state; "state" keeps it raw for --exact, and the golden leaves it out.
-        state = [env.data.qpos.copy(), env.data.qvel.copy(), env.data.mocap_pos.copy()]
+        state = [env.data.qpos.copy(), env.data.qvel.copy()]
         record, rows = {**_reset_record(env), "info": info, "obs": obs, "state": state}, []
         if actions is None:  # a state probe: score the posed state as step() would, without a physics step
             env._invalidate_substep_aggregates()
@@ -590,9 +636,9 @@ def _capture(env: Any, parts: list[_Part]) -> list[tuple[str, Any, list[Any]]]:
                 reward, obs = 0.0, np.zeros(0, dtype=np.float32)
             else:
                 obs = env._get_obs()
-                reward, info = env._get_reward_info(zero)
+                reward, info = _posed_reward(env, zero)
                 terminated, term_info = env._is_terminated()
-                info = {**info, **term_info}
+                info = {**info, **term_info, **_posed_command_info(env)}
             rows.append((reward, info, terminated, False, obs, env.data.qpos.copy(), env.data.qvel.copy()))
             actions = 0
         try:
@@ -607,18 +653,49 @@ def _capture(env: Any, parts: list[_Part]) -> list[tuple[str, Any, list[Any]]]:
     return captured
 
 
+def _posed_reward(env: Any, action: Any) -> tuple[Any, dict[str, Any]]:
+    """A state probe's reward and reward info, scored as ``step()`` scores the state it ends on (decision D-D62).
+
+    Under command_mode "none" that is ``_get_reward_info``, which is what
+    ``_reward_with_command_tracking`` returns there, so no "none" line moves.
+    Under a live command it is ``_reward_with_command_tracking`` (the species
+    reward plus the tracking term and its metrics) inside the stand block
+    (``_stand_block``, the stand weights at a zero command), with the heading
+    the step's yaw rate is measured from set to the posed heading: a posed
+    state is scored without a physics step, so it turns at 0 rad/s.  Every
+    probe part starts from a reset, which empties a tracking window
+    (decision D-D64), so a posed state's window holds its one sample and its
+    errors are the per-step ones; the episode parts step through the window.
+    """
+    if getattr(env, "direction_controller", None) is None:
+        reward, info = env._get_reward_info(action)
+        return reward, info
+    env._heading_before = env._heading()
+    with env._stand_block():
+        reward, info = env._reward_with_command_tracking(action)
+    return reward, info
+
+
+def _posed_command_info(env: Any) -> dict[str, Any]:
+    """The command keys ``step()`` adds to a live step's info (its metrics and dwell); none under "none"."""
+    if getattr(env, "direction_controller", None) is None:
+        return {}
+    return {**env._command_metrics, "tracking_dwell_s": env._tracking_dwell_s}
+
+
 def _pose(
     env: Any,
     *,
     lift: bool = False,
     roll: bool = False,
-    target: Any = None,
+    displace: str | None = None,
     x: float = 0.0,
     state: Any = None,
     nonfinite: bool = False,
 ) -> None:
-    """Move the root (up by the healthy height range, rolled past max_tilt_angle, along x, or to a REWARD_POSES
-    *state*), the target onto an MJCF element, or make the velocity non-finite; the caller runs mj_forward."""
+    """Move the root (up by the healthy height range, rolled past max_tilt_angle, along x, to a REWARD_POSES *state*,
+    or along the reference heading by the env attribute *displace* names, in metres), or make the velocity
+    non-finite; the caller runs mj_forward."""
     import mujoco
     import numpy as np
 
@@ -654,13 +731,10 @@ def _pose(
     if roll:  # about world x
         half = (env.max_tilt_angle + 0.2) / 2
         mujoco.mju_mulQuat(qpos[3:7], np.array([np.cos(half), np.sin(half), 0.0, 0.0]), qpos[3:7].copy())
-    if target is not None:
-        kind, name = target
-        positions = getattr(env.data, {"site": "site_xpos", "geom": "geom_xpos", "body": "xpos"}[kind])
-        point = positions[getattr(env.model, kind)(name).id].copy()
-        if kind == "body":  # the compsognathus target stays on the ground, under the pelvis
-            point[2] = env.data.mocap_pos[0][2]
-        env.data.mocap_pos[0] = point
+    if displace is not None:
+        # Along the episode's forward reference: the spawn heading under command_mode "none", the commanded heading
+        # under a live command (BaseDinoEnv._forward_reference_2d; the Allosaurus course runs along it).
+        qpos[0:2] += float(getattr(env, displace)) * np.asarray(env._forward_reference_2d(), dtype=np.float64)
 
 
 def _is_float(value: Any) -> bool:

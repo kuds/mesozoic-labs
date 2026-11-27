@@ -29,8 +29,10 @@ EXPECTED_MODELS = {
     ModelId("brachiosaurus_altithorax", "anatomical"): ModelExpectations(38, 37, 30, 175.3),
     ModelId("compsognathus_longipes", "anatomical"): ModelExpectations(24, 23, 14, 1.0),
     ModelId("compsognathus_longipes", "robot"): ModelExpectations(19, 18, 12, 1.5856),
-    ModelId("dibothrosuchus_elaphros", "anatomical"): ModelExpectations(35, 34, 27, 8.65),
-    ModelId("tyrannosaurus_rex", "anatomical"): ModelExpectations(28, 27, 15, 85.72),
+    # Physics r4 / r12 removed the dibothrosuchus's 0.02 kg snap box and the T-Rex's 0.2 kg bite box (r3 8.65 kg,
+    # r11 85.72 kg).
+    ModelId("dibothrosuchus_elaphros", "anatomical"): ModelExpectations(35, 34, 27, 8.63),
+    ModelId("tyrannosaurus_rex", "anatomical"): ModelExpectations(28, 27, 15, 85.52),
     # The life-size plant of physics r5 (IGM 100/986, 15 kg): 23 hinges, 17 servos (r4: 31, 30, 22, 13.5).
     ModelId("velociraptor_mongoliensis", "anatomical"): ModelExpectations(30, 29, 17, 15.0),
 }
@@ -70,7 +72,53 @@ def test_mjcf_compiled_model_is_unchanged(asset_path: Path):
 
     assert (model.nq, model.nv, model.nu) == (expected.nq, expected.nv, expected.nu)
 
-    # The target is a mocap body, so exclude it (and the massless world body)
-    # from the mass of the dynamic animal.
-    dynamic_mass = float(model.body_mass[model.body_mocapid == -1].sum())
+    # No scene carries a mocap body (the prey, food and course targets left in the target-free revision), so
+    # every body but the massless world body is the dynamic animal.
+    assert model.nmocap == 0
+    dynamic_mass = float(model.body_mass.sum())
     assert dynamic_mass == pytest.approx(expected.dynamic_mass)
+
+
+#: The hunt's objects and its hunt-only body parts, removed in the target-free revision (plant_versions note 24,
+#: decision D-D59), by MuJoCo object type: every scene's mocap prey, food or course target, the velociraptor's
+#: prey-only claw collision capsules with their tip sites and position sensors, the T-Rex's 0.2 kg head_bite box and
+#: the dibothrosuchus's 0.02 kg snout_snap box.
+REMOVED_OBJECTS = {
+    mujoco.mjtObj.mjOBJ_BODY: ("prey", "food", "target"),
+    mujoco.mjtObj.mjOBJ_GEOM: (
+        "prey_geom",
+        "food_geom",
+        "r_claw_geom",
+        "l_claw_geom",
+        "head_bite",
+        "snout_snap",
+    ),
+    mujoco.mjtObj.mjOBJ_SITE: ("target_site", "r_claw_tip", "l_claw_tip"),
+    mujoco.mjtObj.mjOBJ_SENSOR: ("r_claw_pos", "l_claw_pos"),
+}
+#: Kept by the owner's decision: the T-Rex's head clearance site, the dibothrosuchus's snout-prop termination site
+#: and the brachiosaurus's head tip with its position sensor.
+KEPT_SITES = {
+    ModelId("tyrannosaurus_rex", "anatomical"): ("head_tip",),
+    ModelId("dibothrosuchus_elaphros", "anatomical"): ("snout_tip",),
+    ModelId("brachiosaurus_altithorax", "anatomical"): ("head_tip",),
+}
+
+
+@pytest.mark.parametrize("asset_path", MJCF_ASSETS, ids=_asset_id)
+def test_no_scene_keeps_the_hunts_objects_or_its_hunt_only_parts(asset_path: Path):
+    model = mujoco.MjModel.from_xml_path(str(asset_path))
+    model_id = MODEL_BY_ASSET[asset_path]
+    assert model.nmocap == 0
+    for kind, names in REMOVED_OBJECTS.items():
+        for name in names:
+            assert mujoco.mj_name2id(model, kind, name) == -1, (model_id, name)
+    # The velociraptor's claw pair lost its contact exclude with its collision capsules.
+    bodies = {mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, name) for name in ("r_toe_claw", "l_toe_claw")}
+    excluded = {frozenset((int(signature) >> 16, int(signature) & 0xFFFF)) for signature in model.exclude_signature}
+    assert frozenset(bodies) not in excluded
+    for name in KEPT_SITES.get(model_id, ()):
+        assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, name) != -1, (model_id, name)
+    if model_id == ModelId("brachiosaurus_altithorax", "anatomical"):
+        sensor = model.sensor("head_tip_pos")
+        assert sensor.type == mujoco.mjtSensor.mjSENS_FRAMEPOS and sensor.objid == model.site("head_tip").id

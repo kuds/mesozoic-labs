@@ -1,4 +1,12 @@
-"""Schema and provenance checks for curated result summaries."""
+"""Schema and provenance checks for curated result summaries.
+
+``results/`` holds no summary since decision D-D59 deleted the four historical ladder summaries (three from March
+2026 and the Brachiosaurus run of 2026-07-18) with the hunt nodes their last stage trained; the committed-file checks
+below run over whatever ``results/`` holds (none today), and
+the schema checks run on ``result_bundle_helpers.HISTORICAL_SUMMARY``, a complete schema-5 historical summary kept
+as a fixture.  The reader accepts schema 5 alone: decision D-D63 retired schema 2, the integer-stage form those
+summaries had.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +19,7 @@ import pytest
 from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import compare_summary_to_csv
 from environments.shared.result_schema import (
+    CANONICAL_RUNTIME_PROVENANCE_FIELDS,
     RESULT_SCHEMA_VERSION,
     ResultSchemaError,
     expected_result_directory,
@@ -34,8 +43,21 @@ RESULT_CSVS = tuple(sorted((REPOSITORY_ROOT / "results").rglob("collected_result
 
 
 def test_result_summaries_are_discovered() -> None:
-    """Protect against a vacuous schema test caused by a bad repository path."""
-    assert RESULT_SUMMARIES, "no results/*/*/*/summary.json files were found"
+    """Protect against a vacuous schema test caused by a bad repository path: the glob runs over the real
+    ``results/`` directory, and it finds exactly the summaries the species manifest lists (none since decision
+    D-D59), so a summary filed anywhere the catalog reads is checked here."""
+    import tomllib
+
+    assert (REPOSITORY_ROOT / "results" / "README.md").is_file()
+    with (REPOSITORY_ROOT / "configs" / "species_manifest.toml").open("rb") as handle:
+        manifest = tomllib.load(handle)
+    listed = sorted(
+        REPOSITORY_ROOT / path
+        for species in manifest["species"].values()
+        for embodiment in species["embodiments"].values()
+        for path in embodiment["result_summary_paths"]
+    )
+    assert list(RESULT_SUMMARIES) == listed
 
 
 @pytest.mark.parametrize("summary_path", RESULT_SUMMARIES, ids=lambda path: str(path.relative_to(REPOSITORY_ROOT)))
@@ -55,7 +77,6 @@ def test_result_summary_schema_and_provenance(summary_path: Path) -> None:
 
 def test_every_collected_results_csv_has_a_sibling_summary() -> None:
     """A curated CSV is a derived view of the ``summary.json`` beside it; one without it has nothing to agree with."""
-    assert RESULT_CSVS, "no results/**/collected_results.csv files were found"
     orphans = [
         str(path.relative_to(REPOSITORY_ROOT)) for path in RESULT_CSVS if not path.with_name("summary.json").is_file()
     ]
@@ -133,11 +154,39 @@ def test_a_summary_of_one_embodiment_is_refused_for_the_other() -> None:
         validate_result_summary(canonical, canonical_provenance=True)
 
 
+def test_the_historical_fixture_is_a_complete_schema_5_summary() -> None:
+    """``HISTORICAL_SUMMARY`` validates complete and publishable over its two certified deliverables."""
+    summary = _published_summary()
+    assert summary["schema_version"] == RESULT_SCHEMA_VERSION and sorted(summary["stages"]) == ["1", "2"]
+    assert summary["total_timesteps"] == sum(stage["timesteps"] for stage in summary["stages"].values())
+    for require_complete, require_publishable in ((True, False), (False, True)):
+        validated = validate_result_summary(
+            summary,
+            expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
+            require_complete=require_complete,
+            require_publishable=require_publishable,
+        )
+        assert validated is summary
+
+
+def test_a_summary_with_the_removed_hunt_stage_is_refused() -> None:
+    """Legacy stage 3, the hunt, resolves to no stage since decision D-D59, so a summary recording it (the four
+    deleted historical ladder summaries did) is refused."""
+    summary = deepcopy(_published_summary())
+    summary["stages"]["3"] = deepcopy(summary["stages"]["2"])
+    summary["total_timesteps"] += summary["stages"]["3"]["timesteps"]
+    with pytest.raises(ResultSchemaError, match="no stage with legacy number 3"):
+        validate_result_summary(
+            summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=False
+        )
+
+
 def test_partial_summary_accepts_a_nonempty_stage_subset() -> None:
     summary = deepcopy(_published_summary())
-    del summary["stages"]["3"]
+    del summary["stages"]["2"]
     summary["total_timesteps"] = sum(stage["timesteps"] for stage in summary["stages"].values())
-    summary["final_avg_reward"] = summary["stages"]["2"]["final_eval_reward"]
+    summary["final_avg_reward"] = summary["stages"]["1"]["final_eval_reward"]
 
     validate_result_summary(
         summary,
@@ -145,7 +194,8 @@ def test_partial_summary_accepts_a_nonempty_stage_subset() -> None:
         relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         require_complete=False,
     )
-    with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
+    # Complete names the walk it certified, which the subset no longer records.
+    with pytest.raises(ResultSchemaError, match="names stage '2', which the summary does not record"):
         validate_result_summary(
             summary,
             expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
@@ -162,17 +212,19 @@ def test_partial_summary_rejects_empty_or_unknown_stages() -> None:
         validate_result_summary(summary, require_complete=False)
 
     summary = deepcopy(_published_summary())
-    summary["stages"]["4"] = summary["stages"].pop("3")
+    summary["stages"]["4"] = summary["stages"].pop("2")
     with pytest.raises(ResultSchemaError, match="invalid stage reference '4'"):
         validate_result_summary(summary, require_complete=False)
 
 
-def _tyrannosaurus_rex_summary_with_recovery(schema_version: int = RESULT_SCHEMA_VERSION) -> dict[str, Any]:
-    """The committed T-Rex summary plus a synthetic recovery stage, at the writers' schema (v5; was v3 before
-    decision D-D33 retired it)."""
-    summary = _load_summary(REPOSITORY_ROOT / "results" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "summary.json")
-    summary = deepcopy(summary)
-    summary["schema_version"] = schema_version
+def _tyrannosaurus_rex_summary_with_recovery() -> dict[str, Any]:
+    """The historical fixture as a T-Rex summary plus a synthetic recovery stage, at the writers' schema (v5; was v3
+    before decision D-D33 retired it). The committed T-Rex summary it was built on until decision D-D59 is gone.
+    Recovery has no deliverable record yet: the stage subset is all it is checked as until one is added."""
+    summary = _published_summary()
+    tyrannosaurus_rex = ModelId("tyrannosaurus_rex", "anatomical").record()
+    summary.update(tyrannosaurus_rex)
+    summary["provenance"].update(tyrannosaurus_rex)
     recovery_stage = deepcopy(summary["stages"]["1"])
     recovery_stage["name"] = "recovery"
     recovery_stage["description"] = "Hold the stance against scheduled pushes"
@@ -184,43 +236,38 @@ def _tyrannosaurus_rex_summary_with_recovery(schema_version: int = RESULT_SCHEMA
     return summary
 
 
-def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
-    """Recovery joins the summary without weakening the advancing-stage rule.
+def test_the_semantic_recovery_stage_is_published_by_its_own_deliverable() -> None:
+    """Recovery joins the summary as a stage subset, and publishing it takes its own deliverable record.
 
-    The v2 ``exactly {1, 2, 3}`` equality enforced "a complete curriculum
-    recorded every advancing stage".  The pre-v4 rule set keeps that rule
-    bit-for-bit for the advancing trio while the non-advancing recovery stage
-    rides along, and its recorded verdict may be False, because a
-    non-advancing pilot's failure must not be laundered into (or block) the
-    curriculum's own completeness.  Schema 3 is retired (decision D-D33): the
-    writers' v5 records the recovery stage as a stage subset (publication per
-    deliverable is ``test_result_schema_v4.py``'s), and schema 2, the curated
-    form the reader still accepts, keeps the advancing-trio rule.
+    Its recorded verdict may be False (the pilot's gate, none/v1, never passes): the summary is then publishable
+    as ``partial``, its walk and stance certified, and never ``complete``, whose bundle certifies every deliverable it
+    records.  (Schema 2's rule, every advancing stage present and passed with recovery riding along, left with the
+    schema: decision D-D63.)
     """
+    tyrannosaurus_rex = ModelId("tyrannosaurus_rex", "anatomical")
+    relative_path = "results/tyrannosaurus_rex/anatomical/ppo/summary.json"
     summary = _tyrannosaurus_rex_summary_with_recovery()
     validate_result_summary(
-        summary,
-        expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"),
-        relative_path="results/tyrannosaurus_rex/anatomical/ppo/summary.json",
-        require_complete=False,
+        summary, expected_model_id=tyrannosaurus_rex, relative_path=relative_path, require_complete=False
     )
-    summary = _tyrannosaurus_rex_summary_with_recovery(schema_version=2)
+    with pytest.raises(ResultSchemaError, match=r"must record every deliverable stage .*missing \['recovery'\]"):
+        validate_result_summary(summary, expected_model_id=tyrannosaurus_rex, require_complete=True)
+
+    recovery = deepcopy(summary["provenance"]["deliverables"]["1"])
+    recovery.update(model_path="recovery/models/best_model.zip", gate_kind="none/v1", certified=False)
+    summary["provenance"]["deliverables"]["recovery"] = recovery
+    with pytest.raises(ResultSchemaError, match="bundle_status in .* must be 'partial'"):
+        validate_result_summary(summary, expected_model_id=tyrannosaurus_rex, require_complete=True)
+    summary["bundle_status"] = "partial"
     validate_result_summary(
         summary,
-        expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"),
-        relative_path="results/tyrannosaurus_rex/anatomical/ppo/summary.json",
-        require_complete=True,
+        expected_model_id=tyrannosaurus_rex,
+        relative_path=relative_path,
+        require_complete=False,
+        require_publishable=True,
     )
-
-    # Still fail-closed on the advancing trio: recovery cannot substitute
-    # for a missing numbered stage.
-    summary = _tyrannosaurus_rex_summary_with_recovery(schema_version=2)
-    summary["total_timesteps"] -= summary["stages"]["2"]["timesteps"]
-    del summary["stages"]["2"]
-    with pytest.raises(ResultSchemaError, match=r"must contain every advancing stage; missing \['2'\]"):
-        validate_result_summary(
-            summary, expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"), require_complete=True
-        )
+    with pytest.raises(ResultSchemaError, match="has bundle_status 'partial'"):
+        validate_result_summary(summary, expected_model_id=tyrannosaurus_rex, require_complete=True)
 
 
 def test_summary_rejects_stage_references_outside_the_species_vocabulary() -> None:
@@ -255,41 +302,63 @@ def test_summary_rejects_two_spellings_of_one_stage() -> None:
         )
 
 
-def test_summary_accepts_both_supported_schema_versions() -> None:
-    """Re-pinned {2, 3, 4} -> {2, 5} (decision D-D33, review M2): a v3 or v4 summary is refused by name."""
-    summary = deepcopy(_published_summary())
-    summary["schema_version"] = 2
-    validate_result_summary(
-        summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
-    )
-    # Schema 5 accepts the same fixture as a non-publishable stage subset; the
-    # publishable rules need the deliverables map (test_result_schema_v4.py).
+def test_summary_accepts_schema_5_alone() -> None:
+    """Re-pinned {2, 5} -> {5} (decision D-D63): every retired version is refused by name."""
     assert RESULT_SCHEMA_VERSION == 5
-    summary["schema_version"] = 5
-    validate_result_summary(
-        summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=False
-    )
+    velociraptor_mongoliensis = ModelId("velociraptor_mongoliensis", "anatomical")
+    summary = deepcopy(_published_summary())
+    validate_result_summary(summary, expected_model_id=velociraptor_mongoliensis, require_complete=True)
     for version in (3, 4):
         summary["schema_version"] = version
         with pytest.raises(
             ResultSchemaError,
-            match=rf"must be one of \[2, 5\], not {version}; schema 3 and 4 summaries name species IDs decision "
+            match=rf"must be one of \[5\], not {version}; schema 3 and 4 summaries name species IDs decision "
             "D-D33 retired",
         ):
+            validate_result_summary(summary, expected_model_id=velociraptor_mongoliensis, require_complete=False)
+    unsupported: tuple[Any, ...] = (1, 6, "5", 5.0, True, None)
+    for version in unsupported:
+        summary["schema_version"] = version
+        with pytest.raises(ResultSchemaError, match=rf"schema_version must be one of \[5\], not {version!r}: "):
+            validate_result_summary(summary, expected_model_id=velociraptor_mongoliensis, require_complete=False)
+
+
+def test_a_schema_2_summary_is_refused_with_where_to_read_it() -> None:
+    """Decision D-D63 retired schema 2, the integer-stage form of the summaries committed until decision D-D59: one
+    is refused, whatever else it records, with the commit that holds them and still reads them (a later tree that
+    still declares 0.4.0.dev2 refuses their stage 3, so the message names the commit, not the version)."""
+    summary = deepcopy(_published_summary())
+    summary["schema_version"] = 2
+    for require_complete, canonical_provenance in ((True, False), (False, False), (False, True)):
+        with pytest.raises(ResultSchemaError) as refused:
             validate_result_summary(
-                summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=False
+                summary, require_complete=require_complete, canonical_provenance=canonical_provenance
             )
-    summary["schema_version"] = 1
-    with pytest.raises(ResultSchemaError, match=r"schema_version must be one of \[2, 5\], not 1: "):
-        validate_result_summary(
-            summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
+        message = str(refused.value)
+        assert message.startswith("result summary schema_version must be one of [5], not 2; schema 2 is the ")
+        for part in (
+            "integer-stage form of the result summaries committed under results/ until decision D-D59",
+            "git show 6c9982d81c8a:results/<path>",
+            "retired by decision D-D63",
+            "read it with the tree at commit 6c9982d81c8a (version 0.4.0.dev2, before decision D-D59 removed the "
+            "stage 3 those summaries record)",
+        ):
+            assert part in message, part
+    # The species catalog refuses it with the same message, through its own error type.
+    from environments.shared.species_catalog import CatalogError, _validate_result_summary
+
+    with pytest.raises(CatalogError, match="not 2; schema 2 is the integer-stage form"):
+        _validate_result_summary(
+            summary,
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
-def test_canonical_selected_checkpoints_require_every_advancing_stage() -> None:
+def test_canonical_selected_checkpoints_carry_every_deliverable() -> None:
     summary = _canonical_summary()
     del summary["provenance"]["selected_checkpoints"]["2"]
-    with pytest.raises(ResultSchemaError, match=r"checkpoint for every advancing stage; missing \['2'\]"):
+    with pytest.raises(ResultSchemaError, match="deliverable 2 has no selected checkpoint"):
         validate_result_summary(summary, canonical_provenance=True)
 
     # And the keys stay inside the species' vocabulary: velociraptor
@@ -325,31 +394,7 @@ def test_canonical_provenance_requires_backend_version() -> None:
         validate_result_summary(summary, canonical_provenance=True)
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        "run_id",
-        "captured_at",
-        "species",
-        "algorithm",
-        "backend",
-        "backend_version",
-        "repository_dirty",
-        "repository_patch_sha256",
-        "training_seed",
-        "seed_roles",
-        "evaluation_protocols",
-        "evaluation_seeds",
-        "parallel_envs",
-        "hardware",
-        "python_version",
-        "platform",
-        "dependency_versions",
-        "plant_identity",
-        "selected_checkpoints",
-        "selected_model_path",
-    ],
-)
+@pytest.mark.parametrize("field", CANONICAL_RUNTIME_PROVENANCE_FIELDS)
 def test_canonical_provenance_requires_runtime_fields(field: str) -> None:
     summary = _canonical_summary()
     del summary["provenance"][field]
@@ -522,12 +567,12 @@ def test_canonical_provenance_accepts_distinct_seed_roles() -> None:
     validate_result_summary(summary, canonical_provenance=True)
 
 
-def test_canonical_summary_requires_every_curriculum_gate_to_pass() -> None:
+def test_canonical_summary_cannot_publish_a_failed_stage_as_certified() -> None:
     summary = _canonical_summary()
     summary["stages"]["2"]["stage_passed"] = False
     summary["stages"]["2"]["publication_gate_passed"] = False
 
-    with pytest.raises(ResultSchemaError, match=r"stage_passed.*must be true"):
+    with pytest.raises(ResultSchemaError, match="deliverables.2 .* recorded as certified, but its recorded verdicts"):
         validate_result_summary(summary, canonical_provenance=True)
 
 

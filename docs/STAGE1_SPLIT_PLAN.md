@@ -1040,6 +1040,7 @@ Both stages need instruments that separate *standing* from *not yet fallen*, and
    > prey body** — 43% of the 151.17 kg model total. **Any implementation of this diagnostic must
    > divide by the mass of the animal's kinematic subtree**, or it will report a false 0.57 on a
    > plant standing in perfect equilibrium and fire on every species that carries prey or food.
+   > *(Since decision D-D59, 2026-11-23, no scene carries prey or food; the subtree rule stands.)*
    > `environments/shared/scripts/foot_sensor_report.py` does this by summing only the subtrees
    > containing actuated joints; reuse that rather than `mj_getTotalmass`.
    >

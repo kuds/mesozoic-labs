@@ -337,8 +337,8 @@ def reward_foot_load_balance(
             branch never once fired (``max |diff| = 0.000000``, correlation
             ``1.000000`` against the diagnostic).  Give it a real value: the
             duty metrics count a foot supported above ``0.1 N``, and ~5% of the
-            animal's own weight is the defensible physical scale (T-Rex: 85.72
-            kg of animal, excluding the prey prop, = 840.9 N, so ~42 N).
+            animal's own weight is the defensible physical scale (T-Rex: 85.52
+            kg of animal since physics r12, = 839.0 N, so ~42 N).
         airborne_penalty_weight: EXTRA penalty applied only when the pair is
             unsupported, making the ordering strictly monotone.  Without it
             airborne and single support both score ``-weight`` -- a flat region
@@ -715,48 +715,6 @@ def reward_idle_penalty(
     idle_frac = np.where(speed >= threshold, 0.0, 1.0 - speed / threshold)
     reward = -weight * idle_frac
     return reward, speed
-
-
-# ---------------------------------------------------------------------------
-# Approach / proximity
-# ---------------------------------------------------------------------------
-
-
-def reward_approach_shaping(
-    current_distance: Array,
-    prev_distance: Array | None,
-    weight: float,
-    max_speed: float,
-    dt: float,
-) -> tuple[Array, Array]:
-    """Approach shaping reward (reward closing distance).
-
-    Returns:
-        (reward, approach_delta) tuple.
-    """
-    if prev_distance is None:
-        return 0.0, 0.0
-    approach_delta = prev_distance - current_distance
-    max_delta = max_speed * dt
-    approach_delta_norm = np.clip(approach_delta / max_delta, -1.0, 1.0)
-    reward = weight * approach_delta_norm
-    return reward, approach_delta
-
-
-def reward_proximity(
-    distance: Array,
-    max_distance: float,
-    weight: float,
-) -> tuple[Array, Array]:
-    """Continuous proximity reward (1.0 at target, 0.0 at max distance).
-
-    Returns:
-        (reward, proximity) tuple.
-    """
-    safe_max = max(max_distance, 1e-6)  # max_distance is always a plain float
-    proximity = np.maximum(0.0, 1.0 - distance / safe_max)
-    reward = weight * proximity
-    return reward, proximity
 
 
 # ---------------------------------------------------------------------------

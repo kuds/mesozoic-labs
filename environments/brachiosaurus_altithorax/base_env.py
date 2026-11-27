@@ -1,26 +1,41 @@
 """
 Brachiosaurus Gymnasium Environment
 
-A quadrupedal sauropod locomotion environment with food-reaching behavior.
+A quadrupedal sauropod locomotion environment.  The scene holds the animal
+and the floor alone: the food sphere and its observation channels (direction
+and distance) left in physics r7 / policy interface r12 with the hunt
+(decision D-D59), and the forward reference of the progress and heading terms
+is the spawn's own heading (``_reference_heading_2d``, set by
+BaseDinoEnv.reset), or under a live command the commanded heading (decision
+D-D62).
 
-Observation space (total dimension is generated in the public species catalog):
-    - Joint positions (qpos[7:]), excluding the root freejoint
-    - Joint velocities (qvel[6:]), excluding the root freejoint
-    - Torso orientation (quaternion) — 4
-    - Torso angular velocity (gyroscope) — 3
-    - Torso linear velocity — 3
-    - Torso acceleration — 3
+Observation space (quadrupedal-heading-free/v1 since policy interface r12;
+81 values; the total dimension is generated in the public species catalog):
+    - Joint positions (qpos[7:]) — 31 hinge joints, excluding the root freejoint
+    - Joint velocities (qvel[6:]) — the same 31 joints
+    - Torso projected gravity (unit down vector in torso coordinates) — 3
+    - Torso angular velocity (gyroscope, its own site frame) — 3
+    - Torso linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
+    - Torso acceleration (accelerometer, its own site frame) — 3
     - Foot contact forces (pad + meta touch sensors per leg) — 4
-    - Food direction (unit vector) — 3
-    - Food distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
+
+No channel carries the world heading: the two root blocks that replaced the
+world-frame torso quaternion and linear velocity in policy interface r12 come
+from the free root's own quaternion through
+environments/shared/heading_observation.py
+(docs/HEADING_INVARIANCE_DESIGN_2026_10.md), the bipeds' layout (D-D31) on
+the torso, so turning the whole scene about vertical leaves the observation
+unchanged.  Policy interface r11 and earlier observed the torso quaternion
+(4), the world-frame torso linear velocity (3) and the food direction and
+distance (4), 86 values.
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
     - Neck, four-leg, and tail actuator groups; the public catalog derives the current total
 
 Reward components:
-    - Forward velocity toward food
+    - Forward velocity (along the forward reference: the spawn's forward, or the commanded heading)
     - Backward velocity penalty
     - Drift penalty (horizontal displacement from spawn)
     - Alive bonus
@@ -32,14 +47,11 @@ Reward components:
     - Posture (continuous tilt penalty)
     - Nosedive penalty (excessive forward pitch)
     - Height maintenance (reward maintaining target torso height)
-    - Heading alignment (facing toward food)
+    - Heading alignment (facing the forward reference)
     - Lateral velocity penalty (anti crab-walk)
     - Spin penalty (penalize torso angular velocity)
     - Speed penalty (penalise absolute speed above threshold)
     - Tail stability (penalize tail tip angular velocity)
-    - Food reach bonus (when head gets close to food)
-    - Approach shaping (distance to food)
-    - Head proximity shaping (continuous head-to-food distance reward)
 """
 
 from __future__ import annotations
@@ -52,10 +64,11 @@ import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.heading_observation import heading_free_root_segments
 
 
 class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
-    """Brachiosaurus quadrupedal locomotion and food-reaching environment.
+    """Brachiosaurus quadrupedal locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,
@@ -69,8 +82,9 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
     MODEL_PATH: Path
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Torso height"
-    BEHAVIOR_SECTION_LABEL = "Food Reaching"
-    SUCCESS_KEYS = ("food_reached",)
+    #: No success event: the food reach, its only one, was removed with the
+    #: hunt (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
 
     # SB3 only since policy interface r11 (configs/plant_versions.toml note
     # 23): the frozen MJX interface core (D-D17) was removed with this
@@ -113,14 +127,7 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
         forward_vel_max: float = 1.0,
-        food_reach_bonus: float = 10.0,
-        food_reach_threshold: float = 0.5,
-        food_approach_weight: float = 1.0,
-        food_head_proximity_weight: float = 0.0,
         # Environment settings
-        food_distance_range: tuple[float, float] = (3.0, 8.0),
-        food_lateral_range: tuple[float, float] = (-2.0, 2.0),
-        food_height_range: tuple[float, float] = (2.0, 4.0),
         healthy_z_range: tuple[float, float] = (1.0, 3.5),
         reset_noise_scale: float = 0.01,
         perturbation_capture_velocity_multiple: float = 0.0,
@@ -151,34 +158,14 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self.idle_penalty_weight = idle_penalty_weight
         self.idle_velocity_threshold = idle_velocity_threshold
         self.forward_vel_max = forward_vel_max
-        self.food_reach_bonus = food_reach_bonus
-        self.food_reach_threshold = food_reach_threshold
-        self.food_approach_weight = food_approach_weight
-        self.food_head_proximity_weight = food_head_proximity_weight
 
         # Natural forward pitch. The nosedive penalty is measured relative to
         # this angle so the Brachiosaurus isn't punished for its natural stance.
         # Default 0.0 (upright quadruped); override if the model has a natural lean.
         self._natural_forward_z = -np.sin(natural_pitch)
 
-        # Brachio-specific env settings
-        self.food_distance_range = food_distance_range
-        self.food_lateral_range = food_lateral_range
-        self.food_height_range = food_height_range
-
-        # Replay camera: Brachiosaurus browses high, so when the food-reach task
-        # is active the food spawns 2-3.5 m up and 1.5-4 m ahead. The default
-        # locomotion camera (distance 5, elevation -20, tilted down) frames the
-        # walking animal at ground level and leaves the elevated food out of the
-        # rendered replay. Pull back and level the camera for the food task so
-        # the neck-reach and the food target are both in frame.
-        if self.food_reach_bonus > 0 or self.food_approach_weight > 0:
-            self._camera_distance = 9.0
-            self._camera_azimuth = 110
-            self._camera_elevation = -8
-
-        # State tracking for delta-based rewards
-        self._prev_head_food_distance: float | None = None
+        # Action history for the smoothness term (cleared by
+        # _reset_episode_state).
         self._prev_action: np.ndarray | None = None
 
         # Gait symmetry: track diagonal pair alternation for quadrupedal gait.
@@ -186,14 +173,13 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         # alternates these pairs.
         self._init_quadruped_gait_state()
 
-        # Cached initial direction to food (set in _spawn_target).
-        # Used by forward-velocity and heading rewards so the "forward"
-        # reference direction stays fixed for the whole episode.
-        self._initial_food_dir_2d: np.ndarray = np.array([1.0, 0.0])
-
-        # Cached initial torso position (set in _spawn_target).
-        # Used by the drift penalty to discourage horizontal displacement.
-        self._initial_pos_2d: np.ndarray = np.array([0.0, 0.0])
+        # The progress and heading terms' forward reference and the drift
+        # penalty's anchor are BaseDinoEnv's _forward_reference_2d and
+        # _drift_anchor_2d: under command_mode "none" the spawn's
+        # _reference_heading_2d (the unit forward of the spawn's root
+        # quaternion) and _initial_pos_2d (the spawn's position), both set by
+        # BaseDinoEnv.__init__ and every reset; under a live command the
+        # command's heading and its event's start (decision D-D62).
 
         super().__init__(
             model_path=model_path,
@@ -225,7 +211,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self.torso_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "torso")
 
         # Geom IDs for contact detection
-        self.food_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "food_geom")
         self.torso_main_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso_main")
         self.belly_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "belly")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
@@ -253,7 +238,8 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id}
         self._torso_ground_geoms = {self.torso_main_geom_id, self.belly_geom_id}
 
-        # Site IDs for sensors
+        # Site IDs for sensors.  head_tip carries the head_tip_pos framepos
+        # sensor and the posture telemetry's head height; no reward reads it.
         self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
         self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
@@ -274,7 +260,9 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
 
         # Sensor indices (order matches MJCF definition)
         # _sensor_gyro_start, _sensor_accel_start, _sensor_quat_start
-        # are inherited from BaseDinoEnv (0, 3, 6 respectively).
+        # are inherited from BaseDinoEnv (0, 3, 6 respectively): torso_gyro,
+        # torso_accel and torso_orientation.  The observation reads the first
+        # two; the posture, nosedive and heading terms read the third.
         self._sensor_fr_foot = 10
         self._sensor_fl_foot = 11
         self._sensor_rr_foot = 12
@@ -321,45 +309,46 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
-        """Construct observation vector."""
-        # Joint positions (exclude root freejoint: first 7 values)
+        """Construct the quadrupedal-heading-free/v1 observation vector (81 values since policy interface r12).
+
+        No channel carries the world heading: the torso orientation is
+        projected gravity and the torso linear velocity is expressed in the
+        gravity-aligned heading frame, both from the free root's own
+        quaternion qpos[3:7] (environments/shared/heading_observation.py),
+        never from the orientation sensor, which is still zero when the
+        constructor calls this before any forward pass.  The bipeds' layout
+        (D-D31) on the torso, with the four per-leg foot channels.  Policy
+        interface r11 and earlier observed the torso quaternion, the
+        world-frame torso linear velocity and the food direction and
+        distance instead (86 values).
+        """
+        # Joint positions (exclude root freejoint: first 7 values are pos + quat)
         qpos = self.data.qpos[7:].copy()
 
-        # Joint velocities (exclude root freejoint: first 6 values)
+        # Joint velocities (exclude root freejoint: first 6 values are lin + ang vel)
         qvel = self.data.qvel[6:].copy()
 
-        # Torso state from sensors
+        # Torso state from sensors, already in their own site frame (never rotated again)
         torso_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3].copy()
         torso_accel = self.data.sensordata[self._sensor_accel_start : self._sensor_accel_start + 3].copy()
-        torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4].copy()
-
-        # Torso linear velocity (from root freejoint)
-        torso_linvel = self.data.qvel[0:3].copy()
 
         # Foot contacts: per-leg pad + meta totals, keeping the observation
         # width at four values while reporting the force each leg transmits.
         foot_contact = np.array(self._foot_contact_forces())
 
-        # Food info (relative to torso)
-        torso_pos = self.data.xpos[self.torso_id]
-        food_pos = self.data.mocap_pos[0]
-        food_rel = food_pos - torso_pos
-        food_distance = np.linalg.norm(food_rel)
-
-        # Normalize food direction
-        food_direction = food_rel / (food_distance + 1e-8)
+        # Heading-free root block: projected gravity and the root's world
+        # linear velocity (free joint qvel[0:3]) in the heading frame.
+        gravity, heading_velocity = heading_free_root_segments(self.data.qpos, self.data.qvel[0:3])
 
         obs = np.concatenate(
             [
                 qpos,  # Joint positions
                 qvel,  # Joint velocities
-                torso_quat,  # Orientation (quaternion)
+                gravity,  # Projected gravity (unit down vector, torso frame)
                 torso_gyro,  # Angular velocity
-                torso_linvel,  # Linear velocity
+                heading_velocity,  # Linear velocity (forward, left, up)
                 torso_accel,  # Accelerometer
                 foot_contact,  # Foot contacts (4)
-                food_direction,  # Direction to food (unit vector)
-                [food_distance],  # Distance to food (scalar)
                 self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]
         ).astype(np.float32)
@@ -371,11 +360,12 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         torso_pos = self.data.xpos[self.torso_id]
-        food_pos = self.data.mocap_pos[0]
-        forward_ref_2d = self._initial_food_dir_2d
+        # The forward reference: the spawn's heading under command_mode "none",
+        # the commanded heading under a live command (BaseDinoEnv._forward_reference_2d).
+        forward_ref_2d = self._forward_reference_2d()
         vel_2d = self.data.qvel[0:2]
 
-        # 1-1c. Forward velocity (toward food), backward velocity penalty and drift penalty
+        # 1-1c. Forward velocity (along the forward reference), backward velocity penalty and drift penalty
         reward_forward, reward_backward, reward_drift = self._progress_terms(
             info, vel_2d, forward_ref_2d, torso_pos[:2]
         )
@@ -458,39 +448,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         # 14-14b. Speed penalty above its threshold, idle penalty below its own
         reward_speed, reward_idle = self._speed_terms(info, vel_2d)
 
-        # 15. Food reach bonus (head tip close to food)
-        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
-        info["head_food_distance"] = head_food_dist
-        info["prey_distance"] = float(head_food_dist)  # alias for LocomotionMetrics
-
-        food_reward = 0.0
-        if head_food_dist < self.food_reach_threshold:
-            food_reward = self.food_reach_bonus
-            info["food_reached"] = 1.0
-        else:
-            info["food_reached"] = 0.0
-
-        reward_food = food_reward
-        info["reward_food"] = reward_food
-
-        # 16. Approach shaping (delta-based)
-        head_food_dist_f = float(head_food_dist)
-        reward_approach, approach_delta = self._compute_approach_shaping(
-            head_food_dist_f, self._prev_head_food_distance, self.food_approach_weight, 3.0
-        )
-        self._prev_head_food_distance = head_food_dist_f
-        info["approach_delta"] = approach_delta
-        info["reward_approach"] = reward_approach
-
-        # 17. Head-to-food proximity shaping (continuous distance reward)
-        head_proximity_max_dist = 5.0  # Larger range than T-Rex due to long neck
-        head_proximity = max(0.0, 1.0 - head_food_dist_f / head_proximity_max_dist)
-        reward_head_proximity = self.food_head_proximity_weight * head_proximity
-        info["head_proximity"] = head_proximity
-        info["head_food_proximity_distance"] = head_food_dist_f
-        info["reward_head_proximity"] = reward_head_proximity
-
         # Total reward
         total_reward = (
             reward_forward
@@ -510,9 +467,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
             + reward_spin
             + reward_speed
             + reward_idle
-            + reward_food
-            + reward_approach
-            + reward_head_proximity
         )
         info["reward_total"] = total_reward
 
@@ -523,17 +477,6 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         # Height/tilt termination (shared)
         terminated, info = self._root_termination(self.torso_id, "torso_height")
         if terminated:
-            return True, info
-
-        # Success: head reached food (only terminate when reaching is rewarded,
-        # matching the raptor/trex strike/bite gating — otherwise stages 1-2
-        # end episodes early on accidental head-food proximity)
-        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        food_pos = self.data.mocap_pos[0]
-        head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
-        if self.food_reach_bonus > 0 and head_food_dist < self.food_reach_threshold:
-            info["termination_reason"] = "food_reached"
-            info["success"] = True
             return True, info
 
         # Floor contact termination (shared) — categorized by body part
@@ -552,27 +495,17 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
 
         return False, info
 
-    def _spawn_target(self):
-        """Spawn food at random location (elevated, since Brachiosaurus browses high)."""
-        if self.np_random is not None:
-            distance = self.np_random.uniform(*self.food_distance_range)
-            lateral = self.np_random.uniform(*self.food_lateral_range)
-            height = self.np_random.uniform(*self.food_height_range)
-        else:
-            distance = np.mean(self.food_distance_range)
-            lateral = 0.0
-            height = np.mean(self.food_height_range)
+    def _reset_episode_state(self) -> None:
+        """Clear the per-episode state: the action history and the gait tracking.
 
-        food_pos = np.array([distance, lateral, height])
-        self.data.mocap_pos[0] = food_pos
-
-        # Cache initial direction and position for fixed-reference rewards
-        self._initial_food_dir_2d = self._compute_initial_direction_2d(food_pos)
-        self._initial_pos_2d = self.data.qpos[0:2].copy()
-
-        # Reset delta-based tracking (first step will produce zero deltas)
-        self._prev_head_food_distance = None
+        BaseDinoEnv.reset has already set the drift anchor and the reference
+        heading from the spawn; nothing here draws a random number.
+        """
+        # The smoothness term reads no lag on an episode's first step (the
+        # second lag is cleared with it, though no brachiosaurus term reads
+        # it: the species carries no jerk term).
         self._prev_action = None
+        self._prev_prev_action = None
 
         # Reset gait symmetry tracking (quadrupedal diagonal pairs)
         self._reset_quadruped_gait_state()

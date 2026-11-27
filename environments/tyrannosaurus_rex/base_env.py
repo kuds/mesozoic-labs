@@ -1,12 +1,13 @@
 """
 Tyrannosaurus rex Gymnasium Environment
 
-A large bipedal predator with a massive skull and vestigial forelimbs.
-The Stage 3 task uses contact between a fixed head geom and prey as a
-"bite" proxy; the model has no articulated jaw.
+A large bipedal predator with a massive skull and vestigial forelimbs.  The
+scene holds the animal and the floor only: the prey sphere, its four
+observation channels (direction and distance) and the head-contact box the
+bite read left with the hunt (decision D-D59).
 
-Observation space (bipedal-target-heading-free/v1 since policy interface r14;
-the total dimension is generated in the public species catalog):
+Observation space (bipedal-heading-free/v1; the total dimension is generated
+in the public species catalog):
     - Joint positions (qpos[7:]) — 21 (21 hinge)
     - Joint velocities (qvel[6:]) — 21 (21 hinge)
     - Pelvis projected gravity (unit down vector in pelvis coordinates) — 3
@@ -14,8 +15,6 @@ the total dimension is generated in the public species catalog):
     - Pelvis linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
     - Pelvis acceleration (accelerometer, its own site frame) — 3
     - Foot contact forces (plantar pad + three digit touch sensors per foot) — 2
-    - Prey direction in pelvis coordinates (unit vector) — 3
-    - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
 
 No channel carries the world heading: the three root blocks come from the
@@ -33,16 +32,14 @@ The six toe hinges are passive (spring-loaded at the home pose); they stay
 in qpos/qvel so the observation still senses toe posture.
 
 Reward components:
-    - Forward velocity (toward prey)
+    - Forward velocity (along the forward reference: the spawn's forward,
+      or under a live command the commanded heading)
     - Backward velocity penalty
     - Drift penalty (horizontal displacement from spawn)
     - Alive bonus
     - Fall penalty
     - Energy penalty
     - Tail stability
-    - Bite-proxy bonus (fixed head geom contacts prey)
-    - Approach shaping (distance to prey)
-    - Head proximity shaping (reward for positioning head near prey)
     - Posture (continuous tilt penalty)
     - Nosedive penalty
     - Height maintenance
@@ -60,7 +57,7 @@ Reward components:
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
     - Spin penalty (penalize pelvis angular velocity)
-    - Heading alignment (facing toward prey)
+    - Heading alignment (facing the forward reference)
     - Lateral velocity penalty (anti crab-walk)
     - Speed penalty (penalise absolute speed above threshold)
 """
@@ -110,7 +107,7 @@ from environments.shared.reward_functions import (
 
 
 class TyrannosaurusRexEnv(BaseDinoEnv):
-    """Tyrannosaurus rex bipedal locomotion and bite-attack environment.
+    """Tyrannosaurus rex bipedal locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,
@@ -124,8 +121,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     MODEL_PATH: Path
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Pelvis height"
-    BEHAVIOR_SECTION_LABEL = "Hunting"
-    SUCCESS_KEYS = ("bite_success", "strike_success")
+    #: No success event: the bite, its only one, was removed with the hunt
+    #: (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
 
     action_mapping = "home-keyframe-residual/v1"
     # SB3 only since policy interface r14 (configs/plant_versions.toml note
@@ -149,12 +147,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # Settled tail pose for the tail_home_pose term, in tail_home_joint_names
     # order (tail_1_pitch, tail_1_yaw, tail_2_pitch, tail_3_pitch); see the
     # provenance comment in _cache_ids.
-    _TAIL_SETTLED_QPOS = (0.00010, 0.0, 0.00013, 0.00024)
+    _TAIL_SETTLED_QPOS = (0.00015, 0.0, 0.00010, 0.00018)
     # Settled neck pose for the neck_posture term under
     # neck_posture_reference = "settled", in neck_home_joint_names order
     # (neck_pitch, neck_yaw, head_pitch); see the provenance comment in
     # _cache_ids.
-    _NECK_SETTLED_QPOS = (0.21394, 0.0, 0.22048)
+    _NECK_SETTLED_QPOS = (0.20784, 0.0, 0.21222)
     _NECK_POSTURE_REFERENCES = ("keyframe", "settled")
     # Settled leg pose for the leg_home_pose term under leg_home_pose_reference
     # = "settled", in leg_home_joint_names order (r_hip_pitch, r_hip_roll,
@@ -177,17 +175,23 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # ankle most (+4.9 mrad).
     # Physics r11 remeasures this same panel after the hindlimb proportion and
     # toe-splay revision. The hip and metatarsal heads retain their home positions.
+    # Physics r12 removes the 0.2 kg head_bite box from the skull with the
+    # hunt (decision D-D59), which lightens the head and shifts the statue
+    # back; the same panel (all ten full-horizon, raw pairs within 1.9e-4 rad)
+    # moves the ankle most, +2.1 mrad (r11: -0.0908428, -/+0.0068357,
+    # -0.4372265, 1.3761900), so hip pitch -2.54, hip roll -/+0.39, knee -0.19
+    # and ankle +2.07 degrees against the keyframe.
     # Re-measure whenever leg masses, springs, gains or the feet change (any
     # plant revision; test_the_settled_leg_pose_is_the_statues checks it).
     _LEG_SETTLED_QPOS = (
-        -0.09084276725788445,
-        -0.006835729969570731,
-        -0.43722650066532204,
-        1.376189967490149,
-        -0.09084276725788445,
-        0.006835729969570731,
-        -0.43722650066532204,
-        1.376189967490149,
+        -0.0897609168406912,
+        -0.00675024232111862,
+        -0.43618572135248146,
+        1.3783321722208626,
+        -0.0897609168406912,
+        0.00675024232111862,
+        -0.43618572135248146,
+        1.3783321722208626,
     )
     _LEG_HOME_POSE_REFERENCES = ("keyframe", "settled")
     #: Opt-in task options carved out of the task fingerprint and of the
@@ -243,12 +247,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
         tail_stability_weight: float = 0.05,
-        bite_bonus: float = 10.0,
-        bite_approach_weight: float = 1.0,
-        bite_head_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
-        natural_pitch: float = 0.017,
+        natural_pitch: float = 0.012,
         height_weight: float = 0.0,
         height_target_tolerance: float = 0.0,
         gait_symmetry_weight: float = 0.0,
@@ -312,8 +313,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         stance_cop_band_min_load_share: float = 0.35,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
-        prey_distance_range: tuple[float, float] = (3.0, 8.0),
-        prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
         # The value the evidence supports.  Both bounds moved down by 0.05 with
         # the theropod stance: the flexed home keyframe settles at 0.9260 m
         # where the columnar one settled at 0.9757 (-0.0497).  Translating the
@@ -366,9 +365,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
 
         # T-Rex-specific reward weights
         self.tail_stability_weight = tail_stability_weight
-        self.bite_bonus = bite_bonus
-        self.bite_approach_weight = bite_approach_weight
-        self.bite_head_proximity_weight = bite_head_proximity_weight
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
         self.height_weight = height_weight
@@ -524,9 +520,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # whenever an env swaps its compiled model.
         self._leg_home_settled_qpos = np.array(self._LEG_SETTLED_QPOS)
 
-        # Natural forward pitch (~0.95°), measured: the pelvis frame at the home
+        # Natural forward pitch (~0.69°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
-        # forward_z ≈ -0.017.  The nosedive penalty and termination are measured
+        # forward_z ≈ -0.012.  The nosedive penalty and termination are measured
         # relative to that neutral pose.  The former 0.17 rad (9.7°) described
         # the torso capsule's built-in slope, not the pelvis frame the reward
         # actually reads, so it granted ~7 deg of unpenalized nose-down pitch.
@@ -537,19 +533,18 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # the tail pitch springs, so the tail holds level instead of drooping
         # with tail_1 on its ventral stop, and the plant settles 0.95°
         # nose-down: the noise-free statue's mean forward_z over steps
-        # 200-999 is -0.01666 (r9 -0.02714), asin 0.01666 rad, so 0.017.
+        # 200-999 is -0.01666 (r9 -0.02714), asin 0.01666 rad, so 0.017
+        # (r11 carried it: -0.01666).  Physics r12 removes the 0.2 kg head_bite
+        # box from the snout with the hunt (decision D-D59), and the lighter
+        # head lets the plant settle 0.69° nose-down: forward_z -0.01209 the
+        # same way, asin 0.01209 rad, so 0.012.
         # nosedive_termination_threshold in configs/tyrannosaurus_rex/anatomical/stance.toml is
         # calibrated against this number and moved with it.
         # Unlike the raptor, the T-Rex posture reward stays centred on world
         # vertical (see _get_reward_info).
         self._natural_forward_z = -np.sin(natural_pitch)
 
-        # T-Rex-specific env settings
-        self.prey_distance_range = prey_distance_range
-        self.prey_lateral_range = prey_lateral_range
-
-        # State tracking for delta-based rewards
-        self._prev_prey_distance: float | None = None
+        # State tracking for delta-based rewards.
         self._prev_action: np.ndarray | None = None
         # The policy's own clipped command of the current step, kept by the
         # _filter_action override for action_penalty_source = "raw", and the
@@ -560,15 +555,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # Gait symmetry: track foot touchdown events for alternation reward
         self._init_gait_state()
 
-        # Cached initial direction to prey (set in _spawn_target).
-        # Used by forward-velocity and heading rewards so the "forward"
-        # reference direction stays fixed for the whole episode, preventing
-        # the reward from flipping sign when the T-Rex passes the prey.
-        self._initial_prey_dir_2d: np.ndarray = np.array([1.0, 0.0])
-
-        # Cached initial pelvis position (set in _spawn_target).
-        # Used by the drift penalty to discourage horizontal displacement.
-        self._initial_pos_2d: np.ndarray = np.array([0.0, 0.0])
+        # The progress, drift and heading terms read the episode anchors
+        # BaseDinoEnv keeps: under command_mode "none" the spawn's
+        # (_initial_pos_2d, the drift anchor, and _reference_heading_2d, the
+        # spawn's unit forward), both taken once per reset, so "forward" stays
+        # fixed for the whole episode; under a live command the command's
+        # (_forward_reference_2d and _drift_anchor_2d, decision D-D62).
 
         super().__init__(
             model_path=model_path,
@@ -589,8 +581,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             command_mode=command_mode,
             command_config=command_config,
         )
-        # Build the CoP band's reader now, so a model it cannot describe fails here.
-        if self.stance_cop_band_weight > 0.0:
+        # Build the CoP band's reader now, so a model it cannot describe fails
+        # here, whether [env] or a live stage's stand block pays the band.
+        if self.stance_cop_band_weight > 0.0 or self._stand_weights.get("stance_cop_band_weight", 0.0) > 0.0:
             self._cop_band()
 
     def _cop_band(self) -> Any:
@@ -649,8 +642,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.skull_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "skull")
 
         # Geom IDs for contact detection
-        self.prey_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")
-        self.head_bite_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "head_bite")
         self.torso_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
@@ -690,9 +681,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             ("site", self.head_tip_site_id),
             ("body", self.skull_body_id),
         )
-
-        # Prey mocap body
-        self.prey_mocap_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "prey")
 
         # Sensor indices (order matches MJCF sensor definition)
         # pelvis_gyro(3), pelvis_accel(3), pelvis_orientation(4),
@@ -763,7 +751,13 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # target since.  Its 40-seed window means (the stance config, seeds
         # 3042-3081, reset noise 0.05) are 0.21407 / -0.00001 / 0.22066 (sd
         # <= 0.00015), and a 5000-step noise-free roll ends (steps 4000-4999)
-        # at 0.21401 / 0.22052.
+        # at 0.21401 / 0.22052.  Physics r11 carried 0.21394 / 0.0 / 0.22048.
+        # Physics r12 removes the 0.2 kg head_bite box at the snout tip with the
+        # hunt (decision D-D59), which takes ~1.3 N.m off neck_pitch and ~0.8
+        # N.m off head_pitch; re-measured the same way (seed 0, steps 200-999):
+        # 0.20784 / 0.0 / 0.21222 rad, the target since.  Its 40-seed window
+        # means (the stance config, seeds 3042-3081, reset noise 0.05) are
+        # 0.20791 / -0.00001 / 0.21233 (sd <= 0.00015).
         # Re-measure whenever neck or head masses, springs, or gains change.
         if self.neck_posture_reference == "settled":
             self._neck_home_qpos = np.array(self._NECK_SETTLED_QPOS)
@@ -786,7 +780,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # rad, the target since (D-D44 re-centred it; the stance tolerance
         # stays 0.05 rad).  Its 40-seed window means (the stance config, seeds
         # 3042-3081, reset noise 0.05) are 0.00016 / 0.00003 / 0.00014 /
-        # 0.00022 (sd <= 0.0003).  Re-measure whenever tail masses, springs,
+        # 0.00022 (sd <= 0.0003).  Physics r11 carried 0.00010 / 0.0 / 0.00013 /
+        # 0.00024.  Re-measured the same way on physics r12 (the head_bite box
+        # removed, decision D-D59): 0.00015 / 0.0 / 0.00010 / 0.00018 rad, the
+        # target since; 40-seed window means 0.00033 / 0.00003 / 0.00021 /
+        # 0.00024 (sd <= 0.0003).  Re-measure whenever tail masses, springs,
         # or gains change.
         self._tail_home_qpos = np.array(self._TAIL_SETTLED_QPOS)
 
@@ -810,13 +808,15 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # stance_width_reference = "keyframe"; under "settled" the keyframe's
         # until _get_reward_info captures the animal's own width at
         # stance_width_settle_steps, and the keyframe's again from each
-        # _spawn_target.  Set here too, so a reward read before the first
+        # _reset_episode_state.  Set here too, so a reward read before the first
         # reset is defined.
         self._stance_width_target = self._home_stance_width
         # The animal's weight in N, for the floor-impact term: the pelvis
-        # subtree is the whole animal (the prey is a separate mocap body), so
-        # this is the 85.72 kg x 9.81 = 840.9 N the floor-truth library and
-        # stance.toml's foot_load_balance_min_support_force divide by.
+        # subtree is the whole animal (the scene's only other body is the
+        # world), so this is the 85.52 kg x 9.81 = 839.0 N the floor-truth
+        # library divides by (85.72 kg and 840.9 N, which stance.toml's
+        # foot-force thresholds were sized on, until the 0.2 kg head_bite box
+        # left the skull).
         self._body_weight_n = float(self.model.body_subtreemass[self.pelvis_id] * abs(self.model.opt.gravity[2]))
 
     def _geom_id(self, geom_name: str) -> int:
@@ -843,7 +843,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         Along the left axis of the gravity-aligned pelvis heading frame (the
         observation's own, ``world_to_heading``), from the kinematics of the
         step's last forward pass: ``subtree_com`` of the pelvis (the whole
-        animal; the prey is a separate mocap body), the two foot sites and
+        animal), the two foot sites and
         the pelvis orientation.
         """
         com = np.asarray(self.data.subtree_com[self.pelvis_id], dtype=np.float64)
@@ -973,15 +973,15 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         return super()._filter_action(action)
 
     def _get_obs(self) -> np.ndarray:
-        """Construct the bipedal-target-heading-free/v1 observation vector (63 values).
+        """Construct the bipedal-heading-free/v1 observation vector (59 values).
 
-        Since policy interface r14 no channel carries the world heading: the
-        pelvis orientation is projected gravity, the pelvis linear velocity is
-        expressed in the gravity-aligned heading frame and the prey direction
-        in pelvis coordinates, all three from the free root's own quaternion
-        qpos[3:7] (environments/shared/heading_observation.py), never from
-        the orientation sensor, which is still zero when the constructor
-        calls this before any forward pass.
+        No channel carries the world heading: the pelvis orientation is
+        projected gravity and the pelvis linear velocity is expressed in the
+        gravity-aligned heading frame, both from the free root's own
+        quaternion qpos[3:7] (environments/shared/heading_observation.py),
+        never from the orientation sensor, which is still zero when the
+        constructor calls this before any forward pass.  The command is the
+        last block (command_frame.command_slice reads obs[-3:]).
         """
         # Joint positions (exclude root freejoint: first 7 values)
         qpos = self.data.qpos[7:].copy()
@@ -996,21 +996,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # Foot contact (from touch sensors)
         foot_contact = np.array(self._foot_contact_forces())
 
-        # Prey info (relative to pelvis)
-        pelvis_pos = self.data.xpos[self.pelvis_id]
-        prey_pos = self.data.mocap_pos[0]
-        prey_rel = prey_pos - pelvis_pos
-        prey_distance = np.linalg.norm(prey_rel)
-
-        # Normalize prey direction (world frame; turned into pelvis coordinates below)
-        prey_direction = prey_rel / (prey_distance + 1e-8)
-
-        # Heading-free root block: projected gravity, the root's world linear
-        # velocity (free joint qvel[0:3]) in the heading frame, the prey
-        # direction in pelvis coordinates.
-        gravity, heading_velocity, prey_direction_body = heading_free_root_segments(
-            self.data.qpos, self.data.qvel[0:3], prey_direction
-        )
+        # Heading-free root block: projected gravity and the root's world
+        # linear velocity (free joint qvel[0:3]) in the heading frame.
+        gravity, heading_velocity = heading_free_root_segments(self.data.qpos, self.data.qvel[0:3])
 
         obs = np.concatenate(
             [
@@ -1021,8 +1009,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 heading_velocity,  # Linear velocity (forward, left, up)
                 pelvis_accel,  # Accelerometer
                 foot_contact,  # Foot contacts (2)
-                prey_direction_body,  # Direction to prey (unit vector, pelvis frame)
-                [prey_distance],  # Distance to prey (scalar)
                 self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]
         ).astype(np.float32)
@@ -1034,11 +1020,13 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         pelvis_pos = self.data.xpos[self.pelvis_id]
-        prey_pos = self.data.mocap_pos[0]
-        forward_ref_2d = self._initial_prey_dir_2d
+        # The forward reference: the spawn's heading under command_mode
+        # "none", the commanded heading under a live command
+        # (BaseDinoEnv._forward_reference_2d).
+        forward_ref_2d = self._forward_reference_2d()
         vel_2d = self.data.qvel[0:2]
 
-        # 1-1c. Forward velocity (toward prey), backward velocity penalty and drift penalty
+        # 1-1c. Forward velocity along the forward reference, backward velocity penalty and drift penalty
         reward_forward, reward_backward, reward_drift = self._progress_terms(
             info, vel_2d, forward_ref_2d, pelvis_pos[:2]
         )
@@ -1091,40 +1079,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
 
-        # 5. Bite bonus (check head_bite-prey contact)
-        bitten = self._contact_geom({self.head_bite_geom_id}, self.prey_geom_id) is not None
-        info["bite_success"] = 1.0 if bitten else 0.0
-        reward_bite = self.bite_bonus if bitten else 0.0
-        info["reward_bite"] = reward_bite
-
-        # 6. Approach shaping
-        prey_distance = float(np.linalg.norm(prey_pos - pelvis_pos))
-        reward_approach, approach_delta = self._compute_approach_shaping(
-            prey_distance, self._prev_prey_distance, self.bite_approach_weight, 8.0
-        )
-        self._prev_prey_distance = prey_distance
-        info["prey_distance"] = prey_distance
-        info["approach_delta"] = approach_delta
-        info["reward_approach"] = reward_approach
-
-        # 6b. Head-to-prey proximity shaping
-        # Uses the head tip position (not the pelvis) to give the agent a
-        # gradient for aiming its head toward the prey.  Analogous to the
-        # raptor's claw proximity reward.
-        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        head_prey_dist = float(np.linalg.norm(prey_pos - head_tip_pos))
-        head_proximity_max_dist = 3.0
-        head_proximity = max(0.0, 1.0 - head_prey_dist / head_proximity_max_dist)
-        reward_head_proximity = self.bite_head_proximity_weight * head_proximity
-        info["head_prey_distance"] = head_prey_dist
-        info["head_proximity"] = head_proximity
-        info["reward_head_proximity"] = reward_head_proximity
-
-        # 6c. Head clearance and neck posture.  Clearance is a smoothstep:
+        # 5. Head clearance and neck posture.  Clearance is a smoothstep:
         # zero one configured tolerance below the target and saturated at the
         # target so lifting the head ever higher cannot farm reward.  The neck
         # target is the authored home keyframe, or the statue's settled neck
         # under neck_posture_reference = "settled" (see _cache_ids).
+        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
         head_tip_z = self._clearance(head_tip_pos)
         head_clearance_quality = self._head_clearance_quality(head_tip_z)
         reward_head_clearance = self.head_clearance_weight * head_clearance_quality
@@ -1174,7 +1134,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # Settled pelvis height under the home controller, measured (zero action,
         # zero reset noise, 600 steps: 0.9260 m, sd 0.00001, on physics r8; 0.9262
         # on r9, which carries it: plant_versions note 16; 0.9261 on r10, which
-        # carries it too: note 20).  This must track the
+        # carries it too: note 20; 0.9261 on r12, the head_bite box removed,
+        # which carries it as well).  This must track the
         # plant: the previous 0.90 was the root height of the PRE-repair plant,
         # and after the July home-equilibrium fix raised the stance to 0.9757 the
         # term saturated at 1.0 everywhere in the healthy band -- a flat constant
@@ -1290,8 +1251,14 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # info keys exist only then).  A Gaussian bonus on the whole-body
         # centre of mass's offset from the foot-site midpoint along the
         # heading frame's left axis (_com_lateral_offset), paid only after the
-        # settle (step > stance_width_settle_steps), only while the command is
-        # zero and only while both feet carry foot_terms_min_support_force.
+        # settle (step > stance_width_settle_steps) and only while both feet
+        # carry foot_terms_min_support_force.  Until decision D-D62 it was
+        # also paid only while the command was zero; the stand block
+        # (BaseDinoEnv._stand_block) generalizes that gate to every species:
+        # a live stage pays a standing term at a zero command through its
+        # [commands] stand_weights, and under command_mode "none" (every
+        # stance) the command is always zero, so dropping the test changed
+        # no stance reward.
         # The 2026-10 stances that failed the pad rails leaned onto one pad's
         # edge with both feet down, which the support and width terms price
         # as a sound stance.  The offset flips sign under the left-right
@@ -1312,9 +1279,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             reward_lateral_lean, lateral_lean_quality = _reward_lateral_lean_pure(
                 np.asarray(com_lateral_offset), self.lateral_lean_tolerance_m, self.lateral_lean_weight
             )
-            lean_gate = (
-                self._step_count > self.stance_width_settle_steps and not np.any(self._command) and all(feet_supported)
-            )
+            lean_gate = self._step_count > self.stance_width_settle_steps and all(feet_supported)
             info["com_lateral_offset_m"] = com_lateral_offset
             info["lateral_lean_quality"] = float(lateral_lean_quality)
             info["reward_lateral_lean"] = float(reward_lateral_lean) if lean_gate else 0.0
@@ -1324,10 +1289,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # Gaussian PENALTY on the fore-aft stagger of the two foot sites along
         # the pelvis heading (_foot_stagger), centred on 0 (the statue's
         # window mean |stagger| is 2.0 mm), paid only after the settle (step >
-        # stance_width_settle_steps) and only while the command is zero.  Not
+        # stance_width_settle_steps); a live stage pays it at a zero command
+        # through its stand block (8g).  Not
         # gated on support: a penalty that a lifted foot escaped would pay the
         # policy to unload a foot.  -w (1 - exp(-(s/tol)^2)); the stagger
-        # enters squared and both gates are mirror-invariant, so the term is
+        # enters squared and the gate is mirror-invariant, so the term is
         # exactly mirror-invariant.  Designed in the 2026-10-19 night
         # continuation and screened from scratch as stance4's arm LTS (w 0.30,
         # tol 0.045 m; docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md
@@ -1339,7 +1305,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             reward_stance_stagger, stagger_quality = _reward_stance_stagger_pure(
                 np.asarray(foot_stagger), self.stance_stagger_tolerance_m, self.stance_stagger_weight
             )
-            stagger_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
+            stagger_gate = self._step_count > self.stance_width_settle_steps
             info["foot_stagger_m"] = foot_stagger
             info["stance_stagger_quality"] = float(stagger_quality)
             info["reward_stance_stagger"] = float(reward_stance_stagger) if stagger_gate else 0.0
@@ -1362,8 +1328,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # bounded door: a lighter foot whose CoP is back in band pays 1 - g of
         # the per-foot maximum, less than a loaded foot u out of band when
         # g > exp(-(u / tolerance)^2) (at the defaults from share 0.30 for
-        # u 0.3, never at 0.25 or below).  Paid only after the settle and only
-        # while the command is zero, like the stagger term.  -w mean_feet
+        # u 0.3, never at 0.25 or below).  Paid only after the settle, like
+        # the stagger term (and like it a stand-block term of a live stage,
+        # 8g).  -w mean_feet
         # (1 - q); every reading is fore-aft, the guard is per foot and the
         # mean is symmetric, so the term is exactly mirror-invariant.
         # Defaults (spans of 70 mm): band [-0.6, +0.4] (the split diagnosis'
@@ -1421,7 +1388,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 exponents.append(-(scaled * scaled))
             gaussian = np.exp(exponents).tolist()
             band_quality = [guard * value if guard > 0.0 else 0.0 for guard, value in zip(guards, gaussian)]
-            band_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
+            band_gate = self._step_count > self.stance_width_settle_steps
             for index, label in enumerate(("r", "l")):
                 foot_cop, foot_loaded, pad_cop, pad_loaded, _limb, digit_share = feet[index]
                 info[f"{label}_cop_band_foot_cop"] = foot_cop if foot_loaded else 0.0
@@ -1533,9 +1500,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             + reward_alive
             + reward_energy
             + reward_tail
-            + reward_bite
-            + reward_approach
-            + reward_head_proximity
             + reward_head_clearance
             + reward_neck_posture
             + reward_tail_home_pose
@@ -1597,12 +1561,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             info["termination_reason"] = "skull_low"
             return True, info
 
-        # Check contacts: head-prey (success)
-        if self.bite_bonus > 0 and self._contact_geom({self.head_bite_geom_id}, self.prey_geom_id) is not None:
-            info["termination_reason"] = "bite_success"
-            info["success"] = True
-            return True, info
-
         # Floor contact termination (shared)
         terminated, reason = self._check_floor_contact(
             self._body_ground_geoms,
@@ -1619,14 +1577,13 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
 
         return False, info
 
-    def _spawn_target(self):
-        """Spawn prey at random location ahead of T-Rex."""
-        prey_pos = self._spawn_target_2d(self.prey_distance_range, self.prey_lateral_range, 0.5)
-        self._initial_prey_dir_2d = self._compute_initial_direction_2d(prey_pos)
-        self._initial_pos_2d = self.data.qpos[0:2].copy()
+    def _reset_episode_state(self) -> None:
+        """Clear the per-episode state: action history, policy-action tag, width target, gait state.
 
+        BaseDinoEnv.reset has already set the drift anchor and the reference
+        heading from the spawn; nothing here draws a random number.
+        """
         # Reset delta-based tracking (first step will produce zero deltas)
-        self._prev_prey_distance = None
         self._prev_action = None
         self._prev_prev_action = None
         self._policy_action = None

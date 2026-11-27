@@ -7,8 +7,8 @@ production environments:
 
 * a PPO model and its VecNormalize statistics save, load
   (``load_sb3_checkpoint``) and evaluate (``evaluation.evaluate``) with the
-  plant check on, acting exactly as before the save, the statistics 63 / 55
-  wide;
+  plant check on, acting exactly as before the save, the statistics as wide
+  as the current observation (``CURRENT_WIDTH``);
 * an interrupted run resumes on the new environment
   (``train_base._load_vecnorm_into_envs`` then ``_create_or_load_model``, as
   ``_train_stage_body`` runs them), carrying its step count and return
@@ -78,8 +78,10 @@ PRE_MIGRATION: dict[ModelId, dict[str, Any]] = {
     },
 }
 #: Current widths: the 4-wide quaternion became 3-wide projected gravity (the velociraptor's 69 at policy interface
-#: r13 became 71 at r14, the life-size plant's six per-site foot channels for its two per-foot sums, note 22).
-CURRENT_WIDTH = {TYRANNOSAURUS_REX: 63, COMPSOGNATHUS_LONGIPES: 55, VELOCIRAPTOR_MONGOLIENSIS: 71}
+#: r13 became 71 at r14, the life-size plant's six per-site foot channels for its two per-foot sums, note 22); the
+#: target-free revision then dropped the 4 target channels (T-Rex r17 63 -> 59, Compsognathus r7 55 -> 51,
+#: velociraptor r15 71 -> 67).
+CURRENT_WIDTH = {TYRANNOSAURUS_REX: 59, COMPSOGNATHUS_LONGIPES: 51, VELOCIRAPTOR_MONGOLIENSIS: 67}
 PPO_KWARGS: dict[str, Any] = {
     "n_steps": 64,
     "batch_size": 32,
@@ -211,7 +213,7 @@ def test_interrupted_run_resumes_on_the_new_env(trained):
     eval_env = VecNormalize(DummyVecEnv([_factory(model_id)]), norm_reward=False)
     try:
         train_base._load_vecnorm_into_envs(
-            stem, train_env, eval_env, plant_identity=identity, task_load_mode="resume_same_stage"
+            stem, train_env, eval_env, plant_identity=identity, task_load_mode="resume_same_stage", command_mode="none"
         )
         np.testing.assert_array_equal(train_env.obs_rms.mean, trained["venv"].obs_rms.mean)
         np.testing.assert_array_equal(train_env.ret_rms.var, trained["venv"].ret_rms.var)
@@ -238,7 +240,7 @@ def test_pre_migration_pair_is_refused_by_the_trainer(model_id, pre_migration):
         for mode in ("resume_same_stage", "initialize_next_stage"):
             with pytest.raises(PlantCompatibilityError) as excinfo:
                 train_base._load_vecnorm_into_envs(
-                    stem, train_env, eval_env, plant_identity=current, task_load_mode=mode
+                    stem, train_env, eval_env, plant_identity=current, task_load_mode=mode, command_mode="none"
                 )
             _refused(excinfo, model_id)
             # Warm start and resume alike refuse the model before SB3 rebuilds it around the new env.

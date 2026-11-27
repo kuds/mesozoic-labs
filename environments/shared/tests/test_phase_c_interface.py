@@ -7,9 +7,9 @@ contract code:
 
 * The **golden fixture** (``fixtures/phase_c_reset_golden.json``, captured at
   7db7f8e by ``reset_golden.py``) is replayed on the current tree.  Its
-  ``reset`` half — qpos / qvel after ``reset(seed)``, the mocap target rows,
-  the push-schedule starts and directions, and the generator state the
-  reset leaves behind — is THE CONTRACT (decision D3: the seeded draw
+  ``reset`` half — qpos / qvel after ``reset(seed)``, the push-schedule
+  starts and directions, and the generator state the reset leaves behind —
+  is THE CONTRACT (decision D3: the seeded draw
   stream is unchanged; decision D-C2: the compsognathus recovery
   calibrations were restamped, not re-measured) and is compared exactly at
   6 decimals; so is its ``second_reset`` record (an unseeded ``reset()``
@@ -33,6 +33,13 @@ contract code:
   their reset halves were unchanged again, and only their observation and
   trajectory halves moved. The anatomical r3 feet change the deterministic floor-seating correction in
   root z. The sampled pose before that correction, reset RNG state and push schedules still reproduce.
+  All four captures were re-taken for plant_versions note 24 (decision D-D59), which changed the draw
+  stream on purpose: the prey/target draws and the height-jitter draw left the reset, so each reset
+  half's qpos and qvel re-took equal at 6 decimals (the joint and velocity jitter are still the first
+  draws) while its generator state, its push schedules and the unseeded second reset moved; the
+  compsognathus trajectories re-took bit-identical (the prey removal moved no dynamics) and the T. rex
+  ones moved by at most 1.1e-3 (physics r12 removed the 0.2 kg head_bite box).  The fixture pins the
+  new stream from then on.
 * The command hook itself is pinned directly: under ``command_mode =
   "none"`` it touches ``np_random`` not at all, and it runs after every
   reset draw (the push schedule included) and before ``_get_obs``.
@@ -42,17 +49,22 @@ contract code:
 * ``command_mode = "none"`` is inert and deterministic.  Since Phase D
   (consolidation PR-9) the SB3 backend builds the direction controller for
   both live modes from ONE ``command_config`` (decision D-D2): seeded in the
-  hook with one draw after every reset draw, advanced at the end of
-  ``step()``; a setting a mode would ignore is refused at construction.
+  hook, advanced at the end of ``step()``; a setting a mode would ignore is
+  refused at construction.  Since decision D-D60 the hook seeds it from the
+  command stream (the reset seed, an episode index and
+  ``COMMAND_STREAM_DOMAIN``), never from ``np_random``, so a live mode leaves
+  every reset draw of this and every later episode as "none" draws it.
 * The two command kwargs are carved out of the task fingerprint while the
   effective ``command_mode`` is ``"none"`` (amendment A1), and the
   ``command`` payload section is a live mode's controller manifest, passed
   exactly when the mode is live (amendment A9, as PR-9 carried it out).
 * The recovery-calibration restamp tool is idempotent and refuses a physics
-  change; the committed compsognathus calibrations load (decision D-C2).  The
-  robot preserves its Phase C restamp and the D-D33 identity migration. The
-  anatomical r3 profile is measured on the revised animal. Its calibration
-  evidence records the quiet posture, safe-set thresholds and push screen.
+  change; the committed compsognathus calibrations load (decision D-C2).  Both
+  were re-measured for plant_versions note 24 (decision D-D59), which moved the
+  seeded push schedules, so neither records a restamp any more; each profile is
+  read off its measurement (the quiet posture, safe-set thresholds and push
+  screen), and the restamp and identity-migration tests roll a committed
+  profile back synthetically.
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
 full in the shared legs of the test matrix (``.[test]`` only); the SB3 job
@@ -90,6 +102,7 @@ from environments.shared.command_frame import (
     COMMAND_ENV_KEYS,
     COMMAND_MODES,
     COMMAND_SEGMENT_NAME,
+    COMMAND_STREAM_DOMAIN,
     COMMAND_WIDTH,
     RETIRED_COMMAND_ENV_KEYS,
 )
@@ -106,6 +119,7 @@ from environments.shared.task_fingerprint import (
     TaskFingerprintError,
     compute_task_fingerprint,
     derive_stage_task_fingerprint,
+    stage_command_manifest,
     stage_task_fingerprint,
 )
 from environments.shared.tests import reset_golden
@@ -194,15 +208,19 @@ def test_golden_fixture_records_its_provenance():
 #: recapture's interface revision; no capture was re-taken.  The trex captures were re-taken on physics r10
 #: (plant_versions note 20, decision D-D44). The revised anatomical feet and recovery dynamics are captured
 #: on physics r3 / policy interface r6; the fixture records the measured deterministic root-height shift.
+#: All four were re-taken for plant_versions note 24 (decision D-D59: the prey and height-jitter reset draws
+#: removed, every model heading-free), the robot's for the first time.
 RECAPTURED = {
-    (TYRANNOSAURUS_REX, "stance"): 11,
-    (TYRANNOSAURUS_REX, "recovery"): 11,
-    (COMPSOGNATHUS_LONGIPES, "recovery"): 3,
+    (TYRANNOSAURUS_REX, "stance"): 12,
+    (TYRANNOSAURUS_REX, "recovery"): 12,
+    (COMPSOGNATHUS_LONGIPES, "recovery"): 4,
+    (COMPSOGNATHUS_LONGIPES_ROBOT, "recovery"): 2,
 }
 RECAPTURED_INTERFACES = {
-    (TYRANNOSAURUS_REX, "stance"): (16, "bipedal-target-heading-free/v1"),
-    (TYRANNOSAURUS_REX, "recovery"): (16, "bipedal-target-heading-free/v1"),
-    (COMPSOGNATHUS_LONGIPES, "recovery"): (6, "bipedal-target-heading-free/v1"),
+    (TYRANNOSAURUS_REX, "stance"): (17, "bipedal-heading-free/v1"),
+    (TYRANNOSAURUS_REX, "recovery"): (17, "bipedal-heading-free/v1"),
+    (COMPSOGNATHUS_LONGIPES, "recovery"): (7, "bipedal-heading-free/v1"),
+    (COMPSOGNATHUS_LONGIPES_ROBOT, "recovery"): (4, "bipedal-heading-free/v1"),
 }
 
 
@@ -237,7 +255,7 @@ def test_recaptured_goldens_record_the_plant_they_were_taken_on():
 
 @pytest.mark.parametrize("key", GOLDEN_KEYS, ids=GOLDEN_IDS)
 def test_reset_draw_stream_matches_the_pre_bump_golden(key):
-    """THE CONTRACT: qpos/qvel/targets/push schedules after reset(seed), exact at 6 decimals.
+    """THE CONTRACT: qpos/qvel/push schedules/generator state after reset(seed), exact at 6 decimals.
 
     A reset draw added before the existing draws breaks this by design; the
     Phase C command hook draws nothing under ``command_mode = "none"``.
@@ -341,7 +359,8 @@ def test_observation_segments_end_with_the_command_segment_for_every_model():
         }, model_id
         assert [float(bound) for bound in segments[-1]["range"]] == [-1.0, 1.0]
         assert [segment["name"] for segment in segments].count(COMMAND_SEGMENT_NAME) == 1
-        assert segments[-2]["name"].endswith("_distance") and segments[-2]["width"] == 1
+        # The foot channels precede the command since plant_versions note 24 removed the target segments.
+        assert segments[-2]["name"] == "foot_contact"
         assert payload["observation"]["shape"] == [
             current_plant_identity(model_id, verify_generated=False).observation_dim
         ]
@@ -393,7 +412,7 @@ def test_command_hook_draws_no_rng_and_runs_after_every_reset_draw():
             seen["rng_state"] = self.np_random.bit_generator.state
             seen["push_starts"] = np.array(self._push_schedule_starts, copy=True)
             seen["qpos"] = np.array(self.data.qpos, copy=True)
-            seen["mocap_pos"] = np.array(self.data.mocap_pos, copy=True)
+            seen["reference_heading"] = np.array(self._reference_heading_2d, copy=True)
             command: np.ndarray = marker.copy()
             return command
 
@@ -409,7 +428,7 @@ def test_command_hook_draws_no_rng_and_runs_after_every_reset_draw():
         np.testing.assert_array_equal(seen["push_starts"], env._push_schedule_starts)
         assert not np.array_equal(seen["push_starts"], previous_starts)
         np.testing.assert_array_equal(seen["qpos"], env.data.qpos)
-        np.testing.assert_array_equal(seen["mocap_pos"], env.data.mocap_pos)
+        np.testing.assert_array_equal(seen["reference_heading"], env._reference_heading_2d)
         # Before _get_obs: the hook's value is what the reset observation carries.
         np.testing.assert_array_equal(obs[-COMMAND_WIDTH:], marker)
         np.testing.assert_array_equal(env._command, marker)
@@ -535,9 +554,15 @@ def test_live_modes_build_the_controller_and_refuse_settings_they_would_ignore()
             TyrannosaurusRexAnatomicalEnv(**{removed: 0.0})
 
 
-def test_a_live_mode_draws_after_the_push_schedule():
-    """Decision D-C5 on a pushed stage: the schedule seed is the reset stream's draw after the push schedule's, so
-    the pushes, the pose and every other reset draw equal the "none" twin's."""
+def _command_stream_schedule_seed(seed: int, episode: int) -> int:
+    """The schedule seed BaseDinoEnv's command stream gives episode *episode* after reset(seed=*seed*) (D-D60)."""
+    stream = np.random.default_rng(np.random.SeedSequence([seed, episode, COMMAND_STREAM_DOMAIN]))
+    return int(stream.integers(0, 2**32, dtype=np.uint64))
+
+
+def test_a_live_mode_draws_nothing_from_the_reset_stream_of_a_pushed_stage():
+    """Decision D-D60 on a pushed stage (it replaced D-C5's one draw on the reset stream): the schedule seed comes
+    from the command stream, so the pushes, the pose and the generator state equal the "none" twin's."""
     kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "recovery")["env_kwargs"])
     config = DirectionCommandConfig(switch_interval_s=0.05, straight_probability=0.0, turn_increment_max=0.6)
     live = TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config=config, **kwargs)
@@ -550,9 +575,8 @@ def test_a_live_mode_draws_after_the_push_schedule():
             np.testing.assert_array_equal(live._push_schedule_starts, none._push_schedule_starts)
             np.testing.assert_array_equal(live._push_schedule_directions, none._push_schedule_directions)
             np.testing.assert_array_equal(live.data.qpos, none.data.qpos)
-            expected = copy.deepcopy(none.np_random)
-            assert live.direction_controller.schedule_seed == int(expected.integers(0, 2**32, dtype=np.uint64))
-            assert live.np_random.bit_generator.state == expected.bit_generator.state
+            assert live.direction_controller.schedule_seed == _command_stream_schedule_seed(seed, 0)
+            assert live.np_random.bit_generator.state == none.np_random.bit_generator.state
     finally:
         live.close()
         none.close()
@@ -560,11 +584,15 @@ def test_a_live_mode_draws_after_the_push_schedule():
 
 @pytest.mark.parametrize(("env_class", "model_id"), MODEL_ENVS)
 def test_a_live_mode_seeds_at_reset_and_changes_only_the_command_segment(env_class, model_id):
-    """The controller is seeded once per reset from ONE draw appended to the reset stream, the observation
-    carries its normalised command, step() rewards before it advances and returns the next command; physics,
-    reward and termination match the same seeds under "none"."""
+    """The controller is seeded once per reset from the command stream (decision D-D60: nothing is drawn from the
+    reset stream), the observation carries its normalised command, step() rewards before it advances and returns
+    the next command; physics and termination match the same seeds under "none", and the reward and info differ
+    exactly by the base env's tracking term, metrics and dwell.  The last holds with the reward rules that follow a
+    live command held off (``_rewards_follow_command``, as the recipe env holds them): decision D-D62 reads the
+    forward reference and the drift anchor from the command, and test_walk_command_mechanism.py tests those."""
     config = DirectionCommandConfig(switch_interval_s=0.05, straight_probability=0.0, turn_increment_max=0.6)
     live = env_class(command_mode="heading_and_speed", command_config=config)
+    live._rewards_follow_command = lambda: False
     none = env_class()
     rng = np.random.default_rng(5)
     actions = rng.uniform(-0.05, 0.05, (12, *live.action_space.shape)).astype(np.float32)
@@ -573,10 +601,9 @@ def test_a_live_mode_seeds_at_reset_and_changes_only_the_command_segment(env_cla
         for seed in (11, 11, 12):
             obs, info = live.reset(seed=seed)
             plain_obs, plain_info = none.reset(seed=seed)
-            expected = copy.deepcopy(none.np_random)
-            schedule_seed = int(expected.integers(0, 2**32, dtype=np.uint64))
+            schedule_seed = _command_stream_schedule_seed(seed, 0)
             assert live.direction_controller.schedule_seed == schedule_seed
-            assert live.np_random.bit_generator.state == expected.bit_generator.state
+            assert live.np_random.bit_generator.state == none.np_random.bit_generator.state
             assert info == plain_info
             np.testing.assert_array_equal(live.data.qpos, none.data.qpos)
             np.testing.assert_array_equal(obs[:-COMMAND_WIDTH], plain_obs[:-COMMAND_WIDTH])
@@ -588,8 +615,17 @@ def test_a_live_mode_seeds_at_reset_and_changes_only_the_command_segment(env_cla
                 executed = live._command_state
                 stepped, reward, terminated, truncated, step_info = live.step(action)
                 plain, plain_reward, plain_terminated, plain_truncated, plain_step_info = none.step(action)
-                assert (reward, terminated, truncated) == (plain_reward, plain_terminated, plain_truncated)
-                assert step_info == plain_step_info
+                assert (terminated, truncated) == (plain_terminated, plain_truncated)
+                tracking = step_info["reward_tracking"]
+                assert 0.0 <= tracking <= live.tracking_weight
+                assert reward == pytest.approx(plain_reward + tracking, rel=0, abs=1e-12)
+                assert step_info["reward_total"] == pytest.approx(plain_step_info["reward_total"] + tracking, abs=1e-12)
+                command_keys = {"reward_tracking", "tracking_dwell_s", *live._command_metrics}
+                assert set(step_info) == set(plain_step_info) | command_keys
+                excluded = command_keys | {"reward_total"}
+                assert {k: v for k, v in step_info.items() if k not in excluded} == {
+                    k: v for k, v in plain_step_info.items() if k not in excluded
+                }
                 np.testing.assert_array_equal(stepped[:-COMMAND_WIDTH], plain[:-COMMAND_WIDTH])
                 assert live._command_state.time_s == pytest.approx(live._step_count * live.dt)
                 assert live._command_state.event_id >= executed.event_id
@@ -627,18 +663,25 @@ def _fingerprint(**overrides):
 
 
 def test_committed_stages_carry_no_command_keys_and_no_command_section():
-    """(i): under the committed TOMLs every stage's env section is command-free."""
+    """(i): under the committed TOMLs every stance and recovery env section is command-free; the walk (locomotion)
+    runs its live command since decision D-D62, so its section keeps both keys and its payload a command section."""
     for model_id in model_ids():
         identity = current_plant_identity(model_id, verify_generated=False).to_dict()
         for stage_key, stage_config in load_all_stages(model_id).items():
-            assert not COMMAND_ENV_KEYS_SET & set(stage_config["env_kwargs"]), (model_id, stage_key)
+            live = stage_config["name"] == "locomotion"
             payload = derive_stage_task_fingerprint(
                 model_id=model_id,
                 stage=stage_key,
                 backend="stable-baselines3",
                 env_kwargs=stage_config["env_kwargs"],
                 plant_identity=identity,
+                command_manifest=stage_command_manifest(model_id, stage_config["env_kwargs"]),
             )
+            if live:
+                assert COMMAND_ENV_KEYS_SET <= set(stage_config["env_kwargs"]), (model_id, stage_key)
+                assert COMMAND_ENV_KEYS_SET <= set(payload["env"]) and "command" in payload, (model_id, stage_key)
+                continue
+            assert not COMMAND_ENV_KEYS_SET & set(stage_config["env_kwargs"]), (model_id, stage_key)
             assert not COMMAND_ENV_KEYS_SET & set(payload["env"]), (model_id, stage_key)
             assert "command" not in payload, (model_id, stage_key)
 
@@ -661,7 +704,9 @@ def test_command_kwargs_enter_the_task_fingerprint_and_a_live_mode_has_a_command
     live = _fingerprint(env_kwargs=live_env, command_manifest=manifest)
     assert COMMAND_ENV_KEYS_SET <= set(live["env"])
     assert live["env"]["command_mode"] == "heading_and_speed"
-    assert live["env"]["command_config"] == {**asdict(config), "speed_range": [0.25, 0.75]}
+    # Field by field as its task record: the fields added since (decision D-D60) only while set.
+    assert live["env"]["command_config"] == {**config.task_record(), "speed_range": [0.25, 0.75]}
+    assert set(asdict(config)) - set(config.task_record()) == set(DirectionCommandConfig.UNRECORDED_VALUES)
     assert live["command"] == json.loads(json.dumps(manifest))
     assert live["task_sha256"] != base["task_sha256"]
     retuned = replace(config, cruise_speed=0.6)
@@ -742,10 +787,13 @@ _COMPSOGNATHUS_LONGIPES_PUSH_KEYS = (
     "perturbation_duration",
     "perturbation_direction",
 )
+#: Every committed command-free stage: a record written before PR-9 ran command_mode "none", and since decision
+#: D-D62 the walk (locomotion) runs a live command, whose record holds its command config.
 _STAGES = [
     pytest.param(model_id, entry.id, id=f"{model_id.species}-{model_id.embodiment}-{entry.id}")
     for model_id in model_ids()
     for entry in load_stage_manifest(model_id).stages
+    if entry.id != "locomotion"
 ]
 
 
@@ -786,12 +834,37 @@ def test_a_record_written_before_pr9_rebuilds_its_stage_once_the_retired_keys_ar
 # ---------------------------------------------------------------------------
 
 CALIBRATED_MODELS = (COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT)
-#: The robot preserves the Phase C restamp and D-D33 migration; r3 anatomy was freshly measured.
-RESTAMPED_MODELS = (COMPSOGNATHUS_LONGIPES_ROBOT,)
-#: The identity migration's recorded reason, and the one schema it migrated from (decision D-D33).
+#: Both profiles were re-measured for plant_versions note 24 (decision D-D59: the prey and height-jitter reset draws
+#: removed, so every push schedule moved), and neither records a restamp: the robot's Phase C restamp and D-D33
+#: identity migration described its earlier profile, so the restamp and migration tests below roll a committed
+#: profile back synthetically.  Per model: the physics and policy interface revisions it was measured on, its
+#: calibration_id suffix and its measurement artifact under environments/<species>/data/.
+MEASURED_PROFILES = {
+    COMPSOGNATHUS_LONGIPES: (4, 7, "fixed-command-recovery-2026-11-v4", "recovery_calibration_anatomical_r4.json.gz"),
+    COMPSOGNATHUS_LONGIPES_ROBOT: (2, 4, "fixed-command-recovery-2026-11-v2", "recovery_calibration_robot_r2.json.gz"),
+}
+#: The identity migration's recorded reason and the one schema it migrated from (decision D-D33).
 IDENTITY_MIGRATION_REASON = "plant_versions note 19 (D-D33)"
 PRE_D_D33_PROFILE_SCHEMA = "mesozoic.recovery-calibration/v1"
 CONFIGS_ROOT = Path(__file__).resolve().parents[3] / "configs"
+#: The species IDs a schema-v1 profile named the two models by, read from the one measurement recorded under them
+#: (data/recovery_calibration_v1.json measured both models, anatomical first), so no retired ID is written here.
+PRE_D_D33_SPECIES = dict(
+    zip(
+        CALIBRATED_MODELS,
+        json.loads(
+            (CONFIGS_ROOT.parent / "environments/compsognathus_longipes/data/recovery_calibration_v1.json").read_text(
+                encoding="utf-8"
+            )
+        )["provenance"]["arguments"]["species"],
+        strict=True,
+    )
+)
+#: The replaced identity a synthetic roll-back records: one interface revision behind, with a stand-in interface
+#: digest and task hash, and the commit a test passes explicitly so the result does not depend on the checkout.
+_PREVIOUS_INTERFACE_SHA256 = "sha256:" + "a" * 64
+_PREVIOUS_TASK_SHA256 = "sha256:" + "b" * 64
+_RESTAMP_COMMIT = "0" * 40
 
 
 def _committed_profile(model_id: ModelId) -> tuple[Path, str, dict[str, Any]]:
@@ -804,22 +877,21 @@ def _render(profile: dict[str, Any]) -> str:
     return json.dumps(profile, indent=2, ensure_ascii=False) + "\n"
 
 
-def _rolled_back(profile: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    """*profile* with its last restamp undone: the plant identity's interface fields and the task hash it replaced.
-
-    The D-D33 migration moved no observation width, so ``observation_dim`` stays.
-    """
+def _one_revision_behind(profile: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """*profile* one interface revision behind (what a restamp finds after an interface-only revision), and the
+    replaced identity's fields, in the order a restamp entry records them."""
     profile = copy.deepcopy(profile)
-    history = profile["restamp_history"]
-    entry = history.pop()
     identity = dict(profile["plant_identity"])
-    identity["policy_interface_revision"] = entry["previous_policy_interface_revision"]
-    identity["policy_interface_sha256"] = entry["previous_policy_interface_sha256"]
+    identity["policy_interface_revision"] -= 1
+    identity["policy_interface_sha256"] = _PREVIOUS_INTERFACE_SHA256
     profile["plant_identity"] = identity
-    profile["task_sha256"] = entry["previous_task_sha256"]
-    if not history:
-        del profile["restamp_history"]
-    return profile, entry
+    profile["task_sha256"] = _PREVIOUS_TASK_SHA256
+    replaced = {
+        "previous_policy_interface_revision": identity["policy_interface_revision"],
+        "previous_policy_interface_sha256": _PREVIOUS_INTERFACE_SHA256,
+        "previous_task_sha256": _PREVIOUS_TASK_SHA256,
+    }
+    return profile, replaced
 
 
 def _write(model_id: ModelId, root: Path, profile: dict[str, Any]) -> Path:
@@ -829,91 +901,83 @@ def _write(model_id: ModelId, root: Path, profile: dict[str, Any]) -> Path:
     return path
 
 
-def _pre_restamp_copy(model_id: ModelId, root: Path) -> tuple[Path, dict[str, Any]]:
-    """The committed profile one interface revision behind, still at the current schema (what a plain restamp
-    finds after an interface-only revision)."""
-    profile, entry = _rolled_back(_committed_profile(model_id)[2])
-    return _write(model_id, root, profile), entry
+def _pre_restamp_copy(model_id: ModelId, root: Path, reason: str) -> tuple[Path, dict[str, Any]]:
+    """The committed profile one interface revision behind, at the current schema, and the profile a restamp
+    recording *reason* at :data:`_RESTAMP_COMMIT` must turn it into (the committed one plus that entry)."""
+    committed = _committed_profile(model_id)[2]
+    behind, replaced = _one_revision_behind(committed)
+    expected = {
+        **committed,
+        "restamp_history": [{"restamped_at_commit": _RESTAMP_COMMIT, **replaced, "reason": reason}],
+    }
+    return _write(model_id, root, behind), expected
 
 
 def _pre_migration_copy(model_id: ModelId, root: Path) -> tuple[Path, dict[str, Any]]:
-    """The committed profile rolled back to the schema-v1 profile ``--migrate-identity`` found (decision D-D33).
+    """The committed profile as a schema-v1 profile one interface revision behind (what ``--migrate-identity``
+    found, decision D-D33), and the profile the migration must turn it into at :data:`_RESTAMP_COMMIT`.
 
-    The schema, species and ``calibration_id`` come from the migration entry's ``previous_identity``; the
-    measurement artifact is the recorded path under the recorded species' directory.  Of the replaced plant
-    identity, the tool reads only the physics digest and the interface fields its entry records.
+    The schema, the species ID of its date, the ``calibration_id`` it named and the measurement under that
+    species' directory are the v1 profile's; of the replaced plant identity, the tool reads only the physics digest
+    and the interface fields its entry records.
     """
-    rolled, entry = _rolled_back(_committed_profile(model_id)[2])
-    previous = entry["previous_identity"]
+    committed = _committed_profile(model_id)[2]
+    behind, replaced = _one_revision_behind(committed)
+    species = PRE_D_D33_SPECIES[model_id]
+    suffix = committed["calibration_id"].removeprefix(f"{model_id.species}-{model_id.embodiment}-")
     profile: dict[str, Any] = {}
-    for key, value in rolled.items():
+    for key, value in behind.items():
         if key == "schema":
-            profile[key] = previous["schema"]
+            profile[key] = PRE_D_D33_PROFILE_SCHEMA
         elif key == "species":
-            profile[key] = previous["species"]
+            profile[key] = species
         elif key == "embodiment":
             continue
         elif key == "calibration_id":
-            profile[key] = previous["calibration_id"]
+            profile[key] = f"{species}-{suffix}"
         elif key == "provenance":
-            artifact = Path("environments", previous["species"], "data", Path(value["measurement_artifact"]).name)
+            artifact = Path("environments", species, "data", Path(value["measurement_artifact"]).name)
             profile[key] = {**value, "measurement_artifact": artifact.as_posix()}
         else:
             profile[key] = value
-    return _write(model_id, root, profile), entry
+    entry = {
+        "restamped_at_commit": _RESTAMP_COMMIT,
+        "previous_identity": {
+            "schema": PRE_D_D33_PROFILE_SCHEMA,
+            "species": species,
+            "calibration_id": profile["calibration_id"],
+        },
+        **replaced,
+        "reason": IDENTITY_MIGRATION_REASON,
+    }
+    return _write(model_id, root, profile), {**committed, "restamp_history": [entry]}
 
 
 def _committed_copy(model_id: ModelId, root: Path) -> Path:
     path = model_id.path(root) / "recovery_calibration.json"
-    path.parent.mkdir(parents=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(model_id.path(CONFIGS_ROOT) / "recovery_calibration.json", path)
     return path
 
 
-@pytest.mark.parametrize("model_id", RESTAMPED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
-def test_committed_recovery_calibrations_load_and_record_their_two_restamps(model_id):
-    from environments.shared.recovery_calibration import load_recovery_calibration
-    from environments.shared.scripts.restamp_recovery_calibration import RESTAMP_REASON
-
-    calibration = load_recovery_calibration(model_id)
-    _, _, profile = _committed_profile(model_id)
-    assert ModelId.from_record(calibration.profile) == model_id
-    assert calibration.profile["restamp_history"] == profile["restamp_history"]
-    identity = current_plant_identity(model_id, verify_generated=False)
-    assert profile["plant_identity"] == identity.to_dict()
-    interface, migration = profile["restamp_history"]
-    assert interface["previous_policy_interface_revision"] == identity.policy_interface_revision - 2
-    assert interface["reason"] == RESTAMP_REASON
-    assert "previous_identity" not in interface
-    # The identity migration (decision D-D33): one interface revision, the replaced identity recorded whole.
-    assert migration["previous_policy_interface_revision"] == identity.policy_interface_revision - 1
-    assert migration["previous_policy_interface_sha256"] != identity.policy_interface_sha256
-    assert migration["previous_task_sha256"] != profile["task_sha256"]
-    assert migration["reason"] == IDENTITY_MIGRATION_REASON
-    previous = migration["previous_identity"]
-    assert set(previous) == {"schema", "species", "calibration_id"}
-    assert previous["schema"] == PRE_D_D33_PROFILE_SCHEMA and previous["species"] != model_id.species
-    assert profile["calibration_id"] == (
-        f"{model_id.species}-{model_id.embodiment}-"
-        + previous["calibration_id"].removeprefix(previous["species"] + "-")
-    )
-    assert profile["provenance"]["measurement_artifact"].startswith(f"environments/{model_id.species}/data/")
-    for entry in (interface, migration):
-        assert re.fullmatch(r"[0-9a-f]{40}", entry["restamped_at_commit"])
-
-
-def test_anatomical_recovery_profile_agrees_with_its_r3_measurements(tmp_path):
+@pytest.mark.parametrize("model_id", CALIBRATED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_committed_recovery_profiles_load_and_agree_with_their_measurements(model_id, tmp_path):
+    """Each committed profile was measured on its model's current plant (plant_versions note 24), restamps nothing,
+    and is read off the measurement it names: the quiet safe set and height reference, the selection rule's
+    multiple and the push the selected zero-command held-out panel was rolled under."""
     from environments.shared.recovery_calibration import load_recovery_calibration
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
-    model_id = COMPSOGNATHUS_LONGIPES
+    physics, interface, suffix, artifact_name = MEASURED_PROFILES[model_id]
     _, text, profile = _committed_profile(model_id)
     assert load_recovery_calibration(model_id).profile == profile
     identity = current_plant_identity(model_id)
     assert profile["plant_identity"] == identity.to_dict()
-    assert (identity.physics_revision, identity.policy_interface_revision) == (3, 6)
-    assert not profile.get("restamp_history")
+    assert (identity.physics_revision, identity.policy_interface_revision) == (physics, interface)
+    assert profile["calibration_id"] == f"{model_id.species}-{model_id.embodiment}-{suffix}"
+    assert "restamp_history" not in profile
     provenance = profile["provenance"]
+    assert provenance["measurement_artifact"] == f"environments/{model_id.species}/data/{artifact_name}"
     raw = gzip.decompress((CONFIGS_ROOT.parent / provenance["measurement_artifact"]).read_bytes())
     assert "sha256:" + hashlib.sha256(raw).hexdigest() == provenance["measurement_uncompressed_sha256"]
     evidence = json.loads(raw)
@@ -931,12 +995,19 @@ def test_anatomical_recovery_profile_agrees_with_its_r3_measurements(tmp_path):
         for panel in evidence["selection_panels"]
         if panel["summary"]["episode_success_fraction"] <= 0.5 and panel["summary"]["full_horizon_fraction"] >= 0.25
     ]
-    assert evidence["selected_capture_velocity_multiple"] == min(qualified)
-    assert (
-        profile["derived_push_manifest"]["capture_velocity_multiple"] == evidence["selected_capture_velocity_multiple"]
-    )
+    selected = evidence["selected_capture_velocity_multiple"]
+    assert selected == min(qualified)
+    (heldout,) = [
+        panel
+        for panel in evidence["heldout_diagnostic_panels"]
+        if panel["controller_id"] == "zero_command_pd"
+        and panel["perturbation"]["capture_velocity_multiple"] == selected
+    ]
+    assert profile["derived_push_manifest"] == heldout["perturbation"]
+    assert profile["control_dt_s"] == heldout["discrete_timing"]["control_dt_s"]
     measured_env = json.loads(json.dumps(load_stage_config(model_id, "recovery")["env_kwargs"]))
     assert profile["recovery_env_kwargs"] == measured_env
+    assert measured_env["perturbation_capture_velocity_multiple"] == selected
     path = _committed_copy(model_id, tmp_path / "configs")
     assert tool.restamp_recovery_calibration(model_id, path=path) is False
     assert path.read_text(encoding="utf-8") == text
@@ -946,24 +1017,16 @@ def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
     root = tmp_path / "configs"
-    # Roll the committed profile back one interface revision: a plain restamp
-    # must reproduce the committed bytes, except that its entry names no
-    # replaced identity (only the D-D33 migration renamed the model).  The
-    # recorded commit is passed explicitly so the replay does not depend on
-    # the checkout's HEAD.
-    for model_id in RESTAMPED_MODELS:
-        path, entry = _pre_restamp_copy(model_id, root)
+    # A committed profile one interface revision behind: a plain restamp must give back the committed bytes plus
+    # one entry naming the replaced identity (no previous_identity: only the D-D33 migration renamed a model).
+    # The recorded commit is passed explicitly so the replay does not depend on the checkout's HEAD.
+    for model_id in CALIBRATED_MODELS:
+        path, expected = _pre_restamp_copy(model_id, root, "r99 interface bump")
         assert (
-            tool.restamp_recovery_calibration(
-                model_id, path=path, commit=entry["restamped_at_commit"], reason=entry["reason"]
-            )
+            tool.restamp_recovery_calibration(model_id, path=path, commit=_RESTAMP_COMMIT, reason="r99 interface bump")
             is True
         )
-        expected = _committed_profile(model_id)[2]
-        del expected["restamp_history"][-1]["previous_identity"]
         assert path.read_text(encoding="utf-8") == _render(expected), model_id
-    for model_id in (model_id for model_id in CALIBRATED_MODELS if model_id not in RESTAMPED_MODELS):
-        _committed_copy(model_id, root)
 
     # Second run through the CLI, over both default models: a byte no-op, no history append.
     before = {
@@ -973,7 +1036,7 @@ def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change
     for model_id in CALIBRATED_MODELS:
         after = (model_id.path(root) / "recovery_calibration.json").read_bytes()
         assert after == before[model_id], model_id
-        assert len(json.loads(after).get("restamp_history", [])) == 2 * int(model_id in RESTAMPED_MODELS)
+        assert len(json.loads(after)["restamp_history"]) == 1
 
     # A physics change needs a real recalibration, not a restamp.
     path = COMPSOGNATHUS_LONGIPES.path(root) / "recovery_calibration.json"
@@ -1022,24 +1085,24 @@ def test_restamp_refuses_the_other_embodiments_profile_and_one_that_names_half_i
         tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES_ROBOT, path=path)
 
 
-@pytest.mark.parametrize("model_id", RESTAMPED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
-def test_migrate_identity_reproduces_the_committed_profile_from_its_schema_v1_form(model_id, tmp_path):
-    """``--migrate-identity`` (decision D-D33, plan section 3.5) rebuilds the committed profile byte for byte from
-    the schema-v1 profile it found, and a second run is a byte no-op."""
+@pytest.mark.parametrize("model_id", CALIBRATED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_migrate_identity_rebuilds_the_committed_profile_from_a_schema_v1_form(model_id, tmp_path):
+    """``--migrate-identity`` (decision D-D33, plan section 3.5) turns the schema-v1 form of a committed profile
+    into that profile plus the migration's entry, byte for byte, and a second run is a byte no-op."""
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
-    path, entry = _pre_migration_copy(model_id, tmp_path / "configs")
+    path, expected = _pre_migration_copy(model_id, tmp_path / "configs")
     assert json.loads(path.read_text(encoding="utf-8"))["schema"] == PRE_D_D33_PROFILE_SCHEMA
     assert (
         tool.migrate_recovery_calibration_identity(
-            model_id, path=path, commit=entry["restamped_at_commit"], reason=entry["reason"]
+            model_id, path=path, commit=_RESTAMP_COMMIT, reason=IDENTITY_MIGRATION_REASON
         )
         is True
     )
-    committed = _committed_profile(model_id)[1]
-    assert path.read_text(encoding="utf-8") == committed
-    assert tool.migrate_recovery_calibration_identity(model_id, path=path, reason=entry["reason"]) is False
-    assert path.read_text(encoding="utf-8") == committed
+    migrated = path.read_text(encoding="utf-8")
+    assert migrated == _render(expected)
+    assert tool.migrate_recovery_calibration_identity(model_id, path=path, reason=IDENTITY_MIGRATION_REASON) is False
+    assert path.read_text(encoding="utf-8") == migrated
 
 
 def test_migrate_identity_refuses_another_models_profile_and_a_changed_plant_or_task(tmp_path):
@@ -1071,7 +1134,7 @@ def test_migrate_identity_refuses_another_models_profile_and_a_changed_plant_or_
     path.write_text(_render({**profile, "embodiment": "robot"}), encoding="utf-8")
     refused(COMPSOGNATHUS_LONGIPES_ROBOT, path, "already records an embodiment")
     # A current-schema profile is migrated only when it is already the model's current one (a byte no-op).
-    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "behind")
+    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "behind", IDENTITY_MIGRATION_REASON)
     refused(COMPSOGNATHUS_LONGIPES_ROBOT, path, "only a schema-v1 profile")
     # The CLI mode records its own reason, never the Phase C default.
     with pytest.raises(SystemExit) as usage:
@@ -1085,7 +1148,7 @@ def test_restamp_recovery_calibration_records_the_given_reason(tmp_path):
     from environments.shared.scripts.restamp_recovery_calibration import RESTAMP_REASON
 
     root = tmp_path / "named"
-    path, entry = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, root)
+    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, root, "r99 bump")
     assert (
         tool.main(
             ["--model-id", "compsognathus_longipes", "robot", "--configs-root", str(root), "--reason", "r99 bump"]
@@ -1093,9 +1156,17 @@ def test_restamp_recovery_calibration_records_the_given_reason(tmp_path):
         == 0
     )
     history = json.loads(path.read_text(encoding="utf-8"))["restamp_history"]
-    assert [item["reason"] for item in history] == [RESTAMP_REASON, "r99 bump"]
-    assert history[-1]["previous_task_sha256"] == entry["previous_task_sha256"]
+    assert [item["reason"] for item in history] == ["r99 bump"]
+    assert history[-1]["previous_task_sha256"] == _PREVIOUS_TASK_SHA256
 
-    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "blank")
+    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "default", RESTAMP_REASON)
+    assert (
+        tool.main(["--model-id", "compsognathus_longipes", "robot", "--configs-root", str(tmp_path / "default")]) == 0
+    )
+    assert [item["reason"] for item in json.loads(path.read_text(encoding="utf-8"))["restamp_history"]] == [
+        RESTAMP_REASON
+    ]
+
+    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "blank", "unused")
     with pytest.raises(tool.RestampError, match="non-empty"):
         tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES_ROBOT, path=path, reason="  ")

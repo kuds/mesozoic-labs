@@ -62,7 +62,7 @@ class TestRetiredBackendOverrideTable:
             (dict(_GATE, min_avg_reward=100.0), {"min_avg_reward": 40.0}),
             (dict(_GATE, min_avg_reward=100.0), {"min_avg_rewrad": 40.0}),
             (_STANCE, {"max_unsupported_duty": 0.5}),
-            (_STANCE, {"min_success_rate": 0.5}),
+            (_STANCE, {"min_avg_forward_vel": 0.5}),
             (dict(_GATE, min_avg_reward=100.0), {"min_avg_reward": "x"}),
             (dict(_GATE, min_avg_reward=100.0), 40.0),
             (dict(_GATE, min_avg_reward=100.0), {}),

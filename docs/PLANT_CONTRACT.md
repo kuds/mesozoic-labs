@@ -166,10 +166,10 @@ python -m environments.shared.scripts.widen_checkpoint --species tyrannosaurus_r
   current gate before it certifies. It is refused into an occupied or non-empty target, or into a run whose
   result bundle is `complete` (or whose manifest cannot be read), and a parent whose `gate_verdict.json` did not
   pass is refused.
-- **The reseed rule.** The sidecar's `obs_rms` gains the three dims at mean 0 / variance 1 with the count carried
-  (`command_frame.pad_running_stats`) — the values `load_vecnorm_stats(reseed_command_slice=True)` applies to the
-  trailing slice on any load into a node whose `command_mode != "none"`. Under `"none"` the command is zero, so the
-  widened statistics normalise it to exactly zero and the zero columns see exactly zero input.
+- **The identity rule.** The sidecar's `obs_rms` gains the three dims at mean 0 / variance 1 with the count carried
+  (`command_frame.pad_running_stats`) — the identity every stage holds the command slice at while it trains, which
+  `load_vecnorm_stats(command_mode=)` requires of a live node's load (decision D-D60). Under `"none"` the command is
+  zero, so the widened statistics normalise it to exactly zero and the zero columns see exactly zero input.
 - **Self-verification.** Before returning, the tool checks that every padded column is exactly zero, that both
   widened artifacts validate against the current identity through the ordinary loaders, and that over a seeded
   200-step rollout of the real environment the widened policy's deterministic actions match the parent's within
@@ -200,8 +200,8 @@ alone: `supported_training_backends = ("stable-baselines3",)` on the environment
 the species-manifest reader and the command frame refuse any other value; the plant contract's refusal names a
 declared `jax-mjx`. Readers of archived result bundles still accept `jax-mjx` records.
 The policy payload records the declaration (`interface_implementations.supported_training_backends`) and hashes the
-environment's `_cache_ids` tokens (`interface_implementations.sb3_sensor_cache`), so a token edit there, reward-target
-setup included, is a policy-interface revision. Since the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) the
+environment's `_cache_ids` tokens (`interface_implementations.sb3_sensor_cache`), so a token edit there is a
+policy-interface revision. Since the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) the
 observation probe injects the non-zero `COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` into the trailing 3-dim command
 segment (it sets `env._command` beside the model/data swap), so a dropped or mis-ordered command slot hashes
 differently from three zeros.
@@ -220,23 +220,37 @@ the cutoff and `action_filter.py`'s two functions, whose tokens `test_action_fil
 
 ### The heading-free observation schema
 
-`bipedal-target-heading-free/v1` (the anatomical T-Rex from policy interface 14, the anatomical Compsognathus from 4, decision
-D-D31, `configs/plant_versions.toml` note 18; the Velociraptor from 13, the maintainer's decision of 2026-11-06, note 21) carries no world heading: projected gravity replaces the root's world
-quaternion, the root's linear velocity is expressed in the gravity-aligned heading frame and the target direction in
-pelvis coordinates, all built from the free root's own quaternion `qpos[3:7]` by
-`environments/shared/heading_observation.py` ([HEADING_INVARIANCE_DESIGN_2026_10.md](HEADING_INVARIANCE_DESIGN_2026_10.md)).
-For this schema only, the policy layer records segments that name each block's frame, source and thresholds
-(`pelvis_projected_gravity`, `pelvis_heading_linear_velocity` with its forward/left/up components and vertical-pelvis
-fallback, `prey_direction_body`) and describe the foot channels by sensor name, one per foot (each a sum over its
-touch sensors) or, where the environment declares `_foot_observation_groups`, one per declared group, which must read
-exactly the per-foot groups' sensors (the Velociraptor's per-site channels, one per touch sensor, since its policy
-interface 14, the maintainer's decision of 2026-11-08, note 22; no other model declares them, so no other segment
-moved), and it refuses a payload whose
-segment widths do not sum to the observation width or whose last segment is not the command. It hashes the helpers'
-function tokens beside `_get_obs` (`interface_implementations.heading_free_observation`), because `_get_obs` only calls
-them. The legacy schemas' segment tables are
-unchanged, so no other model's digest moved. The synthetic probe's non-unit quaternion is normalized like any other,
-so the probe still exercises a real tilt.
+Every model declares one of two observation schemas, and the policy layer refuses any other string:
+`bipedal-heading-free/v1` (root body `pelvis`: the Velociraptor, the T-Rex, both Compsognathus models and the
+Allosaurus) and `quadrupedal-heading-free/v1` (root body `torso`: the Brachiosaurus and the Dibothrosuchus). Neither
+carries a world heading or a target: projected gravity replaces the root's world quaternion and the root's linear
+velocity is expressed in the gravity-aligned heading frame, both built from the free root's own quaternion `qpos[3:7]`
+by `environments/shared/heading_observation.py` (`heading_free_root_segments`;
+[HEADING_INVARIANCE_DESIGN_2026_10.md](HEADING_INVARIANCE_DESIGN_2026_10.md)). The policy layer records one segment
+order for both: `joint_position`, `joint_velocity`, `<root>_projected_gravity`, `<root>_angular_velocity` (the gyro),
+`<root>_heading_linear_velocity` (forward, left and up components, with its vertical-root fallback),
+`<root>_linear_acceleration` (the accelerometer), `foot_contact` and the 3-wide `command`, last. The root blocks name
+their frame, source and thresholds. The foot channels are described by touch-sensor name, one per foot (each a sum
+over its touch sensors) or, where the environment declares `_foot_observation_groups`, one per declared group, which
+must read exactly the per-foot groups' sensors (the Velociraptor's per-site channels, one per touch sensor, since its
+policy interface 14, the maintainer's decision of 2026-11-08, note 22). Where the environment declares
+`_foot_observation_floor_geoms` (the Compsognathus robot, whose soles collide with each other), each channel is its
+geoms' summed normal force against the floor geom, so force between the animal's own geoms is not read; that segment
+records `source = "floor-contact-normal-force"`, the floor geom and the geom groups, which must be disjoint, non-empty
+groups of the model's geoms other than the floor, and the payload hashes `_foot_floor_contact_forces` as
+`interface_implementations.foot_floor_contact_observation`, because the synthetic probe has no contacts to read. The
+layer refuses a payload whose segment widths do not sum to the observation width or whose last segment is not the
+command, and a plant with a mocap body. It hashes the helpers' function tokens beside `_get_obs`
+(`interface_implementations.heading_free_observation`) on every model, because `_get_obs` only calls them. The
+synthetic probe's non-unit quaternion is normalized like any other, so the probe still exercises a real tilt.
+
+History. The T-Rex (policy interface 14) and the anatomical Compsognathus (4) were first to read no world heading,
+under `bipedal-target-heading-free/v1`, which also carried the target direction in pelvis coordinates and its distance
+(decision D-D31, `configs/plant_versions.toml` note 18); the Velociraptor followed at 13 (note 21). The other models
+read the world-frame schemas `bipedal-target/v1` and `quadrupedal-target/v1`. The revision of note 24 (decision D-D59)
+removed the target from every scene and observation, moved the Brachiosaurus, the Dibothrosuchus and the Compsognathus
+robot to the heading-free layout and renamed the schemas to the two above; the old names described target segments
+that no longer exist, and every checkpoint was stranded by that revision anyway.
 
 Before any artifact is tagged, training validates the environment that actually runs: SB3 validates the concrete
 Gymnasium model and observation interface behind the VecEnv (`validate_environment_plant`). This prevents a stale runtime registry, alternate

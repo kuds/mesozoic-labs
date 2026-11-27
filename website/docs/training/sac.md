@@ -47,7 +47,7 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm sac
 
-# Reuse an earlier SAC run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier SAC run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm sac --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
@@ -57,10 +57,7 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 SAC settings vary by model and curriculum stage. The authoritative values are
 the `[sac]` sections in the stage TOML files each model's `stages.toml` names,
 under `configs/<species>/<embodiment>/` and each named by its stage
-(`stance.toml`, `locomotion.toml` and `strike.toml`, `food_reach.toml` or
-`snap.toml` for the Velociraptor, Brachiosaurus and Dibothrosuchus;
-`stance.toml`, `locomotion.toml`, `behavior.toml` for the T-Rex and both
-Compsognathus models — the T-Rex
+(`stance.toml` and `locomotion.toml` on every model; the T-Rex
 `recovery.toml` is PPO-only, while both Compsognathus `recovery.toml` files
 inherit their `stance.toml`'s `[sac]` through `extends`); copied defaults
 here would quickly become stale.
@@ -77,21 +74,27 @@ sidecar, a node whose parent has no certified checkpoint stops the run, and
 each trained node writes `gate_verdict.json` beside its handoff:
 
 1. **`stance`** (stance; root, historical stage 1): stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
-2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): walk and run forward (increase `forward_vel_weight`, add gait rewards)
-3. **`behavior`** (hunt; `warm_start_from = "locomotion"`, historical stage 3): species-specific task (strike for Velociraptor, a fixed head-contact "bite" proxy for T-Rex, a head-tip distance-based food-reach proxy for Brachiosaurus, snap for Dibothrosuchus, target reach for Compsognathus)
+2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): follow a forward command with heading hold, and stand still on the exactly zero command of about 15% of episodes (a live `[commands]` table with a stand block and a cruise ramp; the tracking term replaces the forward, heading and sideways weights; judged after training by `command_tracking/v1`, decision D-D62, whose bars are provisional: no controller has yet passed a committed walk panel, D-D62 (16); a moving command is scored on a one-stride trailing mean since D-D64)
 
 The `recovery` node is PPO-only on the T-Rex, whose `recovery.toml` does
 not inherit stance's `[sac]`; both Compsognathus models do. Every node is a
-deliverable, so stance, walk and hunt (and recover, where a model has a
-recovery node) are each certified and published on their own. `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID` and
+deliverable, so stance and walk (and recover, where a model has a
+recovery node) are each certified and published on their own. The hunt
+node that followed walk (`behavior`, historical stage 3) was removed by
+decision D-D59, so every chain ends at walk. `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID` and
 `--label TEXT` work with `--algorithm sac` exactly as with PPO. Keep SAC
 trunks for SAC runs: the notebook refuses a `TRUNK_FROM` run of a different
 model (species or embodiment), algorithm or backend outright, and the command line reuses a trunk
 node only where its recorded task and plant match this run's. See
 [Behavior Recipes](recipes.md).
 
-These task names are configuration labels. T-Rex has no articulated jaw, and
-Brachiosaurus success does not require physical food contact.
+Every stage holds the statistics of the observation's last three inputs, the
+command, at mean 0 / variance 1 while it trains, so the policy reads the raw
+command and every VecNormalize sidecar carries that identity (decision D-D60;
+[Hyperparameters](hyperparameters.md#commands)). The replay buffer still
+stores raw observations, terminal ones included, and normalizes them when it
+samples. A stance, whose command is always zero, trains exactly as it would
+without the hold.
 
 Within the curriculum, advancement between the numbered stages is judged in
 training by the `CurriculumManager` using the thresholds in each stage's TOML

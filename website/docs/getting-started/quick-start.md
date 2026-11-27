@@ -10,7 +10,7 @@ Train your first dinosaur-inspired simulated agent.
 
 Open the [training notebook in Google Colab](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb).
 
-- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros`, `compsognathus_longipes` or `allosaurus_fragilis`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR` (`"auto"`, the default, trains the model's last deliverable; or a recipe label `"stance"`, `"recover"`, `"walk"` or `"hunt"`, or a deliverable's stage id; Allosaurus trains `"stance"` or `"walk"`) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance and walk are reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
+- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros`, `compsognathus_longipes` or `allosaurus_fragilis`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR` (`"auto"`, the default, is the model's last deliverable, walk on every model; or a recipe label `"stance"`, `"recover"` or `"walk"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance is reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
 
 The notebook handles dependency installation automatically.
 
@@ -42,11 +42,11 @@ Every model trains from the repository root through the shared CLI,
 `python -m environments.shared.train --species <species> --embodiment <embodiment>`,
 which takes both flags and the canonical IDs only. The `curriculum` command
 runs the model's advancing stages (stance,
-locomotion, behavior) in manifest order in a single call. Each node loads its
+locomotion) in manifest order in a single call. Each node loads its
 own hyperparameters from its TOML config, warm-starts from its declared
 `warm_start_from` parent's handoff checkpoint, and writes a `gate_verdict.json`
 beside that handoff; a node whose parent has no certified checkpoint stops the
-run. Stance, walk and hunt are each published on their own — see
+run. Stance and walk are each published on their own — see
 [Behavior Recipes](/docs/training/recipes).
 
 ```bash
@@ -54,14 +54,9 @@ run. Stance, walk and hunt are each published on their own — see
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
-
-# Reuse only the earlier stance; retrain walk and hunt (requires --trunk-from)
-python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --retrain-from locomotion \
-  --output-dir logs/<new_run>
 
 # Or control nodes by hand; each command reads its current budget from TOML and
 # writes into its --output-dir (without one:
@@ -73,16 +68,14 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
   train --stage 2 --algorithm ppo --output-dir logs/<run>/02_locomotion \
   --load logs/<run>/01_stance/models/robust_best_model.zip \
   --load-mode initialize_next_stage
-python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  train --stage 3 --algorithm ppo --output-dir logs/<run>/03_behavior \
-  --load logs/<run>/02_locomotion/models/robust_best_model.zip \
-  --load-mode initialize_next_stage
 ```
 
 `--label TEXT` tags a run (train or curriculum). Stage directories inside a run
-are named `{position:02d}_{id}` (`01_stance`, `02_locomotion`, `03_behavior`);
-the handoff the curriculum promotes is `robust_best_model`, else `best_model`,
-with its `_vecnorm.pkl` sidecar. The default `--load-mode resume_same_stage`
+are named `{position:02d}_{id}` (`01_stance`, `02_locomotion`);
+a stance or recovery hands on `robust_best_model`, else `best_model`, and the walk hands
+on the pair its `models/handoff_choice.json` chose
+([Behavior Recipes](/docs/training/recipes)), each with its `_vecnorm.pkl`
+sidecar. The default `--load-mode resume_same_stage`
 requires an exact task match, so a parent's checkpoint must be loaded with
 `--load-mode initialize_next_stage`, which in turn refuses a checkpoint whose
 recorded stage is not the node's declared parent. A stage directory that
@@ -91,8 +84,9 @@ load is `--load <checkpoint> --load-mode resume_same_stage` and the directory
 holds no `gate_verdict.json` (a judged node is never trained further in place),
 so a new attempt is a new run directory. Such a resume is itself refused when it
 cannot continue the recorded stage: a SAC or curated-checkpoint load over the
-stage's records, a checkpoint trained on another task, or another
-`hyperparameters_sha256` or `--label` (the recipes page lists the refusals). Hand-chained `train` runs are
+stage's records, a checkpoint trained on another task, another
+`hyperparameters_sha256` or `--label`, or, on the walk, another `--seed`
+(decision D-D62; the recipes page lists the refusals). Hand-chained `train` runs are
 unjudged — `train` writes no `gate_verdict.json` — so they cannot serve as a
 later run's `--trunk-from` until re-judged with
 `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>`. The curriculum walks

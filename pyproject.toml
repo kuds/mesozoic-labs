@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mesozoic-labs"
-version = "0.4.0.dev2"
+version = "0.4.0.dev3"
 description = "Dinosaur-inspired locomotion environments for MuJoCo and Gymnasium"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -176,9 +176,6 @@ omit = [
     "environments/compsognathus_longipes/scripts/standing_targets.py",
     "environments/compsognathus_longipes/scripts/validate_shells.py",
     "environments/compsognathus_longipes/scripts/render_style_comparison.py",
-    # A one-off PPO update probe; by its own docstring it is not convergence
-    # or stance-gate evidence.
-    "environments/compsognathus_longipes/scripts/probe_ppo_updates.py",
     # Hand-run investigation and study scripts that feed no gate. (The statue
     # baselines, zero_action_baseline.py and stance_quality_baseline.py, count:
     # they measure the statue-derived stage-1 gate constants.)

@@ -128,22 +128,31 @@ def _update(model, callback, steps=64):
     callback.on_rollout_end()
 
 
+#: The bank rows the T. rex stance env cannot hold to their kept step.  On physics r12 (plant_versions note 24: the
+#: skull's 0.2 kg bite box gone, the statue standing 4.6 mm further back) the +0.03 lean, a backward lean of the
+#: shank, falls at step 515 of seed 3043 (it held on r11); +0.025 holds on seeds 3042-3045.  Kept dropped by
+#: decision D-D63 (8): the bank's +0.03 lean stays the same on every model, so probe files stay comparable, and the
+#: T. rex keeps 9 of its 10 rows.
+TYRANNOSAURUS_REX_DROPPED_ROWS = {("ankle_plus_0.03", 3043)}
+
+
 class TestTheBank:
-    def test_it_is_whole_at_a_short_stage_horizon_and_draws_no_random_number(self, bank):
+    def test_it_is_built_at_its_own_horizon_and_draws_no_random_number(self, bank):
         from environments.shared.policy_probe import BANK_SPEC, bank_horizon
 
         built, undrawn = bank
         assert undrawn, "building the bank moved a global generator"
-        assert len(built.labels) == 10 and built.labels == tuple(label for label, *_rest in BANK_SPEC)
-        assert built.horizon == 601 and built.raw_obs.shape == (10, 63)
+        kept = [row for row in BANK_SPEC if (row[0], row[1]) not in TYRANNOSAURUS_REX_DROPPED_ROWS]
+        assert len(built.labels) == len(kept) == 9 and built.labels == tuple(label for label, *_rest in kept)
+        assert built.horizon == 601 and built.raw_obs.shape == (9, 59)
         assert (bank_horizon(240), bank_horizon(400), bank_horizon(1000)) == (601, 601, 1000)
-        assert built.steps.tolist() == [199, 599, 599, 599, 400] * 2
+        assert built.steps.tolist() == [199, 599, 599, 599, 400, 199, 599, 599, 400]
         assert built.ankle_actuators.shape == (1, 2) and built.ankle_signs.tolist() == [[1.0, 1.0]]
         assert np.isfinite(built.com_fore_aft_m).all()
         # A forward lean of the shank (negative ankle action on the T. rex) carries the CoM forward.
         com = dict(zip(zip(built.labels, built.seeds.tolist()), built.com_fore_aft_m))
-        for seed in (3042, 3043):
-            assert com[("ankle_minus_0.03", seed)] > com[("statue", seed)] > com[("ankle_plus_0.03", seed)]
+        assert com[("ankle_minus_0.03", 3042)] > com[("statue", 3042)] > com[("ankle_plus_0.03", 3042)]
+        assert com[("ankle_minus_0.03", 3043)] > com[("statue", 3043)]
 
     def test_it_is_deterministic_and_the_horizon_changes_nothing_before_it(self, bank):
         from environments.shared.policy_probe import build_state_bank
@@ -229,10 +238,13 @@ class TestAStageWithPushes:
                 _PUSHED_SPEC,
                 stage_horizon=horizon,
             )
-        assert pushed.labels == ("statue_settled",)
+        # Which rows a push topples depends on the seeded schedule, which plant_versions note 24 moved (the reset
+        # draws fewer numbers before it): on seed 3043 the statue falls before step 599 and the -0.05 lean holds
+        # to its step 400 (before, both fell).
+        assert pushed.labels == ("statue_settled", "ankle_minus_0.05_at400")
         dropped = [r.getMessage() for r in caplog.records if "bank rows dropped" in r.getMessage()]
-        assert len(dropped) == 1 and dropped[0].startswith("Policy probe: 2 of 3 bank rows dropped")
-        assert "'statue' (seed 3043" in dropped[0] and "'ankle_minus_0.05_at400' (seed 3043" in dropped[0]
+        assert len(dropped) == 1 and dropped[0].startswith("Policy probe: 1 of 3 bank rows dropped")
+        assert "'statue' (seed 3043" in dropped[0]
 
 
 class TestNeutrality:
@@ -253,7 +265,7 @@ class TestNeutrality:
         distribution = dict(vars(policy.action_dist))  # what get_distribution() would overwrite
         callback = _probe(model)
         callback.on_training_start({}, {})
-        assert callback.bank is not None and len(callback.bank.labels) == 10
+        assert callback.bank is not None and len(callback.bank.labels) == 9  # TYRANNOSAURUS_REX_DROPPED_ROWS
         for _ in range(3):
             _update(model, callback)
         assert len(callback.rows) == 3
@@ -637,7 +649,7 @@ class TestTheFileAndTheResume:
         with np.load(tmp_path / "policy_probe.npz", allow_pickle=False) as data:
             assert data["update_timesteps"].tolist() == [3, 7, 11]
             assert data["bank_labels"].tolist() == list(bank[0].labels)
-            assert data["bank_action_now"].shape == (3, 10, 15) and data["bank_value_now"].dtype == np.float32
+            assert data["bank_action_now"].shape == (3, 9, 15) and data["bank_value_now"].dtype == np.float32
             assert int(data["bank_horizon"]) == 601
             # The rollout arrays beside them; these rows were taken with an empty buffer, so read none.
             assert data["rollout_rows"].tolist() == [0, 0, 0] and data["rollout_mu_mean"].shape == (3, 15)

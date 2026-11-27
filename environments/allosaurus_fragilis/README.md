@@ -2,9 +2,9 @@
 
 A reconstruction of *Allosaurus fragilis*, a large Late Jurassic theropod, at adult size. It stands and walks on two
 digitigrade feet, each with three forward weight-bearing toes, a pad under the toe joints and a raised inner toe. The
-model is for standing and for walking straight ahead to a target on level ground; it has no hunting task. It is a
-research abstraction: fossils fix the segment lengths and foot structure, while the soft tissue, muscle torques and
-walking speed are reconstruction choices.
+model is for standing and for walking straight ahead on level ground. It is a research abstraction:
+fossils fix the segment lengths and foot structure, while the soft tissue, muscle torques and walking speed are
+reconstruction choices.
 
 ## Models
 
@@ -114,29 +114,50 @@ Species notes:
 
 ## Task and rewards
 
-The stance stage holds an upright posture on the feet. The locomotion stage walks straight to a target placed ahead
-of the animal at reset. The environment reports `course_complete` when the pelvis reaches the target while at least one
-foot bears weight; that ends the episode. The stance deliverable is judged on supported standing instead; the catalog
-entry gives its definition.
+The stance stage holds an upright posture on the feet. The locomotion stage, the walk, follows a live command
+(decision D-D62); the stance runs none. Each walk episode draws one request at reset and holds it for the whole 30 s
+episode: a forward cruise at 0.175-0.35 m/s along a heading up to 0.26 rad (15 degrees) off the spawn heading, or, in
+about 15% of episodes, an exactly zero command, which asks the animal to stand still. A Gaussian term pays tracking
+the commanded velocity and yaw rate (weight 2.5) and replaces the forward term, which the walk sets to 0; on a zero
+command a stand block pays the stance's drift hold. The commanded speeds ramp from 0.25 of their end values to the
+full range over the first 2M training steps. A cruise episode has an 8 m course along its commanded heading at reset:
+the environment reports `course_complete` on the step the pelvis has advanced 7.65 m along it (the course length less
+a 0.35 m tolerance) while at least one foot bears weight, and `success` from then on. It is an event, not a
+termination, and no gate criterion; a stand episode has no course. After training the walk is judged on its
+`command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
+gait clause with its flight cap. The bars are provisional, and no controller has yet passed the committed panel
+(decision D-D62 (16)). The reference walk sways within its stride, so the tracking term and the gate score a moving
+command on the trailing mean of the last 1.31 s, the stride at half the cruise speed (`[commands] tracking_window_s`,
+decision D-D64). At a command it matches (0.345 m/s) the reference walk then reads tracking quality 0.80 (0.14 a step
+on its own), clears the in-tolerance fraction and the speed ratio, and fails `heading_settle` on 20 of 20, on its
+scripted start: a centred stride mean of its speed reaches the speed tolerance at about 2.70 s, so the gate's trailing
+window first reads in tolerance at about 3.5 s, after the 2.31 s allowance. Under command_mode
+"none" the course runs along the spawn heading while the forward weight is positive and ends the episode. The finish
+is a line across the heading, so a sideways offset neither prevents nor causes it. Until policy interface r2 an
+invisible target sat 8 m ahead and the course ended within 0.35 m of it; the scene now holds only the animal and the
+floor. The stance deliverable is judged on supported standing instead; the catalog entry gives its definition.
 
-The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
-and the target direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one load
-channel per foot, the target distance and the command. Actions are offsets from the MJCF `home` torques: zero applies
-the home torques, and -1 and +1 reach each motor's limits.
+The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
+frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot and the command, 41 values
+in all. Policy interface r1 also read the target direction in pelvis coordinates and its distance (45 values), so its
+checkpoints do not load. Actions are offsets from the MJCF `home` torques: zero applies the home torques, and -1 and
++1 reach each motor's limits.
 
 The main reward groups:
 
 - **Support and posture:** an alive bonus and an upright-posture term at standing height, both paid only while a foot
   bears weight, and a fall penalty.
-- **Progress** (locomotion): forward velocity toward the target.
-- **Drift** (stance): a penalty on horizontal displacement from the starting point.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity along the spawn heading (the commanded heading on the walk), which the walk sets to
+  0.
+- **Drift** (stance, and the walk's zero command): a penalty on horizontal displacement from the starting point.
 - **Effort:** an energy penalty on the squared action.
 
 The weights are the `AllosaurusFragilisEnv` constructor defaults in [`base_env.py`](base_env.py), overridden by the
 `[env]` table of each stage TOML in
 [`configs/allosaurus_fragilis/anatomical/`](../../configs/allosaurus_fragilis/anatomical/). An episode ends on a
 non-finite state, a pelvis height out of range or excessive tilt, any body part other than the feet touching the floor,
-or a completed course. The thresholds are in `base_env.py`.
+or, under command_mode "none", a completed course. The thresholds are in `base_env.py`.
 
 ## Files
 

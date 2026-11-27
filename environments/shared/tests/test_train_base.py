@@ -37,6 +37,7 @@ from environments.shared.train_base import (
     linear_schedule,
 )
 
+from .ladder_helpers import LADDER_LEAF_LABEL, install_three_stage_ladder
 from .reporting_helpers import make_plant_identity as _plant_identity
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
@@ -95,7 +96,6 @@ class TestSpeciesConfig:
             "env_class",
             "stage_descriptions",
             "height_label",
-            "behavior_section_label",
             "success_keys",
         }
         assert expected == fields
@@ -106,10 +106,9 @@ class TestSpeciesConfig:
         cfg = SpeciesConfig(
             model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=VelociraptorMongoliensisAnatomicalEnv,
-            stage_descriptions="1=balance, 2=locomotion, 3=strike",
+            stage_descriptions="1=stance, 2=locomotion",
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
-            success_keys=["strike_success"],
+            success_keys=[],
         )
         assert cfg.model_id == VELOCIRAPTOR_MONGOLIENSIS
         assert cfg.env_class is VelociraptorMongoliensisAnatomicalEnv
@@ -120,10 +119,9 @@ class TestSpeciesConfig:
         cfg = SpeciesConfig(
             model_id=TYRANNOSAURUS_REX,
             env_class=TyrannosaurusRexAnatomicalEnv,
-            stage_descriptions="1=balance, 2=locomotion, 3=bite",
+            stage_descriptions="1=stance, 2=locomotion",
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
-            success_keys=["bite_success"],
+            success_keys=[],
         )
         assert cfg.model_id == TYRANNOSAURUS_REX
 
@@ -133,26 +131,18 @@ class TestSpeciesConfig:
         cfg = SpeciesConfig(
             model_id=BRACHIOSAURUS_ALTITHORAX,
             env_class=BrachiosaurusAltithoraxAnatomicalEnv,
-            stage_descriptions="1=balance, 2=locomotion, 3=food_reach",
+            stage_descriptions="1=stance, 2=locomotion",
             height_label="Torso height",
-            behavior_section_label="Food Reaching",
-            success_keys=["food_reached"],
+            success_keys=[],
         )
         assert cfg.model_id == BRACHIOSAURUS_ALTITHORAX
 
 
 class TestBuildCoreCallbacks:
-    @pytest.mark.parametrize(
-        ("stage", "success_threshold", "success_applicable"),
-        [(1, 0.0, False), (3, 0.5, True)],
-    )
-    def test_wires_stage_aware_eval_and_plateau_callbacks(
-        self,
-        tmp_path,
-        stage,
-        success_threshold,
-        success_applicable,
-    ):
+    # No stage collects task success in training: min_success_rate and task_success/v1, the gates that read
+    # it, left with the hunt nodes (decision D-D59).
+    @pytest.mark.parametrize("stage", [1, 3])
+    def test_wires_stage_aware_eval_and_plateau_callbacks(self, tmp_path, stage):
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback
         from stable_baselines3.common.vec_env import DummyVecEnv
@@ -168,7 +158,6 @@ class TestBuildCoreCallbacks:
         stage_config = {
             "curriculum_kwargs": {
                 "min_avg_reward": 100.0,
-                "min_success_rate": success_threshold,
                 "diagnostics_plateau_window": 7,
                 "diagnostics_plateau_min_relative_variation": 0.02,
             }
@@ -188,7 +177,7 @@ class TestBuildCoreCallbacks:
         )
 
         assert isinstance(eval_callback, StageAwareEvalCallback)
-        assert eval_callback.success_applicable is success_applicable
+        assert not hasattr(eval_callback, "success_applicable")
         plateau_callback = next(callback for callback in callbacks if isinstance(callback, StageGatePlateauCallback))
         assert plateau_callback.plateau_window == 7
         assert plateau_callback.min_relative_variation == 0.02
@@ -492,7 +481,7 @@ class TestLoadVecnormIntoEnvs:
     def test_no_load_path_disables_eval_training(self):
         train_env = MagicMock()
         eval_env = MagicMock()
-        _load_vecnorm_into_envs(None, train_env, eval_env, task_load_mode="resume_same_stage")
+        _load_vecnorm_into_envs(None, train_env, eval_env, task_load_mode="resume_same_stage", command_mode="none")
         assert eval_env.training is False
         assert eval_env.norm_reward is False
 
@@ -501,11 +490,14 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/to/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage")
+            _load_vecnorm_into_envs(
+                "/path/to/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage", command_mode="none"
+            )
         mock_load.assert_called_once_with(
             "/path/to/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
         )
 
@@ -514,11 +506,14 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage")
+            _load_vecnorm_into_envs(
+                "/path/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage", command_mode="none"
+            )
         mock_load.assert_called_once_with(
             "/path/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
         )
 
@@ -529,11 +524,14 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env, task_load_mode="resume_same_stage")
+            _load_vecnorm_into_envs(
+                "/path/model.zip", train_env, eval_env, task_load_mode="resume_same_stage", command_mode="none"
+            )
         mock_load.assert_called_once_with(
             "/path/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
             carry_ret_rms=True,
         )
@@ -545,7 +543,9 @@ class TestLoadVecnormIntoEnvs:
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=False):
             with pytest.raises(FileNotFoundError, match="allow-fresh-vecnorm"):
-                _load_vecnorm_into_envs("/path/model", train_env, eval_env, task_load_mode="resume_same_stage")
+                _load_vecnorm_into_envs(
+                    "/path/model", train_env, eval_env, task_load_mode="resume_same_stage", command_mode="none"
+                )
 
     @patch("environments.shared.train_base.logger")
     def test_missing_sidecar_escape_hatch_warns_and_resets_eval_env(self, mock_logger):
@@ -558,6 +558,7 @@ class TestLoadVecnormIntoEnvs:
                 eval_env,
                 task_load_mode="resume_same_stage",
                 allow_fresh_vecnorm=True,
+                command_mode="none",
             )
         assert eval_env.training is False
         assert eval_env.norm_reward is False
@@ -578,12 +579,14 @@ class TestLoadVecnormIntoEnvs:
                 plant_identity=identity,
                 allow_legacy_plant=True,
                 task_load_mode="initialize_next_stage",
+                command_mode="none",
             )
 
         mock_load.assert_called_once_with(
             "/path/model_vecnorm.pkl",
             train_env,
             eval_env,
+            command_mode="none",
             current_plant=identity,
             allow_legacy_plant=True,
         )
@@ -599,9 +602,10 @@ class TestLoadVecnormIntoEnvs:
                 eval_env,
                 task_load_mode="initialize_next_stage",
                 vecnorm_path="/elsewhere/stats.pkl",
+                command_mode="none",
             )
         mock_load.assert_called_once_with(
-            "/elsewhere/stats.pkl", train_env, eval_env, unsafe_skip_plant_validation=True
+            "/elsewhere/stats.pkl", train_env, eval_env, command_mode="none", unsafe_skip_plant_validation=True
         )
 
 
@@ -977,7 +981,17 @@ class TestTrainCurriculumWalksTheManifest:
     skipped trex's recovery stage without a log line.  Every heavyweight
     collaborator is replaced so the loop's ORDER, its skip, and its handoff
     are the only things exercised.
+
+    Every committed ladder ends at locomotion since decision D-D59 removed the
+    hunt nodes, so these walks run on the three-stage fixture ladder
+    (``ladder_helpers``): the committed configs plus a third advancing node,
+    ``behavior`` (legacy 3, labelled ``sprint``, a copy of locomotion's
+    config), so a run has an ancestor between its root and its target.
     """
+
+    @pytest.fixture(autouse=True)
+    def _three_stage_ladder(self, tmp_path_factory, monkeypatch):
+        install_three_stage_ladder(tmp_path_factory.mktemp("ladder_configs"), monkeypatch)
 
     def _run(
         self,
@@ -1248,7 +1262,7 @@ class TestTrainCurriculumWalksTheManifest:
         # The rule is handed the resolved parent's digest so it can check the
         # chain (rule 4): None for the root, the reused stance's for walk.
         assert asked == [("stance", None), ("locomotion", ancestor.model_sha256)]
-        # Stance was reused, never trained; walk and hunt were trained here.
+        # Stance was reused, never trained; walk and the leaf were trained here.
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
         # Only a node trained here is seeded with the run's seed (D-D11) and records its duration (D-A15).
         assert record["seeds"] == [1, 1]
@@ -1260,7 +1274,7 @@ class TestTrainCurriculumWalksTheManifest:
             for stage in (2, 3)
         ]
         # Walk entered on the ancestor's handoff, crossing the edge, with the
-        # trunk's run id recorded as lineage; hunt's parent was trained here.
+        # trunk's run id recorded as lineage; the leaf's parent was trained here.
         assert record["loads"][0] == ancestor.model_stem
         assert record["saved"][0] == (2, ancestor.model_stem, "initialize_next_stage")
         assert record["parent_run_ids"] == [(2, "trunk-run-id"), (3, None)]
@@ -1388,8 +1402,8 @@ class TestTrainCurriculumWalksTheManifest:
 
     def test_trunk_from_reuses_the_whole_chain_but_never_the_target(self, tmp_path, monkeypatch, caplog):
         """A run's target is what it exists to certify: with stance and walk both certified in the
-        trunk, hunt is still trained here, on the reused walk, with the trunk as its lineage.  An
-        earlier run's certified hunt is that run's deliverable, published from there."""
+        trunk, the leaf is still trained here, on the reused walk, with the trunk as its lineage.  An
+        earlier run's certified leaf is that run's deliverable, published from there."""
         trunk = tmp_path / "trunk-run"
         stance = self._certified_ancestor(trunk, "stance", "1", model_sha256="a" * 64)
         locomotion = self._certified_ancestor(trunk, "locomotion", "2", model_sha256="b" * 64)
@@ -1421,7 +1435,7 @@ class TestTrainCurriculumWalksTheManifest:
         another run by construction), follows that record to the run that certified stance.  The curriculum passes the middle
         run and receives the ORIGINAL: it is what is recorded as this run's ancestor and what walk's
         ``parent_run_id`` names; walk, which the middle run neither trained nor reused, is trained
-        here, and hunt is the target."""
+        here, and the leaf is the target."""
         from environments.shared.ancestors import find_certified_ancestor, record_ancestor
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import load_stage_manifest
@@ -1650,83 +1664,21 @@ class TestTrainCurriculumWalksTheManifest:
             assert kwargs["stage_config"] is configs[stage]
             assert kwargs["plant_identity"] is plant
 
-    def test_a_task_success_node_records_the_panel_count_it_was_judged_on(self, tmp_path):
-        """The CLI hunt verdict is the manager's LAST-panel bound; its stage_result says which panel (D-B12 amendment)."""
-        from environments.shared.curriculum import CurriculumManager
-        from environments.shared.train_base import _in_training_task_success_result
+    def test_the_walk_records_the_floor_truth_result_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
+        """train_curriculum passes stage_result= to write_gate_verdict for the floor-truth stance (the Tyrannosaurus
+        rex stance's six-heading certificate since D-D32; stubbed by ``_run``) and None for every other kind: the
+        wiring, not only the helper, is pinned. The in-training task_success/v1 record left with the gate (decision
+        D-D59)."""
+        from environments.shared import train_base
 
-        curriculum = {
-            "gate_kind": "task_success/v1",
-            "gate_schema_version": 1,
-            "min_success_lcb": 0.5,
-            "min_eval_episodes": 30,
-            "min_avg_reward": 361.0,
-            "required_consecutive": 1,
-        }
-        manager = CurriculumManager(
-            model_id=VELOCIRAPTOR_MONGOLIENSIS,
-            stage_thresholds={3: {k: v for k, v in curriculum.items() if k != "gate_schema_version"}},
-            start_stage=3,
-        )
-        # No panel recorded yet: nothing is invented for the verdict.
-        assert _in_training_task_success_result(manager, 3, curriculum) is None
-        assert manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
-
-        recorded = _in_training_task_success_result(manager, 3, curriculum)
-        assert recorded is not None
-        assert (recorded["success_count"], recorded["n_success_samples"]) == (20, 30)
-        assert (recorded["best_model_success_count"], recorded["best_model_n_episodes"]) == (20, 30)
-        assert recorded["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
-        assert recorded["gate_kind"] == "task_success/v1"
-        # Other kinds record nothing extra.
-        assert _in_training_task_success_result(manager, 3, {"gate_kind": "reward_and_length/v1"}) is None
-        # And the record survives the writer's projection: what KNOWN_ISSUES
-        # says the verdict file carries is what is on disk.
-        from environments.shared.curriculum.gate_schema import gate_config_view
-        from environments.shared.result_bundle import read_gate_verdict, write_gate_verdict
-
-        stage_dir = tmp_path / "03_behavior"
-        models = stage_dir / "models"
-        models.mkdir(parents=True)
-        (models / "best_model.zip").write_bytes(b"weights")
-        (models / "best_model_vecnorm.pkl").write_bytes(b"stats")
-        write_gate_verdict(
-            stage_dir,
-            model_id=VELOCIRAPTOR_MONGOLIENSIS,
-            stage=3,
-            stage_id="behavior",
-            gate_kind="task_success/v1",
-            gate_schema_version=1,
-            passed=True,
-            failures=[],
-            task_sha256="sha256:" + "c" * 64,
-            judged_by="test",
-            checkpoint=models / "best_model.zip",
-            normalization=models / "best_model_vecnorm.pkl",
-            gate_config=gate_config_view(curriculum),
-            stage_result=recorded,
-        )
-        on_disk = read_gate_verdict(stage_dir)["stage_result"]
-        assert (on_disk["success_count"], on_disk["n_success_samples"]) == (20, 30)
-        assert (on_disk["best_model_success_count"], on_disk["best_model_n_episodes"]) == (20, 30)
-
-    def test_the_walk_records_the_hunt_panel_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
-        """train_curriculum passes stage_result= to write_gate_verdict for the task_success node, the
-        post-training result for the floor-truth stance (the trex stance's six-heading certificate since
-        D-D32; stubbed by ``_run``), and None for every other kind: the wiring, not only the helper, is
-        pinned."""
+        assert not hasattr(train_base, "_in_training_task_success_result")
 
         def eval_panel(manager):
-            if manager.current_stage == 3:
-                manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
+            manager.should_advance([600.0] * 30, [1000.0] * 30)
 
         record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, eval_panel=eval_panel)
 
         by_id = {verdict["stage_id"]: verdict for verdict in record["verdicts"]}
-        assert by_id["behavior"]["gate_kind"] == "task_success/v1"
-        stage_result = by_id["behavior"]["stage_result"]
-        assert (stage_result["success_count"], stage_result["n_success_samples"]) == (20, 30)
-        assert stage_result["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
         assert by_id["stance"]["stage_result"] == {
             "stage": 1,
             "gate_kind": "stance_quality_heading/v1",
@@ -1734,6 +1686,29 @@ class TestTrainCurriculumWalksTheManifest:
         }
         assert by_id["stance"]["judged_by"] == "train_base.train_curriculum/stance_heading_report"
         assert by_id["locomotion"]["stage_result"] is None
+        assert by_id["behavior"]["stage_result"] is None
+
+    def test_a_node_declaring_the_retired_task_success_gate_is_refused_naming_the_decision(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """The hunt's block, set on the fixture leaf, is refused before any node trains (decision D-D59)."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.curriculum.gate_schema import GateSchemaError
+
+        stage_configs = load_all_stages(TYRANNOSAURUS_REX)
+        stage_configs[3]["curriculum_kwargs"] = {
+            "gate_schema_version": 1,
+            "gate_kind": "task_success/v1",
+            "timesteps": 8_000_000,
+            "min_avg_reward": 361.0,
+            "min_success_lcb": 0.5,
+            "min_eval_episodes": 30,
+            "required_consecutive": 3,
+        }
+        with pytest.raises(
+            GateSchemaError, match=r"'task_success/v1' was removed with the hunt nodes \(decision D-D59\)"
+        ):
+            self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, stage_configs=stage_configs)
 
     def test_an_interrupted_node_records_no_verdict_and_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
         """A Ctrl-C partway through a budget is not a gate failure: no verdict, no handoff, loop stops."""
@@ -1939,20 +1914,25 @@ class TestTrainCurriculumWalksTheManifest:
         [manager] = record["managers"]
         assert manager.current_stage == 2
 
-    def test_target_hunt_is_the_default_and_a_stage_id_or_legacy_number_resolves_like_its_label(
+    def test_target_the_leaf_label_is_the_default_and_a_stage_id_or_legacy_number_resolves_like_its_label(
         self, tmp_path, monkeypatch, caplog
     ):
-        """``target="hunt"`` (the label), ``"behavior"`` (the deliverable's id) and ``3`` (its legacy
-        number) each walk exactly what the default walks; ``"locomotion"`` and ``2`` walk exactly what
-        ``"walk"`` walks.  The record projections compare with run directories factored out."""
+        """The fixture leaf's label, ``"behavior"`` (the deliverable's id) and ``3`` (its legacy number)
+        each walk exactly what the default walks; ``"locomotion"`` and ``2`` walk exactly what ``"walk"``
+        walks.  The record projections compare with run directories factored out."""
         walks = {}
-        for name, target in (("default", None), ("hunt", "hunt"), ("behavior", "behavior"), ("three", 3)):
+        for name, target in (
+            ("default", None),
+            ("leaf", LADDER_LEAF_LABEL),
+            ("behavior", "behavior"),
+            ("three", 3),
+        ):
             run_dir = tmp_path / name
             record = self._run(
                 VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target
             )
             walks[name] = self._walk(record, run_dir)
-        assert walks["hunt"] == walks["behavior"] == walks["three"] == walks["default"]
+        assert walks["leaf"] == walks["behavior"] == walks["three"] == walks["default"]
         assert [stage for stage, _, _ in walks["default"]["saved"]] == [1, 2, 3]
         banners = [r.message for r in caplog.records if r.message.startswith("Starting automated")]
         assert len(banners) == 4 and all(
@@ -2027,7 +2007,7 @@ class TestTrainCurriculumWalksTheManifest:
 
     def _run_with_behavior_edge_on_stance(self, tmp_path, monkeypatch, caplog, **run_kwargs):
         """The velociraptor curriculum with behavior's edge retargeted at stance, leaving locomotion —
-        still advancing, still numbered 2 — off hunt's chain.  The loader accepts it: legacy numbers
+        still advancing, still numbered 2 — off the leaf's chain.  The loader accepts it: legacy numbers
         pin ids and order, not the edges between advancing nodes."""
         import shutil
 
@@ -2046,12 +2026,12 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs)
         return self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, **run_kwargs)
 
-    @pytest.mark.parametrize("target", ["hunt", "behavior", 3])
+    @pytest.mark.parametrize("target", [LADDER_LEAF_LABEL, "behavior", 3])
     def test_a_target_whose_chain_skips_a_ladder_stage_raises_before_any_directory_is_written(
         self, tmp_path, monkeypatch, caplog, target
     ):
         """An explicit target's chain must be a PREFIX of the advancing ladder, not merely all-advancing:
-        with behavior's edge on stance, hunt's chain is stance -> behavior and the manager — advanced
+        with behavior's edge on stance, the leaf's chain is stance -> behavior and the manager — advanced
         once after stance, so at stage 2 of 3 — would judge behavior against locomotion's thresholds.
         Refused naming the skipped stage, the ladder and the notebook, with no run directory."""
         run_dir = tmp_path / "fresh-run"
@@ -2087,7 +2067,7 @@ class TestTrainCurriculumWalksTheManifest:
         [
             (
                 "fly",
-                "target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no behavior 'fly'; recipe labels: \\['stance', 'walk', 'hunt'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
+                "target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no behavior 'fly'; recipe labels: \\['stance', 'walk', 'sprint'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
             ),
             (
                 7,
@@ -2193,7 +2173,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert "'stance'" in message and "trunk-run-id" in message
         assert "ppo.learning_rate, shaping.warmup_timesteps" in message
         assert "--retrain-from stance" in message
-        # Reused all the same: stance was not trained, walk and hunt were.
+        # Reused all the same: stance was not trained, walk and the leaf were.
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
         assert [a.stage_id for _, a in record["ancestors"]] == ["stance"]
 
@@ -2859,7 +2839,7 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
 
 
 class TestOneStageBody:
-    """Cleanup CU-10b: ``train()`` and the CLI curriculum train each stage through one body,
+    """On the three-stage fixture ladder, as :class:`TestTrainCurriculumWalksTheManifest`. Cleanup CU-10b: ``train()`` and the CLI curriculum train each stage through one body,
     ``train_base._train_stage_body``, from the environments to the final save.
 
     The body builds the evaluation environment on ``eval_env_seed(seed)``; the caller's own callback (the
@@ -2872,6 +2852,10 @@ class TestOneStageBody:
     moves it."""
 
     SEED = 8675309
+
+    @pytest.fixture(autouse=True)
+    def _three_stage_ladder(self, tmp_path_factory, monkeypatch):
+        install_three_stage_ladder(tmp_path_factory.mktemp("ladder_configs"), monkeypatch)
 
     def _patch(self, monkeypatch, *, interrupt=False):
         import inspect
@@ -3014,7 +2998,7 @@ class TestOneStageBody:
         from environments.shared.config import load_all_stages
 
         train_base.train_curriculum(
-            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object, success_keys=["strike_success"]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object, success_keys=["stub_success"]),
             load_all_stages(VELOCIRAPTOR_MONGOLIENSIS) if stage_configs is None else stage_configs,
             n_envs=1,
             seed=self.SEED,
@@ -3273,10 +3257,10 @@ class TestOneStageBody:
         assert [event for event in events if event in node] == node * 3
 
     def test_the_curriculum_callback_reads_the_species_success_keys(self, tmp_path, monkeypatch):
-        """Its supplementary and standalone evaluations read the species' success keys, not a hard-coded tuple
-        that missed snap_success and course_complete."""
+        """Its supplementary and standalone evaluations read the species config's success keys (a stub key here; the
+        velociraptor declares none since decision D-D59, and only the Allosaurus declares one, course_complete)."""
         self._curriculum(tmp_path, monkeypatch)
-        assert [kwargs["success_keys"] for kwargs in self.record["curriculum_kwargs"]] == [["strike_success"]] * 3
+        assert [kwargs["success_keys"] for kwargs in self.record["curriculum_kwargs"]] == [["stub_success"]] * 3
 
     def test_a_node_releases_the_previous_nodes_model_before_it_trains(self, tmp_path, monkeypatch):
         """An SB3 callback keeps the model it trained (``BaseCallback.model``), and a SAC model its replay
@@ -3328,7 +3312,9 @@ class TestOneStageBody:
 # columns come from command_slice, not a literal) trained 64 steps under "none": its command columns hold
 # their random initial weights. Non-zero moments are injected into every first
 # layer's command columns (a real walker's are exactly zero: zero inputs give zero
-# gradients) and the sidecar's command variance is a real walker's 1e-11. Each
+# gradients) and the sidecar holds the command slice at identity, as every
+# training save does since decision D-D60 (``test_phase_d_identity_slice`` pins
+# the load rule for one that does not). Each
 # load runs as ``_train_stage_body`` runs it: ``_load_vecnorm_into_envs`` with
 # the child's command mode, then ``_create_or_load_model`` with its fingerprint.
 
@@ -3385,6 +3371,7 @@ def never_live_walkers(tmp_path_factory):
     from stable_baselines3 import PPO, SAC
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
+    from environments.shared.command_frame import hold_command_identity
     from environments.shared.config import load_stage_config
     from environments.shared.direction_commands import DirectionCommandConfig
     from environments.shared.species_registry import get_species_config
@@ -3393,19 +3380,21 @@ def never_live_walkers(tmp_path_factory):
     root = tmp_path_factory.mktemp("never-live-walkers")
     cfg = get_species_config(TYRANNOSAURUS_REX)
     identity = current_plant_identity(TYRANNOSAURUS_REX)
-    stance, locomotion = (
+    stance, committed = (
         load_stage_config(TYRANNOSAURUS_REX, 1),
         load_stage_config(TYRANNOSAURUS_REX, 2),
     )
-    live_kwargs = dict(
-        locomotion["env_kwargs"], command_mode="heading_and_speed", command_config=DirectionCommandConfig()
-    )
+    # The never-live walk: the committed walk's [env] under command_mode "none" (the committed walk runs a live
+    # command since decision D-D62); "live" is the same [env] under the default command config.
+    none_kwargs = {k: v for k, v in committed["env_kwargs"].items() if k not in ("command_mode", "command_config")}
+    locomotion = dict(committed, env_kwargs=none_kwargs)
+    live_kwargs = dict(none_kwargs, command_mode="heading_and_speed", command_config=DirectionCommandConfig())
     probe_env = cfg.env_class(**live_kwargs)
     manifest = probe_env.command_manifest()
     probe_env.close()
     fingerprints = {
         "stance": stage_task_fingerprint(TYRANNOSAURUS_REX, 1, plant_identity=identity),
-        "locomotion": stage_task_fingerprint(TYRANNOSAURUS_REX, 2, plant_identity=identity),
+        "locomotion": stage_task_fingerprint(TYRANNOSAURUS_REX, 2, env_kwargs=none_kwargs, plant_identity=identity),
         "live": stage_task_fingerprint(
             TYRANNOSAURUS_REX,
             2,
@@ -3434,7 +3423,8 @@ def never_live_walkers(tmp_path_factory):
                         if torch.is_tensor(value) and value.ndim == 2:
                             assert torch.count_nonzero(value[:, _command_columns()]) == 0, "zero inputs, zero gradients"
                             value[:, _command_columns()] = 0.123
-        venv.obs_rms.var[-3:] = 1e-11
+        # As train_base saves it (decision D-D60); the update above decayed the zero command's variance.
+        assert hold_command_identity(venv.obs_rms)
         for artifact in (model, venv):
             attach_plant_identity(artifact, identity)
         setattr(model, MODEL_TASK_ATTRIBUTE, fingerprints["stance"])
@@ -3681,8 +3671,8 @@ class TestCommandColumnWarmStart:
         self, never_live_walkers, monkeypatch, algorithm
     ):
         """The reference is the parent's policy, taken before the zeroing: a zeroing that also clears a non-command
-        column (the one just before the command slice, the prey distance) leaves a command-blind policy that is not
-        the parent's, and the warm start refuses it."""
+        column (the one just before the command slice, the T-Rex's left foot contact since the target-free revision)
+        leaves a command-blind policy that is not the parent's, and the warm start refuses it."""
         torch = pytest.importorskip("torch")
         from environments.shared import policy_loading
 

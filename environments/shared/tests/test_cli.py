@@ -122,7 +122,7 @@ class TestMainDispatch:
     def species_cfg(self):
         cfg = MagicMock()
         cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
-        cfg.stage_descriptions = "1=balance, 2=locomotion, 3=strike"
+        cfg.stage_descriptions = "1=stance, 2=locomotion"
         return cfg
 
     def test_train_command(self, species_cfg):
@@ -132,7 +132,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {}},
                 2: {"env_kwargs": {}, "ppo_kwargs": {}},
-                3: {"env_kwargs": {}, "ppo_kwargs": {}},
             }
         )
         with (
@@ -146,7 +145,7 @@ class TestMainDispatch:
     def test_curriculum_command(self, species_cfg):
         """main() with 'curriculum' should call train_curriculum()."""
         mock_curriculum = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.train_base.train_curriculum", mock_curriculum),
@@ -158,7 +157,7 @@ class TestMainDispatch:
     def _run_curriculum(self, species_cfg, argv):
         """Dispatch ``curriculum`` with the trainer replaced; returns the mock."""
         mock_curriculum = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.train_base.train_curriculum", mock_curriculum),
@@ -207,7 +206,7 @@ class TestMainDispatch:
             self._run_curriculum(species_cfg, ["--trunk-from", str(tmp_path), "--retrain-from", ref])
         assert excinfo.value.code == 2
         err = capsys.readouterr().err
-        assert expected in err and "['stance', 'locomotion', 'behavior']" in err
+        assert expected in err and "['stance', 'locomotion']" in err
 
     def test_curriculum_forwards_target_as_a_label_an_id_or_a_legacy_number(self, species_cfg, tmp_path):
         """Decision D-A24: ``--target`` resolves like ``--stage`` (digits are a legacy number) and
@@ -231,7 +230,7 @@ class TestMainDispatch:
                 "recover",
                 "--target 'recover' resolves to 'recovery', whose chain ['stance', 'recovery'] runs through the "
                 "non-advancing stage(s) ['recovery']; the command-line curriculum walks only the advancing stages "
-                "['stance', 'locomotion', 'behavior'] (the CurriculumManager is integer-keyed, decision D-A7). "
+                "['stance', 'locomotion'] (the CurriculumManager is integer-keyed, decision D-A7). "
                 "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'recover')",
             ),
             (
@@ -239,14 +238,14 @@ class TestMainDispatch:
                 "fly",
                 "--target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: "
                 "velociraptor_mongoliensis/anatomical has no behavior 'fly'; "
-                "recipe labels: ['stance', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
+                "recipe labels: ['stance', 'walk'], deliverable ids: ['stance', 'locomotion']",
             ),
             (
                 VELOCIRAPTOR_MONGOLIENSIS,
                 "recover",
                 "--target 'recover' does not name a behavior of velociraptor_mongoliensis/anatomical: "
                 "velociraptor_mongoliensis/anatomical has no behavior 'recover'; "
-                "recipe labels: ['stance', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
+                "recipe labels: ['stance', 'walk'], deliverable ids: ['stance', 'locomotion']",
             ),
         ],
         ids=[
@@ -315,16 +314,52 @@ class TestMainDispatch:
             "'stand' was renamed to 'stance' (decision D-D38); use 'stance'"
         ) in capsys.readouterr().err
 
+    @pytest.mark.parametrize(
+        "model_id",
+        [
+            TYRANNOSAURUS_REX,
+            ModelId("compsognathus_longipes", "anatomical"),
+            ModelId("compsognathus_longipes", "robot"),
+            VELOCIRAPTOR_MONGOLIENSIS,
+            ModelId("brachiosaurus_altithorax", "anatomical"),
+            ModelId("dibothrosuchus_elaphros", "anatomical"),
+            ModelId("allosaurus_fragilis", "anatomical"),
+        ],
+        ids=lambda m: f"{m.species}-{m.embodiment}",
+    )
+    def test_target_hunt_is_refused_naming_walk_and_the_default_is_walk(self, species_cfg, model_id, capsys):
+        """Decision D-D59: ``hunt`` labelled the removed hunt nodes, so ``--target hunt`` is a usage error
+        pointing at ``walk`` on every model, and the default target (the last advancing stage) is the walk."""
+        from environments.shared.stage_manifest import load_stage_manifest
+        from environments.shared.train_base import _resolve_curriculum_target
+
+        species_cfg.model_id = model_id
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(species_cfg, ["--target", "hunt"])
+        assert excinfo.value.code == 2
+        assert (
+            f"--target 'hunt' does not name a behavior of {model_id}: {model_id} has no behavior 'hunt': "
+            "'hunt' was removed with every node it labelled (decision D-D59); use 'walk'"
+        ) in capsys.readouterr().err
+        entry, chain = _resolve_curriculum_target(load_stage_manifest(model_id), None)
+        assert entry.id == "locomotion" and entry.recipe == "walk"
+        assert [node.id for node in chain] == ["stance", "locomotion"]
+
     def test_a_target_whose_chain_skips_a_ladder_stage_is_a_usage_error(
-        self, species_cfg, tmp_path, monkeypatch, capsys
+        self, species_cfg, tmp_path, tmp_path_factory, monkeypatch, capsys
     ):
-        """The chain must be a prefix of the advancing ladder: with velociraptor's behavior edge rewired
-        onto stance (a manifest the loader accepts), ``--target hunt`` is a parser.error naming the
-        skipped locomotion stage, before train_curriculum is reached."""
+        """The chain must be a prefix of the advancing ladder: on the three-stage fixture ladder
+        (``ladder_helpers``; every committed ladder ends at locomotion since decision D-D59) with
+        velociraptor's behavior edge rewired onto stance (a manifest the loader accepts), ``--target
+        behavior`` is a parser.error naming the skipped locomotion stage, before train_curriculum is
+        reached."""
         import shutil
 
         from environments.shared import stage_manifest
 
+        from .ladder_helpers import install_three_stage_ladder
+
+        install_three_stage_ladder(tmp_path_factory.mktemp("ladder_configs"), monkeypatch)
         configs = tmp_path / "configs"
         shutil.copytree(
             VELOCIRAPTOR_MONGOLIENSIS.path(stage_manifest._CONFIGS_DIR), VELOCIRAPTOR_MONGOLIENSIS.path(configs)
@@ -336,14 +371,14 @@ class TestMainDispatch:
         monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
 
         with pytest.raises(SystemExit) as excinfo:
-            self._run_curriculum(species_cfg, ["--target", "hunt"])
+            self._run_curriculum(species_cfg, ["--target", "behavior"])
         assert excinfo.value.code == 2
         err = capsys.readouterr().err
         assert (
-            "--target 'hunt' resolves to 'behavior', whose chain ['stance', 'behavior'] skips the advancing stage(s) ['locomotion']"
-            in err
+            "--target 'behavior' resolves to 'behavior', whose chain ['stance', 'behavior'] skips the advancing "
+            "stage(s) ['locomotion']" in err
         )
-        assert "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'hunt')" in err
+        assert "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'behavior')" in err
 
     def test_target_help_says_how_each_form_resolves(self, species_cfg, capsys):
         """Labels and ids resolve as the notebook's BEHAVIOR knob does; a legacy number resolves as
@@ -359,8 +394,14 @@ class TestMainDispatch:
         assert "gate_verdict.json passed under the current gate configuration" in help_text
         assert "the command line and the notebook's TRUNK_FROM both follow those records" in help_text
 
-    def test_retrain_from_outside_the_targets_chain_is_a_usage_error(self, species_cfg, tmp_path, capsys):
-        """``--retrain-from behavior`` names an advancing node a ``--target walk`` run never walks."""
+    def test_retrain_from_outside_the_targets_chain_is_a_usage_error(
+        self, species_cfg, tmp_path, tmp_path_factory, monkeypatch, capsys
+    ):
+        """``--retrain-from behavior`` names an advancing node a ``--target walk`` run never walks (on the
+        three-stage fixture ladder, ``ladder_helpers``: no committed ladder runs past walk since decision D-D59)."""
+        from .ladder_helpers import install_three_stage_ladder
+
+        install_three_stage_ladder(tmp_path_factory.mktemp("ladder_configs"), monkeypatch)
         with pytest.raises(SystemExit) as excinfo:
             self._run_curriculum(
                 species_cfg, ["--trunk-from", str(tmp_path), "--target", "walk", "--retrain-from", "behavior"]
@@ -386,7 +427,7 @@ class TestMainDispatch:
     @pytest.mark.parametrize("raw", ["0", "-50000", "1e4"])
     def test_a_non_positive_eval_freq_is_a_usage_error(self, species_cfg, capsys, command, raw):
         """``--eval-freq 0`` used to reach the trainer as an evaluation interval EvalCallback never reaches."""
-        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2)})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.train_base.train") as mock_train,
@@ -402,7 +443,7 @@ class TestMainDispatch:
 
     def test_a_positive_eval_freq_reaches_both_trainers(self, species_cfg):
         mock_train = MagicMock()
-        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2)})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.train_base.train", mock_train),
@@ -416,7 +457,7 @@ class TestMainDispatch:
     def test_eval_command(self, species_cfg):
         """main() with 'eval' should call evaluate()."""
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),
@@ -429,7 +470,7 @@ class TestMainDispatch:
         """Decision D-A21: ``--label TEXT`` on both commands is forwarded verbatim as ``label=``;
         without it the trainers receive ``None`` (nothing recorded)."""
         mock_train = MagicMock()
-        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2)})
         for argv, expected in ((["--label", "lr-sweep-a"], "lr-sweep-a"), ([], None)):
             with (
                 patch("environments.shared.config.load_all_stages", mock_load),
@@ -450,7 +491,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {}},
                 2: {"env_kwargs": {}, "ppo_kwargs": {}},
-                3: {"env_kwargs": {}, "ppo_kwargs": {}},
             }
         )
         with (
@@ -468,7 +508,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {"learning_rate": 1e-3}},
                 2: {"env_kwargs": {}, "ppo_kwargs": {"learning_rate": 5e-4}},
-                3: {"env_kwargs": {}, "ppo_kwargs": {"learning_rate": 3e-4}},
             }
         )
         with (
@@ -482,7 +521,7 @@ class TestMainDispatch:
     def test_eval_with_algorithm(self, species_cfg):
         """main() eval command should pass algorithm correctly."""
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),
@@ -498,7 +537,6 @@ class TestMainDispatch:
             return_value={
                 1: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {"timesteps": 100}},
                 2: {},
-                3: {},
             }
         )
         with (
@@ -515,7 +553,7 @@ class TestMainDispatch:
 
     def test_eval_forwards_explicit_legacy_plant_override(self, species_cfg):
         mock_eval = MagicMock()
-        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        mock_load = MagicMock(return_value={1: {}, 2: {}})
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
             patch("environments.shared.evaluation.evaluate", mock_eval),
@@ -672,8 +710,8 @@ class TestNestedOverrides:
 
     def test_an_env_array_becomes_a_tuple_as_the_stage_loader_makes_it(self):
         configs = self._configs()
-        _apply_overrides(configs, ["env.prey_distance_range=[1.0, 2.5]", "ppo.policy_kwargs.net_arch=[32, 32]"])
-        assert configs[1]["env_kwargs"]["prey_distance_range"] == (1.0, 2.5)
+        _apply_overrides(configs, ["env.healthy_z_range=[0.3, 1.0]", "ppo.policy_kwargs.net_arch=[32, 32]"])
+        assert configs[1]["env_kwargs"]["healthy_z_range"] == (0.3, 1.0)
         assert configs[1]["ppo_kwargs"]["policy_kwargs"]["net_arch"] == [32, 32]
 
     def test_the_committed_stage_configs_take_a_nested_policy_kwargs_key(self):

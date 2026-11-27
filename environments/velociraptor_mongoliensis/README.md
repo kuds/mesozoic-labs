@@ -1,9 +1,8 @@
 # Velociraptor mongoliensis
 
 A life-size reconstruction of *Velociraptor mongoliensis*, a small feathered theropod. It walks on two weight-bearing
-toes per foot and carries a raised sickle claw on each foot. The model is for learning to stand, to walk, and to run
-down a prey target and strike it with a sickle claw. It is a research abstraction built on measured bones, not a
-validated model of how the animal moved.
+toes per foot and carries a raised sickle claw on each foot. The model is for learning to stand and to walk. It is a
+research abstraction built on measured bones, not a validated model of how the animal moved.
 
 ## Models
 
@@ -30,8 +29,8 @@ them.
   the home controls carry the body's weight, so zero action holds the stance.
 - **Feet.** Each foot stands on a rounded pad under the metatarsophalangeal (MTP) joint and on digits III and IV,
   which are passive sprung hinges. Digit II rides raised on its own sprung hinge. Its claw is a force-limited servo
-  that only the prey collides with. The pad, digit III and digit IV each have a touch sensor and their own
-  observation channel. The friction cone is elliptic, as on every species.
+  and, like digit II's other bones, does not collide. The pad, digit III and digit IV each have a touch sensor and
+  their own observation channel. The friction cone is elliptic, as on every species.
 - **Tail, neck and arms.** Spring preloads carry the weight of the five-segment tail, and its distal end is rigid. The
   neck and skull are separate bodies; the skull collides with the floor and the neck does not. The feathered arms are
   welded to the trunk and do not collide.
@@ -94,9 +93,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then the strike, each warm-started from its parent in `stages.toml` and run with
-the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The strike that followed locomotion was removed with every hunt node (decision D-D59). To reuse the
+certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
@@ -104,7 +103,7 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "velociraptor_mongoliensis"`,
-`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
@@ -121,31 +120,53 @@ Species notes:
 
 ## Task and rewards
 
-A prey sphere spawns ahead of the animal at a random distance and side offset. The task is to reach it and touch it
-with a sickle claw. The environment reports `strike_success` when a sickle-claw geom contacts the prey while the
-strike reward is on; that contact ends the episode.
+The trained tasks are the stance and the walk; the strike, the hunt that followed the walk, was removed by decision
+D-D59. Its reward terms, its `strike_success` termination and its constructor arguments are gone from the code, and the
+model declares no success key. The prey sphere, its observation channels and the claws' prey-only collision went with
+it in policy interface r15 and physics r6, so the scene holds only the animal and the floor, and checkpoints of policy
+interface r14 or earlier no longer load. Under the stance the forward and heading terms measure along the heading the
+animal spawns with.
 
-The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
-and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one channel per
-foot touch sensor, the prey distance and the command. Actions are offsets from the MJCF `home` keyframe: zero holds the
-standing pose, and -1 and +1 reach each actuator's limits. The docstring of [`base_env.py`](base_env.py) gives both
-layouts.
+**The walk follows a live command** (decision D-D62); the stance runs no command. Each walk episode draws one request
+at reset and holds it for the whole 10 s episode: a forward cruise at 1.05-2.1 m/s along a heading up to 0.26 rad (15
+degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero command, which asks the animal to stand
+still. The command is the observation's last three values. A Gaussian term pays tracking the commanded velocity and
+yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms, which the walk sets to 0, and the terms
+that read a forward direction measure along the commanded heading. On a zero command a stand block
+(`[commands.stand_weights]`, 17 weights) pays the stance's reward weights, so zero means stand still, not march in
+place. The commanded speeds ramp from 0.25 of their end values to the full range over the first 2M training steps.
+After training the walk is judged on its `command_tracking/v1` panel: the cruise family's survival and success bounds,
+the stand family's hold and the biped gait clause, with no flight cap since its cruise reaches Froude 0.82. The bars
+are provisional, and no controller has yet passed the committed panel (decision D-D62 (16)). The tracking term and the
+gate score a moving command on the trailing mean of the last 0.70 s, one stride of the reference walk (`[commands]
+tracking_window_s`, decision D-D64); at its own 0.257 m/s the reference walk clears the in-tolerance fraction and the
+speed ratio (quality 0.955, 0.785 a step on its own; at that command, inside the velocity tolerance, even the statue
+reads in tolerance), and one episode, seed 3045, falls at step 373 and its truncated trace also fails the lead-swap
+bar; the other 19 pass every bar. No gait has been measured
+in the commanded 1.05-2.1 m/s range (the reference walk runs at 0.257 m/s), and with no flight cap the staggered-hop
+risk of decision D-D61 (7) stays open (D-D62 (12)).
+
+The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
+frame, beside the joint state, the pelvis gyro and accelerometer, one channel per foot touch sensor and the command.
+Actions are offsets from the MJCF `home` keyframe: zero holds the standing pose, and -1 and +1 reach each actuator's
+limits. The docstring of [`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
 
 - **Survival and posture:** an alive bonus, a posture term centered on the settled pitch, an optional nosedive
   penalty, and a fall penalty.
-- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
-- **Strike:** approach shaping, optional proximity terms, and a bonus on claw contact.
-- **Stance quality** (stance stage only): support under both feet, the home leg, tail and neck poses, and penalties
-  on floor impacts, airborne physics substeps, action jerk and commands held at their limits.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity along the spawn heading (the commanded heading on the walk), with optional backward,
+  drift, sideways, spin and speed penalties; the walk sets the forward, heading and sideways weights to 0.
+- **Stance quality** (the stance, and the walk's zero command): support under both feet, the home leg, tail and neck
+  poses, and penalties on floor impacts, airborne physics substeps, action jerk and commands held at their limits.
 - **Effort:** energy, action smoothness and tail stability.
 
 The weights are the `VelociraptorMongoliensisEnv` constructor defaults in `base_env.py`, overridden by the `[env]`
 table of each stage TOML in
 [`configs/velociraptor_mongoliensis/anatomical/`](../../configs/velociraptor_mongoliensis/anatomical/). An episode
-ends on a fall or launch, excessive tilt or a nosedive, the head tip or skull dropping too low, the trunk, skull or
-distal tail touching the floor, or a strike. The thresholds are in `base_env.py`.
+ends on a fall or launch, excessive tilt or a nosedive, the head tip or skull dropping too low, or the trunk, skull or
+distal tail touching the floor. The thresholds are in `base_env.py`.
 
 ## Files
 

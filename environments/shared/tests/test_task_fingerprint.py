@@ -174,8 +174,8 @@ class TestDeriveStageFingerprint:
             env_kwargs={**_ENV, "perturbation_capture_velocity_multiple": 1.5},
             plant_identity=_PLANT,
         )
-        # Same derivation as BaseDinoEnv: the r7 T-Rex constants.
-        assert payload["perturbation"]["force_n"] == pytest.approx(165.5, abs=2.0)
+        # Same derivation as BaseDinoEnv: the r12 T-Rex constants (165.5 N from r7 through r11).
+        assert payload["perturbation"]["force_n"] == pytest.approx(159.7, abs=2.0)
         assert payload["perturbation"]["interval_s"] == 2.0
         push_free = derive_stage_task_fingerprint(
             model_id=ModelId("tyrannosaurus_rex", "anatomical"),

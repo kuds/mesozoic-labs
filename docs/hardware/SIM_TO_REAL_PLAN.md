@@ -13,14 +13,14 @@
 > the frozen MJX interface core (`c9a47469`). Each species env now builds its own
 > observation in `_get_obs`, the abstract method of `BaseDinoEnv`
 > (`environments/shared/base_env.py`): in `environments/<species>/base_env.py`,
-> and for the anatomical Compsognathus in its `anatomical/env.py`. The four
-> heading-free models (velociraptor, T. rex, anatomical Compsognathus,
-> Allosaurus) share their root segments from
-> `environments/shared/heading_observation.py`. The `obs_functions` references
-> and the `species_manifest.toml` line numbers below are historical: the
-> capabilities are now at `configs/species_manifest.toml:40-58` (domain
-> randomization :44-46, hardware prototype :48-50, ROS 2 bridge :52-54,
-> sim-to-real validation :56-58).
+> and for the anatomical Compsognathus in its `anatomical/env.py`. Every
+> model is heading-free since decision D-D59 (`configs/plant_versions.toml`
+> note 24; when this note was first written, four were), and every species env
+> reads its root segments from `environments/shared/heading_observation.py`.
+> The `obs_functions` references and the `species_manifest.toml` line numbers
+> below are historical: the capabilities are now at
+> `configs/species_manifest.toml:44-62` (domain randomization :48-50, hardware
+> prototype :52-54, ROS 2 bridge :56-58, sim-to-real validation :60-62).
 
 This document answers a single question: **what would it actually take to turn
 the Mesozoic Labs MuJoCo simulation into physical robots?** It is grounded in a
@@ -58,7 +58,8 @@ charismatic species. The honest summary:
 - **The deepest technical gap is the observation space.** ~7 of the 70–86
   observation dimensions are *privileged simulator state* (world-frame base
   linear velocity and an absolute prey/food beacon) that **no onboard sensor can
-  measure**. Closing this needs a legged base-state estimator *and* an onboard
+  measure** (*2026-11-23: D-D59 removed the beacon with the prey; the base
+  velocity remains, §3.1*). Closing this needs a legged base-state estimator *and* an onboard
   perception stack — neither exists in the repo.
 - **The heavy species are not servo-buildable.** The T-Rex model (85 kg) now
   permits 1,800–2,250 N·m at its gait-critical hip/knee servos, and
@@ -74,6 +75,13 @@ charismatic species. The honest summary:
 ---
 
 ## 2. Where the Repo Stands Today
+
+*Update 2026-11-24 (decision D-D59, 2026-11-23):* this section, like §1,
+describes the repository before D-D59 removed the hunt and the prey. No
+observation carries a prey or food beacon any more, and the T. rex bite and
+the Brachiosaurus food reach it names as reported success are deleted with
+the hunt nodes; every chain ends at the walk, which since D-D62 (2026-11-24)
+follows a live command. §3.1's dated update gives the observation as it is.
 
 | Capability | Status | Source |
 |---|---|---|
@@ -147,6 +155,15 @@ minority:
 must (a) re-specify the observation in an egocentric/body frame, (b) build a
 base-state estimator, and (c) build onboard target localization (or drop to a
 proprioception-only task formulation).
+
+*Update 2026-11-23 (decision D-D59, `configs/plant_versions.toml` note 24):* (a)
+is done for every model and (c) is moot. The mocap target is gone from every
+scene and its direction and distance from every observation; the observation
+reads projected gravity instead of the world quaternion and the base velocity in
+the gravity-aligned heading frame, so no channel depends on absolute yaw. (b)
+stands: that velocity is still the simulator's ground truth. The builder named
+above, `obs_functions.py`, was removed with the JAX/MJX backend (D-D17); each
+environment's `_get_obs` builds the observation.
 
 ### 3.2 Morphology & actuation
 
@@ -343,7 +360,16 @@ These need no hardware, live inside this repo, and directly de-risk transfer:
 6. **Egocentric observation reframe** — rotate base velocity + target into the
    root frame, express the target as a yaw-invariant bearing, drop absolute yaw;
    retrain. Removes the magnetometer/world-frame dependency that blocks any
-   onboard-estimator drop-in. *(L)*
+   onboard-estimator drop-in. *(L)* (*2026-11-23: the reframe is done, retraining
+   is not.* Every model's observation is heading-free since the policy-interface
+   revision of `configs/plant_versions.toml` note 24 (decision D-D59), the
+   Compsognathus robot's included: projected gravity replaces the root quaternion,
+   the base velocity is in the gravity-aligned heading frame, and no channel reads
+   absolute yaw. The target was deleted rather than reframed, because the prey,
+   food and course target left every scene; the trailing command is the operator's
+   input. The base velocity is still read from the simulator's `qvel[0:3]`, so the
+   Phase 3 estimator is still needed, and no policy has been trained on the new
+   observation yet.)
 7. **Prune to a buildable DOF variant** — drop toe servos, sickle-claw motors,
    forelimb stubs, tail-yaw → ~8–10 leg DOF; keep the high-DOF research variant
    separate. *(M)*

@@ -7712,12 +7712,6 @@
     <geom name="floor" type="plane" size="100 100 0.1" material="grid_mat"
           conaffinity="1" contype="1"/>
 
-    <!-- Prey target (mocap body) -->
-    <body name="prey" mocap="true" pos="6 0 0.5">
-      <geom name="prey_geom" type="sphere" size="0.25" rgba="0.8 0.2 0.2 0.8"
-            contype="2" conaffinity="2"/>
-    </body>
-
     <!-- ==================== T-REX BODY ==================== -->
     <!--
     Coordinate system:
@@ -7726,10 +7720,10 @@
       +Z = up
 
     Scaled adult reconstruction. Home hip joint height is 0.877 m, pelvis
-    frame height 0.9266 m and simulated animal mass 85.72 kg. The shoulder
+    frame height 0.9266 m and simulated animal mass 85.52 kg. The shoulder
     lies 0.50 m ahead of the hip. The upper neck and broad posterior skull,
     two-fingered arms, muscular caudal base and tapering tip are skinned.
-    The forward head site and bite box remain on the snout. See the November
+    The forward head site remains on the snout. See the November
     anatomical review for the surface dimensions and comparative specimens.
 
     HINDLIMB STANCE (physics r11). Hip to knee is 0.3678 m, knee to ankle
@@ -7796,12 +7790,8 @@
           <geom name="snout" group="3" type="capsule" fromto="0.3 0 0.02  0.48 0 0" size="0.06"
                 mass="2.0" material="head_mat"/>
 
-          <!-- Head tip sensor for bite detection -->
+          <!-- Head tip: the head-clearance reward and the head_contact termination -->
           <site name="head_tip" group="4" pos="0.48 0 0" size="0.02"/>
-
-          <!-- Head contact geom for bite detection (at snout tip) -->
-          <geom name="head_bite" type="box" pos="0.46 0 -0.02" size="0.06 0.05 0.04"
-                mass="0.2" rgba="0 0 0 0" contype="2" conaffinity="2"/>
         </body>
       </body>
 
@@ -8135,7 +8125,7 @@
     <touch name="r_foot_touch" site="r_foot"/>
     <touch name="l_foot_touch" site="l_foot"/>
 
-    <!-- Head position for bite detection -->
+    <!-- Head tip position -->
     <framepos name="head_tip_pos" objtype="site" objname="head_tip"/>
 
     <!-- Tail tip for stability monitoring -->

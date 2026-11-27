@@ -45,15 +45,17 @@ never re-trained:
   stage's task fingerprint are re-stamped, and ``mesozoic_widen_lineage``
   records the parent hashes and the revision gap crossed; the parent's
   ``mesozoic_task_lineage`` stays.
-* **Sidecar rewrite**: ``obs_rms`` gains the reseeded command slice (mean 0
-  / var 1 at the carried count — ``command_frame.pad_running_stats``, the
-  reseed rule applied at birth), the observation space is widened, the
+* **Sidecar rewrite**: ``obs_rms`` gains the command slice at identity (mean
+  0 / var 1 at the carried count — ``command_frame.pad_running_stats``, the
+  identity every stage holds the slice at, decision D-D60), the observation space is widened, the
   identity re-stamped, and the wrapper is re-bound once to the real widened
   environment before it is saved frozen (``training = False``).
 * **Output layout** (D-C9): ``models/<handoff>.zip`` + ``<handoff>_vecnorm
   .pkl`` under the parent's own handoff name (``robust_best_model`` or
   ``best_model`` — exactly one), byte-identical ``models/<stage_label>
-  _final.*`` copies (the notebook JUDGE branch fires on that pair),
+  _final.*`` copies (the notebook JUDGE branch fires on that pair) —
+  or, for a ``command_tracking/v1`` parent whose recorded choice is its
+  final pair, that one widened pair as ``models/<stage_label>_final.*``,
   ``stage_config.json`` whose run block carries the parent's ``seed`` /
   ``n_envs`` / ``timesteps`` / ``duration_seconds`` and the
   ``config.WIDEN_LINEAGE_KEYS`` (NEVER the ``LOAD_LINEAGE_KEYS`` — a widened
@@ -70,6 +72,15 @@ never re-trained:
   both artifacts validate against the current identity; the files' hashes
   are unchanged by the verification itself.  Any failure deletes the target
   directory and raises :class:`WidenError`.
+
+A ``command_tracking/v1`` parent (decision D-D61; every walk since decision
+D-D62) hands on the pair its ``models/handoff_choice.json`` chose by the
+gated statistic, which may be its final pair: the stage-directory form
+widens exactly that pair, read through ``select_handoff_checkpoint``, and
+refuses such a parent whose choice is missing, invalid or stale
+(``handoff_choice_candidates_problem``), since its judge would refuse it
+too.  The widened node carries no choice of its own: it is re-paneled, and
+its judge chooses again among the pairs it holds.
 
 Refusals (exit 1, nothing written): a parent ``gate_verdict.json`` that did
 not pass; an algorithm that disagrees with the archive; an occupied or
@@ -159,7 +170,9 @@ WIDEN_LINEAGE_SCHEMA = "mesozoic.widen-lineage/v2"
 WIDEN_REPORT_SCHEMA = "mesozoic.widen-report/v2"
 WIDEN_REPORT_FILENAME = "widen_report.json"
 ALGORITHMS = ("ppo", "sac")
-#: The handoff names ``select_handoff_checkpoint`` recognises, in its order.
+#: The handoff names ``select_handoff_checkpoint`` recognises without a recorded choice, in its order (the
+#: explicit-pair form accepts these only; a ``command_tracking/v1`` stage's recorded choice, which may name its
+#: final pair, is read through the stage-directory form).
 HANDOFF_NAMES = ("robust_best_model", "best_model")
 #: How many interface revisions behind the parent may be by default (D-C17):
 #: exactly one bump, r -> r+1; ``max_revision_gap`` widens the bound.
@@ -301,6 +314,10 @@ def _resolve_parent(
         exclusion = excluded_run_reason(stage_dir.parent, stage_dir)
         if exclusion is not None:
             raise WidenError(f"{stage_dir} is never widened: {exclusion}")
+        record = _load_json(stage_dir / "stage_config.json", what="stage_config.json")
+        if not isinstance(record, Mapping):
+            raise WidenError(f"{stage_dir / 'stage_config.json'} must hold a JSON object")
+        _refuse_unchosen_command_handoff(stage_dir, record)
         handoff = select_handoff_checkpoint(stage_dir / "models")
         if handoff is None:
             raise WidenError(
@@ -308,9 +325,6 @@ def _resolve_parent(
                 "matched _vecnorm.pkl sidecar); a checkpoint without its normalization statistics is not widened"
             )
         handoff_name, model_stem, normalization = handoff
-        record = _load_json(stage_dir / "stage_config.json", what="stage_config.json")
-        if not isinstance(record, Mapping):
-            raise WidenError(f"{stage_dir / 'stage_config.json'} must hold a JSON object")
         run_block = record.get("run")
         if not isinstance(run_block, Mapping):
             raise WidenError(f"{stage_dir / 'stage_config.json'} records no run block (seed / n_envs / timesteps)")
@@ -379,7 +393,9 @@ def _resolve_parent(
         raise WidenError(
             f"{zip_path.name} is not a handoff checkpoint ({' / '.join(HANDOFF_NAMES)}); the widened pair is "
             "written under the parent's own handoff name (D-C9), which cannot be guessed from another stem — "
-            "pass the parent's robust_best_model / best_model pair"
+            "pass the parent's robust_best_model / best_model pair, or, for a command_tracking/v1 stage whose "
+            "handoff_choice.json chose another pair, its stage directory (--from-stage-dir), whose recorded "
+            "choice is read"
         )
     return _ParentSource(
         model_zip=zip_path,
@@ -393,6 +409,37 @@ def _resolve_parent(
         run_id=run_id,
         stage_dir=None,
     )
+
+
+def _refuse_unchosen_command_handoff(stage_dir: Path, record: Mapping[str, Any]) -> None:
+    """Refuse a ``command_tracking/v1`` parent stage without a valid, current handoff choice (decision D-D61).
+
+    Such a stage hands on the pair its ``models/handoff_choice.json`` chose by the gated statistic, and its judge
+    refuses any other; ``select_handoff_checkpoint`` would fall back to the reward-chosen pairs when the record is
+    missing or invalid, which for this kind is a pair nothing certified.  A stage of any other kind passes.
+    """
+    from environments.shared.curriculum.checkpoints import (
+        HANDOFF_CHOICE_FILENAME,
+        handoff_choice_candidates_problem,
+        recorded_handoff_choice,
+    )
+    from environments.shared.curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
+
+    curriculum = record.get("curriculum")
+    if not isinstance(curriculum, Mapping) or curriculum.get("gate_kind") != COMMAND_TRACKING_GATE_KIND:
+        return
+    models_dir = stage_dir / "models"
+    choice, problem = recorded_handoff_choice(models_dir)
+    if choice is not None:
+        problem = handoff_choice_candidates_problem(choice, models_dir)
+    elif problem is None:
+        problem = "there is none"
+    if problem is not None:
+        raise WidenError(
+            f"{stage_dir} is a {COMMAND_TRACKING_GATE_KIND} stage, whose handoff is the pair its "
+            f"models/{HANDOFF_CHOICE_FILENAME} chose by the gated statistic (decision D-D61), and that choice "
+            f"cannot be honored: {problem}; its judge would refuse any other pair, so none is widened"
+        )
 
 
 def _check_max_revision_gap(max_revision_gap: Any) -> int:
@@ -970,6 +1017,7 @@ def widen_checkpoint(
         refuse_occupied_stage_dir,
         save_stage_config,
     )
+    from environments.shared.curriculum.checkpoints import FINAL_PAIR_SUFFIX
     from environments.shared.file_io import atomic_write_text
     from environments.shared.plant_contract import (
         MODEL_IDENTITY_ATTRIBUTE,
@@ -1162,10 +1210,13 @@ def widen_checkpoint(
     assert tuple(run_lineage) == tuple(WIDEN_LINEAGE_KEYS)
 
     models_dir = target / "models"
-    widened_zip = models_dir / f"{parent.handoff_name}.zip"
-    widened_pkl = models_dir / f"{parent.handoff_name}_vecnorm.pkl"
     final_zip = models_dir / f"{label_prefix}_final.zip"
     final_pkl = models_dir / f"{label_prefix}_final_vecnorm.pkl"
+    # A command_tracking/v1 parent whose recorded choice is its final pair (decision D-D61) hands on that pair:
+    # it is widened once, as the target's final pair, which is then both the handoff and the pair judged.
+    handoff_is_final = parent.handoff_name.endswith(FINAL_PAIR_SUFFIX)
+    widened_zip = final_zip if handoff_is_final else models_dir / f"{parent.handoff_name}.zip"
+    widened_pkl = final_pkl if handoff_is_final else models_dir / f"{parent.handoff_name}_vecnorm.pkl"
     # Every directory above the target that the tool creates (a fresh run
     # directory, typically) is removed again on failure — deepest first,
     # only while still empty — so a refusal leaves exactly what it found.
@@ -1215,8 +1266,9 @@ def widen_checkpoint(
             parent_identity=parent_identity,
             allow_legacy_plant=allow_legacy_plant,
         )
-        shutil.copyfile(widened_zip, final_zip)
-        shutil.copyfile(widened_pkl, final_pkl)
+        if not handoff_is_final:
+            shutil.copyfile(widened_zip, final_zip)
+            shutil.copyfile(widened_pkl, final_pkl)
         widened_checkpoint_sha256 = sha256_file(widened_zip)
         widened_normalization_sha256 = sha256_file(widened_pkl)
 

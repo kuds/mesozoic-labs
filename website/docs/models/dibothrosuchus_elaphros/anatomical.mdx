@@ -12,7 +12,9 @@ export const MODEL = requireModel('dibothrosuchus_elaphros', 'anatomical');
 
 # Dibothrosuchus Model
 
-A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs and a snout-contact hunting task. Its stage 3 task uses contact from a fixed snout geom as a snap proxy; the model has no articulated jaw. Its manifest (`configs/dibothrosuchus_elaphros/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the snap task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
+A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs. Its manifest (`configs/dibothrosuchus_elaphros/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the snout-contact snap hunt that followed walk was removed by decision D-D59 with its reward, termination and constructor arguments, and since policy interface r11 and physics r4 (the same decision) so are the prey sphere, its observation channels and the 0.02 kg snout box the snap read. Since that revision the observation reads no world heading: the direction of gravity in the trunk's own frame and the trunk's velocity relative to the way it faces replace the world-frame trunk orientation and velocity, so turning the whole scene changes nothing the policy observes. See [Behavior Recipes](/docs/training/recipes).
+
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance runs no command. Each walk episode draws one request at reset and holds it for its whole 10 s: a forward cruise at 0.45-0.9 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (11 weights) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The standing-idle penalty is not paid on a zero command. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the quadruped gait clause with the lead-swap bar), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet passed the committed panel: no controller in the repository walks inside the commanded speed range (the reference walk reaches 0.16 m/s), and the gait-symmetry term pays a standing statue its whole weight (decision D-D62 (16)). A moving command is scored on the trailing mean of the last 0.80 s, one stride of the reference walk (decision D-D64), which at its own 0.157 m/s passes the whole walk gate; that command lies inside the velocity tolerance, where even the statue reads in tolerance and settles, so the panel demonstrates the speed ratio and the gait clause. The later follow nodes will widen this distribution as the walk's exact continuation.
 
 <SpeciesCatalog species={MODEL} />
 
@@ -24,11 +26,11 @@ The 112.5 mm humerus and 97.5 mm radius follow measurements of specimen IVPP V79
 
 ## Balance and reference walk
 
-At rest, the 8.65 kg model carries 27% of its weight on the forefeet and 73% on the hindfeet. Its center of mass projects 58 mm inside the support boundary. The reference walk advances through a left hind, left fore, right hind, right fore sequence. The replay shows the actual simulated contacts for each foot. The mass distribution and gait timing belong to the reconstruction. [Anatomical review and validation](https://github.com/kuds/mesozoic-labs/blob/main/environments/dibothrosuchus_elaphros/README.md#anatomical-review) · [Hutchinson et al. (2019), living crocodylian gait comparisons](https://www.nature.com/articles/s41598-019-55768-6)
+At rest, the 8.63 kg model carries 26% of its weight on the forefeet and 74% on the hindfeet. Its center of mass projects 58 mm inside the support boundary. The reference walk advances through a left hind, left fore, right hind, right fore sequence. The replay shows the actual simulated contacts for each foot. The mass distribution and gait timing belong to the reconstruction. [Anatomical review and validation](https://github.com/kuds/mesozoic-labs/blob/main/environments/dibothrosuchus_elaphros/README.md#anatomical-review) · [Hutchinson et al. (2019), living crocodylian gait comparisons](https://www.nature.com/articles/s41598-019-55768-6)
 
 <video controls preload="metadata" width="100%" src={useBaseUrl('/videos/dibothrosuchus_elaphros_anatomical_reference_walk.mp4')} aria-label="Dibothrosuchus walking on level ground with measured contact for each foot" />
 
-## Diagnostic Metrics (behavior node, hunt)
+## Diagnostic Metrics
 
 After each training stage the `eval` command reports:
 
@@ -36,9 +38,7 @@ After each training stage the `eval` command reports:
 |--------|-------------|
 | `mean_forward_velocity` | Average forward speed (m/s) |
 | `mean_pelvis_height` | Trunk height stability (m) |
-| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
-| `success_rate` | Fraction of episodes where the fixed snout-contact proxy touches the prey target |
-| `min_prey_distance` | Closest snout approach to prey (m) |
+| `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command |
 
 ## Training Videos
 
@@ -56,10 +56,10 @@ python -m environments.dibothrosuchus_elaphros.scripts.view_model --embodiment a
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1
 
-# The advancing stages (stance, locomotion, behavior) in manifest order
+# The advancing stages (stance, locomotion) in manifest order
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```

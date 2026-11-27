@@ -60,6 +60,11 @@ INTEGER_MODELS = [
 RECOVERY_MODELS = [TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT]
 #: The pointer a retired "stand" is refused with (decision D-D38).
 STAND_POINTER = "'stand' was renamed to 'stance' (decision D-D38); use 'stance'"
+#: The pointer a retired "hunt" is refused with (decision D-D59: every hunt node removed).
+HUNT_POINTER = (
+    "'hunt' was removed with every node it labelled (decision D-D59); use 'walk', the behavior those nodes were "
+    "trained from"
+)
 #: A made-up model for the synthetic manifests below (the reader needs no manifest entry, only its directory).
 PROBE = ModelId("probe_species", "anatomical")
 
@@ -147,20 +152,21 @@ def _write_manifest(tmp_path, model_id, body):
 
 
 class TestTyrannosaurusRexManifest:
-    def test_four_stages_in_curriculum_order(self):
+    def test_three_stages_in_curriculum_order(self):
+        """Stance, recovery and locomotion; the bite hunt (``behavior``, legacy 3) left with decision D-D59."""
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
         assert manifest.schema == STAGE_MANIFEST_SCHEMA_V2
-        assert [entry.id for entry in manifest.stages] == ["stance", "recovery", "locomotion", "behavior"]
-        assert [entry.position for entry in manifest.stages] == [1, 2, 3, 4]
+        assert [entry.id for entry in manifest.stages] == ["stance", "recovery", "locomotion"]
+        assert [entry.position for entry in manifest.stages] == [1, 2, 3]
 
     def test_integer_references_mean_legacy_numbers_not_positions(self):
-        """THE no-silent-renumbering guarantee: 2 is locomotion, forever."""
+        """THE no-silent-renumbering guarantee: 2 is locomotion, forever, and 3, the removed hunt, is no stage."""
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
         assert manifest.resolve(1).id == "stance"
         assert manifest.resolve(2).id == "locomotion"
         assert manifest.resolve(2).position == 3
-        assert manifest.resolve(3).id == "behavior"
-        assert manifest.resolve(3).position == 4
+        with pytest.raises(StageManifestError, match="no stage with legacy number 3"):
+            manifest.resolve(3)
 
     def test_recovery_is_reachable_only_by_id(self):
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
@@ -179,17 +185,19 @@ class TestTyrannosaurusRexManifest:
             manifest.resolve(True)
 
 
-class TestDeclaredLegacyTrio:
-    """The three integer models declare, in v2, exactly the trio they used to synthesize."""
+class TestDeclaredLegacyPair:
+    """The three integer models declare, in v2, the trio they used to synthesize less its hunt (decision D-D59)."""
 
     @pytest.mark.parametrize("model_id", INTEGER_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    def test_the_three_models_declare_the_legacy_three_stages(self, model_id):
+    def test_the_three_models_declare_the_first_two_legacy_stages(self, model_id):
         manifest = load_stage_manifest(model_id)
         assert manifest.schema == STAGE_MANIFEST_SCHEMA_V2
-        assert [entry.id for entry in manifest.stages] == ["stance", "locomotion", "behavior"]
-        assert [entry.legacy_number for entry in manifest.stages] == [1, 2, 3]
+        assert [entry.id for entry in manifest.stages] == ["stance", "locomotion"]
+        assert [entry.legacy_number for entry in manifest.stages] == [1, 2]
         # For a species without new stages, positions and legacy agree.
         assert all(entry.position == entry.legacy_number for entry in manifest.stages)
+        with pytest.raises(StageManifestError, match="no stage with legacy number 3"):
+            manifest.resolve(3)
 
 
 class TestSchemaVersions:
@@ -236,7 +244,9 @@ class TestLegacyReadsAreBitIdentical:
         legacy = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"), configs_dir=root)
         committed = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
         assert legacy.schema == STAGE_MANIFEST_SCHEMA_V1
-        assert _tuples(legacy) == _tuples(committed)
+        # The committed v2 file is the frozen v1 body less its hunt node (decision D-D59), every tuple unmoved.
+        assert _tuples(legacy)[:-1] == _tuples(committed)
+        assert _tuples(legacy)[-1] == ("behavior", 4, "behavior.toml", 3)
         assert [entry.reference for entry in legacy.stages] == [1, "recovery", 2, 3]
         assert _edges(legacy) == [
             ("stance", None),
@@ -258,14 +268,9 @@ class TestLegacyReadsAreBitIdentical:
             "stance",
             "recovery",
             "locomotion",
-            "behavior",
         ]
         for model_id in INTEGER_MODELS:
-            assert [entry.id for entry in load_stage_manifest(model_id).deliverables] == [
-                "stance",
-                "locomotion",
-                "behavior",
-            ]
+            assert [entry.id for entry in load_stage_manifest(model_id).deliverables] == ["stance", "locomotion"]
 
     def test_derived_edge_is_non_none_exactly_when_position_gt_1(self, tmp_path):
         """The entry-shaping bit-identity proof (plan §8.3): has_parent == position > 1."""
@@ -515,17 +520,15 @@ class TestManifestV2Edges:
         assert manifest.parent_of("recovery").id == "stance"
         assert manifest.parent_of("locomotion").id == "stance"
         assert manifest.parent_of(2).id == "stance"
-        assert manifest.parent_of("behavior").id == "locomotion"
-        assert [entry.has_parent for entry in manifest.stages] == [False, True, True, True]
+        assert [entry.has_parent for entry in manifest.stages] == [False, True, True]
 
     def test_ancestors_and_chain_are_root_first(self):
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
-        assert [entry.id for entry in manifest.chain_for("behavior")] == ["stance", "locomotion", "behavior"]
-        assert [entry.id for entry in manifest.chain_for(3)] == ["stance", "locomotion", "behavior"]
+        assert [entry.id for entry in manifest.chain_for("locomotion")] == ["stance", "locomotion"]
+        assert [entry.id for entry in manifest.chain_for(2)] == ["stance", "locomotion"]
         # A chain never visits a sibling branch.
         assert [entry.id for entry in manifest.chain_for("recovery")] == ["stance", "recovery"]
-        assert [entry.id for entry in manifest.chain_for("locomotion")] == ["stance", "locomotion"]
-        assert [entry.id for entry in manifest.ancestors("behavior")] == ["stance", "locomotion"]
+        assert [entry.id for entry in manifest.ancestors("locomotion")] == ["stance"]
         assert [entry.id for entry in manifest.ancestors("recovery")] == ["stance"]
         assert manifest.ancestors("stance") == ()
         assert manifest.chain_for("stance") == (manifest.by_id("stance"),)
@@ -535,34 +538,28 @@ class TestManifestV2Edges:
             "stance",
             "recovery",
             "locomotion",
-            "behavior",
         ]
         for model_id in INTEGER_MODELS:
-            assert [entry.id for entry in load_stage_manifest(model_id).deliverables] == [
-                "stance",
-                "locomotion",
-                "behavior",
-            ]
+            assert [entry.id for entry in load_stage_manifest(model_id).deliverables] == ["stance", "locomotion"]
 
     def test_recipe_labels_resolve_to_the_deepest_deliverable(self, tmp_path):
         tyrannosaurus_rex = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
-        assert tyrannosaurus_rex.recipe_labels == ("stance", "recover", "walk", "hunt")
+        assert tyrannosaurus_rex.recipe_labels == ("stance", "recover", "walk")
         assert tyrannosaurus_rex.resolve_behavior("stance").id == "stance"
         assert tyrannosaurus_rex.resolve_behavior("recover").id == "recovery"
         assert tyrannosaurus_rex.resolve_behavior("walk").id == "locomotion"
-        assert tyrannosaurus_rex.resolve_behavior("hunt").id == "behavior"
         for model_id in INTEGER_MODELS:
             manifest = load_stage_manifest(model_id)
             assert manifest.resolve_behavior("stance").id == "stance"
             assert manifest.resolve_behavior("walk").id == "locomotion"
-            assert manifest.resolve_behavior("hunt").id == "behavior"
-        # Every committed manifest, the Compsognathus pair included: root-first chains, no unknown label.
+        # Every committed manifest, the Compsognathus pair included: root-first chains ending at walk (decision
+        # D-D59), no unknown label.
         for model_id in MODEL_IDS:
             manifest = load_stage_manifest(model_id)
-            leaf_label, leaf_id = ("walk", "locomotion") if model_id == ALLOSAURUS_FRAGILIS else ("hunt", "behavior")
-            assert manifest.resolve_behavior(leaf_label).id == leaf_id, model_id
+            assert manifest.resolve_behavior("walk").id == "locomotion", model_id
+            assert manifest.deliverables[-1].id == "locomotion", model_id
             assert manifest.resolve_behavior("stance").id == "stance", model_id
-            assert manifest.chain_for(leaf_id)[0].id == "stance", model_id
+            assert manifest.chain_for("locomotion")[0].id == "stance", model_id
             with pytest.raises(StageManifestError):
                 manifest.resolve_behavior("sprint")
         pilot = load_stage_manifest(PROBE, configs_dir=_write_manifest(tmp_path, PROBE, OPEN_ID_BODY))
@@ -597,7 +594,7 @@ class TestManifestV2Edges:
             '[[stages]]\nid = "locomotion"\nconfig = "locomotion.toml"\nlegacy_number = 2\nwarm_start_from = "stance"\n'
             "deliverable = true\n"
             '[[stages]]\nid = "behavior"\nconfig = "behavior.toml"\nlegacy_number = 3\nwarm_start_from = "locomotion"\n'
-            'recipe = "hunt"\ndeliverable = true\n'
+            'recipe = "sprint"\ndeliverable = true\n'
             '[[stages]]\nid = "follow_direction"\nconfig = "follow_direction.toml"\nwarm_start_from = "locomotion"\n'
             'recipe = "follow"\ndeliverable = true\n'
         )
@@ -615,7 +612,7 @@ class TestManifestV2Edges:
 
 class TestRecipeLabels:
     """The recipe labels on every committed manifest: ``stance``, ``recover`` (where a model has a recovery
-    node), ``walk`` and ``hunt``.
+    node) and ``walk``; ``hunt`` was removed with every hunt node (decision D-D59) and is refused naming ``walk``.
 
     Decision D-D35 (the maintainer, 2026-10-16) gave the recovery node its own label, ``recover``: before it
     the recovery node was labelled ``stand`` too, so ``stand`` resolved to recovery (stance -> recovery) on
@@ -646,6 +643,39 @@ class TestRecipeLabels:
         with pytest.raises(StageManifestError) as excinfo:
             load_stage_manifest(model_id).resolve_behavior("stand")
         assert str(excinfo.value) == f"{model_id} has no behavior 'stand': {STAND_POINTER}"
+
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_hunt_is_refused_naming_walk_on_every_model(self, model_id):
+        """Decision D-D59: ``hunt`` labelled the six hunt nodes, all removed; it does not resolve on any model,
+        Allosaurus (which never had one) included, and the refusal names ``walk`` and the decision."""
+        manifest = load_stage_manifest(model_id)
+        with pytest.raises(StageManifestError) as excinfo:
+            manifest.resolve_behavior("hunt")
+        assert str(excinfo.value) == f"{model_id} has no behavior 'hunt': {HUNT_POINTER}"
+        assert retired_recipe_label_message("hunt") == HUNT_POINTER
+        assert RETIRED_RECIPE_LABELS["hunt"][:2] == ("walk", "D-D59")
+        assert "behavior" not in {entry.id for entry in manifest.stages}
+
+    def test_hunt_is_refused_at_load_and_by_a_manifest_that_declares_the_node(self, tmp_path):
+        """A manifest may not label a node ``hunt`` any more, and one that keeps a ``behavior`` node under
+        another label still refuses ``hunt`` as a behavior; the node stays reachable by its id."""
+        legacy = load_stage_manifest(
+            ModelId("tyrannosaurus_rex", "anatomical"),
+            configs_dir=_write_manifest(tmp_path / "v1", TYRANNOSAURUS_REX, TYRANNOSAURUS_REX_V1_BODY),
+        )
+        with pytest.raises(StageManifestError, match=re.escape(f"has no behavior 'hunt': {HUNT_POINTER}")):
+            legacy.resolve_behavior("hunt")
+        assert legacy.resolve_behavior("behavior").id == "behavior"
+        labelled = (
+            V2 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\nrecipe = "stance"\n'
+            'deliverable = true\n[[stages]]\nid = "locomotion"\nconfig = "locomotion.toml"\nlegacy_number = 2\n'
+            'warm_start_from = "stance"\nrecipe = "walk"\ndeliverable = true\n[[stages]]\nid = "behavior"\n'
+            'config = "behavior.toml"\nlegacy_number = 3\nwarm_start_from = "locomotion"\nrecipe = "hunt"\n'
+            "deliverable = true\n"
+        )
+        root = _write_manifest(tmp_path / "v2", PROBE, labelled)
+        with pytest.raises(StageManifestError, match=re.escape(f"recipe label {HUNT_POINTER}")):
+            load_stage_manifest(PROBE, configs_dir=root)
 
     def test_stand_is_refused_even_by_a_manifest_that_could_not_declare_it(self, tmp_path):
         """The refusal is the vocabulary's, not the manifest's: a v1 manifest, which carries no labels at
@@ -678,8 +708,8 @@ class TestRecipeLabels:
             load_stage_manifest(model_id).resolve_behavior("recover")
 
     def test_recipe_labels_per_model(self):
-        expected = {model_id: ("stance", "walk", "hunt") for model_id in INTEGER_MODELS}
-        expected.update({model_id: ("stance", "recover", "walk", "hunt") for model_id in RECOVERY_MODELS})
+        expected = {model_id: ("stance", "walk") for model_id in INTEGER_MODELS}
+        expected.update({model_id: ("stance", "recover", "walk") for model_id in RECOVERY_MODELS})
         expected[ALLOSAURUS_FRAGILIS] = ("stance", "walk")
         assert set(expected) == set(MODEL_IDS)
         assert {model_id: load_stage_manifest(model_id).recipe_labels for model_id in MODEL_IDS} == expected
@@ -689,8 +719,7 @@ class TestRecipeLabels:
         }
         for model_id, recipes in labelled.items():
             assert recipes["stance"] == "stance" and recipes["locomotion"] == "walk"
-            if "hunt" in expected[model_id]:
-                assert recipes["behavior"] == "hunt"
+            assert "behavior" not in recipes, model_id
             assert recipes.get("recovery", "recover") == "recover", model_id
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -767,15 +796,11 @@ class TestCommittedManifestsAreV2:
         assert manifest.schema == STAGE_MANIFEST_SCHEMA_V2
         assert all(entry.deliverable for entry in manifest.stages)
         expected_labels = ["stance", "recover", "walk"] if model_id in RECOVERY_MODELS else ["stance", "walk"]
-        if model_id != ALLOSAURUS_FRAGILIS:
-            expected_labels.append("hunt")
         assert manifest.recipe_labels == tuple(expected_labels)
         for entry in manifest.stages:
             assert (model_id.path(_CONFIGS_DIR) / entry.config_file).is_file()
-        expected_chain = ["stance", "locomotion"]
-        if model_id != ALLOSAURUS_FRAGILIS:
-            expected_chain.append("behavior")
-        assert [entry.id for entry in manifest.advancing_stages] == expected_chain
+        # Every chain ends at walk since decision D-D59 removed the hunt nodes.
+        assert [entry.id for entry in manifest.advancing_stages] == ["stance", "locomotion"]
 
     def test_tyrannosaurus_rex_declares_edges_deliverables_and_labels(self):
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
@@ -784,7 +809,6 @@ class TestCommittedManifestsAreV2:
             # locomotion's parent is stance until plan A2 flips it to recovery.
             ("recovery", "stance", True, "recover"),
             ("locomotion", "stance", True, "walk"),
-            ("behavior", "locomotion", True, "hunt"),
         ]
 
     @pytest.mark.parametrize("model_id", INTEGER_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -793,23 +817,24 @@ class TestCommittedManifestsAreV2:
         assert [(entry.id, entry.warm_start_from, entry.recipe) for entry in manifest.stages] == [
             ("stance", None, "stance"),
             ("locomotion", "stance", "walk"),
-            ("behavior", "locomotion", "hunt"),
         ]
         with pytest.raises(StageManifestError, match="no stage 'recovery'"):
             manifest.resolve("recovery")
 
     def test_v2_manifest_does_not_move_any_dirname(self):
+        """Removing the hunt node (decision D-D59), the last entry of every manifest that had one, moves no other
+        stage's directory: each remaining dirname is its pre-Phase-A one."""
         from environments.shared.stage_manifest import stage_dirname
 
         pre_phase_a = {
-            TYRANNOSAURUS_REX: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
-            VELOCIRAPTOR_MONGOLIENSIS: ["01_stance", "02_locomotion", "03_behavior"],
-            ModelId("brachiosaurus_altithorax", "anatomical"): ["01_stance", "02_locomotion", "03_behavior"],
-            ModelId("dibothrosuchus_elaphros", "anatomical"): ["01_stance", "02_locomotion", "03_behavior"],
+            TYRANNOSAURUS_REX: ["01_stance", "02_recovery", "03_locomotion"],
+            VELOCIRAPTOR_MONGOLIENSIS: ["01_stance", "02_locomotion"],
+            ModelId("brachiosaurus_altithorax", "anatomical"): ["01_stance", "02_locomotion"],
+            ModelId("dibothrosuchus_elaphros", "anatomical"): ["01_stance", "02_locomotion"],
             # The two Compsognathus models landed (PRs #521-#526) on the
             # T-Rex layout with v1 manifests; their v2 files keep it.
-            COMPSOGNATHUS_LONGIPES: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
-            COMPSOGNATHUS_LONGIPES_ROBOT: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
+            COMPSOGNATHUS_LONGIPES: ["01_stance", "02_recovery", "03_locomotion"],
+            COMPSOGNATHUS_LONGIPES_ROBOT: ["01_stance", "02_recovery", "03_locomotion"],
         }
         # Allosaurus joined after the v2 migration.
         assert set(pre_phase_a) == set(MODEL_IDS) - {ALLOSAURUS_FRAGILIS}
@@ -1019,14 +1044,14 @@ class TestLoadAllStages:
         from environments.shared.config import load_all_stages
 
         configs = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))
-        assert list(configs) == [1, "recovery", 2, 3]  # manifest order
+        assert list(configs) == [1, "recovery", 2]  # manifest order
         assert configs[2]["name"] == "locomotion"
         assert configs["recovery"]["env_kwargs"]["perturbation_capture_velocity_multiple"] == 1.5
 
-    def test_the_declared_legacy_trio_is_untouched(self):
+    def test_the_declared_legacy_pair_is_untouched(self):
         from environments.shared.config import load_all_stages
 
-        assert list(load_all_stages(ModelId("velociraptor_mongoliensis", "anatomical"))) == [1, 2, 3]
+        assert list(load_all_stages(ModelId("velociraptor_mongoliensis", "anatomical"))) == [1, 2]
 
     def test_the_legacy_curriculum_ignores_semantic_only_stages(self):
         """thresholds_from_configs must not validate recovery's gate under
@@ -1037,7 +1062,7 @@ class TestLoadAllStages:
         from environments.shared.curriculum.manager import thresholds_from_configs
 
         thresholds = thresholds_from_configs(load_all_stages(ModelId("tyrannosaurus_rex", "anatomical")))
-        assert sorted(thresholds) == [1, 2, 3]
+        assert sorted(thresholds) == [1, 2]
 
 
 class TestCliStageParsing:
@@ -1056,9 +1081,9 @@ class TestStageDirnames:
 
         names = [
             stage_dirname(ModelId("tyrannosaurus_rex", "anatomical"), ref)
-            for ref in ("stance", "recovery", "locomotion", "behavior")
+            for ref in ("stance", "recovery", "locomotion")
         ]
-        assert names == ["01_stance", "02_recovery", "03_locomotion", "04_behavior"]
+        assert names == ["01_stance", "02_recovery", "03_locomotion"]
         assert names == sorted(names)
 
     def test_integer_refs_keep_their_legacy_meaning(self):
@@ -1200,41 +1225,29 @@ class TestSerializedStageKeys:
         from environments.shared.stage_manifest import load_stage_manifest
 
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
-        assert [entry.reference for entry in manifest.stages] == [1, "recovery", 2, 3]
-        assert [entry.key for entry in manifest.stages] == ["1", "recovery", "2", "3"]
+        assert [entry.reference for entry in manifest.stages] == [1, "recovery", 2]
+        assert [entry.key for entry in manifest.stages] == ["1", "recovery", "2"]
         # An open id serializes as itself, exactly like recovery.
         pilot = load_stage_manifest(PROBE, configs_dir=_write_manifest(tmp_path, PROBE, OPEN_ID_BODY))
         assert [entry.reference for entry in pilot.stages] == [1, 2, "follow_direction", "follow_direction_speed"]
         assert [entry.key for entry in pilot.stages] == ["1", "2", "follow_direction", "follow_direction_speed"]
 
-    def test_advancing_stages_are_the_numbered_trio(self):
+    def test_advancing_stages_are_the_numbered_pair(self):
+        """The numbered stages; the third, the hunt, left with decision D-D59."""
         from environments.shared.stage_manifest import load_stage_manifest
 
         assert [
             entry.id for entry in load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical")).advancing_stages
-        ] == [
-            "stance",
-            "locomotion",
-            "behavior",
-        ]
+        ] == ["stance", "locomotion"]
         assert [
             entry.id
             for entry in load_stage_manifest(ModelId("velociraptor_mongoliensis", "anatomical")).advancing_stages
-        ] == [
-            "stance",
-            "locomotion",
-            "behavior",
-        ]
+        ] == ["stance", "locomotion"]
         # Two vocabularies: advancing (integer-keyed manager) is not
-        # deliverables (publication); they coincide only for the trio.
+        # deliverables (publication); they coincide only for the numbered stages.
         tyrannosaurus_rex = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
-        assert [entry.id for entry in tyrannosaurus_rex.advancing_stages] == ["stance", "locomotion", "behavior"]
-        assert [entry.id for entry in tyrannosaurus_rex.deliverables] == [
-            "stance",
-            "recovery",
-            "locomotion",
-            "behavior",
-        ]
+        assert [entry.id for entry in tyrannosaurus_rex.advancing_stages] == ["stance", "locomotion"]
+        assert [entry.id for entry in tyrannosaurus_rex.deliverables] == ["stance", "recovery", "locomotion"]
         velociraptor_mongoliensis = load_stage_manifest(ModelId("velociraptor_mongoliensis", "anatomical"))
         assert [entry.id for entry in velociraptor_mongoliensis.advancing_stages] == [
             entry.id for entry in velociraptor_mongoliensis.deliverables

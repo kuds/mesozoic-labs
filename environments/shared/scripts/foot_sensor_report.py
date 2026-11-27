@@ -15,9 +15,10 @@ Two independent checks, both of which must hold on a settled plant:
   motion), so a deviation is an accounting bug rather than a policy result.
 
 The weight denominator is the mass of the ANIMAL's kinematic subtree, not
-``mj_getTotalmass``.  Several species carry a prey or food body -- on T-Rex the
-prey is 65.45 kg of a 151.17 kg model total -- so dividing by the model mass
-reports a false 0.57 on a plant standing in perfect equilibrium.
+``mj_getTotalmass``, which counts every body of the scene: when the scenes
+carried a prey or food body (the T-Rex prey was 65.45 kg of a 151.17 kg model
+total), dividing by the model mass reported a false 0.57 on a plant standing in
+perfect equilibrium.
 
 Usage (``--model-id`` repeats; with none, every model in the species manifest)::
 
@@ -86,12 +87,12 @@ def _floor_normal_force(env) -> tuple[float, int]:
 
 
 def _animal_weight(env) -> float:
-    """Weight of the animal's kinematic subtree, excluding prey/food bodies."""
+    """Weight of the animal's kinematic subtree, excluding every other body of the scene."""
 
     model = env.model
     root_body = model.body_rootid[1] if model.nbody > 1 else 0
     # The animal is the subtree containing the actuated joints; every other
-    # rooted subtree (prey, food) is scenery.
+    # rooted subtree is scenery.
     actuated_roots = {int(model.body_rootid[model.jnt_bodyid[model.actuator_trnid[a, 0]]]) for a in range(model.nu)}
     if not actuated_roots:
         actuated_roots = {int(root_body)}

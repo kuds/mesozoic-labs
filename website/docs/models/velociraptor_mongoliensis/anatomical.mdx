@@ -12,21 +12,23 @@ export const MODEL = requireModel('velociraptor_mongoliensis', 'anatomical');
 
 # Velociraptor Model
 
-This 15 kg reconstruction of *Velociraptor mongoliensis* has a long, narrow snout, feathered forelimbs and a raised sickle claw on each foot. It simulates bipedal locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
+This 15 kg reconstruction of *Velociraptor mongoliensis* has a long, narrow snout, feathered forelimbs and a raised sickle claw on each foot. It simulates bipedal stance and locomotion. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares two published behaviors on one trunk: `stance` (stance) and `locomotion` (walk, warm-started from stance); the strike hunt that followed walk was removed by decision D-D59 with its reward, termination and constructor arguments, and since policy interface r15 and physics r6 (the same decision) the prey sphere it targeted, its observation channels and the claws' prey-only collision are gone too, so the scene holds only the animal and the floor. See [Behavior Recipes](/docs/training/recipes).
 
 The stance node certifies stance quality, not reward: since physics r3 its gate judges every episode of a 40-episode
 panel on the floor's force under each foot (no hop at reset, both feet planted, every support of each foot loaded, no
 splay, drift or turn, no actuator held at its limit), and since policy interface r13 (the maintainer's decision of 2026-11-06) it is
 the six-heading certificate `stance_quality_heading/v1`: the panel is rolled with the whole scene turned -90, -45, 0,
 45, 90 and 180 degrees, and the stance certifies when at least 37 of the 40 seeds are clean at every heading. Its
-observation reads no world heading (projected gravity and the root velocity and prey direction in the animal's own
-frame), as the T-Rex's does, and its stance training starts at a small action noise (std 0.10), at the edge of what
+observation reads no world heading (projected gravity and the root velocity in the animal's own heading frame), as
+every model's does, and its stance training starts at a small action noise (std 0.10), at the edge of what
 the standing statue survives (at that noise it falls in 5 episodes of 120). Velociraptor trains on Stable-Baselines3 only.
 
 Since physics r5 (the maintainer's decision of 2026-11-08) the model is the animal at life size, built like the T-Rex:
 15 kg, with the femur, tibia and metatarsus of the specimen IGM 100/986 (238, 255 and 99 mm), a level trunk and a
 crouched, bird-like leg posture. Every earlier velociraptor policy is refused by the plant contract, so its stance
 retrains on this plant.
+
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance runs no command. Each walk episode draws one request at reset and holds it for its whole 10 s: a forward cruise at 1.05-2.1 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (17 weights) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the biped gait clause, with no flight cap since the cruise reaches Froude 0.82), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet passed the committed panel (decision D-D62 (16)). A moving command is scored on the trailing mean of the last 0.70 s, one stride of the reference walk (decision D-D64), which at its own 0.257 m/s clears the in-tolerance fraction and the speed ratio (at that command, inside the velocity tolerance, even the statue reads in tolerance); one of its 20 cruise episodes falls, and that truncated episode also fails the lead-swap bar, while the other 19 pass every bar. No gait has been measured in the commanded 1.05-2.1 m/s range (the reference walk runs at 0.257 m/s), and with no flight cap the staggered-hop risk of decision D-D61 (7) stays open (D-D62 (12)). The later follow nodes will widen this distribution as the walk's exact continuation.
 
 <SpeciesCatalog species={MODEL} />
 
@@ -38,11 +40,11 @@ The feathered surface follows the articulated skeleton. Its colour, feather leng
 - **Neck and head** - Separate neck and skull bodies with neck pitch, neck yaw and head pitch servos, which hold the head up at the standing pose; the neck does not collide, the skull does
 - **Legs** - Digitigrade hind limbs (hip pitch/roll, knee, ankle), the leg springs anchored at the standing pose, so the leg servos hold the stance
 - **Feet** - Each foot stands on a rounded pad under the metatarsophalangeal joints and on digits III and IV, which are passive sprung hinges; a touch sensor on each of the three, each its own observation channel; an elliptic friction cone since physics r4, the one friction model of every species
-- **Sickle claws** - Digit II rides raised on a passive sprung hinge; its claw is a bounded position servo that only the prey collides with
+- **Sickle claws** - Digit II rides raised on a passive sprung hinge; its claw is a bounded position servo that collides with nothing
 - **Arms** - Folded forelimbs welded to the body and non-colliding, with no joints or actuators, as the T-Rex's
 - **Tail** - 5-segment counterbalance (4 servos on the mobile segments), its weight carried by spring preloads
 
-## Diagnostic Metrics (behavior node, hunt)
+## Diagnostic Metrics
 
 After each training stage the `eval` command reports:
 
@@ -50,9 +52,7 @@ After each training stage the `eval` command reports:
 |--------|-------------|
 | `mean_forward_velocity` | Average forward speed (m/s) |
 | `mean_pelvis_height` | Upright stability (m) |
-| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
-| `success_rate` | Fraction of episodes with successful sickle-claw target contact |
-| `min_prey_distance` | Closest approach to prey (m) |
+| `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command |
 
 ## Reference walk
 
@@ -79,10 +79,10 @@ python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode wal
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical train --stage 1
 
-# The advancing stages (stance, locomotion, behavior) in manifest order
+# The advancing stages (stance, locomotion) in manifest order
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```

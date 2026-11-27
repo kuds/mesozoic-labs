@@ -431,6 +431,50 @@ class TestTheRecord:
         assert checkpoints["best_model_timesteps"] == 300 and checkpoints["best_mean_reward"] == 103.5
         assert checkpoints["robust_best_model_timesteps"] == 300
 
+    #: Three evaluations of a four-episode live panel (three cruise, one stand): the first stands well (the
+    #: family-aware best), the second cruises faster and stands poorly, which narrows the family gap the pooled
+    #: ``mean - std`` reads as risk, so the pooled rule would pick it.
+    LIVE_FAMILIES = ["cruise", "cruise", "cruise", "stand"]
+    LIVE_RESULTS = [[500.0, 502.0, 498.0, 5720.0], [550.0, 552.0, 548.0, 3000.0], [400.0, 402.0, 398.0, 5000.0]]
+
+    def test_a_live_stage_names_the_step_its_family_aware_tracker_saved(self, tmp_path):
+        """The robust best step is the first evaluation whose family-aware score (the tracker's own rule, on the
+        families it rolled) equals the tracker's best, where the pooled rule matched none (decision D-D62)."""
+        pytest.importorskip("stable_baselines3")
+        from environments.shared.curriculum import RobustBestModelCallback
+        from environments.shared.curriculum.command_evaluation import CommandEvaluationPlan
+
+        callback = _callback(tmp_path)
+        source = callback.eval_callback
+        source.evaluations_results = [list(row) for row in self.LIVE_RESULTS]
+        source.evaluations_command_families = [list(self.LIVE_FAMILIES) for _ in self.LIVE_RESULTS]
+        source.command_evaluation = CommandEvaluationPlan(
+            seed=1042, families=tuple(self.LIVE_FAMILIES), stop_probability=0.15
+        )
+        tracker = RobustBestModelCallback(source, model_dir=callback.model_dir)
+        scores = [tracker.score(row, self.LIVE_FAMILIES) for row in self.LIVE_RESULTS]
+        tracker.best_score = max(scores)
+        callback.robust_callback = tracker
+        checkpoints = callback.record("training")["checkpoints"]
+        assert scores.index(tracker.best_score) == 0
+        assert checkpoints["robust_best_model_timesteps"] == 100
+        assert checkpoints["robust_best_score"] == pytest.approx(tracker.best_score, rel=1e-5)
+        pooled = [float(np.mean(row) - np.std(row)) for row in self.LIVE_RESULTS]
+        assert int(np.argmax(pooled)) == 1, "the pooled rule would read the poor stander's evaluation"
+        # An evaluation recorded without its families matches nothing (and never raises).
+        source.evaluations_command_families = [[], *source.evaluations_command_families[1:]]
+        assert callback.record("training")["checkpoints"]["robust_best_model_timesteps"] is None
+
+    def test_a_command_free_stage_reads_the_pooled_score_whatever_the_history_holds(self, tmp_path):
+        callback = _callback(tmp_path)
+        callback.robust_callback = SimpleNamespace(
+            risk_coef=1.0, best_score=float(103.5 - np.std([102, 103, 104, 105]))
+        )
+        before = callback.record("training")["checkpoints"]
+        callback.eval_callback.evaluations_command_families = [["stand"] * 4 for _ in range(3)]
+        assert callback.record("training")["checkpoints"] == before
+        assert before["robust_best_model_timesteps"] == 300
+
     def test_the_warnings_of_every_source_in_step_order(self, tmp_path):
         callback = _callback(tmp_path)
         callback.warning_sources = [

@@ -203,6 +203,18 @@ def build_baseline_progress_callback(
     """
     if run_dir is None:
         return None
+    command_mode = (stage_config.get("env_kwargs") or {}).get("command_mode", "none")
+    if command_mode != "none":
+        # The run's baseline is one float, the stance statue's (the notebook captures stage 1), and a live-command
+        # stage is another task: its evaluation mixes whole-episode stand and cruise commands, and its reward
+        # optimum is not the do-nothing policy, so the comparison would mute a real warning or cry wolf
+        # (decision D-D62).  The walk is judged on its command-tracking panel instead.
+        logger.info(
+            "%s trains a live command (%s); skipping the below-baseline watch, whose baseline is the stance statue.",
+            model_id,
+            command_mode,
+        )
+        return None
     baseline = read_zero_action_baseline(run_dir, model_id)
     if baseline is None:
         logger.info(

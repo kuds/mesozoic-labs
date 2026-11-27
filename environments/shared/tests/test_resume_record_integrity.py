@@ -299,6 +299,43 @@ class TestDiagnosticsContinueAcrossAResume:
         [aside] = sorted(tmp_path.glob("diagnostics.prior_*.npz"))
         assert aside.read_bytes() == prior
 
+    def test_a_live_stage_keeps_its_command_tracking_rows_and_a_none_stage_writes_none(self, tmp_path):
+        """The live command's tracking series (decision D-D60) are seeded like the other timesteps-aligned rows."""
+
+        def live_rollout(callback: DiagnosticsCallback, timesteps: int, info: dict[str, float]) -> None:
+            callback.num_timesteps = timesteps
+            callback.model.logger.name_to_value = {}
+            for _ in range(2):
+                callback.locals = {"infos": [{"pelvis_height": 0.5, "reward_alive": 1.0, **info}], "dones": [True]}
+                callback._on_step()
+            callback._rollout_terminations = Counter()
+            callback._on_rollout_end()
+
+        live = tmp_path / "live"
+        live.mkdir()
+        first = _diagnostics_callback(live)
+        for timesteps in (100, 200, 300):
+            live_rollout(first, timesteps, {"tracking_in_tolerance": 1.0, "reward_tracking": 2.0})
+        first._on_training_end()
+        resumed = _diagnostics_callback(live)
+        assert resumed.seed_prior_diagnostics(live / "diagnostics.npz", max_timesteps=200) == 2
+        live_rollout(resumed, 300, {"tracking_in_tolerance": 0.5, "reward_tracking": 1.0})
+        resumed._on_training_end()
+        data = np.load(live / "diagnostics.npz")
+        assert data["timesteps"].tolist() == [100, 200, 300]
+        assert data["tracking_in_tolerance"].tolist() == pytest.approx([1.0, 1.0, 0.5])
+        assert data["reward_tracking"].tolist() == pytest.approx([2.0, 2.0, 1.0])
+
+        none = tmp_path / "none"
+        none.mkdir()
+        _prior_session(none)
+        resumed = _diagnostics_callback(none)
+        resumed.seed_prior_diagnostics(none / "diagnostics.npz")
+        _rollout(resumed, 400, 0.9, {})
+        resumed._on_training_end()
+        with np.load(none / "diagnostics.npz") as data:
+            assert not set(data.files) & set(DiagnosticsCallback.COMMAND_TRACKING_KEYS)
+
     def test_a_series_the_prior_file_lacks_reads_nan_on_the_seeded_rows(self, tmp_path):
         _prior_session(tmp_path)
         with np.load(tmp_path / "diagnostics.npz") as data:
@@ -877,7 +914,8 @@ class TestTheResumeCellWarns:
     def test_behavior_auto_is_warned(self, tmp_path, capsys):
         [_] = _run_resume_cell(tmp_path, behavior="auto")
         out = capsys.readouterr().out
-        assert "WARNING: BEHAVIOR is 'auto'" in out and "last deliverable, 'behavior'" in out
+        # The walk is the last deliverable since the hunt's behavior node left (decision D-D59).
+        assert "WARNING: BEHAVIOR is 'auto'" in out and "last deliverable, 'locomotion'" in out
         # An action, not a note: the training below would scroll it past before the chain loop retargets the run.
         assert "interrupt the run before the chain loop (section 6) starts" in out
         assert "set BEHAVIOR as the interrupted session had it and Run all again" in out

@@ -39,5 +39,7 @@ class TestCallbacksWithoutSB3:
 
     def test_load_vecnorm_stats_returns_false_without_sb3(self):
         with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
-            result = load_vecnorm_stats("/any/path.pkl", MagicMock(), unsafe_skip_plant_validation=True)
+            result = load_vecnorm_stats(
+                "/any/path.pkl", MagicMock(), unsafe_skip_plant_validation=True, command_mode="none"
+            )
             assert result is False

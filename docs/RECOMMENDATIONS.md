@@ -6,7 +6,10 @@
 > 2026-07-27, §6.1 reworded 2026-07-13), not an active backlog. [ROADMAP.md](ROADMAP.md) holds the
 > phased plan and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) the open problems. Since
 > this was written, D-D17 (2026-09-26) retired the JAX/MJX migration it
-> recommends (§6.1, table item 7), with cleanup PR-B (2026-09-28).
+> recommends (§6.1, table item 7), with cleanup PR-B (2026-09-28), and D-D59
+> (2026-11-23) removed the hunt and the prey, so the scripted prey and the
+> pack hunting it recommends (§3.1, table items 2 and 8) have no task left
+> to build on.
 
 ## Codebase Assessment
 

@@ -169,18 +169,27 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
 2. **Create the MJCF model** (`anatomical/assets/<species>_anatomical.xml`, with
    `<mujoco model="<species>_anatomical">`):
    - Define the body hierarchy, joints, actuators, and sensors
-   - Include a mocap body for the prey/food target
+   - Add no target, prey or marker body: no scene carries a mocap body (the
+     plant contract refuses one), and the episode's forward reference is the
+     spawn heading, which `BaseDinoEnv.reset` records as
+     `_reference_heading_2d`
    - Add touch sensors on feet and relevant contact geoms
 
 3. **Implement the environment:**
    - In `base_env.py`, subclass `BaseDinoEnv` from `environments.shared.base_env`
      as `<Species>Env` and implement the five abstract methods: `_cache_ids`,
-     `_get_obs`, `_get_reward_info`, `_is_terminated`, `_spawn_target`. Put
-     every method the plant contract hashes here, on the species base, so a
-     later robot of the species does not move the anatomical model's
-     policy-interface digest
+     `_get_obs`, `_get_reward_info`, `_is_terminated`, `_reset_episode_state`.
+     `BaseDinoEnv.reset` sets the drift anchor `_initial_pos_2d` and the
+     reference heading `_reference_heading_2d` itself, just before it calls
+     `_reset_episode_state`; the hook clears the species' per-episode state
+     (action history, gait state), may read both anchors, and must neither
+     set them nor draw from `np_random`. Put every method the plant contract
+     hashes here, on the species base, so a later robot of the species does
+     not move the anatomical model's policy-interface digest
    - Give the species base the class attributes the species registry reads:
-     `HEIGHT_LABEL`, `BEHAVIOR_SECTION_LABEL` and `SUCCESS_KEYS`
+     `HEIGHT_LABEL` and `SUCCESS_KEYS` (the info keys of the model's success
+     event; `()` when it has none, and its evaluations then record no success
+     rate)
    - In `anatomical/env.py`, subclass it as `<Species>AnatomicalEnv` with the
      embodiment's body data: `embodiment = "anatomical"`, `MODEL_PATH` built
      with `ModelId("<species>", "anatomical").asset_path(...)`, `FOOT_SUPPORT`
@@ -189,8 +198,10 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      `toe_line`, all three or none: the ankle, a hinge of the sole's own body
      about its lateral axis, and the support span the whole-foot centre of
      pressure is measured on) and `REWARD_PROBE` (the digest harness's
-     reward-roll amplitude and the MJCF element its success probe moves the
-     target onto)
+     reward-roll amplitude and, only when the species declares
+     `SUCCESS_KEYS`, its success probe's effector: `("root_displacement",
+     "<attribute>")` moves the root along the reference heading by that env
+     attribute's metres, as the Allosaurus's `COURSE_LENGTH_M`)
    - Do not call `gym.register`: `environments/__init__.py` registers every
      model of the species manifest as `MesozoicLabs/<Species>-Anatomical-v0`,
      and the species registry imports the manifest's `env_entrypoint`
@@ -201,17 +212,21 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      (decision D-D17); the plant contract refuses any other value, `jax-mjx`
      included: the JAX/MJX backend and its frozen interface core were removed
      (`docs/PLANT_CONTRACT.md`, "Training backend and runtime binding")
-   - A biped can take the heading-free observation schema
-     `bipedal-target-heading-free/v1`, as the T-Rex, the anatomical
-     Compsognathus and the Velociraptor do: build its root block with
+   - Every model's observation is heading-free: a biped declares
+     `bipedal-heading-free/v1` (root body `pelvis`) and a quadruped
+     `quadrupedal-heading-free/v1` (root body `torso`) in
+     `configs/plant_versions.toml`; the plant contract refuses any other
+     schema. Build the root block with
      `environments/shared/heading_observation.heading_free_root_segments`
-     and declare the schema in `configs/plant_versions.toml`
+     in the contract's segment order (joint positions, joint velocities,
+     projected gravity, gyro, heading-frame velocity, accelerometer, foot
+     channels, then the 3-wide command last)
      (`docs/PLANT_CONTRACT.md`, "The heading-free observation schema")
 
 5. **Add curriculum configs** (`configs/<species>/anatomical/`):
-   - Create `stance.toml`, `locomotion.toml` and the skill stage
-     (`strike.toml`, `snap.toml`, `food_reach.toml` or `behavior.toml`), each
-     named by its stage with no number, plus `stages.toml` and the eleven
+   - Create `stance.toml` and `locomotion.toml`, each named by its stage
+     with no number (the hunt stage that once followed locomotion was
+     removed by decision D-D59), plus `stages.toml` and the eleven
      behavior recipes under `behaviors/`, each with
      `[behavior] species = "<species>"` and `embodiment = "anatomical"`
    - Follow the TOML structure from an existing species
@@ -316,6 +331,8 @@ until one is adopted (the maintainer's decision of 2026-11-26):
 5. **A recovery calibration** `configs/<species>/robot/recovery_calibration.json`,
    when the stage graph has a recovery stage, measured with
    `python -m environments.shared.scripts.calibrate_recovery --species <species> --embodiment robot --output <file>`
+   and assembled into the profile with
+   `python -m environments.shared.scripts.assemble_recovery_profile`
    ([the Compsognathus calibration guide](environments/compsognathus_longipes/RECOVERY_CALIBRATION.md)).
 6. **The documentation** (contract tests compare the three model lists with
    the manifest):
@@ -361,7 +378,23 @@ per species (decision D-D33). None of it exists yet.
    A change to a plant or its policy interface also regenerates that model's
    committed mirror map, and a T. rex change that moves the statue's legs
    re-measures `_LEG_SETTLED_QPOS` (`docs/PLANT_CONTRACT.md`, "Regeneration",
-   step 5)
+   step 5). A physics revision re-measures the statue-derived constants of
+   every stage that pins `statue_constants_physics_revision`
+   (`environments/shared/scripts/zero_action_baseline.py`;
+   `test_statue_constant_freshness.py` names each stale pin). A change to
+   what `BaseDinoEnv.reset` draws (a draw added, removed or reordered)
+   re-captures the reset golden with `environments/shared/tests/reset_golden.py
+   --recapture ... --reason ...` after showing that only the fields such a
+   change must move have moved (its module docstring), and re-measures, with
+   `python -m environments.shared.scripts.calibrate_recovery`, every committed
+   recovery calibration whose push schedule it moves, then rebuilds each
+   profile from its new measurement with
+   `python -m environments.shared.scripts.assemble_recovery_profile` (its
+   `--check` re-assembles every committed profile byte for byte): a restamp
+   (`environments/shared/scripts/restamp_recovery_calibration.py`) covers
+   only an interface-only revision that leaves the task, the physics and the
+   draw stream as they were. `configs/plant_versions.toml` note 24 did all
+   three
 5. Open a PR with a description of what changed and why
 6. Link any related issues
 

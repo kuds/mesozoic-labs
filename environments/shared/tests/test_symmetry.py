@@ -1,27 +1,35 @@
 """The mirror maps (environments/shared/symmetry.py): derivation, the committed T. rex map, its plant binding,
-simulator equivariance by paired rollouts, and the [ppo] symmetry keys.  MuJoCo and numpy only; MirrorKLPPO's own
-tests, which need stable-baselines3, are in test_mirror_kl_ppo.py."""
+simulator equivariance by paired rollouts, the state mirror's refusal of a positive gait weight, and the [ppo]
+symmetry keys.  MuJoCo and numpy only; MirrorKLPPO's own tests, which need stable-baselines3, are in
+test_mirror_kl_ppo.py."""
 
 from __future__ import annotations
 
 import json
 import math
 import shutil
+import types
 from pathlib import Path
 
 import mujoco
 import numpy as np
 import pytest
 
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared import symmetry as SY
+from environments.shared.base_env import BaseDinoEnv
+from environments.shared.command_frame import COMMAND_COMPONENTS
 from environments.shared.config import load_stage_config
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity
 from environments.shared.species_names import model_ids
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 ROBOT = ModelId("compsognathus_longipes", "robot")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 
 
 @pytest.fixture(scope="module")
@@ -342,6 +350,83 @@ def test_rotated_link_frames_and_suffix_side_tokens_derive_on_a_synthetic_biped(
         SY.derive_model_mirror(mujoco.MjModel.from_xml_string(_cad_biped_xml(correct_the_left_knee=False)))
 
 
+def _floor_biped_xml() -> str:
+    """The synthetic biped on a floor plane, with a midline IMU site (a gyro and an accelerometer) for the layout."""
+    xml = _cad_biped_xml()
+    xml = xml.replace("<worldbody>", '<worldbody>\n    <geom name="floor" type="plane" size="5 5 0.1"/>', 1)
+    xml = xml.replace(
+        '<geom name="torso_geom" type="box" size="0.3 0.2 0.1"/>',
+        '<geom name="torso_geom" type="box" size="0.3 0.2 0.1"/><site name="imu" size="0.01"/>',
+        1,
+    )
+    return xml.replace(
+        "<sensor>", '<sensor><gyro name="imu_gyro" site="imu"/><accelerometer name="imu_acc" site="imu"/>', 1
+    )
+
+
+def test_the_floor_contact_foot_channels_swap_sides_on_a_synthetic_biped():
+    """The heading-free layout's floor-contact branch (``_foot_observation_floor_geoms``, the Compsognathus robot's
+    feet, whose plant :func:`derive_model_mirror` refuses): each foot's channel of summed floor-contact force maps
+    onto its partner's with sign +1 and a midline channel onto itself, and on a mirrored rollout the mirror's
+    channels read the source's swapped (measured to 1.8e-9 relative over 300 steps, both feet loaded on 185)."""
+    model = mujoco.MjModel.from_xml_string(_floor_biped_xml())
+    mm = SY.derive_model_mirror(model)
+    geom = {name: model.geom(name).id for name in ("floor", "torso_geom")}
+    for side in ("r", "l"):
+        geom |= {f"shank_geom_{side}": model.geom(f"shank_geom_{side}").id}
+        geom |= {f"thigh_box_{side}": model.geom(f"thigh_box_{side}").id}
+    groups = (
+        (geom["thigh_box_r"], geom["shank_geom_r"]),
+        (geom["shank_geom_l"], geom["thigh_box_l"]),
+        (geom["torso_geom"],),
+    )
+
+    def holder(data: mujoco.MjData) -> types.SimpleNamespace:
+        width = (model.nq - 7) + (model.nv - 6) + 12 + len(groups) + len(COMMAND_COMPONENTS)
+        return types.SimpleNamespace(
+            model=model,
+            data=data,
+            floor_geom_id=geom["floor"],
+            _sensor_gyro_start=int(model.sensor_adr[model.sensor("imu_gyro").id]),
+            _sensor_accel_start=int(model.sensor_adr[model.sensor("imu_acc").id]),
+            _foot_sensor_groups=(),
+            _foot_observation_floor_geoms=groups,
+            observation_space=types.SimpleNamespace(shape=(width,)),
+        )
+
+    a, b = mujoco.MjData(model), mujoco.MjData(model)
+    keys, names = SY.heading_free_observation_keys(holder(a))
+    obs = SY.derive_observation_map(mm, model, keys, names)
+    right = names.index("foot_floor_contact.shank_geom_r+thigh_box_r")
+    left = names.index("foot_floor_contact.shank_geom_l+thigh_box_l")
+    midline = names.index("foot_floor_contact.torso_geom")
+    assert [names[i] for i in range(right, right + 3)] == [names[right], names[left], names[midline]]
+    assert not any(name.startswith("foot_contact.") for name in names)  # the floor channels replace the touch sums
+    assert (obs.perm[right], obs.perm[left], obs.perm[midline]) == (left, right, midline)
+    assert (obs.sign[right], obs.sign[left], obs.sign[midline]) == (1.0, 1.0, 1.0)
+    assert "floor-contact force (swapped)" in obs.rules[right] and "floor-contact force (self)" in obs.rules[midline]
+    rng = np.random.default_rng(11)
+    a.qpos[:7] = [0.0, 0.0, 0.75, 1.0, 0.0, 0.0, 0.0]
+    a.qpos[7:] = rng.uniform(-0.3, 0.1, model.nq - 7)
+    a.qvel[:] = rng.normal(0.0, 0.3, model.nv)
+    a.ctrl[:] = rng.uniform(-0.3, 0.3, model.nu)
+    SY.mirror_physics_state(mm, model, a, b)
+    perm = obs.perm[right : right + 3] - right
+    worst, both_loaded, uneven = 0.0, 0, 0
+    for _ in range(300):
+        mujoco.mj_step(model, a)
+        mujoco.mj_step(model, b)
+        mujoco.mj_forward(model, a)
+        mujoco.mj_forward(model, b)
+        source = np.asarray(BaseDinoEnv._foot_floor_contact_forces(holder(a)))
+        mirrored = np.asarray(BaseDinoEnv._foot_floor_contact_forces(holder(b)))
+        worst = max(worst, float(np.max(np.abs(mirrored - source[perm]) / np.maximum(1.0, np.abs(source[perm])))))
+        both_loaded += bool(source[0] > 0.0 and source[1] > 0.0)
+        uneven += bool(abs(source[0] - source[1]) > 1.0)
+    assert worst <= 1e-7
+    assert both_loaded >= 100 and uneven >= 250  # the swap is visible: the feet carry different loads
+
+
 # ---------------------------------------------------------------------------------------------------- the T. rex map
 def test_the_committed_maps_are_current():
     # The CI form of `python -m environments.shared.symmetry --check`.
@@ -351,14 +436,16 @@ def test_the_committed_maps_are_current():
 
 
 def test_the_tyrannosaurus_rex_map(mirror_map, plant):
-    assert (mirror_map.obs.dim, mirror_map.action.dim) == (63, 15) == (plant.observation_dim, plant.action_dim)
+    # 59 wide since policy interface r17 (the target direction and distance left; r16: 63).
+    assert (mirror_map.obs.dim, mirror_map.action.dim) == (59, 15) == (plant.observation_dim, plant.action_dim)
     # Actuators: the leg pairs swap; neck yaw, tail_1 yaw and the hip-roll pair are negated.
     assert [int(mirror_map.action.perm[i]) for i in (3, 4, 5, 6)] == [7, 8, 9, 10]
     assert {i for i in range(15) if mirror_map.action.sign[i] < 0} == {1, 4, 8, 12}
     names = mirror_map.obs.names
-    flipped = {names[i] for i in range(63) if mirror_map.obs.sign[i] < 0}
-    assert {"projected_gravity.y", "heading_linear_velocity.left", "target_direction.y", "pelvis_gyro.x",
+    flipped = {names[i] for i in range(59) if mirror_map.obs.sign[i] < 0}
+    assert {"projected_gravity.y", "heading_linear_velocity.left", "pelvis_gyro.x",
             "pelvis_gyro.z", "pelvis_accel.y", "command.v_y_cmd", "command.yaw_rate_cmd"} <= flipped  # fmt: skip
+    assert not [name for name in names if name.startswith(("target_", "prey_"))]
     foot = [i for i, name in enumerate(names) if name.startswith("foot_contact.")]
     assert [int(mirror_map.obs.perm[i]) for i in foot] == foot[::-1]
     record = json.loads(Path(mirror_map.path).read_text())
@@ -402,7 +489,7 @@ def test_the_map_fails_closed(plant, tmp_path):
 
 # ---------------------------------------------------------------------------------------------------- equivariance
 def _env_mirror(env) -> SY.EnvMirror:
-    return SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+    return SY.build_env_mirror(env, SY.BIPEDAL_HEADING_FREE_SCHEMA)
 
 
 def _swap_sides(info: dict) -> dict:
@@ -566,18 +653,151 @@ def test_the_state_mirror_is_an_involution(stance_kwargs):
         env.reset(seed=3050)
         for action in _smooth_actions(20, 1, 0.1):
             env.step(action)
-        before = {
-            name: np.copy(getattr(env.data, name)) for name in ("qpos", "qvel", "ctrl", "mocap_pos", "mocap_quat")
-        }
+        # No scene carries a mocap body since the target-free revision: the state is qpos, qvel and ctrl, and the
+        # episode's reference heading, which the mirror reflects (y flips).
+        assert env.model.nmocap == 0
+        env._reference_heading_2d = np.array([np.cos(0.3), np.sin(0.3)])
+        before = {name: np.copy(getattr(env.data, name)) for name in ("qpos", "qvel", "ctrl")}
+        reference = env._reference_heading_2d.copy()
         filter_state = env._action_filter_state.copy()
         SY.mirror_env_state(env, env, em)
         assert not np.array_equal(env.data.qpos, before["qpos"])
+        np.testing.assert_array_equal(env._reference_heading_2d, reference * [1.0, -1.0])
         SY.mirror_env_state(env, env, em)
         for name, value in before.items():
             np.testing.assert_array_equal(getattr(env.data, name), value)
+        np.testing.assert_array_equal(env._reference_heading_2d, reference)
         np.testing.assert_array_equal(env._action_filter_state, filter_state)
     finally:
         env.close()
+
+
+# ---------------------------------------------------------------------------------------------------- gait history
+def _locomotion_kwargs(model_id: ModelId, **overrides) -> dict:
+    """The walk's [env] kwargs under command_mode "none": the mirror refuses the walk's live command (decision
+    D-D62), and these tests exercise its reward terms (the quadrupeds' gait symmetry)."""
+    env_kwargs = load_stage_config(model_id, "locomotion")["env_kwargs"]
+    return {**{k: v for k, v in env_kwargs.items() if k not in ("command_mode", "command_config")}, **overrides}
+
+
+def _smooth_steps(env, n: int, seed: int, amplitude: float = 0.3) -> np.random.Generator:
+    """Step *env* n times with small smooth actions; the generator, to keep drawing the same stream."""
+    rng = np.random.default_rng(seed)
+    x = np.zeros(env.action_space.shape)
+    for _ in range(n):
+        x += -0.1 * x + 0.12 * rng.normal(size=x.shape)
+        env.step(np.clip(amplitude * x / 0.27, -1.0, 1.0))
+    return rng
+
+
+@pytest.mark.parametrize(
+    ("env_class", "model_id", "schema", "overrides"),
+    [
+        # The committed quadruped locomotion stage pays the diagonal alternation (gait_symmetry_weight 2.0).
+        (DibothrosuchusElaphrosAnatomicalEnv, DIBOTHROSUCHUS_ELAPHROS, SY.QUADRUPEDAL_HEADING_FREE_SCHEMA, {}),
+        # Every biped stage sets the weight 0; the same order dependence refuses a positive one.
+        (
+            VelociraptorMongoliensisAnatomicalEnv,
+            VELOCIRAPTOR_MONGOLIENSIS,
+            SY.BIPEDAL_HEADING_FREE_SCHEMA,
+            {"gait_symmetry_weight": 1.0},
+        ),
+    ],
+    ids=["quadruped", "biped"],
+)
+def test_a_positive_gait_weight_is_refused(env_class, model_id, schema, overrides):
+    """The gait reward appends simultaneous touchdowns in a fixed order in an episode and in its mirror alike, so it
+    is not mirror-equivariant: mid-episode, with a touchdown history, and at reset, with an empty one."""
+    env = env_class(**_locomotion_kwargs(model_id, **overrides))
+    try:
+        assert env.gait_symmetry_weight > 0.0
+        em = SY.build_env_mirror(env, schema)
+        env.reset(seed=3042)
+        with pytest.raises(SY.SymmetryError, match=r"gait_symmetry_weight is .*not mirror-equivariant"):
+            SY.mirror_env_state(env, env, em)
+        _smooth_steps(env, 20, 3042)
+        history = (
+            env._quad_touchdown_sequence if schema == SY.QUADRUPEDAL_HEADING_FREE_SCHEMA else env._touchdown_sequence
+        )
+        assert history
+        before = np.copy(env.data.qpos)
+        with pytest.raises(SY.SymmetryError, match=r"gait_symmetry_weight is .*not mirror-equivariant"):
+            SY.mirror_env_state(env, env, em)
+        np.testing.assert_array_equal(env.data.qpos, before)  # refused before anything is written
+    finally:
+        env.close()
+
+
+def test_with_the_gait_weight_0_a_quadruped_mirrors_mid_episode():
+    """With the gait term off the diagonal history relabels A <-> B (and the diagonal contact flags swap), and the
+    mirrored episode is the source's mirror image: its observation exactly at the mirror and over the next steps,
+    its reward to 1e-9 (measured 0.0 and 1.6e-15)."""
+    kwargs = _locomotion_kwargs(DIBOTHROSUCHUS_ELAPHROS, gait_symmetry_weight=0.0)
+    env_a, env_b = DibothrosuchusElaphrosAnatomicalEnv(**kwargs), DibothrosuchusElaphrosAnatomicalEnv(**kwargs)
+    try:
+        em = SY.build_env_mirror(env_a, SY.QUADRUPEDAL_HEADING_FREE_SCHEMA)
+        env_a.reset(seed=3042)
+        env_b.reset(seed=3043)
+        rng = _smooth_steps(env_a, 20, 3042)
+        history = list(env_a._quad_touchdown_sequence)
+        assert set(history) == {"A", "B"}
+        mujoco.mj_forward(env_a.model, env_a.data)
+        SY.mirror_env_state(env_a, env_b, em)
+        assert env_b._quad_touchdown_sequence == [{"A": "B", "B": "A"}[label] for label in history]
+        assert (env_b._prev_diag_a_in_contact, env_b._prev_diag_b_in_contact) == (
+            env_a._prev_diag_b_in_contact,
+            env_a._prev_diag_a_in_contact,
+        )
+        np.testing.assert_array_equal(env_b._get_obs(), em.obs.apply(env_a._get_obs()))
+        x = np.zeros(env_a.action_space.shape)
+        steps = 0
+        for _ in range(30):
+            x += -0.1 * x + 0.12 * rng.normal(size=x.shape)
+            action = np.clip(0.3 * x / 0.27, -1.0, 1.0)
+            obs_a, reward_a, term_a, trunc_a, _ = env_a.step(action)
+            obs_b, reward_b, term_b, trunc_b, _ = env_b.step(em.action.apply(action))
+            steps += 1
+            assert float(np.max(np.abs(obs_b.astype(np.float64) - em.obs.apply(obs_a).astype(np.float64)))) <= 1e-6
+            assert abs(float(reward_a) - float(reward_b)) <= 1e-9
+            assert (term_a, trunc_a) == (term_b, trunc_b)
+            if term_a or trunc_a:
+                break
+        assert steps >= 10
+    finally:
+        env_a.close()
+        env_b.close()
+
+
+def test_the_gait_reward_is_not_mirror_equivariant():
+    """Why a positive gait weight is refused (pinned so that a fix of the append order shows up here): mirrored at
+    a seeded reset with the weight 0 and then switched to 1.0 on both, the dibothrosuchus histories [A] and [B] both
+    gain A, B on one step and the rewards part by 0.5 while the observations stay mirror images."""
+    kwargs = _locomotion_kwargs(DIBOTHROSUCHUS_ELAPHROS, gait_symmetry_weight=0.0)
+    env_a, env_b = DibothrosuchusElaphrosAnatomicalEnv(**kwargs), DibothrosuchusElaphrosAnatomicalEnv(**kwargs)
+    try:
+        em = SY.build_env_mirror(env_a, SY.QUADRUPEDAL_HEADING_FREE_SCHEMA)
+        env_a.reset(seed=3044)
+        env_b.reset(seed=3144)
+        SY.mirror_env_state(env_a, env_b, em)
+        env_a.gait_symmetry_weight = env_b.gait_symmetry_weight = 1.0
+        rng = np.random.default_rng(3044)
+        x = np.zeros(env_a.action_space.shape)
+        for step in range(30):
+            x += -0.1 * x + 0.12 * rng.normal(size=x.shape)
+            action = np.clip(0.3 * x / 0.27, -1.0, 1.0)
+            obs_a, reward_a, _, _, info_a = env_a.step(action)
+            obs_b, reward_b, _, _, info_b = env_b.step(em.action.apply(action))
+            assert float(np.max(np.abs(obs_b.astype(np.float64) - em.obs.apply(obs_a).astype(np.float64)))) <= 1e-6
+            if abs(float(reward_a) - float(reward_b)) > 1e-9:
+                break
+        else:
+            pytest.fail("the gait reward stayed mirror-equivariant for 30 steps")
+        assert step == 5
+        assert (env_a._quad_touchdown_sequence, env_b._quad_touchdown_sequence) == (["A", "A", "B"], ["B", "A", "B"])
+        assert (info_a["reward_gait_symmetry"], info_b["reward_gait_symmetry"]) == (0.5, 1.0)
+    finally:
+        env_a.close()
+        env_b.close()
 
 
 # ---------------------------------------------------------------------------------------------------- [ppo] keys

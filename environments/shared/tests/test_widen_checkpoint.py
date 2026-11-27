@@ -102,6 +102,7 @@ from environments.shared.task_fingerprint import (  # noqa: E402
     derive_stage_task_fingerprint,
     read_checkpoint_attribute,
     read_checkpoint_task_fingerprint,
+    stage_command_manifest,
     validate_declared_parent,
 )
 
@@ -893,7 +894,13 @@ def test_one_ppo_update_completes_under_initialize_next_stage(widened_ppo):
     )
 
     species_cfg = get_species_config(MODEL_ID)
+    # The walk's [env] under command_mode "none": the pin below rests on zero command inputs, which carry no
+    # gradient into the widened block.  The committed walk runs a live command (decision D-D62), whose columns
+    # train by design (test_train_base.py, TestCommandColumnWarmStart).
     locomotion = load_stage_config(MODEL_ID, child.reference)
+    locomotion["env_kwargs"] = {
+        k: v for k, v in locomotion["env_kwargs"].items() if k not in ("command_mode", "command_config")
+    }
     stage_configs = {child.reference: locomotion}
     gamma = locomotion["ppo_kwargs"]["gamma"]
     train_env = train_base.create_vec_env(
@@ -922,6 +929,7 @@ def test_one_ppo_update_completes_under_initialize_next_stage(widened_ppo):
             backend=FINGERPRINT_BACKEND,
             env_kwargs=locomotion["env_kwargs"],
             plant_identity=current.to_dict(),
+            command_manifest=stage_command_manifest(MODEL_ID, locomotion["env_kwargs"]),
         )
         widened_task = read_checkpoint_task_fingerprint(result.model_zip)
         assert locomotion_task["task_sha256"] != widened_task["task_sha256"]
@@ -1429,7 +1437,10 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         species_cfg, stage_configs, entry.reference, 1, 1000, algorithm=algorithm, plant_identity=current
     )
     try:
-        assert load_vecnorm_stats(str(result.vecnorm_pkl), train_env, eval_env, current_plant=current) is True
+        assert (
+            load_vecnorm_stats(str(result.vecnorm_pkl), train_env, eval_env, current_plant=current, command_mode="none")
+            is True
+        )
         assert np.array_equal(train_env.obs_rms.mean, widened_mean)
         assert np.array_equal(train_env.obs_rms.var, widened_var)
         assert np.array_equal(eval_env.obs_rms.mean, widened_mean)
@@ -1439,7 +1450,9 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         # VecNormalize.load cannot even bind the narrower statistics to these envs, and
         # policy_loading.load_vecnormalize then names the plant instead of the shape.
         with pytest.raises(PlantCompatibilityError, match="observation_dim: checkpoint="):
-            load_vecnorm_stats(str(parent["vecnorm_pkl"]), train_env, eval_env, current_plant=current)
+            load_vecnorm_stats(
+                str(parent["vecnorm_pkl"]), train_env, eval_env, current_plant=current, command_mode="none"
+            )
     finally:
         train_env.close()
         eval_env.close()
@@ -1888,3 +1901,162 @@ def test_main_cli_round_trip_with_max_revision_gap(narrow_parent_ppo_r2, tmp_pat
     lineage = read_checkpoint_attribute(Path(report["widened"]["model_path"]), MODEL_WIDEN_LINEAGE_ATTRIBUTE)
     assert lineage["revision_gap"] == 2
     assert json.loads((target / "plant_identity.json").read_text()) == current.to_dict()
+
+
+# ── a command_tracking/v1 parent: the recorded handoff choice (decisions D-D61, D-D62) ──────────
+
+WALK = "locomotion"
+
+
+def _command_stage_parent(parent: dict, root: Path, *, chosen: str | None, rank_final: bool = True) -> dict:
+    """*parent*'s narrow PPO pair re-filed as a T. rex walk stage directory (the live walk of decision D-D62).
+
+    ``models/`` holds ``robust_best_model`` (the parent's pair) and the stage's final pair (the same policy with one
+    action bias moved, so the two pairs differ), each stamped with the walk's task on the narrow plant, and a
+    ``handoff_choice.json`` that selects *chosen* (``None``: no record) among both pairs (only
+    ``robust_best_model`` when *rank_final* is false, a stale choice).  ``stage_config.json`` records the walk's
+    ``command_tracking/v1`` curriculum and the parent's run block.
+    """
+    from environments.shared.curriculum.checkpoints import HANDOFF_CHOICE_FILENAME, HANDOFF_CHOICE_SCHEMA
+    from environments.shared.file_io import atomic_write_json
+
+    entry = load_stage_manifest(MODEL_ID).by_id(WALK)
+    walk_config = load_stage_config(MODEL_ID, WALK)
+    narrow = parent["narrow"]
+    walk_task = derive_stage_task_fingerprint(
+        model_id=MODEL_ID,
+        stage=entry.reference,
+        backend=FINGERPRINT_BACKEND,
+        env_kwargs=walk_config["env_kwargs"],
+        plant_identity=narrow.to_dict(),
+        command_manifest=stage_command_manifest(MODEL_ID, walk_config["env_kwargs"]),
+    )
+    assert "command" in walk_task
+    stage_dir = root / PARENT_RUN_NAME / stage_dirname(MODEL_ID, WALK)
+    models_dir = stage_dir / "models"
+    models_dir.mkdir(parents=True)
+    final = f"{stage_label(entry.reference)}_final"
+    for name in ("robust_best_model", final):
+        shutil.copyfile(parent["model_zip"], models_dir / f"{name}.zip")
+        shutil.copyfile(parent["vecnorm_pkl"], models_dir / f"{name}_vecnorm.pkl")
+
+        def stamp(data: dict, params: dict, name: str = name) -> None:
+            data[MODEL_TASK_ATTRIBUTE] = dict(walk_task)
+            if name == final:
+                params["policy"]["action_net.bias"] += 0.25
+
+        rewrite_archive(models_dir / f"{name}.zip", stamp)
+    save_stage_config(
+        stage_dir,
+        entry.reference,
+        walk_config,
+        "PPO",
+        extra={"seed": PARENT_SEED, "n_envs": 1, "timesteps": PARENT_TIMESTEPS},
+        env_class=get_species_config(MODEL_ID).env_class,
+        model_id=MODEL_ID,
+        plant_identity=narrow,
+        task_fingerprint=walk_task,
+    )
+    record_stage_duration(stage_dir, PARENT_DURATION_SECONDS)
+
+    def pair(name: str) -> dict[str, str]:
+        return {
+            "name": name,
+            "checkpoint_sha256": sha256_file(models_dir / f"{name}.zip"),
+            "normalization_sha256": sha256_file(models_dir / f"{name}_vecnorm.pkl"),
+        }
+
+    if chosen is not None:
+        ranked = [pair("robust_best_model"), *([pair(final)] if rank_final else [])]
+        selected = pair(chosen)
+        record = {
+            "schema": HANDOFF_CHOICE_SCHEMA,
+            "selected": chosen,
+            "checkpoint_sha256": selected["checkpoint_sha256"],
+            "normalization_sha256": selected["normalization_sha256"],
+            "candidates": ranked,
+        }
+        atomic_write_json(models_dir / HANDOFF_CHOICE_FILENAME, record)
+    return {
+        **parent,
+        "stage": WALK,
+        "reference": entry.reference,
+        "run_dir": stage_dir.parent,
+        "stage_dir": stage_dir,
+        "final": final,
+        "models_dir": models_dir,
+    }
+
+
+@pytest.mark.parametrize("chosen", ["final", "robust_best_model"])
+def test_a_command_stage_parent_is_widened_from_the_pair_its_choice_names(narrow_parent_ppo, tmp_path, chosen):
+    """A command_tracking/v1 stage hands on the pair its handoff_choice.json chose by the gated statistic (D-D61),
+    the final pair included, and the stage-directory form widens exactly that one: a final pair once, as the target's
+    final pair (both the handoff and the pair judged), a reward-named pair under its own name with the final copy
+    (D-C9).  The widened node carries no choice: its judge chooses again among the pairs it holds."""
+    from environments.shared.curriculum.checkpoints import HANDOFF_CHOICE_FILENAME
+
+    final = f"{stage_label(load_stage_manifest(MODEL_ID).by_id(WALK).reference)}_final"
+    name = final if chosen == "final" else chosen
+    parent = _command_stage_parent(narrow_parent_ppo, tmp_path / "parent", chosen=name)
+    models = parent["models_dir"]
+    assert select_handoff_checkpoint(models)[0] == name
+    assert sha256_file(models / "robust_best_model.zip") != sha256_file(models / f"{parent['final']}.zip")
+
+    widened = widen_into(parent, tmp_path / "widened")
+    result = widened["result"]
+    target_models = widened["target"] / "models"
+    assert result.handoff_name == name and result.report["handoff_name"] == name
+    assert result.parent_checkpoint_sha256 == sha256_file(models / f"{name}.zip")
+    assert result.parent_normalization_sha256 == sha256_file(models / f"{name}_vecnorm.pkl")
+    assert result.final_zip == target_models / f"{parent['final']}.zip"
+    held = sorted(path.name for path in target_models.iterdir())
+    if chosen == "final":
+        assert result.model_zip == result.final_zip and result.vecnorm_pkl == result.final_vecnorm_pkl
+        assert held == [f"{parent['final']}.zip", f"{parent['final']}_vecnorm.pkl"]
+    else:
+        assert held == sorted(
+            [f"{name}.zip", f"{name}_vecnorm.pkl", f"{parent['final']}.zip", f"{parent['final']}_vecnorm.pkl"]
+        )
+        assert sha256_file(result.final_zip) == sha256_file(result.model_zip)
+    assert not (target_models / HANDOFF_CHOICE_FILENAME).exists()
+    assert result.max_action_delta_zero_command <= ACTION_DELTA_ATOL
+    assert result.max_action_delta_probe_command <= ACTION_DELTA_ATOL
+    task = read_checkpoint_task_fingerprint(result.model_zip)
+    assert task is not None and "command" in task and task["stage"] == parent["reference"]
+
+
+@pytest.mark.parametrize("case", ["no_choice", "stale_choice", "explicit_final_pair"])
+def test_a_command_stage_parent_without_a_current_choice_is_refused(narrow_parent_ppo, tmp_path, case):
+    """Fail closed: a command_tracking/v1 parent whose choice is missing or stale (a pair it never ranked) would
+    hand on a pair nothing certified, so it is refused before anything is written; the explicit-pair form, which
+    reads no choice, still refuses a final pair and points to the stage-directory form."""
+    parent = _command_stage_parent(
+        narrow_parent_ppo,
+        tmp_path / "parent",
+        chosen=None if case == "no_choice" else "robust_best_model",
+        rank_final=case != "stale_choice",
+    )
+    target = tmp_path / "widened" / WIDENED_RUN_NAME / stage_dirname(MODEL_ID, WALK)
+    kwargs: dict[str, Any] = dict(model_id=MODEL_ID, stage=WALK, target_stage_dir=target)
+    if case == "explicit_final_pair":
+        kwargs.update(
+            model_zip=parent["models_dir"] / f"{parent['final']}.zip",
+            vecnorm_pkl=parent["models_dir"] / f"{parent['final']}_vecnorm.pkl",
+            algorithm="ppo",
+            seed=PARENT_SEED,
+            n_envs=1,
+            timesteps=PARENT_TIMESTEPS,
+        )
+        fragments: tuple[str, ...] = ("is not a handoff checkpoint", "--from-stage-dir")
+    else:
+        kwargs["parent_stage_dir"] = parent["stage_dir"]
+        problem = "there is none" if case == "no_choice" else "the stage holds pairs the choice never ranked"
+        fragments = ("is a command_tracking/v1 stage", "handoff_choice.json chose by the gated statistic", problem)
+    before = file_digests(parent["run_dir"])
+    with pytest.raises(WidenError) as excinfo:
+        widen_checkpoint(**kwargs)
+    for fragment in fragments:
+        assert fragment in str(excinfo.value), str(excinfo.value)
+    assert not target.exists() and not target.parent.exists()
+    assert file_digests(parent["run_dir"]) == before

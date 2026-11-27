@@ -623,67 +623,17 @@ class TestScaleActionClipping:
             env.close()
 
 
-class TestResetHeightTruncation:
+class TestResetStaysHealthy:
     """Reset must never generate an already-terminal state.
 
-    The root-height jitter was the only unbounded term in the reset — every
-    other one is a bounded uniform — so an unbounded Gaussian eventually placed
-    the root outside ``healthy_z_range`` before the policy acted.  An episode
-    that ends on step 1 whatever the action is not a policy failure, and
-    counting it as one puts an unreachable ceiling on any reliability gate.
-
-    SUPERSEDED in effect by ground settling, which overwrites the root height
-    from the sampled joint pose; the bound and its draw survive only for
-    RNG-stream compatibility (see TestHeightJitterIsInertSinceGroundSettling).
-    These tests keep pinning the function's arithmetic until the height
-    channel is removed outright.
+    An episode that ends on step 1 whatever the action is not a policy failure,
+    and counting it as one puts an unreachable ceiling on any reliability gate.
+    The root-height jitter used to be the reset's only unbounded term; ground
+    settling made it inert by placing the root from the sampled joint pose,
+    and the target-free revision removed the channel outright (draw, knob and
+    bound; see TestResetDrawsOnlyTheJointJitter).  These tests pin the
+    outcome: every spawn is inside ``healthy_z_range``.
     """
-
-    def test_delta_is_bounded_by_distance_to_the_floor(self):
-        env = VelociraptorMongoliensisAnatomicalEnv()
-        try:
-            low, high = env.healthy_z_range
-            base_z = 0.5 * (low + high)
-            headroom = min(base_z - low, high - base_z)
-            huge = 10.0 * (high - low)
-
-            assert env._bounded_reset_height_delta(base_z, huge) < headroom
-            assert env._bounded_reset_height_delta(base_z, -huge) > -headroom
-        finally:
-            env.close()
-
-    def test_bound_is_symmetric_so_the_mean_spawn_height_is_unchanged(self):
-        env = VelociraptorMongoliensisAnatomicalEnv()
-        try:
-            low, high = env.healthy_z_range
-            base_z = 0.5 * (low + high)
-            for delta in (0.05, 0.2, 5.0):
-                up = env._bounded_reset_height_delta(base_z, delta)
-                down = env._bounded_reset_height_delta(base_z, -delta)
-                assert up == pytest.approx(-down)
-        finally:
-            env.close()
-
-    def test_small_deltas_pass_through_untouched(self):
-        """Species with ample headroom must be unaffected in practice."""
-        env = VelociraptorMongoliensisAnatomicalEnv()
-        try:
-            low, high = env.healthy_z_range
-            base_z = 0.5 * (low + high)
-            tiny = 1e-4
-            assert env._bounded_reset_height_delta(base_z, tiny) == pytest.approx(tiny)
-        finally:
-            env.close()
-
-    def test_no_headroom_pins_the_spawn_to_the_keyframe(self):
-        """A base height already at the floor yields a deterministic spawn."""
-        env = VelociraptorMongoliensisAnatomicalEnv()
-        try:
-            low, _ = env.healthy_z_range
-            assert env._bounded_reset_height_delta(low, 1.0) == pytest.approx(0.0)
-            assert env._bounded_reset_height_delta(low, -1.0) == pytest.approx(0.0)
-        finally:
-            env.close()
 
     @pytest.mark.parametrize("env_cls", [VelociraptorMongoliensisAnatomicalEnv, BrachiosaurusAltithoraxAnatomicalEnv])
     def test_reset_never_spawns_outside_the_healthy_range(self, env_cls):
@@ -708,47 +658,84 @@ class TestResetHeightTruncation:
             env.close()
 
 
-class TestHeightJitterIsInertSinceGroundSettling:
-    """The reset's root-height draw must stay drawn, and must stay inert.
+class TestResetDrawsOnlyTheJointJitter:
+    """The reset's random stream holds the joint jitter and the velocity jitter, and nothing else.
 
-    ``_settle_root_on_ground`` overwrites the root height as a pure function
-    of the sampled joint pose, so ``reset_height_noise_scale`` no longer
-    reaches the post-reset state.  The draw is deliberately KEPT so the reset
-    consumes the same RNG sequence — removing it would shift every subsequent
-    draw and re-anchor all seeded baselines.  These tests pin both halves of
-    that contract: the knob changes nothing, and the stream stays aligned.
+    The root-height draw (kept, state-inert, for stream compatibility since
+    ground settling) and every scene-target spawn draw left in the target-free
+    revision, so with perturbation off and command_mode "none" a seeded reset
+    consumes exactly ``uniform(size=nq - 7)`` then ``uniform(size=nv)``.  The
+    height knob that fed the removed draw is refused.
     """
 
-    def test_height_scale_does_not_change_the_post_reset_state(self):
-        from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
+    @pytest.mark.parametrize("model_id", model_ids(), ids=str)
+    def test_a_seeded_reset_consumes_exactly_the_two_jitter_draws(self, model_id):
+        from gymnasium.utils import seeding
 
-        quiet = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
-        loud = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
+        from environments.shared.species_registry import env_class
+
+        env = env_class(model_id)()
         try:
-            for seed in (0, 17, 41):
-                quiet.reset(seed=seed)
-                loud.reset(seed=seed)
-                # Identical up to the one-ULP roundoff of settling from a
-                # different pre-settle height; anything larger means the knob
-                # has grown a real effect again.
-                np.testing.assert_allclose(quiet.data.qpos, loud.data.qpos, rtol=0, atol=1e-12)
-                np.testing.assert_allclose(quiet.data.qvel, loud.data.qvel, rtol=0, atol=0)
+            env.reset(seed=3)
+            expected, _ = seeding.np_random(3)
+            expected.uniform(-env.reset_noise_scale, env.reset_noise_scale, size=env.model.nq - 7)
+            expected.uniform(-env.reset_noise_scale, env.reset_noise_scale, size=env.model.nv)
+            assert env.np_random.bit_generator.state == expected.bit_generator.state
         finally:
-            quiet.close()
-            loud.close()
+            env.close()
 
-    def test_height_scale_does_not_desync_the_rng_stream(self):
-        from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
+    @pytest.mark.parametrize("env_cls", [VelociraptorMongoliensisAnatomicalEnv, DibothrosuchusElaphrosAnatomicalEnv])
+    def test_the_height_knob_is_refused(self, env_cls):
+        with pytest.raises(TypeError, match="reset_height_noise_scale"):
+            env_cls(reset_height_noise_scale=0.0)
 
-        quiet = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
-        loud = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
+
+class TestTheReferenceHeadingIsTheSpawnHeading:
+    """reset() takes the episode's anchors from the spawn itself (the target-free revision, decision D-D59).
+
+    ``_reference_heading_2d`` is the unit horizontal forward of the spawn's
+    root quaternion and ``_initial_pos_2d`` its planar position; before that
+    revision the hunt species' reference was the bearing to the target they
+    spawned.  Every model's home keyframe faces world +x, so the keyframe is
+    turned and moved here: the reference turns with it, both anchors are
+    re-derived at each reset (nothing survives from the episode before), and
+    stepping leaves them fixed for the episode.
+    """
+
+    #: (reset seed, keyframe yaw in degrees, keyframe planar position)
+    SPAWNS = ((3043, 30.0, (1.5, -2.0)), (3044, -135.0, (0.0, 0.0)), (3045, 180.0, (-3.0, 0.25)))
+
+    @pytest.mark.parametrize("model_id", model_ids(), ids=str)
+    def test_a_turned_spawn_turns_the_reference_heading(self, model_id):
+        from environments.shared.species_registry import env_class
+
+        env = env_class(model_id)()
         try:
-            quiet.reset(seed=3)
-            loud.reset(seed=3)
-            assert quiet.np_random.bit_generator.state == loud.np_random.bit_generator.state
+            key = int(getattr(env, "_reset_keyframe_id", 0))
+            home = env.model.key_qpos[key].copy()
+            np.testing.assert_array_equal(env._quat_to_forward_2d(home[3:7]), [1.0, 0.0])
+            env.reset(seed=3042)
+            np.testing.assert_array_equal(env._reference_heading_2d, [1.0, 0.0])
+            zero = np.zeros(env.action_space.shape, dtype=np.float32)
+            for seed, yaw_deg, position in self.SPAWNS:
+                yaw = math.radians(yaw_deg)
+                turned = np.empty(4)
+                mujoco.mju_mulQuat(turned, np.array([math.cos(yaw / 2), 0.0, 0.0, math.sin(yaw / 2)]), home[3:7])
+                env.model.key_qpos[key, 3:7] = turned
+                env.model.key_qpos[key, 0:2] = position
+                env.reset(seed=seed)
+                reference = env._reference_heading_2d.copy()
+                assert reference.dtype == np.float64 and reference.shape == (2,)
+                np.testing.assert_allclose(reference, [math.cos(yaw), math.sin(yaw)], rtol=0, atol=1e-12)
+                np.testing.assert_array_equal(reference, env._quat_to_forward_2d(env.data.qpos[3:7]))
+                np.testing.assert_array_equal(env._initial_pos_2d, position)
+                np.testing.assert_array_equal(env._initial_pos_2d, env.data.qpos[0:2])
+                for _ in range(3):
+                    env.step(zero)
+                np.testing.assert_array_equal(env._reference_heading_2d, reference)
+                np.testing.assert_array_equal(env._initial_pos_2d, position)
         finally:
-            quiet.close()
-            loud.close()
+            env.close()
 
 
 class TestLowestGroundClearanceDataArgument:
@@ -944,7 +931,8 @@ class TestRewardTermHelpers:
 
 
 class TestContactGeom:
-    """``_contact_geom``: the one contact query behind the bite, strike and snap checks and the floor scan.
+    """``_contact_geom``: the contact query behind the floor scan, its only caller since the hunt's bite, strike and
+    snap checks were deleted (decision D-D59).
 
     It scans ``data.contact`` in order and returns the geom of *geoms* from the first contact that
     pairs one of them with *other_geom*, from either side of the pair, or None.  The first match
@@ -993,6 +981,87 @@ class TestContactGeom:
             assert env._contact_geom(set(touching), -2) is None
         finally:
             env.close()
+
+
+class TestFootFloorContactForces:
+    """``_foot_floor_contact_forces``: per channel, its geoms' normal force against the floor and nothing else.
+
+    The Compsognathus robot's foot observation since its policy interface r4
+    (the target-free revision): its soles collide with each other, and a touch
+    sensor counts that force, so a sole resting on the other foot read as
+    support.  Here a 1 kg box rests on a 2 kg box on the floor, each box under
+    a touch site: the lower box's channel reads the stack's whole weight from
+    the floor, the upper box's reads nothing (it touches only the lower box),
+    where the touch sensors read the box-on-box force on both.
+    """
+
+    XML = """
+    <mujoco>
+      <option timestep="0.002" cone="elliptic"/>
+      <worldbody>
+        <geom name="floor" type="plane" size="5 5 0.1"/>
+        <body name="lower" pos="0 0 0.05">
+          <freejoint/>
+          <geom name="lower" type="box" size="0.1 0.1 0.05" mass="2"/>
+          <site name="lower_touch" type="box" size="0.11 0.11 0.06"/>
+        </body>
+        <body name="upper" pos="0 0 0.15">
+          <freejoint/>
+          <geom name="upper" type="box" size="0.05 0.05 0.05" mass="1"/>
+          <site name="upper_touch" type="box" size="0.06 0.06 0.06"/>
+        </body>
+      </worldbody>
+      <sensor>
+        <touch name="lower_touch" site="lower_touch"/>
+        <touch name="upper_touch" site="upper_touch"/>
+      </sensor>
+    </mujoco>
+    """
+
+    @classmethod
+    def _stack(cls, groups):
+        model = mujoco.MjModel.from_xml_string(cls.XML)
+        data = mujoco.MjData(model)
+        holder = types.SimpleNamespace(
+            model=model,
+            data=data,
+            floor_geom_id=model.geom("floor").id,
+            _foot_observation_floor_geoms=tuple(tuple(model.geom(name).id for name in group) for group in groups),
+        )
+        return holder, model, data
+
+    def test_no_channel_groups_is_refused(self):
+        holder, _, _ = self._stack([["lower"]])
+        holder._foot_observation_floor_geoms = None
+        with pytest.raises(ValueError, match="needs _foot_observation_floor_geoms"):
+            BaseDinoEnv._foot_floor_contact_forces(holder)
+
+    def test_no_contact_reads_zero_on_every_channel(self):
+        holder, _, data = self._stack([["lower"], ["upper"]])
+        assert data.ncon == 0
+        assert BaseDinoEnv._foot_floor_contact_forces(holder) == (0.0, 0.0)
+
+    def test_a_geom_resting_on_another_reads_nothing(self):
+        holder, model, data = self._stack([["lower"], ["upper"]])
+        for _ in range(1000):
+            mujoco.mj_step(model, data)
+        mujoco.mj_forward(model, data)
+        pairs = {
+            tuple(sorted((model.geom(int(contact.geom1)).name, model.geom(int(contact.geom2)).name)))
+            for contact in data.contact[: data.ncon]
+        }
+        assert pairs == {("floor", "lower"), ("lower", "upper")}
+        weight = -float(model.opt.gravity[2])
+        lower, upper = BaseDinoEnv._foot_floor_contact_forces(holder)
+        assert upper == 0.0
+        assert lower == pytest.approx(3.0 * weight, rel=1e-6)
+        lower_touch, upper_touch = data.sensordata
+        assert upper_touch == pytest.approx(1.0 * weight, rel=1e-6)
+        assert lower_touch == pytest.approx(lower + upper_touch, rel=1e-9)
+        # A channel of both geoms reads the floor contacts of either: the stack's weight once.
+        both, _, _ = self._stack([["lower", "upper"]])
+        both.model, both.data = model, data
+        assert BaseDinoEnv._foot_floor_contact_forces(both) == (lower,)
 
 
 class TestRootTermination:

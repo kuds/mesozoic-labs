@@ -47,6 +47,11 @@ non-SB3 training loop can drive the curriculum without importing SB3 at all:
   evaluation return has collapsed
 * :mod:`~environments.shared.curriculum.checkpoints` — checkpoint selection,
   publication, and VecNormalize statistics
+* :mod:`~environments.shared.curriculum.command_identity` — the command
+  observation slice held at identity normalization while a stage trains
+* :mod:`~environments.shared.curriculum.cruise_ramp` — a live stage's
+  commanded speeds ramped in over training, its position kept in every
+  checkpoint (decision D-D62)
 * :mod:`~environments.shared.curriculum.posture_watch` and
   :mod:`~environments.shared.curriculum.progress_report` — the posture-drift
   advisory and ``progress.json``, report-only
@@ -78,6 +83,8 @@ from .checkpoints import (
     seed_resume_eval_state,
     select_handoff_checkpoint,
 )
+from .command_identity import CommandIdentityCallback, hold_vec_normalize_command_identity
+from .cruise_ramp import CruiseRampCallback, CruiseRampError
 from .early_stopping import (
     EvalCollapseEarlyStopCallback,
     build_eval_collapse_early_stop_callback,
@@ -111,7 +118,6 @@ from .schedules import (
     _ConstantSchedule,
     schedule_members_from_hyperparameters,
 )
-from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 __all__ = [
     "DEFAULT_CERTIFICATION_SEEDS",
@@ -131,6 +137,9 @@ __all__ = [
     "EvalCollapseEarlyStopCallback",
     "GateSchemaError",
     "CheckpointRetentionCallback",
+    "CommandIdentityCallback",
+    "CruiseRampCallback",
+    "CruiseRampError",
     "CHECKPOINT_ARCHIVE_KEY",
     "DEFAULT_MAX_CHECKPOINTS",
     "PublishCheckpointPairCallback",
@@ -140,7 +149,6 @@ __all__ = [
     "SaveVecNormalizeCallback",
     "StageThreshold",
     "StageWarmupCallback",
-    "TASK_SUCCESS_GATE_KIND",
     "_ConstantSchedule",
     "schedule_members_from_hyperparameters",
     "build_baseline_progress_callback",
@@ -154,6 +162,7 @@ __all__ = [
     "gate_config_sha256",
     "gate_config_view",
     "load_vecnorm_stats",
+    "hold_vec_normalize_command_identity",
     "read_zero_action_baseline",
     "prune_periodic_checkpoints",
     "checkpoint_archive_every",

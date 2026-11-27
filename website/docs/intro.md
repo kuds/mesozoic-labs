@@ -26,7 +26,7 @@ The [eight-animal collection](/animals) also includes separate [Triceratops](/an
 
 The model pages render observation and action dimensions, compiled-model facts,
 current curriculum stages, and published result summaries from the generated
-species catalog. Each stage row shows its recipe label (stance, recover, walk or hunt),
+species catalog. Each stage row shows its recipe label (stance, recover or walk),
 whether it is a published deliverable, and the parent it warm-starts from;
 published results list one row per deliverable, headlined by the metric its
 gate kind certifies:
@@ -39,16 +39,18 @@ gate kind certifies:
 - [Compsognathus longipes (Robot)](/docs/models/compsognathus_longipes/robot)
 - [Allosaurus fragilis (Anatomical)](/docs/models/allosaurus_fragilis/anatomical)
 
-The published result summaries describe historical ladder runs with no
-per-deliverable records. They are marked unverified because some identifiers needed to reproduce the
-original model and configuration are missing. Each model page lists the
-provenance available for its run. Use those results in their historical context.
+No result summary is published at present: the historical ladder runs,
+which had no per-deliverable records and were marked unverified, were
+deleted with the hunt nodes their last stage trained (decision D-D59), and
+their schema is retired (decision D-D63). A published result certifies at
+least one deliverable and lists one row per deliverable it records, and
+each model page lists the provenance available for its run.
 
 ## Quick Links
 
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
 - [Animals](/animals) - Explore anatomical models, robot designs and movement studies
-- [Behavior Recipes](/docs/training/recipes) - Train stance, walk and hunt on one certified trunk
+- [Behavior Recipes](/docs/training/recipes) - Train stance, recovery and walk on one certified trunk
 - [Training](/docs/training/ppo) - Learn how to train your own dinosaur
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code
 

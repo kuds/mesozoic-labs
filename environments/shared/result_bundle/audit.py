@@ -203,10 +203,9 @@ def audit_result_bundle(
                 raise ResultBundleError("summary.json must contain an object")
             summary = loaded
             # Publishable, not complete: a summary exists whenever at least
-            # one deliverable is certified (schema v4), and whether the
-            # bundle is COMPLETE is the manifest's status, cross-checked
-            # against the summary below.  Below schema 4 the two flags are
-            # synonyms, so every historical bundle audits as before.
+            # one deliverable is certified (schema v4 onward), and whether
+            # the bundle is COMPLETE is the manifest's status, cross-checked
+            # against the summary below.
             validate_result_summary(
                 summary,
                 require_complete=False,
@@ -271,10 +270,11 @@ def audit_result_bundle(
     # through the model's stage manifest so a recorded recovery stage is audited
     # too (configs, evidence, hashes) rather than treated as foreign.  When
     # the summary is absent or its stage keys do not resolve, the audit
-    # falls back to the model's advancing stages (the literal trio only
-    # when no model is readable); the summary validation above has
+    # falls back to the model's advancing stages (the literal pair 1, 2
+    # only when no model is readable: stage 3, the hunt, resolves to no
+    # stage since decision D-D59); the summary validation above has
     # already recorded that failure as an error of its own.
-    ordered_stage_refs: "list[int | str]" = [1, 2, 3]
+    ordered_stage_refs: "list[int | str]" = [1, 2]
     summary_model_id = _named_model(summary)
     provenance_model_id = _named_model(provenance)
     fallback_model_id = summary_model_id or provenance_model_id
@@ -285,7 +285,7 @@ def audit_result_bundle(
             ordered_stage_refs = [entry.reference for entry in load_stage_manifest(fallback_model_id).advancing_stages]
         except Exception:
             # An unreadable manifest is reported by the summary / provenance
-            # validation; the literal trio keeps the audit going.
+            # validation; the literal pair keeps the audit going.
             pass
     if summary is not None and summary_model_id is not None and isinstance(summary.get("stages"), Mapping):
         try:

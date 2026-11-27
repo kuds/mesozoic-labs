@@ -3,7 +3,8 @@ lateral_lean_tolerance_m) and the settled leg target (leg_home_pose_reference = 
 
 Both are off by default, and off they change nothing: no reward, no info key, no task fingerprint and no recorded
 stage config.  On, the lean term is a Gaussian on the centre of mass's lateral offset over the feet, gated on the
-settle, a zero command and both feet loaded, and exactly mirror-invariant; the settled target is the statue's own
+settle and both feet loaded (a live walk pays it at a zero command through its stand block, decision D-D62), and
+exactly mirror-invariant; the settled target is the statue's own
 leg pose, mirror-symmetrised.
 """
 
@@ -70,14 +71,18 @@ def test_the_options_default_to_off():
         "leg_home_pose_reference": "keyframe",
     }
     # The committed stance turns both on at the screened values (the r10 LTSB recipe, the stance-landing decision of
-    # 2026-11-06), and recovery inherits them (recovery.toml extends stance's [env]); no other stage sets one.
+    # 2026-11-06), and recovery inherits them (recovery.toml extends stance's [env]).  The walk (decision D-D62) runs
+    # them at a zero command: its [env] states the settled reference and its stand block pays the lean at the
+    # screened weight, at the default (screened) tolerance; no other stage sets one.
     setting = {}
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
         present = {key: env_kwargs[key] for key in OPTION_KEYS if key in env_kwargs}
         if present:
             setting[entry.id] = present
-    assert setting == {"stance": SCREENED, "recovery": SCREENED}
+    assert setting == {"stance": SCREENED, "recovery": SCREENED, "locomotion": {"leg_home_pose_reference": "settled"}}
+    walk = load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"]["command_config"]
+    assert walk.stand_weight_map()["lateral_lean_weight"] == SCREENED["lateral_lean_weight"]
 
 
 def test_off_the_options_change_no_reward_and_no_info_key(stance_kwargs):
@@ -94,6 +99,12 @@ def test_off_the_options_move_no_task_fingerprint_and_no_recorded_config(tmp_pat
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         committed = stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference)
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
+        if entry.id == "locomotion":
+            # The walk runs both at a zero command (decision D-D62): the settled reference in its [env], the lean
+            # through its stand block, so both are on and every kwarg they list is hashed.
+            assert env_kwargs["leg_home_pose_reference"] == "settled" and "lateral_lean_weight" not in env_kwargs
+            assert set(OPTION_KEYS) <= set(committed["env"]), entry.id
+            continue
         if set(OPTION_KEYS) & set(env_kwargs):
             # stance and recovery set the options (the stance-landing decision of 2026-11-06): their fingerprint is the
             # one the screened values give, written out on top of the stage's kwargs without them.
@@ -196,10 +207,15 @@ def test_the_lean_term_is_a_gated_gaussian_of_the_lateral_offset(stance_kwargs):
             assert reward == info["reward_total"]
             assert reward == pytest.approx(_total_of_the_other_terms(info) + info["reward_lateral_lean"], abs=1e-12)
         assert paid > 0 and abs(info["com_lateral_offset_m"]) > 1e-5  # a real, paid lean was compared
-        # A live command switches the term off (the body-relative command is zero in every stance).
+        # The command no longer gates the term (decision D-D62): a live walk pays it at a zero command through its
+        # stand block (environments/shared/tests/test_walk_command_mechanism.py).
         env._command = np.array([0.0, 0.1, 0.0], dtype=np.float32)
         _, info = env._get_reward_info(np.zeros(15))
-        assert info["reward_lateral_lean"] == 0.0 and info["lateral_lean_quality"] > 0.0
+        supported = info["r_foot_terms_supported"] > 0.5 and info["l_foot_terms_supported"] > 0.5
+        assert info["lateral_lean_quality"] > 0.0
+        assert info["reward_lateral_lean"] == pytest.approx(
+            weight * info["lateral_lean_quality"] * supported, rel=1e-12
+        )
     finally:
         env.close()
 
@@ -208,8 +224,7 @@ def _total_of_the_other_terms(info) -> float:
     """The total of every other term, in _get_reward_info's order."""
     names = (
         "reward_forward", "reward_backward", "reward_drift", "reward_alive", "reward_energy", "reward_tail",
-        "reward_bite", "reward_approach", "reward_head_proximity", "reward_head_clearance", "reward_neck_posture",
-        "reward_tail_home_pose", "reward_posture", "reward_nosedive", "reward_height", "reward_bilateral_support",
+        "reward_head_clearance", "reward_neck_posture", "reward_tail_home_pose", "reward_posture", "reward_nosedive", "reward_height", "reward_bilateral_support",
         "reward_foot_load_balance", "reward_leg_home_pose", "reward_foot_flatness", "reward_stance_width",
         "reward_gait", "reward_smoothness", "reward_action_jerk", "reward_action_saturation", "reward_heading",
         "reward_lateral", "reward_spin", "reward_speed", "reward_idle", "reward_floor_impact",
@@ -228,7 +243,7 @@ def test_the_lean_term_needs_both_feet_loaded(stance_kwargs):
 def test_the_lateral_offset_flips_under_the_mirror(stance_kwargs):
     env = TyrannosaurusRexAnatomicalEnv(**stance_kwargs, lateral_lean_weight=0.25)
     try:
-        mirror = SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+        mirror = SY.build_env_mirror(env, SY.BIPEDAL_HEADING_FREE_SCHEMA)
         env.reset(seed=3059)
         for action in np.random.default_rng(2).uniform(-0.2, 0.2, (40, 15)):
             env.step(action)
@@ -256,7 +271,8 @@ def test_the_settled_leg_target_is_mirror_symmetric():
         np.testing.assert_array_equal(qpos_map.apply(q)[env._leg_home_qpos_indices], settled)
         keyframe = env.model.key_qpos[env.home_keyframe_id][env._leg_home_qpos_indices]
         np.testing.assert_array_equal(env._leg_home_qpos, keyframe)  # the keyframe target itself is untouched
-        assert np.degrees(np.max(np.abs(settled - keyframe))) == pytest.approx(2.60, abs=0.01)
+        # Hip pitch, the largest: 2.60 deg on r10 and r11, 2.54 on r12 (the head_bite box removed, D-D59).
+        assert np.degrees(np.max(np.abs(settled - keyframe))) == pytest.approx(2.54, abs=0.01)
     finally:
         env.close()
 

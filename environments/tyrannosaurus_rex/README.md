@@ -2,8 +2,8 @@
 
 A scaled-down reconstruction of an adult *Tyrannosaurus rex*: a heavy biped with a broad skull, two-fingered arms and
 a long counterbalancing tail. It stands on a plantar pad and three forward toes per foot. The model is for learning to
-stand, to recover from pushes, to walk, and to reach prey and touch it with the snout. The jaw is fixed, so the "bite"
-is a head-contact proxy, and the model is a research abstraction, not a validated account of the animal's mechanics.
+stand, to recover from pushes and to walk. It is a research abstraction, not a validated account of the animal's
+mechanics.
 
 ## Models
 
@@ -58,8 +58,9 @@ report: touchdowns, stance duty, stride, swing clearance and contact slip per fo
 and toes, and the motion of the pelvis, head and tail. The stand report also gives how far the center of mass lies
 inside the loaded contacts. `--noise` and `--seeds` repeat a trial from perturbed starts, `--actuators` adds force and
 joint-limit margins, and `--trace FILE.npz` saves the first seed's poses, foot forces and clearances. The review gives
-the exact runs behind its tables, and the command that replays archived PPO walking checkpoints on this model
-([`scripts/replay_walk.py`](scripts/replay_walk.py)). [`tests/test_reference_walk.py`](tests/test_reference_walk.py)
+the exact runs behind its tables, and the command that replays archived PPO walking checkpoints on the physics r11
+model ([`scripts/replay_walk.py`](scripts/replay_walk.py), which runs in a checkout of `3368abe` or earlier: the
+current environment refuses the archived configs' bite and prey arguments and observes 59 values, not their 63). [`tests/test_reference_walk.py`](tests/test_reference_walk.py)
 checks the walk, [`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and
 the [walking replay](../../website/static/videos/tyrannosaurus_rex_anatomical_reference_walk.mp4) shows a noisy
 walking trial with a close-up of the feet and their measured loads.
@@ -93,9 +94,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then the bite task, each warm-started from its parent in `stages.toml` and run
-with the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The bite task that followed locomotion was removed with every hunt node (decision D-D59). To reuse the
+certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
@@ -103,7 +104,7 @@ python -m environments.shared.train --species tyrannosaurus_rex --embodiment ana
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "tyrannosaurus_rex"`,
-`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"recover"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"recover"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
@@ -129,13 +130,34 @@ Species notes:
 
 ## Task and rewards
 
-A prey sphere spawns ahead of the animal at a random distance and side offset. The task is to reach it and touch it
-with the fixed head-contact geom. The environment reports `bite_success` on that contact, while the bite reward is on;
-the contact ends the episode.
+The trained tasks are the stance, recovery from pushes and the walk; the bite, the hunt that followed the walk, was
+removed by decision D-D59. Its reward terms, its `bite_success` termination and its constructor arguments are gone from
+the code, and the model declares no success key. The scene holds no prey: the prey sphere and the head-contact box the
+bite read were removed with it in physics r12 and policy interface r17, and checkpoints of policy interface r16 or
+earlier no longer load. Under the stance and recovery the forward, drift and heading terms measure from the spawn: the
+pelvis's starting position and the unit forward of its starting orientation.
 
-The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
-and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one load
-channel per foot (pad and toes), the prey distance and the command. Actions are offsets from the MJCF `home`
+**The walk follows a live command** (decision D-D62); the stance and recovery run no command. Each walk episode draws
+one request at reset and holds it for the whole 10 s episode: a forward cruise at 0.525-1.05 m/s along a heading up to
+0.26 rad (15 degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero command, which asks the
+animal to stand still. The command is the observation's last three values. A Gaussian term pays tracking the commanded
+velocity and yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms, which the walk sets to 0, and
+the terms that read a forward direction measure along the commanded heading. On a zero command a stand block
+(`[commands.stand_weights]`, 26 weights; the standing lean, foot stagger and center-of-pressure terms are paid through
+it) pays the stance's reward weights, so zero means stand still, not march in place. The commanded speeds ramp from
+0.25 of their end values to the full range over the first 2M training steps. After training the walk is judged on its
+`command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
+gait clause with its flight cap (Froude 0.12 at cruise). The bars are provisional, and no controller has yet passed
+the committed panel (decision D-D62 (16)). The reference walk sways within its stride, so the tracking term and the gate
+score a moving command on the trailing mean of the last 1.12 s, about one stride (`[commands] tracking_window_s`,
+decision D-D64). At a command it matches (0.633 m/s) the reference walk then reads tracking quality 0.84 (0.13 a step
+on its own), clears the in-tolerance fraction and the speed ratio, and fails `heading_settle` on 20 of 20, on its
+scripted start: a centred stride mean of its speed reaches the speed tolerance at about 1.95 s, so the gate's trailing
+window first reads in tolerance at about 2.5 s, after the 2.12 s allowance. A quicker start passes every episode.
+
+The observation reads no world heading: it uses projected gravity and the root velocity in a gravity-aligned heading
+frame, beside the joint state, the pelvis gyro and accelerometer, one load channel per foot (pad and toes) and the
+command, last. Actions are offsets from the MJCF `home`
 controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
 [`base_env.py`](base_env.py) gives both layouts.
 
@@ -143,18 +165,20 @@ The main reward groups:
 
 - **Survival and posture:** an alive bonus, posture, nosedive and height terms, head clearance and neck posture, and a
   fall penalty.
-- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
-- **Bite:** approach shaping, head-proximity shaping, and a bonus when the head-contact geom touches the prey.
-- **Stance quality** (stance and recovery): support and load balance between the feet, the home leg and tail poses,
-  flat soles and a steady stance width, sideways lean, foot stagger, each foot's center of pressure, and penalties on
-  floor impacts and airborne physics substeps.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity along the spawn's forward direction (the commanded heading on the walk), with
+  optional backward, drift, sideways, spin and speed penalties; the walk sets the forward, heading and sideways
+  weights to 0.
+- **Stance quality** (stance and recovery, and the walk's zero command): support and load balance between the feet,
+  the home leg and tail poses, flat soles and a steady stance width, sideways lean, foot stagger, each foot's center
+  of pressure, and penalties on floor impacts and airborne physics substeps.
 - **Effort:** energy, smoothness, jerk and actuator saturation, and tail stability.
 
 The weights are the `TyrannosaurusRexEnv` constructor defaults in `base_env.py`, where most stance terms are off,
 overridden by the `[env]` table of each stage TOML in
 [`configs/tyrannosaurus_rex/anatomical/`](../../configs/tyrannosaurus_rex/anatomical/); recovery inherits the stance's
-`[env]`. An episode ends on a fall or launch, excessive tilt or a nosedive, the snout tip or skull dropping too low, the
-head, torso or tail touching the floor, or a bite. The thresholds are in `base_env.py`.
+`[env]`. An episode ends on a fall or launch, excessive tilt or a nosedive, the snout tip or skull dropping too low, or the
+head, torso or tail touching the floor. The thresholds are in `base_env.py`.
 
 ## Files
 

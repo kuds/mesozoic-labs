@@ -15,6 +15,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
 | [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B); execution was deferred until the T-Rex clears stages 1–3, until the maintainer's D-D25 (2026-10-06): velociraptor physics r3 fixes findings 2, 3 and 5 and replaces finding 1's reward gate with `stance_quality/v2`, and 4, 6 and 8–11 stayed open until velociraptor physics r5 (the maintainer's decision of 2026-11-08, `configs/plant_versions.toml` note 22) closed them all (the review's dated status note); see below |
 | [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) (2026-08-28) | SB3 training core, notebooks, env/physics, evaluation, JAX/MJX, configs and sweeps, CI, scripts; cleanup opportunities | 120 ids: 78 fixed (#514–#517, #519, #530, #534, #535), 25 retired by D-D17 (16 of them after a fix), 3 fixed with a residue, 6 duplicates; the 8 open ones and the three residues (SM7, DU4, CI8) are below (its appendix B, 2026-09-30) |
+| [reviews/SB3_NOTEBOOK_REVIEW_2026_11.md](reviews/SB3_NOTEBOOK_REVIEW_2026_11.md) (2026-11-22) | The SB3 training notebook, the pipeline behind it, every post-training artifact, the Drive summary, `results/` and the website, across all seven models | 141 verified findings in 30 themes, written before the hunt's removal (D-D59) and the command-driven walk (D-D62). Its status of 2026-11-25 (decision D-D63 (7)) finds 11 addressed, 20 moot and 110 open, each open one with what remains. Re-checked on 2026-11-26 (decision D-D65 (4)), no status changed, and the 110 open ones are folded in here as 52 new entries and 8 amendments to existing ones, each closing with "(2026-11 notebook review: ...)": by the entry that carries it, 1 is HIGH, 31 MEDIUM, 76 LOW and 2 unrated (the Post-training artifacts list has no severities), and 38 sit under Notebooks, 33 Infrastructure, 21 Training / RL, 15 Configs, docs & website, 2 Post-training artifacts and 1 Testing / CI. The review's addendum "Folded on 2026-11-26" records the counts, the amendments and what the re-check corrected, and a search of this file for an id finds the entry that carries it |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
 robustness, **LOW** = cosmetic / QoL.
@@ -23,6 +24,72 @@ robustness, **LOW** = cosmetic / QoL.
 
 ## Training / RL
 
+- **HIGH** — **the walk's `command_tracking/v1` bars are provisional, and no
+  controller in the repository has passed a committed walk panel (2026-11-24,
+  decision D-D62 (16); updated 2026-11-26, decisions D-D64 to D-D66).**
+  Every committed walk follows a live command and is judged by the gate's
+  walk profile at `PROVISIONAL_WALK_THRESHOLDS` and the model's gait clause.
+  On the real plants the zero-action statue fails every walk on the cruise
+  family's success bound (0 of 20).
+  - *Resolved by D-D64:* the per-step tracking reading, D-D62 (16) (a),
+    which D-D63 (2) decided. At a moving command the tracking term and the
+    gate's in-tolerance test now read a trailing one-stride mean
+    (`[commands] tracking_window_s`, 0.70-1.50 s by model), under the panel
+    protocol `command_panel/v2`; stops and the speed ratio stay per step.
+    Under a command it matches, every reference walk now clears the
+    in-tolerance fraction and the speed ratio: in tolerance after the settle,
+    its worst episode reads 0.873-1.000, against 0.10-0.86 per step. The
+    maintainer accepted its boxcar, its one window rule and its window-fill
+    settle allowance as recorded on 2026-11-26 (D-D65 (3)); the
+    triangular-window fallback stays on record.
+    - The brachiosaurus (at 0.35 m/s) and the dibothrosuchus (at 0.157 m/s)
+      pass the whole walk gate there. Both commands lie below their
+      commanded ranges.
+    - The T. rex and the Allosaurus fail `heading_settle` on 20 of 20, on
+      their scripted starts. A centred stride mean of their speed reaches
+      the speed tolerance at 1.95 s and 2.70 s, so the gate's trailing
+      window first reads in tolerance at about 2.5 s and 3.5 s, after their
+      2.12 s and 2.31 s allowances. A quicker T. rex start passes every
+      episode.
+    - On the velociraptor one episode, seed 3045, falls at step 373, and its
+      truncated trace also fails the lead-swap bar; the other 19 pass every
+      bar.
+    - At the dibothrosuchus' and the velociraptor's matched commands, which
+      lie inside their velocity tolerances, even the statue reads in
+      tolerance; there the speed ratio and the gait clause are what the
+      panels demonstrate.
+  - *Still open:*
+    - No controller passes a committed walk panel. On the brachiosaurus'
+      committed panel its steered reference clears every cruise bar only on
+      its 5 slowest commands; no controller walks the dibothrosuchus inside
+      its commanded speeds; and the velociraptor reference runs at 0.12 x its
+      cruise.
+    - The Compsognathus pair's tracking sigma lies under an estimate of a
+      home-width gait's lateral sway. The window only partly relieves it:
+      the robot's home-width gait fits on 14% of plausible strides (D-D64
+      (7)).
+    - `gait_symmetry` pays a quadruped statue its whole weight.
+    - The brachiosaurus reference walk's hind-pair alternation reads 0.786
+      on its worst episodes, against the 0.75 bar.
+    - A flightless quadruped bound whose feet swing their lead clears every
+      quadruped bar (measured on synthetic floor truth).
+    - The window's own risks (D-D64 (11)). A learned stride in the boxcar's
+      sidelobe (window over stride about 1.2-1.6) keeps up to 0.22 of the
+      sway. A stop-and-go whose cycle divides the window earns full
+      tracking, and only the report-only `longest_stop_s` sees it, as a
+      panel maximum (per episode its values overlap). Whether it becomes a
+      bar is decided after the pilot (D-D65 (2)). A quadruped start
+      sprint is charged little tracking under the expanding window and the
+      +W allowance, and out-earns the steady reference by 0.4-2.1% a step,
+      through `gait_symmetry`. Whether such a start overshoot should be
+      charged is decided after the pilot (D-D66 (4)). The follow profile's
+      mid-episode command changes are unmeasured.
+
+    No weight, sigma or bar was changed for them; the bars are to be frozen
+    from a pilot. The in-training evaluation keeps the declared end-state
+    commands during the cruise ramp (D-D63 (3)). Candidates are ranked on
+    the task that is certified, and the handoff is still chosen afterwards
+    on the selection panel.
 - **HIGH** — **Completed short stance reward pilots remain uncertified;
   the base T-Rex stance reward is CoP-indifferent, and the velociraptor
   fails by an exploration-driven hop plus an unloaded digit IV.** The
@@ -186,7 +253,7 @@ robustness, **LOW** = cosmetic / QoL.
   3042–3081 panel (39/40) but is clean on 32/40 of the re-judge seeds
   7042–7081 (re-rolled from its checkpoint in the 2026-10-10 review), so
   the two-seed ask stands. On 2026-10-11 the maintainer ruled seed 52
-  research-only, not a trunk for recovery, walk or hunt (the stance-gate HIGH
+  research-only, not a trunk for recovery or walk (the stance-gate HIGH
   below;
   [investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
   §1.2–§1.3).
@@ -658,7 +725,8 @@ robustness, **LOW** = cosmetic / QoL.
   reads the per-node files (`gate_verdict.json`, `task_fingerprint.json`,
   `plant_identity.json`, `stage_config.json`), which are written the moment
   a node is judged, so `TRUNK_FROM = "auto"` still selects the run and
-  reuses both nodes for a hunt session, whose chain runs through both
+  reuses both nodes for a hunt session (before decision D-D59 removed the
+  hunt), whose chain runs through both
   (2026-09-17 Drive survey,
   [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md));
   a recover or walk session (a stand session before D-D35) considers
@@ -679,6 +747,23 @@ robustness, **LOW** = cosmetic / QoL.
   the notebook's publish cell (`PUBLISH_RUN = True`) under the target the
   run records; PR-14a's complete-run refusal does not change this
   ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
+  *Update (2026-11-26):* a replicate that certifies after a run's last node
+  cannot be counted by hand either. `save_run_bundle`'s docstring in the SB3
+  notebook's helpers cell said "Re-run this cell once a replicate finishes to
+  count it" (`sb3_training.ipynb:939`, before the publish cell), but that cell
+  only defines the function: the chain loop (:1683) and the manual cell
+  (:2099) call it, and only after a node trains or judges, and a re-entry that
+  reuses every node `continue`s before the call (:1539). Fix: a "republish"
+  cell after the chain loop that calls `save_run_bundle(chain_results())` (a
+  `partial` bundle is rebuilt; a `complete` one regenerates its derived
+  artifacts when the replication record is its only change), or a docstring
+  that names the cell to run. (2026-11 notebook review: no-republish-cell)
+  *Update (2026-11-26, later):* fixed for a `partial` run by the publish
+  cell (`PUBLISH_RUN = True`), which rebuilds its bundle and so counts the
+  replicate, and `save_run_bundle`'s docstring now names that cell. A
+  `complete` run's late replicate still takes a hand-typed
+  `save_run_bundle(chain_results(), model_id=MODEL_ID)` once the chain loop
+  has re-entered the run, as the cell's refusal of a complete run says.
 - **LOW (operational)** — **a re-entry that only reuses a `partial` or
   `failed` run's nodes stops at the bundle-verification cell (verified
   2026-09-24).** In a new runtime the storage cell's
@@ -731,6 +816,37 @@ robustness, **LOW** = cosmetic / QoL.
   `provenance.json` and `trunk_run.json`, and the bundle verifies again
   (`environments/shared/tests/test_publish_cell.py`). A `complete` run is
   refused there, which this entry does not affect.
+- **MEDIUM (operational)** — **a node's best-effort artifacts can go missing
+  with nothing recording it, and a re-entry in place never regenerates them
+  (read from the code 2026-11-26).** `generate_stage_artifacts` writes
+  `gate_verdict.json` right after the gate's own report (`_apply_stage_gate`,
+  `reporting/stage_artifacts.py:2221`), then the stage summary, the figures
+  and replays (rendered into local staging and published together on exit,
+  `:2250`) and last the probes (`:2362`); the SB3 notebook's chain loop writes
+  `training_summary.txt` and the bundle after it
+  (`notebooks/sb3_training.ipynb:1682-1683`). Each artifact step only logs its
+  failure: one `try` covers the four older figure calls
+  (`stage_artifacts.py:2256-2302`) and one both replays, so a failed selected
+  replay skips the final one (`:2437-2541`; the renderer entry under
+  Infrastructure). Nothing lists what a node should hold:
+  `artifact_manifest.json` hashes whatever files are present
+  (`result_bundle/manifest.py:140-176`), so a bundle without a replay or a
+  figure verifies. And a runtime lost between the verdict and the bundle
+  leaves a passed node that the reuse rule accepts on its verdict, digests and
+  handoff pair (`find_certified_ancestor`, `ancestors.py`): a re-entry in the
+  same `RUN_DIR` takes its results from the verdict (the `same_run` branch,
+  `sb3_training.ipynb:1511-1519`) and regenerates no figure, replay, probe or
+  bundle. A later node's bundle then seals the incomplete set, which verifies;
+  with no later node, the chain loop rebuilds no bundle and the verification
+  cell stops "Run all" (the entry "a re-entry that only reuses a `partial` or
+  `failed` run's nodes ..."), and the opt-in publish cell
+  (`PUBLISH_RUN = True`, since 2026-11-26) seals the same incomplete set.
+  Fix: write a per-node `artifact_status.json` of the files expected for its
+  gate kind, model and role (the table the artifact-guide entry under
+  Configs, docs & website asks for) against those present, state it in the
+  stage summary, and have the `same_run` branch regenerate what is missing
+  and then the bundle. (2026-11 notebook review:
+  verdict-without-bundle-unrecoverable, silent-artifact-failures)
 - **LOW (operational)** — **a re-entry that is not a resume, under another
   trunk than the run's `trunk_run.json` records, is only warned (ROW-4/6;
   executed against the notebook cells 2026-10-03).** Since ROW-4/6's
@@ -884,49 +1000,28 @@ robustness, **LOW** = cosmetic / QoL.
   replication 1: its `complete` bundle cannot be rewritten in place (the
   MEDIUM entry "run-level records go stale" above; a complete bundle is
   immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md)).
-- **MEDIUM (provisional threshold)** — **the T-Rex hunting bar
-  `min_success_lcb = 0.5` in `configs/tyrannosaurus_rex/anatomical/behavior.toml` is PROVISIONAL
-  (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,
-  on the strength of the schema-2 committed result (`results/tyrannosaurus_rex/anatomical/ppo/
-  summary.json` stage 3: mean 0.9667 → 29/30 → LCB 0.8514, a recomputation
-  from a rounded mean with no per-episode evidence, judged at
-  `min_success_rate` 0.25 with no velocity term under a different `[env]`
-  block) — freeze-then-revise, not the pilot-then-freeze precedent the
-  recovery gate set. Follow-up: after the first hunting pilot under
-  `task_success/v1`, re-freeze the bar attainable-not-aspirational from its
-  `evaluation_selected.csv` (20/30 clears 0.5 at 0.5006; 19/30 does not),
-  update the TOML comment and plan §4.4, and re-judge — never retrain — any
-  verdict minted under the provisional bar (a moved threshold is a re-judge
-  under D-B7/D-B8). A verdict in a run whose bundle is `complete` cannot be
-  re-judged in place, so a trunked run trains that node instead (D-B8 as
-  amended 2026-11-24).
-- **LOW (calibration owed)** — **`collapse_peak_warmup_timesteps =
-  1_000_000` on the T-Rex behavior stage is a judgment, not a measurement
-  (decision D-B5).** Stance's 1.0M was measured by replaying run
-  `20260803_012355`'s evaluation series through the detector; no
-  behavior-stage series under the current config exists to replay, so the
-  value is the stance/recovery number bounded below by the 600k stage-entry
-  window (`warmup_timesteps` + `ramp_timesteps`, where a warm-started walker
-  evaluates near the 602.13 statue and would arm the 270.9 floor at once)
-  and above by the ≤ 0.5× budget pin in `test_curriculum_early_stopping.py`.
-  Follow-up: replay the first full hunting run's `evaluations.npz` through
-  `EvalCollapseEarlyStopCallback` (as STAGE1_SPLIT_PLAN §12.4 did) and
-  re-derive; re-measure the statue (`zero_action_baseline.py --model-id
-  tyrannosaurus_rex anatomical --stage 3 --episodes 40 --seed 3042`) whenever a behavior reward weight or the plant
-  moves, and re-derive the 361 rail and the 602.0 reference together.
-- **MEDIUM (operational)** — **a CLI-certified hunt (`curriculum --target
-  hunt`) is judged IN-TRAINING on the last EvalCallback panel and cannot be
-  backfilled.** `train_curriculum` has no post-stage judge and writes no
-  `evaluation_selected.csv`; its `task_success/v1` verdict is the
-  `CurriculumManager`'s own bound over the EvalCallback successes
-  (persisted as `success_count` / `n_success_samples` in the verdict's
-  `stage_result`, with `required_consecutive` hysteresis), which is a
-  different estimator from the post-stage arm's single hash-bound panel on
-  the selected handoff. `backfill_gate_verdict.py` refuses such a directory
-  (no `evaluation_selected.csv` hash-bound to the handoff), and publication
-  needs the notebook, whose chain loop writes the evidence CSV and judges
-  it through `generate_stage_artifacts`. Treat a CLI hunt verdict as a
-  training-time signal, not a certification.
+- **LOW** — **the recipe digest leaves out `n_envs`, so runs on different
+  environment counts count as one recipe (read from the code 2026-11-26).**
+  `hyperparameters_sha256` hashes the algorithm, its `[ppo]` or `[sac]` table
+  and the shaping keys (`environments/shared/config.py:950-969`); `n_envs` is
+  recorded beside the digest, never in it (the stage config's run block,
+  `train_base.py:2440`, :3597; the command line's `curriculum_results.csv`
+  row, :3895; `training_summary.txt`'s "Parallel envs" line,
+  `reporting/text_summaries.py:213`). It changes how the recipe trains: PPO
+  collects `n_steps` × `n_envs` transitions per update (8,192 at the
+  notebook's `N_ENVS = 4` on a 2048-step stance, 16,384 at 8), and SAC counts
+  `train_freq` in vector steps. Seed-replicate discovery matches siblings on
+  that digest (`replication.py:224-229`), the trunk scan counts a node's
+  replicates through it (`ancestors.py:1057-1077`), and a same-stage resume
+  refuses only a change of digest (`config.refuse_resume_recipe_change`,
+  `config.py:1074`). So a replicate on another `N_ENVS` counts toward a
+  stance's `certification_seeds`, and a resume continues under another batch
+  with no warning. The SAC entry under Notebooks (the notebook's 4 SAC
+  environments against the command line's 8) is one case of it. Fix: put
+  `n_envs` in the digest's view (that moves every recorded digest, so it needs
+  its own decision), or refuse or flag a replicate, a trunk count or a resume
+  whose recorded `n_envs` differs. (2026-11 notebook review:
+  n-envs-outside-recipe-digest)
 
 <!-- The items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and
@@ -960,7 +1055,8 @@ robustness, **LOW** = cosmetic / QoL.
   difference of actions. (PLANT_VALIDATION §11.2)
 
 - **MEDIUM** — **`collapse_peak_floor` is still an absolute reward value on
-  three species' stage-1 configs and cannot survive a reward-function edit.**
+  the brachiosaurus and dibothrosuchus stance configs and cannot survive a
+  reward-function edit.**
   The T-Rex is done: `stance.toml` and `recovery.toml` use the relative
   `collapse_peak_floor_fraction` (PLANT_VALIDATION §14 item 3) after the
   absolute floor failed to arm twice. The anatomical `velociraptor_mongoliensis`,
@@ -1004,6 +1100,46 @@ robustness, **LOW** = cosmetic / QoL.
   brachiosaurus and dibothrosuchus floors stay absolute. On Brachiosaurus physics
   r6 the stage-1 statue returned 1749.61 ± 0.15 over seeds 3042–3081. The
   recalibrated minimum reward is 1050 and the absolute peak floor is 1310.
+  **Update 2026-11-24 (decision D-D62):** the walks follow a live command, and
+  the forward-velocity ramp keys left them, so the locomotion D-B5 bound is
+  now `warmup_timesteps + cruise_ramp_timesteps`: 2.8M on dibothrosuchus
+  (800k + 2M, from 3.3M) and 3.0M on brachiosaurus (1M + 2M, from 4.0M),
+  with the velociraptor's 2.3M unchanged and a new 2.3M on the T-Rex walk
+  (D-D62 (12), (15)). The velociraptor walk's floor is 2.4 x its live-walk
+  statue's 891.3 (D-D62 (15)); the two quadruped walks keep the absolute 100.
+  **Update 2026-11-26 (decision D-D65 (1)):** the quadruped walks' floors
+  are relative too. On the matched basis (the reference walk under a command
+  matched to its own speed) each walker is expected to evaluate above its
+  stander's 10-stand level, so the brachiosaurus walk's floor is 1.20 x
+  2359.7 = 2831.6 and the dibothrosuchus walk's 1.31 x 2286.0 = 2994.7, each
+  between its stander's 9- and 10-stand evaluations, with the
+  `statue_constants_physics_revision` pin (7, 4). A standing plateau no
+  longer arms them, so a collapse from standing is not caught on these
+  walks. On the dibothrosuchus, neither, on most seeds, is the collapse of a
+  learned walk that tracks none of the committed commands; on the
+  brachiosaurus such a walk evaluates within a few units of the floor, so
+  ordinary fluctuation between evaluations usually arms it.
+  **Update 2026-11-26 (decision D-D66):** the maintainer kept the
+  dibothrosuchus walk's fraction at 1.31, the D-D62 (15) midpoint, rather
+  than 1.32, so the rule stays as written and the same on every model. A
+  stander arms it on 1.13% of seeds with a run's episodes fixed (0.82% at
+  1.32), which is harmless: a steady level never stops a run. A learned walk
+  that tracks none of the committed commands, whose collapse the
+  dibothrosuchus floor mostly misses, is accepted as within the trade.
+  `collapse_drop_fraction` stays 0.5 on the four walks with a backstop, so
+  an armed run stops once 10 evaluations in a row fall below half its peak,
+  and a return to standing after walking can do that: from the matched
+  reference walker's level it stops the run on the T. rex at 2 or 3 stands
+  of the 30 evaluation episodes (27.4% of evaluation seeds), on the
+  velociraptor at 6 or fewer (84.7%, the default seed 42 included), on the
+  dibothrosuchus at 2 or fewer on the family means (15.1%; 17.2% with each
+  run's own episodes fixed, some of them at 3 or 4 stands) and on the
+  brachiosaurus at none (computed on the committed means and replayed
+  through `EvalCollapseEarlyStopCallback`). A walk that scores higher stops
+  on at least as many seeds. Whether to change the drop fraction is decided
+  after the pilot, once learned walks show how high they score. Still open:
+  the brachiosaurus and dibothrosuchus stance floors (1310, 1870) stay
+  absolute.
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`
@@ -1014,6 +1150,46 @@ robustness, **LOW** = cosmetic / QoL.
   session log; the cause was established by replaying `evaluations.npz`
   through `EvalCollapseEarlyStopCallback`. Fix: record `early_stopped`,
   the stop step and the armed peak in the stage result.
+- **LOW** — **the zero-action baseline watch compares the recovery nodes with
+  the stance statue, and calls a statue-level stance a failure (read from the
+  code 2026-11-26).** A run keeps one statue reward: the SB3 notebook's
+  preflight (cell 13) measures stage 1 only (`BASELINE_STAGE = 1`,
+  `notebooks/sb3_training.ipynb:763`) and copies the record, with its `stage`,
+  into `RUN_DIR/zero_action_baseline.json`
+  (`scripts/zero_action_baseline.py:385`, :417-432), and
+  `read_zero_action_baseline` (`curriculum/baseline_watch.py:54-80`) takes no
+  stage and never reads that field. Since decision D-D62 a live-command stage,
+  the walk, skips all three readers (the watch,
+  `build_baseline_progress_callback`, :206-217; `progress.json`'s
+  `zero_action_reward`, `curriculum/progress_report.py:467-480`; the
+  gate-progress "zero action" line, `visualization.py:909-919`), but the
+  recovery nodes of the T. rex and both Compsognathus models run no command
+  and still read the stance statue, so all three compare a pushed recovery
+  task with standing still. On a stance whose reward the statue all but maxes
+  (the brachiosaurus' and dibothrosuchus' `reward_and_length/v1` stances,
+  whose rail it clears by design, and the anatomical Compsognathus', where no
+  near-statue wins its reward back,
+  `configs/compsognathus_longipes/anatomical/stance.toml:41-53`) the watch's
+  tolerance-free `latest >= self.baseline_reward` test
+  (`baseline_watch.py:137`), against a statue scored on the preflight's seeds
+  3042-3081 rather than the in-training evaluation's own seed stream
+  (`train_base.eval_env_seed`, `train_base.py:1644`), cannot be met by a
+  statue-level policy, and past 35% of the budget it warns once, also into
+  `progress.json`'s warnings, that the run is "in a worse-than-trivial local
+  optimum" like one that "failed its gate" (:153-178), beside a gate the
+  stance passes. On the Allosaurus, whose statue falls within a second (86-91
+  steps of 1000 on seeds 3042-3044, measured 2026-11-26), the comparison is
+  vacuous. Advisory only: no gate, verdict or checkpoint choice reads it. Fix:
+  have the reader take the stage and refuse a record of another stage, so
+  every node but the one measured skips the watch and the line; compare on the
+  same seed stream with a tolerance, and on a stance the statue passes by
+  design report "statue-level (expected)" instead of a failure.
+  (2026-11 notebook review:
+  baseline-watch-uses-stance-statue-for-every-node,
+  stage1-baseline-on-all-nodes,
+  brachiosaurus-stance-reward-ceiling-no-headroom,
+  compsognathus-baseline-warning-on-statue-optimal-stance,
+  allosaurus-statue-baselines-vacuous-for-torque-plant)
 - **MEDIUM** — **the quadruped gait-symmetry reward pays a motionless
   statue its full weight on every step (verified 2026-09-23).**
   `BaseDinoEnv._compute_quadruped_gait_symmetry` (`base_env.py`) scores the
@@ -1086,17 +1262,6 @@ robustness, **LOW** = cosmetic / QoL.
   head geom touches it. The T. rex's probe pattern is now the template for
   terrain.
 
-- **LOW** — **the reset's root-height jitter channel is state-inert but still
-  present.** The PR #479 ground settle overwrites the root height as a pure
-  function of the sampled joint pose, so `reset_height_noise_scale` and
-  `_bounded_reset_height_delta` no longer reach the post-reset state (verified
-  to one ULP; pinned by `TestHeightJitterIsInertSinceGroundSettling`). The RNG
-  draw is deliberately kept — removing it would shift every subsequent draw and
-  re-anchor all seeded baselines, including the PLANT_VALIDATION §6 tables.
-  Remove the whole channel (draw, knob, bound) at the next policy-interface
-  revision. Note this also retires PLANT_VALIDATION §16's reset-height-clip
-  hypothesis *going forward*: the clip cannot influence any future run.
-
 - **MEDIUM** — **the policy saturates its action bound, and the
   `diagnostics/action_*` family mixes pre-clip and post-clip quantities.**
   Measured on T-Rex stage-1 run `20260727_130726` (PPO, 6.0M steps), from its
@@ -1141,6 +1306,16 @@ robustness, **LOW** = cosmetic / QoL.
   `reward_action_smoothness` from *inside* the env, so it is computed on the
   **post-clip** action. Reading the group as one space is an easy and
   consequential mistake.
+  *Update (2026-11-26):* the offline `scripts/action_bound_report.py --model`
+  makes the mistake the other way: it steps `model.predict(obs_input,
+  deterministic=True)` (:140), which SB3 has already clipped to the box
+  (`policies.py:379`, as above), and prints it under "Raw (pre-clip) action
+  statistics" (:165), so its |a| > 1, abs max and E[a²] lines read in bound
+  for every policy, however far the policy's mean sits outside the box. Only
+  its untrained-Gaussian mode (no `--model`) sees pre-clip values. Fix: take
+  the pre-clip lines from the policy's distribution mean and keep `predict()`
+  for the trajectory. (2026-11 notebook review:
+  fu-offline-analysis-tools-species-coverage-action-bound-model-mode-measures-clipped-actions)
 
   **What is real.** PPO stores the raw action and its `log_prob`, while the
   environment responds to the clipped one. With 68% of components saturated,
@@ -1190,10 +1365,6 @@ robustness, **LOW** = cosmetic / QoL.
   jitter could spawn an episode already outside `healthy_z_range`. Worth
   separating if a species much smaller than Dibothrosuchus is ever added.
   (2026-07 Dibothrosuchus review)
-- **LOW** — `plant_contract._mocap_target_name` now requires *every* plant to
-  declare exactly one mocap body. All four comply and it fails loudly, but the
-  constraint was introduced to derive a segment label, not because the contract
-  needs uniqueness. (2026-07 Dibothrosuchus review)
 
 - **LOW** — the T-Rex and Dibothrosuchus SB3 envs accept
   `foot_contact_weight` / `foot_contact_gate` (`tyrannosaurus_rex/base_env.py:195-196`,
@@ -1208,17 +1379,71 @@ robustness, **LOW** = cosmetic / QoL.
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §7). A typo'd weight
   still does nothing; a loud rejection of unknown env kwargs must keep these two
   names. (June §1.6)
-- **LOW** — `curriculum/advancement.py` `_read_latest_eval`: the
-  `successes.shape[0] == n_evals` guard permanently discards npz successes
-  if SB3 starts recording them one eval late. (July §2)
-- **MEDIUM (perf)** — `EvalCallback` runs 30 serial episodes every 50k steps
-  plus supplementary + post-stage evals — up to ~3.6M serial eval steps per
-  6M-step stage. Vectorize the eval env or trim episodes. (June §6.1)
-- **Experiment** — consider tightening Brachiosaurus
-  `head_proximity_max_dist` (~2.0 m) to concentrate the last-mile
-  food-reach gradient. (June §6.10; the rest of that finding is resolved —
-  the published summary is now the 2026-07-18 run, which passes its
-  stage-3 gate with success rate 1.0.)
+- **MEDIUM (perf)** — **in-training evaluation runs serially, at up to 0.8
+  evaluation steps per training step on a stance, and no stage can set its
+  cadence (re-read from the code 2026-11-26).** Every `eval_freq` steps
+  `EvalCallback` rolls max(30, `min_eval_episodes`) episodes
+  (`train_base.py:152`, `:239-253`) one after another on one evaluation env
+  (`:1788-1798`): 40 on five of the seven stances (Allosaurus, both
+  Compsognathus models, T. rex, velociraptor) and on the three recoveries, 30
+  on the brachiosaurus and dibothrosuchus stances and on every walk. The SB3
+  notebook passes `train_stage`'s default `eval_freq=50_000`
+  (`notebooks/sb3_training.ipynb:856`, a line of the `.ipynb` file), with no
+  knob, and no stage TOML has a key for it. On a 1,000-step stance that is up
+  to 40,000 evaluation steps per 50,000 training steps, up to 8.8M over an
+  11M-step stance at 40 episodes (6.6M at 30); the Allosaurus walk's
+  3,000-step episodes make it up to 90,000 per 50,000. After training
+  `evaluate_stage_checkpoints` rolls up to 60 more episodes, and the command
+  line's `curriculum` adds a 10-episode supplementary evaluation at every
+  evaluation (`CurriculumCallback`, `curriculum/advancement.py:231-270`),
+  which the notebook and `train` do not run. The evaluation-count keys assume
+  50,000 steps an evaluation (`collapse_min_evals = 20` is "~1M steps" in the
+  T. rex, velociraptor and quadruped walks' `locomotion.toml`, "20 evals x
+  50k" on the quadrupeds; `required_consecutive`), so another cadence must
+  convert them. Fix: a per-stage cadence key that `train_base.train` reads and
+  `stage_config.json` records, with an `EVAL_FREQ` knob in the notebook, or a
+  subprocess-vectorized evaluation env; the gate panels keep their size. (June
+  §6.1; 2026-11 notebook review: eval-cadence-dominates-wallclock)
+- **MEDIUM** — **under SAC, `diagnostics.npz` gains a row every few
+  transitions and is rewritten whole every minute, and SAC's exploration
+  reaches no report (read from the code 2026-11-26).** `DiagnosticsCallback`
+  appends one row to every series at each `_on_rollout_end`
+  (`diagnostics.py:310-337`). SB3 calls it once per PPO rollout (`n_steps` ×
+  `n_envs`: on 4 envs, 4,096-8,192 transitions on a stance) but under SAC
+  after every `train_freq` vector steps: every 64 transitions on the
+  velociraptor, T. rex and dibothrosuchus stances, every 16 on the
+  brachiosaurus and both Compsognathus models, every 4 on the Allosaurus
+  (SB3's default `train_freq` of 1). Over a stance, 11M steps on every model,
+  that is about 172,000 rows (the velociraptor, T. rex and dibothrosuchus) to
+  2,750,000 (the Allosaurus), against about 1,300 under PPO (about 2,700 on
+  the two Compsognathus stances, whose `n_steps` is 1024). Only the rewrite
+  is throttled: the whole history is saved uncompressed
+  (`file_io.atomic_savez`, `np.savez`, `file_io.py:171-182`) at most every
+  60 s (`diagnostics.py:230,459`), on the Drive mount in the notebook. Rows
+  that dense cannot be compared with a PPO run's per-rollout means either. And
+  nothing a report reads shows SAC's exploration:
+  - the per-actuator std pages read a `log_std` tensor
+    (`reporting/training_history.py:964-978`) or `policy_probe.npz`, which
+    builds no bank and writes no row without a rollout buffer
+    (`policy_probe.py:518-523`); under SAC's state-dependent std they are
+    empty and say "policy.pth has no log_std (not a Gaussian PPO policy)"
+    (:1065) or "no leg actuator std: no policy_probe.npz std_per_actuator and
+    no checkpoint zip's log_std read" (:5573), not that SAC has no global std;
+  - SAC's entropy coefficient is captured as an `algo_` series and charted
+    nowhere (`visualization.py` reads no `algo_` key;
+    `scripts/compare_run_diagnostics.py:41-46` lists PPO's);
+  - `progress.json` gets no `policy` block, which only a probe row fills
+    (`policy_probe.py:836`).
+
+  The review's fourth point, `K3_PANEL = True` switched off under SAC with an
+  INFO log alone while the configuration cell printed "In-run K3 panel: on",
+  is gone with the in-run K3 panel, retired on 2026-11-26 (decision D-D48's
+  retirement note). Fix: record the diagnostics on a fixed step cadence (for
+  example one row per 8,192 transitions) for both algorithms and write them
+  compressed; read SAC's std from the actor's `log_std` head on a fixed state
+  bank, or mark those pages "not applicable to SAC"; chart the entropy
+  coefficient. (2026-11 notebook review: sac-diagnostics-density,
+  fu-sac-artifact-path-sac-exploration-unobservable)
 - **Watch item** — the biped home-residual action mapping has a
   slope discontinuity at action 0 (the two piecewise segments span
   home→min and home→max, which are unequal), so zero-mean Gaussian
@@ -1283,6 +1508,26 @@ robustness, **LOW** = cosmetic / QoL.
   preparation's command-column zeroing and its probe are now the canonical
   warm start's (`policy_loading.neutralize_command_columns` and
   `assert_command_blind`); the rest stays until PR-11 .. PR-13.
+  **Update (2026-11-23, decision D-D60):** the tracking reward, its metrics,
+  `info` keys and dwell now live in `BaseDinoEnv`, active only under a live
+  command (the behavior env inherits them; the nine pilot captures re-run
+  exactly), and a stage TOML can declare the command task in a `[commands]`
+  table, so a manifest node can train what a pilot trains. No committed stage
+  declared one then; the second trainer, the recipe dialect and the second gate
+  stay. `prepare_behavior_checkpoint` refuses a walker trained on live
+  commands. **Update (2026-11-24, decision D-D62):** every committed walk now
+  declares `[commands]`, so no recipe can start from a walker trained since;
+  the pilot `follow_direction` recipes are superseded by the planned follow
+  nodes, and the terrain recipes need a command-free walker on the current
+  plant interface. No such walker exists: that interface is the revision of
+  `configs/plant_versions.toml` note 24 (2026-11-23), in this same unreleased
+  series, every committed walk declares `[commands]`, and
+  `--override commands.*` is refused, so no committed path produces one. Until a follow or terrain node
+  with a command exists, or a command-free walk config is added (a
+  `locomotion.toml` without `[commands]` and with a gate the in-training
+  manager runs), the 63 terrain recipes have no parent a user can produce.
+  The refusal is right: a command-trained walker under a command-free recipe
+  sees a zero command, which its walk was trained to stand still on.
 - **HIGH (terrain blocker)** — **every certified walker survives the plane and
   falls on a flat heightfield (measured 2026-09-25).** An eval-only run (seed
   1, nothing trained or written under `logs/`) of the `robust_best_model` pair
@@ -1348,6 +1593,17 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). Plan:
   `locomotion_gait/v1` in the six locomotion TOMLs, then retrains
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G5 and PR-G7; GQ-8, open).
+  *Update (2026-11-24, decisions D-D61 and D-D62):* this describes the walk
+  gate before the command-driven walk. `reward_and_length/v1` now judges no
+  locomotion stage: all seven `locomotion.toml` declare `command_tracking/v1`,
+  whose walk profile judges every panel episode and whose gait clause reads
+  each cruise episode's floor-truth footfalls (GAIT_QUALITY_PLAN GQ-8 (a),
+  GQ-9 (a), GQ-18; D-D61 (7)). `locomotion_gait/v1` was not built; the walk
+  gate's gait clause takes its place. Its bars are provisional, and no
+  controller has passed a committed walk panel (D-D62 (16) and D-D64, the
+  first item of this section). The item stays open until a walk certifies under that gate;
+  the hopping certificates named above are stranded in any case by plant note
+  24, which refuses every earlier checkpoint.
 
 - **HIGH (hardware target)** — **the Compsognathus robot stands and walks on
   stacked feet, and its touch sensors count sole-on-sole force as support
@@ -1358,21 +1614,33 @@ robustness, **LOW** = cosmetic / QoL.
   0.9988 is 0.62 on floor contact. The walker's feet touch on 96% of substeps,
   pushing 1.12 body weights into each touch sensor, so the support flag that
   scales its alive, posture and height rewards (touch sum above 4% of body
-  weight, `compsognathus_longipes/base_env.py:200,250`) is on 99.6% of steps by touch and
+  weight, `compsognathus_longipes/base_env.py:188,258`) is on 99.6% of steps by touch and
   34.3% by floor: about 838 of its about 2627 reward pays for support the
   floor never gives ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §5).
   Plan: the robot's `gait-r1` revisions, with floor-contact support and a
   foot-collision penalty ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G7;
-  GQ-14, open); the touch observation still counts that force until the
-  robot's next policy-interface revision.
+  GQ-14, open).
+  *Update (2026-11-23, decision D-D59, `configs/plant_versions.toml` note
+  24):* the observation half is fixed. Since the robot's policy interface r4
+  its two foot channels read each sole's normal force against the floor
+  (`BaseDinoEnv._foot_floor_contact_forces` over the robot class's
+  `FOOT_OBSERVATION_FLOOR_GEOMS`, `right_sole` and `left_sole`), so a sole
+  resting on the other foot reads 0 N; the soles still collide with each
+  other, as GQ-14 (a) keeps them. On the zero-action statue (seeds
+  3042–3061, 1000 steps) the floor and touch readings agree to 0.0 N on
+  every step; posed sole on sole, the upper foot's channel reads 0 N where
+  its touch sensor reads 7.8 N. The reward half stays open: the support flag
+  above still reads the touch sensors on both Compsognathus models until
+  PR-G7's floor support.
 
 - **HIGH** — **the stance gates admit stances that chatter, march, stand on
   one foot, stack their feet, prop a leg on a rolled pad or hop (replayed
   2026-09-28; re-measured 2026-10-06).** `stance_quality/v1` counts only steps
   with neither foot's touch sensors above 0.1 N, averaged over the panel after
-  an unscored 200-step settle window, and the other three stances gate on a
-  reward rail at 0.60× the statue; the zero-action statue passes all six by
-  design (`stance_gate.py:13-20`). No current stance node stands as its statue
+  an unscored 200-step settle window; on 2026-09-28 the other three stances
+  gated on a reward rail at 0.60× the statue, and the zero-action statue
+  passed all six by design (`stance_gate.py:13-20`). The Allosaurus stance,
+  the seventh, refuses its statue. No current stance node stands as its statue
   does ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §3):
   all three passing T-Rex stances (seed 42 `20260914_123816`, which the
   2026-09-28 audit called clean, and seed 44 `20260920_010912` and
@@ -1406,14 +1674,16 @@ robustness, **LOW** = cosmetic / QoL.
   measured, so that gap is narrowed there, not closed: a softer two-foot
   bounce, a one-foot flutter and a fast weight shuttle still certify (the next
   entry; the T-Rex and velociraptor blocks do not declare the pair). The other
-  three stance stages (the Compsognathus robot, dibothrosuchus, brachiosaurus)
-  still certify under v1 or their reward rail. Plan: each remaining stance
-  stage adopts v2, a gate revision with bars re-measured on that species' own
-  statue panel ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11–§16 and PR-G8;
-  GQ-10, open); each species stays open until its stance certifies under v2,
-  the T-Rex, velociraptor and compsognathus included: no r2 compsognathus
-  stance has trained yet; every r3 velociraptor stance trained so far is clean
-  on 0/40 (two 6M runs and nine 1M-step reward pilots,
+  four stance stages still certify under v1 (the Compsognathus robot, and the
+  Allosaurus, added 2026-11-21, whose statue falls in every episode) or their
+  reward rail (the dibothrosuchus and the brachiosaurus,
+  `reward_and_length/v1`). Plan: each remaining stance stage adopts v2, a gate
+  revision with bars re-measured on that species' own statue panel
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11–§16 and PR-G8; GQ-10, open);
+  each species stays open until its stance certifies under v2, the T-Rex,
+  velociraptor and compsognathus included: no r2 compsognathus stance has
+  trained yet; every r3 velociraptor stance trained so far is clean on 0/40
+  (two 6M runs and nine 1M-step reward pilots,
   [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
   §1.3–§1.4; every one is stranded by velociraptor physics r4, D-D30,
   whose statue fails the 0.35 windowed load-share bar on 1 of 240
@@ -1451,6 +1721,17 @@ robustness, **LOW** = cosmetic / QoL.
   actuator parked negative, and seed 60's final stands with its head tip at
   1.12 m; no gate reads head posture, so check a stance's head by hand before
   using it still (§27 of the stance record).
+  *Update (2026-11-26):* the two reward-rail stances roll no stance report, so
+  no report screens their per-foot load: the brachiosaurus' evaluations run no
+  recorder, and the per-foot columns of the dibothrosuchus' evaluation ledger
+  and replay `_stance.csv` reach no summary or verdict. The dibothrosuchus r3
+  quick-test handoff stood on three legs in its replay (2026-11-22), and no
+  summary said so (its checkpoint is stranded by plant note 24). Until they
+  adopt v2 (GQ-10), give the reward-rail stances a report-only per-foot
+  floor-load screen (each foot's share of the window's floor load, and the
+  share of steps with a foot unloaded), which needs the four-foot
+  `derive_stance_info` of the forefeet entry below (PR-G2). (2026-11 notebook
+  review: dibothrosuchus-three-legged-stance-certified-unflagged-r3)
 
 - **MEDIUM** — **`stance_quality/v2` on the anatomical compsognathus certifies
   a soft two-foot bounce, a one-foot flutter and a fast weight shuttle
@@ -1493,6 +1774,17 @@ robustness, **LOW** = cosmetic / QoL.
   statue, the jittered statue and these scripts ([stance-hack
   audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §11, its hack table and
   Limits).
+  *Update (2026-11-26):* the check is still by hand. Nothing computes a
+  stance's per-foot lift-offs or its window root-height rhythm: the stance
+  report's touchdown bar (`max_touchdown_rate`,
+  `configs/compsognathus_longipes/anatomical/stance.toml:383`) counts
+  debounced step-level touchdowns, which the sub-step lifts above never reach;
+  the SB3 notebook does not prompt for the check; and `BEHAVIOR = "auto"`
+  warm-starts the walk from a certified stance without it. Fix: compute both
+  as report-only columns of the stance certificate (lift-offs per foot per
+  episode, and a spectral peak of the window root height) and print them at
+  the handoff. (2026-11 notebook review:
+  compsognathus-manual-liftoff-check-not-automated)
 
 - **MEDIUM** — **σ 0.20 of exploration noise topples the anatomical
   compsognathus statue, and σ 0.135 bounces it (measured 2026-10-07).**
@@ -1520,6 +1812,46 @@ robustness, **LOW** = cosmetic / QoL.
   learned standard deviation in the first r2 stance runs (at least two seeds),
   and re-measure the cliff with any plant or interface change.
 
+- **MEDIUM** — **stance exploration noise is set against the statue's noise
+  cliff on two plants only (read from the configs 2026-11-26).** The
+  velociraptor (std 0.10, `log_std_init = -2.30`,
+  `configs/velociraptor_mongoliensis/anatomical/stance.toml:240`) and the
+  anatomical Compsognathus (0.135, `-2.0`,
+  `configs/compsognathus_longipes/anatomical/stance.toml:207`) start at a σ
+  their statue was measured to survive (the entry "σ 0.20 of exploration noise
+  topples the anatomical compsognathus statue" has its numbers), and only they
+  have a noise-tolerance test (`test_anatomical_noise_tolerance.py` in
+  `environments/velociraptor_mongoliensis/tests/` and
+  `environments/compsognathus_longipes/tests/`). The T. rex's 0.22 (`-1.5`,
+  `configs/tyrannosaurus_rex/anatomical/stance.toml:518`) was set from reward
+  cost and short PPO runs and sits above its statue's cliff by decision
+  (D-D27). The rest have no measurement:
+  - The dibothrosuchus, brachiosaurus and Allosaurus `stance.toml`s set no
+    `log_std_init`, so they train at SB3's std 1.0, with no recorded reason.
+    In the 2026-11 review's quick tests, 0 of 873 dibothrosuchus training
+    rollouts reached the horizon (excessive tilt 501, tail contact 295) and 0
+    of 821 Allosaurus; the brachiosaurus kept 49 of 54.
+  - The Compsognathus robot copies its sibling's `-2.0`
+    (`configs/compsognathus_longipes/robot/stance.toml:56`) with no
+    measurement of its own, although in that review its statue fell on every
+    episode at σ 0.02 (and stood at 0.01) and all 1,109 of its quick-test
+    training rollouts fell. The [stance-hack
+    audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §3.4 notes that it
+    falls under any PPO-scale noise; no test or plan item followed.
+  - Those readings predate note 24 of `configs/plant_versions.toml`, which
+    moved all seven plants. The SB3 notebook prints no training fall fraction
+    or policy std, though `progress.json` holds the one
+    (`training_rollouts.fall_fraction`) and the training history draws the
+    other.
+
+  Fix: measure each plant's cliff with the existing noise test, extended to
+  the robot, the two quadrupeds and the Allosaurus, then set `log_std_init` or
+  record in the stage TOML why std 1.0 is intended; print the fall fraction
+  and policy std in the notebook's per-evaluation readout (the progress entry
+  under Notebooks). (2026-11 notebook review:
+  cmp-exploration-start-uncalibrated-quadrupeds-allosaurus,
+  compsognathus-robot-falls-under-any-exploration-noise)
+
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
   mean of its per-step `info["forward_vel"]` (`evaluation.py:105-123`), the
@@ -1537,6 +1869,14 @@ robustness, **LOW** = cosmetic / QoL.
   panel passed the 1.0 bar. Plan: per-episode qualification under
   `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
   GQ-7, open for locomotion; taken for stance only, as D-D23, on 2026-10-06).
+  *Update (2026-11-24, decisions D-D61 and D-D62):* this no longer applies to
+  any committed stage. Every walk is judged per episode by
+  `command_tracking/v1`'s walk profile: at 20 cruise episodes
+  `min_cruise_survival_lcb` 0.80 is cleared only by 20 of 20 reaching the
+  horizon, so a lunge that falls fails, and the gait clause judges each
+  cruise episode's footfalls. The panel-mean reading above is `reward_and_length/v1`'s,
+  which judges no locomotion stage now. The walk profile's bars are
+  provisional (D-D62 (16)).
 
 - **MEDIUM** — **the recovery safe set has no support clause, and the
   certified T-Rex recovery answers forward pushes with two-footed hops
@@ -1554,35 +1894,47 @@ robustness, **LOW** = cosmetic / QoL.
   open); allowing no two-footed touchdown in a push window, seed 44 scores
   5/40.
 
-- **MEDIUM** — **hunt success counts on a step that ends in a fall, and the
-  panel and training definitions disagree (executed 2026-09-28).** On T-Rex,
-  velociraptor, brachiosaurus and dibothrosuchus the reward info sets the
-  success flag and pays the 1,000 bonus whenever the contact or reach holds,
-  but `_is_terminated` runs every fall check except floor contact before its
-  success check, so such a step ends as a fall with `is_success` False
-  (`base_env.py:1372`). The post-training panel reads the flag on every step
-  (`evaluation.py:118-119`) and counts the episode, for T-Rex in the `task_success`
-  that `task_success/v1` judges; training reads `is_success` and does not.
-  Executed on each hunt env with the body rolled past `max_tilt_angle` and the
-  prey on the success geometry: `excessive_tilt`, 991–992 reward, a panel
-  success (T-Rex 30/30, gate PASS) and 0 in training; a floor-contact fall on
-  the contact step ends as a success in both. The compsognathus pair reads
-  success after its fall checks (`compsognathus_longipes/base_env.py:298-312`) and is
-  unaffected. Leaves with each hunt's task revision, which the gait plan does
-  not schedule ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9;
-  [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3).
+- **MEDIUM** — **the T. rex recovery is frozen and judged on its physics-r7
+  judge, with no warning and no mark in the verdict (read from the code
+  2026-11-26).** `_model_calibration` returns no calibration for
+  `LEGACY_RECOVERY_JUDGE_MODEL_ID`, the anatomical T. rex
+  (`harnesses/freeze_recovery_gate.py:397-399`;
+  `curriculum/gate_resolver.py:54`), so its null panels and its policy panel
+  use `recovery_evaluation.py`'s `CALIBRATED_POSTURE_ONLY` safe set and
+  `CALIBRATED_HEIGHT_REFERENCE_M` 0.9267 m (:79-100), measured on the r7
+  certified stance. The comment above them says they are stale since physics
+  r8 and are to be re-measured on the first certified r10 stance before the
+  gate is re-frozen (D-D24); the plant is r12 now
+  (`configs/plant_versions.toml` note 24), and the comment still names r10.
+  The SB3 notebook freezes the T. rex recovery on it whenever the node trains
+  (cell 20, `sb3_training.ipynb:1619`; the manual cell, :2034); the freeze
+  summary's warnings (`freeze_recovery_gate.py:839-862`) say nothing of the
+  judge, the quiet safe-set check that qualifies the parent on the other two
+  models is skipped for it (:742-743), and neither `gate_resolution.json` nor
+  `gate_verdict.json` marks the verdict as judged by an unmeasured judge. Fix:
+  refuse to freeze the T. rex recovery until the judge is re-measured on a
+  certified stance of the current plant (or warn at freeze and record the
+  legacy judge in the resolution and the verdict), and update the comment.
+  (2026-11 notebook review:
+  tyrannosaurus-trex-recovery-legacy-judge-auto-frozen-stale)
 
-- **MEDIUM** — **the brachiosaurus zero-action statue reaches the food in 11
-  of 40 hunt episodes (executed 2026-09-28).** The food spawns 1.5–4.0 m ahead
-  and 2.0–3.5 m up and counts within 0.8 m of the head tip
-  (`configs/brachiosaurus_altithorax/anatomical/food_reach.toml:18-23`), so the statue
-  reaches it on 27.5% of the audit's seeds (3042–3081; a spawn draw, about
-  ±7%) against a `min_success_rate` of 0.5: more than half the bar is free
-  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). Leaves with the
-  brachiosaurus hunt's task revision (a paired comparison with the statue, or
-  food spawned out of resting reach), which the gait plan does not schedule
-  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9). On physics r6, the untrained
-  statue reaches the target in 9 of the same 40 episodes (22.5%).
+- **LOW** — **a Compsognathus stance is checked against its recovery judge
+  only when the recovery node starts (read from the code 2026-11-26).** The
+  95% quiet safe-set occupancy a stance checkpoint must reach before its
+  recovery can freeze is measured by `_quiet_brace_controller`
+  (`harnesses/freeze_recovery_gate.py:411-470`, the bar at :425), which runs
+  only inside `freeze_recovery_gate` when the chain loop starts the recovery
+  node (cell 20, `sb3_training.ipynb:1619`). Nothing measures it when the
+  stance is judged or handed off, so a stance can certify, and feed the walk,
+  that the recovery freeze then refuses ("recalibrate the judge from qualified
+  stance evidence before recovery training"), as the review's manual run of
+  the robot's recovery was refused at 68% (2026-11-22). Recalibration is
+  `scripts/calibrate_recovery.py`, from the command line only. T. rex's legacy
+  judge skips the check (the T. rex recovery entry in this section). Fix: at
+  the end of a stance whose manifest has a recovery child, measure the quiet
+  occupancy under that child's judge, record it in the stance's report, and
+  warn below 95%. (2026-11 notebook review:
+  cmp-recovery-parent-qualification-asymmetric)
 
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on T-Rex, velociraptor, brachiosaurus or dibothrosuchus (read from
@@ -1643,7 +1995,12 @@ robustness, **LOW** = cosmetic / QoL.
   0.54 of the weight in one step. Fix: re-attach the shaping on a
   continuation, offset by the counter (not on a curated `--load`, which
   `_is_resume_continuation` tells apart), or at least warn. No cleanup PR
-  owns it. (2026-08 gap review TC8)
+  owns it. (2026-08 gap review TC8) Since decision D-D62 no committed stage
+  builds `RewardRampCallback`: every walk follows a live command and ramps
+  its commanded speeds instead, and that cruise ramp does resume, from the
+  position every checkpoint records (`curriculum/cruise_ramp.py`). The
+  forward-velocity ramp and the warm-up remainder still behave as above for
+  a command-free stage, and the warm-up remainder for the walk too.
 
 - **MEDIUM** — **certification is judged on one fixed 40-seed block, and the
   held-out confirmation panel the stance design calls for does not exist
@@ -1681,12 +2038,39 @@ robustness, **LOW** = cosmetic / QoL.
   which counts the falls too and cuts that to about 0.42, and refuses a
   statue-quality policy on about 1 panel in 23; the fresh-block confirmation
   stays manual ([NEXT_STEPS.md](NEXT_STEPS.md) asks for a re-judgement on
-  7042–7081 before a T-Rex stance is handed on), and no other species declares
-  the rail.
+  7042–7081 before a T-Rex stance is handed on), and of the other stances only
+  the velociraptor's declares the rail (2026-11-06,
+  `configs/velociraptor_mongoliensis/anatomical/stance.toml:520`; the
+  anatomical Compsognathus is the next entry).
 
-- **MEDIUM** — **only the T. rex and anatomical compsognathus stances
-  certify heading, and both r8 T-Rex stances stand only near the heading
-  they trained at (measured 2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
+- **MEDIUM** — **the anatomical Compsognathus stance certifies on the
+  six-heading certificate without the guards the T. rex and velociraptor
+  stances carry, and records no reason (read from the code 2026-11-26).** The
+  three stances on `stance_quality_heading/v1` share the certificate, and the
+  Compsognathus anneals its entropy bonus to 0 at 7M as the other two do
+  (`configs/compsognathus_longipes/anatomical/stance.toml:199-201`). Only the
+  T. rex and the velociraptor declare `certification_seeds = 2`
+  (`configs/tyrannosaurus_rex/anatomical/stance.toml:1030`,
+  `configs/velociraptor_mongoliensis/anatomical/stance.toml:633`), the
+  500,000-step checkpoint archive (:1049 and :625), the hop watch that stops a
+  seed still hopping when the entropy bonus runs out (:1152-1167 and :644-657)
+  and the `max_hop_or_fall_episodes = 1` rail (:887 and :520). The
+  Compsognathus stance declares none of them and gives a reason for the rail
+  alone ("adding one is a separate threshold decision", :354-355). So its
+  default of one seed (`gate_schema.py:594-601`) publishes a single certified
+  seed as certified, a seed that locks into a hop at 7M trains on to the 11M
+  budget, and no archived checkpoint is left to re-judge. No stance has
+  trained on the current Compsognathus plant (physics r4), so whether the
+  recipe is seed-sensitive is unmeasured. Fix: give the Compsognathus stance
+  `certification_seeds = 2`, the archive and a hop watch with its bar measured
+  on its statue, or record in the TOML why each is left out. (2026-11 notebook
+  review: cmp-certificate-stances-uneven-guards)
+
+- **MEDIUM** — **only three stances certify heading (the T. rex's and the
+  anatomical compsognathus's since D-D32, heading-free since policy
+  interface r14 and r4; the velociraptor's since 2026-11-06, heading-free
+  since r13), and both r8 T-Rex stances stand only near the heading they
+  trained at (measured 2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
   prey within about ±11°), and up to policy interface r13 the T-Rex
   observation carried heading only in world-frame quantities (the pelvis
   quaternion, the pelvis linear velocity, the prey vector), so a policy could
@@ -1786,6 +2170,34 @@ robustness, **LOW** = cosmetic / QoL.
   declares the six-heading certificate in place of the report-only probe
   (its statue clean on 40/40 seeds at every heading on 3042–3081 and on
   7042–7081). The entry stays open for the compsognathus robot alone.
+  *Update (2026-11-23, decision D-D59, `configs/plant_versions.toml` note
+  24):* every model's observation is heading-free now, the robot's
+  included: the prey, food and course target left every scene, and the
+  robot (policy interface r4), the brachiosaurus (r12) and the
+  dibothrosuchus (r11) moved from the world frame to the same layout
+  (`bipedal-heading-free/v1`, and `quadrupedal-heading-free/v1` on the
+  quadrupeds' torso), so a whole-scene turn changes nothing any policy
+  observes, and the episode's forward reference is the spawn's own heading.
+  What stays open is the gate: the robot stance still declares only the
+  report-only probe, not the six-heading certificate, and the two
+  quadrupeds' stances roll no stance report, so no heading of those three
+  is certified.
+  *Update (2026-11-26):* the Allosaurus stance (added 2026-11-21) declares the
+  report-only probe too, `stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0,
+  90.0]` beside `stance_quality/v1`
+  (`configs/allosaurus_fragilis/anatomical/stance.toml:22,33`), and records no
+  reason for either. Its observation is heading-free
+  (`bipedal-heading-free/v1`, `configs/plant_versions.toml:246-248`), so every
+  whole-scene row repeats the unturned episode, and its zero-action statue
+  falls in every episode (88.5 of 1,000 steps on seeds 3042-3043,
+  `scripts/zero_action_baseline.py --stage 1`, measured 2026-11-26), so every
+  row carries the warning that "the control did not stand, so those rows do
+  not isolate heading" (`reporting/stance_report.py:3491-3495`): on this plant
+  the probe measures nothing. Fix: choose and record the Allosaurus stance's
+  gate kind; the six-heading certificate, as on the other heading-free bipeds,
+  needs a statue that stands, so until one does, drop the probe and say why.
+  (2026-11 notebook review:
+  cmp-allosaurus-heading-probe-on-heading-free-plant)
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured
@@ -1902,15 +2314,37 @@ robustness, **LOW** = cosmetic / QoL.
   stance report, its probes and publication fall back to
   `DEFAULT_MIN_EVAL_EPISODES_STANCE` = 40 (`curriculum/stance_gate.py:142`,
   `reporting/stage_artifacts.py:239,629`, `result_bundle/evidence.py:511`).
-  The gate schema requires `min_eval_episodes` for `task_success/v1` only
-  (`curriculum/gate_schema.py:148-179`), so nothing stops a new
-  `stance_quality/v1` TOML from leaving it out; the three that exist (the
-  T-Rex's and both Compsognathus models' `stance.toml`) set 40, so it is latent. #519 named both
-  values and kept them apart on purpose, because unifying them would change
-  which panels the SB3 manager certifies (gap review DU4, part 2 not applied).
-  Fix: require `min_eval_episodes` for `stance_quality/v1` in the gate schema,
-  as `task_success/v1` does (the three stance TOMLs already set it), or unify
-  the two fallbacks. No cleanup PR owns it. (2026-08 gap review DU4)
+  The gate schema requires `min_eval_episodes` of the floor-truth stance
+  kinds (`stance_quality/v2` and the six-heading certificate) but not of
+  `stance_quality/v1` (`task_success/v1`, which also required it, was
+  removed with the hunt nodes, decision D-D59), so nothing stops a new
+  `stance_quality/v1` TOML from leaving it out; the two that exist (the
+  Compsognathus robot's and the Allosaurus' `stance.toml`) set 40, so it is
+  latent. #519 named both values and kept them apart on purpose, because
+  unifying them would change which panels the SB3 manager certifies (gap
+  review DU4, part 2 not applied). Fix: require `min_eval_episodes` for
+  `stance_quality/v1` in the gate schema, as the floor-truth kinds do (both
+  `stance_quality/v1` TOMLs already set it), or unify the two fallbacks. No
+  cleanup PR owns it. (2026-08 gap review DU4)
+
+- **LOW** — **a hand-run T-Rex tool still assumes the physics r11 plant or
+  older (found 2026-11-23).**
+  `environments/tyrannosaurus_rex/scripts/replay_walk.py` builds the current
+  environment from an archived Pilot4 stage's recorded config, which names
+  the bite arguments and prey range the environment now refuses (the
+  arguments since `e3cccca`, the range since note 24), and feeds a 63-wide policy
+  the current 59-wide observation, so it runs only in a checkout of
+  `3368abe` or earlier. It does not run in CI or training. Fix: port the
+  replay to a re-trained walk, or retire it with its review's Pilot4 transfer.
+  Updated 2026-11-23: on a later checkout the script now stops before it
+  reads a stage and names `3368abe` (`require_a_runnable_checkout`, pinned by
+  `environments/tyrannosaurus_rex/tests/test_replay_walk.py`). The other tool
+  this item named is fixed: `harnesses/recovery_offdist_panel.py` sized its
+  `mag120` and `mag210` rows as `1.5 × target / 165.501`, the push that
+  capture multiple 1.5 derived on physics r7 through r11, so on physics r12
+  (`configs/plant_versions.toml` note 24, 159.7 N at 1.5) they pushed about
+  115.8 N and 203.0 N; it now converts 120 N and 210 N to multiples on the
+  plant it builds (`multiple_for_force`, through `derive_push_parameters`).
 
 ## Infrastructure
 
@@ -1969,11 +2403,20 @@ robustness, **LOW** = cosmetic / QoL.
   again. The stage figures
   (`visualization.py`) and `scripts/compare_run_diagnostics.py` read
   `diagnostics.npz` by name and now cover the whole stage
-  (`tests/test_resume_record_integrity.py`). As it was: the callback started
-  its rollout history empty in every session and nothing seeded it, so a
-  resume into the stage directory it continued overwrote the prior session's
-  rows at its first save. (2026-10 review of the `gate_progress.npz` resume
-  fix)
+  (`tests/test_resume_record_integrity.py`). On a live-command stage the seed
+  also carries the four command-tracking series (`tracking_in_tolerance`,
+  `tracking_error_v`, `tracking_error_yaw`, `reward_tracking`), so the
+  command-tracking figure's tracking-fraction panel (2026-11-24), which marks
+  the step its recorded history starts at, covers the whole stage of a
+  continuation too. Its resume caveat (merged 2026-11-25) is drawn for a PPO
+  continuation only when the series starts after the checkpoint the stage
+  continued from, and for every recorded resume that cannot seed (a SAC or
+  curated `--load`, which restarted the step counter) wherever the series
+  starts, naming the checkpoint whose earlier steps the record does not
+  hold. As it was: the callback started its rollout history empty in every
+  session and nothing seeded it, so a resume into the stage directory it
+  continued overwrote the prior session's rows at its first save. (2026-10
+  review of the `gate_progress.npz` resume fix)
 - **LOW** — **a result-bundle JSON file that is not UTF-8 escapes as a raw
   `UnicodeDecodeError` instead of the reader's own refusal (reproduced
   2026-10-01).** These readers read with `encoding="utf-8"` but catch only
@@ -2016,6 +2459,434 @@ robustness, **LOW** = cosmetic / QoL.
   it. (2026-08 gap review OP9; its other half, the species
   `requirements.txt` files that took any MuJoCo from 3.0.0, was fixed by
   deleting them.)
+- **MEDIUM** — **nothing promotes a run into `results/`, nothing can mark a
+  published result current or stale, and `results/` cannot hold a chain built
+  on a trunk (read from the code 2026-11-26).** No function, script or
+  checklist copies a Drive bundle into `results/`: the Drive summary's
+  strict-promotion cell only validates, and `results/README.md:75-76` says
+  promotion is deliberate. `results/` holds no summary since the hunt's
+  removal deleted the four historical ones (D-D59,
+  `results/README.md:20-23,37-57`), so no model page shows a run. No code path
+  marks a result current or verified: `result_bundle/provenance.py:416-417`
+  and `reporting/summaries.py:48-49` write `model_revision_status =
+  "historical"` and `verification_status = "unverified"` on every run, the
+  catalog passes them on (`species_catalog.py:863-866`) and the website calls
+  every published summary a historical record
+  (`website/src/components/SpeciesCatalog/index.tsx:365-368`); nothing
+  compares a published summary's plant, task or gate digests with the current
+  manifest, so a result can neither become current nor be flagged stale. The
+  layout holds one summary per model and algorithm: the catalog reads
+  `results/*/*/*/summary.json` (`species_catalog.py:1234-1237`) and never
+  aggregates across bundles (D-B10, :917-920), and a cross-run ancestor writes
+  no CSV row or summary stage in the run that reused it
+  (`sb3_training.ipynb:817-818`), so a chain built with `TRUNK_FROM`, or a
+  deliverable's seed replicates, cannot be published whole. Fix: a promotion
+  tool and checklist built on `validate_result_bundle(...,
+  require_publishable=True)` that refuses screens and quick tests, compares
+  the plant, task and gate digests with the current manifest and sets the two
+  status fields; a run-id (or ancestor) level under
+  `results/<species>/<embodiment>/<algo>/`. (2026-11 notebook review:
+  no-promotion-path, no-staleness-or-current-status,
+  results-layout-cannot-publish-trunked-chain)
+- **LOW** — **the run summary and the CSV row leave out a node's verdict, its
+  reasons and its certified statistic, and no page ties a run together (read
+  from the code 2026-11-26).** `write_training_summary`
+  (`reporting/text_summaries.py:188-256`) writes the `training_summary.txt`
+  the SB3 notebook prints after every node
+  (`notebooks/sb3_training.ipynb:980`, called at :1682, :1943 (the publish
+  cell) and :2098): per node its timesteps, duration, final and best
+  evaluation and a "Best model:" path (`text_summaries.py:238-244`), the last
+  even for a node that failed, and no gate kind, verdict, failure reason,
+  reuse origin, certified statistic or handoff.
+  `stage_summary.txt` has the verdict and the failures (:166-185) and, on a
+  walk, the family statistics and the handoff (`_command_tracking_lines`,
+  :37-80), but no gate kind, and on a stance not the bound its verdict records
+  (`stance_heading_clean_seed_lcb`, `result_bundle/gate_verdict.py:124`),
+  which reaches only the stance reports and the CSV row
+  (`reporting/csv_output.py:345`). The chain loop's own line is `<node>: gate
+  PASSED (<kind>); handoff <stem>.zip` (cell 20, `sb3_training.ipynb:1690`),
+  and the report paths go to `logger.info`, which the notebook never shows. In
+  `collected_results.csv`, `CSV_METRIC_COLUMNS` (`csv_output.py:80-99`) still
+  lists `gate_evaluable`, `gate_reason`, `quality_score` and `quality_rank`,
+  left from the retired sweep and scoring, and nothing writes them, so
+  `gate_reason` is empty on a FAIL (the early-stop entry under Training / RL
+  reads the same empty column). The Drive summary's tables are the Drive
+  tables entry under Notebooks. No page links a run's nodes: nothing writes a
+  run-level index of each node's `gate_progress.png`, `training_history.html`,
+  reports and replays. Fix: a per-node verdict block (gate kind, PASS/FAIL,
+  reasons, headline statistic, reused-from, handoff) in `training_summary.txt`
+  and the chain loop's print, with the gate kind and headline statistic in
+  `stage_summary.txt` too; write `gate_reason` from `gate_failures` and drop
+  the three dead columns; a run-level `index.html` linking every node's
+  figures, reports and replays. (2026-11 notebook review:
+  no-chain-level-human-report, summary-omits-verdicts,
+  gate-reasons-not-propagated, and the CSV half of
+  collected-results-dead-and-kind-dependent-columns)
+- **LOW** — **the Allosaurus stance records a 0% success rate for an event it
+  cannot raise (read from the code 2026-11-26).** `evaluate_stage_checkpoints`
+  records `mean_success_rate` and `best_model_success_rate` for every node of
+  a model that declares success keys
+  (`reporting/stage_artifacts.py:1950-1954`, :2077 and :2102), by model, not
+  by node. Six models declare none since the hunt's removal; the Allosaurus
+  declares `course_complete`
+  (`environments/allosaurus_fragilis/base_env.py:29`), and its stance can
+  never complete the course: under `command_mode "none"` a course exists only
+  while `forward_vel_weight` is positive (:191-201, :204-213), and its
+  `stance.toml` sets 0.0 (:6). So its stance prints "Eval: success_rate=0%"
+  and "Success rate: 0%" in `stage_summary.txt`
+  (`reporting/text_summaries.py:154-155`), and its CSV row and summary record
+  0.0, on a node no success event applies to. On its walk the rate is course
+  completion, which the `command_tracking/v1` gate does not read. Fix: record
+  a success rate only for a node whose task can raise the event (a stage with
+  a course), and label it the task event, never the gate. (2026-11 notebook
+  review: success-rate-on-non-task-nodes)
+- **LOW** — **a passing recovery verdict records none of the statistics it was
+  judged on (read from the code 2026-11-26).** `RecoveryGateResult` carries
+  the success bound and the paired policy-minus-statue bound
+  (`curriculum/recovery_gate.py:197-237`), but `_recovery_stage_gate` keeps
+  only `result.passed` and `result.failures` (`reporting/gates.py:1811-1831`),
+  so the two numbers appear only inside a failure string.
+  `gate_verdict._PERSISTED_STAGE_RESULT_KEYS`
+  (`result_bundle/gate_verdict.py:72-150`) has stance and command fields and
+  no recovery one, the CSV row adds statistic columns for the two stance kinds
+  and the walk only (`reporting/csv_output.py:328-350`), `stage_summary.txt`
+  prints none, and `gate_progress.png` has no recovery panel. The chain loop
+  prints the panel's count, `<k>/<n> episodes recovered`
+  (`sb3_training.ipynb:1659`), and the per-episode evidence is on disk
+  (`recovery_episodes_<controller>.csv`, `recovery_evaluation.py:346-359`),
+  but no artifact states the bounds. T. rex and the two Compsognathus models
+  have a recovery node. Fix: return the result's counts and bounds from the
+  gate and persist them in the verdict's `stage_result`, the CSV row and
+  `stage_summary.txt`, and draw a recovery panel in `gate_progress`. (2026-11
+  notebook review: tyrannosaurus-recovery-verdict-records-no-statistic)
+- **LOW** — **user-facing text names a node by its legacy stage number, which
+  on three models is not its directory's prefix (read from the code
+  2026-11-26).** `stage_summary.txt` is titled
+  `Mesozoic Labs: Stage <N> Summary`
+  (`environments/shared/reporting/text_summaries.py:110`; `Stage: <N> (...)`,
+  :114), each node of `training_summary.txt` is headed `Stage <N>: <name>`
+  (:224), the older per-node figures' legends read the same
+  (`visualization.py:138`, :391, :495, :626), and the judge logs
+  `Stage <N> curriculum gate: PASS` or `FAIL`
+  (`reporting/stage_artifacts.py:1811-1813`), where `<N>` is the legacy number
+  (1 the stance, 2 the locomotion) or the bare id. On the T. rex and both
+  Compsognathus models the walk sits in `03_locomotion` and reads "Stage 2",
+  and the recovery reads "Stage recovery"; the notebook explains the two
+  numberings only for `RESUME_STAGE` (cell 17,
+  `notebooks/sb3_training.ipynb:1101`). The legacy numbers and the file
+  prefixes are deliberate (`stage_manifest.stage_dirname`,
+  `stage_manifest.py:612-639`); the display is not. Fix: show the node id in
+  this text, the legacy number only in parentheses where a file name needs it.
+  (2026-11 notebook review: stage-number-wording, and the legend half of
+  figure-labels-units)
+- **LOW** — **every stance report but the T. rex's logs a spurious
+  `stance_probe_filter_hz` warning (read from the code 2026-11-26).** The
+  filtered-action probe passes
+  `curriculum_kwargs.get("stance_probe_filter_hz")` to `_probe_cutoffs`
+  (`environments/shared/reporting/stage_artifacts.py:1097`), which wraps a
+  missing key's `None` in a list, fails `float(None)` and logs
+  "stance_probe_filter_hz entry is not a number: None; ignoring it" at WARNING
+  (:1050-1057) before it returns no cutoff. The probe is skipped, as it should
+  be, under a warning that reads as a config error. Only the T. rex stance
+  sets the key (`configs/tyrannosaurus_rex/anatomical/stance.toml:1172`), so
+  the velociraptor, both Compsognathus models and the Allosaurus, whose
+  stances write a stance report, log it on every artifact pass (the review saw
+  it on the Allosaurus). The impulse and heading probes return early on a
+  missing key (`stage_artifacts.py:1317`, :1399). Fix: the same early return
+  for this key. (2026-11 notebook review: probe-cutoffs-none-warning,
+  probe-filter-none-warning)
+- **LOW** — **the older per-node figures mislabel, mis-scale or hide what they
+  plot (read from the code 2026-11-26).** Report only: no gate or bundle check
+  reads them. In `visualization.py`:
+  - `behavioral_metrics.png`: "Distance Traveled (path length)" is the rollout
+    mean of the per-step running total `distance_traveled`
+    (`base_env.py:1703`, `:1724`, averaged by `diagnostics.py:319-324`), which
+    depends on where episodes start within the rollout and is no episode's
+    path length; the heading band is the mean plus or minus the within-rollout
+    std, not clipped at cos θ = 1 (`visualization.py:503-513`).
+  - `foot_contacts.png`: "Diag A (FR+RL)" and "Diag B (FL+RR)" are the
+    element-wise maximum of two feet's rollout-mean forces (`:647-648`),
+    neither a sum nor a contact pattern, under a title that promises the
+    walk/trot pattern (`:689`), and neither axis gives a unit (`:681`,
+    `:688`).
+  - `locomotion_health.png`: each Termination Breakdown bar is a reason's
+    share of a rollout's terminations, averaged over the rollouts that had any
+    (`:399-401`, "Mean Fraction", `:452`; `diagnostics.py:348-360`), with no
+    counts and no time axis: the review's velociraptor quick test, 5 falls in
+    about 55 episodes, all nosedives, read nosedive 1.0. `diagnostics.npz`
+    already holds the counts (`rollout_episodes`, `rollout_falls`,
+    `rollout_term_count_<reason>`, `diagnostics.py:97-104`).
+  - `training_curves.png` and `gate_progress.png` draw plain lines
+    (`visualization.py:143`, `:156`, `:910`), so a stage with one evaluation,
+    as every quick test has, shows empty panels; `command_gate_progress.png`
+    uses markers.
+  - The legends name a node by its legacy stage number ("Stage recovery:
+    Recovery" on a recovery node, `S<number>` in the reward panel, `:416`; the
+    stage-number entry above), and the locomotion-health and
+    behavioral-metrics panel titles repeat the model and algorithm their
+    suptitle gives.
+
+  Fix: plot the episode-end distance (or say what is plotted), clip the
+  heading band, draw contact per foot or drop the diagonal panel, draw
+  termination counts over training, add markers, name nodes by id and give
+  units; or retire these figures once `gate_progress`, the command figures and
+  the training history cover them. (2026-11 notebook review:
+  behavioral-metrics-semantics, locomotion-health-panels-misleading,
+  single-point-series-invisible, and the titles and units half of
+  figure-labels-units)
+- **LOW** — **the Reward Decomposition panel picks its terms from the TOML's
+  weights, so it hides terms paid at a constructor default and draws terms
+  nothing recorded (read from the code 2026-11-26).**
+  `plot_diagnostics_graphs` draws a reward key when the stage's `[env]` or its
+  stand block names a non-zero weight for it, through
+  `_REWARD_KEY_TO_CONFIG_WEIGHTS` (`visualization.py:247-280`, `:348-365`), or
+  when the key has no entry there (`reward_speed`, `reward_gait_symmetry` and
+  `reward_home_pose`, `:361-363`). `DiagnosticsCallback` saves every one of
+  its reward keys, as NaN where the env never emitted it
+  (`diagnostics.py:319-327`, `:682-685`). On the Allosaurus stance (checked on
+  its env 2026-11-26) the panel draws `drift` and three all-NaN legend entries
+  for the unmapped keys, and hides `alive` (1.0 a step at the constructor's
+  `alive_bonus = 1.0`, `allosaurus_fragilis/base_env.py:60`, which
+  the stance TOML does not restate), `posture` (paid at a fixed weight,
+  `:159-162`; the env has no `posture_weight` for the map to read) and
+  `energy`; its walk restates `alive_bonus` and `energy_penalty_weight` but
+  still hides `posture`. Colours are tab10 by key index
+  (`visualization.py:417`), so terms ten apart share a colour and line style.
+  Fix: draw the terms whose recorded series is finite and not all zero, read
+  from `diagnostics.npz` itself, each in its own colour. (2026-11 notebook
+  review: reward-decomposition-selection)
+- **LOW** — **two locomotion readouts look up keys the episode aggregate never
+  holds, and print 0 for what was not measured (read from the code
+  2026-11-26).** `LocomotionMetrics.aggregate_episodes` prefixes each
+  per-episode key with `mean_` and `std_` (`metrics.py:297-301`), so an
+  episode's `mean_forward_velocity` aggregates to
+  `mean_mean_forward_velocity`. The supplementary evaluation's log line in the
+  command line's `curriculum` (`CurriculumCallback._log_locomotion_metrics`)
+  looks up `mean_forward_velocity` and `mean_pelvis_height`
+  (`curriculum/advancement.py:288-290`) and so prints neither. `evaluate()`'s
+  report (`evaluation.py:801-875`) tests `"mean_heading_alignment" in agg`
+  (`:857`), which never holds, so it never prints the heading alignment
+  either, and reads every other value with `agg.get(key, 0)` (`:814-855`), so
+  a metric the episodes never measured prints as 0.000 instead of n/a. Nothing
+  gates on these lines, and in the SB3 notebook they are hidden anyway, since
+  no cell configures logging (the section 8 entry under Notebooks). Fix: read
+  the `mean_mean_*` keys and print n/a for an absent one. (2026-11 notebook
+  review: supplementary-log-key-mismatch)
+- **LOW** — **a renderer failure costs a replay's physics-only `_stance.csv`
+  with its videos, and the setup cell reports EGL rendering without trying it
+  (read from the code 2026-11-26).** `record_stage_video` collects a stance or
+  recovery replay's per-frame rows as it renders (`evaluation.py:383-412`) but
+  writes `_stance.csv` only after every frame has rendered and every video is
+  written (`:447-460`), so an error in `render()` or `mediapy.write_video`
+  drops the CSV too, which needs no renderer. `_record_stage_replays` records
+  the selected and the final replay under one `try`
+  (`reporting/stage_artifacts.py:2437-2541`), so the first failure also skips
+  the second. In Colab the SB3 notebook's setup cell (§1) sets `MUJOCO_GL=egl`
+  and writes the NVIDIA EGL vendor file without checking for a GPU
+  (`notebooks/sb3_training.ipynb:55-60`), then prints "Colab setup complete
+  (EGL rendering enabled)." (`:134`) without rendering a frame: a runtime
+  where EGL does not work first shows it as the replays' logged warning, after
+  training. Fix: write the CSV in a `finally` (or before the videos), give
+  each replay its own `try`, and have the setup cell render one frame and
+  print the backend that worked. (2026-11 notebook review:
+  fu-colab-runtime-specifics-egl-backend-unprobed-replay-and-stance-csv-lost-together)
+- **LOW** — **the `stance_quality/v1` text report prints fixed statue support
+  duties for every model, and its support lines read touch only (read from the
+  code 2026-11-26).** `reporting/stance_report.py:1749-1750` prints "bilateral
+  support ... (statue 0.998, not gated)" and "single support ... (statue
+  0.002, not gated)", literals from a T. rex statue panel of an older plant,
+  whatever model the report is for. The two v1 stances today are the
+  Compsognathus robot's and the Allosaurus'
+  (`configs/compsognathus_longipes/robot/stance.toml:74`,
+  `configs/allosaurus_fragilis/anatomical/stance.toml:22`); the Allosaurus
+  statue falls in every episode (88.5 of 1,000 steps on seeds 3042-3043,
+  measured 2026-11-26) and never produces those duties, and a v1 report rolls
+  no statue panel to measure them. Both lines come from `derive_stance_info`
+  over the env's `r_foot_contact` and `l_foot_contact`, which on both
+  Compsognathus models are the touch sensors
+  (`compsognathus_longipes/base_env.py:258-262`), so on the robot they count
+  sole-on-sole force as support (the robot entry in Training / RL: its
+  observation reads floor contact since policy interface r4, the report does
+  not), with no floor-truth cross-check until PR-G2 and PR-G8. Fix: print the
+  model's own statue duties (rolled beside the panel, or read from the stage's
+  zero-action baseline) or drop the literals, and add a floor-contact support
+  line beside the touch one. (2026-11 notebook review:
+  allosaurus-v1-report-hardcoded-statue-duty,
+  compsognathus-v1-report-touch-bilateral-and-hardcoded-statue)
+- **LOW** — **the training-history report draws T. rex's actuator list,
+  exploration reference and first leg pair on every model (read from the code
+  2026-11-26).** In `reporting/training_history.py`, `KEY_ACTUATORS =
+  ("hip_pitch", "hip_roll", "knee", "ankle", "tail_3")` (:257) chooses the
+  `10_policy_std` page's first panel and the checkpoint table's std columns
+  (:5407-5472, :6604-6606): the anatomical Compsognathus' `r_toe_act` and
+  `l_toe_act` and the Allosaurus' `r_mtp` and `l_mtp` are left out, and
+  neither model has a `tail_3`. The exploration page draws
+  `EXPLORATION_REFERENCE_STD` 0.08 (:352), labelled "stance3 line-2 floor 0.08
+  (not applied)", on every model and node (:5664-5676); stance3 is a T. rex
+  stance design, and the label does not say so. `lr_columns` keeps the first
+  left-minus-right column per joint and the first hip-roll pair (:513-523), so
+  on the dibothrosuchus, whose ledger lists the `fl_minus_fr` offsets before
+  `rl_minus_rr`, the `09_asymmetry` page plots only the front pair, with no
+  pair named in its titles (:3417-3436; the caption names "the first foot pair
+  on a quadruped" for hip roll alone), while the rear pair carries about 73%
+  of standing load (the review's measurement). Fix: derive the key actuators
+  per model from its leg actuators, plot every left/right pair (or the
+  load-bearing one) and name it, and draw the exploration reference only where
+  it was set, labelled as the T. rex's. (2026-11 notebook review:
+  compsognathus-history-key-actuators-miss-toe,
+  cmp-exploration-page-trex-reference-everywhere,
+  dibothrosuchus-asymmetry-page-forelimbs-only)
+- **LOW** — **the Allosaurus runs no evaluation recorder, has no leg pairs or
+  spin keys, and its policy probe records nothing and logs a traceback on
+  every PPO node (read from the code and a state-bank build 2026-11-26).** Its
+  pads are ellipsoids
+  (`environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml:211,241`),
+  so, like the velociraptor and the brachiosaurus, it has no box sole and its
+  evaluations run no floor-truth recorder; its training-history report is then
+  mostly placeholder pages (about 14 of 20 in the review's quick-test run,
+  2026-11-22). `sagittal_leg_dc_pairs` finds no pair on it (its leg joints are
+  torque motors, and the function keeps only joints driven by a unit-gear
+  hinge position servo, `eval_diagnostics.py:131-160`, :180-183), so it has no
+  leg-DC columns, and its info
+  (`environments/allosaurus_fragilis/base_env.py:166-178`) carries none of the
+  `heading_alignment`, `pelvis_angular_vel`, `pelvis_yaw_vel` and
+  `spin_instability` keys `diagnostics.py:199-209` records. The policy probe's
+  state bank keeps the statue at steps 199 and 599 and three ankle leans at
+  steps 400 and 599, on seeds 3042 and 3043 (`BANK_SPEC`,
+  `policy_probe.py:77-88`); a row whose episode ends first is dropped, and
+  when none is left `build_state_bank` raises "no bank state could be built"
+  (:285-286). The Allosaurus statue falls within about 90 steps on both seeds,
+  on the stance and on the walk (measured 2026-11-26; on the walk in every
+  episode, `configs/allosaurus_fragilis/anatomical/locomotion.toml:124-127`),
+  so `_on_training_start` logs the failure with its traceback and leaves the
+  bank unset (`policy_probe.py:518-540`), and every later update returns at
+  once (:729-730). `policy_probe.npz` then gets no row: not the bank values,
+  and not the per-update std per actuator, normalizer drift or rollout clip
+  share either, which read only the parameters and the rollout buffer, so the
+  training-history pages that read it are empty on every Allosaurus node.
+  Nothing names the gap: the artifact guide's recorder table leaves the
+  Allosaurus out (the artifact-guide entry under Configs, docs & website).
+  Fix: write the probe's bank-free columns without a bank, and when the statue
+  falls build the bank from a reference stand or the policy's own rollouts, or
+  skip it with one warning line; add the Allosaurus' leg pairs and spin keys;
+  name it in the guide with the pages it cannot fill (or attach a recorder).
+  (2026-11 notebook review: training-history-pages-not-model-or-role-aware,
+  telemetry-ledger-box-sole-only, policy-probe-never-builds-allosaurus)
+- **LOW** — **`provenance.json` gives every evaluation role 30 episodes,
+  whatever ran, and a stance's checkpoint-selection evaluations are unpaired
+  (read from the code 2026-11-26).** `initialize_result_bundle` writes one
+  `evaluation_protocols` entry per evaluation seed role, each with the single
+  `evaluation_episodes` count
+  (`environments/shared/result_bundle/provenance.py:289-296`), and the SB3
+  notebook passes 30 (`notebooks/sb3_training.ipynb:514`, cell 8, and :1013,
+  cell 15). What runs differs. The in-training evaluation, the
+  `checkpoint_selection_evaluation` role, rolls `max(30, min_eval_episodes)`
+  episodes (`train_base.py:239-253`): 40 on the five stances and the three
+  recoveries that declare 40 (the velociraptor, the T. rex, both Compsognathus
+  models and the Allosaurus; the T. rex and both Compsognathus recoveries). A
+  walk's selection and certification panels roll their own family counts
+  (`min_cruise_episodes`, `min_stand_episodes`). And under
+  `command_mode "none"`, every stance and recovery, the evaluation env is not
+  reseeded between evaluations (`curriculum/command_evaluation.py:30-31`), so
+  each evaluation draws new episodes and `best_model` and `robust_best_model`
+  rank checkpoints scored on different draws; only a live-command stage rolls
+  the same episodes at every evaluation (`_command_evaluation_plan`,
+  `train_base.py:170-192`, decision D-D62). No gate reads the protocol block;
+  a reader of the bundle's provenance does. Fix: record episodes and seeds per
+  role from what each evaluation ran, and reseed the stance and recovery
+  evaluation env before every evaluation, as the walk's is. (2026-11 notebook
+  review: eval-protocol-provenance-mismatch)
+- **LOW** — **the offline per-actuator scripts take a legacy stage number that
+  is not the directory's prefix and cannot name the recovery, never check what
+  they load, and no command line re-rolls a recovery panel (read from the code
+  2026-11-26).** `scripts/action_bound_report.py` (:96),
+  `scripts/joint_excursion_report.py` (:52) and
+  `scripts/observation_ablation_report.py` (:187) take the stage as `type=int,
+  choices=(1, 2)`, the legacy numbers of the stance and the locomotion
+  (`stage_manifest.resolve_stage_key`, :595-609), and
+  `scripts/episode_trace_report.py` takes an int (:86). On the T. rex and both
+  Compsognathus models the walk is stage 2 but lives in `03_locomotion`, so
+  the number a user reads off the run tree names the wrong stage or none, and
+  the recovery, which has no number, cannot be named at all. The three build
+  the env from the checkout's stage TOML (`config.build_env`, `config.py:598`)
+  and load the checkpoint with `load_sb3_checkpoint` passing no plant identity
+  (`action_bound_report.py:118`, `joint_excursion_report.py:67`,
+  `observation_ablation_report.py:213`), and nothing reads the checkpoint's
+  recorded task, so a checkpoint of another stage, task or plant revision is
+  scored on the current stage with no warning. Nothing else reports on a
+  recovery checkpoint either: `cli eval --stage recovery` is accepted
+  (`cli.py:667-672`), but `evaluate()` prints velocity, balance and
+  terminations only (`evaluation.py:823-875`), no push or recovery outcome,
+  and `roll_policy_panel` (`harnesses/freeze_recovery_gate.py:580`), the panel
+  roller the chain loop judges with, has no command line (the module's `main`,
+  :872-918, freezes the null panels only). So a recovery checkpoint can be
+  re-rolled or inspected only from Python or the notebook, and, as the
+  Training / RL entry on verdicts written before the gate-configuration digest
+  says, a recovery verdict cannot be backfilled. Fix: take a node id or a
+  stage directory, resolve it through the stage manifest (the recovery
+  included), and refuse a checkpoint whose recorded plant or task differs, as
+  training's loads do; give `roll_policy_panel` a command line that prints the
+  per-seed outcomes and both bounds. (2026-11 notebook review:
+  fu-offline-analysis-tools-species-coverage-report-scripts-legacy-stage-int-unchecked,
+  fu-offline-analysis-tools-species-coverage-recovery-deliverable-no-offline-analysis)
+- **LOW** — **the offline actuator scripts assume position servos named `r_`
+  and `l_` in a self-contained MJCF, so they misreport, misdrive or fail on
+  the Allosaurus and the Compsognathus robot (reproduced 2026-11-26).**
+  - `environments/shared/scripts/joint_excursion_report.py:102-117` converts
+    every actuator's `ctrl` and `ctrlrange` to degrees; the Allosaurus'
+    actuators are torque motors (`<motor ... gear="1" ctrlrange="-12500 12500"
+    />` in its MJCF, `allosaurus_fragilis_anatomical.xml:265-274`), so its
+    command band, full range, control span and per-step delta are
+    newton-metres printed as degrees (the "used" share, a ratio of two of
+    them, and the achieved joint excursion, are right).
+  - `scripts/actuator_saturation_report.py:61` builds the model with
+    `mujoco.MjModel.from_xml_string` from the MJCF's text (:78), which cannot
+    resolve the file's relative assets: on the Allosaurus it fails with "Error
+    opening file 'textures/hide.png'", on the robot with "Error opening file
+    'meshes/roll_motor_bottom.stl'". Its default panel is four of the six
+    position-servo models (the velociraptor, T. rex, brachiosaurus and
+    dibothrosuchus, :52-57), so the failure appears only under `--model-id`;
+    and once a model loads, its table lists position servos only (:86,
+    :90-92), so on the Allosaurus, whose ten actuators are all torque motors
+    with no `forcerange`, it prints no actuator row and a root-z divergence of
+    0.0000 m between the bounded and unbounded plants (run with its assets
+    resolved, 2026-11-26).
+  - The scripted gait that report drives (`gait_commands`,
+    `environments/shared/tests/actuator_bounds_helpers.py:64-92`) gives a leg
+    actuator its phase by name prefix (`r_`, `l_` or a quadruped's `fr_`,
+    `fl_`, `rr_`, `rl_`). The robot's twelve actuators are named `left_*_act`
+    and `right_*_act`, so none matches: every one gets the 0.4× in-phase
+    wiggle meant for non-leg actuators, and the report would measure no
+    alternating gait.
+  - `scripts/observation_ablation_report.py` holds a slice table for the T.
+    rex alone (`SLICES`, :85-90) and exits "no observation slice table" on
+    every other model (:208-209).
+
+  [SIM_TO_REAL_PLAN.md](hardware/SIM_TO_REAL_PLAN.md):353-356 plans the
+  robot's torque table on this tooling. Fix: read each actuator's type and
+  report a torque motor in N·m against its `ctrlrange`; load the MJCF by path
+  (`MjModel.from_xml_path`) so relative files resolve; phase `left_` and
+  `right_` actuators in `_leg_phase`; add the robot's observation slices to
+  the ablation. (2026-11 notebook review:
+  fu-offline-analysis-tools-species-coverage-allosaurus-torque-plant-in-servo-reports,
+  fu-offline-analysis-tools-species-coverage-robot-hardware-tools-misdrive-or-skip)
+- **LOW** — **nothing launches the seed replicates a two-seed publication bar
+  needs (read from the code 2026-11-26).** The velociraptor and T. rex stances
+  declare `certification_seeds = 2`
+  (`configs/velociraptor_mongoliensis/anatomical/stance.toml:633`,
+  `configs/tyrannosaurus_rex/anatomical/stance.toml:1030`): the deliverable
+  stays provisional until two distinct-seed runs of one recipe certify it.
+  `replication.discover_replicates` (`environments/shared/replication.py:100`)
+  counts such sibling runs, but nothing starts them: the notebook and the
+  command line's `train` and `curriculum` each run one `SEED` (`cli.py:351`,
+  :433), so the second seed is a second session set up by hand with the same
+  knobs. Sweeps were retired on purpose (D-D17;
+  [ROADMAP.md](ROADMAP.md):383-384 asks a new decision for a tuning backend),
+  but a replicate is not a sweep. Fix: a small launcher, a command-line option
+  or a notebook cell, that runs N seeds of one node under one recipe into
+  sibling runs of the certification tree, for a model whose stance declares
+  `certification_seeds` above 1. (2026-11 notebook review:
+  no-replicate-or-sweep-orchestration)
 
 ## Post-training artifacts (recommended additions)
 
@@ -2026,6 +2897,40 @@ robustness, **LOW** = cosmetic / QoL.
 2. CLI curriculum parity with the notebook: call `generate_stage_artifacts`
    per stage and run the quality eval so `metrics.json` exists on that path.
    (July §4)
+   *Update (2026-11-26):* the command line's verdict differs too. A
+   `curriculum` node of a `reward_and_length/v1` or `stance_quality/v1` stance
+   (the brachiosaurus, the dibothrosuchus, the Compsognathus robot and the
+   Allosaurus) records the in-training manager's decision, `ready_to_advance`
+   (`environments/shared/train_base.py:3706`), bound to the pair
+   `select_handoff_checkpoint` names (:3685;
+   `curriculum/checkpoints.py:195-230`): `robust_best_model`, ranked on mean -
+   std reward alone. So a command-line PASS can certify a checkpoint whose own
+   evaluations never met the gate, where the notebook stops no node on a gate
+   pass and judges that handoff once, after the stage
+   (`generate_stage_artifacts`). Only the floor-truth stance kinds and the
+   walk are re-judged after training on the command line (:3710-3731). The
+   command line has no baseline watch either: the callback reads
+   `zero_action_baseline.json` from the run directory
+   (`curriculum/baseline_watch.py:218`), which only the notebook's preflight
+   writes. Fix: the call above, with its verdict, or label these verdicts
+   training-time. (2026-11 notebook review: cli-notebook-judging-parity)
+3. Write the per-step replay CSV on every node, not only on stance and
+   recovery (read from the code 2026-11-26). One flag, `replay_diagnostics =
+   stage in (1, "stance", "recovery")` (`reporting/stage_artifacts.py:2451`),
+   turns on both the per-frame `_stance.csv` of the selected checkpoint's
+   deterministic replay, with each actuator's command and position per step
+   (`collect_stance_diagnostics`, :2503 and :2536), and the extra front and
+   side camera views (:2452). So a walk gets two default-view videos and no
+   per-step actuator record of the checkpoint it hands on. Its
+   `command_tracking_trace.csv` (D-D61) records commanded and achieved
+   velocity, heading error and course progress on one cruise and one stand
+   episode, and no actuator column
+   (`reporting/command_tracking_trace.py:63-82`); the per-rollout actuator
+   series in `policy_probe.npz` and the per-evaluation ones are not a replay
+   of the selected checkpoint. Fix: decouple the CSV from the camera views and
+   write it on every node, keeping the extra views on stance and recovery if
+   their cost matters. (2026-11 notebook review:
+   fu-offline-analysis-tools-species-coverage-walk-hunt-nodes-no-per-actuator-record)
 
 ## MuJoCo models (July 2026 model review)
 
@@ -2276,8 +3181,8 @@ Still open:
 - **LOW** — ~~raptor claw `motor gear="50"` on a 0.05 kg claw (huge
   torque-to-inertia; slams its limits)~~ (physics r5: a kp-5 position servo
   bounded at ±4 N·m on a 0.011 kg claw); contype-0 neck geoms can visually
-  clip the floor (the velociraptor's too since r5); no `<light>`/`<visual>` block for nicer renders; the brachiosaurus
-  food has no collision partner.
+  clip the floor (the velociraptor's too since r5); no `<light>`/`<visual>` block for nicer renders. (The
+  brachiosaurus food that had no collision partner left the scene with physics r7, decision D-D59.)
 - ~~HIGH — the brachiosaurus cannot hold its home stance.~~ **FIXED**
   (plant_versions notes 7–8): the collapse decomposed into the midpoint action
   mapping never commanding the home pose (knees dragged up to 0.35 rad off)
@@ -2345,6 +3250,264 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   or redraw the logo as a vector. (measured 2026-09-30, each file 1 byte
   longer since its final newline was added on 2026-10-12; moved from
   WEBSITE_PLAN.md's "Optimize Logo SVG")
+- **LOW** — **the T. rex stance's four probe reports have no reader
+  documentation, and their TOML derivations are stale (read from the code
+  2026-11-26).** `configs/tyrannosaurus_rex/anatomical/stance.toml`, the only
+  stage that declares them, turns on all four report-only probes the stage
+  artifacts roll after the gate report (`stance_probe_filter_hz`, :1172;
+  `stance_probe_hold_constant`, :1215; `stance_probe_release_ablation`, :1244;
+  `stance_probe_impulse_speeds`, :1262): about 350 episodes by the TOML's own
+  counts, in every session, `QUICK_TEST` included (the quick-test entry under
+  Notebooks). Their `stance_gate_probe_*` reports are named in no artifact doc
+  (`docs/TRAINING_ARTIFACT_PRESENTATION.md` and `website/docs/` do not mention
+  them; only `docs/investigations/stance_2026_10/` does) and get no notebook
+  readout. Their comments describe older plants: the release ablation counts
+  "17 on the current r7 plant" (:1258-1260), and the hold and impulse probes
+  quote the August checkpoint `20260805_011234` (:1236-1238, :1278-1281), on a
+  plant now at physics r12 (`configs/plant_versions.toml:944-946`). The
+  impulse grid `[0.5, 1.0, 2.0]` m/s is the one the October battery found
+  "starts above every role's envelope", so every sagittal row falls
+  (`docs/investigations/stance_2026_10/battery/battery_report.md:83`; its item
+  2, :140, proposes forward and backward rows and a 0.05-0.5 m/s grid). Fix:
+  document the four reports beside the other stance artifacts, re-derive or
+  drop the stale counts, adopt the battery's grid or drop the impulse probe,
+  and skip the battery under a smoke mode. (2026-11 notebook review:
+  tyrannosaurus-trex-probe-battery-unscaled-undocumented)
+- **LOW** — **the `[sac]` comments promise a replay buffer that survives the
+  warm start, misstate the update-to-data ratio and "match" `[ppo]` values
+  that have moved (read from the code 2026-11-26).** Three claims are wrong:
+  - *The buffer.* The velociraptor, T. rex, brachiosaurus and dibothrosuchus
+    walks size `buffer_size = 1_000_000` because it "retains Stage 1 balance
+    transitions"
+    (`configs/velociraptor_mongoliensis/anatomical/locomotion.toml:135`,
+    `configs/tyrannosaurus_rex/anatomical/locomotion.toml:165`,
+    `configs/brachiosaurus_altithorax/anatomical/locomotion.toml:132`,
+    `configs/dibothrosuchus_elaphros/anatomical/locomotion.toml:137`), and
+    [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md):105-108 counts it against
+    forgetting between stages. Nothing in `environments/shared/` saves or
+    loads a replay buffer, and a warm start restarts the step counter
+    (`reset_num_timesteps=not resuming`, `train_base.py:2027`), so a SAC walk
+    starts with an empty buffer and `learning_starts` (10,000) uniformly
+    random steps.
+  - *The ratio.* SB3 counts `train_freq` in vector-env steps, each `n_envs`
+    transitions. `train_freq = 16` with `gradient_steps = 8`, commented "2:1
+    data-to-update ratio" (the velociraptor's `stance.toml:276-277` and
+    `locomotion.toml:137-138`, the T. rex's `stance.toml:575-576` and
+    `locomotion.toml:168-169`, the dibothrosuchus' `stance.toml:75-76`), is 8
+    transitions per update on the notebook's 4 envs and 16 on the CLI's 8; the
+    brachiosaurus' 4 and 4, "Match train_freq to maintain update-to-data
+    ratio" (`stance.toml:59-60`, `locomotion.toml:135-136`), and the
+    dibothrosuchus walk's
+    (`configs/dibothrosuchus_elaphros/anatomical/locomotion.toml:139-140`) are
+    4; both Compsognathus models' uncommented 4 and 1 is 16, and the
+    Allosaurus' SB3 default 1 and 1 is 4. The spread is fourfold and nothing
+    derives it.
+  - *"Match PPO".* `learning_rate = 3e-4` is commented "Match PPO starting LR"
+    on the velociraptor, brachiosaurus and dibothrosuchus stances
+    (`configs/velociraptor_mongoliensis/anatomical/stance.toml:269`,
+    `configs/brachiosaurus_altithorax/anatomical/stance.toml:50`,
+    `configs/dibothrosuchus_elaphros/anatomical/stance.toml:68`) and `gamma =
+    0.99` "Match PPO" on the first two (:271, :53), beside `[ppo]` tables at
+    3e-5 and 0.98; the velociraptor's `batch_size = 256` "matches PPO" (:270)
+    and the brachiosaurus' is "Larger than PPO's 64" (:51), where both `[ppo]`
+    tables say 128. The T. rex's `train_freq` and `gradient_steps` cite the
+    "proven raptor SAC config" (`stance.toml:575-576`,
+    `locomotion.toml:168-169`), a historical run on a plant several revisions
+    back. Only the T. rex stance's `[sac]` carries a staleness warning
+    (`stance.toml:558-563`).
+
+  Fix: correct the comments (no buffer crosses a warm start; ratios as
+  transitions per gradient update at the run's `n_envs`), copy the T. rex
+  staleness warning onto every `[sac]` block until a SAC run re-derives it,
+  and correct RL_TRAINING_PLAN Trial 3's buffer rationale. (2026-11 notebook
+  review: fu-sac-artifact-path-sac-warm-start-semantics-misdescribed,
+  fu-sac-artifact-path-sac-update-to-data-ratio-misstated,
+  fu-sac-artifact-path-sac-recipe-provenance-stale, and the `[sac]` half of
+  brachiosaurus-stale-recipe-comments)
+- **LOW** — **the artifact guide has no table of which artifacts a node gets,
+  leaves out the Allosaurus, and misdescribes the velociraptor's head and the
+  dibothrosuchus' feet (read from the code 2026-11-26).** What a stage
+  directory holds depends on its gate kind, role and model: the stance report
+  and the heading probe or six-heading certificate come only with a stance
+  gate kind (`STANCE_GATE_KINDS`, `reporting/stage_artifacts.py:238-241`), so
+  the two quadrupeds' reward-rail stances get neither;
+  `handoff_in_training.json` is written only beside a stance gate kind's
+  report and the walk's command report (:241, :295, :336, :677), so those two
+  stances and every recovery get none; `stance_diagnostics.png` (:2291-2296)
+  and the filtered, constant-hold, release and impulse probe reports
+  (`stance_gate_probe_*`) come only on the T. rex stance, the one model the
+  figure draws (`visualization.py:33-35`) and the one stance TOML that enables
+  those probes (`configs/tyrannosaurus_rex/anatomical/stance.toml:1172-1262`);
+  the per-frame `_stance.csv` and the extra camera views come only on stance
+  and recovery (:2451-2452); the walk gets the command report, its panel CSV,
+  `command_tracking_trace.csv`, `command_tracking.png` and
+  `command_gate_progress.png`; and the policy probe needs a rollout buffer and
+  a statue that stands past step 199, so it is empty under SAC and on every
+  Allosaurus node.
+  [TRAINING_ARTIFACT_PRESENTATION.md](TRAINING_ARTIFACT_PRESENTATION.md)
+  documents each file but has no table of node against file, and:
+  - it names the Allosaurus once, in the rollout-balance paragraph (:938-946),
+    which still says its walk ends on `course_complete`: under the committed
+    live command it does not
+    (`environments/allosaurus_fragilis/base_env.py:191-192,219-235`), and the
+    `DiagnosticsCallback` docstring repeats it
+    (`environments/shared/diagnostics.py:97-100`). Its model lists stop at
+    six: the sagittal-pair keys "exist on all six" (:314-315), though the
+    Allosaurus' torque motors are not the "unit-gear hinge position servos"
+    that sentence requires (:312-313); the recorder table and the paragraph
+    after it (:754-770) cover the other six models; and the probe paragraph
+    says a scalar reads NaN when none of its rows remain (:993-999), not that
+    the whole file stays empty, as it does on the Allosaurus (the Allosaurus
+    entry under Infrastructure);
+  - the paragraph after the recorder table (:761-765) says the velociraptor
+    has "no head-tip site, no neck hinge"; since physics r5 its MJCF has a
+    `head_tip` site
+    (`environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml:181`)
+    and `neck_pitch` and `neck_yaw` hinges (:164-165), so its posture columns
+    are missing only because it has no box pad and so runs no recorder, the
+    gap D-D46 kept, and a recorder would now fill them;
+  - the pad paragraphs say no dibothrosuchus foot declares digits (:125-128)
+    and that the digit share exists only on the T. rex and the anatomical
+    Compsognathus (:267-268), but the dibothrosuchus' `FOOT_SUPPORT` lists
+    four digit pads per foot beside the sole
+    (`environments/dibothrosuchus_elaphros/anatomical/env.py:24-28`), so every
+    foot records `<label>_digit_share`;
+  - the stage-end report is "the nineteen pages" (:1678), and
+    `training_history.page_names()` lists 20.
+
+  Fix: a table of expected artifacts by gate kind, model and role, with the
+  Allosaurus where its set differs (the per-node `artifact_status.json` of the
+  artifacts entry under Training / RL is the same list checked in code);
+  correct the passages above and the docstring; and put the velociraptor's
+  recorder gap back to the maintainer now that its stated reason has gone.
+  (2026-11 notebook review: artifact-coverage-matrix-uneven,
+  allosaurus-missing-from-artifact-docs,
+  velociraptor-recorder-gap-premise-stale,
+  dibothrosuchus-artifact-doc-digit-share-stale)
+- **LOW** — **`results/README.md` and the Drive summary's strict-promotion
+  cell describe publication differently from the code (read from the code
+  2026-11-26).** The README says the exporter writes one `summary.json` "after
+  the run's last stage" (:68-69); it writes one whenever at least one
+  deliverable is certified and rewrites it after every later node
+  (`docs/RESULT_BUNDLES.md:38`), so a chain stopped above its target publishes
+  a `partial` summary. It also says "summary schema version 2 made this
+  backend and provenance metadata mandatory" (:32-35), while readers accept
+  schema 5 alone since D-D63 (:51-52). The strict-promotion cell
+  (`notebooks/google_drive_summary.ipynb` cell 22, :1429) calls
+  `validate_result_bundle(..., require_complete=True)`, which accepts only
+  `canonical-valid`, while `docs/RESULT_BUNDLES.md:12` names
+  `require_publishable=True` as promotion validation and the species catalog
+  publishes a `partial` summary (`species_catalog.py:728-741`): a run that
+  certified its stance and failed its walk passes the catalog and is refused
+  by the cell. Fix: correct both README sentences, and have the cell validate
+  with `require_publishable=True` (or offer both and say which promotion
+  needs). (2026-11 notebook review: results-readme-and-strict-cell-drift)
+- **LOW** — **each model page embeds its media by hand, and no two do it alike
+  (read from the code 2026-11-26).** The manifest declares stage videos for
+  the velociraptor, T. rex and the brachiosaurus only
+  (`configs/species_manifest.toml:112-235`). Their pages and the
+  dibothrosuchus' render `SpeciesVideoSection`, headed "Historical training
+  videos" on three and "Training Videos" on the dibothrosuchus, which declares
+  none (`website/docs/models/dibothrosuchus_elaphros/anatomical.mdx:43-45`).
+  The Allosaurus page embeds its reference walk by hand and has no video
+  section (`website/docs/models/allosaurus_fragilis/anatomical.mdx:21`); the
+  two Compsognathus pages
+  (`website/docs/models/compsognathus_longipes/anatomical.mdx` and
+  `robot.mdx`) show no media at all; the only GIF is the velociraptor's
+  historical `results/velociraptor_mongoliensis/anatomical/ppo/stance.gif`.
+  With no published summary, the CSV and section differences the review also
+  listed are gone. Fix: generate each page's media section from the catalog
+  (stage videos and reference walks) under one heading, and say on a page with
+  none that none is published. (2026-11 notebook review:
+  presentation-inconsistent-across-models)
+- **LOW** — **the T. rex recovery config states its recovery window at 50 Hz
+  (read from the code 2026-11-26).** In
+  `configs/tyrannosaurus_rex/anatomical/recovery.toml`,
+  `recovery_t_recover_steps = 100` is "2.0 s at the 50 Hz control rate" (:200)
+  and `recovery_dwell_steps = 50` is "1.0 s" (:204). The T. rex steps at 100
+  Hz (`timestep="0.002"` in its MJCF, `frame_skip` 5 at
+  `environments/tyrannosaurus_rex/base_env.py:242`, which no stage overrides),
+  so the window is 1.0 s and the dwell 0.5 s. Nothing reads the comment (the
+  judge's own stale comment in `recovery_evaluation.py` is in the T. rex
+  recovery entry under Training / RL). Fix: correct it. (2026-11 notebook
+  review: tyrannosaurus-trex-recovery-timing-and-stale-comments)
+- **LOW** — **the species catalog gives four stances the command line's
+  consecutive-pass rule, which the notebook never applies (read from the code
+  2026-11-26).** The "SB3 early-advancement gate" column of
+  [SPECIES_CATALOG.md](SPECIES_CATALOG.md) ends the brachiosaurus' and the
+  dibothrosuchus' `reward_and_length/v1` stance rows (:94, :123) and the
+  Compsognathus robot's and the Allosaurus' `stance_quality/v1` rows (:183,
+  :214) with "3 consecutive passes"
+  (`environments/shared/species_catalog.py:1559`), and the two reward-gated
+  definitions in `configs/species_manifest.toml` (:210, :262) read "over the
+  required consecutive evaluations". That is the in-training manager's rule,
+  which only the command-line `curriculum` applies. The SB3 notebook trains
+  with `train_base.train`, which stops no node on a gate pass, and judges the
+  handoff once, on one post-stage panel (`generate_stage_artifacts`); item 2
+  under Post-training artifacts has the verdict that follows. The six-heading,
+  recovery and walk rows already say "post-stage". Fix: render the criteria by
+  gate kind and entry point (one post-stage panel in the notebook, consecutive
+  passes on the command line) in `species_catalog.py` and the two definitions,
+  and regenerate. (2026-11 notebook review:
+  cmp-catalog-gate-semantics-by-kind)
+- **LOW** — **the brachiosaurus walk's fall-floor comment gives a stance
+  height the plant no longer settles at (measured 2026-11-26).** It explains
+  `healthy_z_range = [0.85, 3.5]`
+  (`configs/brachiosaurus_altithorax/anatomical/locomotion.toml:46`) by a
+  "settled stance ~1.13 m" whose gait bob dips to ~1.10 m and by
+  642-of-1000-step episodes under a 1.0 floor. On physics r7 the zero-action
+  stance settles at 1.218-1.219 m of torso height on the stance and the walk
+  env alike (seeds 3042-3044, steps 200-1000, every episode to the horizon),
+  so the floor sits 0.37 m under it, not the 0.28 m the comment implies, and
+  the episodes it cites come from an older plant. The stance's `[sac]` "Match
+  PPO" lines are in the `[sac]` comments entry, and the statue values the
+  review also found stale are re-measured on physics r7
+  (`configs/brachiosaurus_altithorax/anatomical/stance.toml:69-87`). Fix:
+  re-measure the gait's height dip on a current walker and restate the comment
+  (or the floor). (2026-11 notebook review: the height half of
+  brachiosaurus-stale-recipe-comments)
+- **LOW** — **the Compsognathus recipe review, cited by every Compsognathus
+  TOML as the next-run protocol, describes superseded gates and observations
+  (read from the docs 2026-11-26).** The stance and walk TOMLs of both models
+  open with "See environments/compsognathus_longipes/TRAINING_RECIPE_REVIEW.md
+  for evidence, validation limits, and the next-run protocol" (line 2 of
+  each), and the species README sends readers there for the lift-off count and
+  the PPO settings (`environments/compsognathus_longipes/README.md:127`, :134,
+  :234-235). The recipe review's only edit since the 2026-11 notebook review
+  is the display-name change of `a7ecc79`, and:
+  - its protocol's step 4 (:143-149) asks for "three consecutive qualifying
+    screening evaluations", the command line's rule; the notebook judges a
+    stance once, post-stage;
+  - its amendment of 2026-10-07 (:253-295) has the anatomical stance certify
+    under `stance_quality/v2` and names physics r2 and interface r3. The
+    stance has been on the six-heading certificate since D-D32
+    (`configs/compsognathus_longipes/anatomical/stance.toml:232`), on physics
+    r4 and interface r7. The amendment calls the heading-free observation a
+    coming revision and warns that a stance on "the current observation, which
+    reads the world heading" would be stranded; the anatomical model has
+    observed heading-free since policy interface r4 (D-D31), and the robot
+    since its interface r4 (note 24); both read `bipedal-heading-free/v1` now
+    (`configs/plant_versions.toml:1189`, :1195);
+  - the protocol covers the stance alone, with nothing on the `recover` recipe
+    (D-D35) or the command-driven walk (D-D62) that the TOMLs it heads now
+    train.
+
+  Fix: a dated amendment that points the protocol at the current gates and the
+  walk, or point the TOMLs and the README at the current recipe pages instead.
+  (2026-11 notebook review: compsognathus-recipe-review-protocol-stale)
+- **LOW** — **ROADMAP still lists stranded nodes as certified (read from the
+  docs 2026-11-26).** Its "Current focus (2026-10-05)" paragraph says the T.
+  rex, the velociraptor and both Compsognathus models "have certified stance
+  and walk nodes" ([ROADMAP.md](ROADMAP.md):28-31), and the Phase 3
+  Compsognathus item says both embodiments do (:456-457). The dated update
+  under the paragraph (2026-11-24, :54-58) says those nodes no longer load
+  since `configs/plant_versions.toml` note 24 and that every stance and walk
+  retrains; D-D24 (the T. rex), D-D25 (the velociraptor) and D-D26 (the
+  anatomical Compsognathus) had stranded them already, and D-D33 every node
+  (NEXT_STEPS §2's rows and its dated D-D33 note). Fix: restate both passages
+  as history, what was certified on which plant, and say that no node is
+  certified on the current plants. (2026-11 notebook review:
+  compsognathus-robot-stranded-chain-still-listed-certified)
 
 ## Notebooks
 
@@ -2352,37 +3515,202 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   `stable-baselines3[extra]==2.9.0`, but torch is unpinned and the
   `pyproject.toml` extras stay ranges; pin complete lockfiles for reproducible
   training. (July §5)
-- **LOW** — the SB3 notebook trains SAC on 4 environments where the command
-  line trains it on 8: `cli.py` raises `n_envs` from 4 to 8 for SAC unless
-  `--n-envs` says otherwise (`cli.py:437-439`, applied at :461-463 for
-  `train` and :522-524 for `curriculum`), while the configuration cell of
-  [notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb) sets
-  `N_ENVS = 4` whatever `ALGORITHM` is and says nothing about SAC. The two
-  entry points' default SAC runs differ twofold in collection against
-  gradient updates; `n_envs` is recorded, so the difference can be found but
-  is never flagged. Fix: mirror the CLI in the configuration cell, or say so
-  there. (read from the code 2026-09-30; 2026-08 gap review NB9)
-- **LOW** — **the Drive summary's `library_version` column holds two
-  different versions (read from the code and probed 2026-10-02).** For a
-  run with a result bundle it is the training backend's version:
-  `_bundle_fields` (cell 9 of
-  [notebooks/google_drive_summary.ipynb](../notebooks/google_drive_summary.ipynb),
-  `:773`) takes `summary.json`'s `backend_version`, else `provenance.json`'s,
-  and both record the Stable-Baselines3 version (`reporting/bundles.py:355`,
-  `:651`); a partial or failed run, which `_canonical_csv_rows` reads
-  without a summary (`:794-806`), takes the provenance one. For an older
-  run without a bundle it is the mesozoic-labs version, which the legacy
-  `scan_run` (cell 8, `:535`) reads from `stage_config.json`
-  (`config.py:980`). The summary tables (cells 14, 16 and 18) and the
-  export to `runs_summary.csv` (cell 24) show both under the one name. In
-  a probe of the reader cells, a complete and a failed run read the
-  backend version their bundles record and a flat run its stage config's
-  mesozoic-labs version. Nothing in the repository reads the column back.
-  Fix: export the bundle value as `backend_version`, and fill
-  `library_version` from `provenance.json`'s
-  `dependency_versions.mesozoic_labs`, which changes what
-  `runs_summary.csv` says for those rows; no cleanup PR owns it. (2026-10
-  CU-15 scouting)
+- **MEDIUM** — **`QUICK_TEST` shortens only the training budget, so it cannot
+  smoke-test the SB3 notebook (read from the code 2026-11-26).** Cell 5 calls
+  it "a pipeline check, 50,000 steps a node (it may stop at a gate)"
+  (`notebooks/sb3_training.ipynb:195`), but besides the run's tree
+  (`environments/shared/run_tree.py`) and the `Quick test:` line of
+  `training_summary.txt` it changes only `node_budget` (cell 15,
+  `sb3_training.ipynb:836-843`); no other library code reads it. Everything
+  after training runs at full size: the evaluation cadence
+  (`eval_freq=50_000`, :856), the stance certification panels (40 seeds; the
+  six-heading certificate at each of six headings), the T. rex stance's probe
+  battery (the probe-report entry under Configs, docs & website), and the
+  replays with their extra camera views. Where a quick test stops depends on
+  the species: the review's quick runs of 2026-11-22 (before
+  `configs/plant_versions.toml` note 24 moved every plant) failed the
+  Allosaurus and robot stances at 50k steps and passed the velociraptor and T.
+  rex ones and the quadrupeds' (whose statue already clears the gate; the
+  anatomical Compsognathus' very likely passes too, inferred), and a stance
+  that passes now chains into the walk, where a 50k-step policy can be
+  expected to fail `command_tracking/v1` on every model (the statue fails
+  every committed walk panel and no controller has passed one; the walk entry
+  under Training / RL). Under the default `BEHAVIOR = "auto"` every quick test
+  should therefore end at a gate failure, and `halt`
+  (`environments/shared/notebook_runtime.py:51-57`, called at
+  `sb3_training.ipynb:1689`) raises before section 8: cells 26-32 (the
+  evaluation, the curves, the replays and the bundle check) never run, so the
+  one end-to-end check open to a user never exercises them. In Colab with the
+  defaults (`AUTO_DISCONNECT = True`, a run on Drive) the same halt releases
+  the runtime (`disconnect_runtime`, `notebook_runtime.py:18-48`) and ends in
+  an unqualified gate-failure `RuntimeError`, so a quick test costs its
+  session; a run kept on the VM's disk is never released (`f3d3100`). Fix: a
+  smoke mode (`QUICK_TEST = "smoke"`) that also shrinks the panels, skips the
+  probe battery, shortens the replays and scales the cadence (the test helper
+  `smoke_configs`,
+  `environments/shared/tests/test_compsognathus_longipes_training.py:92`,
+  shows how), continues past a gate failure with `pipeline OK through <node>`,
+  and never disconnects. (2026-11 notebook review:
+  quick-test-disconnects-colab, quick-test-cannot-smoke-the-notebook,
+  quick-test-stops-at-first-gate, quick-test-does-not-exercise-report-path,
+  compsognathus-quick-test-passes-stance-at-init)
+- **MEDIUM** — **the SB3 notebook runs chains past Colab's ~24 h session cap
+  with no time check, and resuming one is a manual second pass (read from the
+  code 2026-11-26).** The default walk chain is 14M-27M steps (stance plus
+  locomotion: the Compsognathus pair 11M + 3M, the T. rex and velociraptor
+  11M + 8M, the brachiosaurus 11M + 16M), and the two 12M-step T. rex
+  stances of 2026-11-07 took 23 h 07 min and 23 h 29 min on a Colab L4
+  (`docs/NEXT_STEPS.md:411-412`). The chain loop (cell 20) starts each node
+  with no time check. The run memo is the kernel global `_ACTIVE_RUN_ID` (cell
+  8, `notebooks/sb3_training.ipynb:378-379,523`), so a fresh runtime mints a
+  new run unless `RUN_ID` is set; the loop recognises the interrupted node but
+  only raises with instructions (`:1593-1601`); and `RESUME_STAGE` takes a
+  node, not `"auto"` (cell 18, `:1164`). Section 5's procedure (cell 17,
+  `:1074-1105`) sets `RUN_ID`, the `TRUNK_FROM` that `trunk_run.json` records,
+  `RETRAIN_FROM = ""` and `RESUME_STAGE`, then a second Run all; `76b27b2`
+  made the RESUME cell refuse what would not continue the node and warn on
+  `BEHAVIOR = "auto"` and another commit, but the pass stays manual, as
+  decision D-D16 (c) chose. A session the cap cuts off before its final save
+  records no duration: `train_base.train` writes `run.duration_seconds` only
+  at the final save, summed over the sessions that reached one
+  (`train_base.py:2418-2420`, :2453-2455, :2492; decision D-A15), so a capped
+  segment drops out of `training_summary.txt`'s total. Fix: accept
+  `RESUME_STAGE = "auto"` (adopt `trunk_run.json` and the interrupted node,
+  keeping every refusal), persist `RUN_ID` to the run tree on Drive, record
+  the duration at each periodic checkpoint, and add a session-budget knob that
+  refuses to start a node projected past the session's end. The same-stage
+  resume's lost reward ramp is the separate entry under Training / RL.
+  (2026-11 notebook review: no-colab-cap-awareness-or-auto-resume,
+  resume-is-manual-two-pass)
+- **MEDIUM** — **only a failed gate and the last cell release the Colab
+  runtime; any other error keeps it assigned (read from the code
+  2026-11-26).** `AUTO_DISCONNECT` (`notebooks/sb3_training.ipynb:229`, lines
+  of the `.ipynb` file) acts in two places: `halt` after a node fails its gate
+  (`:1689`; `notebook_runtime.py:51-57`) and the auto-disconnect cell at the
+  end (§9, `sb3_training.ipynb:2272`). Every other raise stops "Run all"
+  before §9 and leaves the GPU runtime assigned until Colab reclaims it: the
+  chain loop's refusals of a node that already holds a FAILED verdict, or a
+  passed one the reuse rule refused (`:1549-1561`), and of an interrupted node
+  (`:1594-1601`); any exception out of training, `generate_stage_artifacts`,
+  the figure display or `save_run_bundle` (`:1638-1683`); the report cell's
+  refusal of an uncertified target (§8, `:2129-2133`); and the verification
+  cell's second `validate_result_bundle`, which nothing guards (`:2236`). The
+  re-entry that stops at the verification cell (the Training / RL entry "a
+  re-entry that only reuses a `partial` or `failed` run's nodes stops at the
+  bundle-verification cell", whose remedy is to run §9 by hand) is one case of
+  this. No cell installs an exception hook. A run kept on the VM's own disk
+  keeps its runtime on purpose (`notebook_runtime.py:30-36`). Fix: in Colab,
+  with `AUTO_DISCONNECT` and `RUNS_ON_DRIVE`, have the chain loop install an
+  IPython custom exception handler (`set_custom_exc`) that writes the
+  traceback to `RUN_DIR`, flushes Drive and releases the runtime, so that the
+  report and verification cells are covered too. (2026-11 notebook review:
+  disconnect-only-on-gate, exceptions-skip-auto-disconnect)
+- **MEDIUM** — **no stage or model says whether its recipe is tuned, a pilot
+  or held, so the SB3 notebook offers every chain alike (read from the code
+  2026-11-26).** No `stages.toml` entry and no model in
+  `configs/species_manifest.toml` has a status or hold field (the manifest's
+  `status` keys describe project capabilities, :44-62, and
+  `model_revision_status` its videos), and the chain table the resolve cell
+  prints (cell 9, `sb3_training.ipynb:632-641`) shows each node's id, name,
+  parent, recipe, deliverable flag and gate only. `BEHAVIOR = "auto"` resolves
+  to the last deliverable (:602), the walk on all seven models, so a plain Run
+  all trains the stance and then the walk. What the records say instead is
+  prose the notebook never shows:
+  - GQ-3 of [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)
+    (:190, open) recommends three holds that bear on the notebook: the
+    brachiosaurus' session 5 until its `gait-r1`, any robot recovery session,
+    and any walker session on the rewards of the time; its hunt holds are
+    moot since D-D59, its T. rex and robot follow hold concerns the
+    `behaviors/` pilots, which no chain trains, and it was written before the
+    command-driven walk;
+  - every walk is judged on provisional bars, and no controller has passed a
+    committed walk panel (the first Training / RL entry); the seven model
+    pages say the bars are provisional (`website/docs/models/`), the notebook
+    does not;
+  - [NEXT_STEPS.md](NEXT_STEPS.md) asks, before any velociraptor walk, for a
+    `BEHAVIOR="stance"` session on at least two seeds, each re-judged on the
+    fresh seeds 7042-7081 (:136-142), and a scan of the stance parent's noise
+    tolerance in the locomotion env (:152-159). The default chain does neither
+    and warm-starts the walk from one seed's stance: `certification_seeds = 2`
+    is a publication bar, not a gate threshold
+    (`configs/velociraptor_mongoliensis/anatomical/stance.toml:633`);
+  - the Allosaurus, added 2026-11-21 and the only torque-driven plant, trains
+    on near-default tables, three `[ppo]` keys and two `[sac]` keys
+    (`configs/allosaurus_fragilis/anatomical/stance.toml:11-18`, copied into
+    the walk, `locomotion.toml:78-85`); neither its README nor its model page
+    calls it untuned, and its policy probe never runs (the Allosaurus entry
+    under Infrastructure).
+
+  Fix: a per-node `status` in `stages.toml` (tuned, pilot or held, with a
+  reason and a doc link), printed in the chain table, a warning or refusal
+  before a held node unless an override is set, and the same mark on the
+  catalog and the model pages; mark the Allosaurus a pilot; until a
+  velociraptor stance certifies on two seeds, print the NEXT_STEPS protocol
+  when `BEHAVIOR` resolves to its walk. (2026-11 notebook review:
+  cmp-no-recipe-status-signal,
+  brachiosaurus-chain-hold-not-surfaced-in-notebook,
+  dibothrosuchus-recipe-on-hold-not-surfaced,
+  velociraptor-pre-walk-protocol-not-surfaced, allosaurus-least-instrumented)
+- **MEDIUM** — **the Drive summary hides a run's certified nodes while a later
+  node trains, and after it is interrupted (read from the code 2026-11-26).**
+  Once a run's first node certifies, `save_run_bundle` seals a `partial`
+  bundle whose manifest lists the files then present. The next node's first
+  file (its `stage_config.json`, a checkpoint, an event file) is undeclared,
+  and `audit_result_bundle` rejects undeclared files by default
+  (`reject_unlisted=True`, `result_bundle/audit.py:160`;
+  `result_bundle/manifest.py:298-312`), so the run audits `canonical-conflict`
+  (`audit.py:634-635`). The Drive summary's `scan_run`
+  (`notebooks/google_drive_summary.ipynb` cell 9, :931-940) puts a conflict in
+  `QUARANTINED_RUNS` and returns no row, so the certified node drops out of
+  every table and of `runs_summary.csv` for as long as the next node trains or
+  stays interrupted. Quarantine before the first node certifies is intended
+  (CU-15), and it is the only case `test_drive_summary_notebook.py` pins
+  (:306-310). Fix: audit a stage directory that holds no verdict, beside a
+  `partial` manifest, as a node in progress rather than as undeclared files,
+  and show the run's certified rows with an in-progress marker. (2026-11
+  notebook review: drive-summary-quarantines-interrupted-runs)
+- **LOW** — **the SB3 notebook offers SAC as PPO's equal, but trains it on
+  half the command line's environments and still runs the documented PPO-only
+  cases under it (read from the code 2026-09-30 and 2026-11-26).**
+  `environments/shared/cli.py` raises `n_envs` from 4 to 8 for SAC unless
+  `--n-envs` says otherwise (:526-529, applied at :550-552 for `train` and
+  :610-612 for `curriculum`), while the configuration cell (cell 6) of
+  [notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb) sets `N_ENVS
+  = 4` whatever `ALGORITHM` is (`sb3_training.ipynb:224`) and says nothing
+  about SAC. The two entry points' default SAC runs differ twofold in
+  collection against gradient updates; `n_envs` is recorded, so the difference
+  can be found but is never flagged. `ALGORITHM` is free text (`"ppo"` or
+  `"sac"`, :223), not a dropdown, and nothing marks SAC as untried: no SAC run
+  is recorded on a current plant ([ROADMAP.md](ROADMAP.md):171 leaves "Run
+  Stages 1-3 with SAC" open), and only the T. rex stance's `[sac]` says so
+  (`configs/tyrannosaurus_rex/anatomical/stance.toml:558-563`). Of the cases
+  the repository documents as PPO-only, only the resume is refused (cell 18,
+  :1225-1231). Under SAC:
+  - `CRITIC_PHASE = True` writes `[ppo] critic_phase = true` into every chain
+    node and prints "Critic phase on" (cell 9, :606-609; cell 6 prints it
+    too, :260), but SAC reads only its `[sac]` table
+    (`train_base.py:552-553`), so the switch does nothing;
+  - the T. rex stance's mirror-symmetric PPO (`[ppo] symmetry = "mirror_kl"`,
+    `stance.toml:511`) is dropped with no log: `pop_symmetry_config` runs only
+    when `algorithm == "ppo"` (`train_base.py:1826`);
+  - the T. rex recovery, whose TOML says "this stage is PPO-only" and extends
+    only the stance's `[stage]`, `[env]` and `[ppo]`
+    (`configs/tyrannosaurus_rex/anatomical/recovery.toml:26-27,57`), still
+    trains: it logs that SAC "will train on stable-baselines3's default
+    hyperparameters" (`train_base.py:554-562`) while the warm start keeps the
+    stance checkpoint's saved SAC settings (the load passes only the empty
+    table's keys, `train_base.py:959`), and its hyperparameter digest hashes
+    that empty `[sac]` (`config.py:950-967`), so replicate matching ignores a
+    change to the stance's `[sac]`;
+  - with no trunk, the section-4 load preflight proves the load path on a
+    throwaway PPO (`policy_loading.py:826-828`), never on a SAC archive.
+
+  Fix: a dropdown that labels SAC experimental; `N_ENVS` per algorithm, as the
+  CLI does; refuse `CRITIC_PHASE`, a `[ppo]` symmetry and the T. rex recovery
+  under SAC, or let the recovery extend the stance's `[sac]` too. (2026-08 gap
+  review NB9; 2026-11 notebook review: sac-path-second-class,
+  sac-path-second-class-unflagged,
+  fu-sac-artifact-path-trex-recovery-sac-recipe-unrecorded)
 - **LOW** — **the run tree marks only the screens trained since `RUN_KIND`
   existed (read from the code 2026-11-24).** A screen the SB3 notebook trains
   with `RUN_KIND = "screen"` lives under `<algo>_screen/`, outside trunk
@@ -2402,6 +3730,266 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   a load path through a `<algo>_screen/` directory for a run of `<algo>/`,
   and add an older screen to the ledger once its digests can match a landed
   recipe.
+- **LOW** — **a quick test is marked only by its folder and one summary line
+  (read from the code 2026-11-26).** Decision D-D16 (b) put quick tests under
+  `<algo>_quick_test/` "with no digest or provenance change", and since
+  `29cd504` the Drive summary reads that tree into its `run_kind` column and
+  its strict promotion cell refuses a quick-test or screen run. Nothing else
+  records it: `provenance.json`, `gate_verdict.json` and the CSV rows carry no
+  `quick_test` field (`result_bundle/` and `reporting/csv_output.py` never
+  mention it; only `write_training_summary` prints it,
+  `reporting/text_summaries.py:195,212`), and `validate_result_bundle`
+  verifies a 50k-step quick-test bundle as `canonical-valid` like a full run
+  (`result_bundle/audit.py:639`; the review's brachiosaurus quick test of
+  2026-11-22 did, and the T. rex's 50k-step stance passed under the same gate
+  digest as its 12M-step certification). A quick-test run copied or moved out
+  of its tree, or published to `results/` by hand (the promotion path is
+  manual), carries nothing that says what it is. Fix: write `quick_test`, or
+  the run's `run_kind`, into the `provenance.json`, `gate_verdict.json` and
+  CSV rows of new runs, and have `validate_result_bundle` refuse such a run
+  under `require_complete=True`; the entry above has the same gap for screens.
+  (2026-11 notebook review: quick-test-indistinguishable)
+- **LOW** — **the SB3 notebook's section 8 evaluation shows and keeps nothing,
+  because no cell configures logging (read from the code 2026-11-26).** Cell
+  26 (`notebooks/sb3_training.ipynb:2134-2143`) rolls `evaluate()` on the
+  deliverable's handoff for 30 episodes, but `evaluate()`
+  (`environments/shared/evaluation.py:618`) reports only through `logger.info`
+  (`_log_eval_results`, :801) and returns `None` (:797-798), and no cell of
+  the notebook installs a logging handler, so Python's last-resort handler,
+  which prints WARNING and above, drops the INFO records: in the review's runs
+  the cell printed only its own "Evaluating the ... policy" line. Nothing is
+  saved either: the velocity consistency, posture, termination reasons and (on
+  a model with a success event) success rate that the cell's comment promises
+  reach neither the run directory nor the bundle. The same gap hides the
+  library's other INFO lines in every session: the gate's PASS line
+  (`reporting/stage_artifacts.py:1811`; a FAIL is a WARNING, :1813, and
+  shows), the six-heading certificate's summary (:566), the command-tracking
+  report's (:668) and the baseline watch's per-evaluation line
+  (`curriculum/baseline_watch.py:141-147`). The chain loop prints its own
+  "gate PASSED" (`sb3_training.ipynb:1690`) and the reports are written to the
+  stage directory, so nothing is lost, only unseen. Cell 26's seed
+  (`DEFAULT_EVAL_SEED` = 2000, `evaluation.py:48`) differs from the bundle's
+  evaluation seed (`EVALUATION_SEED`, 3000 above `SEED`) on purpose, for
+  paired command-line runs; the gait symmetry, stride frequency and cost of
+  transport the cell once advertised were deleted with LocomotionMetrics' gait
+  block. Fix: install a notebook logging handler at INFO for `environments.*`
+  in the setup cell; have `evaluate()` return its aggregate and cell 26 print
+  it as a table, saved as an artifact the bundle declares (an undeclared file
+  stops cell 32's bundle check, as cell 28's comment says) or built from the
+  node's `evaluation_selected.csv`. On the walk, the deliverable on every
+  model, lead the table with the command-tracking report's statistics: the
+  printout's "Consistency" line inherits the `velocity_consistency` blow-up at
+  zero speed (Infrastructure, first entry) on the stand episodes. (2026-11
+  notebook review: report-evaluate-silent,
+  notebook-logging-hides-eval-and-certificates, cell24-eval-invisible-unsaved,
+  deliverable-eval-not-persisted)
+- **LOW** — **the zero-action preflight names no next action, and reads a
+  falling statue on a stance-gated plant as a gate problem (read from the code
+  2026-11-26).** `preflight`
+  (`environments/shared/scripts/zero_action_baseline.py:267`, which the SB3
+  notebook's cell 13 runs every session) judges a stance gate kind first
+  (:295-306), so a statue that falls on every episode, as the Allosaurus' does
+  under its `stance_quality/v1` gate, reads "CHECK GATE — the stance gate
+  refuses the statue" and never reaches "CHECK PLANT — the statue never
+  survives a full episode" (:311-315). On the brachiosaurus' and
+  dibothrosuchus' `reward_and_length/v1` stances, whose rail is 0.6 x the
+  statue by design, it reads "FAILS — a statue clears this gate" (:309-310) in
+  every session. No verdict says what to do next, so each model shows its own
+  alarm, and cell 12's markdown does not say which ones are expected. Fix:
+  test `n_standing == 0` before the stance-gate branch, mark the by-design
+  cases as expected, and give each verdict its next action. (2026-11 notebook
+  review: zero-action-preflight-verdicts)
+- **LOW** — **a day-long node shows no progress, ETA or notification in the
+  SB3 notebook (read from the code 2026-11-26).** `VERBOSE` (cell 6, "0=quiet,
+  1=progress bar, 2=debug", `notebooks/sb3_training.ipynb:226`) is passed as
+  SB3's own verbosity (`train_base.py:563`) as well as the progress bar's
+  switch (`progress_bar=verbose >= 1`, :2021), so `VERBOSE = 1` also prints
+  SB3's logger table every rollout, and the default 0 shows nothing for a node
+  of up to about 21.5 h (an 11M T. rex stance, scaled from the 12M runs).
+  `progress.json` already holds a `projected_finish`
+  (`curriculum/progress_report.py:449-466`) that no cell reads; cell 15 prints
+  that the diagnostics "will log to TensorBoard"
+  (`sb3_training.ipynb:1033-1035`), but no cell opens it; and nothing tells the
+  user when an unattended node finishes, fails its gate or crashes: status is
+  pull-only, by opening `progress.json` on Drive. No doc says what a ~24 h run
+  needs of the Colab tab and runtime tier. Fix: drive the progress bar from
+  `VERBOSE >= 1` with SB3's verbosity at 0 (2 keeps the table), print a
+  one-line `progress.json` readout per evaluation with the projected finish
+  against the session's end, add an optional `%tensorboard` cell and an
+  optional notification hook (a webhook or ntfy topic) on node end, halt and
+  exception (the exception handler of the runtime-release entry above is where
+  the last belongs), and a short note on the Colab conditions. (2026-11
+  notebook review: no-progress-eta-or-tensorboard,
+  fu-colab-runtime-specifics-no-unattended-run-signal-or-colab-tier-guidance)
+- **LOW** — **the SB3 notebook trains on whatever device torch finds, and
+  neither chooses, prints nor records it (read from the code 2026-11-26).**
+  The notebook's metadata opens Colab on an L4 GPU (`"accelerator": "GPU"`,
+  `"gpuType": "L4"`, `notebooks/sb3_training.ipynb:2282-2284`), and
+  `train_base` builds PPO and SAC at SB3's default `device="auto"`
+  (`train_base.py:1058`, `:1061`), so a Colab run trains its small MLP policy
+  on CUDA, with no stated reason. No knob chooses the device and the notebook
+  never prints it (`VERBOSE = 0`, `sb3_training.ipynb:226`, hides SB3's
+  "Using cuda device"); only SB3's GPU warning below names it, for a plain PPO
+  policy alone. No record names it either: `stage_config.json` carries a `gpu`
+  block whenever a GPU is present (`config.py:1398-1400`) and provenance the
+  CUDA runtime and driver (`result_bundle/provenance.py:136-165`), which say
+  that a GPU existed, not that the policy ran on it. SB3's warning that PPO
+  with an MLP policy belongs on the CPU fires only for a policy class named
+  `ActorCriticPolicy` (`_maybe_recommend_cpu` in SB3 2.9.0's
+  `on_policy_algorithm.py`), so it stays silent for
+  `CriticPhaseActorCriticPolicy` (`critic_phase_ppo.py:231`), which the
+  notebook's `CRITIC_PHASE` switch builds. Whether the L4 trains these
+  networks faster than Colab's CPU is unmeasured. Fix: measure PPO throughput
+  on both, then add a `DEVICE` knob that `train_base.train` passes to the
+  model, printed at start and recorded in `stage_config.json`'s run block.
+  (2026-11 notebook review:
+  fu-colab-runtime-specifics-ppo-device-unpinned-unrecorded-no-runtime-guidance)
+- **LOW** — **the SB3 notebook never prints the handoff checkpoint's step, and
+  it advances a stance the hop watch stopped (read from the code
+  2026-11-26).** The robust-best rule has no warm-up
+  (`RobustBestModelCallback`, `curriculum/checkpoints.py:36-80`), so it can
+  hand off a shallow early checkpoint, and
+  [NEXT_STEPS.md](NEXT_STEPS.md):955-956 names "the audit and the handoff's
+  step count" as the guards. The step is written to `handoff_in_training.json`
+  and logged at INFO (`reporting/stage_artifacts.py:492-515`), which no
+  notebook cell shows, since none configures logging (the section 8 entry).
+  What the notebook prints is the step of the best mean evaluation ("Best
+  model eval: ... (at N steps)", `reporting/stage_artifacts.py:1970`),
+  "Selected checkpoint: robust_best_model" (:2022) and, in the chain loop
+  (cell 20), "gate PASSED (...); handoff robust_best_model.zip"
+  (`sb3_training.ipynb:1690`). A stance the hop watch stopped is judged as
+  usual, by design (`curriculum/hop_watch.py:20-23`), and the chain loop reads
+  no `hop_watch.json`, so a stopped seed that certifies warm-starts the next
+  node without a word. Fix: print the handoff's step and whether the hop watch
+  tripped in the chain loop's verdict line, and stop the chain after a
+  hop-watch stop unless an override is set. (2026-11 notebook review:
+  velociraptor-stance-certificate-certifies-init-handoff)
+- **LOW** — **the Drive summary's tables set the final checkpoint's numbers
+  beside a verdict on the selected one, show no walk statistic, and stop at
+  PASS/FAIL with no certification board across models (read from the code
+  2026-11-26).** In `notebooks/google_drive_summary.ipynb`:
+  - the detailed and per-model tables (cells 16 and 18, :1268-1273 and the
+    per-model list after :1321) show `mean_forward_vel` and
+    `mean_success_rate`, read from the final checkpoint's evaluation (the "Avg
+    fwd vel" line of a stage's `stage_summary.txt` or the results CSV,
+    :513-556; `stage_summary`'s `avg_forward_vel` and `mean_success_rate`,
+    :878-881), beside `stage_passed`, which judges the selected handoff; the
+    `selected_model_mean_forward_vel` and `selected_model_success_rate` the
+    notebook does read (:885-886) are in neither table, and since the hunt's
+    removal a success rate is recorded only for the Allosaurus, the one model
+    with a success key;
+  - the pivot (cell 14, its `s<N>_reward`, :1179) and the detailed table
+    (:1267-1268) set the in-training best evaluation, `best_mean_reward`,
+    beside `reward_threshold`, while the rail is judged on the selected
+    checkpoint's panel (`best_model_reward` first,
+    `environments/shared/reporting/gates.py:1720,1859`), the CSV's
+    `selected_model_mean_reward` (`reporting/csv_output.py:304`);
+  - a walk is judged by `command_tracking/v1` on its own panels, and its
+    family statistics reach the results CSV (the `command_*` columns,
+    `csv_output.py:25-73`) and the stage summary, but the notebook reads no
+    `command_*` column, so a walk's row shows a final-model velocity and empty
+    `reward_threshold` and `forward_vel_threshold` columns (`min_avg_reward`
+    and `min_avg_forward_vel`, :598-600, which no walk declares);
+  - neither table shows a gate kind, the statistic a node was certified on
+    (the six-heading seed count and bound, or a walk's cruise and stand family
+    numbers, all in `collected_results.csv` since D-D61), the replication
+    count or provisional label, the lineage (reused-from, the trunk), the
+    plant revision, or a link to a node's `training_history.html`,
+    `gate_progress.png` or replays, and nothing gives one row per model and
+    deliverable for the run `select_trunk` (`ancestors.py:1157`) would choose.
+
+  Fix: show the selected checkpoint's statistics in both tables
+  (`selected_model_mean_reward` beside the rail, and for a walk its cruise
+  success bound and stand success fraction), and drop or relabel the
+  final-model columns; add a "Certification status" section, one row per model
+  and deliverable (the selected run, gate kind, headline statistic,
+  replication n/N and provisional, reused-from, plant revision, artifact
+  paths), saved beside the cross-run table as `logs/certification_status.csv`.
+  (2026-11 notebook review: hunt-success-statistic,
+  drive-summary-no-certification-board, and the Drive half of
+  collected-results-dead-and-kind-dependent-columns)
+- **LOW** — **the SB3 notebook embeds every replay twice and re-plots the
+  older figures, but never shows the gate, command or history figures (read
+  from the code 2026-11-26).** `notebook_runtime.display_stage_videos`
+  (:60-73) base64-embeds every mp4 of a stage with `autoplay loop`. The chain
+  loop calls it after each node (cell 20, `sb3_training.ipynb:1676`), and the
+  replay cell embeds every certified node again, reused ancestors included
+  (cell 30, :2196-2205). A stance or recovery node records three camera views
+  of the final and the selected checkpoint
+  (`reporting/stage_artifacts.py:2451-2452`), six clips; the review's executed
+  Allosaurus notebook held about 4.5 MB of video for episodes of about 155
+  steps, which scales to about 27 MB of base64 per 1000-step stance or
+  recovery node (2026-11-22). Cell 28 (:2169-2174) re-plots
+  `plot_training_curves` and `plot_diagnostics_graphs`, already drawn by the
+  chain loop (:1677-1678), while the saved `gate_progress.png`,
+  `foot_contacts.png`, a walk's `command_tracking.png` and
+  `command_gate_progress.png`, and `training_history.html` are never shown
+  inline (the last by design,
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md:1733-1734`). Fix: inline only the
+  selected checkpoint's default-view replay, behind a `SHOW_VIDEOS` knob, and
+  print the other paths; in cell 30 show only reused ancestors; display the
+  saved gate and command figures and link `training_history.html` instead of
+  re-plotting. (2026-11 notebook review: embedded-videos-bloat-notebook,
+  inline-video-bloat, notebook-inline-figures)
+- **LOW** — **the SB3 notebook's report names no offline analysis tool, and
+  nothing compares runs or draws a whole chain (read from the code
+  2026-11-26).** Section 8 (cells 25-32) points to no script; the notebook
+  names only `zero_action_baseline.py` (cell 12,
+  `notebooks/sb3_training.ipynb:736`) and `backfill_gate_verdict.py` (:1559).
+  `scripts/action_bound_report.py`, `scripts/observation_ablation_report.py`
+  and `scripts/joint_excursion_report.py` are described only in plans,
+  reviews and investigations (among them STAGE1_SPLIT_PLAN.md,
+  STAGE1B_IMPLEMENTATION_PLAN.md and investigations/TREX_REVIEW_2026_07.md);
+  no website page lists any script,
+  and [TRAINING_ARTIFACT_PRESENTATION.md](TRAINING_ARTIFACT_PRESENTATION.md)
+  documents `plot_training_history.py` (whose several-stage-directory mode
+  overlays runs) and `episode_trace_report.py`, which nothing in the notebook
+  mentions. Each node's step counter restarts at its warm start
+  (`reset_num_timesteps=not resuming`, `train_base.py:2027`) and no figure
+  puts a chain on one axis or sets two runs or seeds side by side. PPO's and
+  SAC's optimizer metrics reach `diagnostics.npz` (`diagnostics.py:467-506`),
+  but `scripts/compare_run_diagnostics.py`, the one tool that compares them
+  across runs, lists PPO's keys alone (`_ALGO_SIGNALS`, :40-47): SAC's
+  `critic_loss`, `actor_loss` and `ent_coef` are never compared (the SAC
+  diagnostics entry under Training / RL; the missing `%tensorboard` cell is in
+  the entry on progress and ETA). Fix: list the offline tools with one line of
+  usage each in section 8 and on a website training page; add SAC's keys to
+  `compare_run_diagnostics.py`; optionally write a run-level chain figure on a
+  cumulative step axis. (2026-11 notebook review:
+  fu-offline-analysis-tools-species-coverage-offline-tools-not-surfaced-in-report-section,
+  no-chain-or-optimizer-overview)
+- **LOW** — **the SB3 notebook's configuration cell offers choices it later
+  refuses, and refuses several only after the run directory is written (read
+  from the code 2026-11-26).** Cell 6 sets 16 knobs, three of them Colab
+  `@param` fields (`SPECIES`, `EMBODIMENT` and `BEHAVIOR`,
+  `notebooks/sb3_training.ipynb:212-213`, :238); `ALGORITHM`, `QUICK_TEST`,
+  `AUTO_DISCONNECT` and the rest are free text, some under one-line comments
+  of several hundred characters of decision ids (`TRUNK_FROM`'s, :239). The
+  two dropdowns make 12 pairs, 7 of them models; the other five are refused in
+  that cell, before anything is written. `BEHAVIOR` offers `"recover"` on
+  every model, and three have it. Cells 12 and 13 still say "all six" models
+  (:734, :758). Three refusals come after the storage cell (cell 8) has
+  created the run directory and written `provenance.json` (`_run_dir.mkdir`,
+  :484; `initialize_result_bundle`, :498): a pinned `TRUNK_FROM` that is this
+  run, not a run or another model's (:554-579; only a trunk in a screen or
+  quick-test tree is refused first, :444); an unknown `BEHAVIOR`
+  (`MANIFEST.resolve_behavior`, cell 9, :602); and a `RETRAIN_FROM` that is no
+  node or off the chain (:612-618). A corrected Run all in the same runtime
+  re-enters that run id, so only a restarted runtime leaves the empty run
+  behind. `CRITIC_PHASE = True` is refused later still, when the first node
+  builds its training env, after the zero-action preflight (cell 13) has
+  written its copy into the run too: `CriticPhaseVecNormalize` reads the env's
+  `stance_width_settle_steps`
+  (`environments/shared/critic_phase_ppo.py:80-87`), which only the T. rex and
+  anatomical Compsognathus envs define, so it fails on the velociraptor (the
+  notebook's default model), the brachiosaurus, the dibothrosuchus, the
+  Compsognathus robot and the Allosaurus. Fix: one `MODEL` dropdown of the
+  seven model ids; `@param` on the other knobs, with the decision prose in the
+  markdown cell; one call before cell 8 writes anything that validates
+  `BEHAVIOR`, `RETRAIN_FROM`, a pinned `TRUNK_FROM` and `CRITIC_PHASE` against
+  the model's env; and "all six" corrected. (2026-11 notebook review:
+  knob-density-and-dropdowns, knobs-validated-after-write,
+  velociraptor-critic-phase-unsupported-on-raptor)
 
 ## Testing / CI
 
@@ -2423,3 +4011,24 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   (today a push that touches only the site config never runs python-ci); turning on required checks (the cleanup plan's decision 18 (a))
   closes it for everyone who cannot bypass them. No cleanup PR owns it.
   (2026-08 gap review CI8)
+- **LOW** — **the SB3 notebook's own training and report cells are tested on
+  the Compsognathus pair only (read from the code 2026-11-26).**
+  `test_actual_notebook_training_stance_and_recovery_reports`
+  (`environments/shared/tests/test_compsognathus_longipes_training.py:418-420`)
+  runs the notebook's cells through `train_stage` and
+  `generate_stage_artifacts` for the two Compsognathus models alone
+  (`MODEL_IDS`, :40), and a pull request runs only its robot PPO case
+  (`.github/workflows/python-ci.yml:459-466`). Since decision D-D62 every
+  model's committed walk trains through `train_base.train` and is judged by
+  `generate_stage_artifacts` in
+  `environments/shared/tests/test_walk_species_training.py` (:120-121), on all
+  seven on the nightly, dispatch and `full-ci` runs and on the robot alone on
+  a pull request (`python-ci.yml:488-494`), but its stance parent is a 64-step
+  root whose gate is never consulted (its module docstring). So the
+  velociraptor's, T. rex's, brachiosaurus', dibothrosuchus' and Allosaurus'
+  stance gates, with their own keys (the T. rex probe battery and hop watch,
+  the quadrupeds' `reward_and_length/v1`, the Allosaurus' heading probe), and
+  the T. rex recovery node never meet the post-stage judge after real training
+  in a test. Fix: parametrize the notebook smoke over all seven models on the
+  nightly run, with `smoke_configs`-style overrides. (2026-11 notebook review:
+  cmp-notebook-path-tested-on-compso-only)

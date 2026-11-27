@@ -220,8 +220,8 @@ def make_model():
     ET.SubElement(
         world, "geom", name="floor", type="plane", size="0 0 .1", material="ground_mat", contype="1", conaffinity="2"
     )
-    target = ET.SubElement(world, "body", name="target", mocap="true", pos="12 0 1.9")
-    ET.SubElement(target, "site", name="target_site", size=".01", group="4", rgba="0 0 0 0")
+    # The scene has no mocap body: the walking course is measured from the
+    # spawn along its heading (base_env.py), not toward a placed target.
     # All segment masses are reconstruction choices. Inertias are explicit so
     # changes to the artist's surface cannot change the contact or mass model.
     pelvis = body(world, "pelvis", (0, 0, HIP_Z), 621, (0.64, 0, 0.025), (88, 234, 218))

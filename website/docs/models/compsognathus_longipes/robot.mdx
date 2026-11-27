@@ -10,13 +10,15 @@ export const MODEL = requireModel('compsognathus_longipes', 'robot');
 
 # Compsognathus longipes (Robot)
 
-The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an unpowered fixed tail, and 46 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Its single head camera, IMU and joint encoders preserve the hardware design direction; the mass allocations still need validation against real parts.
+The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an unpowered fixed tail, and 41 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 (decision D-D59) none of them reads the world heading or a target: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes, and its two foot channels read each sole's force against the floor, not its touch sensors, so a sole resting on the other foot is not read as support. Its single head camera, IMU and joint encoders preserve the hardware design direction; the mass allocations still need validation against real parts.
+
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance and recovery run no command. Each walk episode draws one request at reset and holds it for its whole 20 s: a forward cruise at 0.02-0.04 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (6 weights) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the biped gait clause with its flight cap), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet been shown to clear them: the tracking width (0.01 m/s) lies under the estimated lateral sway of a stepping gait on this plant, and no walking controller exists to measure it (decision D-D62 (16)). A moving command is scored on the trailing mean of the last 1.50 s, a stride estimated from the leg length at half the cruise speed (decision D-D64); on a pendulum model of the sway that fits the tolerance for only about one in seven plausible strides at the home support width, so the risk stays. The later follow nodes will widen this distribution as the walk's exact continuation.
 
 <SpeciesCatalog species={MODEL} />
 
 ## Training
 
-Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "robot"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares four nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's default, `BEHAVIOR = "auto"`, resolves to the behavior node here; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`). The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "robot"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares three nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance) and `locomotion` (walk, warm-started from stance). The non-contact target-reach hunt that followed walk was removed by decision D-D59, so the notebook's `BEHAVIOR = "auto"` default resolves to walk here as for every model; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`).
 
 ```bash
 pip install -e ".[train]"
@@ -27,12 +29,12 @@ python -m environments.compsognathus_longipes.scripts.view_model --embodiment ro
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species compsognathus_longipes --embodiment robot train --stage 1
 
-# The advancing stages in manifest order; reuse an earlier run's certified stance and walk
+# The advancing stages in manifest order; reuse an earlier run's certified stance, train walk here
 python -m environments.shared.train --species compsognathus_longipes --embodiment robot \
   curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
-Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state and target coordinates are privileged MLP inputs; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
+Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state, the pelvis velocity among it, is a privileged MLP input; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
 
 The initial configurations and short integration runs establish training compatibility. They do not establish learned walking, behavior convergence or hardware readiness. The zero-action standing baseline should be measured before tuning. Every node is judged on its own and its verdict written to `gate_verdict.json` beside the handoff checkpoint; a later run reuses it only under the reuse rule (a passed verdict, the same task digest and plant, chained by the parent's checkpoint digest) — see [Behavior Recipes](/docs/training/recipes).
 

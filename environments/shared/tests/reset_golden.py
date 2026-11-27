@@ -14,9 +14,9 @@ interface tests on the current tree.
 
 Two halves, with different strengths (amendment A4):
 
-* ``reset`` — ``qpos`` and ``qvel`` right after ``reset(seed)``, every
-  mocap target position, the push-schedule starts/directions when the
-  stage schedules pushes, and the generator state (``rng_state``:
+* ``reset`` — ``qpos`` and ``qvel`` right after ``reset(seed)``, the
+  push-schedule starts/directions when the stage schedules pushes, and the
+  generator state (``rng_state``:
   ``np_random.bit_generator.state``) the reset leaves behind.  Quantized to
   6 decimals and compared EXACTLY: this is the contract (the seeded draw
   stream).  A reset draw added before the existing draws breaks it by
@@ -83,6 +83,18 @@ the same way; each record also names the ``policy_interface_revision`` and
 ``observation_schema`` its observation was taken under, so the observation
 half is bound to its layout as the trajectory half is to its physics.
 
+A revision that changes the reset draw stream ON PURPOSE re-takes every
+capture the same way, after showing that only the fields such a change must
+move have moved.  plant_versions note 24 (decision D-D59) took the
+per-episode prey/target draws and the state-inert root-height jitter draw
+out of the reset: the joint and velocity jitter are still the first draws,
+so every ``reset`` half's ``qpos`` and ``qvel`` re-took equal at 6 decimals,
+while its ``rng_state``, its push schedules and the whole ``second_reset``
+record moved, as they must; the recapture records that reason.  (Those
+captures also dropped the ``mocap_pos`` rows: no plant has a mocap body
+since that revision, and the plant contract refuses one.)  From then on the
+fixture pins the new stream exactly as it pinned the old one.
+
 Schema v2 (decision D-D33): every capture is named by its model, and the
 fixture nests ``captures[species][embodiment][stage]`` (and ``recaptures``
 the same way), each capture recording ``species``, ``embodiment`` and
@@ -129,7 +141,8 @@ QUANTIZATION_DECIMALS = 6
 #: The capture specification: (model, stage, seeds, steps).  T-Rex stance
 #: seeds are the certified run's training seed and the first/second/last
 #: publication-panel seeds; T-Rex recovery exercises the push schedule; the
-#: two Compsognathus recovery captures back the calibration restamp.
+#: two Compsognathus recovery captures are what a calibration restamp rests on
+#: (decision D-C2: a restamp needs the seeded draw stream unchanged).
 DEFAULT_SPEC: tuple[tuple[ModelId, str, tuple[int, ...], int], ...] = (
     (ModelId("tyrannosaurus_rex", "anatomical"), "stance", (42, 3042, 3043, 3081), 20),
     (ModelId("tyrannosaurus_rex", "anatomical"), "recovery", (3042,), 20),
@@ -153,7 +166,6 @@ def _reset_record(env: Any) -> dict[str, Any]:
     record: dict[str, Any] = {
         "qpos": _quantize(env.data.qpos),
         "qvel": _quantize(env.data.qvel),
-        "mocap_pos": _quantize_rows(env.data.mocap_pos) if env.model.nmocap else [],
     }
     starts = getattr(env, "_push_schedule_starts", None)
     if starts is not None:

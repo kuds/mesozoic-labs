@@ -9,12 +9,20 @@ from __future__ import annotations
 import logging
 import pickle
 import zipfile
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 import numpy as np
 
 from . import sb3_compat
+from .command_evaluation import (
+    CommandEvaluationPlan,
+    family_robust_score,
+    family_statistics,
+    recorded_command_families,
+)
+from .command_identity import hold_vec_normalize_command_identity
 from .hop_watch import HopRegimeWatchCallback
 from .posture_watch import PostureDriftWatchCallback, PostureTrendWatchCallback
 from .sb3_compat import BaseCallback
@@ -38,6 +46,17 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
     its matching VecNormalize stats) whenever the score improves, so
     next-stage training and gating can prefer consistently-good policies
     over great-on-average ones with a fat failure tail.
+
+    On a live-command stage (its evaluation callback carries a
+    :class:`~environments.shared.curriculum.command_evaluation.CommandEvaluationPlan`
+    as ``command_evaluation``, decision D-D62) the score is family-aware
+    instead (:func:`~environments.shared.curriculum.command_evaluation.family_robust_score`):
+    ``mean - risk_coef * std`` within the cruise and the stand episodes,
+    combined at the stage's family probabilities, the families read from each
+    episode's command (``evaluations_command_families``).  Pooled over both
+    families, the gap between a stand episode's return and a cruise
+    episode's would read as risk, and a checkpoint that stood worse would
+    score higher.  Under command_mode "none" the score is the pooled one.
 
     Place after the ``EvalCallback`` in the callback list.
 
@@ -72,6 +91,50 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         self.best_score = -np.inf
         self._last_seen_n = 0
 
+    @property
+    def command_evaluation(self) -> "CommandEvaluationPlan | None":
+        """The live stage's evaluation plan its evaluation callback rolls (``None``: a command-free stage).
+
+        Only a :class:`CommandEvaluationPlan` counts: SB3's own ``EvalCallback`` has no plan, and
+        ``StageAwareEvalCallback`` holds ``None`` under command_mode "none".
+        """
+        plan = getattr(self.eval_callback, "command_evaluation", None)
+        return plan if isinstance(plan, CommandEvaluationPlan) else None
+
+    def score(self, returns: Any, families: "Sequence[str] | None" = None) -> float:
+        """One evaluation's risk-adjusted score: pooled ``mean - risk_coef * std``, or family-aware on a live stage.
+
+        On a live stage *families* (each episode's command family, aligned
+        with *returns*) is required.
+        """
+        values = np.asarray(returns, dtype=float)
+        plan = self.command_evaluation
+        if plan is None:
+            return float(values.mean() - self.risk_coef * values.std())
+        if families is None:
+            raise ValueError("a live-command stage's robust score needs each evaluation episode's command family")
+        return family_robust_score(values, families, plan.family_weights(), risk_coef=self.risk_coef)
+
+    def prior_score(self, returns: Any, families: "Sequence[str] | None" = None) -> "float | None":
+        """The score of a prior session's evaluation (a same-stage resume): ``None`` when it cannot be scored.
+
+        A prior evaluation of a live stage is scored on the families its
+        record carries (*families*, ``evaluations.npz``'s
+        ``command_families``), as the tracker scored it when it was rolled;
+        a record without them (written before they were kept) is scored on
+        this session's plan, which a resume that keeps the run's seed rolled
+        at every evaluation.  One with another episode count than the plan's
+        is not this panel's and is not scored.
+        """
+        plan = self.command_evaluation
+        if plan is None:
+            return self.score(returns)
+        values = np.asarray(returns, dtype=float).reshape(-1)
+        if values.size != len(plan.families):
+            return None
+        recorded = None if families is None or len(families) != values.size else list(families)
+        return self.score(values, plan.families if recorded is None else recorded)
+
     def _on_step(self) -> bool:
         results = getattr(self.eval_callback, "evaluations_results", None) or []
         n = len(results)
@@ -80,7 +143,18 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         self._last_seen_n = n
 
         latest = np.asarray(results[-1], dtype=float)
-        score = float(latest.mean() - self.risk_coef * latest.std())
+        families = None
+        if self.command_evaluation is not None:
+            recorded = getattr(self.eval_callback, "evaluations_command_families", None) or []
+            if len(recorded) != n or len(recorded[-1]) != latest.size:
+                raise RuntimeError(
+                    f"RobustBestModel: evaluation {n} of a live-command stage has {latest.size} returns but its "
+                    f"evaluation callback recorded {len(recorded)} evaluation(s) of command families"
+                    + (f", the last with {len(recorded[-1])}" if recorded else "")
+                    + "; the family-aware score needs each episode's family (decision D-D62)"
+                )
+            families = list(recorded[-1])
+        score = self.score(latest, families)
         if score <= self.best_score:
             return True
         self.best_score = score
@@ -91,17 +165,30 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         self.model.save(str(path))
         vec_env = self.model.get_vec_normalize_env()
         if vec_env is not None:
+            # The command slice at identity in every sidecar (decision D-D60).
+            hold_vec_normalize_command_identity(vec_env)
             vec_env.save(str(path) + "_vecnorm.pkl")
         if staging_dir is not None:
             publish_staged_pair(path, self.model_dir / "robust_best_model", zip_last=True)
-        logger.info(
-            "RobustBestModel: new best risk-adjusted score %.1f (mean %.1f - %.1f*std %.1f) at step %d",
-            score,
-            latest.mean(),
-            self.risk_coef,
-            latest.std(),
-            self.num_timesteps,
-        )
+        if families is None:
+            logger.info(
+                "RobustBestModel: new best risk-adjusted score %.1f (mean %.1f - %.1f*std %.1f) at step %d",
+                score,
+                latest.mean(),
+                self.risk_coef,
+                latest.std(),
+                self.num_timesteps,
+            )
+        else:
+            logger.info(
+                "RobustBestModel: new best family-aware risk-adjusted score %.1f at step %d (%s)",
+                score,
+                self.num_timesteps,
+                "; ".join(
+                    f"{family} {count} ep: mean {mean:.1f} - {self.risk_coef:.1f}*std {std:.1f}"
+                    for family, (count, mean, std) in family_statistics(latest, families).items()
+                ),
+            )
         return True
 
 
@@ -113,13 +200,187 @@ def select_handoff_checkpoint(model_dir: Path) -> tuple[str, str, str] | None:
     only when its matched VecNormalize stats exist, so obs normalization
     matches the policy weights. Returns ``(name, model_path_without_ext,
     vecnorm_path)`` or ``None`` when neither candidate is complete.
+
+    A stage whose gate chooses its handoff by the gated statistic
+    (``command_tracking/v1``, decision D-D61) records the choice in
+    ``models/handoff_choice.json`` (:data:`HANDOFF_CHOICE_FILENAME`); a
+    valid record (:func:`recorded_handoff_choice`: its schema, a pair in
+    *model_dir* whose two files hash to the digests it records) names the
+    pair returned, so every reader of the handoff -- the replays, the
+    selected evaluation, the stage gate, the next stage's load, reuse and
+    publication -- follows the one choice.  An invalid record is logged and
+    ignored, and the order above applies; the command-tracking judge
+    refuses a handoff that is not the recorded choice, or a choice whose
+    ranked pairs are no longer the stage's
+    (:func:`handoff_choice_candidates_problem`), so a stale record certifies
+    nothing.
     """
-    for candidate in ("robust_best_model", "best_model"):
+    choice, problem = recorded_handoff_choice(model_dir)
+    if choice is not None:
+        name = str(choice["selected"])
+        return name, str(model_dir / name), str(model_dir / f"{name}_vecnorm.pkl")
+    if problem is not None and (Path(model_dir) / HANDOFF_CHOICE_FILENAME).exists():
+        logger.warning("%s is ignored: %s", Path(model_dir) / HANDOFF_CHOICE_FILENAME, problem)
+    for candidate in REWARD_HANDOFF_NAMES:
         cand_zip = model_dir / f"{candidate}.zip"
         cand_vecnorm = model_dir / f"{candidate}_vecnorm.pkl"
         if cand_zip.exists() and cand_vecnorm.exists():
             return candidate, str(model_dir / candidate), str(cand_vecnorm)
     return None
+
+
+#: The pairs a stage hands on when no choice is recorded, in preference order: the risk-adjusted
+#: ``robust_best_model``, then SB3's mean-reward ``best_model`` (:func:`select_handoff_checkpoint`).
+REWARD_HANDOFF_NAMES: tuple[str, ...] = ("robust_best_model", "best_model")
+#: The suffix of a stage's final pair (``models/<stage_label>_final``), the third pair a choice ranks.
+FINAL_PAIR_SUFFIX = "_final"
+
+#: The record of a handoff chosen by the gated statistic, in the stage's ``models/`` (decision D-D61).
+HANDOFF_CHOICE_FILENAME = "handoff_choice.json"
+HANDOFF_CHOICE_SCHEMA = "mesozoic.handoff-choice/v1"
+
+
+def _file_sha256(path: Path) -> str:
+    """``result_bundle.hashing.sha256_file``'s portable ``sha256:<hex>`` digest (that package imports this one)."""
+    import hashlib
+
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1 << 20), b""):
+            digest.update(block)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def _is_stem(name: Any) -> TypeGuard[str]:
+    """A bare checkpoint stem: a non-empty string with no path part."""
+    return isinstance(name, str) and bool(name) and Path(name).name == name and name not in (".", "..")
+
+
+def _pair_digests(model_dir: Path, name: str) -> "tuple[str, str] | None":
+    """The digests of ``<name>.zip`` and ``<name>_vecnorm.pkl`` in *model_dir*; ``None`` when the pair is not complete."""
+    zip_path, vecnorm_path = model_dir / f"{name}.zip", model_dir / f"{name}_vecnorm.pkl"
+    if not (zip_path.is_file() and vecnorm_path.is_file()):
+        return None
+    return _file_sha256(zip_path), _file_sha256(vecnorm_path)
+
+
+def _selected_problem(record: Any, model_dir: Path) -> str | None:
+    """Why *record* does not name a pair in *model_dir* by its current digests, or ``None``."""
+    if not isinstance(record, dict) or record.get("schema") != HANDOFF_CHOICE_SCHEMA:
+        schema = record.get("schema") if isinstance(record, dict) else type(record).__name__
+        return f"its schema is {schema!r}, not {HANDOFF_CHOICE_SCHEMA!r}"
+    name = record.get("selected")
+    if not _is_stem(name):
+        return f"it selects {name!r}, not a checkpoint stem in {model_dir}"
+    try:
+        digests = _pair_digests(model_dir, name)
+    except OSError as exc:
+        return f"the selected pair cannot be read ({exc})"
+    if digests is None:
+        return f"the selected pair {name}.zip / {name}_vecnorm.pkl is not complete"
+    if digests != (record.get("checkpoint_sha256"), record.get("normalization_sha256")):
+        return (
+            f"the selected pair {name}.zip / {name}_vecnorm.pkl no longer hashes to the recorded digests "
+            "(it was rewritten after the choice)"
+        )
+    return None
+
+
+def recorded_handoff_choice(model_dir: "str | Path") -> "tuple[dict[str, Any] | None, str | None]":
+    """``(record, problem)``: the stage's handoff choice when it is valid, else ``None`` and why.
+
+    Valid means: ``models/handoff_choice.json`` is a JSON object of schema
+    :data:`HANDOFF_CHOICE_SCHEMA` whose ``selected`` is a bare checkpoint
+    stem in *model_dir* (no path), whose ``<selected>.zip`` and
+    ``<selected>_vecnorm.pkl`` both exist, and whose ``checkpoint_sha256``
+    and ``normalization_sha256`` are those two files' digests -- a pair
+    rewritten after the choice (a resumed stage's new ``robust_best_model``)
+    no longer is the pair that was chosen.  ``(None, None)`` when there is
+    no record at all.  Never raises.
+
+    Only the selected pair is hashed here (every reader of the handoff
+    calls this); whether the other pairs the choice ranked are still the
+    stage's is :func:`handoff_choice_candidates_problem`, which the
+    command-tracking judge and the code that makes the choice check.
+    """
+    from ..file_io import read_json_object
+
+    path = Path(model_dir) / HANDOFF_CHOICE_FILENAME
+    if not path.exists():
+        return None, None
+    record = read_json_object(path)
+    if record is None:
+        return None, "it cannot be read as a JSON object"
+    problem = _selected_problem(record, Path(model_dir))
+    if problem is not None:
+        return None, problem
+    return record, None
+
+
+def handoff_choice_candidates_problem(record: "dict[str, Any]", model_dir: "str | Path") -> str | None:
+    """Why *record* is no longer a choice among the pairs its stage holds, or ``None`` when it still is.
+
+    A choice is the best of the pairs it ranked, so it stands only while
+    those are still the stage's pairs.  Its ``candidates`` list names each
+    ranked pair (``name``, a bare stem, each once) with the digests of its
+    two files when it was ranked (``checkpoint_sha256``,
+    ``normalization_sha256``); the selected pair is among them under the
+    record's own digests; every ranked pair still hashes to its recorded
+    digests; and every complete pair in *model_dir* a choice ranks -- the
+    reward-chosen ones (:data:`REWARD_HANDOFF_NAMES`) and the final pair
+    (``*_final``) -- is among them.  So a pair rewritten after the choice
+    (training continued in the stage directory) or one that appeared after
+    it, never compared, makes the choice stale.  Never raises.
+    """
+    directory = Path(model_dir)
+    candidates = record.get("candidates") if isinstance(record, Mapping) else None
+    if not isinstance(candidates, list) or not candidates:
+        return "it records no candidates, so the pairs it was chosen among are unknown"
+    ranked: dict[str, tuple[Any, Any]] = {}
+    for entry in candidates:
+        name = entry.get("name") if isinstance(entry, Mapping) else None
+        if not _is_stem(name) or name in ranked:
+            return f"it records a candidate {name!r} that is not a distinct checkpoint stem"
+        ranked[name] = (entry.get("checkpoint_sha256"), entry.get("normalization_sha256"))
+    selected = record.get("selected")
+    if not _is_stem(selected) or ranked.get(selected) != (
+        record.get("checkpoint_sha256"),
+        record.get("normalization_sha256"),
+    ):
+        return f"its selected pair {selected!r} is not among its candidates under the digests it records"
+    try:
+        for name, digests in ranked.items():
+            if _pair_digests(directory, name) != digests:
+                return f"the candidate {name} no longer hashes to the digests it was ranked under"
+        present = {
+            stem
+            for stem in {path.name[: -len(".zip")] for path in directory.glob("*.zip")}
+            if (stem in REWARD_HANDOFF_NAMES or stem.endswith(FINAL_PAIR_SUFFIX))
+            and (directory / f"{stem}_vecnorm.pkl").is_file()
+        }
+    except OSError as exc:
+        return f"the stage's pairs cannot be read ({exc})"
+    unranked = sorted(present - set(ranked))
+    if unranked:
+        return f"the stage holds pairs the choice never ranked ({', '.join(unranked)})"
+    return None
+
+
+def write_handoff_choice(model_dir: "str | Path", record: "dict[str, Any]") -> Path:
+    """Write *record* as ``models/handoff_choice.json`` atomically; it must already be a valid choice.
+
+    Refuses (``ValueError``) a record :func:`recorded_handoff_choice` would
+    not honor once written, or one :func:`handoff_choice_candidates_problem`
+    would call stale, so a written choice is never silently ignored.  The
+    previous record is kept when the new one is refused.
+    """
+    from ..file_io import atomic_write_json
+
+    directory = Path(model_dir)
+    problem = _selected_problem(record, directory) or handoff_choice_candidates_problem(record, directory)
+    if problem is not None:
+        raise ValueError(f"the handoff choice is refused: {problem}")
+    return atomic_write_json(directory / HANDOFF_CHOICE_FILENAME, record)
 
 
 def publish_staged_pair(staged: "str | Path", destination: "str | Path", *, zip_last: bool) -> None:
@@ -289,9 +550,17 @@ def seed_resume_eval_state(
 
     * ``eval_callback.best_mean_reward`` and ``RobustBestModelCallback``'s
       ``best_score`` — computed over the FULL prior record, so a best model
-      saved at any pre-crash point stays protected;
+      saved at any pre-crash point stays protected (on a live-command stage
+      the robust score is the family-aware one on the families the record
+      carries, or on this session's command panel for a record written
+      before they were kept, :meth:`RobustBestModelCallback.prior_score`,
+      decision D-D62);
     * ``eval_callback.evaluations_*`` — the in-memory history SB3 re-saves
-      on every evaluation, so the npz keeps the whole run's record.  Entries
+      on every evaluation, so the npz keeps the whole run's record (on a
+      live stage with each evaluation's command families,
+      ``evaluations_command_families``: the record's, or the plan's for a
+      record written before they were kept, so the republished record
+      carries them for every row).  Entries
       newer than ``max_timesteps`` (the resumed checkpoint's step count) are
       dropped from the HISTORY so the republished timesteps stay monotonic
       when the crash — or a fallback to an older checkpoint — postdates the
@@ -350,6 +619,8 @@ def seed_resume_eval_state(
             results = [np.asarray(row) for row in data["results"]]
             ep_lengths = [np.asarray(row) for row in data["ep_lengths"]]
             successes = [np.asarray(row) for row in data["successes"]] if "successes" in data else None
+            # Each evaluation's command families (a live stage's record, decision D-D62); None without them.
+            families = recorded_command_families(data)
     except (OSError, KeyError, ValueError, zipfile.BadZipFile) as exc:
         logger.warning("Could not seed resume eval state from %s: %s", path, exc)
         return 0
@@ -363,10 +634,28 @@ def seed_resume_eval_state(
     eval_callback.best_mean_reward = best_mean
     for callback in callbacks:
         if isinstance(callback, RobustBestModelCallback):
-            callback.best_score = max(
-                float(np.asarray(row, dtype=float).mean() - callback.risk_coef * np.asarray(row, dtype=float).std())
-                for row in results
-            )
+            # A live stage's prior evaluations are scored by family (RobustBestModelCallback.prior_score): on the
+            # families the record carries, else on this session's plan; a row of another episode count is not
+            # scored.
+            scores = [
+                score
+                for score in (
+                    callback.prior_score(row, None if families is None else families[index])
+                    for index, row in enumerate(results)
+                )
+                if score is not None
+            ]
+            if len(scores) < len(results):
+                logger.warning(
+                    "Resume: %d of %d prior evaluations at %s do not hold this session's %d-episode command panel; "
+                    "the robust tracker is seeded from the other %d",
+                    len(results) - len(scores),
+                    len(results),
+                    path,
+                    len(callback.command_evaluation.families) if callback.command_evaluation is not None else 0,
+                    len(scores),
+                )
+            callback.best_score = max(scores) if scores else -np.inf
 
     if max_timesteps is not None:
         keep = sum(1 for value in timesteps if value <= max_timesteps)
@@ -383,6 +672,8 @@ def seed_resume_eval_state(
             ep_lengths = ep_lengths[:keep]
             if successes is not None:
                 successes = successes[:keep]
+            if families is not None:
+                families = families[:keep]
 
     expected_episodes = getattr(eval_callback, "n_eval_episodes", None)
     if expected_episodes is not None and any(len(row) != expected_episodes for row in results):
@@ -403,9 +694,11 @@ def seed_resume_eval_state(
     eval_callback.evaluations_results = results
     eval_callback.evaluations_length = ep_lengths
     if successes is not None and len(successes) == seeded:
-        # SB3 only writes the successes array when the CURRENT session's
-        # success buffer is non-empty; the seeded rows survive the next
-        # publish only while the resumed env still emits is_success.
+        # Inert since decision D-D59: only a success-gated (hunt) stage's
+        # record carries the rows, and SB3 writes the successes array only
+        # when the CURRENT session's success buffer is non-empty, which it
+        # never is (StageAwareEvalCallback does not collect is_success), so
+        # the seeded rows do not survive the next publish.
         eval_callback.evaluations_successes = successes
 
     # Stage diagnostics keep parallel per-eval series indexed by the absolute
@@ -413,6 +706,14 @@ def seed_resume_eval_state(
     seed_prior = getattr(eval_callback, "seed_prior_history", None)
     if callable(seed_prior):
         seed_prior(seeded)
+    plan = getattr(eval_callback, "command_evaluation", None)
+    if isinstance(plan, CommandEvaluationPlan):
+        # A live stage's families, aligned with the seeded results, so the next save of evaluations.npz carries
+        # them for every row: the record's, or the plan's (what the robust tracker scored them on) for a record
+        # written before they were kept.
+        eval_callback.evaluations_command_families = (
+            [list(row) for row in families] if families is not None else [list(plan.families) for _ in results]
+        )
     # gate_progress.npz is published beside evaluations.npz (both to the stage
     # directory), so the prior session's file is the one next to the record.
     gate_rows = 0
@@ -618,6 +919,8 @@ class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]
     def _on_step(self) -> bool:
         vec_env = self.model.get_vec_normalize_env()
         if vec_env is not None:
+            # The command slice at identity in every sidecar (decision D-D60).
+            hold_vec_normalize_command_identity(vec_env)
             vec_env.save(self.save_path)
             logger.info("VecNormalize saved to: %s", self.save_path)
         # getattr: tests build this callback without __init__.
@@ -637,7 +940,7 @@ def load_vecnorm_stats(
     allow_legacy_plant: bool = False,
     unsafe_skip_plant_validation: bool = False,
     carry_ret_rms: bool = False,
-    reseed_command_slice: bool = False,
+    command_mode: str,
 ) -> bool:
     """Load VecNormalize running statistics from a previous stage into new envs.
 
@@ -670,20 +973,38 @@ def load_vecnorm_stats(
         unsafe_skip_plant_validation: Deliberately load without checking the
             plant. This is for low-level inspection/tests only and cannot be
             combined with either validation option.
-        reseed_command_slice: The target node runs ``command_mode != "none"``
-            (BEHAVIOR_RECIPES_PLAN §4.6): the trailing command slice of
-            ``obs_rms`` is reset to mean 0 / var 1 at the carried count on
-            BOTH destinations, because a slice that was constant zero during
-            the parent run has var ≈ 1e-11 and would clip a live command at
-            ``clip_obs`` (invariant 8; ``command_frame.reseed_command_slice``).
+        command_mode: The ``command_mode`` of the stage that will read
+            these statistics (required: every caller states it).  The
+            identity rule (decision D-D60): training holds the command slice
+            of ``obs_rms`` at mean 0 / var 1, so statistics saved since then
+            load as they are.  Statistics whose slice is not at identity --
+            saved before the rule (a ``"none"`` stage's slice decayed toward
+            variance 0 as ``1e-4 / count``), or edited -- are refused with
+            :class:`~environments.shared.command_frame.CommandNormalizationError`
+            for a live mode, before either destination changes, since a live
+            command read through them would not mean what it means to every
+            other stage's policy; for ``"none"`` identity is re-imposed on
+            BOTH destinations (count kept) and a warning names the file, as
+            a ``"none"`` stage's zero command normalises to zero under either.
+            A same-stage resume follows the same rule: its own saves were
+            held at identity.
 
     Returns:
         ``True`` if stats were loaded, ``False`` if the file was not found.
     """
     from pathlib import Path as _Path
 
-    from environments.shared.command_frame import reseed_command_slice as _reseed_command_slice
+    from environments.shared.command_frame import (
+        COMMAND_MODE_NONE,
+        COMMAND_MODES,
+        command_identity_gap,
+        hold_command_identity,
+        require_command_identity,
+    )
     from environments.shared.plant_contract import PlantCompatibilityError
+
+    if command_mode not in COMMAND_MODES:
+        raise ValueError(f"command_mode={command_mode!r} is not one of {COMMAND_MODES}")
 
     if unsafe_skip_plant_validation:
         if current_plant is not None or allow_legacy_plant:
@@ -736,22 +1057,32 @@ def load_vecnorm_stats(
             allow_legacy=allow_legacy_plant,
         )
 
+    # The identity rule (decision D-D60), judged before either destination
+    # changes: a live stage refuses a slice off identity; a "none" stage
+    # re-imposes it on the loaded object, which both destinations then carry.
+    gap = command_identity_gap(prev_norm.obs_rms)
+    if gap != 0.0:
+        if command_mode != COMMAND_MODE_NONE:
+            require_command_identity(prev_norm.obs_rms, artifact=str(path), command_mode=command_mode)
+        hold_command_identity(prev_norm.obs_rms)
+        logger.warning(
+            "%s: the command slice of its observation statistics was off identity (largest deviation %.3g; saved "
+            "before decision D-D60 held it at mean 0 / variance 1); identity re-imposed for this command-free "
+            "stage, whose zero command normalises to zero under either",
+            vecnorm_path,
+            gap,
+        )
+
     # Carry forward observation statistics — the observation WIDTH is
     # identical across stages (the plant identity check above guarantees
-    # it), so the running mean/var remain valid; only the trailing command
-    # slice's statistics may be reseeded (reseed_command_slice=True, for a
-    # node whose command channel goes live).  ret_rms is copied only for
-    # same-stage resumes (carry_ret_rms=True): across stage boundaries the
-    # reward distribution changes, so stale return statistics would produce
-    # incorrectly scaled normalised rewards for PPO.  train_env.training /
-    # norm_reward are left as configured by create_vec_env (algorithm-aware).
+    # it), so the running mean/var remain valid, the command slice at
+    # identity.  ret_rms is copied only for same-stage resumes
+    # (carry_ret_rms=True): across stage boundaries the reward distribution
+    # changes, so stale return statistics would produce incorrectly scaled
+    # normalised rewards for PPO.  train_env.training / norm_reward are left
+    # as configured by create_vec_env (algorithm-aware).
     train_env.obs_rms = prev_norm.obs_rms
-    # The eval copy is taken BEFORE the train reseed so each destination is
-    # reseeded on its own line below (an in-place reseed of the shared
-    # object would otherwise reach eval through the copy, unobserved).
     eval_obs_rms = prev_norm.obs_rms.copy() if eval_env is not None else None
-    if reseed_command_slice:
-        _reseed_command_slice(train_env.obs_rms)
     if carry_ret_rms:
         # Only the running statistics: the per-env `returns` accumulators were
         # re-zeroed by VecNormalize.set_venv and correctly start at zero (the
@@ -763,8 +1094,6 @@ def load_vecnorm_stats(
 
     if eval_env is not None:
         eval_env.obs_rms = eval_obs_rms
-        if reseed_command_slice:
-            _reseed_command_slice(eval_env.obs_rms)
         eval_env.training = False
         eval_env.norm_reward = False
 

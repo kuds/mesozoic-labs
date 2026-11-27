@@ -5,6 +5,7 @@ call, so that every stage they judge records the same artifacts."""
 
 from __future__ import annotations
 
+import contextlib
 import json as _json
 import logging
 import math
@@ -13,7 +14,6 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
-from ..constants import PUBLICATION_SEED_START
 from ..curriculum.checkpoints import select_handoff_checkpoint
 from ..curriculum.stance_gate import DEFAULT_MIN_EVAL_EPISODES_STANCE
 from ..model_id import ModelId
@@ -42,6 +42,9 @@ _IMPULSE_EPISODES = 8
 #: Episodes per row in the heading probe (``stance_probe_spawn_yaw_deg``): a
 #: fall or a full horizon again, over 1 + 2 x offsets rows, policy and statue.
 _HEADING_EPISODES = 8
+#: Episodes in each of :func:`evaluate_stage_checkpoints`' two panels, the
+#: final checkpoint's and the selected one's; the stage summary states it.
+EVALUATION_PANEL_EPISODES = 30
 
 
 def build_stage_results_from_eval_data(
@@ -289,7 +292,7 @@ def _write_stance_gate_report(
             episodes=report_episodes,
         )
         # Beside the certificate, after it returned, whatever it returned: never read by the gate.
-        _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip")
+        _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip", stage_config)
         return heading_report
     report: dict[str, Any] | None = None
     try:
@@ -330,7 +333,7 @@ def _write_stance_gate_report(
         logger.warning("Stance gate report failed for stage %s", stage, exc_info=True)
         report = None
     # Beside the report, after its attempt returned, whatever it returned: never read by the gate.
-    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip")
+    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip", stage_config)
     return report
 
 
@@ -338,7 +341,8 @@ def _write_stance_gate_report(
 #: score; beside the certificate, never inside it (``_write_handoff_sidecar``).
 HANDOFF_SIDECAR_FILENAME = "handoff_in_training.json"
 #: Each handoff's selection rule: ``RobustBestModelCallback``'s ``mean - risk_coef x std`` at the ``risk_coef``
-#: train_base uses (its default, 1.0), and SB3's mean for ``best_model``.
+#: train_base uses (its default, 1.0), and SB3's mean for ``best_model``.  On a live-command stage the robust
+#: rule is the tracker's family-aware one instead (:func:`_handoff_in_training`, decision D-D62).
 _HANDOFF_SELECTION_RULES: dict[str, tuple[str, float]] = {
     "robust_best_model": ("mean - 1.0 x std", 1.0),
     "best_model": ("mean", 0.0),
@@ -356,7 +360,33 @@ _HANDOFF_KEYS: tuple[str, ...] = (
 )
 
 
-def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip: "str | Path") -> dict[str, Any]:
+def _live_stop_probability(stage_config: "Mapping[str, Any] | None") -> float | None:
+    """A live-command stage's stop probability (its stand family's weight); ``None`` under command_mode "none".
+
+    Read from the stage config's ``env_kwargs``: the ``command_config`` a
+    loaded stage holds, or the record a recorded one keeps.  Raises
+    ``LookupError`` for a live stage whose config holds no stop probability.
+    """
+    from ..command_frame import COMMAND_MODE_NONE
+
+    env_kwargs = (stage_config or {}).get("env_kwargs") or {}
+    if str(env_kwargs.get("command_mode", COMMAND_MODE_NONE)) == COMMAND_MODE_NONE:
+        return None
+    command = env_kwargs.get("command_config")
+    value = (
+        command.get("stop_probability") if isinstance(command, Mapping) else getattr(command, "stop_probability", None)
+    )
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise LookupError("the live-command stage's config records no command stop_probability")
+    return float(value)
+
+
+def _handoff_in_training(
+    stage_dir: "str | Path",
+    selected_name: str,
+    model_zip: "str | Path",
+    stage_config: "Mapping[str, Any] | None" = None,
+) -> dict[str, Any]:
     """Which in-training evaluation the handoff checkpoint was saved at, and its score there.  Never raises.
 
     ``timesteps`` is the checkpoint's own ``num_timesteps`` (SB3 stores it
@@ -371,6 +401,18 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
     (``progress_report._first_evaluation_scoring``, ``progress.json``'s
     reading), and ``step_agrees`` whether it is the checkpoint's step.
 
+    On a live-command stage (*stage_config*'s ``command_mode`` is not
+    ``"none"``, decision D-D62) ``robust_best_model`` is scored by the
+    tracker's family-aware rule
+    (:func:`~environments.shared.curriculum.command_evaluation.family_robust_score`)
+    on the families each evaluation rolled, which the record carries
+    (``evaluations.npz``'s ``command_families``), weighted at the stage's
+    stop probability: the number ``RobustBestModelCallback`` compared, bit
+    for bit, named ``family-weighted mean - 1.0 x std (cruise 0.85, stand
+    0.15)``.  A live record without its families scores nothing (an
+    ``error``).  Under command_mode "none", or without *stage_config*, the
+    block is the pooled one, exactly as before.
+
     On any failure (a truncated zip, a zip without ``data``, no
     ``evaluations.npz``, no evaluation at the checkpoint's step) it returns
     the same keys, ``None`` where unknown, plus ``"error"``.
@@ -380,6 +422,12 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
     try:
         import numpy as np
 
+        from ..curriculum.command_evaluation import (
+            family_robust_score,
+            family_selection_rule,
+            family_weights,
+            recorded_command_families,
+        )
         from ..curriculum.progress_report import _first_evaluation_scoring
         from ..task_fingerprint import read_checkpoint_attribute
 
@@ -389,15 +437,37 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
         timesteps = int(recorded)
         out["timesteps"] = timesteps
         rule = _HANDOFF_SELECTION_RULES.get(str(selected_name))
+        stop_probability = _live_stop_probability(stage_config)
         with np.load(Path(stage_dir) / "evaluations.npz") as record:
             steps = [int(value) for value in record["timesteps"]]
             results = [np.asarray(row, dtype=float) for row in record["results"]]
+            families = None if stop_probability is None else recorded_command_families(record)
         if timesteps not in steps:
             raise LookupError(f"evaluations.npz holds no evaluation at the checkpoint's {timesteps:,} steps")
         rewards = results[steps.index(timesteps)]
         mean, std = float(rewards.mean()), float(rewards.std())
         out.update(mean_reward=mean, std_reward=std, episodes=int(rewards.size))
-        if rule is not None:
+        if rule is not None and stop_probability is not None and str(selected_name) == "robust_best_model":
+            # A live stage: the tracker's family-aware score of each evaluation, on the families it rolled.
+            risk = rule[1]
+            if families is None:
+                raise LookupError(
+                    "evaluations.npz records no command families, and a live-command stage's robust score is "
+                    "family-aware (decision D-D62)"
+                )
+            weights = family_weights(stop_probability)
+
+            def family_score(values: Any, labels: Any) -> float:
+                return family_robust_score(values, labels, weights, risk_coef=risk)
+
+            scores = [family_score(row, labels) for row, labels in zip(results, families)]
+            out["selection_rule"] = family_selection_rule(stop_probability, risk)
+            out["selection_score"] = scores[steps.index(timesteps)]
+            out["first_scoring_timesteps"] = _first_evaluation_scoring(
+                results, steps, max(scores), family_score, families
+            )
+            out["step_agrees"] = out["first_scoring_timesteps"] == timesteps
+        elif rule is not None:
             name, risk = rule
 
             def score(values: Any) -> float:
@@ -413,17 +483,24 @@ def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip:
     return out
 
 
-def _write_handoff_sidecar(stage_dir: "str | Path", selected_name: str, model_zip: "str | Path") -> None:
+def _write_handoff_sidecar(
+    stage_dir: "str | Path",
+    selected_name: str,
+    model_zip: "str | Path",
+    stage_config: "Mapping[str, Any] | None" = None,
+) -> None:
     """Write ``handoff_in_training.json`` beside the certificate and log one line; never raises.
 
     Called after the certificate attempt has returned, on every stance
-    path, and never read by ``_apply_stage_gate``: the certificate's bytes,
-    its verdict and ``gate_verdict.json`` are what they are without it.
+    path and on the command-tracking path (with the stage's config, whose
+    command mode says how ``robust_best_model`` was scored), and never read
+    by ``_apply_stage_gate``: the certificate's bytes, its verdict and
+    ``gate_verdict.json`` are what they are without it.
     """
     try:
         from ..file_io import atomic_write_json
 
-        block = _handoff_in_training(stage_dir, selected_name, model_zip)
+        block = _handoff_in_training(stage_dir, selected_name, model_zip, stage_config)
         atomic_write_json(Path(stage_dir) / HANDOFF_SIDECAR_FILENAME, block)
 
         def shown(value: Any, spec: str = "") -> str:
@@ -504,196 +581,322 @@ def _write_stance_heading_certificate(
     return None
 
 
-def _write_task_success_evidence(
+def _command_reference_pair(stage_dir: Path, curriculum: Mapping[str, Any]) -> "tuple[str, str] | None":
+    """The follow profile's reference pair: the parent checkpoint the stage entered on, when the gate declares one.
+
+    Only for a stage declaring ``min_follow_reference_delta_lcb``; read from
+    the stage's recorded entry edge (``stage_config.json``'s
+    ``run.load_path``, with its ``_vecnorm.pkl`` sidecar beside it), and
+    only when the checkpoint still hashes to the recorded
+    ``run.parent_checkpoint_sha256``.  ``None`` otherwise (logged), which
+    the gate then fails closed on: a declared comparison with no reference
+    panel certifies nothing.
+    """
+    from ..config import read_recorded_stage_config
+    from ..result_bundle.hashing import sha256_file
+
+    if curriculum.get("min_follow_reference_delta_lcb") is None:
+        return None
+    record = read_recorded_stage_config(stage_dir) or {}
+    run = record.get("run") if isinstance(record.get("run"), Mapping) else {}
+    load_path = run.get("load_path") if isinstance(run, Mapping) else None
+    recorded = run.get("parent_checkpoint_sha256") if isinstance(run, Mapping) else None
+    if not isinstance(load_path, str) or not load_path:
+        logger.warning("Stage %s declares a paired reference but records no parent checkpoint it entered on", stage_dir)
+        return None
+    zip_path = Path(load_path)
+    vecnorm_path = Path(str(zip_path)[: -len(".zip")] + "_vecnorm.pkl") if zip_path.suffix == ".zip" else None
+    if vecnorm_path is None or not zip_path.is_file() or not vecnorm_path.is_file():
+        logger.warning("Stage %s's reference pair %s is not complete on disk; no reference panel", stage_dir, zip_path)
+        return None
+    if sha256_file(zip_path) != recorded:
+        logger.warning("Stage %s's reference %s no longer hashes to the recorded parent digest", stage_dir, zip_path)
+        return None
+    return str(zip_path), str(vecnorm_path)
+
+
+def _write_command_tracking_report(
     *,
-    species_cfg: Any,
-    stage: int,
+    model_id: ModelId,
+    stage: "int | str",
     stage_config: dict[str, Any],
     stage_dir: Path,
     model_dir: Path,
-    algorithm: str,
-    allow_legacy_plant: bool = False,
-) -> "Path | None":
-    """Make sure a ``task_success/v1`` stage holds the evidence its gate is judged on.
+) -> dict[str, Any] | None:
+    """Roll the ``command_tracking/v1`` panel on the selected handoff pair (D-D61), into the run dir.
 
-    The verdict for this kind comes ONLY from ``evaluation_selected.csv`` —
-    the selected checkpoint's per-episode task successes, hash-bound to the
-    handoff pair — and the notebook writes that file itself
-    (``evaluate_stage_checkpoints``).  A caller that rolled no bound panel
-    would otherwise record a FAILED verdict for want of evidence (decision
-    D-B12).  This is the stance treatment (:func:`_write_stance_gate_report`):
-    for every SB3 run, when the file is absent or is not
-    bound to the handoff ``select_handoff_checkpoint`` picks NOW, roll
-    ``min_eval_episodes`` episodes from that pair on the publication seed
-    and write it through ``csv_output.save_evaluation_episodes``.  A file
-    already bound to the handoff (the trainer's post-training panel wrote
-    it) is kept, so the on-disk verdict and the count ``metrics.json``
-    records agree by construction — "bound" meaning the checkpoint digest
-    AND, when the rows record one, the VecNormalize sidecar digest (the
-    judge refuses a panel rolled under other observation statistics), and
-    the file must hold at least ``min_eval_episodes`` rows: a smaller
-    trainer panel would leave the stage unjudgeable where a fresh roll
-    makes it judgeable.
-
-    ``task_success_panel_episodes`` in ``[curriculum]`` overrides the panel
-    size (``0`` skips the roll; a smaller panel is warned about, since the
-    bound's power is specified at ``min_eval_episodes`` and the judge then
-    refuses it by its own n).  Non-fatal to artifact generation, like the
-    stance report: a failed roll leaves no file, and the judge refuses.
-
-    Returns the evidence path, or ``None`` when nothing was written.
+    Only for a stage that declares the kind.  The handoff is
+    ``select_handoff_checkpoint``'s, which for this kind is the pair the
+    handoff choice (``models/handoff_choice.json``) chose by the gated
+    statistic; the judge refuses a report whose pair is not that choice.
+    The follow profile's reference, when the gate declares one, is the
+    parent checkpoint the stage entered on (:func:`_command_reference_pair`).
+    Non-fatal to artifact generation, like the stance reports, and fatal to
+    certification: ``None`` (no pair, or a rollout that raised) fails the
+    stage closed in :func:`_apply_stage_gate`.
     """
-    from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND, read_task_successes
+    from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
 
     curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") != TASK_SUCCESS_GATE_KIND:
+    if curriculum.get("gate_kind") != COMMAND_TRACKING_GATE_KIND:
         return None
     handoff = select_handoff_checkpoint(model_dir)
     if handoff is None:
         logger.warning(
-            "Task-success evidence skipped for stage %s: no checkpoint in %s has its matched _vecnorm.pkl, "
-            "and rolling without the observation statistics would record evidence for a different policy.",
+            "Command-tracking report skipped for stage %s: no checkpoint in %s has its matched _vecnorm.pkl",
             stage,
             model_dir,
         )
         return None
     selected_name, selected_path, selected_vecnorm = handoff
-    selected_zip = Path(f"{selected_path}.zip")
-    declared = curriculum.get("min_eval_episodes")
-    declared_episodes = None if declared is None else int(declared)
-    evidence_path = stage_dir / "evaluation_selected.csv"
-    if evidence_path.is_file():
-        from ..result_bundle.hashing import sha256_file
-
-        try:
-            recorded = read_task_successes(evidence_path)
-        except (OSError, ValueError):
-            recorded = None
-        bound = (
-            recorded is not None
-            and recorded.checkpoint_sha256 == sha256_file(selected_zip)
-            and (
-                recorded.normalization_sha256 is None or recorded.normalization_sha256 == sha256_file(selected_vecnorm)
-            )
-        )
-        if (
-            bound
-            and recorded is not None
-            and declared_episodes is not None
-            and len(recorded.successes) < declared_episodes
-        ):
-            logger.warning(
-                "Stage %s %s is bound to the handoff %s but holds %d episodes, fewer than min_eval_episodes %d; "
-                "re-rolling the selected panel at the declared size so the stage can be judged.",
-                stage,
-                evidence_path.name,
-                selected_name,
-                len(recorded.successes),
-                declared_episodes,
-            )
-        elif bound:
-            logger.info(
-                "Task-success evidence for stage %s already bound to %s: %s", stage, selected_name, evidence_path
-            )
-            return evidence_path
-        else:
-            logger.warning(
-                "Stage %s %s is not bound to the handoff %s; re-rolling the selected panel so the verdict "
-                "describes the checkpoint it certifies.",
-                stage,
-                evidence_path.name,
-                selected_name,
-            )
-
-    if declared_episodes is None:
-        logger.warning("Task-success evidence skipped for stage %s: no min_eval_episodes declared", stage)
-        return None
-    panel_episodes = curriculum.get("task_success_panel_episodes")
-    panel_episodes = declared_episodes if panel_episodes is None else int(panel_episodes)
-    if panel_episodes < 1:
-        logger.info(
-            "Task-success evidence skipped for stage %s: task_success_panel_episodes = %d", stage, panel_episodes
-        )
-        return None
-    if panel_episodes != declared_episodes:
-        logger.warning(
-            "Task-success evidence for stage %s rolls %d episodes, not the stage's min_eval_episodes %d. "
-            "The bound's power is specified at the latter; this panel does not certify what the gate claims.",
-            stage,
-            panel_episodes,
-            declared_episodes,
-        )
-
+    report: dict[str, Any] | None = None
     try:
-        from ..curriculum import load_vecnorm_stats
-        from ..evaluation import eval_policy
-        from ..plant_contract import current_plant_identity, validate_model_plant
-        from ..policy_loading import _ensure_sb3
-        from ..train_base import create_vec_env
+        from .command_tracking_report import build_command_tracking_report, write_command_tracking_report
 
-        sb3 = _ensure_sb3()
-        alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-        plant_identity = current_plant_identity(species_cfg.model_id)
-        algo_kwargs = stage_config.get(f"{algorithm}_kwargs", {})
-        eval_env = create_vec_env(
-            species_cfg,
-            {stage: stage_config},
+        reference = _command_reference_pair(stage_dir, curriculum)
+        logger.info("Command-tracking report scoring stage %s checkpoint: %s", stage, selected_name)
+        report = build_command_tracking_report(
+            model_id,
             stage,
-            1,
-            PUBLICATION_SEED_START,
-            algorithm=algorithm,
-            gamma=algo_kwargs.get("gamma"),
-            plant_identity=plant_identity,
+            stage_config=stage_config,
+            model_path=f"{selected_path}.zip",
+            vecnorm_path=selected_vecnorm,
+            reference_model_path=None if reference is None else reference[0],
+            reference_vecnorm_path=None if reference is None else reference[1],
         )
-        try:
-            # seed=None: a seeded archive would re-seed eval_env with its TRAINING seed on
-            # load, and the rows below record PUBLICATION_SEED_START.
-            model = load_sb3_model(selected_path, algorithm=alg_cls, env=eval_env, seed=None)
-            validate_model_plant(model, plant_identity, artifact=str(selected_zip), allow_legacy=allow_legacy_plant)
-            load_vecnorm_stats(
-                selected_vecnorm,
-                eval_env,
-                current_plant=plant_identity,
-                allow_legacy_plant=allow_legacy_plant,
-            )
-            eval_env.training = False
-            eval_env.norm_reward = False
-            logger.info(
-                "Task-success evidence rolling stage %s checkpoint %s (%d episodes)",
-                stage,
-                selected_name,
-                panel_episodes,
-            )
-            rewards, lengths, fwd_vels, successes, distances = eval_policy(
-                model,
-                eval_env,
-                species_cfg.success_keys,
-                n_episodes=panel_episodes,
-            )
-        finally:
-            eval_env.close()
-        written = csv_output.save_evaluation_episodes(
-            stage_dir,
-            rewards=rewards,
-            lengths=lengths,
-            forward_velocities=fwd_vels,
-            distances=distances,
-            successes=successes,
-            evaluation_seed=PUBLICATION_SEED_START,
-            checkpoint_label="selected",
-            checkpoint_path=selected_zip,
-            normalization_path=selected_vecnorm,
-        )
+        written = write_command_tracking_report(stage_dir, report)
         logger.info(
-            "Task-success evidence: %d/%d episodes succeeded -> %s",
-            sum(1 for success in successes if success),
-            len(successes),
-            written,
+            "Command-tracking report (%s): %s -> %s",
+            report["profile"],
+            "PASS" if report["passed"] else "FAIL",
+            written["command_tracking_report_txt"],
         )
-        return written
-    except Exception:  # noqa: BLE001 - evidence rolling must not sink the run; the judge refuses without it
-        logger.warning("Task-success evidence could not be rolled for stage %s", stage, exc_info=True)
-    return None
+    except Exception:  # noqa: BLE001 - the report must not sink the run; its absence fails the gate
+        logger.warning("Command-tracking report failed for stage %s; the stage fails its gate", stage, exc_info=True)
+        report = None
+    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip", stage_config)
+    return report
+
+
+def ensure_command_handoff_choice(
+    *,
+    model_id: ModelId,
+    stage: "int | str",
+    stage_config: Mapping[str, Any],
+    model_dir: "str | Path",
+    final_stem: "str | Path | None" = None,
+) -> "dict[str, Any] | None":
+    """Make a ``command_tracking/v1`` stage's handoff choice when it has no valid one under its current gate.
+
+    A no-op (``None``) for every other kind and for a stage whose
+    ``models/handoff_choice.json`` is valid, was made under the gate and
+    task the stage declares now, and still ranks exactly the stage's pairs
+    (``checkpoints.handoff_choice_candidates_problem``: none rewritten or
+    added since); otherwise the choice is made
+    (``command_tracking_report.choose_command_handoff``) and its record
+    returned.  Called before anything reads the handoff: at the end of
+    training (``train_base``) and by :func:`evaluate_stage_checkpoints`, so a
+    node judged under an edited gate is handed on by that gate's statistic.
+    Never raises: a choice that fails is logged, and the judge then refuses
+    the stage for want of one.
+    """
+    from ..curriculum.checkpoints import handoff_choice_candidates_problem, recorded_handoff_choice
+    from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
+    from ..curriculum.gate_schema import gate_config_sha256, gate_config_view
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if curriculum.get("gate_kind") != COMMAND_TRACKING_GATE_KIND:
+        return None
+    try:
+        from ..task_fingerprint import stage_task_fingerprint
+        from .command_tracking_report import choose_command_handoff
+
+        choice, _ = recorded_handoff_choice(model_dir)
+        gate = gate_config_sha256(gate_config_view(curriculum))
+        task = stage_task_fingerprint(model_id, stage, env_kwargs=dict(stage_config["env_kwargs"]))["task_sha256"]
+        if (
+            choice is not None
+            and choice.get("gate_sha256") == gate
+            and choice.get("task_sha256") == task
+            and handoff_choice_candidates_problem(choice, model_dir) is None
+        ):
+            return None
+        return choose_command_handoff(
+            model_id, stage, stage_config=stage_config, model_dir=model_dir, final_stem=final_stem
+        )
+    except Exception:  # noqa: BLE001 - a failed choice is refused by the judge, never a crash after training
+        logger.warning("Stage %s's handoff could not be chosen by the gated statistic", stage, exc_info=True)
+        return None
+
+
+def remove_stale_command_tracking_outputs(
+    *,
+    stage: "int | str",
+    stage_config: Mapping[str, Any],
+    stage_dir: "str | Path",
+    figures_out: "str | Path | None" = None,
+) -> None:
+    """Remove the trace and command figures an earlier judgement left behind (D-D61).  Never raises.
+
+    A no-op for every kind but ``command_tracking/v1``.  Removes
+    ``command_tracking_trace.csv`` from the stage directory and both command
+    figures from the stage directory's published ``figures/`` and, when
+    given, from *figures_out*: on the notebook path the figures are drawn
+    into a staging directory that is only copied over the stage directory,
+    so the published copies must be removed here, or a figure of an earlier
+    judgement would stand beside this judgement's verdict.
+    ``generate_stage_artifacts`` calls it before its figure block, whether or
+    not graphs are generated, and :func:`write_command_tracking_figures`
+    calls it before drawing.
+    """
+    from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
+    from ..visualization import COMMAND_GATE_PROGRESS_FIGURE, COMMAND_TRACKING_FIGURE
+    from .command_tracking_trace import COMMAND_TRACKING_TRACE_CSV
+
+    if stage_config.get("curriculum_kwargs", {}).get("gate_kind") != COMMAND_TRACKING_GATE_KIND:
+        return
+    stage_dir = Path(stage_dir)
+    figure_dirs = [stage_layout.figures_dir(stage_dir)]
+    if figures_out is not None and Path(figures_out) != figure_dirs[0]:
+        figure_dirs.append(Path(figures_out))
+    stale_paths = [stage_dir / COMMAND_TRACKING_TRACE_CSV]
+    for directory in figure_dirs:
+        stale_paths.extend((directory / COMMAND_TRACKING_FIGURE, directory / COMMAND_GATE_PROGRESS_FIGURE))
+    for stale in stale_paths:
+        try:
+            stale.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Could not remove %s, left by an earlier judgement of stage %s", stale, stage)
+
+
+def write_command_tracking_figures(
+    *,
+    model_id: ModelId,
+    stage: "int | str",
+    stage_config: Mapping[str, Any],
+    stage_dir: "str | Path",
+    figures_out: "str | Path",
+    report: "Mapping[str, Any] | None",
+    verdict: bool | None = None,
+) -> list[Path]:
+    """A ``command_tracking/v1`` stage's figures (D-D61), after its verdict: the paths drawn.  Never raises.
+
+    A no-op (``[]``) for every other kind.  *report* is the report this
+    judgement built (``_write_command_tracking_report``'s return) and
+    *verdict* the stage's verdict on it.  First any trace and command
+    figures an earlier judgement left behind are removed
+    (:func:`remove_stale_command_tracking_outputs`: in the stage directory
+    and in *figures_out*), so the figures never describe another judgement
+    than this one; with *report* ``None``
+    (the panel could not be rolled, and the gate failed closed) nothing
+    more is drawn.  Then the chart episodes are rolled again with their step
+    rows (``command_tracking_trace``: the panel's first cruise seed and first
+    stand seed) on the pair *report* scored, when its zip and
+    ``_vecnorm.pkl`` still hash to the report's handoff digests, and written
+    to ``command_tracking_trace.csv`` in the stage directory, each row
+    stamped with that checkpoint's digest; then
+    ``figures/command_tracking.png`` (commanded against achieved over those
+    episodes, and the tracking fraction over training) and
+    ``figures/command_gate_progress.png`` (the gated statistics of every
+    handoff candidate and of the certified handoff against the bars, titled
+    with *verdict*) are drawn into *figures_out*.  Each step is in its own
+    guard, so a failure costs that step's file only.  A figure whose draw
+    raises or is interrupted (``BaseException``) has its partial file at
+    *figures_out* removed before the error is logged or goes on, so a
+    staging directory's publish (which runs in a ``finally``) never copies
+    a truncated png into the stage's ``figures/``.  Called inside
+    ``generate_stage_artifacts``' figure block and by the CLI curriculum's
+    post-training judge, after the verdict is formed: nothing here is read
+    by the gate.
+    """
+    from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
+    from ..visualization import COMMAND_GATE_PROGRESS_FIGURE, COMMAND_TRACKING_FIGURE
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if curriculum.get("gate_kind") != COMMAND_TRACKING_GATE_KIND:
+        return []
+    stage_dir = Path(stage_dir)
+    figures_out = Path(figures_out)
+    drawn: list[Path] = []
+    remove_stale_command_tracking_outputs(
+        stage=stage, stage_config=stage_config, stage_dir=stage_dir, figures_out=figures_out
+    )
+    if not isinstance(report, Mapping):
+        logger.warning(
+            "Stage %s has no command-tracking report from this judgement, so no command figure is drawn", stage
+        )
+        return drawn
+    handoff = report.get("handoff")
+    checkpoint = handoff.get("checkpoint") if isinstance(handoff, Mapping) else None
+    if isinstance(checkpoint, str) and checkpoint.endswith(".zip"):
+        try:
+            from ..result_bundle.hashing import sha256_file
+            from .command_tracking_trace import roll_command_trace, write_command_tracking_trace
+
+            assert isinstance(handoff, Mapping)
+            zip_path = stage_dir / "models" / checkpoint
+            vecnorm_path = stage_dir / "models" / f"{checkpoint[: -len('.zip')]}_vecnorm.pkl"
+            if (
+                not zip_path.is_file()
+                or not vecnorm_path.is_file()
+                or sha256_file(zip_path) != handoff.get("checkpoint_sha256")
+                or sha256_file(vecnorm_path) != handoff.get("normalization_sha256")
+            ):
+                logger.warning(
+                    "Stage %s's command-tracking trace skipped: %s is no longer the pair its report scored",
+                    stage,
+                    zip_path,
+                )
+            else:
+                rows = roll_command_trace(
+                    model_id,
+                    stage,
+                    stage_config=stage_config,
+                    report=report,
+                    model_path=str(zip_path),
+                    vecnorm_path=str(vecnorm_path),
+                )
+                logger.info("Command-tracking trace: %s", write_command_tracking_trace(stage_dir, rows))
+        except Exception:  # noqa: BLE001 - the trace costs its own file and figure, never the verdict
+            logger.warning(
+                "The command-tracking trace failed for stage %s; the verdict is unaffected", stage, exc_info=True
+            )
+    try:
+        from ..visualization import plot_command_gate_progress, plot_command_tracking
+    except ImportError:
+        logger.warning("Skipping the command-tracking figures (matplotlib not installed).")
+        return drawn
+    figures_out.mkdir(parents=True, exist_ok=True)
+    for name, plot in (
+        (COMMAND_TRACKING_FIGURE, plot_command_tracking),
+        (COMMAND_GATE_PROGRESS_FIGURE, plot_command_gate_progress),
+    ):
+        save_path = figures_out / name
+        try:
+            kwargs: dict[str, Any] = {"model_id": model_id, "save_path": save_path, "show": False}
+            if plot is plot_command_tracking:
+                kwargs["curriculum_kwargs"] = dict(curriculum)
+            else:
+                kwargs["verdict"] = verdict
+            try:
+                figure = plot(stage_dir, **kwargs)
+            except BaseException:
+                # A savefig that raised or was interrupted (Ctrl-C, a Colab interrupt) part-way can leave a truncated
+                # png at save_path.  Remove it before the error goes on, so neither a staging publish (whose finally
+                # still copies what staging holds) nor a straight-through write leaves it in the stage's figures/.
+                # The sweep above already removed this name's earlier copies, so the figure is simply absent.
+                with contextlib.suppress(OSError):
+                    save_path.unlink(missing_ok=True)
+                raise
+            if figure is not None:
+                drawn.append(save_path)
+        except ImportError:
+            logger.warning("Skipping %s (matplotlib not installed).", name)
+        except Exception:  # noqa: BLE001 - one figure costs that file only
+            logger.warning(
+                "The %s figure failed for stage %s; the other figures are unaffected.", name, stage, exc_info=True
+            )
+    return drawn
 
 
 def _run_stance_probes(
@@ -1181,10 +1384,9 @@ def _write_heading_probe(
     so nothing in the v2 gate can see a stance that reads its world heading;
     both physics-r8 trex stances fell when spawned 90 degrees off, where the
     statue stands.  Each offset is rolled twice -- the animal turned alone,
-    and with the prey and the episode's reference direction (only a
-    world-frame observation then differs: every plant declares the elliptic
-    friction cone, and the trex r14 and anatomical compsognathus r4 observe
-    no world heading, D-D31) -- plus the unturned control, for the policy and
+    and with the episode's reference heading (only a world-frame observation
+    would then differ: every plant declares the elliptic friction cone, and
+    every model observes no world heading) -- plus the unturned control, for the policy and
     the zero-action statue.  A stage that declares the six-heading certificate
     (D-D32) never rolls it: :func:`_run_stance_probes` skips it there, and
     config load refuses the key beside that kind.
@@ -1479,6 +1681,33 @@ def admitted_stance_v2_stage_result(
     return stance_v2_stage_result(stance_report)
 
 
+def admitted_command_tracking_stage_result(
+    curriculum: Mapping[str, Any],
+    report: "Mapping[str, Any] | None",
+    *,
+    stage: "int | str",
+    stage_dir: "str | Path | None",
+) -> dict[str, Any]:
+    """``command_tracking_report.command_tracking_stage_result`` of a report the judge ADMITS, else ``{}``.
+
+    The numbers copied are the re-derived ones
+    (``reporting.gates._admit_command_tracking_report``), so a refused
+    report's numbers never sit in a verdict's ``stage_result`` beside the
+    refusal.  Never raises.
+    """
+    try:
+        from .command_tracking_report import command_tracking_stage_result
+        from .gates import _admit_command_tracking_report
+
+        refusals, rederived = _admit_command_tracking_report(curriculum, report, stage=stage, stage_dir=stage_dir)
+        if refusals or rederived is None:
+            return {}
+    except Exception:  # noqa: BLE001 - a copy of the numbers must never cost the artifacts
+        logger.warning("Stage %s command-tracking report could not be re-checked for its numbers", stage, exc_info=True)
+        return {}
+    return command_tracking_stage_result(report, rederived=rederived)
+
+
 def _apply_stage_gate(
     *,
     stage: int,
@@ -1488,6 +1717,7 @@ def _apply_stage_gate(
     stage_dir: "str | Path | None" = None,
     recovery_successes_by_seed: "dict[int, bool] | None" = None,
     model_id: ModelId,
+    command_tracking_report: "dict[str, Any] | None" = None,
 ) -> None:
     """Record this stage's gate verdict onto *stage_results*, in place.
 
@@ -1524,6 +1754,9 @@ def _apply_stage_gate(
             # refusal, regardless of any frozen resolution on disk).
             stage_dir=stage_dir,
             recovery_successes_by_seed=recovery_successes_by_seed,
+            # command_tracking/v1 (D-D61): its report and the stage directory
+            # that binds it to the chosen handoff pair.
+            command_tracking_report=command_tracking_report,
         )
     except Exception as exc:  # noqa: BLE001 - the docstring's promise, kept
         # "Never raises" has to be enforced, not asserted. `evaluate_stage_gate`
@@ -1536,34 +1769,6 @@ def _apply_stage_gate(
         logger.warning("Stage %s curriculum gate could not be evaluated", stage, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
     curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") == "task_success/v1" and stage_dir is not None:
-        # The numbers the verdict was judged on travel with it: the count,
-        # the panel size and the bound go onto stage_results, hence into
-        # gate_verdict.json's stage_result and the summary's stage row
-        # (selected_model_success_count / _n_episodes / _success_lcb) —
-        # and the same panel's mean reward / length, which the rail and
-        # the length floor were judged on, so the verdict describes one
-        # panel rather than a bound from the CSV beside a best_eval_reward
-        # from the argmax EvalCallback panel.  Read through the same
-        # binding the judge used; absent evidence copies nothing, and the
-        # verdict above already says why.
-        try:
-            from .gates import task_success_statistics
-
-            stats, _ = task_success_statistics(Path(stage_dir))
-        except Exception:  # noqa: BLE001 - a copy of the numbers must never cost the artifacts
-            logger.warning("Stage %s task-success statistics could not be read", stage, exc_info=True)
-            stats = None
-        if stats:
-            for key in (
-                "best_model_success_count",
-                "best_model_n_episodes",
-                "best_model_success_lcb",
-                "best_model_reward",
-                "best_model_length",
-            ):
-                if key in stats:
-                    stage_results[key] = stats[key]
     from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 
     if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND:
@@ -1583,6 +1788,16 @@ def _apply_stage_gate(
         # bound, from a certificate the judge admits only.
         stage_results.update(
             admitted_stance_heading_stage_result(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
+        )
+    from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
+
+    if curriculum.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        # And for command_tracking/v1 (D-D61): each family's counts and bounds,
+        # re-derived from a report the judge admits only.
+        stage_results.update(
+            admitted_command_tracking_stage_result(
+                curriculum, command_tracking_report, stage=stage, stage_dir=stage_dir
+            )
         )
     # The verdict travels with the gate it was earned under, so a summary
     # re-served after the gate changes can say so instead of re-serving a
@@ -1638,10 +1853,14 @@ def evaluate_stage_checkpoints(
     ``gate_verdict.json``). ``model`` is the in-memory final model right
     after training; ``None`` loads ``<final_path>.zip`` back, validates its
     plant and takes its cumulative step counter as ``timesteps``. Each
-    checkpoint is rolled for 30 episodes on ``evaluation_seed`` under the
-    VecNormalize sidecar it is paired with, and each panel is written as
-    evidence bound to that checkpoint and sidecar; the handoff is the shared
-    selector's (:func:`select_handoff_checkpoint`). Prints the report the
+    checkpoint is rolled for ``EVALUATION_PANEL_EPISODES`` episodes on
+    ``evaluation_seed`` under the VecNormalize sidecar it is paired with, and
+    each panel is written as evidence bound to that checkpoint and sidecar;
+    the handoff is the shared selector's (:func:`select_handoff_checkpoint`).
+    A success rate (``mean_success_rate``, ``best_model_success_rate``) is
+    recorded only for a model that declares success keys
+    (``species_cfg.success_keys``): without them the panels record no success
+    flag, and the rate is left out rather than written as a zero. Prints the report the
     notebook shows. Moved verbatim from the notebook's infrastructure cell
     with its globals as parameters, and unannotated like it (its ``""``
     placeholders become floats), so mypy leaves its body alone.
@@ -1670,7 +1889,12 @@ def evaluate_stage_checkpoints(
             plant_identity=plant_identity,
         )
         if vecnorm_path and Path(vecnorm_path).exists():
-            load_vecnorm_stats(vecnorm_path, eval_env, current_plant=plant_identity)
+            load_vecnorm_stats(
+                vecnorm_path,
+                eval_env,
+                current_plant=plant_identity,
+                command_mode=str(stage_config.get("env_kwargs", {}).get("command_mode", "none")),
+            )
         eval_env.training = False
         eval_env.norm_reward = False
         try:
@@ -1692,7 +1916,7 @@ def evaluate_stage_checkpoints(
     episode_rewards, episode_lengths, episode_fwd_vels, episode_successes, episode_distances = _eval_forward_vel(
         model,
         final_vecnorm_path,
-        n_episodes=30,
+        n_episodes=EVALUATION_PANEL_EPISODES,
     )
     final_eval_path = csv_output.save_evaluation_episodes(
         stage_dir,
@@ -1719,12 +1943,15 @@ def evaluate_stage_checkpoints(
     _probe_env = species_cfg.env_class(**stage_config.get("env_kwargs", {}))
     sim_dt = float(_probe_env.dt)
     _probe_env.close()
-    mean_success_rate = float(np.mean(episode_successes))
     print(f"Eval (final model): mean_reward={mean_reward:.2f} +/- {std_reward:.2f}")
     print(f"Eval: mean_length={mean_length:.1f} +/- {std_length:.1f} steps ({mean_length * sim_dt:.2f}s sim time)")
     print(f"Eval: mean_forward_vel={mean_fwd_vel:.2f} +/- {std_fwd_vel:.2f} m/s")
     print(f"Eval: mean_distance_traveled={mean_distance:.2f} m")
-    print(f"Eval: success_rate={mean_success_rate:.0%}")
+    # Only a model with success keys records success flags (eval_policy).
+    live_success: dict[str, float] = {}
+    if episode_successes:
+        live_success["mean_success_rate"] = float(np.mean(episode_successes))
+        print(f"Eval: success_rate={live_success['mean_success_rate']:.0%}")
 
     # Build base results dict from on-disk eval data (evaluations.npz),
     # then enrich with the live 30-episode evaluation metrics above.
@@ -1752,7 +1979,7 @@ def evaluate_stage_checkpoints(
             "mean_forward_vel": mean_fwd_vel,
             "std_forward_vel": std_fwd_vel,
             "mean_distance_traveled": mean_distance,
-            "mean_success_rate": mean_success_rate,
+            **live_success,
             "sim_dt": sim_dt,
         }
     )
@@ -1768,6 +1995,18 @@ def evaluate_stage_checkpoints(
     # over SB3's mean-reward best_model: a high mean can be propped up by a good
     # mode while a fat failure tail is already growing (run 20260709_185946).
     # It requires the matched VecNormalize stats, so it cannot return a hybrid.
+    #
+    # A command_tracking/v1 stage (D-D61) hands on the pair its gated
+    # statistic chooses: made here when the stage has no valid choice under
+    # its current gate (the JUDGE branch of a node trained before, or judged
+    # under an edited gate), before anything below reads the handoff.
+    ensure_command_handoff_choice(
+        model_id=species_cfg.model_id,
+        stage=stage,
+        stage_config=stage_config,
+        model_dir=model_dir,
+        final_stem=final_path,
+    )
     _handoff = select_handoff_checkpoint(model_dir)
     if _handoff is None:
         best_model_zip = model_dir / "best_model.zip"
@@ -1804,12 +2043,11 @@ def evaluate_stage_checkpoints(
         vecnorm_save_path = best_vecnorm_candidate
         print(f"Using matched VecNormalize for selected checkpoint: {vecnorm_save_path}")
 
-        # Evaluate the best model over 30 episodes
-        print("Evaluating best model (30 episodes)...")
+        print(f"Evaluating best model ({EVALUATION_PANEL_EPISODES} episodes)...")
         bm_rewards, bm_lengths, bm_fwd_vels, bm_successes, bm_distances = _eval_forward_vel(
             model,
             vecnorm_save_path,
-            n_episodes=30,
+            n_episodes=EVALUATION_PANEL_EPISODES,
         )
         selected_eval_path = csv_output.save_evaluation_episodes(
             stage_dir,
@@ -1831,12 +2069,13 @@ def evaluate_stage_checkpoints(
         best_model_fwd_vel = round(float(np.mean(bm_fwd_vels)), 2)
         best_model_std_fwd_vel = round(float(np.std(bm_fwd_vels)), 2)
         best_model_distance = round(float(np.mean(bm_distances)), 2)
-        best_model_success_rate = round(float(np.mean(bm_successes)), 2)
         print(f"Best model eval:  mean_reward={best_model_reward} +/- {best_model_std_reward}")
         print(f"Best model eval:  mean_length={best_model_length} +/- {best_model_std_length}")
         print(f"Best model eval:  mean_fwd_vel={best_model_fwd_vel} +/- {best_model_std_fwd_vel} m/s")
         print(f"Best model eval:  mean_distance={best_model_distance} m")
-        print(f"Best model eval:  success_rate={best_model_success_rate:.0%}")
+        if bm_successes:
+            best_model_success_rate = round(float(np.mean(bm_successes)), 2)
+            print(f"Best model eval:  success_rate={best_model_success_rate:.0%}")
     else:
         output_path = str(final_path)
         selected_eval_path = csv_output.save_evaluation_episodes(
@@ -1859,7 +2098,8 @@ def evaluate_stage_checkpoints(
         best_model_fwd_vel = round(float(np.mean(episode_fwd_vels)), 3)
         best_model_std_fwd_vel = round(float(np.std(episode_fwd_vels)), 3)
         best_model_distance = round(float(np.mean(episode_distances)), 3)
-        best_model_success_rate = round(float(np.mean(episode_successes)), 4)
+        if episode_successes:
+            best_model_success_rate = round(float(np.mean(episode_successes)), 4)
 
     # The curriculum gate is NOT evaluated here: `generate_stage_artifacts`
     # judges it through the one shared `reporting.gates.evaluate_stage_gate`
@@ -1925,6 +2165,11 @@ def generate_stage_artifacts(
     pushed panel); the gate is judged against the stage directory's frozen
     ``gate_resolution.json`` and refuses without both.
 
+    A ``command_tracking/v1`` stage (D-D61) rolls its command panel here
+    (:func:`_write_command_tracking_report`) on the handoff pair chosen by
+    the gated statistic (``models/handoff_choice.json``, made at the end of
+    training or by :func:`evaluate_stage_checkpoints`), and is judged from it.
+
     Also evaluates the stage's declared curriculum gate and records the
     verdict onto *stage_results* as ``gate_passed`` /
     ``publication_gate_passed`` / ``gate_failures``.  It happens here, not in
@@ -1962,17 +2207,13 @@ def generate_stage_artifacts(
         stage_dir=stage_dir,
         model_dir=model_dir,
     )
-    # A task_success/v1 stage is judged from evaluation_selected.csv; make
-    # sure the directory holds one bound to the handoff before the gate
-    # (a caller that rolled no bound panel wrote none — decision D-B12).
-    _write_task_success_evidence(
-        species_cfg=species_cfg,
+    # command_tracking/v1 (D-D61): the panel on the chosen handoff pair; None for every other kind.
+    command_report = _write_command_tracking_report(
+        model_id=model_id,
         stage=stage,
         stage_config=stage_config,
         stage_dir=stage_dir,
         model_dir=model_dir,
-        algorithm=algorithm,
-        allow_legacy_plant=allow_legacy_plant,
     )
     # Before the replays and graphs below, which are best-effort and can be
     # skipped: the verdict must not depend on whether matplotlib imported.
@@ -1985,13 +2226,21 @@ def generate_stage_artifacts(
         stage_dir=stage_dir,
         recovery_successes_by_seed=recovery_successes_by_seed,
         model_id=model_id,
+        command_tracking_report=command_report,
     )
 
     # After the gate, not before it: the summary now states the verdict and
     # every criterion that failed, and writing it first would print a stage
     # summary that says nothing about the decision the stage turns on.
-    text_summaries.write_stage_summary(stage_dir, stage_results, model_id, algorithm)
+    text_summaries.write_stage_summary(
+        stage_dir, stage_results, model_id, algorithm, evaluation_episodes=EVALUATION_PANEL_EPISODES
+    )
     logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
+
+    # A command_tracking/v1 stage's trace and figures from an earlier judgement
+    # go first, before the staged publish and whether or not graphs are drawn:
+    # publishing only copies what was staged, so it never removes a stale one.
+    remove_stale_command_tracking_outputs(stage=stage, stage_config=stage_config, stage_dir=stage_dir)
 
     # Figures and replays render into local scratch and publish to the stage
     # directory in one pass on exit.  The plots and videos below read their
@@ -2061,11 +2310,25 @@ def generate_stage_artifacts(
                     model_id=model_id,
                     save_path=figures_out / "gate_progress.png",
                     show=False,
+                    live_command=str(stage_config.get("env_kwargs", {}).get("command_mode", "none")) != "none",
                 )
             except ImportError:
                 logger.warning("Skipping the gate progress figure (matplotlib not installed).")
             except Exception:
                 logger.warning("The gate progress figure failed; the other figures are unaffected.", exc_info=True)
+            # A command_tracking/v1 stage's (D-D61) trace and figures, after the gate progress figure; a no-op for
+            # every other kind, and never raises: a failure costs its own files only.
+            write_command_tracking_figures(
+                model_id=model_id,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                figures_out=figures_out,
+                report=command_report,
+                verdict=stage_results.get("gate_passed")
+                if isinstance(stage_results.get("gate_passed"), bool)
+                else None,
+            )
             # In its own guard, after the gate progress figure: a failure costs the training history only.
             try:
                 _write_training_history(stage_dir, staging)

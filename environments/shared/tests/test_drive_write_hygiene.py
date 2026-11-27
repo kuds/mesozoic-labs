@@ -586,7 +586,7 @@ def ledger_callback(tmp_path, monkeypatch):
     from .test_gait_pad_telemetry import LAYOUT
 
     def build(flush: int | None):
-        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=100)
+        callback = _bare_stage_aware_callback(settle_steps=100)
         callback.eval_freq = 10
         callback.verbose = 0
         callback.n_eval_episodes = 4
@@ -663,7 +663,7 @@ class TestEvalLedgerCadence:
         env = DummyVecEnv([tiny_env_class()])
         try:
             with pytest.raises(ValueError, match="ledger_flush_every_calls must be at least 1"):
-                StageAwareEvalCallback(env, stage=1, success_applicable=False, ledger_flush_every_calls=0)
+                StageAwareEvalCallback(env, stage=1, ledger_flush_every_calls=0)
         finally:
             env.close()
 
@@ -750,7 +750,7 @@ class TestTheTrainerFlushesAfterASavedInterrupt:
         return events
 
     def test_every_record_is_rewritten_after_the_final_save(self, tmp_path, monkeypatch):
-        """After it: a second Ctrl-C during a rewrite (seconds on a 12M T. rex stance) cannot cost the final pair."""
+        """After it: a second Ctrl-C during a rewrite (seconds on an 11M T. rex stance) cannot cost the final pair."""
         events = self._train(tmp_path, monkeypatch)
 
         flushes = [event for event in events if isinstance(event, str) and event.startswith("flush")]

@@ -16,16 +16,17 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 #: The T. rex recipe digests on main.  The stance and recovery PPO digests moved with the r10 LTSB stance recipe
 #: (the stance-landing decision of 2026-11-06: mirror-KL PPO in stance's [ppo], which recovery inherits); the
 #: critic-phase option still adds no committed key.  The SAC digests read only [sac] and [curriculum] keys that did not
-#: move.
+#: move.  The bite hunt's two digests left with its stage (decision D-D59); the other six are unmoved by that removal.
 MAIN_RECIPE_DIGESTS = {
     ("stance", "PPO"): "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
     ("stance", "SAC"): "sha256:c6eb8d73dfdde463350306ba49070b031cbe327407cfdaf6aee270eb52d8fd26",
     ("recovery", "PPO"): "sha256:de9c9af0411e29a3a00e01f7fe096b1a2d0d12b2e64bbcbbbafe57c4c4e7eb65",
     ("recovery", "SAC"): "sha256:09b1e8034671fa666c74e2e4faac98fa751288a4ead8dc3473d1c702b7116b31",
-    ("locomotion", "PPO"): "sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c",
-    ("locomotion", "SAC"): "sha256:49ef875a97a5105b442714fe18795a5a5277b765476f92b79616469ab1d1a799",
-    ("behavior", "PPO"): "sha256:3b59c56dd347b26e87c4a9b5fd90f721350698c6efb5987e6bf05fe186236639",
-    ("behavior", "SAC"): "sha256:8a9c178c021753cfe300e6896eb82277e0740d3ac86f1c71949000f5b7a81b38",
+    # The walk's moved with decision D-D62, and only by its [curriculum] losing the forward-velocity ramp
+    # (ramp_timesteps 2000000, ramp_start_value 0.2), a shaping key of the recipe: with the two restored, the walk
+    # gives main's sha256:fde660ac...33f6980c (PPO) and sha256:49ef875a...ab1d1a799 (SAC).
+    ("locomotion", "PPO"): "sha256:1703f55481fc4a88d2b89ceb5aa693a881d54ff990b0d94c9b4240993bc33e38",
+    ("locomotion", "SAC"): "sha256:02e78fc9e0e5686bf689ea202fd6050722987cda43e3177cc1df60f94d620bcc",
 }
 
 
@@ -178,13 +179,17 @@ def test_the_off_path_scenario_restores_the_pre_landing_recipe_on_each_plant():
     assert hyperparameters_sha256(stance, "PPO") == (
         "sha256:9d1598a6b2a96a1f87412bb0398abb49d1f23430aa72462f03cbcd68ab5d7a2e"
     )
-    # The critic-off golden captured physics r10 / policy interface r15 at 4c9d5e9b.
+    # The critic-off golden captured physics r10 / policy interface r15 at 4c9d5e9b, where this task read
+    # 533fff20 (e9d349f8 on the current plant); both moved when the T. rex hunt arguments left its constructor
+    # defaults (decision D-D59's amendment), which changes no reward the stance computes (cab8c221 / df516f13),
+    # and again with plant_versions note 24 (D-D59: the prey kwargs gone from the constructor, the reset's prey
+    # draws and the heading-free observation in the code the task hashes; the current plant physics r12).
     archived = stage_task_fingerprint(
         TYRANNOSAURUS_REX, 1, stage_config=stance, plant_identity=archived_plant_identity()
     )
-    assert archived["task_sha256"] == "sha256:533fff20288d02faea724721992c7d3efca65f7b2f3a6e06c4ad2e716b2bdfda"
+    assert archived["task_sha256"] == "sha256:a2c78b967ec8b4f8b26d2b2903f0ec70876565930589942bd851ff513175e86d"
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, 1, stage_config=stance)["task_sha256"] == (
-        "sha256:e9d349f82ea53e12ce43dbbb3bcf24aa91dfb466300be6d9d364147b5689ab2a"
+        "sha256:4a9821b5fa120d66c8879c797a5ec637164069e82a1be8b92d09345f46fe553b"
     )
     assert stance["curriculum_kwargs"]["collapse_peak_floor_reference"] == 3766.6
     assert configs[2] == committed[2]

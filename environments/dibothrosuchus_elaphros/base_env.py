@@ -2,21 +2,34 @@
 Dibothrosuchus elaphros Gymnasium Environment
 
 A small, gracile sphenosuchian crocodylomorph with erect (parasagittal) limbs
-and hindlimbs longer than its forelimbs.  The Stage 3 task uses contact between
-a fixed snout-tip geom and small prey as a "snap" proxy; the model has no
-articulated jaw.
+and hindlimbs longer than its forelimbs.  The scene holds the animal and the
+floor alone: the prey sphere, its observation channels (direction and
+distance) and the snout_snap contact geom left in physics r4 / policy
+interface r11 with the hunt (decision D-D59), and the forward reference of the
+progress and heading terms is the spawn's own heading
+(``_reference_heading_2d``, set by BaseDinoEnv.reset), or under a live command
+the commanded heading (decision D-D62).
 
-Observation space (total dimension is generated in the public species catalog):
+Observation space (quadrupedal-heading-free/v1 since policy interface r11;
+75 values; the total dimension is generated in the public species catalog):
     - Joint positions (qpos[7:]) — 28 hinge
     - Joint velocities (qvel[6:]) — 28 hinge
-    - Trunk orientation (quaternion) — 4
-    - Trunk angular velocity (gyroscope) — 3
-    - Trunk linear velocity — 3
-    - Trunk acceleration — 3
+    - Trunk projected gravity (unit down vector in torso coordinates) — 3
+    - Trunk angular velocity (gyroscope, its own site frame) — 3
+    - Trunk linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
+    - Trunk acceleration (accelerometer, its own site frame) — 3
     - Foot contact forces (4 pad touch sensors) — 4
-    - Prey direction (unit vector) — 3
-    - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
+
+No channel carries the world heading: the two root blocks that replaced the
+world-frame trunk quaternion and linear velocity in policy interface r11 come
+from the free root's own quaternion through
+environments/shared/heading_observation.py
+(docs/HEADING_INVARIANCE_DESIGN_2026_10.md), the bipeds' layout (D-D31) on
+the torso, so turning the whole scene about vertical leaves the observation
+unchanged.  Policy interface r10 and earlier observed the trunk quaternion
+(4), the world-frame trunk linear velocity (3) and the prey direction and
+distance (4), 80 values.
 
 Action space (total dimension is generated in the public species catalog):
     - Neck/skull: neck pitch, neck yaw, head pitch (3)
@@ -25,7 +38,7 @@ Action space (total dimension is generated in the public species catalog):
     - Tail: pitch 1, yaw 1, pitch 2, pitch 3 (4)
 
 Reward components:
-    - Forward velocity (toward prey)
+    - Forward velocity (along the forward reference: the spawn's forward, or the commanded heading)
     - Backward velocity penalty
     - Drift penalty (horizontal displacement from spawn)
     - Alive bonus
@@ -38,14 +51,11 @@ Reward components:
     - Height maintenance
     - Gait symmetry (alternating diagonal foot pairs)
     - Action smoothness (penalize jerky action changes)
-    - Heading alignment (facing toward prey)
+    - Heading alignment (facing the forward reference)
     - Lateral velocity penalty (anti crab-walk)
     - Spin penalty (penalize trunk angular velocity)
     - Speed penalty (penalise absolute speed above threshold)
     - Idle penalty (penalise standing still)
-    - Snap-proxy bonus (fixed snout geom contacts prey)
-    - Approach shaping (snout-to-prey distance)
-    - Snout proximity shaping (reward aiming the snout at the prey)
 """
 
 from __future__ import annotations
@@ -58,10 +68,11 @@ import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.heading_observation import heading_free_root_segments
 
 
 class DibothrosuchusElaphrosEnv(BaseDinoEnv):
-    """Dibothrosuchus quadrupedal locomotion and snout-snap environment.
+    """Dibothrosuchus quadrupedal locomotion environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,
@@ -75,8 +86,9 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
     MODEL_PATH: Path
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Trunk height"
-    BEHAVIOR_SECTION_LABEL = "Hunting"
-    SUCCESS_KEYS = ("snap_success",)
+    #: No success event: the snap, its only one, was removed with the hunt
+    #: (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
 
     # SB3 only since policy interface r10 (configs/plant_versions.toml note
     # 23): the frozen MJX interface core (D-D17) was removed with this
@@ -119,9 +131,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
         forward_vel_max: float = 3.0,
-        snap_bonus: float = 10.0,
-        snap_approach_weight: float = 1.0,
-        snap_snout_proximity_weight: float = 0.0,
         # Read only by the retired MJX reward, which gated its alive bonus on
         # foot contact and paid a per-step grounded bonus; this env gets the
         # same effect from snout-contact and body-contact termination.  They
@@ -131,19 +140,9 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         foot_contact_gate: float = 0.0,
         nosedive_termination_threshold: float = 0.55,
         # Environment settings
-        prey_distance_range: tuple[float, float] = (1.5, 4.0),
-        prey_lateral_range: tuple[float, float] = (-1.0, 1.0),
         healthy_z_range: tuple[float, float] = (0.18, 0.55),
         max_tilt_angle: float = 0.9,
         reset_noise_scale: float = 0.01,
-        # STATE-INERT: the ground settle overwrites root height from the
-        # sampled joint pose, so this scale no longer reaches the post-reset
-        # state.  Kept (with its historical 0.03) only so the reset's RNG
-        # draw count is unchanged and seeded baselines stay anchored; remove
-        # with the rest of the height channel at the next policy-interface
-        # revision.  It was originally the metre-scale decoupling of root
-        # height from the radian-scale joint jitter.
-        reset_height_noise_scale: float | None = 0.03,
         perturbation_capture_velocity_multiple: float = 0.0,
         perturbation_interval: float = 2.0,
         perturbation_jitter: float = 0.5,
@@ -172,9 +171,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         self.idle_penalty_weight = idle_penalty_weight
         self.idle_velocity_threshold = idle_velocity_threshold
         self.forward_vel_max = forward_vel_max
-        self.snap_bonus = snap_bonus
-        self.snap_approach_weight = snap_approach_weight
-        self.snap_snout_proximity_weight = snap_snout_proximity_weight
         self.foot_contact_weight = foot_contact_weight
         self.foot_contact_gate = foot_contact_gate
         self.nosedive_termination_threshold = nosedive_termination_threshold
@@ -186,27 +182,21 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         # world vertical.
         self._natural_forward_z = -np.sin(natural_pitch)
 
-        # Dibothrosuchus-specific env settings
-        self.prey_distance_range = prey_distance_range
-        self.prey_lateral_range = prey_lateral_range
-
-        # State tracking for delta-based rewards
-        self._prev_snout_prey_distance: float | None = None
+        # Action history for the smoothness term (cleared by
+        # _reset_episode_state).
         self._prev_action: np.ndarray | None = None
 
         # Gait symmetry: quadrupedal diagonal pair alternation.
         # Diagonal-A = FR+RL, Diagonal-B = FL+RR.
         self._init_quadruped_gait_state()
 
-        # Cached initial direction to prey (set in _spawn_target).  Used by the
-        # forward-velocity and heading rewards so the "forward" reference stays
-        # fixed for the whole episode and does not flip sign if the animal
-        # overshoots the prey.
-        self._initial_prey_dir_2d: np.ndarray = np.array([1.0, 0.0])
-
-        # Cached initial trunk position (set in _spawn_target), used by the
-        # drift penalty.
-        self._initial_pos_2d: np.ndarray = np.array([0.0, 0.0])
+        # The progress and heading terms' forward reference and the drift
+        # penalty's anchor are BaseDinoEnv's _forward_reference_2d and
+        # _drift_anchor_2d: under command_mode "none" the spawn's
+        # _reference_heading_2d (the unit forward of the spawn's root
+        # quaternion) and _initial_pos_2d (the spawn's position), both set by
+        # BaseDinoEnv.__init__ and every reset; under a live command the
+        # command's heading and its event's start (decision D-D62).
 
         super().__init__(
             model_path=model_path,
@@ -220,7 +210,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
             healthy_z_range=healthy_z_range,
             max_tilt_angle=max_tilt_angle,
             reset_noise_scale=reset_noise_scale,
-            reset_height_noise_scale=reset_height_noise_scale,
             perturbation_capture_velocity_multiple=perturbation_capture_velocity_multiple,
             perturbation_interval=perturbation_interval,
             perturbation_jitter=perturbation_jitter,
@@ -241,8 +230,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         self.skull_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "skull")
 
         # Geom IDs for contact detection
-        self.prey_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")
-        self.snout_snap_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "snout_snap")
         self.torso_main_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso_main")
         self.belly_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "belly")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
@@ -270,7 +257,8 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id}
         self._torso_ground_geoms = {self.torso_main_geom_id, self.belly_geom_id}
 
-        # Site IDs for sensors
+        # Site IDs for sensors.  snout_tip is the snout-prop termination's
+        # height probe and carries the snout_tip_pos framepos sensor.
         self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
         self.snout_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "snout_tip")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
@@ -286,14 +274,13 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
             "rl": mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "rl_foot_contact"),
         }
 
-        # Prey mocap body
-        self.prey_mocap_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "prey")
-
         # Sensor indices (order matches the MJCF sensor definition)
         # torso_gyro(3), torso_accel(3), torso_orientation(4),
         # fr/fl/rr/rl_foot_touch(1 each)
         # _sensor_gyro_start, _sensor_accel_start, _sensor_quat_start
-        # are inherited from BaseDinoEnv (0, 3, 6 respectively).
+        # are inherited from BaseDinoEnv (0, 3, 6 respectively).  The
+        # observation reads the first two; the posture, nosedive and heading
+        # terms read the third.
         self._sensor_fr_foot = 10
         self._sensor_fl_foot = 11
         self._sensor_rr_foot = 12
@@ -325,51 +312,45 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
-        """Construct observation vector."""
-        # Joint positions (exclude root freejoint: first 7 values)
+        """Construct the quadrupedal-heading-free/v1 observation vector (75 values since policy interface r11).
+
+        No channel carries the world heading: the trunk orientation is
+        projected gravity and the trunk linear velocity is expressed in the
+        gravity-aligned heading frame, both from the free root's own
+        quaternion qpos[3:7] (environments/shared/heading_observation.py),
+        never from the orientation sensor, which is still zero when the
+        constructor calls this before any forward pass.  The bipeds' layout
+        (D-D31) on the torso, with one touch channel per foot.  Policy
+        interface r10 and earlier observed the trunk quaternion, the
+        world-frame trunk linear velocity and the prey direction and distance
+        instead (80 values).
+        """
+        # Joint positions (exclude root freejoint: first 7 values are pos + quat)
         qpos = self.data.qpos[7:].copy()
 
-        # Joint velocities (exclude root freejoint: first 6 values)
+        # Joint velocities (exclude root freejoint: first 6 values are lin + ang vel)
         qvel = self.data.qvel[6:].copy()
 
-        # Trunk state from sensors
+        # Trunk state from sensors, already in their own site frame (never rotated again)
         torso_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3].copy()
         torso_accel = self.data.sensordata[self._sensor_accel_start : self._sensor_accel_start + 3].copy()
-        torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4].copy()
 
-        # Trunk linear velocity (from root freejoint)
-        torso_linvel = self.data.qvel[0:3].copy()
+        # Foot contact: one pad touch sensor per foot (_foot_sensor_groups, FR, FL, RR, RL).
+        foot_contact = np.array(self._foot_contact_forces())
 
-        # Foot contact (from touch sensors)
-        foot_contact = np.array(
-            [
-                self.data.sensordata[self._sensor_fr_foot],
-                self.data.sensordata[self._sensor_fl_foot],
-                self.data.sensordata[self._sensor_rr_foot],
-                self.data.sensordata[self._sensor_rl_foot],
-            ]
-        )
-
-        # Prey info (relative to trunk)
-        torso_pos = self.data.xpos[self.torso_id]
-        prey_pos = self.data.mocap_pos[0]
-        prey_rel = prey_pos - torso_pos
-        prey_distance = np.linalg.norm(prey_rel)
-
-        # Normalize prey direction
-        prey_direction = prey_rel / (prey_distance + 1e-8)
+        # Heading-free root block: projected gravity and the root's world
+        # linear velocity (free joint qvel[0:3]) in the heading frame.
+        gravity, heading_velocity = heading_free_root_segments(self.data.qpos, self.data.qvel[0:3])
 
         obs = np.concatenate(
             [
                 qpos,  # Joint positions
                 qvel,  # Joint velocities
-                torso_quat,  # Orientation (quaternion)
+                gravity,  # Projected gravity (unit down vector, torso frame)
                 torso_gyro,  # Angular velocity
-                torso_linvel,  # Linear velocity
+                heading_velocity,  # Linear velocity (forward, left, up)
                 torso_accel,  # Accelerometer
                 foot_contact,  # Foot contacts (4)
-                prey_direction,  # Direction to prey (unit vector)
-                [prey_distance],  # Distance to prey (scalar)
                 self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]
         ).astype(np.float32)
@@ -381,11 +362,12 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         info: dict[str, Any] = {}
 
         torso_pos = self.data.xpos[self.torso_id]
-        prey_pos = self.data.mocap_pos[0]
-        forward_ref_2d = self._initial_prey_dir_2d
+        # The forward reference: the spawn's heading under command_mode "none",
+        # the commanded heading under a live command (BaseDinoEnv._forward_reference_2d).
+        forward_ref_2d = self._forward_reference_2d()
         vel_2d = self.data.qvel[0:2]
 
-        # 1-1c. Forward velocity (toward prey), backward velocity penalty and drift penalty
+        # 1-1c. Forward velocity (along the forward reference), backward velocity penalty and drift penalty
         reward_forward, reward_backward, reward_drift = self._progress_terms(
             info, vel_2d, forward_ref_2d, torso_pos[:2]
         )
@@ -409,34 +391,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         reward_tail, tail_instability = self._compute_tail_stability(self.tail_tip_site_id, self.tail_stability_weight)
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
-
-        # 6. Snap bonus (check snout-prey contact)
-        snapped = self._contact_geom({self.snout_snap_geom_id}, self.prey_geom_id) is not None
-        info["snap_success"] = 1.0 if snapped else 0.0
-        reward_snap = self.snap_bonus if snapped else 0.0
-        info["reward_snap"] = reward_snap
-
-        # 7. Approach shaping.  Measured from the SNOUT rather than the trunk:
-        # the snout leads the strike on a 0.16m skull carried on a mobile neck,
-        # so trunk distance would keep rewarding approach after the snout has
-        # already overshot.
-        snout_tip_pos = self.data.site_xpos[self.snout_tip_site_id]
-        snout_prey_dist = float(np.linalg.norm(prey_pos - snout_tip_pos))
-        reward_approach, approach_delta = self._compute_approach_shaping(
-            snout_prey_dist, self._prev_snout_prey_distance, self.snap_approach_weight, 3.0
-        )
-        self._prev_snout_prey_distance = snout_prey_dist
-        info["snout_prey_distance"] = snout_prey_dist
-        info["prey_distance"] = snout_prey_dist  # alias for LocomotionMetrics
-        info["approach_delta"] = approach_delta
-        info["reward_approach"] = reward_approach
-
-        # 7b. Snout-to-prey proximity shaping (continuous aiming gradient)
-        snout_proximity_max_dist = 1.5
-        snout_proximity = max(0.0, 1.0 - snout_prey_dist / snout_proximity_max_dist)
-        reward_snout_proximity = self.snap_snout_proximity_weight * snout_proximity
-        info["snout_proximity"] = snout_proximity
-        info["reward_snout_proximity"] = reward_snout_proximity
 
         # 8. Continuous posture reward
         torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
@@ -508,9 +462,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
             + reward_energy
             + reward_gait_stability
             + reward_tail
-            + reward_snap
-            + reward_approach
-            + reward_snout_proximity
             + reward_posture
             + reward_nosedive
             + reward_height
@@ -546,13 +497,6 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
             info["termination_reason"] = "head_contact"
             return True, info
 
-        # Success: snout snap geom contacted the prey.  Gated on snap_bonus so
-        # stages 1-2 don't end episodes on incidental contact.
-        if self.snap_bonus > 0 and self._contact_geom({self.snout_snap_geom_id}, self.prey_geom_id) is not None:
-            info["termination_reason"] = "snap_success"
-            info["success"] = True
-            return True, info
-
         # Floor contact termination (shared) — categorized by body part
         terminated, reason = self._check_floor_contact(
             self._body_ground_geoms,
@@ -569,18 +513,17 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
 
         return False, info
 
-    def _spawn_target(self):
-        """Spawn prey at a random location ahead of the animal."""
-        # 0.15m: the prey sphere's underside then sits at 0.09m, clear of the
-        # 0.04m snout-prop termination gate, and the snout reaches 0.08m at
-        # full nose-down, so the snap is inside the neck/skull work envelope.
-        prey_pos = self._spawn_target_2d(self.prey_distance_range, self.prey_lateral_range, 0.15)
-        self._initial_prey_dir_2d = self._compute_initial_direction_2d(prey_pos)
-        self._initial_pos_2d = self.data.qpos[0:2].copy()
+    def _reset_episode_state(self) -> None:
+        """Clear the per-episode state: the action history and the gait tracking.
 
-        # Reset delta-based tracking (first step will produce zero deltas)
-        self._prev_snout_prey_distance = None
+        BaseDinoEnv.reset has already set the drift anchor and the reference
+        heading from the spawn; nothing here draws a random number.
+        """
+        # The smoothness term reads no lag on an episode's first step (the
+        # second lag is cleared with it, though no dibothrosuchus term reads
+        # it: the species carries no jerk term).
         self._prev_action = None
+        self._prev_prev_action = None
 
         # Reset gait symmetry tracking (quadrupedal diagonal pairs)
         self._reset_quadruped_gait_state()

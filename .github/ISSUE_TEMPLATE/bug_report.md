@@ -28,7 +28,7 @@ Paste the full traceback or error message here.
 - OS: [e.g. Ubuntu 22.04]
 - Python version: [e.g. 3.11]
 - MuJoCo version: [e.g. 3.10.0, the pinned version; the plant contract stops training on any other]
-- mesozoic-labs version and commit: [e.g. 0.4.0.dev2 (`pip show mesozoic-labs`) at `git rev-parse --short HEAD`]
+- mesozoic-labs version and commit: [e.g. 0.4.0.dev3 (`pip show mesozoic-labs`) at `git rev-parse --short HEAD`]
 
 **Additional context**
 Any other context about the problem.

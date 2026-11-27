@@ -64,9 +64,10 @@ def test_a_stance_only_certified_run_is_partial_and_publishes_its_stance(
     """Stand is a deliverable in its own right (schema v4, BEHAVIOR_RECIPES_PLAN §4.3).
 
     A run that certified only stance publishes it — summary.json, primary
-    deliverable ``1`` — as ``partial``: the target (hunt, ``3``) is absent,
-    so the bundle is never ``complete`` and stays writable for the chain's
-    next node.  Before Phase A the same run was partial WITHOUT a summary.
+    deliverable ``1`` — as ``partial``: the target (walk, ``2``, the last
+    advancing stage since decision D-D59 removed the hunt) is absent, so the
+    bundle is never ``complete`` and stays writable for the chain's next
+    node.  Before Phase A the same run was partial WITHOUT a summary.
     """
     run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260718_120000"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
@@ -78,7 +79,7 @@ def test_a_stance_only_certified_run_is_partial_and_publishes_its_stance(
     assert summary["schema_version"] == 5  # re-pinned from 4: the summary names its embodiment (decision D-D33)
     assert summary["bundle_status"] == "partial"
     assert summary["provenance"]["primary_deliverable"] == "1"
-    assert summary["provenance"]["target_deliverable"] == "3"
+    assert summary["provenance"]["target_deliverable"] == "2"
     assert list(summary["provenance"]["deliverables"]) == ["1"]
     assert summary["provenance"]["deliverables"]["1"]["certified"] is True
     assert (
@@ -101,8 +102,8 @@ def test_a_failed_trunk_publishes_nothing(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    """A failed stance certifies nothing downstream: walk and hunt passed their own
-    gates, but their chain runs through the failed root (plan invariant 5)."""
+    """A failed stance certifies nothing downstream: walk passed its own gate, but its
+    chain runs through the failed root (plan invariant 5)."""
     run_dir = tmp_path / "failed-trunk"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
     stage_results[0]["gate_passed"] = False
@@ -119,7 +120,6 @@ def test_a_failed_trunk_publishes_nothing(
     assert {key: record["certified"] for key, record in provenance["deliverables"].items()} == {
         "1": False,
         "2": False,
-        "3": False,
     }
     assert audit_result_bundle(run_dir)["status"] == "failed"
     assert validate_result_bundle(run_dir, require_complete=False)["status"] == "failed"
@@ -151,22 +151,23 @@ def test_a_walk_only_run_is_complete_when_targeted(
     assert validate_result_bundle(run_dir, require_complete=True)["status"] == "canonical-valid"
 
 
-def test_a_walk_only_run_is_partial_when_hunt_was_targeted(
+def test_a_walk_run_with_no_named_target_aims_at_walk(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    run_dir = tmp_path / "walk-only-hunt-target"
+    """With no target named, the target is the last advancing stage, walk since decision D-D59 (it was the
+    hunt, so a run without one was partial): the stance-and-walk run is complete."""
+    run_dir = tmp_path / "walk-default-target"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1, 2))
 
     paths = _save(run_dir, stage_results, stage_configs)
 
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
-    assert summary["bundle_status"] == "partial"
-    assert summary["provenance"]["target_deliverable"] == "3"
+    assert summary["bundle_status"] == "complete"
+    assert summary["provenance"]["target_deliverable"] == "2"
     assert summary["provenance"]["primary_deliverable"] == "2"
-    assert audit_result_bundle(run_dir)["status"] == "canonical-partial"
-    with pytest.raises(ResultBundleError, match="result bundle is canonical-partial"):
-        validate_result_bundle(run_dir, require_complete=True)
+    assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
+    assert validate_result_bundle(run_dir, require_complete=True)["status"] == "canonical-valid"
 
 
 def test_a_growing_run_saves_partial_then_complete_without_tripping_immutability(
@@ -187,7 +188,7 @@ def test_a_growing_run_saves_partial_then_complete_without_tripping_immutability
     # A different result over a complete marker is still refused (a training
     # count the evaluation evidence does not bind, so the immutability rule
     # is what refuses it).
-    stage_results[2]["timesteps"] += 1
+    stage_results[1]["timesteps"] += 1
     with pytest.raises(ResultBundleError, match="immutable"):
         _save(run_dir, stage_results, stage_configs)
 
@@ -210,13 +211,14 @@ def test_v1_manifest_species_bundle_rules_are_unchanged(
     (model_dir / "stages.toml").write_text(
         f'schema = "{STAGE_MANIFEST_SCHEMA_V1}"\n'
         '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
-        '[[stages]]\nid = "locomotion"\nconfig = "locomotion.toml"\nlegacy_number = 2\n'
-        '[[stages]]\nid = "behavior"\nconfig = "strike.toml"\nlegacy_number = 3\n',
+        '[[stages]]\nid = "locomotion"\nconfig = "locomotion.toml"\nlegacy_number = 2\n',
         encoding="utf-8",
     )
     monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
     manifest = load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS)
-    assert manifest.schema == STAGE_MANIFEST_SCHEMA_V1 and [entry.id for entry in manifest.deliverables] == ["behavior"]
+    assert manifest.schema == STAGE_MANIFEST_SCHEMA_V1 and [entry.id for entry in manifest.deliverables] == [
+        "locomotion"
+    ]
 
     # A passing stance-only run: partial WITHOUT a summary.
     stance_dir = tmp_path / "stance-only"
@@ -226,25 +228,25 @@ def test_v1_manifest_species_bundle_rules_are_unchanged(
     assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "partial"
     assert audit_result_bundle(stance_dir)["status"] == "partial"
 
-    # Three stages with the leaf failed: failed, no summary.
+    # Both stages with the leaf failed: failed, no summary.
     failed_dir = tmp_path / "leaf-failed"
     stage_results, stage_configs = _complete_bundle_inputs(failed_dir, algorithm="PPO")
-    stage_results[2]["gate_passed"] = False
-    stage_results[2]["publication_gate_passed"] = False
+    stage_results[1]["gate_passed"] = False
+    stage_results[1]["publication_gate_passed"] = False
     paths = _save(failed_dir, stage_results, stage_configs)
     assert "summary" not in paths
     assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "failed"
 
-    # Three passing stages: complete, and the published model is stage 3's.
+    # Both stages passing: complete, and the published model is stage 2's.
     complete_dir = tmp_path / "complete"
     stage_results, stage_configs = _complete_bundle_inputs(complete_dir, algorithm="PPO")
     paths = _save(complete_dir, stage_results, stage_configs)
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
     assert summary["bundle_status"] == "complete"
     assert (
-        summary["provenance"]["selected_model_path"] == summary["provenance"]["selected_checkpoints"]["3"]["model_path"]
+        summary["provenance"]["selected_model_path"] == summary["provenance"]["selected_checkpoints"]["2"]["model_path"]
     )
-    assert list(summary["provenance"]["deliverables"]) == ["3"]
+    assert list(summary["provenance"]["deliverables"]) == ["2"]
     assert audit_result_bundle(complete_dir)["status"] == "canonical-valid"
 
 
@@ -253,7 +255,7 @@ def test_a_reused_trunk_audits_through_the_ancestor_record(
     stable_provenance: None,
 ) -> None:
     """A run that reused a certified stance from another run (--trunk-from) publishes
-    walk and hunt: the ancestors/ record stands in for the stage it did not train,
+    walk: the ancestors/ record stands in for the stage it did not train,
     the lineage's parent_run_id binds to that record, and the audit verifies it."""
     run_dir = tmp_path / "child-run"
     stage_results, stage_configs = _reused_trunk_bundle_inputs(run_dir)
@@ -262,11 +264,10 @@ def test_a_reused_trunk_audits_through_the_ancestor_record(
 
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
     assert summary["bundle_status"] == "complete"
-    assert set(summary["stages"]) == {"2", "3"}
-    assert summary["provenance"]["primary_deliverable"] == "3"
+    assert set(summary["stages"]) == {"2"}
+    assert summary["provenance"]["primary_deliverable"] == "2"
     assert {key: record["certified"] for key, record in summary["provenance"]["deliverables"].items()} == {
         "2": True,
-        "3": True,
     }
     ancestors = summary["provenance"]["ancestors"]
     assert list(ancestors) == ["1"]
@@ -296,7 +297,6 @@ def test_a_reused_ancestor_that_did_not_pass_certifies_nothing(
     provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
     assert {key: record["certified"] for key, record in provenance["deliverables"].items()} == {
         "2": False,
-        "3": False,
     }
     assert provenance["ancestors"]["1"]["passed"] is False
 
@@ -431,12 +431,9 @@ def test_failed_save_preserves_existing_complete_bundle_byte_for_byte(
     [
         # A failed root certifies nothing: failed, no summary.
         (1, "failed", None),
-        # A failed walk leaves stance certified; hunt passed its own gate but
-        # its chain runs through the failed walk, so it is not certified.
+        # A failed walk leaf publishes the certified trunk (plan invariant 5):
+        # the published model is stance's, never the failed leaf's.
         (2, "partial", "1"),
-        # A failed hunt leaf publishes the certified trunk (plan invariant 5):
-        # the published model is walk's, never the failed leaf's.
-        (3, "partial", "2"),
     ],
 )
 def test_any_failed_curriculum_gate_is_not_a_complete_bundle(
@@ -469,10 +466,10 @@ def test_any_failed_curriculum_gate_is_not_a_complete_bundle(
 
     assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == expected_status
     provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
-    assert provenance["target_deliverable"] == "3"
+    assert provenance["target_deliverable"] == "2"
     assert provenance["primary_deliverable"] == expected_primary
     assert {key: record["certified"] for key, record in provenance["deliverables"].items()} == {
-        str(stage): stage < failed_stage for stage in (1, 2, 3)
+        str(stage): stage < failed_stage for stage in (1, 2)
     }
     if expected_primary is None:
         assert "summary" not in paths
@@ -784,8 +781,9 @@ def test_load_lineage_in_stage_config_is_validated_and_surfaced(
     """Lineage the trainer persists into the run block is checked and reported.
 
     A run block without lineage keys (stage 1) is skipped; a parent inside
-    the bundle (stage 2) must hash as the manifest says; a parent elsewhere
-    (stage 3) is surfaced but not checkable.
+    the bundle (stage 2 of the first run) must hash as the manifest says; a
+    parent elsewhere (stage 2 of the second run) is surfaced but not
+    checkable.
     """
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
@@ -797,18 +795,27 @@ def test_load_lineage_in_stage_config_is_validated_and_surfaced(
         "parent_checkpoint_sha256": sha256_file(run_dir / "stage1" / "models" / "best_model.pkl"),
     }
     _write_run_block(run_dir, 2, {"seed": 42, "n_envs": 4, **in_bundle})
-    elsewhere = {
-        "load_path": "/content/drive/MyDrive/runs/earlier/stage2/models/best_model.zip",
-        "load_mode": "resume_same_stage",
-        "parent_checkpoint_sha256": "sha256:" + "2" * 64,
-    }
-    _write_run_block(run_dir, 3, {"seed": 42, "n_envs": 4, **elsewhere})
     _save_bundle(run_dir, stage_results, stage_configs)
 
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-valid"
     assert report["errors"] == []
-    assert report["lineage"] == {"2": in_bundle, "3": elsewhere}
+    assert report["lineage"] == {"2": in_bundle}
+
+    other_dir = tmp_path / "other-run"
+    stage_results, stage_configs = _complete_bundle_inputs(other_dir, algorithm="PPO")
+    elsewhere = {
+        "load_path": "/content/drive/MyDrive/runs/earlier/stage1/models/best_model.zip",
+        "load_mode": "resume_same_stage",
+        "parent_checkpoint_sha256": "sha256:" + "2" * 64,
+    }
+    _write_run_block(other_dir, 2, {"seed": 42, "n_envs": 4, **elsewhere})
+    _save_bundle(other_dir, stage_results, stage_configs)
+
+    report = audit_result_bundle(other_dir)
+    assert report["status"] == "canonical-valid"
+    assert report["errors"] == []
+    assert report["lineage"] == {"2": elsewhere}
 
 
 def test_provenance_deliverables_carry_the_stage_configs_recipe_digest_and_label(
@@ -823,13 +830,13 @@ def test_provenance_deliverables_carry_the_stage_configs_recipe_digest_and_label
 
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    digest = hyperparameters_sha256(stage_configs[3], "PPO")
-    _write_run_block(run_dir, 3, {"seed": 42, "n_envs": 4, "hyperparameters_sha256": digest, "label": "lr-sweep-a"})
+    digest = hyperparameters_sha256(stage_configs[2], "PPO")
+    _write_run_block(run_dir, 2, {"seed": 42, "n_envs": 4, "hyperparameters_sha256": digest, "label": "lr-sweep-a"})
     _save_bundle(run_dir, stage_results, stage_configs)
 
     provenance = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))
-    assert provenance["deliverables"]["3"]["hyperparameters_sha256"] == digest
-    assert provenance["deliverables"]["3"]["label"] == "lr-sweep-a"
+    assert provenance["deliverables"]["2"]["hyperparameters_sha256"] == digest
+    assert provenance["deliverables"]["2"]["label"] == "lr-sweep-a"
     assert not {"hyperparameters_sha256", "label"} & set(provenance["deliverables"]["1"])
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["provenance"]["deliverables"] == provenance["deliverables"]
@@ -843,13 +850,13 @@ def test_provenance_deliverables_carry_the_stage_configs_recipe_digest_and_label
         path = run_dir / name
         data = json.loads(path.read_text(encoding="utf-8"))
         block = data["provenance"] if name == "summary.json" else data
-        block["deliverables"]["3"]["hyperparameters_sha256"] = "sha256:" + "0" * 64
+        block["deliverables"]["2"]["hyperparameters_sha256"] = "sha256:" + "0" * 64
         path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_artifact_manifest(run_dir, status="complete")
 
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-conflict"
-    assert any("deliverable 3 hyperparameters_sha256" in error and digest in error for error in report["errors"]), (
+    assert any("deliverable 2 hyperparameters_sha256" in error and digest in error for error in report["errors"]), (
         report["errors"]
     )
 
@@ -877,12 +884,13 @@ def test_save_result_bundle_records_replicates_and_the_provisional_label(
 ) -> None:
     """Seed replication (plan §4.5, decisions D-B10/D-B11/D-B16): the replicates the caller discovered are
     recorded after this run, ``certification_seeds`` is the stage's declaration and ``provisional`` is
-    the count read against it — stage 1 at n = 2 of 2 is not provisional, stage 3 at n = 1 of 2 is,
-    stage 2 at the default bar of 1 is not — and the whole bundle audits clean."""
+    the count read against it — stage 1 at n = 2 of 2 is not provisional, stage 2 at n = 1 of 2 is — and
+    the whole bundle audits clean (the default bar of 1 is
+    ``test_a_stage_config_without_a_curriculum_block_declares_the_default_bar_to_the_audit``'s)."""
     run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260901_120000"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
     _declare_certification_seeds(run_dir, stage_configs, 1, 2)
-    _declare_certification_seeds(run_dir, stage_configs, 3, 2)
+    _declare_certification_seeds(run_dir, stage_configs, 2, 2)
     replicate = {"run_id": "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-seed43", "training_seed": 43}
 
     _save(
@@ -901,9 +909,7 @@ def test_save_result_bundle_records_replicates_and_the_provisional_label(
     }
     assert (records["1"]["certification_seeds"], records["1"]["provisional"]) == (2, False)
     assert records["2"]["replication"]["count"] == 1
-    assert (records["2"]["certification_seeds"], records["2"]["provisional"]) == (1, False)
-    assert records["3"]["replication"]["count"] == 1
-    assert (records["3"]["certification_seeds"], records["3"]["provisional"]) == (2, True)
+    assert (records["2"]["certification_seeds"], records["2"]["provisional"]) == (2, True)
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["provenance"]["deliverables"] == records
     report = audit_result_bundle(run_dir)
@@ -982,7 +988,6 @@ def test_replicates_of_a_deliverable_outside_the_published_chain_are_dropped(
     replicates = {
         "1": [],
         "2": [{"run_id": "velociraptor_mongoliensis-anatomical-other-run", "training_seed": 43}],
-        "3": [],
     }
 
     with caplog.at_level(logging.INFO, logger="environments.shared.reporting.bundles"):
@@ -1017,12 +1022,12 @@ def test_a_complete_bundle_is_regenerated_when_only_its_replication_record_chang
     """
     run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260901_120000"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    _declare_certification_seeds(run_dir, stage_configs, 3, 2)
+    _declare_certification_seeds(run_dir, stage_configs, 2, 2)
     _save(run_dir, stage_results, stage_configs, run_id="velociraptor_mongoliensis-anatomical-this-run")
     assert verify_artifact_manifest(run_dir)["status"] == "complete"
     published = _snapshot_files(run_dir)
     records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
-    assert (records["3"]["replication"]["count"], records["3"]["provisional"]) == (1, True)
+    assert (records["2"]["replication"]["count"], records["2"]["provisional"]) == (1, True)
 
     # No sibling yet: the re-export is the read-only no-op it always was.
     paths = _save(run_dir, stage_results, stage_configs, run_id="velociraptor_mongoliensis-anatomical-this-run")
@@ -1035,15 +1040,15 @@ def test_a_complete_bundle_is_regenerated_when_only_its_replication_record_chang
         stage_results,
         stage_configs,
         run_id="velociraptor_mongoliensis-anatomical-this-run",
-        replicates={"3": [replicate]},
+        replicates={"2": [replicate]},
     )
 
     records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
-    assert records["3"]["replication"] == {
+    assert records["2"]["replication"] == {
         "count": 2,
         "runs": [{"run_id": "velociraptor_mongoliensis-anatomical-this-run", "training_seed": 42}, replicate],
     }
-    assert records["3"]["provisional"] is False
+    assert records["2"]["provisional"] is False
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["provenance"]["deliverables"] == records
     assert verify_artifact_manifest(run_dir)["status"] == "complete"
@@ -1058,14 +1063,14 @@ def test_a_complete_bundle_is_regenerated_when_only_its_replication_record_chang
     # Any other difference is still a different result, replicate or not.
     counted = _snapshot_files(run_dir)
     different = [dict(result) for result in stage_results]
-    different[2]["best_eval_timestep"] = different[2]["best_eval_timestep"] + 1
+    different[1]["best_eval_timestep"] = different[1]["best_eval_timestep"] + 1
     with pytest.raises(ResultBundleError, match="completed result bundle is immutable"):
         _save(
             run_dir,
             different,
             stage_configs,
             run_id="velociraptor_mongoliensis-anatomical-this-run",
-            replicates={"3": [replicate]},
+            replicates={"2": [replicate]},
         )
     assert _snapshot_files(run_dir) == counted
 
@@ -1078,19 +1083,19 @@ def test_a_stage_config_without_a_curriculum_block_declares_the_default_bar_to_t
     the cross-checks run for such a stage too and a tampered record is flagged."""
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    del stage_configs[3]["curriculum_kwargs"]
-    _write_stage_configs(run_dir, {3: stage_configs[3]})
+    del stage_configs[2]["curriculum_kwargs"]
+    _write_stage_configs(run_dir, {2: stage_configs[2]})
     _save(run_dir, stage_results, stage_configs)
     records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
-    assert (records["3"]["certification_seeds"], records["3"]["provisional"]) == (1, False)
+    assert (records["2"]["certification_seeds"], records["2"]["provisional"]) == (1, False)
     assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
 
-    _tamper_deliverable(run_dir, "3", certification_seeds=5, provisional=True)
+    _tamper_deliverable(run_dir, "2", certification_seeds=5, provisional=True)
 
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-conflict"
     assert any(
-        "deliverable 3 certification_seeds 5 does not match the stage config's declared 1" in error
+        "deliverable 2 certification_seeds 5 does not match the stage config's declared 1" in error
         for error in report["errors"]
     ), report["errors"]
 
@@ -1119,16 +1124,16 @@ def test_recorded_certification_seeds_and_provisional_must_match_the_stage_confi
     _save(run_dir, stage_results, stage_configs)
     assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
 
-    _tamper_deliverable(run_dir, "3", certification_seeds=2, provisional=True)
+    _tamper_deliverable(run_dir, "2", certification_seeds=2, provisional=True)
 
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-conflict"
     assert any(
-        "deliverable 3 certification_seeds 2 does not match the stage config's declared 1" in error
+        "deliverable 2 certification_seeds 2 does not match the stage config's declared 1" in error
         for error in report["errors"]
     ), report["errors"]
     assert any(
-        "deliverable 3 provisional True does not equal replication.count 1 < certification_seeds 1" in error
+        "deliverable 2 provisional True does not equal replication.count 1 < certification_seeds 1" in error
         for error in report["errors"]
     ), report["errors"]
 
@@ -1143,7 +1148,7 @@ def test_a_replication_record_not_listing_this_run_first_is_refused_by_the_audit
 
     _tamper_deliverable(
         run_dir,
-        "3",
+        "2",
         replication={
             "count": 2,
             "runs": [
@@ -1155,7 +1160,7 @@ def test_a_replication_record_not_listing_this_run_first_is_refused_by_the_audit
 
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-conflict"
-    assert any("deliverable 3 replication does not list this run first" in error for error in report["errors"]), report[
+    assert any("deliverable 2 replication does not list this run first" in error for error in report["errors"]), report[
         "errors"
     ]
 
@@ -1248,7 +1253,7 @@ def test_failed_final_validation_writes_no_complete_manifest(
     """
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    stray = run_dir / "stage3" / "models" / "late_write.pkl"
+    stray = run_dir / "stage2" / "models" / "late_write.pkl"
     real_build = result_bundle.build_artifact_manifest
 
     def build_then_land_a_late_write(*args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -1257,7 +1262,7 @@ def test_failed_final_validation_writes_no_complete_manifest(
         return manifest
 
     monkeypatch.setattr(result_bundle, "build_artifact_manifest", build_then_land_a_late_write)
-    with pytest.raises(ResultBundleError, match=r"undeclared bundle artifacts: \['stage3/models/late_write\.pkl'\]"):
+    with pytest.raises(ResultBundleError, match=r"undeclared bundle artifacts: \['stage2/models/late_write\.pkl'\]"):
         _save_bundle(run_dir, stage_results, stage_configs)
     assert not (run_dir / "artifact_manifest.json").exists()
 
@@ -1324,8 +1329,8 @@ def _edited(run_dir: Path, artifact: str) -> bytes:
 @pytest.mark.parametrize(
     ("artifact", "pre_column_evidence"),
     [
-        pytest.param("stage3/models/best_model_vecnorm.pkl", False, id="zombie-sidecar"),
-        pytest.param("stage3/models/best_model.pkl", True, id="zombie-model-pre-column-evidence"),
+        pytest.param("stage2/models/best_model_vecnorm.pkl", False, id="zombie-sidecar"),
+        pytest.param("stage2/models/best_model.pkl", True, id="zombie-model-pre-column-evidence"),
         pytest.param("stage1/models/stage1_200000_steps.zip", False, id="checkpoint-added-after-publication"),
         pytest.param("stage2/evaluation_selected.csv", False, id="evidence"),
         pytest.param("stage2/stage_config.json", False, id="stage-config"),
@@ -1349,7 +1354,7 @@ def test_a_certified_artifact_changed_after_publication_is_never_recertified(
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
     if pre_column_evidence:
-        for stage in (1, 2, 3):
+        for stage in (1, 2):
             for label in ("selected", "final"):
                 for column in ("checkpoint_sha256", "normalization_sha256"):
                     _rewrite_csv_column(run_dir / f"stage{stage}" / f"evaluation_{label}.csv", field=column, value=None)
@@ -1461,7 +1466,7 @@ def test_complete_bundle_in_position_prefixed_layout_audits_clean(
     die in preflight against the "complete" status. The required paths
     must resolve to whatever the run actually named its directories.
     """
-    layout = {1: "01_stance", 2: "02_locomotion", 3: "03_behavior"}
+    layout = {1: "01_stance", 2: "02_locomotion"}
     run_dir = tmp_path / "sb3" / "ppo"
     paths, _, _ = _complete_bundle(run_dir, algorithm="PPO", backend="sb3", dirname=lambda stage: layout[stage])
     # The save's own final validate already passed, or paths would not

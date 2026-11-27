@@ -50,9 +50,12 @@ class TestGetSpeciesConfig:
         assert config.env_class is not None
         assert isinstance(config.stage_descriptions, str)
         assert isinstance(config.height_label, str)
-        assert isinstance(config.behavior_section_label, str)
+        assert not hasattr(config, "behavior_section_label")
         assert isinstance(config.success_keys, list)
-        assert len(config.success_keys) > 0
+        assert all(isinstance(key, str) and key for key in config.success_keys)
+        # The hunt's success keys left with it (decision D-D59), and the Compsognathus pair's target success with the
+        # target-free revision; only the Allosaurus keeps one, its course completion.
+        assert config.success_keys == {"allosaurus_fragilis": ["course_complete"]}.get(model_id.species, [])
 
     @MODEL_IDS
     def test_env_class_is_instantiable(self, model_id):

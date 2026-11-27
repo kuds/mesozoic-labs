@@ -8,7 +8,7 @@ Guide to tuning hyperparameters for training experiments.
 
 ## Config Files
 
-All hyperparameters are defined in TOML config files under `configs/<species>/<embodiment>/`, one directory per model (a species and an embodiment, `anatomical` or `robot`). Every model commits a `stages.toml` manifest (schema `mesozoic.stage-manifest/v2`) that names its stage config files and declares the recipe graph over them. Each stage config is named by its stage, with no number. The anatomical Velociraptor, Brachiosaurus and Dibothrosuchus have three stage configs; the anatomical T-Rex and both Compsognathus models have four:
+All hyperparameters are defined in TOML config files under `configs/<species>/<embodiment>/`, one directory per model (a species and an embodiment, `anatomical` or `robot`). Every model commits a `stages.toml` manifest (schema `mesozoic.stage-manifest/v2`) that names its stage config files and declares the recipe graph over them. Each stage config is named by its stage, with no number. The anatomical Velociraptor, Brachiosaurus, Dibothrosuchus and Allosaurus have two stage configs; the anatomical T-Rex and both Compsognathus models have three (the hunt stage that followed locomotion on every model but Allosaurus was removed by decision D-D59):
 
 ```
 configs/
@@ -16,46 +16,45 @@ configs/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── locomotion.toml
-│       ├── strike.toml
 │       └── stages.toml
 ├── tyrannosaurus_rex/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── recovery.toml
 │       ├── locomotion.toml
-│       ├── behavior.toml
 │       └── stages.toml
 ├── brachiosaurus_altithorax/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── locomotion.toml
-│       ├── food_reach.toml
 │       └── stages.toml
 ├── dibothrosuchus_elaphros/
 │   └── anatomical/
 │       ├── stance.toml
 │       ├── locomotion.toml
-│       ├── snap.toml
 │       └── stages.toml
-└── compsognathus_longipes/
-    ├── anatomical/
-    │   ├── stance.toml
-    │   ├── recovery.toml
-    │   ├── locomotion.toml
-    │   ├── behavior.toml
-    │   └── stages.toml
-    └── robot/
+├── compsognathus_longipes/
+│   ├── anatomical/
+│   │   ├── stance.toml
+│   │   ├── recovery.toml
+│   │   ├── locomotion.toml
+│   │   └── stages.toml
+│   └── robot/
+│       ├── stance.toml
+│       ├── recovery.toml
+│       ├── locomotion.toml
+│       └── stages.toml
+└── allosaurus_fragilis/
+    └── anatomical/
         ├── stance.toml
-        ├── recovery.toml
         ├── locomotion.toml
-        ├── behavior.toml
         └── stages.toml
 ```
 
 Each model directory also holds its behavior recipes under `behaviors/`, and the
 Compsognathus models their `recovery_calibration.json`.
 
-Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover`, `walk` or `hunt`; a label equals a stage id only when it resolves to that stage, as `stance` does, and `stand`, the stance label until decision D-D38, is refused; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
+Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage may also declare a `[commands]` table, its live command task (see [Commands](#commands)); every model's `locomotion` (walk) declares one since decision D-D62, and no stance or recovery does. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stance`, `recover` or `walk`; a label equals a stage id only when it resolves to that stage, as `stance` does, `stand`, the stance label until decision D-D38, is refused naming `stance`, and `hunt`, removed with the hunt nodes by decision D-D59, is refused naming `walk`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
@@ -75,11 +74,148 @@ when `--label TEXT` (`train` or `curriculum`) or the notebook's `RUN_LABEL` is
 set. Both are copied into the run's `provenance.deliverables` records, which
 is how two variants of one node are told apart later.
 
-The broad curriculum intent is balance first, locomotion second, and a
-species-specific simulator task third. Reward weights shift with that intent;
+The broad curriculum intent is balance first (the stance, and recovery where
+a model has one), then the command-driven walk; follow-direction, which widens
+the walk, is next and not built. Reward weights shift with that intent;
 do not infer current values from a copied range in this guide. The generated
 [model pages](/docs/models/velociraptor_mongoliensis/anatomical) show the current stage names, budgets,
 and advancement gates read from the same configs.
+
+## Commands
+
+Every observation ends with a 3-wide body-relative command (forward speed,
+lateral speed and yaw rate, each pre-scaled to [-1, 1]). A stage without a
+`[commands]` table runs `command_mode = "none"`: the command is constant zero,
+nothing is drawn for it and nothing scores it. Every stance and recovery runs
+this way. A stage turns its command on with a `[commands]` table (decision
+D-D60), as every model's walk does since decision D-D62. The T-Rex walk's,
+shortened:
+
+```toml
+[commands]
+mode = "heading_and_speed"             # or "heading", which holds cruise_speed
+cruise_speed = 1.05                    # the scaling of the model's behaviors/follow_direction.toml
+speed_scale = 1.5
+lateral_speed_scale = 1.0
+yaw_rate_scale = 0.6
+speed_range = [0.525, 1.05]            # [0.5, 1] x cruise_speed
+stop_probability = 0.15                # drawn at reset: with no turns and no switch, a whole-episode stand
+initial_heading_offset_max = 0.26      # rad, about the spawn heading
+turn_increment_max = 0.0
+switch_interval_s = 600.0              # longer than the horizon
+switch_jitter_s = 0.0
+turn_slowdown = true
+yaw_rate_max = 0.3
+tracking_weight = 2.5
+tracking_window_s = 1.12               # one stride: the moving command is scored on its trailing mean
+cruise_ramp_start_fraction = 0.25
+cruise_ramp_timesteps = 2000000
+
+[commands.stand_weights]               # paid in place of the [env] weights at an exactly zero command
+drift_penalty_weight = 0.3             # stance.toml:8
+alive_bonus = 1.0                      # stance.toml:12
+# ... 24 more, each the stance's weight where it differs from the walk's [env]
+```
+
+- **Keys.** `mode` is required and must be a live mode; every other key is a
+  field of `DirectionCommandConfig` (`environments/shared/direction_commands.py`).
+  An unknown key, a value the config refuses and `"heading"` with a speed range
+  or stops are refused, naming the file. `[env]` never names `command_mode` or
+  `command_config`. The stance never declares the table, its own or inherited:
+  its six-heading certificate and the mirror refuse a live command. `extends`
+  inherits `[commands]` key by key, like `[env]`, so a node that widens its
+  parent's command distribution states only the keys it changes.
+- **Task.** The table becomes the stage's `command_mode` and `command_config`
+  env kwargs. `stage_config.json` records every field, and the task
+  fingerprint gains a `command` section (the command controller's manifest),
+  which training checks against the env it builds. A `"none"` stage's
+  fingerprint has no `command` section, so adding the table to a stage is a
+  new task.
+- **Reward.** While the command is live, the environment adds
+  `tracking_weight` times a Gaussian of the body-frame velocity error and the
+  yaw-rate error (`reward_tracking`, included in `reward_total`), with the
+  sigmas `tracking_velocity_sigma` and `tracking_yaw_rate_sigma`. The step's
+  `info` carries the command state, the tracking metrics judged against the
+  five `tracking_*_tolerance` fields, `heading_error_rad` and
+  `tracking_dwell_s` (consecutive seconds in tolerance, restarted by each new
+  command). An unset speed sigma or tolerance scales with `speed_scale`.
+- **Tracking window.** `tracking_window_s` (seconds, a whole number of
+  control steps; default 0, which scores every step on its own) makes the
+  term and the metrics read a trailing mean over that window at a moving
+  command (decision D-D64). A walking gait sways within its stride, so per
+  step even a walk that matches its command reads a poor tracking quality
+  (0.13-0.34 on the T-Rex, Allosaurus and Brachiosaurus reference walks),
+  while its one-stride mean tracks it.
+  The window averages each step's velocity in that step's heading frame, the
+  yaw rate and the executed command, and the errors are differences of the
+  means. It fills from the episode's first step (the first step reads the
+  per-step values) and is emptied only at reset, never at a command change.
+  The heading error, a zero command (the stop test and the stand episodes'
+  reward) and the info's `actual_*` speeds stay per step. Every walk sets it
+  to its stride at half its cruise speed, 0.70-1.50 s (each walk TOML gives
+  the source). The observation does not hold the window, so the term reads
+  up to one stride of the policy's own history; the decision gives the
+  measurements that make this acceptable. It is part of the task only when it
+  is not 0, and a behavior recipe refuses one.
+- **Randomness.** Each episode's command schedule is seeded from its own
+  stream (the reset seed, the episode index since that seed and a fixed
+  domain word), never from the environment's reset stream, so a live stage's
+  joint, velocity and push draws equal those of the same stage without
+  commands. `initial_heading_offset_max` (radians, at most π) turns the first
+  requested heading by a uniform draw from that stream; 0 draws nothing.
+- **Normalization.** The trainer (PPO and SAC, the command line and the
+  notebook) holds the command slice of the `VecNormalize` statistics at mean 0
+  and variance 1 in every stage, so a normalised command is the raw command
+  (while a live stage trains, each step's observation is normalised just
+  before the hold, so it can be about `n_envs / count` away), and every
+  sidecar it saves carries that identity. SAC's replay buffer stores the raw
+  observations, terminal ones included. A sidecar whose slice is not at
+  identity (one saved before this rule) is refused by a live stage and
+  re-imposed, with a warning, by a stage without commands, whose zero command
+  normalises to zero either way.
+- **Warm starts.** A live stage warm-started from a parent that trained
+  without commands (a stance) starts with its policy's command input weights
+  zeroed, and the policy is proven unchanged on zero commands and blind to
+  live ones before the first update. A live parent keeps its command weights
+  and statistics, so a node that widens its parent's command distribution
+  continues it exactly. A walk therefore starts command-blind and learns to
+  read the command. Its stance must be one trained on the current plant
+  interface with the command slice held at identity: an older stance fails
+  the plant check, and one whose saved statistics' command slice is off
+  identity (saved before decision D-D60) is refused by a live stage, so such
+  a stance is retrained first.
+- **Stand block.** `[commands.stand_weights]` names reward weights (the
+  constructor's `*_weight` kwargs, `alive_bonus` and
+  `support_conditioned_alive_fraction`) that the environment pays in place of
+  their `[env]` values on every step taken under an exactly zero command, so
+  zero means stand still rather than march in place; a small non-zero command
+  runs the `[env]` weights. Only weights swap: a stand term's tolerances and
+  references are the stage's `[env]` values. The walk cannot `extends` the
+  stance (one level deep, and the follow nodes will extend the walk), so each
+  walk restates the stance's weights that differ from its own `[env]`, each
+  citing its `stance.toml` line (`test_walk_stand_block.py` pins them). The
+  idle penalty is never paid at a zero command. The block is part of the
+  command task, so it is in the task fingerprint of a live stage only.
+- **Cruise ramp.** `cruise_ramp_start_fraction` and `cruise_ramp_timesteps`
+  (both or neither) scale the training workers' commanded speeds
+  (`cruise_speed` and `speed_range`) from the start fraction to 1 over that
+  many steps, in 10,000-step blocks, because the tracking reward pays almost
+  nothing far from the commanded speed and a walk starts from a standing
+  policy. The stand fraction, the heading offsets, the sigmas and the
+  tolerances never change, and the evaluation env and the gate panels run
+  the declared end state. Every checkpoint records the ramp's position, and
+  a same-stage resume continues from it (PPO and SAC alike). A stage with
+  `[commands]` refuses the forward-velocity ramp keys `ramp_start_value` and
+  `ramp_timesteps`.
+- **The walk.** Every model's walk draws one request at reset and holds it
+  for the whole episode: a forward cruise at `speed_range` along a heading up
+  to `initial_heading_offset_max` off the spawn heading, or, with
+  `stop_probability` 0.15, an exactly zero command for the whole episode. The
+  tracking term subsumes the forward, heading, sideways and drift terms,
+  which the walk's `[env]` sets to 0; under a live command the terms that
+  read a forward direction measure along the commanded heading. Each model's
+  scaling and speeds are on its [model page](/docs/models/velociraptor_mongoliensis/anatomical)
+  and in `docs/BEHAVIOR_RECIPES_PLAN.md` section 4.6.
 
 ## PPO Parameters
 
@@ -118,22 +254,201 @@ Stage transitions are controlled by the `[curriculum]` section in each config:
 | `timesteps` | Maximum configured stage budget before advancing |
 | `min_avg_reward` | Minimum evaluation-window mean reward for early advancement |
 | `min_avg_episode_length` | Minimum evaluation-window mean episode length for early advancement |
-| `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only) |
-| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero (`reward_and_length/v1` only; retired for the T-Rex hunt, which is gated on the bound below) |
-| `min_success_lcb` | `task_success/v1` only: the one-sided 95% Clopper-Pearson lower bound on per-episode task success must clear this bar (T-Rex hunt: 0.5, provisional — 20/30 clears it, 19/30 does not); `min_avg_reward` is then a collapse rail, never the gate |
-| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold` except for `task_success/v1`, where it is REQUIRED (the bound's power is a function of the declared n; T-Rex hunt: 30) |
+| `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only; no committed stage declares it since the walk moved to `command_tracking/v1`, decision D-D62) |
+| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold`, and required by the floor-truth stance gates (the bound's power is a function of the declared n) |
 | `required_consecutive` | Consecutive evaluations that must satisfy every enabled criterion |
+
+The task-success gates are gone: `min_success_rate`, the `task_success/v1`
+gate kind and its `min_success_lcb` bar were removed with the hunt stages, their
+only users (decision D-D59). A config or a recorded stage that still names one
+is refused with a message naming that decision.
 
 For the SB3 curriculum, every enabled criterion must pass in the same evaluation
 window, the window must contain at least `min_eval_episodes` episodes (10 by
-default, the `StageThreshold.min_eval_episodes` implementation default; the
-declared value for a `task_success/v1` stage), and this result must
-repeat for `required_consecutive` evaluations before the stage advances early.
+default, the `StageThreshold.min_eval_episodes` implementation default), and
+this result must repeat for `required_consecutive` evaluations before the
+stage advances early.
 If the `timesteps` budget runs out first, the node's `gate_verdict.json`
 records a failure and the `curriculum` command stops before the next node
 rather than training it from an uncertified parent. Consult the generated
 model pages or the TOML files for current values rather than relying on a
 static table here.
+
+### Command-tracking gate (`command_tracking/v1`)
+
+A stage with a live command (a `[commands]` table, see [Commands](#commands))
+is judged by the `command_tracking/v1` gate kind (decision D-D61). Every
+model's walk declares it with the `walk` profile and the starting values
+below (decision D-D62), and the later follow nodes will use it too. The bars
+are provisional. Since decision D-D64 the gate's in-tolerance test, like
+the reward, reads the stage's tracking window at a moving command, and at a
+command it matches every reference walk in the repository clears the
+in-tolerance fraction and the speed ratio: the Brachiosaurus and
+Dibothrosuchus references pass the whole walk gate there, and the T-Rex and
+Allosaurus fail `heading_settle`, on their scripted starts. (At the
+Velociraptor's and Dibothrosuchus' matched commands, which lie inside the
+velocity tolerance, even the statue reads in tolerance.) No controller has yet passed a committed walk panel
+(decision D-D62 (16)). The gate is judged once, after
+the stage, on a fixed panel of deterministic episodes of the handoff
+checkpoint. The in-training curriculum manager refuses the kind, so such a
+stage never advances early and always trains its full `timesteps` budget.
+The string key `profile` selects the rules:
+
+- **`walk`**, the walk node's. Each panel episode belongs to the family its
+  reset command puts it in: **cruise** (a non-zero speed) or **stand** (an
+  exactly zero command for the whole episode). A cruise episode succeeds
+  when it reaches the horizon, settles its initial heading error within
+  `1 s + |error| / yaw_rate_max + tracking_window_s` (the window still
+  filling at the start, decision D-D64) and holds it for 1 s, keeps
+  `min_cruise_tracking_fraction` of its steps in tolerance after that
+  settle, makes `min_cruise_speed_ratio` of the requested speed along the
+  requested heading after 2 s, and passes the gait clause below. A stand
+  episode succeeds when it reaches the horizon, settles its stop and holds
+  the stop criterion (speed and yaw rate within the stop tolerances) for
+  `min_stand_hold_fraction` of its steps after 1 s. A family with fewer
+  episodes than its minimum fails the gate, and so does an episode whose
+  command changes mid-episode.
+- **`follow`**, the follow nodes': the behavior certificate's statistics
+  (survival and success bounds; the tracking, event, stop and turn settle
+  fractions; the stop and turn exposure minimums), the gait clause, and
+  optionally a paired comparison with a reference policy (the walker) on
+  the same seeds, which fails closed when the reference panel is missing.
+  It pairs follow success on the follow panel, so it bounds how much worse
+  than the walker the follower follows; it is not a test that straight
+  walking was kept.
+
+Every bar is a required `[curriculum]` key with no default in code, so the
+gate digest covers every number a verdict depends on. A block is checked
+when the config loads: an unknown key, the other profile's key or a value
+outside its range stops the run. Every starting value below is
+**provisional**, to be frozen from the first pilot's panel; a verdict reached
+under a provisional bar is judged again, not retrained, when the bar moves.
+
+| Walk key | Starting value | Meaning |
+|---|---|---|
+| `profile` | `"walk"` | Selects the walk profile |
+| `min_cruise_episodes` | 20 | Cruise episodes on the panel |
+| `min_stand_episodes` | 5 | Stand episodes on the panel |
+| `min_cruise_survival_lcb` | 0.80 | Lower 95% bound (exact Clopper-Pearson) on the cruise episodes reaching the horizon; at 20 episodes only 20 of 20 clears it |
+| `min_cruise_success_lcb` | 0.60 | Lower 95% bound on the cruise episodes that succeed; at 20 episodes 17 of 20 clears it |
+| `min_cruise_tracking_fraction` | 0.60 | A cruise episode's in-tolerance fraction after its heading settle |
+| `min_cruise_speed_ratio` | 0.50 | Mean speed along the requested heading after 2 s, per requested speed; a placeholder looser than the design draft's 0.9, since the tracking bar already bounds the speed error |
+| `min_stand_hold_fraction` | 0.60 | A stand episode's in-tolerance (stop criterion) fraction after 1 s; at 0.60 a stand may move for 40% of those steps, so the pilot is to freeze it near 1 |
+| `min_stand_success_fraction` | 0.60 | Fraction of stand episodes that succeed |
+| `max_stand_falls` | 0 | Stand episodes that may end before the horizon |
+
+| Follow key | Starting value | Meaning |
+|---|---|---|
+| `profile` | `"follow"` | Selects the follow profile |
+| `min_follow_episodes` | 20 | Valid episodes on the panel |
+| `min_follow_horizon_s` | 20.0 | An episode with a shorter horizon is not a valid sample |
+| `min_follow_survival_lcb` | 0.80 | Lower 95% bound on the episodes reaching the horizon |
+| `min_follow_success_lcb` | 0.60 | Lower 95% bound on the episodes that succeed |
+| `min_follow_tracking_fraction` | 0.60 | An episode's in-tolerance fraction |
+| `min_follow_event_settle_fraction` | 0.60 | An episode's fraction of command events that settle |
+| `min_follow_stop_settle_fraction` | 0.60 | Per episode, and over the episodes that meet a stop |
+| `min_follow_turn_settle_fraction` | 0.60 | Per episode, and over the episodes that meet a turn |
+| `min_follow_command_episodes` | 5 | Episodes that must meet a stop (a turn) when the schedule draws them |
+| `min_follow_course_fraction` and `follow_course_distance_m` | 0.50, the species' course distance | Optional, declared together: radial progress per course distance |
+| `min_follow_reference_delta_lcb` | none | Optional: lower bound on the mean per-seed success difference against the reference policy |
+
+The **gait clause** is required in both profiles, so an episode that tracks
+the command is also judged on its footfalls, not on the pelvis alone. The
+panel records every episode's floor contacts, and from 1 s on reduces them
+to alternation, simultaneous touchdowns, hop flight, lead swaps, limb duty
+and foot-on-foot and phantom support (stand episodes are not judged on
+gait). A lead swap counts only once the feet's fore-aft offset has passed
+3% of the leg length, so a two-footed hop with its feet side by side reads
+no lead swaps even when its feet land more than 20 ms apart (which reads as
+alternating footfalls). `gait_limbs` names the animal and the bars it must
+declare; an unmeasured metric fails its bar.
+
+| Gait key | Biped (`gait_limbs = 2`) | Quadruped (`gait_limbs = 4`) |
+|---|---|---|
+| `min_alternation_index` | required, 0.75 | refused |
+| `max_simultaneous_fraction` | required, 0.15 | optional |
+| `max_hop_flight_fraction` | required, 0.15 | optional |
+| `min_lead_swaps_per_stride` | required, 1.0 | optional |
+| `max_foot_contact_fraction` | required, 0.02 | optional |
+| `max_phantom_support_fraction` | required, 0.05 | optional |
+| `max_flight_fraction` | optional, 0.05 where the commanded speed is below Froude 0.5 | required, 0.05 |
+| `min_limb_duty` | optional | required, 0.20 |
+| `min_pair_alternation_index` | refused | required, 0.75 (the lower of the fore and hind pairs) |
+
+The bipeds are the velociraptor, the T-Rex, both Compsognathus models and the
+Allosaurus; the quadrupeds are the Brachiosaurus and the Dibothrosuchus, whose
+lateral-sequence or trot match is measured and reported but not judged.
+
+What the clause does not refuse: a hop that lands both feet together
+fails, as does a slide with every foot down (it makes no footfall), but a
+staggered hop whose feet swap their lead past the 3% band is refused only by
+the optional flight cap, and a skid broken by brief alternating lifts is not
+refused at all (slip is reported, not judged). On a quadruped, a bound whose
+two fore feet (and two hind feet) land more than 20 ms apart with no flight
+reads as alternating pairs and clears the three required floors. The
+optional `min_lead_swaps_per_stride`, which both quadruped walks declare,
+refuses it only while each pair's feet stay side by side within the 3%
+band; a bound whose pair feet swing their lead past the band reads about
+two lead swaps a stride and clears every quadruped bar, that one included,
+so the bar narrows the gap and does not close it. The stand family's gait is
+not judged, so stepping in place within the stop tolerances passes it; the
+stand episodes' recorded alternation and touchdown rate show it. Each
+episode record carries the left/right phase (about 0.5 on a walk, near 0 or
+1 on a hop) and the stance-foot slip speed for review, and a report-only
+`longest_stop_s`, the longest stretch after 2 s at under a quarter of the
+requested speed, which no verdict reads (a stop-and-go whose cycle fits
+inside the tracking window would show there, not in the in-tolerance
+fraction; decision D-D64; whether it becomes a bar is decided after the
+pilot, decision D-D65). The
+in-tolerance test is the environment's own (at a moving command the
+windowed errors when the stage declares `tracking_window_s`, a stop per
+step), at the tolerances the stage's
+`[commands]` table resolves; the optional keys `gate_velocity_tolerance`,
+`gate_yaw_rate_tolerance`, `gate_heading_tolerance`,
+`gate_stop_speed_tolerance` and `gate_stop_yaw_rate_tolerance` replace one
+for the gate only.
+
+After the stage, these files appear in the stage directory:
+
+- `models/handoff_choice.json`: the handoff checkpoint, chosen by the gate
+  rather than by reward. `robust_best_model`, `best_model` and the final
+  checkpoint are each rolled on a selection panel (seeds from 2042) and
+  ranked by passing, then by the profile's success bound. The certificate is
+  rolled on other seeds (from 3042), so the choice cannot pick a lucky draw
+  of the certification panel; when a rare stand family would make the two
+  panels share a seed, no choice is made and the stage fails its gate. The
+  two reward-chosen candidates come from the in-training evaluation, which
+  on a live-command stage is reseeded before every evaluation so that every
+  evaluation rolls the same commands and the same number of stand episodes;
+  `best_model` is the best mean of that fixed panel, and `robust_best_model`
+  scores the cruise and the stand episodes apart (each family's mean minus
+  its standard deviation, weighted by the stop probability), since a stand
+  episode earns several times a cruise episode and, pooled, the gap would
+  read as risk (decision D-D62 (20)).
+- `command_tracking_report.json`, `command_tracking_report.txt` and
+  `command_tracking_panel_selected.csv`: the certification panel, one record
+  per episode with its classification. The verdict is derived again from
+  those records, and publication derives it again from the CSV. Each record
+  carries the measurement it was reduced under, protocol `command_panel/v2`
+  with the tracking window since decision D-D64, and a report, record or CSV
+  of the earlier `command_panel/v1` is refused.
+- `figures/command_tracking.png`: commanded against achieved speed, yaw rate
+  and heading error over the panel's first cruise and first stand episode
+  (rolled again from `command_tracking_trace.csv`, the same episodes the gate
+  judged), with the tolerances, the judged windows and the settle deadline,
+  and the tracking fraction over training (the training steps' mean
+  in-tolerance flag, which `diagnostics.npz` records for a stage with a live
+  command) against the profile's tracking bar.
+- `figures/command_gate_progress.png`: each gated statistic of every
+  candidate checkpoint on the selection panel, in the order training saved
+  them, and of the certified handoff, against its bar, beside the number of
+  certification episodes that failed each criterion. Its title is the
+  stage's verdict.
+
+The figures belong to the judgement that drew them: figures and a trace an
+earlier judgement left are removed first, and none are drawn when the panel
+could not be rolled. The command-line `curriculum` command writes the same
+report and figures after each such node's budget.
 
 ## Overriding Hyperparameters from the CLI
 
@@ -166,6 +481,8 @@ A longer key sets a key inside a nested table: `ppo.policy_kwargs.log_std_init=-
 `'ppo.policy_kwargs.net_arch=[64, 64]'` (quoted for the shell). Each step must be a table the stage config declares;
 only `policy_kwargs` is created when a stage has none, and any other step is refused before training starts.
 
+A `[commands]` key has no override prefix (`commands.X` is refused as an unknown section): a stage's command task is edited in its TOML.
+
 For stage-scoped overrides, prefix with the stage's legacy number or its id: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`, or `recovery.ppo.learning_rate=1e-4` on a `train --stage recovery` run. Plain `section.key=value` still applies to all stages.
 
 ### Experimenting on a node that already passes
@@ -173,8 +490,8 @@ For stage-scoped overrides, prefix with the stage's legacy number or its id: `1.
 When a run is trunked (`curriculum --trunk-from`, or the notebook's
 `TRUNK_FROM`), whether an edited node is reused or retrained depends on which
 block you edited. The task digest a verdict is bound to covers the effective
-`[env]` block, the plant and the push schedule — not `[ppo]` / `[sac]`, the
-`timesteps` budget, or the gate thresholds.
+`[env]` block, the `[commands]` table, the plant and the push schedule — not
+`[ppo]` / `[sac]`, the `timesteps` budget, or the gate thresholds.
 
 1. **An algorithm-block edit** (`[ppo]`, `[sac]`, or a `warmup_` / `ramp_`
    shaping key) leaves the digest unchanged, so a trunked run reuses the old
@@ -183,8 +500,8 @@ block you edited. The task digest a verdict is bound to covers the effective
    naming the differing dotted keys (`ppo.learning_rate`,
    `shaping.warmup_timesteps`) and pointing at the retrain knob; it is never a
    refusal.
-2. **An `[env]` edit** changes the digest: the old checkpoint is refused by the
-   reuse rule and the node and everything below it retrain.
+2. **An `[env]` or `[commands]` edit** changes the digest: the old checkpoint is
+   refused by the reuse rule and the node and everything below it retrain.
 3. **A gate-threshold edit** leaves the digest unchanged but changes the
    gate digest the verdict records (`gate_sha256`, decision D-A22): reuse
    rule 7 refuses the old verdict naming the thresholds that differ, and a
@@ -215,7 +532,6 @@ the original run's checkpoint. See
 3. **Monitor with TensorBoard** — Every stage logs its per-component rewards as `diagnostics/*` scalars; point `tensorboard --logdir` at the run directory
 4. **Watch a run mid-training** — Every stage directory holds `progress.json`, rewritten after each evaluation: steps against the budget, steps per second and the projected finish, the latest evaluation and how its episodes ended, the posture against the stage's bars (centre of pressure, sole tilt and corner lift, per foot), the checkpoints so far and any warnings. On Colab, open it from Drive at `MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json` while the notebook trains; the full per-evaluation series are in `gate_progress.npz` beside it. A line starting `PostureDrift` in the training output means that on two evaluations in a row, half or more of the evaluation episodes that reached the horizon stood over the stage's fore-aft centre-of-pressure bar; training continues. An evaluation in which no episode reached the horizon measures no posture and breaks the streak, so a seed whose episodes all fall gets no `PostureDrift` line; its falls show in `progress.json`'s `evaluation.falls`. A line starting `PostureTrend` comes earlier: on two evaluations in a row, at least a tenth of those episodes stood over the bar, and the feet's signed centre of pressure is moving toward the edge it is on. It is a prompt to look at the run, not a sign the stage will fail, and training continues. Beside `progress.json`, `eval_episodes.csv` has one row per evaluation episode (its return, how it ended, its posture, balance and floor forces) and `train_episodes.csv` one row per training episode, so the falls the policy learns from can be read too; both are rewritten at each periodic checkpoint (every 100,000 steps in the notebook) and when the stage ends, so mid-run they can trail `progress.json` by up to one checkpoint, and after a crash or an interrupt in the notebook they end at the newest checkpoint. When the stage ends, `figures/gate_progress.png` plots the evaluations' reward, centre of pressure, over-bar fractions and leg offsets against steps; to plot a run mid-training, download its stage directory and run `python -m environments.shared.scripts.plot_gate_progress <stage_dir>` from the repository root, which writes the figure to the current directory, never into the run. The stage's training history from those two ledgers (its feet, balance, asymmetry, saturation and per-actuator policy spread over the training) is in `figures/training_history/training_history.html`, also written when the stage ends. The schema is in `docs/TRAINING_ARTIFACT_PRESENTATION.md` in the repository
 5. **Measure throughput** — Compare CPU and GPU performance for your algorithm and parallel-environment count
-6. **Increase timesteps for stage 3** — The sparse terminal reward (strike/bite/food) often needs more samples to converge
 
 ## Tuning Playbook
 
@@ -236,26 +552,12 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 
 | Symptom | Most likely cause | What to change |
 |---|---|---|
-| Forward velocity stuck near zero | `forward_vel_weight` too low or `alive_bonus` dominant | Raise `env.forward_vel_weight` to `1.0–2.0`, reduce `env.alive_bonus` |
-| Crab-walks sideways toward target | No lateral or heading constraint | Set `env.lateral_penalty_weight` to `0.1`, raise `env.heading_weight` |
-| Walks forward but falls frequently | Balance reward zeroed too aggressively | Keep `env.posture_weight ≥ 0.3`, re-enable mild `env.alive_bonus` (`0.3–0.5`) |
+| Stands still on cruise commands (tracking near zero, stand episodes held) | The kept terms pay a standing animal (on the quadrupeds the gait-symmetry term pays a statue its whole weight) and the tracking Gaussian pays little far from the commanded speed | Check that the cruise ramp is declared (`[commands] cruise_ramp_start_fraction`, `cruise_ramp_timesteps`); see decision D-D62 (16) before re-weighting |
+| Marches in place on a zero command | A stance weight missing from the stand block | Compare `[commands.stand_weights]` with `stance.toml` (`test_walk_stand_block.py`) |
+| Crab-walks or turns off the commanded heading | The tracking term tolerates the error | Raise `[commands] tracking_weight` within 2.0–2.5, or narrow the lateral and yaw sigmas |
+| Walks but falls frequently | Balance reward zeroed too aggressively | Keep `env.posture_weight ≥ 0.3` and the walk's `env.alive_bonus` |
 | Unrealistic "ice-skating" gait | Symmetry and smoothness under-weighted | Raise `env.gait_symmetry_weight`, raise `env.smoothness_weight` |
-| Max forward speed exceeds physical reasonableness | Reward uncapped | Set `env.forward_vel_max` (e.g. `3.0` for the Velociraptor, `1.5` for the Brachiosaurus) |
-
-### Stage 3 — Behavior (Strike / Bite / Food Reach)
-
-The names "Bite" and "Food Reach" refer to simulation success proxies. In the
-Gym/SB3 environments, T-Rex uses contact from a fixed head geom and has no
-articulated jaw; Brachiosaurus uses a head-tip distance threshold and does not
-require physical food contact.
-
-| Symptom | Most likely cause | What to change |
-|---|---|---|
-| Never triggers terminal event (strike/bite/food) | Sparse-reward exploration stalled | Raise `ppo.ent_coef` to `0.005–0.01`, widen `ppo.clip_range` to `0.15`, tighten `env.prey_distance_range` so the target spawns closer |
-| Lingers near target without triggering | Proximity bonuses rewarding hovering | Zero `env.strike_proximity_weight` (or `env.food_head_proximity_weight`), keep the terminal bonus dominant per the current stage config, and use `*_approach_weight` as the approach gradient |
-| Forgets locomotion during Stage 3 warm-up | Reward schedule shift too abrupt | Use `curriculum.warmup_timesteps = 300000`, `curriculum.ramp_timesteps = 500000`, `curriculum.warmup_clip_range = 0.02` to anneal changes |
-| Learns the behavior but then regresses | Over-entropy or critic drift | Lower `ppo.ent_coef` after convergence, narrow `ppo.clip_range` to `0.1` |
-| `strike_bonus` signal not dominating | Discounted future alive-reward too large | Ensure `env.alive_bonus = 0` in stage 3 and that `strike_bonus >> gamma^H · per_step_reward` |
+| Walks at the commanded speed but fails the gate's tracking bars | Its stride does not divide the walk's `tracking_window_s`: the window cancels the sway of a stride that divides it, keeps up to about a fifth of it when the window is about 1.2-1.6 strides long, and more when the stride is longer than the window | Check the learned stride period against the window (decision D-D64 (1)); the window is part of the task, set by one rule on every walk, so do not tune it per run |
 
 ### Algorithm-specific notes
 
@@ -276,4 +578,4 @@ budget.
 2. **Diagnose.** If the run fails, match symptoms against the tables above. Do not change more than one group of knobs per run.
 3. **Narrow.** For promising directions, train 3–5 candidate values as separate runs, each changing one value with `--override` (see [Overriding Hyperparameters from the CLI](#overriding-hyperparameters-from-the-cli)), and compare them with the baseline under the same protocol.
 4. **Promote.** Commit the winning values back to the TOML with a trailing comment explaining why (see existing configs for the house style — e.g. `# Setting 4 sweep: ...`). The edit moves the stage's digests, so regenerate the committed digest snapshot in the same commit with `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write` (CI's plant-contract job checks it).
-5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the behavior node. The regress-test run reuses the trunk's ancestors above the edited node and can pass them on: a later run trunked from it resolves each reused node through its ancestor record to the run that certified it, one machine-visible run directory away, so later behaviors can trunk from the regress-test run directly.
+5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the nodes below it. The regress-test run reuses the trunk's ancestors above the edited node and can pass them on: a later run trunked from it resolves each reused node through its ancestor record to the run that certified it, one machine-visible run directory away, so later behaviors can trunk from the regress-test run directly.

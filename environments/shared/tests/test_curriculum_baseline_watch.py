@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -163,6 +164,94 @@ class TestBuilder:
             stage_config={"curriculum_kwargs": {}},
         )
         assert built is None
+
+    def test_returns_none_on_a_live_command_stage(self, tmp_path):
+        """The captured baseline is the stance statue's; a live-command walk mixes stand and cruise episodes and is
+        another task, so it is not compared with it (decision D-D62).  A "none" stage still is."""
+        _write_baseline(tmp_path)
+        live = build_baseline_progress_callback(
+            MagicMock(),
+            run_dir=tmp_path,
+            model_id=TYRANNOSAURUS_REX,
+            stage_config={"env_kwargs": {"command_mode": "heading_and_speed"}, "curriculum_kwargs": {}},
+        )
+        assert live is None
+
+    def test_the_committed_walks_skip_the_watch_and_the_stances_keep_it(self, tmp_path, monkeypatch):
+        from environments.shared.config import load_all_stages
+        from environments.shared.species_names import model_ids
+        from environments.shared.stage_manifest import resolve_stage_key
+
+        monkeypatch.setattr(baseline_watch, "BaselineProgressCallback", lambda *args, **kwargs: "callback")
+        for model_id in model_ids():
+            _write_baseline(tmp_path, model_id=model_id)
+            for stage, config in load_all_stages(model_id).items():
+                built = build_baseline_progress_callback(
+                    MagicMock(), run_dir=tmp_path, model_id=model_id, stage_config=config
+                )
+                walk = resolve_stage_key(model_id, stage).id == "locomotion"
+                assert (built is None) == walk, (model_id, stage)
+
+    def test_progress_json_reports_no_zero_action_reward_on_a_live_command_stage(self, tmp_path):
+        """progress.json's ``zero_action_reward`` reads the same stance statue the watch skips on a live stage."""
+        from environments.shared.curriculum.progress_report import TrainingProgressCallback
+
+        _write_baseline(tmp_path)
+        for live, expected in ((True, None), (False, pytest.approx(STATUE))):
+            callback = object.__new__(TrainingProgressCallback)
+            callback.model_id = TYRANNOSAURUS_REX
+            callback.stage_dir = tmp_path / "02_locomotion"
+            callback.live_command = live
+            assert callback._zero_action_reward() == expected
+
+    def test_the_progress_writer_takes_the_live_rule_from_the_stage_config(self, tmp_path):
+        pytest.importorskip("stable_baselines3")
+        from environments.shared.curriculum.progress_report import build_training_progress_callback
+
+        def built(env_kwargs: dict) -> bool:
+            callback = build_training_progress_callback(
+                MagicMock(),
+                MagicMock(),
+                stage_dir=tmp_path / "stage",
+                model_dir=tmp_path / "stage" / "models",
+                stage="locomotion",
+                model_id=TYRANNOSAURUS_REX,
+                seed=42,
+                total_timesteps=1000,
+                stage_config={"env_kwargs": env_kwargs, "curriculum_kwargs": {}},
+            )
+            assert callback is not None
+            return callback.live_command
+
+        assert built({"command_mode": "heading_and_speed"}) is True
+        assert built({"command_mode": "none"}) is False and built({}) is False
+
+    def test_the_gate_progress_figure_draws_no_stance_statue_on_a_live_command_stage(self, tmp_path):
+        pytest.importorskip("matplotlib")
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import numpy as np
+
+        from environments.shared.visualization import plot_gate_progress
+
+        _write_baseline(tmp_path)
+        stage_dir = tmp_path / "02_locomotion"
+        stage_dir.mkdir()
+        np.savez(stage_dir / "gate_progress.npz", timesteps=np.array([1e5, 2e5]), mean_reward=np.array([900.0, 1100.0]))
+
+        def statue_drawn(**kwargs: Any) -> bool:
+            figure = plot_gate_progress(stage_dir, model_id=TYRANNOSAURUS_REX, **kwargs)
+            labels = [line.get_label() for line in figure.axes[0].get_lines()]
+            return any(str(label).startswith("zero action") for label in labels)
+
+        assert statue_drawn(live_command=False) and not statue_drawn(live_command=True)
+        # Without the flag, the recorded task decides: a command section means a live stage.
+        record = stage_dir / "stage_config.json"
+        record.write_text(json.dumps({"task_fingerprint": {"command": {"schema": "x", "config": {}}}}))
+        assert not statue_drawn()
+        record.write_text(json.dumps({"task_fingerprint": {"command": None}}))
+        assert statue_drawn()
 
     def test_forwards_the_stage_budget_ceiling_and_override(self, tmp_path, monkeypatch):
         captured = {}
