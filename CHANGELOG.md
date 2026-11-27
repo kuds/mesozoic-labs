@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **An opt-in actuation delay for every model, off by default (design record
+  `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §4-§5, the first shared feature of
+  the 60 cm Triceratops robot's port; the build's decision-log rows D33 and
+  D37).** Two `[env]` keys, in seconds and each a whole number of physics
+  steps: `actuation_delay_range_s` (`None` is off) and
+  `actuation_delay_eval_s` (`environments/shared/actuation_delay.py`). A FIFO
+  of the nu-wide ctrl in `BaseDinoEnv.step()` hands each control target to the
+  plant k physics steps late, primed with the reset ctrl, so zero action is
+  unchanged by the delay. A trainer's rollout envs draw k per episode from the
+  range; every other env holds the eval value (or draws from the range when
+  it is `None`). A delay as long as an episode is refused, naming it in
+  seconds and steps. Three shared pieces carry it,
+  all in `environments/shared/episode_start.py`. An episode-start hook,
+  `EpisodeStartHook`, is the base class `BaseDinoEnv` now derives from: it
+  runs after gymnasium seeds `np_random` and before the keyframe loads, and
+  `BaseDinoEnv.reset`'s hashed source is unchanged. Each feature has its own
+  PCG64 stream, `feature_stream`, so the reset draws never move. A role flag,
+  `training_rollouts`, is `False` unless a trainer marks the env with
+  `mark_training_rollouts`, which refuses a vectorised env.
+  `train_base.make_env` and `create_vec_env` take a
+  keyword `training` (default `False`), and the stage body passes
+  `training=True` on its training env only. `train_behaviors` marks its env
+  before training and unmarks it before scoring. While the delay is on, `info`
+  carries `actuation_delay_steps` and `actuation_delay_s`, and the task
+  fingerprint gains an `actuation_delay` section that `resume_same_stage` and
+  behavior transitions name when it differs. The symmetry module's state
+  mirror carries the in-flight targets, and refuses two envs whose delay
+  configurations differ. No model lists the keys, so no digest,
+  golden, plant manifest entry, task hash or checkpoint moves, and the digest
+  harness's `--exact` capture is byte-identical to `main`'s.
 - **A walk warm-start noise-tolerance scan for every model (the maintainer's
   decision of 2026-11-26).**
   `environments/shared/scripts/warm_start_noise_scan.py` measures how much

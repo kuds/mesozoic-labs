@@ -56,6 +56,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from .actuation_delay import ACTUATION_DELAY_IMPLEMENTATION
 from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE, RETIRED_COMMAND_ENV_KEYS
 from .model_id import ModelId
 from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
@@ -276,6 +277,13 @@ def compute_task_fingerprint(
         )
     if command_manifest is not None:
         payload["command"] = _canonical(dict(command_manifest))
+    # The opt-in actuation delay (actuation_delay.py): its two keys are in the
+    # env section (seconds; the plant's physics_sha256 pins the timestep that
+    # makes them steps), and while it is on this section names what the delay
+    # means.  No species lists the keys but one that opts in, so every other
+    # task keeps its hash.
+    if payload["env"].get("actuation_delay_range_s") is not None:
+        payload["actuation_delay"] = {"implementation": ACTUATION_DELAY_IMPLEMENTATION}
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     ).hexdigest()
@@ -305,7 +313,17 @@ def attach_task_lineage(model: Any, lineage: Mapping[str, Any]) -> None:
 
 
 def _differing_sections(recorded: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
-    sections = ("species", "embodiment", "stage", "backend", "plant", "env", "perturbation", "command")
+    sections = (
+        "species",
+        "embodiment",
+        "stage",
+        "backend",
+        "plant",
+        "env",
+        "perturbation",
+        "command",
+        "actuation_delay",
+    )
     return [name for name in sections if _canonical(recorded.get(name)) != _canonical(current.get(name))]
 
 

@@ -490,7 +490,8 @@ def _reward_lines(capture: list[tuple[str, Any, list[Any]]], exact: bool) -> lis
 
 
 def _reward_envs(out: _Snapshot, behaviors: bool) -> Iterator[tuple[ModelId, str, Any]]:
-    """(model, stage id or recipe, env), each closed after use: the stages as train_base.make_env builds them."""
+    """(model, stage id or recipe, env), each closed after use: the stages as train_base.make_env builds evaluation
+    envs (``training=False``)."""
     from environments.shared.config import load_stage_config
     from environments.shared.species_registry import get_species_config
     from environments.shared.stage_manifest import load_stage_manifest

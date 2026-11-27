@@ -265,14 +265,26 @@ critical bridge between "cool demo" and "transferable research."
     without perturbations so the agent learns to stand first.
   - _Dependency: Phase 1 (need working trained policies to evaluate against)_
 
-- [ ] **Sensor noise & action delay**
+- [-] **Sensor noise & action delay** — the action delay is done, as an opt-in
+  shared feature (below); sensor noise is not started
   - **Observation noise** (`obs_noise_scale`): Additive Gaussian noise applied
     to the full observation vector each step (e.g. std dev 0.01). Simulates
     sensor imprecision and prevents reliance on unrealistically precise state.
     Implemented in `BaseDinoEnv.step()` after `_get_obs()`.
   - Add accelerometer bias drift model
   - Add touch sensor activation thresholds
-  - Simulate 1-3 step action delay to model communication latency
+  - [x] **Action delay** (2026-11, design record
+    [TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §5):
+    `actuation_delay_range_s` and `actuation_delay_eval_s` in `[env]`, in
+    seconds, each a whole number of physics steps
+    (`environments/shared/actuation_delay.py`). A FIFO in `BaseDinoEnv.step()`
+    hands every control target to the plant k physics steps late, the FIFO
+    primed with the reset ctrl. A trainer's rollout envs draw k per episode
+    from the range; every other env holds the fixed evaluation value (or
+    draws from the range when it is `None`). The delay
+    is counted in physics steps, not control steps, so it may be shorter than
+    one control step. Off for every model: a species opts in by listing the
+    keys in its constructor.
   - All noise parameters in TOML config `[env]` sections, disabled by default
   - _Dependency: Phase 0 config externalization_
 

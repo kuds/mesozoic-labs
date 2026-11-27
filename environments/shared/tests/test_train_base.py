@@ -3711,3 +3711,104 @@ class TestCommandColumnWarmStart:
         walker = never_live_walkers["ppo"]
         with pytest.raises(policy_loading.PolicyLoadError, match="^Command preparation changed parent actions"):
             self._warm_start(never_live_walkers, "ppo", walker["stem"], "live", "initialize_next_stage")
+
+
+class TestCreateVecEnvMarksTrainingRollouts:
+    """``create_vec_env(training=True)`` marks every env a trainer's rollout env, after the plant check and before
+    ``Monitor`` and the first reset (the opt-in per-episode features begin their episodes at reset); by default it
+    marks none (design record docs/TRICERATOPS_ROBOT_PORT_2026_11.md §4.3).  The stage body passes it on its
+    training env only (``test_episode_start.py`` pins the call sites)."""
+
+    def _recording_species(self, events):
+        import gymnasium as gym
+        import numpy as np
+
+        class Recorder(gym.Env):
+            observation_space = gym.spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
+            action_space = gym.spaces.Box(-1.0, 1.0, shape=(1,), dtype=np.float32)
+
+            def __init__(self, **kwargs):
+                self.training_rollouts = False
+
+            def set_training_rollouts(self, enabled):
+                events.append(("mark", enabled))
+                self.training_rollouts = enabled
+
+            def reset(self, *, seed=None, options=None):
+                super().reset(seed=seed)
+                events.append(("reset", self.training_rollouts))
+                return np.zeros(2, dtype=np.float32), {}
+
+            def step(self, action):
+                return np.zeros(2, dtype=np.float32), 0.0, False, False, {}
+
+        return SpeciesConfig(
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            env_class=Recorder,
+            stage_descriptions="1=stance",
+            height_label="Pelvis height",
+            behavior_section_label="Hunting",
+            success_keys=[],
+        )
+
+    @pytest.mark.parametrize("training", [True, False])
+    def test_each_env_is_marked_before_monitor_and_its_first_reset(self, monkeypatch, training):
+        pytest.importorskip("stable_baselines3")
+        from environments.shared import train_base
+
+        events = []
+        monkeypatch.setattr(
+            train_base, "validate_environment_plant", lambda env, identity, artifact: events.append(("validate",))
+        )
+        species = self._recording_species(events)
+        kwargs = {"training": training} if training else {}
+        vec = train_base.create_vec_env(
+            species, {1: {"env_kwargs": {}}}, 1, 2, seed=0, plant_identity=_plant_identity(), **kwargs
+        )
+        try:
+            marked = [("mark", True)] if training else []
+            assert events == [("validate",), *marked, ("reset", training)] * 2
+            assert [type(env).__name__ for env in vec.venv.envs] == ["Monitor", "Monitor"]
+            assert [env.unwrapped.training_rollouts for env in vec.venv.envs] == [training, training]
+        finally:
+            vec.close()
+
+    def test_marking_an_sb3_vector_env_is_refused(self):
+        """``mark_training_rollouts`` refuses a ``VecEnv`` or ``VecNormalize``, whose ``unwrapped`` has no
+        ``set_training_rollouts``, rather than leave every env in it an evaluation env without a word."""
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3.common.monitor import Monitor
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+        from environments.shared.episode_start import mark_training_rollouts
+        from environments.shared.species_registry import get_species_config
+
+        base = get_species_config(VELOCIRAPTOR_MONGOLIENSIS).env_class()
+        vec = VecNormalize(DummyVecEnv([lambda: Monitor(base)]))
+        try:
+            for env in (vec, vec.venv):
+                with pytest.raises(TypeError, match=r"not the vectorised \w*VecEnv|not the vectorised VecNormalize"):
+                    mark_training_rollouts(env, True)
+            assert base.training_rollouts is False
+            mark_training_rollouts(vec.venv.envs[0], True)
+            assert base.training_rollouts is True
+        finally:
+            vec.close()
+
+    def test_a_real_stage_env_is_marked_and_an_evaluation_env_is_not(self):
+        pytest.importorskip("stable_baselines3")
+        from environments.shared.base_env import BaseDinoEnv
+        from environments.shared.config import load_all_stages
+        from environments.shared.species_registry import get_species_config
+        from environments.shared.train_base import create_vec_env
+
+        species = get_species_config(VELOCIRAPTOR_MONGOLIENSIS)
+        stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
+        for training, n_envs in ((True, 2), (False, 1)):
+            vec = create_vec_env(species, stages, 1, n_envs, seed=0, training=training)
+            try:
+                bases = [env.unwrapped for env in vec.venv.envs]
+                assert all(isinstance(base, BaseDinoEnv) for base in bases)
+                assert [base.training_rollouts for base in bases] == [training] * n_envs
+            finally:
+                vec.close()

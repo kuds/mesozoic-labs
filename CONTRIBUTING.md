@@ -341,7 +341,16 @@ until one is adopted (the maintainer's decision of 2026-11-26):
 
 Code that robots share (servo and IMU models, system identification, and the
 ROS 2 bridge behind an optional extra) belongs in one shared package, never
-per species (decision D-D33). None of it exists yet.
+per species (decision D-D33). Its first member is the opt-in actuation delay,
+`environments/shared/actuation_delay.py`, with the episode-start hook, the
+per-feature streams and the trainer's role flag it uses
+(`environments/shared/episode_start.py`; design record
+`docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §4-§5). A model opts in by listing
+`actuation_delay_range_s` and `actuation_delay_eval_s` in its constructor,
+forwarding them to `BaseDinoEnv`, and declaring the carve-out
+`("actuation_delay_range_s", None, ACTUATION_DELAY_ENV_KEYS)` in its
+`OPT_IN_TASK_KWARGS`, so a stage that leaves the delay off keeps its task
+hash. Every other model is unchanged.
 
 ## Pull Request Process
 

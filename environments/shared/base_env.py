@@ -13,6 +13,7 @@ across all dinosaur species. Subclasses override species-specific methods:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections import deque
 from collections.abc import Callable, Collection
 from typing import Any
 
@@ -22,11 +23,17 @@ import numpy as np
 
 from .action_filter import apply_low_pass as _apply_low_pass
 from .action_filter import low_pass_alpha as _low_pass_alpha
+from .actuation_delay import ActuationDelay as _ActuationDelay
+from .actuation_delay import primed_fifo as _primed_fifo
+from .actuation_delay import validate_actuation_delay as _validate_actuation_delay
 from .command_frame import COMMAND_MODE_NONE
 from .command_frame import validate_command_mode as _validate_command_mode
 from .command_frame import zero_command as _zero_command
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
 from .direction_commands import DirectionCommandConfig, DirectionCommandController, DirectionCommandState
+from .episode_start import ACTUATION_DELAY_STREAM_KEY as _ACTUATION_DELAY_STREAM_KEY
+from .episode_start import EpisodeStartHook
+from .episode_start import feature_stream as _feature_stream
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
 from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
@@ -67,7 +74,7 @@ _RESET_GROUND_CLEARANCE = 0.0
 _GROUND_PROBE_DISTANCE = 10.0
 
 
-class BaseDinoEnv(gym.Env, ABC):
+class BaseDinoEnv(EpisodeStartHook, ABC):
     """Abstract base class for dinosaur locomotion environments.
 
     Species hook with a base implementation driven by ``_foot_sensor_groups``:
@@ -203,6 +210,27 @@ class BaseDinoEnv(gym.Env, ABC):
     # comparison per substep.
     _substep_probe_hook: "Callable[[], None] | None" = None
 
+    # The env's role (environments/shared/episode_start.py): False, an
+    # evaluation env, unless a trainer marks it through
+    # episode_start.mark_training_rollouts (train_base.make_env for
+    # create_vec_env(training=True), and train_behaviors.main).  Every opt-in
+    # per-episode feature reads it when its episode begins (_begin_episode), so
+    # a change takes effect at the next reset.  The role is not episode state:
+    # the symmetry module's state mirror never copies it.
+    training_rollouts: bool = False
+
+    # The opt-in actuation delay (environments/shared/actuation_delay.py),
+    # None (off) unless the species lists actuation_delay_range_s and a stage
+    # sets it.  The episode's delay in physics steps and the FIFO of nu-wide
+    # ctrl the step loop reads; the FIFO is primed at each episode's first
+    # step.  Off, step() pays two `is not None` checks per step (before the
+    # ctrl write and before the info keys) and one per substep, and copies
+    # nothing.
+    _actuation_delay: "_ActuationDelay | None" = None
+    _actuation_delay_rng: "np.random.Generator | None" = None
+    _actuation_delay_k: "int | None" = None
+    _actuation_delay_fifo: "deque[np.ndarray] | None" = None
+
     metadata = {
         "render_modes": ["human", "rgb_array"],
         "render_fps": 50,
@@ -235,6 +263,8 @@ class BaseDinoEnv(gym.Env, ABC):
         perturbation_direction: str = "uniform_horizontal",
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
+        actuation_delay_range_s: tuple[float, float] | None = None,
+        actuation_delay_eval_s: float | None = None,
     ):
         super().__init__()
 
@@ -256,6 +286,12 @@ class BaseDinoEnv(gym.Env, ABC):
             _low_pass_alpha(self.action_filter_cutoff_hz, self.dt) if self.action_filter_cutoff_hz > 0.0 else 0.0
         )
         self._action_filter_state: np.ndarray | None = None
+
+        # The env's role and the opt-in actuation delay (the class attributes
+        # above): an evaluation env, and the delay off unless a stage sets
+        # actuation_delay_range_s (seconds; validated against the timestep).
+        self.training_rollouts = False
+        self._configure_actuation_delay(actuation_delay_range_s, actuation_delay_eval_s)
 
         # Distance tracking (cumulative XY path length)
         self._prev_pos_2d: np.ndarray = np.zeros(2)
@@ -1230,6 +1266,88 @@ class BaseDinoEnv(gym.Env, ABC):
             return None
         return self.direction_controller.manifest()
 
+    def set_training_rollouts(self, enabled: bool) -> None:
+        """Set the env's role: a trainer's rollout env (*enabled*) or an evaluation env.
+
+        Called only through :func:`~environments.shared.episode_start.mark_training_rollouts`
+        (the two trainer call sites ``test_episode_start.py`` pins).  It takes
+        effect at the next reset, for every opt-in feature alike.
+        """
+        if not isinstance(enabled, (bool, np.bool_)):
+            raise TypeError(f"training_rollouts must be a bool, got {enabled!r}")
+        self.training_rollouts = bool(enabled)
+
+    def _configure_actuation_delay(self, range_s: Any, eval_s: Any) -> None:
+        """Validate and install the opt-in actuation delay against this model's timestep (None: off).
+
+        ``__init__`` calls it with its two delay kwargs; a test subclass of a
+        species that does not forward them may call it again after
+        ``super().__init__()``, before the first reset.  A delay of at least
+        the episode's physics steps (``max_episode_steps x frame_skip`` as
+        constructed) is refused: no target would reach the plant within an
+        episode, the mark of a value typed in milliseconds.
+        """
+        self._actuation_delay = _validate_actuation_delay(
+            range_s,
+            eval_s,
+            float(self.model.opt.timestep),
+            episode_steps=int(self.max_episode_steps) * int(self.frame_skip),
+        )
+        self._actuation_delay_rng = None
+        self._actuation_delay_k = None
+        self._actuation_delay_fifo = None
+
+    @property
+    def actuation_delay_steps(self) -> int | None:
+        """This episode's actuation delay in physics steps; ``None`` while the delay is off or before the first reset.
+
+        Chosen when the episode begins, so it is valid from the reset on.
+        """
+        return self._actuation_delay_k if self._actuation_delay is not None else None
+
+    def _begin_episode(self, seed: int | None) -> None:
+        """Where each opt-in feature begins its episode (``episode_start.EpisodeStartHook``).
+
+        Runs inside :meth:`reset`'s ``super().reset(seed=seed)``, after
+        gymnasium seeds ``np_random`` and before the keyframe is loaded.  Each
+        feature is behind one ``is not None`` check on a class attribute that
+        defaults to ``None``; with every feature off this calls nothing, reads
+        no generator and writes nothing.
+        """
+        if self._actuation_delay is not None:
+            self._begin_actuation_delay_episode(seed)
+
+    def _begin_actuation_delay_episode(self, seed: int | None) -> None:
+        """Choose this episode's delay k and clear the FIFO (primed again at the first step).
+
+        The stream (``episode_start.feature_stream``) is rebuilt on a seeded
+        reset and on the first, and continued across unseeded ones.  k is the
+        eval value in an evaluation env when it is not ``None``, ``lo`` when the
+        range is one value, and otherwise one uniform draw over the whole steps
+        in ``[lo, hi]``: a draw happens only where k comes from the range.
+        """
+        config = self._actuation_delay
+        assert config is not None
+        if seed is not None or self._actuation_delay_rng is None:
+            self._actuation_delay_rng = _feature_stream(self, seed, _ACTUATION_DELAY_STREAM_KEY)
+        lo, hi = config.range_steps
+        if not self.training_rollouts and config.eval_steps is not None:
+            k = config.eval_steps
+        elif lo == hi:
+            k = lo
+        else:
+            k = int(self._actuation_delay_rng.integers(lo, hi + 1))
+        self._actuation_delay_k = k
+        self._actuation_delay_fifo = None
+
+    def _actuation_delay_fifo_for_step(self) -> "deque[np.ndarray]":
+        """The FIFO this step appends to: primed from ``data.ctrl`` as reset left it at the episode's first step."""
+        if self._actuation_delay_k is None:
+            raise RuntimeError("an env with an actuation delay steps only after reset(), which chooses the delay")
+        if self._step_count == 0 or self._actuation_delay_fifo is None:
+            self._actuation_delay_fifo = _primed_fifo(self.data.ctrl, self._actuation_delay_k)
+        return self._actuation_delay_fifo
+
     def _filter_action(self, action: np.ndarray) -> np.ndarray:
         """Low-pass the commanded action (action_filter_cutoff_hz > 0 only).
 
@@ -1279,6 +1397,14 @@ class BaseDinoEnv(gym.Env, ABC):
             )
         # Scale action from [-1, 1] to actuator control ranges
         ctrl = self._scale_action(action)
+        # The opt-in actuation delay (actuation_delay.py): the FIFO is primed
+        # at the episode's first step from data.ctrl as reset left it, before
+        # the write below, and this step's target joins it as the float64
+        # copy that write stores.  Off, this check is all it costs here.
+        delay_fifo: "deque[np.ndarray] | None" = None
+        if self._actuation_delay is not None:
+            delay_fifo = self._actuation_delay_fifo_for_step()
+            delay_target = np.array(ctrl, dtype=np.float64)
         self.data.ctrl[:] = ctrl
 
         # Step physics, aggregating contact across the substeps: each mj_step
@@ -1307,6 +1433,12 @@ class BaseDinoEnv(gym.Env, ABC):
                 self._ground_geom_array = np.fromiter(sorted(track_strikes), dtype=np.int64)
             ground_geoms = self._ground_geom_array
         for substep in range(self.frame_skip):
+            if delay_fifo is not None:
+                # This physics step's target goes in; the one appended k
+                # physics steps ago (the reset ctrl for an episode's first k)
+                # reaches the plant.
+                delay_fifo.append(delay_target)
+                self.data.ctrl[:] = delay_fifo[0]
             mujoco.mj_step(self.model, self.data)
             if self._substep_probe_hook is not None:
                 self._substep_probe_hook()
@@ -1371,6 +1503,12 @@ class BaseDinoEnv(gym.Env, ABC):
         info = {**reward_info, **term_info}
         info["step"] = self._step_count
         info["distance_traveled"] = self._distance_traveled
+        if delay_fifo is not None:
+            # The steps are exact; the seconds are rounded, since 9 x 0.001 is
+            # 0.009000000000000001 in float64.
+            delay_steps = len(delay_fifo) - 1
+            info["actuation_delay_steps"] = delay_steps
+            info["actuation_delay_s"] = round(delay_steps * float(self.model.opt.timestep), 12)
 
         # SB3 convention: report episode success at episode end so
         # EvalCallback records per-episode success rates (evaluations.npz

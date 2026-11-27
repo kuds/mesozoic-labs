@@ -46,10 +46,15 @@ Protocol:
 * **Env.**  The env is built from the walk stage's committed ``[env]`` keys
   through ``config.build_env``, the construction path the other report
   tools share, and checked against the current plant as ``make_env`` checks
-  a training env (``validate_environment_plant``).  The forward-velocity
-  weight is set to the reward ramp's start value
-  (``train_base._stage_entry_shaping_callbacks``): that is the weight at
-  the warm start.  The reward weight changes the return only, never a
+  a training env (``validate_environment_plant``).  It is an evaluation
+  env, not a trainer's rollout env (``episode_start.mark_training_rollouts``
+  never marks it), so an opt-in per-episode feature holds its evaluation
+  value there: a walk stage that declares an actuation delay rolls at its
+  fixed ``actuation_delay_eval_s`` when it sets one, not the training draw
+  from ``actuation_delay_range_s``.  This is a deliberate evaluation-env
+  diagnostic.  The forward-velocity weight is set to the reward ramp's
+  start value (``train_base._stage_entry_shaping_callbacks``): that is the
+  weight at the warm start.  The reward weight changes the return only, never a
   termination, except the allosaurus's course completion, which needs a
   weight above 0, as it is all along the ramp.  The parent's VecNormalize
   statistics are frozen: observations are normalized as

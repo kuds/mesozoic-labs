@@ -259,6 +259,43 @@ how the frozen recovery gate (its nulls, brace and policy panel), the recovery c
 callers that certify compare it with the committed manifest in their own calls. A process that patches environment code
 and builds environments another way calls `clear_plant_identity_cache()`.
 
+## Opt-in per-episode features
+
+The shared env's opt-in per-episode features are task, not plant (design record
+[TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §4-§5). They live in `step()` and in an
+episode-start hook, outside every method the policy layer hashes, so no feature moves a plant digest, on or off. The
+first is the actuation delay; every model has it off.
+
+- **The hook.** `BaseDinoEnv` derives from `episode_start.EpisodeStartHook`, whose `reset` calls `_begin_episode(seed)`
+  right after gymnasium seeds `np_random` and before the keyframe is loaded. `BaseDinoEnv.reset`, hashed as
+  `home_reset`, keeps its source, and no digest hashes class bases. Each feature draws from its own PCG64 stream
+  (`episode_start.feature_stream`, a spawn key of the episode's seed), never from `np_random`, so the reset draws and
+  `environments/shared/tests/fixtures/phase_c_reset_golden.json` are the same with any feature on or off. With every
+  feature off the hook reads no generator and writes nothing.
+- **The role.** `training_rollouts` is `False` (an evaluation env) unless a trainer marks the env with
+  `episode_start.mark_training_rollouts`: `train_base.make_env` does for `create_vec_env(training=True)`, which only
+  the stage body's training env passes, and `train_behaviors.main` does for its env, unmarking it before it scores.
+  It refuses a vectorised env, whose `unwrapped` has no `set_training_rollouts`: each env is marked before it is
+  vectorised. Every other env (checkpoint selection and the curriculum gate, CLI evaluation, the stage reports,
+  `config.build_env` and the digest snapshot harness among them) is an evaluation env. The role is not part of the
+  plant, the task fingerprint or the mirrored episode state.
+- **The actuation delay.** `actuation_delay_range_s` (`None`, off, or `(lo, hi)` in seconds) and
+  `actuation_delay_eval_s` (`None` or seconds), in `environments/shared/actuation_delay.py`. Each is a whole number
+  of physics steps and shorter than an episode's `max_episode_steps x frame_skip` physics steps; a longer one is
+  refused, named in seconds and in steps. A FIFO of the nu-wide ctrl in `step()` hands each control target to
+  `data.ctrl` k physics steps late. The FIFO is primed at the first step with `data.ctrl` as reset left it, the reset
+  keyframe's `key_ctrl`, which is `_scale_action(0)` under the home-keyframe mappings, so zero action is
+  delay-invariant. A trainer's rollout envs draw k per episode, uniform over the whole steps of the range; every other
+  env holds the eval value (or draws when it is `None`). The FIFO never writes `env.model`, so
+  `validate_environment_plant` and `validate_compiled_plant` pass at any point of an episode. While the delay is on,
+  `info` carries `actuation_delay_steps` and `actuation_delay_s`; the reset info is unchanged. The symmetry module's
+  state mirror carries the in-flight targets and refuses two envs whose delay configurations differ. The task
+  fingerprint records the two keys in its `env` section and, while the delay is on, an `actuation_delay` section
+  naming `ACTUATION_DELAY_IMPLEMENTATION`; `resume_same_stage` and behavior transitions name that section when it
+  differs. A species that does not list the keys refuses them with `TypeError`; one that lists them declares the
+  opt-in carve-out at off value `None` (`OPT_IN_TASK_KWARGS`), so a stage that leaves the delay off keeps its task
+  hash.
+
 ## Checkpoints and legacy artifacts
 
 Current plant identity compares policy and physics revisions, hashes, and interface dimensions. Source-closure and

@@ -580,6 +580,124 @@ def test_the_state_mirror_is_an_involution(stance_kwargs):
         env.close()
 
 
+#: A test-only Velociraptor that opts into the actuation delay (2 ms physics, frame_skip 5): 6-12 physics steps in a
+#: trainer's rollout env, 8 in an evaluation env, so the FIFO always holds targets of more than one control step.
+_DELAYED_VELOCIRAPTOR_MONGOLIENSIS = {"actuation_delay_range_s": (0.012, 0.024), "actuation_delay_eval_s": 0.016}
+
+
+def _velociraptor_mongoliensis_actions(n: int, seed: int, amplitude: float) -> list[np.ndarray]:
+    """:func:`_smooth_actions` for the Velociraptor's 17 actuators."""
+    rng = np.random.default_rng(seed)
+    x = np.zeros(17)
+    out = []
+    for _ in range(n):
+        x += -0.1 * x + 0.12 * rng.normal(size=17)
+        out.append(np.clip(amplitude * x / 0.27, -1.0, 1.0))
+    return out
+
+
+@pytest.mark.parametrize("seed", [3047, 3059])
+def test_a_delayed_env_mirrored_mid_episode_stays_the_mirror_image(seed):
+    """The state mirror carries the delay's in-flight targets (through the ctrl map) and the episode's delay, not
+    the env's role: a delayed Velociraptor mirrored mid-episode into an evaluation env of the same delay
+    configuration, which holds another k, steps as the mirror image of its source to the last bit, and keeps its
+    role.  Dropping the in-flight targets diverges."""
+    from environments.shared.episode_start import mark_training_rollouts
+
+    from .actuation_delay_helpers import DelayedVelociraptorMongoliensisAnatomicalEnv
+
+    kwargs = {**load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")["env_kwargs"]}
+    errors = {}
+    for drop in (False, True):
+        source, mirror = (
+            DelayedVelociraptorMongoliensisAnatomicalEnv(**kwargs, **_DELAYED_VELOCIRAPTOR_MONGOLIENSIS),
+            DelayedVelociraptorMongoliensisAnatomicalEnv(**kwargs, **_DELAYED_VELOCIRAPTOR_MONGOLIENSIS),
+        )
+        try:
+            em = _env_mirror(source)
+            mark_training_rollouts(source, True)
+            source.reset(seed=seed)
+            mirror.reset(seed=seed + 1)
+            assert mirror.actuation_delay_steps == 8 and source.actuation_delay_steps != 8
+            actions = _velociraptor_mongoliensis_actions(100, 1, 0.3)
+            for action in actions[:20]:
+                source.step(action)
+            mujoco.mj_forward(source.model, source.data)
+            SY.mirror_env_state(source, mirror, em)
+            assert (source.training_rollouts, mirror.training_rollouts) == (True, False)
+            assert mirror.actuation_delay_steps == source.actuation_delay_steps
+            if drop:
+                mirror._actuation_delay_fifo = None
+            worst = float(np.max(np.abs(mirror._get_obs() - em.obs.apply(source._get_obs()))))
+            for action in actions[20:]:
+                obs_source, _, terminated_source, truncated_source, _ = source.step(action)
+                obs_mirror, _, terminated_mirror, truncated_mirror, _ = mirror.step(em.action.apply(action))
+                worst = max(worst, float(np.max(np.abs(obs_mirror.astype(np.float64) - em.obs.apply(obs_source)))))
+                if terminated_source or truncated_source or terminated_mirror or truncated_mirror:
+                    break
+            errors[drop] = worst
+        finally:
+            source.close()
+            mirror.close()
+    assert errors[False] == 0.0
+    assert errors[True] > 1.0
+
+
+def test_the_state_mirror_of_the_delay_fifo_is_an_involution():
+    from .actuation_delay_helpers import DelayedVelociraptorMongoliensisAnatomicalEnv
+
+    env = DelayedVelociraptorMongoliensisAnatomicalEnv(**_DELAYED_VELOCIRAPTOR_MONGOLIENSIS)
+    try:
+        em = _env_mirror(env)
+        env.reset(seed=3050)
+        for action in _velociraptor_mongoliensis_actions(4, 2, 0.2):
+            env.step(action)
+        fifo = [entry.copy() for entry in env._actuation_delay_fifo]
+        SY.mirror_env_state(env, env, em)
+        assert env._actuation_delay_fifo.maxlen == len(fifo) and not np.array_equal(
+            env._actuation_delay_fifo[-1], fifo[-1]
+        )
+        SY.mirror_env_state(env, env, em)
+        assert len(env._actuation_delay_fifo) == len(fifo)
+        assert all(np.array_equal(a, b) for a, b in zip(env._actuation_delay_fifo, fifo))
+    finally:
+        env.close()
+
+
+def test_the_state_mirror_refuses_envs_whose_delays_differ():
+    """A delay-off source would leave a delay-on destination with no delay chosen, a delay-off destination would drop
+    the source's in-flight targets, and a destination of another delay configuration would step with a k its own
+    configuration does not give: each is refused before anything is written.  Two delay-off envs mirror as before."""
+    from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
+
+    from .actuation_delay_helpers import DelayedVelociraptorMongoliensisAnatomicalEnv
+
+    envs = {
+        "off": VelociraptorMongoliensisAnatomicalEnv(),
+        "also off": VelociraptorMongoliensisAnatomicalEnv(),
+        "on": DelayedVelociraptorMongoliensisAnatomicalEnv(**_DELAYED_VELOCIRAPTOR_MONGOLIENSIS),
+        "other": DelayedVelociraptorMongoliensisAnatomicalEnv(actuation_delay_range_s=(0.0, 0.010)),
+    }
+    try:
+        em = _env_mirror(envs["off"])
+        for index, env in enumerate(envs.values()):
+            env.reset(seed=3061 + index)
+            for action in _velociraptor_mongoliensis_actions(5, index, 0.2):
+                env.step(action)
+        for source, destination in (("off", "on"), ("on", "off"), ("on", "other"), ("other", "on")):
+            dst = envs[destination]
+            before = (dst.data.qpos.copy(), dst._step_count, dst._actuation_delay_k, dst._actuation_delay_fifo)
+            with pytest.raises(SY.SymmetryError, match="must share the actuation delay configuration"):
+                SY.mirror_env_state(envs[source], dst, em)
+            assert np.array_equal(dst.data.qpos, before[0])
+            assert (dst._step_count, dst._actuation_delay_k) == before[1:3] and dst._actuation_delay_fifo is before[3]
+        SY.mirror_env_state(envs["off"], envs["also off"], em)
+        assert envs["also off"]._actuation_delay_k is None and envs["also off"]._actuation_delay_fifo is None
+    finally:
+        for env in envs.values():
+            env.close()
+
+
 # ---------------------------------------------------------------------------------------------------- [ppo] keys
 def test_absent_or_none_symmetry_keys_are_stock_ppo():
     kwargs = {"n_steps": 2048}

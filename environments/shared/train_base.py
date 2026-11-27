@@ -60,6 +60,7 @@ from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from .episode_start import mark_training_rollouts
 from .model_id import ModelId
 from .paths import REPOSITORY_ROOT
 from .plant_contract import (
@@ -370,8 +371,16 @@ def make_env(
     rank: int,
     seed: int = 0,
     plant_identity: PlantIdentity | None = None,
+    *,
+    training: bool = False,
 ):
-    """Create a single environment instance."""
+    """Create a single environment instance.
+
+    *training* marks the env as a trainer's rollout env
+    (:func:`~environments.shared.episode_start.mark_training_rollouts`) before
+    its first reset, since the opt-in per-episode features begin their
+    episodes at reset; every other env is an evaluation env.
+    """
     from .policy_loading import _ensure_sb3
 
     sb3 = _ensure_sb3()
@@ -386,6 +395,8 @@ def make_env(
                 plant_identity,
                 artifact=f"{species_cfg.model_id} stage {stage} environment",
             )
+        if training:
+            mark_training_rollouts(env, True)
         env = sb3["Monitor"](env)
         env.reset(seed=seed + rank)
         return env
@@ -405,6 +416,7 @@ def create_vec_env(
     gamma: float | None = None,
     plant_identity: PlantIdentity | None = None,
     critic_phase_gamma: float | None = None,
+    training: bool = False,
 ):
     """Create vectorized environment with observation/reward normalization.
 
@@ -424,12 +436,19 @@ def create_vec_env(
     which appends the critic's episode phase (``[ppo] critic_phase``, that
     discount) to the observations it returns: the TRAINING env of such a
     stage only, never an evaluation env.
+
+    ``training`` (``False``: evaluation envs) marks every env a trainer's
+    rollout env (:func:`make_env`): only the stage body's training env passes
+    it, so an opt-in per-episode feature draws its training distribution there
+    and holds its evaluation value everywhere else.
     """
     from .policy_loading import _ensure_sb3
 
     sb3 = _ensure_sb3()
 
-    env_fns = [make_env(species_cfg, stage_configs, stage, i, seed, plant_identity) for i in range(n_envs)]
+    env_fns = [
+        make_env(species_cfg, stage_configs, stage, i, seed, plant_identity, training=training) for i in range(n_envs)
+    ]
 
     if use_subproc and n_envs > 1:
         env = sb3["SubprocVecEnv"](env_fns)
@@ -1617,6 +1636,7 @@ def _train_stage_body(
         gamma=alg_gamma,
         plant_identity=plant_identity,
         critic_phase_gamma=(0.99 if alg_gamma is None else alg_gamma) if critic_phase_on else None,
+        training=True,
     )
 
     if announce:

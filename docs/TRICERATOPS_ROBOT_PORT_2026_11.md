@@ -124,8 +124,9 @@ continued across unseeded resets (SB3's auto-reset), as `np_random` is. A spawn 
 `set_training_rollouts(enabled)` sets it; every feature reads it in `_begin_episode`, so a change takes effect at the
 next reset, for all three alike. It is set only through `mark_training_rollouts(env, enabled)` in `episode_start.py`,
 which looks up `set_training_rollouts` on `env.unwrapped` and does nothing for an env without it, such as the plain
-`gym.Env` double of `test_behavior_checkpoint.py:71-93, 1243-1248` (delay P1). The only call sites (an AST test pins
-them):
+`gym.Env` double of `test_behavior_checkpoint.py:71-93, 1243-1248` (delay P1); a vectorised env (`num_envs` or
+`env_method`), whose `unwrapped` lacks the method, raises `TypeError` instead of passing silently. The only call sites
+(an AST test pins them):
 
 - `train_base.make_env(..., plant_identity=None, *, training: bool = False)` (`train_base.py:366-393`): in `_init`,
   after `validate_environment_plant`, before `Monitor` and the first `reset` (`:383-390`), since the features draw at
@@ -176,16 +177,18 @@ of 0-20 whole 1 ms steps; `0.010` s, 10 steps. The source is D33; the build's st
 bumped on any change of meaning like `SCHEDULE_IMPLEMENTATION` (`task_fingerprint.py:77`);
 `delay_steps(seconds, timestep, *, name)`, which refuses a bool, a non-number, a non-finite or negative value, and any
 `|round(s / dt) x dt - s| > 1e-9` s, naming the timestep and the nearest whole value (0.010 s is 10 steps at 1 ms and
-5 at 2 ms; 0.003 s at 2 ms is refused); `validate_actuation_delay(range_s, eval_s, timestep)`, which refuses an eval
-value without a range, a string or non-pair range and `lo > hi`; `primed_fifo(hold, steps)`, `steps` float64 copies
-with `maxlen = steps + 1`.
+5 at 2 ms; 0.003 s at 2 ms is refused); `validate_actuation_delay(range_s, eval_s, timestep, *, episode_steps=None)`,
+which refuses an eval value without a range, a string or non-pair range, `lo > hi` and, given the episode's
+`max_episode_steps x frame_skip` physics steps (the env passes them), a range end or eval value of at least that many
+steps, named in seconds and steps, since no target would reach the plant (milliseconds typed into a seconds key);
+`primed_fifo(hold, steps)`, `steps` float64 copies with `maxlen = steps + 1`.
 
 **State** (after the filter state, `base_env.py:258`): `_actuation_delay` (validated config or `None`),
-`_actuation_delay_rng`, `_actuation_delay_k`, `_actuation_delay_fifo`; read-only property `actuation_delay_steps`,
-valid from reset on (P3). Off path: one `is not None` check per step and per substep, nothing else. **Episode
-start:** rebuild the stream (§4.2) when seeded or unset; k is the eval value in an evaluation env when it is not
-`None`, `lo` when `lo == hi`, else `int(rng.integers(lo, hi + 1))`, so a draw happens only where k comes from the
-range; the FIFO is cleared.
+`_actuation_delay_rng`, `_actuation_delay_k`, `_actuation_delay_fifo`; read-only property `actuation_delay_steps`, valid
+from reset on (P3). Off path: two `is not None` checks per step (before the ctrl write and before the info keys) and one
+per substep; nothing is copied. **Episode start:** rebuild the stream (§4.2) when seeded or unset; k is the eval value
+in an evaluation env when it is not `None`, `lo` when `lo == hi`, else `int(rng.integers(lo, hi + 1))`, so a draw
+happens only where k comes from the range; the FIFO is cleared.
 
 **The FIFO.** `step()` keeps filter, scale, write (`base_env.py:1281-1282` stay). At the episode's first step
 (`_step_count == 0`) the FIFO is primed from `data.ctrl` as reset left it, before that write. In the substep loop,
@@ -214,7 +217,8 @@ Existing species do not list the keys, and the fingerprint reads the species sig
 
 **Mirroring.** `symmetry._mirror_env_attributes` (`symmetry.py:1178-1235`) copies `_actuation_delay_fifo` through the
 ctrl map (`em.model.ctrl.apply`, as at `:1160`) and `_actuation_delay_k`, not `training_rollouts`, which is the env's
-role, not episode state (P5).
+role, not episode state (P5). `mirror_env_state` refuses two envs whose delay configurations differ: a delay-off source
+would leave a delayed destination with no k, and a delay-off destination would drop the in-flight targets.
 
 **Interactions.** Rewards are still priced on the filtered command (`base_env.py:1359`); torque terms see the delayed
 plant. T. rex's `_filter_action` override is unaffected. Pushes write only `xfrc_applied` (`:1264-1279`). Readers of
@@ -241,15 +245,19 @@ mutates `actuator_delay`, a physics-digest field (`physics_layer.py:175`); an ov
   `test_behavior_checkpoint.py` (module-level `importorskip`), on a `PilotEnv` with a recording
   `set_training_rollouts`.
 - Off by default: `_actuation_delay is None` exactly when the stage omits the keys (so commit 5 needs no edit); then no
-  delay info key, and marking the env leaves a seeded zero-action plus random-action rollout byte-identical. Every
-  model but the robot lists neither key; a TOML setting one raises `TypeError`.
+  delay info key, and marking the env leaves a seeded zero-action plus random-action rollout byte-identical. The
+  models listing a key are exactly an opted-in test table (empty now, the robot in commit 5), each with both keys at
+  `None` and the carve-out; on every other model a TOML setting one raises `TypeError`.
 - Exact delay for k = 0, 1, 3, 10, 25 on a test-only Compsognathus-robot subclass (2 ms, `frame_skip` 10; commit 5
   adds the robot): per-substep ctrl is the prime for s < k, then `targets[(s - k) // frame_skip]`; bit-equal to an
   independent deque FIFO on a copied `MjData` over 40 steps; k = 0 bit-identical to off.
 - Evaluation envs hold the eval value (20 seeds); training envs draw k in [lo, hi], at least 15 distinct values over 60
-  seeds, readable right after reset, independent of the actions; `None` eval draws; a degenerate range never draws.
-  The FIFO holds the filtered, scaled target. A pushed 250-step zero-action rollout is bit-identical with the delay.
-- No plant digest moves; `validate_environment_plant` passes mid-episode. Seven invalid configs refused.
+  seeds, readable right after reset, independent of the actions; `None` eval draws; a degenerate range never draws,
+  and an evaluation env with an eval value (5 steps, or 0) holds it over the range's one value (3) while a training
+  env holds 3, which pins the order of the episode-start rule. The FIFO holds the filtered, scaled target. A pushed
+  250-step zero-action rollout is bit-identical with the delay.
+- No plant digest moves; `validate_environment_plant` passes mid-episode. Nine invalid configs refused at
+  construction, two of them as long as an episode.
 - Fingerprint: no section on any existing stage; a changed eval value names `env`; switching off names `env` and
   `actuation_delay`; an existing species opting in with the `None` carve-out (monkeypatched registry) keeps every
   committed Compsognathus-robot digest. `test_symmetry.py`: a delayed Velociraptor subclass mirrored mid-episode gives
@@ -259,8 +267,23 @@ mutates `actuator_delay`, a physics-digest field (`physics_layer.py:175`); an ov
 qvel, ctrl, generator state); exact k-step delay at 1 ms / 20 and 2 ms / 10; `--exact` 40,568 lines, empty diff;
 `digest_snapshot --check` current (725 lines); `plant_contract --check` and `symmetry --check` current. Dropping
 in-flight targets in a mirror diverges (max obs error 366 on a T. rex test subclass, 128 on a Velociraptor one).
-Overhead within run-to-run noise. The prototype drew k from `np_random` at the first step; the reset draw from its own
-stream (§4.2) is design, not yet exercised.
+Overhead within run-to-run noise. The prototype drew k from `np_random` at the first step; commit 2 draws it at reset
+from its own stream (§4.2), as designed.
+
+**Built in commit 2, where it differs from the text above** (changed after the build and its review, not after any
+training result):
+
+- `BaseDinoEnv._configure_actuation_delay(range_s, eval_s)` validates and installs the delay; `__init__` calls it, and a
+  test subclass of a species that does not forward the keys calls it again after `super().__init__()`.
+- `set_training_rollouts` refuses a non-bool (`TypeError`); stepping a delayed env before its first reset raises
+  `RuntimeError`, since k is chosen at reset; the FIFO is primed again if it is missing mid-episode.
+- All three stream keys of §4.2 are defined now, with a `FEATURE_STREAM_KEYS` tuple; only the delay's is used.
+- The training-draw test uses the range 0-40 ms on the 2 ms Compsognathus-robot subclass (21 values), since 0-20 ms is
+  only 11 values at 2 ms.
+- The Velociraptor mirror test uses a delay of 6-12 physics steps (`frame_skip` 5): with k below `frame_skip` the FIFO
+  holds only the last target, so dropping it would not show. Dropping the FIFO there gives max obs errors of 35.9 and
+  73.8 (seeds 3047 and 3059), not the prototype's 128, which came from another configuration.
+- Test names avoid the retired species identifiers (`test_retired_species_identifiers.py`).
 
 ## 6. Domain randomisation (commit 3)
 
