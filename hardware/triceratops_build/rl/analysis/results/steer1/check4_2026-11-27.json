@@ -1,0 +1,285 @@
+{
+ "what": "Independent fourth check of the steering additions at 94d946d9 (D22 noise, dev weights 1 and 2, script options, extended comparison, weight rule, docs): two reviewers, each followed by a skeptic.",
+ "date": "2026-11-27",
+ "commit_reviewed": "94d946d9",
+ "results_in_order": [
+  "review: code (F1-F4)",
+  "verify: code (F1-F4)",
+  "review: analysis and documents (N1-N6)",
+  "verify: analysis and documents (N1-N6)"
+ ],
+ "results": [
+  {
+   "findings": [
+    {
+     "id": "F1",
+     "severity": "medium",
+     "title": "The judged-weight rule fixed before the runs does not say which margin it checks. Read literally, it already rules weight 2 out at the D22 noise, although the docs say weight 2 'sits at the rule'.",
+     "location": "hardware/triceratops_build/rl/runs/trike60-steer1-dev_STEPS.md section 5 (the noise-check bullet and the 'judged weight, by this rule' bullet); README 'The weight' bullets, DECISION_LOG D29 and PLAN_STEERING_RUN.md status ('weight 2 sits at the rule (+0.27-0.31)')",
+     "evidence": "Source: heat_weight_margins_d22noise_3M_5M.md, which I regenerated exactly from the committed episodes. At policy+0.125, weight 2:\n- nominal 0.25 m/s: +0.29 +-0.07\n- nominal 0.15 m/s: +0.31 +-0.04\n- x1.1 0.25 m/s: +0.27 +-0.07\n- x1.1 0.15 m/s: +0.31 +-0.06\n\nSo 2 of the 4 cells are under the rule's 0.3, and 'under 0.3 -> out'. Interpolating the worst cells between std 0.11 and 0.125 (0.44 -> 0.29 nominal, 0.38 -> 0.27 x1.1), weight 2 crosses 0.3 at noise 0.124 (nominal) and 0.121 (x1.1). That is at or below the bottom of D22's 0.123-0.128 at 3 M (d22_action_std.json, which I reproduced byte for byte).\n\nThe rule leaves open:\n- which cells count (nominal or x1.1, which speed, worst of four policies or not);\n- what tolerance applies (SE up to 0.07-0.09; the README says figures within about 0.1 are not told apart);\n- which noise point (it reads 1, 2 and 3 M).\n\nThe sheet says only '--stds <that noise>'. A 2 M check also needs --late 0.5. Without it, the full-scale margin at the 2 M noise 0.147 is about +0.11-0.15 at weight 2, so weight 2 would be wrongly out.\n\nThe STEPS figure '+0.11 at 0.15' is nominal only. x1.1 gives +0.04 and +0.05 in heat_weight_margins.md, while D29's +0.27-0.31 range includes x1.1.\n\n'More falls than the other run' with one seed each lets a one-fall difference decide.\n\nResult: whether weight 2 survives turns on unstated details and on noise differences of about 0.003, which biases the choice towards weight 1 or invites reading the rule after the fact.",
+     "suggested_fix": "Before the runs, write the exact check:\n- the 3 M noise, late 1;\n- the named cells (for example nominal at both speeds, worst of four);\n- 'out' only if a cell is below 0.3 by more than its SE, or a stated lower bar;\n- '--late 0.5' for any 2 M check;\n- the evaluation and minimum difference that define 'more falls'.\n\nCorrect 'sits at the rule' to say that at the D22 noise weight 2 is just under 0.3 in 2 of 4 cells."
+    },
+    {
+     "id": "F2",
+     "severity": "medium",
+     "title": "The every-drive reference cost (cost_sum_w1) ignores --late, so the committed heat_weight_margins_every_drive_d22noise_2M.md prices every drive at twice the late-0.5 scale",
+     "location": "hardware/triceratops_build/rl/analysis/steer_heat_weight.py lines 78-79 (cost_sum from env._heat_ema with no late_scale); analysis/results/steer1/heat_weight/heat_weight_margins_every_drive_d22noise_2M.md; README 'Pricing every drive ... 2.4-4.1 times as much (heat_weight_margins_every_drive*)'",
+     "evidence": "Same 'noise' episodes, late 1 file against the late 0.5 file:\n- cost_w1: 0.2102 -> 0.1051.\n- r_heat and r_saturation: exactly 0.5x. r_track, r_slip and r_energy: 1.0x, so the trajectories are identical.\n- cost_sum_w1: 0.9291 in both.\n\nThe cost_sum/cost_w1 ratio therefore doubles: 4.42 -> 8.84 for 'noise', and 5.4-7.5 at policy+0.147 against 2.1-3.5 at 0.11-0.125 under late 1.\n\nI recomputed the 2 M every-drive table with cost_sum x late_scale (scripts/every05.py). Nominal, 0.25 m/s, policy+0.147:\n- w 1: +0.41 +-0.04, where the committed file has -0.02 +-0.05;\n- w 0.5: +0.61, where it has +0.41.\n\nThe hottest-drive margins are correct: info['r_heat_peak'] includes the late scale. No decision uses this table, but the README's file pointer covers it.",
+     "suggested_fix": "Multiply cost_sum by env.late_scale (and by HEAT['w_heat_peak'] if that ever changes) and regenerate the _d22noise_2M every-drive table. Add a small test that cost_sum_w1/cost_w1 does not depend on --late."
+    },
+    {
+     "id": "F3",
+     "severity": "low",
+     "title": "d22_action_std.py's nearest-row pick ignores resumed sessions and torn lines; it would read a discarded branch on a resumed run's log",
+     "location": "hardware/triceratops_build/rl/analysis/d22_action_std.py trajectory() (json.loads on every line, then min over all rows)",
+     "evidence": "Synthetic log (check4_steer/synth_health): session A runs to 3.27 M and is killed; session B resumes from 2,752,512 with action_std 0.5. The script returns A's discarded row at 2,998,272 (0.1634) for 3 M; exact ties go to the first row in the file. A torn last line (a run killed mid-write) would make json.loads raise. telemetry/health.py already has read_health and latest_branch for both cases.\n\nThe four D22 logs are each a single session with 1221 rows, strictly increasing timesteps and no duplicates. So the committed output is right: I reproduced it byte for byte, and it agrees with linear interpolation to 0.0001. The risk is reusing the script on the dev runs, which are 4.5-5 h on Colab and often resumed.",
+     "suggested_fix": "Load rows with telemetry.health.read_health followed by latest_branch(rows, 'timesteps'), and refuse when the nearest row is more than one rollout (8192 steps) from the point."
+    },
+    {
+     "id": "F4",
+     "severity": "low",
+     "title": "steer_heat_weight.py's new options: duplicate or colliding --stds mis-pair the seeds, 'nan' passes the check, --late under 0.5 does not match train.py's stage, and some text is stale",
+     "location": "hardware/triceratops_build/rl/analysis/steer_heat_weight.py main() validation (lines 166-169), job() lines 103-109, margins_md text, line 77 comment, docstring lines 5-7",
+     "evidence": "- Duplicate or colliding --stds: '--stds 0.15,0.15', or values equal after :g formatting (f'{0.1250001:g}' == '0.125'), record the case twice under one label. margins_md then pairs 6 case rows with 3 standing rows. Simulated on the committed rows: the 0.25 m/s policy+0.15 cell becomes '+0.66 +-0.00 (+0.75 +0.72 +0.66 +0.72)' instead of '+0.66 +-0.03 (+0.74 +0.72 +0.66 +0.69)', and 8 duplicate table rows appear.\n- 'nan' in --stds passes the >= 0 check.\n- --late under 0.5: penalty_scale stays 1.0, but train.py's penalty_scale_at(1.5 M) is 0.775. So --late 0.25 matches no training stage, although the help ties --late to train.py's schedule.\n- The md text always says 'the four policies', even with --runs fore128-s0 alone.\n- An empty --tag with --out pointing at the results folder silently overwrites the default tables.\n- Line 77's comment '# weight 1, late scale 1' and the docstring's 'penalty and late scale 1' are stale.",
+     "suggested_fix": "- Refuse duplicate labels after :g formatting and any non-finite std.\n- Set penalty_scale with train.penalty_scale_at for the step that --late implies, or refuse --late under 0.5.\n- Write 'the N policies'.\n- Update the comment and the docstring."
+    }
+   ],
+   "earlier_findings": [
+    {
+     "id": "C1",
+     "status": "partly fixed",
+     "evidence": "Fixed in three places:\n- README lines 357-366, now qualified: 0.80-0.82 'on gaits well over the margin'; near or under it, 1.26 and 0.005 per step (up to 0.016).\n- The trike_env.py w_heat_peak comment ('a cool one tends below it', 'near or under the margin ... charge a little more'). The change is comment-only: the AST is identical to 8f054953.\n- D29 ('on gaits well over the margin').\n\nAll the new figures match heat_average_comparison.md. My rerun of steer_heat_average.py is byte-identical to it: 72 episodes; 1.26 on 0.15 m/s deterministic; 0.0049 per step; 48 % in 2-4 s.\n\nNot fixed: PLAN_STEERING_RUN.md line 54, which C1 named, still says the average 'weights every step alike and prices 0.80-0.82 of F2's own price' without the qualification."
+    },
+    {
+     "id": "C2",
+     "status": "fixed",
+     "evidence": "The test now:\n- uses a cool bound of 0.06;\n- is parametrised over periods 50, 60, 74 and 90 with both phases;\n- requires cool[400:] < 0.005 and mean < 0.005;\n- adds hot[:100] < 8 % of the hot cost.\n\nRecomputed with the repo's heat_peak_update logic (scripts/c2.py):\n- 'warm' passes all 8 cases. With stance first, cool.max is 0.0349, 0.0412, 0.0497 and 0.0589; the early share is 0.053-0.065.\n- Bias-corrected fails at every period through stance first: cool.max 0.2607, early share 0.20-0.23, price ratio 1.16-1.25.\n- Floor-100 fails on the price ratio. Floor-200 still passes; check3 found that tests 1 and 3 catch it.\n- test_steer_heat.py: 23 passed.\n\nResidual (deterministic, so not flaky): at period 90 with stance first, cool.max 0.0589 sits 0.0011 under the 0.06 bound. Period 100 would fail (0.0645, and cool[400:] = 0.0050)."
+    },
+    {
+     "id": "C3",
+     "status": "fixed",
+     "evidence": "D29 is rewritten for the new weights 1 and 2. Its figures match heat_weight_margins_d22noise_3M_5M.md, which I regenerated exactly from the committed episodes, at policy+0.125:\n- w1: +0.52, +0.54, +0.54, +0.57;\n- w2: +0.29, +0.31, +0.27, +0.31;\n- w3: +0.06, +0.09, +0.01, +0.05.\n\nThe old 'keep the 0.3 margin' wording is gone. Its replacement, 'sits at the rule', clashes with the rule as written: see F1."
+    },
+    {
+     "id": "C4",
+     "status": "fixed",
+     "evidence": "steer_heat_weight.py gained --stds, --late, --runs and --tag, and the x1.1 cases now use the same stds. The default run gives 15 cases and 360 episodes; all 264 rows it shares with 8f054953's JSON are identical. The README now gives the x1.1 margins at noise 0.125 (+0.54/+0.27 at 0.25 m/s, +0.57/+0.31 at 0.15 m/s; they match the tables).\n\nRe-runs:\n- fore128-s0 at the defaults: 90 of 90 episodes bit-identical to the committed rows.\n- fore128-s2 with --stds 0.147 --late 0.5 --tag _d22noise_2M: 30 of 30 identical.\n\nResiduals in the new options: F2 and F4."
+    }
+   ],
+   "checked_ok": [
+    "The repository is untouched: git status --short is empty before and after, and HEAD is 94d946d9. Scratch: my test temp folder (pt_env, 1.2 GB) and the other pytest folders are deleted. The folders hw/ and hw2/ in check4_steer are another process's and I did not touch them.",
+    "Nothing that the earlier runs or the presets depend on changed. trike_env.py's diff is comments only (its AST is identical to 8f054953). train.py, evaluate.py, telemetry/, gait_pipe1.py, run3_terrain.json and steer1_dev_heat1.json are unchanged. steer1_dev_heat2.json differs from heat1 only in w_heat_peak 2.0.",
+    "Tests:\n- test_steer_heat.py: 23 passed.\n- test_trike_env.py: 94 passed, exit 0, including test_default_env_regression_digest, test_run3_env_regression_digest, test_notebook_cells_run_locally and the notebook-menu test.\n- robustness/tests/test_robustness.py together with test_telemetry.py: 40 passed.",
+    "--late is applied as train.py applies it, and r_heat_peak in info includes the late scale. Same 'noise' episodes at late 0.5 against late 1:\n- cost_w1: exactly 0.5x;\n- r_heat and r_saturation: 0.5x;\n- negative r_air_time: about 0.5x (its positive gain is not scaled, as in reward_terms);\n- r_track, r_slip and r_energy: 1.0x.\n\nSo cost_w1 and the hottest-drive margins at late 0.5 are right. penalty_scale_at(2 M) = 1.0, so penalty scale 1 is right for late >= 0.5. --late outside [0, 1], and --late nan, are refused.",
+    "All six committed margins tables (default, _d22noise_2M, _d22noise_3M_5M, hottest and every drive) regenerate exactly from the committed episodes through margins_md. The 72 standing and noise rows of the 3M_5M file are identical to the default file's. No falls in 648 episodes.",
+    "d22_action_std.py reproduces the committed d22_action_std.json byte for byte. The README, D29 and PLAN noise ranges match: 0.178-0.181 at 1 M, 0.145-0.148 at 2 M, 0.123-0.128 at 3 M, 0.104-0.111 at 5 M and 0.083-0.091 at 10 M. The D22 run records use the presets' schedules: lr 3e-4 to 3e-5, late ramp 1-3 M, terrain ramp 1-4 M, penalty ramp 2 M, log_std_init -1.6, n_steps 1024, batch 2048, 5 epochs, ent_coef 0. Their speeds of 542-617 steps/s (4.50-5.13 h in all, 2.24-2.56 h to 5 M) match the sheet and the PLAN. The script reads the logs with json.loads only.",
+    "Per-joint noise in the D22 final policies, read with torch weights_only from policy.pth: 0.044-0.137 against a mean of 0.083-0.091. By joint: roll 0.116-0.137, pitch 0.044-0.079, flexion 0.070-0.109. So the script's isotropic noise does not obviously under-noise the flexion drives (checked at 10 M only).",
+    "steer_heat_average.py, re-run: byte-identical to the committed heat_average_comparison.md. The burst rows insert at steps 150 and 500, and the drive rank comes from the 2-20 s means. The README's figures match it: warm 1.13-1.24 and 1.10-1.48; bias-corrected 1.80-1.87 and 1.83-2.37; floor-200 1.27-1.99; 0.018 per step with 79 % early; 0.005 per step with 48 % early.",
+    "Notebook:\n- The guard refuses steer1_dev_heat2 with MODEL trike60_C_closed, and refuses the removed steer1_dev_heat05.\n- Cells 1-7, run locally with TRIKE60_PARAMS (steer1_dev_heat2, fore128, 2048 steps, 2 envs, 1 eval episode), exit 0 with the evaluation and sweep written.\n- run_record holds w_heat_peak 2.0, margin 0.8, tau 4, start 2, heading_and_speed, whole robot 0.9-1.1, payload 0-1 kg and delay 0-20.\n- The 'Running:' line matches the step sheet's.",
+    "train.py smoke runs (4096 steps, 2 envs, --late-ramp-from 0 --late-ramp-to 1), heat2 and heat1:\n- No crash in either.\n- train_health.jsonl r_heat_peak is 0.0 at 2048 steps (late 0). At 4096 steps (late 1) it is -0.4068 at weight 2 and -0.2034 at weight 1, a ratio of exactly 2.0.\n- Every other reward term is identical between the two runs in both rollouts.",
+    "No stale reference to steer1_dev_heat05 outside the review records. The README weight table rows, the x1.1 and 2 M lines and D29's ranges match the committed tables."
+   ],
+   "not_checked": [
+    "No training beyond 4096 steps. I did not measure whether the steering runs' noise follows D22's (the steering task and r_heat_peak may change it), nor the learning effect of weight 1 against weight 2.",
+    "The notebook was not run on Colab.",
+    "steer_heat_weight.py was re-run for two policies only: fore128-s0 at the defaults and fore128-s2 at late 0.5. The _d22noise_3M_5M episodes were checked only by regenerating their tables and by their rows shared with the default file.",
+    "Per-joint action noise at 3 M could not be checked: only the 10 M checkpoints are available.",
+    "The measurement and documents reviewer's M1 and L1-L7 were not assessed (outside this code check), apart from the doc figures listed above.",
+    "T. rex files were not opened."
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "F1",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "The rule written into the step sheet before the runs says a weight is out if 'its noise check above leaves a margin over standing under 0.3'. It does not say:\n- which of the script's four cells count (nominal or x1.1, 0.25 or 0.15 m/s);\n- whether a standard error or other tolerance applies;\n- which noise point counts. The check reads 1, 2 and 3 M, and only the README, not the sheet, ties the rule to 3 M.\n\nAt the D22 noise of 0.125, weight 2 is under 0.3 in 2 of its 4 cells, by 0.01-0.03, while the standard errors are 0.04-0.07. So whether weight 2 survives depends on those unstated details. 'Sits at the rule (+0.27-0.31)' is a fair description of 'at the threshold', but the rule as written fails that range. The '+0.11 at 0.15' figure is the nominal cell only.\n\nRunning the check at the 2 M noise without --late 0.5 wrongly rules weight 2 out, and the sheet does not warn against that. 'More falls than the other run' names no evaluation and no minimum difference.\n\nMedium, not high: the dev runs themselves are unaffected; this is ambiguity in the pre-registration that picks the judged weight. The noise point is partly resolved by the README's statement that the rule applies at the 3 M noise, but the sheet's own wording invites checks at 1 and 2 M.",
+     "evidence": "- Committed heat_weight_margins_d22noise_3M_5M.md, policy+0.125, weight 2: nominal 0.25 m/s +0.29 +-0.07; nominal 0.15 m/s +0.31 +-0.04; x1.1 0.25 m/s +0.27 +-0.07; x1.1 0.15 m/s +0.31 +-0.06.\n- At policy+0.11, weight 2: nominal 0.25 +0.44, x1.1 0.25 +0.38. The worst policy is the same at both noise levels (s2 nominal, s3 x1.1). Linear interpolation crosses 0.3 at noise 0.1243 (nominal) and 0.1209 (x1.1).\n- heat_weight_margins.md at policy+0.15, weight 2: nominal +0.11 and +0.12; x1.1 +0.04 and +0.05.\n- I ran steer_heat_weight.py myself on fore128-s2 and s3 with --stds 0.147 --late 1 (60 episodes, 0 falls; scratch check4_steer/skeptic/hw147). Weight 2: +0.12, +0.17, +0.10 and +0.09 across the four cells, all under 0.3. Weight 1: +0.38 to +0.42. With --late 0.5, the committed 2M file has weight 2 at +0.50 to +0.55.\n- STEPS section 5 says only '--stds <that noise>' after 'at 1, 2 and 3 M'. Its rule bullet names no cells, no tolerance and no evaluation for falls. README line 440 says 'figures within about 0.1 of each other are not told apart'."
+    },
+    {
+     "id": "F2",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "In episode(), cost_sum is built directly from env._heat_ema with no late scale. cost_w1 comes from info['r_heat_peak'], which does include late_scale. So at --late 0.5 the every-drive reference is priced at full scale while everything else is at half scale.\n\nThe committed _d22noise_2M every-drive table is therefore wrong. The hottest-drive tables are correct. No decision rests on the wrong table, but the README's 'heat_weight_margins_every_drive*' pointer covers it, and the code is wrong for any --late below 1.",
+     "evidence": "Pairing the committed episode files by key (72 common standing and noise episodes):\n- late 0.5 against late 1: cost_w1 halves (0.2196 -> 0.1098); r_heat and r_saturation are exactly 0.5x; r_track, r_slip and r_energy are 1.0x; cost_sum_w1 is unchanged (0.8944 -> 0.8944).\n- The mean cost_sum/cost_w1 ratio for 'noise' goes from 4.42 to 8.84. It is 6.86 at policy+0.147, against 2.99 and 3.21 at 0.11 and 0.125 under late 1.\n\nI regenerated both 2M tables with the repo's margins_md; they match the committed files exactly. I then recomputed with cost_sum_w1 x late_scale (check4_steer/skeptic/f2b.py). Nominal 0.25 m/s, policy+0.147:\n- weight 0.5: +0.41 becomes +0.61;\n- weight 1: -0.02 becomes +0.41;\n- weight 1.5: -0.46 becomes +0.20."
+    },
+    {
+     "id": "F3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "trajectory() reads every line with json.loads and picks the nearest row over all sessions. A resumed run's discarded branch can be returned, and a torn line raises. The committed D22 output is unaffected, because each of the four logs is a single clean session.\n\nThe risk is latent. The step sheet (2.9) expects dev runs that may be resumed, and it asks for their noise at 1-3 M from train_health.jsonl. It does not name this script, but the script is the obvious tool to reuse. telemetry.health.read_health and latest_branch already handle both cases.",
+     "evidence": "- Each of the four D22 logs has 1221 rows, one session with session_start 0, strictly increasing timesteps, no duplicates and no torn lines.\n- Re-running d22_action_std.py on them gives output byte-identical to the committed d22_action_std.json (cmp).\n- My own synthetic log: session A runs to 3.27 M; session B has session_start 2,752,512 and action_std 0.5. The script returns {timesteps 2998272, action_std 0.1631}, which is A's discarded row: the tie goes to the first row in the file. latest_branch(read_health(...)) returns B's row (0.5).\n- A file ending in a torn line makes the script raise json.decoder.JSONDecodeError; read_health skips the line and keeps the 10 good rows."
+    },
+    {
+     "id": "F4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The substantive sub-points all reproduce:\n- duplicate or colliding --stds mis-pair the seeds and duplicate the table rows;\n- 'nan' passes validation;\n- --late below 0.5 leaves penalty_scale at 1.0, although train.py's penalty ramp is below 1 there (0.775 at the 1.5 M that late 0.25 implies);\n- the md text says 'four policies' whatever --runs holds;\n- the line-77 comment and the docstring still say late scale 1.\n\nOne sub-point is not a defect: an empty --tag overwriting the default tables when --out points at the results folder is ordinary --out behaviour. All of this is clarity and robustness, so low.",
+     "evidence": "- Committed default episodes, with the policy+0.15 rows duplicated and margins_md(stds=(0.15,0.15)), nominal 0.25 m/s, weight 0: '+0.66 +-0.00 (+0.75 +0.72 +0.66 +0.72)' instead of '+0.66 +-0.03 (+0.74 +0.72 +0.66 +0.69)'. Policy rows go from 4 to 8. f'{0.1250001:g}' == '0.125'.\n- float('nan') passes the 'any(x < 0)' check, and rng.normal(0, nan) returns nan actions.\n- train.py: penalty_scale_at uses a 2 M ramp from 0.1, so it is 0.775 at 1.5 M, while job() hard-sets penalty_scale 1.0.\n- My run with --runs fore128-s2,fore128-s3 wrote 'the worst of the four policies' ... 'their four standard errors' and '(4 policies)' headers, though each cell shows two means.\n- steer_heat_weight.py line 77 comment: '# weight 1, late scale 1'. Line 6 of the docstring: 'penalty and late scale 1'."
+    }
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "N1",
+     "severity": "medium",
+     "title": "The step sheet's noise exclusion for weight 2 is undefined, and at the expected noise it flips on a few thousandths of noise",
+     "location": "hardware/triceratops_build/rl/runs/trike60-steer1-dev_STEPS.md section 5 (bullets 2 and 4); rl/README.md 'Weight 2 needs the noise near the D22 figure' and 'weight 2 sits at the rule'; PLAN status; DECISION_LOG D29",
+     "evidence": "I ran steer_heat_weight.py myself on all four D22 128 mm policies at late 1. For weight 2, the worst-of-four margins (nominal 0.25 / nominal 0.15 / x1.1 0.25 / x1.1 0.15 m/s) were: noise 0.12: +0.37 / +0.43 / +0.31 / +0.33, all four pass. Noise 0.125 (the committed table, which I reproduced byte for byte): +0.29 / +0.31 / +0.27 / +0.31, two of four under 0.3. Noise 0.13: +0.25 / +0.34 / +0.26 / +0.25, three of four under. The 0.15 m/s cell does not even move steadily with noise (0.43, 0.31, 0.34), and its standard errors are 0.04-0.08. The D22 runs' 3 M noise, 0.1230-0.1282, sits right on this cut (about 0.12-0.125). The rule says 'a weight is out if its noise check leaves a margin over standing under 0.3', but it does not say: (a) which policies are used. The default --runs is the four D22 straight-task policies. Yet the README says that table 'predicts nothing' for steering, and the dev runs' own 5 M policies are never named. (b) Which of the noises read at 1, 2 and 3 M goes into --stds, or at what --late. The sheet gives --stds only, so late defaults to 1. At late 1 the 2 M noise of about 0.147 gives weight 2 about +0.11 (the 0.15 row), but the README's 2 M check uses --late 0.5 and gets +0.54-0.55. (c) Which cells count, and which statistic (worst policy or mean; nominal or x1.1; one speed or both). Read most strictly (worst cell), weight 2 is OUT at the D22 noise. That contradicts 'sits at the rule' in README, PLAN and D29, and the sheet's 'sits at the margin rule only if the noise at 3 M is near 0.123-0.128': at 0.128-0.13 it fails. So whether weight 2 survives depends on unstated reading choices and on measurement scatter, not on what the weight-2 run does.",
+     "suggested_fix": "Before the runs, fix the check in section 5. Use the four D22 policies (default --runs), each dev run's action_std at the rollout nearest 3,000,000 steps, and --late 1 (and, if wanted, the 2 M noise at --late 0.5). Name the statistic, for example the worst-of-four mean at nominal 0.25 and 0.15 m/s. Put a tolerance on it that matches the standard errors, or turn the test into a noise threshold read off the measured rows now (for example: weight 2 is out if the 3 M noise is over 0.125, weight 1 if over 0.16). Say plainly that at the D22 noise (0.125-0.128) weight 2 is at or just below the line, so it survives only if r_heat_peak lowers the noise."
+    },
+    {
+     "id": "N2",
+     "severity": "medium",
+     "title": "The rest of the judged-weight rule names no measurements, lets one fall decide, and leaves a single surviving weight to inference",
+     "location": "hardware/triceratops_build/rl/runs/trike60-steer1-dev_STEPS.md section 5, 'The judged weight, by this rule, fixed before the runs'",
+     "evidence": "(1) 'more falls than the other run ... at 5 M' does not say which measurement counts: gait report, sweep, steer_eval courses or demo course. The D22 128 mm gait reports read 'falls 0 + 0 of 10 (sweep: 0 falls in 21 episodes)' for all four seeds (analytics/results/fore128-s*/gait_report.md). So one fall in any of these tools rules a weight out. Meanwhile the same rule treats hottest-drive differences under 0.1 as seed noise. (2) 'forward speed at a 0.25 m/s request under 0.2 m/s' does not name the case or statistic; the gait report's randomised target case is presumably meant (D22: 0.235-0.244). (3) The selection clauses compare two weights; the case where exactly one weight is left is covered only by inference. (4) The likely case is both weights over 0.85 (D22 worst drives 0.83, 0.89, 0.93, 0.95). If they are also within 0.1 of each other, the rule picks weight 1, the weight least likely to meet the planned judged heat rule (worst drive under about 0.85), and does not go back to the owner. (5) The 0.85 clause picks on any difference that straddles 0.85 (for example 0.84 against 0.86), although the sheet says differences under 0.1 are seed spread.",
+     "suggested_fix": "Name the measurement for each criterion. For example: falls = total over the sweep's and the gait report's episodes, out only if at least 2 more than the other run; speed = the gait report's 0.25 m/s randomised case. Add 'if one weight is left, that one'. Decide now what happens when both weights are over 0.85 (the higher weight, or back to the owner). Consider a band on the 0.85 clause (for example, only if the other run is at least 0.05 over 0.85)."
+    },
+    {
+     "id": "N3",
+     "severity": "low",
+     "title": "PLAN still gives the 0.80-0.82 price share without its qualifier; PLAN and D29 quote the D22 noise as 'on the same schedules' and leave out the differences between the tasks",
+     "location": "hardware/triceratops_build/rl/PLAN_STEERING_RUN.md status bullet 3 ('which weights every step alike and prices 0.80-0.82 of F2's own price') and bullet 4; DECISION_LOG D29; rl/README.md 'The weight' bullets; analysis/d22_action_std.py docstring",
+     "evidence": "The comparison table I regenerated (byte-identical) gives warm 1.26 on the 0.15 m/s deterministic group. The README and D29 now say 'on gaits well over the margin'; PLAN does not, so L2 is only partly fixed. All eight D22 run records give env_config run3_terrain.json: terrain_boxes 8, steps and slopes at 0.35 each, ramped 1-4 M, delay_steps_range [0, 10], straight commands (command_mode none), no whole-robot mass or payload. The steer1 presets are flat (D28), 0-20 ms, x0.9-1.1, 0-1 kg, heading_and_speed. train.py's schedule defaults are the same (I checked), so 'same schedules' is true. But only the README carries any caveat ('no r_heat_peak ... the steering task differs'). PLAN and D29 carry none, and none of the documents mentions terrain. Also, '2.4-4.1 times' is the pooled nominal ratio over noise 0.125-0.2, both speeds (I recomputed 2.38-4.10). That scope is not stated: at x1.1 the ratio reaches 4.28, and at noise 0.11 it is 2.14.",
+     "suggested_fix": "In PLAN, write 'prices 0.80-0.82 of F2's price on gaits well over the margin (1.26 on the coolest group)'. In PLAN, D29 and the README, add one clause: the D22 runs trained the straight task with terrain from 1 M, 0-10 ms delays and no whole-robot draws or r_heat_peak, so their noise is a guide only. State the scope of the 2.4-4.1 range."
+    },
+    {
+     "id": "N4",
+     "severity": "low",
+     "title": "The 0.3 rule's operating point moved from the initial noise 0.2 to the 3 M noise; the move is sound but presented as a simple application",
+     "location": "hardware/triceratops_build/rl/README.md 'The 0.3 margin rule above is therefore applied at the noise there is when the cost reaches full weight'",
+     "evidence": "The README's rule table measures 'pipe1 + noise' at std 0.2 at full scale (>= 3 M). At that point the D22 policies fail at weight 0 at 0.15 m/s (worst +0.22; s0 +0.23, s2 +0.22, from heat_weight_episodes.json), and weight 1 gives +0.02 / -0.09. So the rule as first defined cannot be met at all, and the new operating point is a redefinition. In substance it holds: I measured the stages around 3 M. At 2.75 M (D22 noise 0.127-0.133, late 0.875; I ran --stds 0.131 --late 0.875) weight 2 keeps +0.37 / +0.41 / +0.34 / +0.30, and at 2 M +0.54-0.55. 3 M is therefore the binding point, given the D22 noise trajectory. Also, the margin uses the D22 10 M gaits with noise added, not 3 M gaits. The training logs show r_track at 3 M (1.22-1.31) close to 10 M (1.27-1.33), so that stand-in looks fair, but the documents do not say it.",
+     "suggested_fix": "Say that the rule was set at the initial noise 0.2, which the D22 policies fail even at weight 0 (0.15 m/s). Say it is now applied at the noise at full cost weight, which my 2-3 M checks show is the binding point. Note that the gait in the measurement is the 10 M one."
+    },
+    {
+     "id": "N5",
+     "severity": "low",
+     "title": "The figures for the bias-corrected average failing the stride test hold only for a stance-first start",
+     "location": "hardware/triceratops_build/rl/README.md 'Tested: stride-like inputs ... The bias-corrected version fails these (0.26 on the first step; 20-23 % early)'; tests/test_steer_heat.py docstring of test_heat_peak_prices_a_stride_like_gait_without_an_early_spike",
+     "evidence": "I recomputed the square-wave cases independently for periods 50, 60, 74 and 90. Started in stance, bc gives 0.261 on the first step, 1.16-1.25 of the price and 20.1-22.8 % in the first 100 steps. Started in swing, bc gives 0 on the first step, 0.84-0.89 of the price and 3.4-4.5 % early, so it would pass the test's bounds. 'Under 8 % of it in the first 2 s' means the first 2 s of the priced window (2-4 s of the episode). The cool-gait bound has little room at period 90: max 0.0589 against 0.06.",
+     "suggested_fix": "Add 'when the gait starts in stance' to the bc figures, and write 'in 2-4 s' for 'in the first 2 s'."
+    },
+    {
+     "id": "N6",
+     "severity": "low",
+     "title": "steer_heat_weight.py: a stale 'late scale 1' comment, and the script cannot pick a dev run's 5 M save",
+     "location": "hardware/triceratops_build/rl/analysis/steer_heat_weight.py episode() ('cost += -info[\"r_heat_peak\"]  # weight 1, late scale 1') and job() (ck = zips[-1])",
+     "evidence": "With --late 0.5 the env's late_scale is 0.5, so cost_w1 is half the full-scale cost. In the regenerated 2 M json, the noise case's margin drops by 0.105 per unit of weight, against 0.210 at late 1. The comment and the md's 'w x cost at weight 1' do not say this. job() always takes the newest checkpoint pair. Pointed with --runs at a dev run that was left to finish (which the sheet allows), it would measure the 10 M policy, not the 5 M save the sheet reads.",
+     "suggested_fix": "Reword the comment and the md text as 'weight 1 at this late scale'. Add a --step option, or state in section 5 that the check runs only on the D22 policies."
+    }
+   ],
+   "earlier_findings": [
+    {
+     "id": "M1",
+     "status": "fixed",
+     "evidence": "The README no longer contains 'No 10 M run has a noise figure'. I re-derived the noise from the four train_health.jsonl files with my own script: 1 M 0.1777-0.1807, 2 M 0.1448-0.1483, 3 M 0.1230-0.1282, 5 M 0.1036-0.1110, 10 M 0.0830-0.0911. These match d22_action_std.json, and the committed script's rerun is byte-identical. README, PLAN, D29 and the step sheet quote 0.178-0.181, 0.145-0.148, 0.123-0.128, 0.104-0.111 and 0.083-0.091 correctly. The logs belong to the final D22 runs: one session each, its id equal to run_record started_utc; 1221 rollouts ending at 10,002,432 = steps_end; the last time_utc equals ended_utc; the last action_std equals mean exp(log_std) of the final checkpoint, loaded via gait_pipe1.build_policy, to 1e-6 (0.085457, 0.082955, 0.088433, 0.091062). The weights were re-chosen on that basis (but see N1)."
+    },
+    {
+     "id": "L1",
+     "status": "fixed",
+     "evidence": "The README now says the average weighs every step alike and that the hinge and the maximum make early heat on a cool or not-hottest drive count more. It quotes bursts of 1.13-1.24 on the hottest drive and 1.10-1.48 on the second-hottest. heat_average_comparison.md has the noise and 2nd-hottest burst rows and the cool-gait 2-4 s share (0.48). I reran steer_heat_average.py: byte-identical. From its logs I recomputed cool episodes at 0.0049 per step on average, 0.0156 at most, 47.7 % in 2-4 s. The trike_env comment is reworded."
+    },
+    {
+     "id": "L2",
+     "status": "partly fixed",
+     "evidence": "The README and D29 now say 'on gaits well over the margin', and the README cites 1.26 on the coolest group and about 0.005 (up to 0.016) per step below 0.8. The trike_env comment is qualified. PLAN status bullet 3 still says the average 'prices 0.80-0.82 of F2's own price' with no qualifier (N3)."
+    },
+    {
+     "id": "L3",
+     "status": "fixed",
+     "evidence": "The README now gives warm's 4-5 % in 2-4 s as its start-up deficit, the same cause as the 0.8 share, and cites the 0.33 discounted weight and the cool-gait costs. The table numbers match my regenerated md."
+    },
+    {
+     "id": "L4",
+     "status": "fixed",
+     "evidence": "Step sheet section 1 and PLAN 'Cost and time' now say 542-617 steps/s, 2.3-2.6 h to 5 M and 4.5-5.1 h in all. The run records give 541.9, 616.6, 547.7 and 572.9 steps/s and wall times of 4.51-5.13 h. PLAN's 'all eight 3.6-5.1 h' matches fore160 at 753-779 steps/s."
+    },
+    {
+     "id": "L5",
+     "status": "partly fixed",
+     "evidence": "--stds, --late, --runs and --tag exist. I ran them at 0.11/0.125 late 1, 0.147 late 0.5, 0.12/0.13 and 0.131 late 0.875, and the committed outputs reproduce byte for byte. The 264 earlier episodes are identical inside the new default json. Section 5 still does not say whether the check runs on the D22 policies or the dev runs' 5 M policies, nor which noise or late scale goes in, and job() always takes the newest checkpoint (N1, N6)."
+    },
+    {
+     "id": "L6",
+     "status": "fixed",
+     "evidence": "Section 5 now has a rule fixed before the runs, and the within-0.1 case is covered ('else the lower'). Remaining gaps in the rule are new findings N1 and N2."
+    },
+    {
+     "id": "L7",
+     "status": "fixed",
+     "evidence": "(a) D29 and the README give 2.4-4.1; I recomputed pooled nominal ratios of 2.38-4.10 over noise 0.125-0.2 (scope unstated, N3). (b) and (c) are gone. (e) The test docstring and trike_env now say 'the second version'. (f) Now 'about 0.1'; I found SEs of 0.014-0.100. (g) 'about 6.6 MB': my --logs file is 6,576,676 bytes."
+    }
+   ],
+   "checked_ok": [
+    "Commit 94d946d9 checked out with a clean tree; git status --short was empty before and after my work, and I made no commits.",
+    "trike_env.py diff is comments only (no non-comment +/- lines); test_trike_env.py (94 tests) and test_steer_heat.py (23 tests) pass.",
+    "Presets steer1_dev_heat1/heat2 differ only in w_heat_peak 1.0/2.0; the notebook menu, validation list and comment are consistent; the test asserts [1.0, 2.0].",
+    "steer_heat_weight.py at --stds 0.11,0.125 --late 1 (all four policies) and at --stds 0.147 --late 0.5 (all four): JSON and both md outputs byte-identical to the committed _d22noise_3M_5M and _d22noise_2M files; 0 falls.",
+    "I recomputed the margins and SEs from the episode JSONs with my own code. Every README weight-table cell (noise 0.2, 0.175, 0.15, 0.125, 0.11, 0) matches, as do the hottest-drive ranges, the 0.15 m/s and x1.1 figures at 0.125 (+0.54/+0.31/+0.09; +0.54/+0.27; +0.57/+0.31), the 2 M figures (+0.68; +0.54-0.55), weight 1 +0.52-0.57, weight 2 +0.27-0.31, weight 3 +0.01-0.09, every-drive 0.67 against 0.21 and +0.08, the standing hottest drive 0.46-0.51 (nominal), and 648 episodes with 0 falls (360+168+120).",
+    "steer_heat_average.py rerun: heat_average_comparison.md byte-identical; every README number in 'How the average was chosen' matches (0.018 and 79 %, 1.80-1.87, 1.83-2.37, floor200 0.83-0.89 and 1.27-1.99 and 1.6x, warm 0.005 and 48 %, 1.13-1.24, 1.10-1.48, 4-5 %, 0.33, 1.26 and 0.015).",
+    "Square-wave test claims for warm at periods 50-90: cool max 0.035-0.059, after 400 steps <= 0.0025, hot share 0.72-0.87, first-100-step share 1.2-6.5 %.",
+    "train.py schedule defaults at HEAD (LR 3e-4 to 3e-5, late ramp 1-3 M, terrain ramp 1-4 M, penalty ramp 2 M from 0.1, log_std_init -1.6) equal the D22 run records'; train.py writes train_health.jsonl with action_std.",
+    "3 M is the binding point for the margin, given the D22 noise path: 2 M (late 0.5, 0.147) gives weight 2 +0.54-0.55; 2.75 M (late 0.875, 0.131) gives +0.30-0.41; 3 M gives +0.27-0.31; after 3 M the noise keeps falling.",
+    "D22 training logs: r_track at 3 M is 1.22-1.31 against 1.27-1.33 at 10 M, so using 10 M gaits with 3 M noise is a fair stand-in for tracking.",
+    "Steering env reset with command_speed holds the reset heading, so steer_heat_weight.py could run on steering run folders (checkpoint choice aside, N6)."
+   ],
+   "not_checked": [
+    "The code reviewer's C1-C4 (not in my scope).",
+    "Whether r_heat_peak or the steering task actually lowers or raises the noise; that needs the dev runs.",
+    "D22 checkpoints at 3 M (not available locally), so a 3 M gait was not measured directly.",
+    "The fore160 health logs (only the four fore128 logs were provided).",
+    "The DECISION_LOG D31 text beyond its consistency with PLAN, and README sections outside 'The steering run's training additions'.",
+    "Whether a 0.1 hottest-drive difference between weights 1 and 2 is plausible at 5 M (no steering policies exist yet)."
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "N1",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "I re-ran steer_heat_weight.py at noise 0.12 and 0.13 (late 1, default D22 runs) and got the reviewer's numbers exactly. Weight 2's worst-of-four margins sit right on 0.3 across the D22 3 M noise range (0.123-0.128), and they move by more than their standard errors for 0.005 changes in noise. The committed 0.125 table already gives +0.29 in the headline cell (nominal, 0.25 m/s). So under the README's own cell statistic, weight 2 is out at the D22 noise. That conflicts with 'sits at the rule' and with the sheet's 'sits at the margin rule only if the noise at 3 M is near 0.123-0.128'. Sub-point (b) holds. The sheet asks for the noise at 1, 2 and 3 M with only '--stds <that noise>'. At the default late 1, the 2 M noise gives +0.11, as the sheet itself quotes. The README's own 2 M check used --late 0.5 (+0.54-0.55). At 1 M the late scale is 0, so a check at late 1 makes no sense there. Sub-point (c) holds: no cell, speed, condition or statistic is named for 'a margin under 0.3'. Sub-point (a) is weaker: the script's default --runs (the four D22 policies) does define which policies are used, so that part is a tension with 'predicts nothing' rather than an undefined input. On the whole, whether weight 2 survives depends on how the rule is read and on scatter, not on the run. That is a real defect in a rule fixed before the runs. It is medium, not high, because the judged runs have their own reviewed pre-registration.",
+     "evidence": "My run (scratch check4_steer/sk2/hw_012_013/heat_weight_margins.md, 168 episodes, 0 falls), w 2, worst of four (nominal 0.25 / nominal 0.15 / x1.1 0.25 / x1.1 0.15). Noise 0.12: +0.37 +-0.04 / +0.43 +-0.07 / +0.31 +-0.09 / +0.33 +-0.06. Noise 0.13: +0.25 +-0.08 / +0.34 +-0.08 / +0.26 +-0.05 / +0.25 +-0.08. Committed heat_weight_margins_d22noise_3M_5M.md at 0.125: +0.29 / +0.31 / +0.27 / +0.31. The nominal 0.15 cell goes 0.43 -> 0.31 -> 0.34, not monotone. d22_action_std.json at 3 M: 0.1268, 0.1230, 0.1282, 0.1280. Default heat_weight_margins.md policy+0.15, nominal 0.25, w 2: +0.11 (late 1). The d22noise_2M.md title says 'late scale 0.5', with w 2 at +0.54 / +0.55. STEPS.md section 5, bullets 2 and 4, give no --late, cell or statistic. Script: --runs defaults to fore128-s0..s3."
+    },
+    {
+     "id": "N2",
+     "verdict": "partly",
+     "severity_after": "medium",
+     "reasoning": "(1) Holds. 'More falls than the other run' names no measurement. With D22 policies at 0 falls in every tool, a single fall in any of them excludes a weight, while the same rule treats hottest-drive differences under 0.1 as noise. (2) Holds but matters little: the speed measurement is unnamed, but D22 target-case speeds are 0.235-0.244, far from 0.2. (3) Mostly refuted. With one weight left, the wording collapses to that weight: it is either 'the only one under 0.85', or 'the higher'/'the lower' both name it. Only stylistic clarity is missing. (4) Holds as a gap. PLAN line 84 plans a judged heat rule of 'the worst drive under a margin below its rating (for example 0.85)'. If both dev weights are over 0.85 and within 0.1 of each other, the rule picks weight 1 and returns to the owner only when both are 'out'. This is mitigated by the reviewed pre-registration that follows. (5) Holds: the 0.85 clause decides on a straddle of any size (0.84 vs 0.86), which contradicts the sheet's own 0.1 seed-spread statement. Most sub-points hold, so medium is fair for a pre-fixed selection rule.",
+     "evidence": "rl/analytics/results/fore128-s0..s3/gait_report.md line 7: 'falls 0 + 0 of 10 (sweep: 0 falls in 21 episodes)' for all four. Speeds 0.235 / 0.244 / 0.242 / 0.240. Worst drive 0.83 / 0.89 / 0.93 / 0.95 (line 10). STEPS.md lines 146-151 hold the rule text; only the hottest drive is tied to a measurement ('the gait report's target case'). PLAN_STEERING_RUN.md line 84 has the planned judged heat rule at 'for example 0.85'. In train.py, a stopped run saves a further pair after 5 M (lines 822-840); this is not needed for this finding."
+    },
+    {
+     "id": "N3",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The main points hold. PLAN's status bullet still says 'prices 0.80-0.82 of F2's own price' with no qualifier, while D29 and the README now say 'on gaits well over the margin'. The committed comparison gives 1.26 on the 0.15 m/s deterministic group. The D22 runs trained with terrain (8 boxes, steps and slopes 0.35 each, ramped 1-4 M), 0-10 ms delays, command_mode none and no whole-robot draws or r_heat_peak. The schedules (lr, late ramp, penalty ramp, terrain ramp) do match train.py's defaults, so 'same schedules' is literally true. PLAN and D29 add no caveat about the differences between the tasks, and no document names terrain explicitly. The '2.4-4.1' scope is unstated: it is the nominal pooled range for noise 0.125-0.2 at both speeds, with 4.28 at x1.1 and 2.14 at 0.11. One overstatement: 'only the README carries any caveat' is not quite right. The d22_action_std.py docstring (in the finding's own location list) says 'They had no r_heat_peak, which also prices noise' and 'with run 3's preset'.",
+     "evidence": "PLAN_STEERING_RUN.md lines 53-58 (no qualifier; 'in the D22 runs on the same schedules'). heat_average_comparison.md line 9: '0.15 m/s, std 0.0 ... 1.26'. D22 run_record.json: terrain_boxes 8, terrain_prob_steps 0.35, terrain_prob_slopes 0.35, terrain_ramp 1e6-4e6, delay_steps_range [0, 10], command_mode none. steer1_dev_heat2.json: heading_and_speed, [0, 20], whole x0.9-1.1, payload 0-1. train.py defaults are the same (lines 112-134). My ratios of cost_sum_w1 to cost_w1 from the committed episodes, nominal: 0.15 m/s 2.38 (0.125) to 3.31 (0.2); 0.25 m/s 3.21 to 4.10; x1.1 0.25 m/s at 0.2: 4.28; nominal 0.15 m/s at 0.11: 2.14. d22_action_std.py lines 4-7 carry the r_heat_peak caveat."
+    },
+    {
+     "id": "N4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The README's rule table measured 'pipe1 + noise' at std 0.2 at full scale. At that operating point the D22 policies fail at 0.15 m/s even at weight 0, so the move to the noise at 3 M is in effect a redefinition, presented as 'therefore applied'. I checked the substance: at 2.75 M (D22 noise 0.127-0.133, late 0.875), weight 2's margins are higher than at 3 M, so 3 M is the binding point. The measurement uses the 10 M policies: job() takes the newest pair and the D22 folders hold only the 10 M checkpoint. Logged r_track at 3 M is close to 10 M, so the stand-in is reasonable, but the documents do not say so. This is a wording and clarity matter.",
+     "evidence": "Committed heat_weight_margins.md, policy+0.2, nominal 0.15 m/s: w 0 +0.22 (+0.23 +0.43 +0.22 +0.41), w 1 -0.09. At 0.25 m/s: w 1 +0.02. My run hw_275 (--stds 0.131 --late 0.875, 120 episodes, 0 falls), w 2 worst of four: +0.37 / +0.41 / +0.33 / +0.30. The reviewer's +0.34 for x1.1 0.25 m/s is s2's mean; the worst is s3's +0.33, a 0.01 slip. Health logs at 2.75 M: action_std 0.133 / 0.127 / 0.132 / 0.131. r_track, single rollout nearest each point: 3 M 1.30 / 1.27 / 1.31 / 1.18; 10 M 1.31 / 1.35 / 1.30 / 1.34. Only trike60_10002432_steps.zip is in d22_runs/fore128-s0/checkpoints."
+    },
+    {
+     "id": "N5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "I recomputed the square-wave cases independently for both phases. The bias-corrected figures quoted in the README and the test docstring (0.26 on the first step, 1.16-1.25 of the price, 20-23 % early) hold only when the wave starts in stance. Started in swing, bc gives 0, 0.84-0.89 and 3.4-4.5 %, which would pass the test's bounds. The test still discriminates, because it asserts both phases, so the README's 'fails these' is true. Only the quoted figures need the qualifier. 'Under 8 % in the first 2 s' means the first 100 steps of the priced window. The cool bound is tight at period 90: max 0.0589 against 0.06.",
+     "evidence": "My script check4_steer/sk2/scripts/sq.py. bc, stance first, P=50/60/74/90: first step 0.261, share 1.160 / 1.184 / 1.211 / 1.246, early 20.1 / 21.4 / 21.8 / 22.8 %. bc, swing first: first step 0.000, share 0.886 / 0.872 / 0.857 / 0.837, early 4.5 / 3.4 / 4.1 / 4.0 %. Warm, stance first, P=90: cool max 0.0589; test asserts < 0.06. Test lines 79-84 assert both phases; README lines 391-393."
+    },
+    {
+     "id": "N6",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The comment '# weight 1, late scale 1' is stale. r_heat_peak = -w x late_scale x excess (trike_env.py line 516), and job() sets env.late_scale = late, so with --late 0.5 cost_w1 is at half scale. The md does not mislead, though: its title states 'at late scale 0.5' (stage string in margins_md), so the 'md text' part is weak. zips[-1] always takes the newest pair. That is true, and stronger than claimed: train.py saves a further checkpoint pair when a run is stopped, so even a run stopped right after 5 M has a newer pair than the 5 M save. But neither the sheet nor the README points this script at the dev runs; the check uses the D22 policies with the dev runs' measured noise. So this is a latent limitation, not a defect in the planned procedure.",
+     "evidence": "steer_heat_weight.py: episode() has 'cost += -info[\"r_heat_peak\"]  # weight 1, late scale 1'; job() has 'e.late_scale, e.penalty_scale = late, 1.0' and 'ck = zips[-1]'. trike_env.py line 516: '\"r_heat_peak\": -cfg.w_heat_peak * late_scale * heat_peak_excess'. heat_weight_margins_d22noise_2M.md: the noise row, nominal 0.25 m/s, goes -0.31 (w0) -> -0.41 (w1), against -0.50 -> -0.71 at late 1 (d22noise_3M_5M.md); its title reads 'at late scale 0.5'. train.py lines 822-840: 'Interrupted: saving a checkpoint pair before exiting.' STEPS.md section 5 runs the script with --stds only (default D22 runs)."
+    }
+   ]
+  }
+ ]
+}

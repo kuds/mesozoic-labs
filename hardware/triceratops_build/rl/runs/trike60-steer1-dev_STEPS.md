@@ -136,18 +136,35 @@ Three rules for the whole sheet (as before):
     - From the 5 M save of each run: the gait report, the sweep (with its x1.1 mass, payload and 20 ms delay points),
       the foot loads, steer_eval.py's courses and the demo course with turns, all on the flat floor with per-body
       randomisation only (README, "The steering run's training additions").
-    - Read each run's action noise at 1, 2 and 3 M steps (train_health.jsonl) and re-run
-      analysis/steer_heat_weight.py --stds <that noise>: weight 2 sits at the README's margin rule only if the noise
-      at 3 M is near the D22 runs' 0.123-0.128 (at 0.15 its margin over standing falls to +0.11).
     - Compare the two weights: the hottest drive (target case and stress points), walking and turning, falls under
       pushes, and whether either run drifted towards standing still. Both runs use seed 0, so the weight is the
       only setting that differs; a difference in the hottest drive under about 0.1 of its rating is within the
       seed-to-seed spread seen in D22 (0.83-0.95 over four seeds) and is not read as a weight effect.
-    - The judged weight, by this rule, fixed before the runs: a weight is out if its run drifts towards standing
-      (forward speed at a 0.25 m/s request under 0.2 m/s, or more falls than the other run, at 5 M) or if its noise
-      check above leaves a margin over standing under 0.3. Of the weights left: if only one has its hottest drive
-      (the gait report's target case) under 0.85 of its rating, that one; otherwise the higher if its hottest drive
-      is at least 0.1 cooler than the lower weight's, else the lower, since a smaller difference is within the
-      seed-to-seed spread. If both are out, I come back to you before any judged run.
+    - THE JUDGED WEIGHT, by this rule, fixed before the runs (27 Nov 2026). The measures, all from each run's 5 M save
+      unless said otherwise:
+        speed  the gait report's speed at the 0.25 m/s command (its randomised target case, 5 episodes);
+        falls  the gait report's falls in its two randomised cases, 0.25 and 0.15 m/s ("falls a + b of 10");
+        heat   H, the gait report's worst joint RMS torque over its continuous rating in the target case (F2's
+               figure, judge_d22's H_all);
+        noise  the action noise at the rollout nearest 3,000,000 steps in the run's train_health.jsonl, read with
+               analysis/d22_action_std.py (it keeps a resumed run's latest branch).
+      A weight is out if any of:
+        - speed under 0.20 m/s;
+        - 2 or more falls of the 10;
+        - noise over its limit: 0.124 for weight 2, 0.158 for weight 1. Each limit is where that weight's worst
+          margin over standing, at the two nominal speeds on the four D22 policies at full scale
+          (analysis/results/steer1/heat_weight/heat_weight_margins_d22noise_3M_5M.md and heat_weight_margins.md),
+          crosses the README's 0.3, by straight-line interpolation between the measured noise rows (weight 2: +0.37 at
+          0.12 and +0.29 at 0.125, at 0.25 m/s; weight 1: +0.38 at 0.15 and +0.13 at 0.175, at 0.15 m/s). Weight 2 is
+          on that line at the D22 runs' own 3 M noise (0.123-0.128): it stays in only if its run's noise is a little
+          lower, which r_heat_peak itself may cause, since it also prices noise.
+      Then:
+        - none left: I come back to you before any judged run;
+        - one left: that one;
+        - both left: if both H are 0.85 or more, I come back to you (the planned heat rule would likely fail with
+          either); otherwise weight 2 if its H is at least 0.1 below weight 1's; otherwise weight 1 if its H is under
+          0.85; otherwise weight 2 (its H is under 0.85 and weight 1's is not).
+      The check uses the D22 policies' margins with each dev run's measured noise; it does not re-measure margins on
+      the dev runs' own policies.
     - Then the pre-registration of the judged runs (rules, seeds, stop rules), independently reviewed before any
       judged run.

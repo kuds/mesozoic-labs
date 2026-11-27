@@ -389,8 +389,9 @@ Each is off by default: the straight task and run 3's preset are unchanged, and 
     1.6 times later ones and gives burst ratios of 1.27-1.99. A floor of 50 or 100 steps, or pricing from 4 s,
     kept more of the early weight.
   - Tested: stride-like inputs (square waves of 1.0-1.8 s period) under the margin (RMS 0.75) cost at most 0.06 per
-    step and under 0.005 after 8 s; over it (RMS 0.95) they cost 0.7-0.9 of F2's price, under 8 % of it in the
-    first 2 s. The bias-corrected version fails these (0.26 on the first step; 20-23 % early).
+    step and under 0.005 after 8 s; over it (RMS 0.95) they cost 0.7-0.9 of F2's price, under 8 % of it in 2-4 s.
+    Started in stance, the bias-corrected version fails these (0.26 on the first step, 1.16-1.25 of the price,
+    20-23 % in 2-4 s); started in swing it would pass, so the test runs both phases.
 - **Whole-robot mass and payload (D26),** `mass_scale_whole_range` and `payload_kg_range`:
   - two uniforms drawn after every older draw, so a seed's delay, command, friction and per-body factors are as
     without them;
@@ -412,8 +413,10 @@ Each is off by default: the straight task and run 3's preset are unchanged, and 
   The README's method above, on the four D22 128 mm policies in their own env with the heat cost added. The margin
   is the reward per step a walking gait with action noise earns over standing (standing pays no `r_heat_peak`; its
   hottest drive's average is 0.46-0.51 at 20 s). Each cell: the worst of the four policies' 3-seed means, +- the
-  largest standard error of the four; no falls in any of the 648 episodes. 0.25 m/s, full scale (late scale 1, as
-  from 3 M steps):
+  largest standard error of the four; no falls in any of the 744 episodes. The gaits are the D22 policies' final
+  (10 M) ones with noise added; their logged tracking reward was 1.20-1.29 per step at 3 M against 1.27-1.34 at
+  10 M, so the 3 M gaits walked nearly as well. 0.25 m/s,
+  full scale (late scale 1, as from 3 M steps):
 
   | Action noise (std) | hottest drive's average at 20 s | w 0 | w 1 | w 2 | w 3 |
   |---|---|---|---|---|---|
@@ -428,21 +431,27 @@ Each is off by default: the straight task and run 3's preset are unchanged, and 
   +0.54 and +0.27 at weights 1 and 2 (0.25 m/s), +0.57 and +0.31 (0.15 m/s). At 2 M steps (late scale 0.5, the
   D22 noise there, 0.147): +0.68 at weight 1 and +0.54-0.55 at weight 2, both speeds.
   - Exploration noise makes the hottest drive hotter, so the cost falls mostly on the noise. The 0.3 margin rule
-    above is therefore applied at the noise there is when the cost reaches full weight (3 M steps), measured in the
-    D22 runs, which used the same schedules (`analysis/d22_action_std.py`, `analysis/results/steer1/
-    d22_action_std.json`): 0.178-0.181 at 1 M, 0.145-0.148 at 2 M, **0.123-0.128 at 3 M**, 0.104-0.111 at 5 M and
-    0.083-0.091 at 10 M, the four 128 mm runs within 0.008 of each other.
-  - At that noise, weight 1 keeps +0.52-0.57 and weight 2 sits at the rule (+0.27-0.31); weight 3 does not
-    (+0.01-0.09). The dev runs use **1 and 2** (`configs/steer1_dev_heat1.json`, `steer1_dev_heat2.json`): one well
-    inside the rule and one at its edge, so that a heat effect has room to show. Earlier choices, before the D22
-    noise logs were read (changed before any run): 1 and 3, then 0.5 and 1 on an assumed 0.15-0.175 at 3 M.
-  - Weight 2 needs the noise near the D22 figure: at 0.15 it keeps +0.11, and at 0.175 it falls below standing
-    (-0.09). The D22 runs had no `r_heat_peak`, which also prices noise, and the steering task differs. So before
-    the judged weight is fixed: read each dev run's noise at 1, 2 and 3 M (`train_health.jsonl`, `action_std`) and
-    re-run `steer_heat_weight.py --stds <that noise>`.
-  - Pricing every drive over the margin, rather than the hottest, costs 2.4-4.1 times as much (0.67 against 0.21 per
-    step at weight 1, noise 0.125, 0.25 m/s): +0.08 at weight 1 against +0.52 (`heat_weight_margins_every_drive*`).
-    D29's hottest drive is kept.
+    above was set at the initial noise, 0.2; at that noise the D22 policies already miss it at 0.15 m/s with no heat
+    cost (+0.22). So it is now applied where it binds: at the noise there is when the cost reaches full weight (3 M
+    steps; at 2 M, at half weight, the margins are larger). That noise was measured in the D22 runs
+    (`analysis/d22_action_std.py`, `analysis/results/steer1/d22_action_std.json`): 0.178-0.181 at 1 M, 0.145-0.148
+    at 2 M, **0.123-0.128 at 3 M**, 0.104-0.111 at 5 M and 0.083-0.091 at 10 M, the four 128 mm runs within 0.008
+    of each other. They used the same schedules but trained the straight task with run 3's terrain, 0-10 ms delays,
+    no whole-robot draws and no `r_heat_peak` (which also prices noise), so their noise is a guide only.
+  - At that noise, weight 1 keeps +0.52-0.57. Weight 2 is on the line: +0.29 and +0.31 at the two nominal speeds,
+    +0.27 and +0.31 for the robot x1.1; at noise 0.12 it keeps +0.37 and +0.43, at 0.13 +0.25 and +0.34 (the cells
+    scatter by about +-0.05 between neighbouring noise levels). Weight 3 does not (+0.01-0.09). The dev runs use
+    **1 and 2** (`configs/steer1_dev_heat1.json`, `steer1_dev_heat2.json`): one well inside the rule and one on its
+    line, so that a heat effect has room to show. Earlier choices, before the D22 noise logs were read (changed
+    before any run): 1 and 3, then 0.5 and 1 on an assumed 0.15-0.175 at 3 M.
+  - Weight 2 needs the noise at or under the D22 figure: at 0.15 it keeps +0.11 (+0.04 for the robot x1.1), and at
+    0.175 it falls below standing (-0.09). The judged weight is picked by a rule fixed before the dev runs
+    (`runs/trike60-steer1-dev_STEPS.md`, section 5): among other measures, each dev run's own noise at 3 M against a
+    limit read off these tables (0.124 for weight 2, 0.158 for weight 1).
+  - Pricing every drive over the margin, rather than the hottest, costs 2.4-4.1 times as much in the nominal cases
+    at noise 0.125-0.2 (2.1 at 0.11, up to 4.3 for the robot x1.1); at weight 1, noise 0.125, 0.25 m/s: 0.67
+    against 0.21 per step, a margin of +0.08 against +0.52 (`heat_weight_margins_every_drive*`, priced at the same
+    late scale). D29's hottest drive is kept.
   - The margins' standard errors are 0.01-0.10 on 3 seeds; figures within about 0.1 of each other are not told
     apart. These are straight-task policies; the steering task's tracking reward differs, so this guides the dev
     runs and predicts nothing.

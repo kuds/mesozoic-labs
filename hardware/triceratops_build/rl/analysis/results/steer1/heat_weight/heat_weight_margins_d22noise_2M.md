@@ -1,6 +1,6 @@
 # Reward margin over standing at late scale 0.5, by heat weight: the hottest drive priced (D29) (steer_heat_weight.py)
 
-Falls: 0 of 120 episodes. Per-step means over 3 seeds; margin = (case's base - w x cost at weight 1) - (standing's base - w x standing's cost), paired by seed; standing pays no r_heat_peak. Each cell: the worst of the four policies' 3-seed means, +- the largest of their four standard errors, then all four means. 'hottest drive' is the env's average (tau 4 s) at 20 s.
+Falls: 0 of 120 episodes. Per-step means over 3 seeds; margin = (case's base - w x cost at weight 1) - (standing's base - w x standing's cost), paired by seed; standing pays no r_heat_peak; 'cost at weight 1' is at this late scale. Each cell: the worst of the 4 policies' 3-seed means, +- the largest of their 4 standard errors, then all 4 means. 'hottest drive' is the env's average (tau 4 s) at 20 s.
 
 ## nominal, 0.25 m/s
 

@@ -3,33 +3,36 @@ gait: the README's reward-per-step method ("Reward per step at three stages of t
 128 mm policies. Simulation only; nothing here trains.
 
 Each case is one 20 s episode per seed (100000-100002), command 0.25 or 0.15 m/s, servo delay 10 ms, randomisation on
-(per body only: the flat floor), penalty and late scale 1 (full scale, from 3 M steps on), in the run's own env with
+(per body only: the flat floor), penalty scale 1 and late scale 1 (full scale, from 3 M steps on) unless --late
+says otherwise, in the run's own env with
 the steering presets' heat settings (margin 0.8, tau 4 s, start 2 s) at weight 1. r_heat_peak is linear in its weight,
 so the base reward (every term but r_heat_peak) and the cost at weight 1 are recorded, and any weight w is evaluated
 afterwards as base - w x cost. Cases: standing (zero action); noise (Gaussian, std 0.2, around zero: the initial
 policy's); each policy deterministic, and with Gaussian action noise of std 0.05, 0.1, 0.15, 0.175 and 0.2 added
 (PPO's exploration noise starts at 0.2, log_std_init -1.6; shorter earlier runs had 0.17-0.18 at 1-2 M steps, and
-the D22 runs ended at about 0.085 at 10 M). Also the whole robot x1.1
-(standing, the policy, the policy + noise 0.2). The policies are the straight-task D22 policies; the steering task's
+the D22 runs ended at about 0.085 at 10 M). Also the whole robot x1.1 (standing, and the policy at the same noise
+levels). The policies are the straight-task D22 policies at their final (10 M) checkpoints; the steering task's
 r_track differs, so the margins are a guide for choosing the dev runs' weights, not a prediction. For reference, the
 cost of the alternative D29 did not choose, every drive priced (the sum over the 12 drives of max(0, RMS / rating -
-0.8), from the env's own averages), is recorded beside it as cost_sum_w1.
+0.8), from the env's own averages, times the late scale), is recorded beside it as cost_sum_w1.
 
 Usage:
   python steer_heat_weight.py --runs-dir DIR --out OUT_DIR [--stds 0,0.05,0.1] [--late 0.5] [--tag _x] [--runs a,b]
---stds sets the policies' action-noise levels (default the six above), --late the late scale (default 1, full scale:
-r_heat, r_saturation, the negative part of r_air_time and r_heat_peak are multiplied by it, as train.py's late ramp
-does), --runs the run folders (default fore128-s0 ... s3); the x1.1 cases use the same noise levels, and the output
-file names carry --tag.
-DIR holds fore128-s0 ... fore128-s3, each with run_record.json and checkpoints/ (the final pair is used), loaded with
-the gait analysis's safe loaders. Writes OUT_DIR/heat_weight_episodes.json, OUT_DIR/heat_weight_margins.md and
-OUT_DIR/heat_weight_margins_every_drive.md. Each margin is given for the worst of the four policies, with the largest
-of the four policies' standard errors (per-seed margins, paired by seed with standing), then for each policy.
+--stds sets the policies' action-noise levels (default the six above; distinct, finite, >= 0), --late the late
+scale (default 1, full scale: r_heat, r_saturation, the negative part of r_air_time and r_heat_peak are multiplied by
+it, as train.py's late ramp does; 0.5-1, the stages from 2 M steps on, where train.py's penalty scale is 1), --runs
+the run folders (default fore128-s0 ... s3); the x1.1 cases use the same noise levels, and the output file names
+carry --tag. "Cost at weight 1" is at the given late scale.
+DIR holds the run folders, each with run_record.json and checkpoints/ (the newest pair is used), loaded with the gait
+analysis's safe loaders. Writes OUT_DIR/heat_weight_episodes<tag>.json, OUT_DIR/heat_weight_margins<tag>.md and
+OUT_DIR/heat_weight_margins_every_drive<tag>.md. Each margin is given for the worst of the policies, with the largest
+of their standard errors (per-seed margins, paired by seed with standing), then for each policy.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import statistics as st
 import sys
 from collections import defaultdict
@@ -74,9 +77,9 @@ def episode(env, policy, stats, seed, command, std):
             act = act + rng.normal(0.0, std, 12)
         obs, r, terminated, truncated, info = env.step(act)
         base += r - info["r_heat_peak"]
-        cost += -info["r_heat_peak"]  # weight 1, late scale 1
-        if env._step_count > env._heat_start_step:  # every drive priced, from the same averages (heat_peak_update)
-            cost_sum += float(np.maximum(np.sqrt(env._heat_ema) - HEAT["heat_peak_margin"], 0.0).sum())
+        cost += -info["r_heat_peak"]  # weight 1, at the env's late scale (r_heat_peak includes it)
+        if env._step_count > env._heat_start_step:  # every drive priced, from the same averages, same late scale
+            cost_sum += env.late_scale * float(np.maximum(np.sqrt(env._heat_ema) - HEAT["heat_peak_margin"], 0.0).sum())
         for k in TERMS:
             terms[k] += info[k]
         n += 1
@@ -128,8 +131,9 @@ def margins_md(rows, key="cost_w1", stds=STDS, late=1.0) -> str:
     L = [f"# Reward margin over standing {stage}, by heat weight: {title} (steer_heat_weight.py)", "",
          f"Falls: {sum(r['fell'] for r in rows)} of {len(rows)} episodes. Per-step means over 3 seeds; margin = "
          "(case's base - w x cost at weight 1) - (standing's base - w x standing's cost), paired by seed; standing "
-         "pays no r_heat_peak. Each cell: the worst of the four policies' 3-seed means, +- the largest of their four "
-         "standard errors, then all four means. 'hottest drive' is the env's average (tau 4 s) at 20 s.", ""]
+         f"pays no r_heat_peak; 'cost at weight 1' is at this late scale. Each cell: the worst of the {len(runs)} "
+         f"policies' 3-seed means, +- the largest of their {len(runs)} standard errors, then all {len(runs)} means. "
+         "'hottest drive' is the env's average (tau 4 s) at 20 s.", ""]
     for cond in ("nominal", "x1.1"):
         for cmd in COMMANDS:
             cases = [c for c in ["noise"] + [f"policy+{s:g}" for s in stds] if (cond, cmd, c, runs[0]) in g]
@@ -164,8 +168,11 @@ def main():
     ap.add_argument("--tag", default="", help="suffix for the output file names")
     a = ap.parse_args()
     stds = tuple(float(x) for x in a.stds.split(","))
-    if not 0.0 <= a.late <= 1.0 or any(x < 0 for x in stds):
-        raise SystemExit("--late must lie in [0, 1] and --stds must be >= 0")
+    labels = [f"{x:g}" for x in stds]
+    if not 0.5 <= a.late <= 1.0:
+        raise SystemExit("--late must lie in [0.5, 1] (train.py's stages from 2 M steps on, where the penalty scale is 1)")
+    if any(not math.isfinite(x) or x < 0 for x in stds) or len(set(labels)) != len(labels):
+        raise SystemExit("--stds must be finite, >= 0 and distinct (after formatting with :g)")
     runs = a.runs.split(",")
     with Pool(a.workers) as p:
         rows = [x for chunk in p.map(job, [(a.runs_dir, r, stds, a.late) for r in runs]) for x in chunk]

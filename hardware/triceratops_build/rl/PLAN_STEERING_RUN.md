@@ -51,12 +51,14 @@ fixed again before any run (`rl/README.md`, "The steering run's training additio
   are the sweep's stress points;
 - the heat average: the first version started at 0 at each reset (it priced 0.85-1.0 of rating at 38-61 %); the
   second, bias-corrected from 2 s, front-loaded the cost onto the first second after 2 s (the re-check). It now
-  starts at 2 s from the margin, which weights every step alike and prices 0.80-0.82 of F2's own price; chosen
+  starts at 2 s from the margin, which weights every step alike and, on gaits well over the margin, prices
+  0.80-0.82 of F2's own price (more than F2 near or under the margin: 1.26 on the coolest group); chosen
   from seven candidates measured on the D22 policies (`rl/analysis/steer_heat_average.py`);
 - the dev-run weights are 1 and 2. The README's rule (a gait with exploration noise earns 0.3 per step more than
   standing) is applied at the noise when the cost reaches full weight, 3 M steps: 0.123-0.128 in the D22 runs on
-  the same schedules (their train_health logs). There weight 1 keeps +0.52-0.57, weight 2 sits at the rule
-  (+0.27-0.31) and weight 3 does not (+0.01-0.09). Earlier picks, both before any run: 1 and 3, then 0.5 and 1
+  the same schedules (their train_health logs; the straight task with terrain, 0-10 ms delays and no heat-peak
+  cost, so a guide only). There weight 1 keeps +0.52-0.57, weight 2 is on the line (+0.27-0.31) and weight 3 does
+  not (+0.01-0.09). Earlier picks, both before any run: 1 and 3, then 0.5 and 1
   on an assumed noise. Each dev run's own noise at 1-3 M is checked before the judged weight is fixed;
 - the notebook refuses a steer1 preset on any model but the 128 mm one.
 

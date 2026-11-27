@@ -296,3 +296,31 @@ def test_steering_presets_match_the_plan_and_the_notebook_menu():
     assert sorted(x.strip(' "') for x in check[check.index("(") + 1:check.index(")")].split(",") if x.strip(' "')) \
         == presets
     assert 'ENV_PRESET.startswith("steer1_") and MODEL != "trike60_C_closed_capsule_fore128"' in src
+
+
+def test_weight_script_prices_both_costs_at_the_late_scale():
+    """steer_heat_weight.episode: at late scale 0.5 the hottest-drive cost and the every-drive reference are both half
+    of what they are at full scale (same episode: the late scale changes no action), and their ratio is unchanged."""
+    sys.path.insert(0, str(RL_DIR / "analysis"))
+    import steer_heat_weight as shw
+
+    cfg = TrikeEnvConfig(model_path=FORE128).replace(**shw.HEAT)
+    out = {}
+    for late in (1.0, 0.5):
+        env = TrikeEnv(flat_floor(cfg))
+        env.late_scale, env.penalty_scale = late, 1.0
+        out[late] = shw.episode(env, None, (None, None, None, None), 100000, 0.25, 0.2)
+    assert out[1.0]["cost_w1"] > 0.05 and out[1.0]["cost_sum_w1"] > out[1.0]["cost_w1"]
+    for k in ("cost_w1", "cost_sum_w1"):
+        assert out[0.5][k] == pytest.approx(0.5 * out[1.0][k], rel=1e-9)
+
+
+@pytest.mark.parametrize("args", [["--late", "0.3"], ["--late", "1.5"], ["--stds", "0.1,0.1"],
+                                  ["--stds", "0.125,0.1250001"], ["--stds", "nan"], ["--stds", "-0.1"]])
+def test_weight_script_refuses_bad_options_before_running(args, tmp_path):
+    import subprocess
+
+    p = subprocess.run([sys.executable, str(RL_DIR / "analysis" / "steer_heat_weight.py"), "--runs-dir",
+                        str(tmp_path), "--out", str(tmp_path / "out"), *args], capture_output=True, text=True,
+                       timeout=120)
+    assert p.returncode != 0 and ("--late" in p.stderr or "--stds" in p.stderr) and not (tmp_path / "out").exists()
