@@ -26,7 +26,7 @@ robustness, **LOW** = cosmetic / QoL.
 
 - **HIGH** — **the walk's `command_tracking/v1` bars are provisional, and no
   controller in the repository has passed a committed walk panel (2026-11-24,
-  decision D-D62 (16); updated 2026-11-26, decisions D-D64 and D-D65).**
+  decision D-D62 (16); updated 2026-11-26, decisions D-D64 to D-D66).**
   Every committed walk follows a live command and is judged by the gate's
   walk profile at `PROVISIONAL_WALK_THRESHOLDS` and the model's gait clause.
   On the real plants the zero-action statue fails every walk on the cruise
@@ -81,8 +81,9 @@ robustness, **LOW** = cosmetic / QoL.
       bar is decided after the pilot (D-D65 (2)). A quadruped start
       sprint is charged little tracking under the expanding window and the
       +W allowance, and out-earns the steady reference by 0.4-2.1% a step,
-      through `gait_symmetry`. The follow profile's mid-episode command
-      changes are unmeasured.
+      through `gait_symmetry`. Whether such a start overshoot should be
+      charged is decided after the pilot (D-D66 (4)). The follow profile's
+      mid-episode command changes are unmeasured.
 
     No weight, sigma or bar was changed for them; the bars are to be frozen
     from a pilot. The in-training evaluation keeps the declared end-state
@@ -1095,8 +1096,28 @@ robustness, **LOW** = cosmetic / QoL.
   walks. On the dibothrosuchus, neither, on most seeds, is the collapse of a
   learned walk that tracks none of the committed commands; on the
   brachiosaurus such a walk evaluates within a few units of the floor, so
-  ordinary fluctuation between evaluations usually arms it. Still open: the
-  brachiosaurus and dibothrosuchus stance floors (1310, 1870) stay absolute.
+  ordinary fluctuation between evaluations usually arms it.
+  **Update 2026-11-26 (decision D-D66):** the maintainer kept the
+  dibothrosuchus walk's fraction at 1.31, the D-D62 (15) midpoint, rather
+  than 1.32, so the rule stays as written and the same on every model. A
+  stander arms it on 1.13% of seeds with a run's episodes fixed (0.82% at
+  1.32), which is harmless: a steady level never stops a run. A learned walk
+  that tracks none of the committed commands, whose collapse the
+  dibothrosuchus floor mostly misses, is accepted as within the trade.
+  `collapse_drop_fraction` stays 0.5 on the four walks with a backstop, so
+  an armed run stops once 10 evaluations in a row fall below half its peak,
+  and a return to standing after walking can do that: from the matched
+  reference walker's level it stops the run on the T. rex at 2 or 3 stands
+  of the 30 evaluation episodes (27.4% of evaluation seeds), on the
+  velociraptor at 6 or fewer (84.7%, the default seed 42 included), on the
+  dibothrosuchus at 2 or fewer on the family means (15.1%; 17.2% with each
+  run's own episodes fixed, some of them at 3 or 4 stands) and on the
+  brachiosaurus at none (computed on the committed means and replayed
+  through `EvalCollapseEarlyStopCallback`). A walk that scores higher stops
+  on at least as many seeds. Whether to change the drop fraction is decided
+  after the pilot, once learned walks show how high they score. Still open:
+  the brachiosaurus and dibothrosuchus stance floors (1310, 1870) stay
+  absolute.
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`

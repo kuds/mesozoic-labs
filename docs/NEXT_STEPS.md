@@ -260,9 +260,15 @@ and the notebook review's 110 open findings are folded into KNOWN_ISSUES next.* 
 this day's tree, no finding changed status (11 addressed, 20 moot, 110 open), and the 110 open
 ones are carried by 52 new entries and 8 amendments, each naming its ids; the review's addendum
 "Folded on 2026-11-26" records the counts and the amendments. The triage the 2026-11-25 note left
-pending is done.* Section 2 labels each audited node except the in-training dibothrosuchus re-run,
-which section 3's session-4 row describes, and the plan's §10 holds a prompt for continuing the
-gait work in a fresh session.
+pending is done.* *2026-11-26 (decision D-D66): the maintainer answered D-D65's four open
+questions; no code changes. The dibothrosuchus walk keeps its floor fraction 1.31, not 1.32; a
+walk that tracks no committed command is accepted as within D-D65's trade;
+`collapse_drop_fraction` stays 0.5 and D-D64 (11)'s start overshoot uncharged, both to be decided
+after the pilot. At 0.5 a return to standing after a matched reference walk stops the run on 27.4%
+of seeds on the T. rex, 84.7% on the velociraptor and 15.1% on the dibothrosuchus (17.2% with each
+run's own episodes fixed), never on the brachiosaurus.* Section 2 labels each audited node except
+the in-training dibothrosuchus re-run, which section 3's session-4 row describes, and the plan's
+§10 holds a prompt for continuing the gait work in a fresh session.
 
 The notebook ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb)) is the one SB3 training
 notebook; the consolidation plan's §4 maps its cells. Its sizes from consolidation PR-3 on are in the

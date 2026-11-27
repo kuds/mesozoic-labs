@@ -3510,8 +3510,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the counts, the amendments and what the re-check corrected in its status;
     from here it is a findings record. `docs/NEXT_STEPS.md` §1 closes the
     triage its 2026-11-25 note left pending, D-D65 (4) names where the fold
-    lives, and `docs/README.md`'s review list says the findings are folded. A test docstring that said the Compsognathus walks omit the
-    collapse floor without a comment is corrected. No code changes.
+    lives, and `docs/README.md`'s review list says the findings are folded. A
+    test docstring that said the Compsognathus walks omit the collapse floor
+    without a comment is corrected. No code changes.
+- **The maintainer's answers to D-D65's four open questions are recorded**
+  (decision D-D66, taken 2026-11-26, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2).
+  The dibothrosuchus walk keeps `collapse_peak_floor_fraction = 1.31`, the
+  D-D62 (15) midpoint, rather than 1.32. A learned walk that tracks none of
+  the committed commands, whose collapse the dibothrosuchus floor mostly
+  misses, is accepted as within D-D65's trade. `collapse_drop_fraction` stays
+  0.5, and D-D64 (11)'s start overshoot stays uncharged, both to be decided
+  after the pilot. Measured for the drop fraction: a run that walks at its
+  matched reference walker's level and then returns to standing is stopped on
+  the T. rex at 2 or 3 stands of the 30 evaluation episodes (27.4% of
+  evaluation seeds), on the velociraptor at up to 6 (84.7%, the default seed
+  included) and on the dibothrosuchus at up to 2 (15.1% on the family means;
+  17.2% with each run's own episodes fixed, some at 3 or 4 stands), and never
+  on the brachiosaurus; a walk that scores higher stops on at least as many
+  seeds. D-D65's row points to D-D66 at its item (3), and the plan's top note
+  and §6.2's intro, `docs/KNOWN_ISSUES.md` and `docs/NEXT_STEPS.md` are
+  updated. No code changes.
 - **The walk's command tracking is scored on a one-stride mean** (decision
   D-D64, taken 2026-11-26, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). It
   implements D-D63 (2) and resolves D-D62 (16)'s open risk (a): a walking gait
