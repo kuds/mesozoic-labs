@@ -1182,8 +1182,11 @@ weight at the reward ramp's start value. Two reference settings come first:
 `mean`, the policy's mean action with no noise, rolled once per seed, and
 `own`, the parent's learned `log_std`. Then each grid value is written into
 every entry of the policy's `log_std`, in memory, and restored. The default
-grid is the parent's largest learned `log_std` rounded to a multiple of
-0.125, from 0.5 below it to 1.0 above it in steps of 0.125. Every noisy
+grid has two passes: the parent's largest learned `log_std` rounded to a
+multiple of 0.125, from 0.5 below it to 1.0 above it in steps of 0.25, then
+one value 0.125 above the largest first-pass value at which every episode
+stood (none when no value or the largest value stood every episode). A
+`--log-std` grid is rolled as given. Every noisy
 setting rolls seeds 3042-3081 in three noise streams to the walk's episode
 length (`--seeds`, `--streams`, `--horizon`). Actions are
 `clip(mean + std z)` from the policy's own distribution, with `z` from
@@ -1219,9 +1222,14 @@ sha256 (checked unchanged after the scan), the parent's per-actuator
 `log_std`, the policy's classes and the definitions. `--out-dir` is refused
 inside a run directory or the parent's stage directory
 (`result_bundle.refuse_output_inside_run`), and when it already holds a
-scan. The tool changes no config, gate, reward, task, checkpoint or plant.
-The default T. rex scan is 1.72M control steps, about 43 minutes of one
-CPU; `--jobs N` splits it over N processes with the same records.
+scan, finished or interrupted. While it runs,
+`warm_start_noise_scan.partial.json` holds the rows finished so far
+(`complete` false, with the current pass's `pending` settings); it is
+removed once both outputs are written. The tool changes no config, gate,
+reward, task, checkpoint or plant. The default T. rex scan is at most 1.12M
+control steps, about 28 minutes of one CPU at the measured 1.5 ms per step;
+`--jobs N` splits each pass over N processes with the same records. It runs
+as a session of its own, never inside a training session.
 
 ## Training progress: `progress.json`
 

@@ -56,19 +56,40 @@ def _sha256(path: Path) -> str:
 
 def test_the_default_grid_is_centred_on_the_parents_largest_learned_log_std_on_the_step_lattice():
     grid = scan.default_grid(PILOT3_PARENT_LOG_STD)
-    # -2.2006 rounds to -2.25; -0.5 below it to +1.0 above it in 0.125 steps.
+    # -2.2006 rounds to -2.25; the first pass runs -0.5 below it to +1.0 above it in 0.25 steps.
     assert scan.grid_reference(PILOT3_PARENT_LOG_STD) == pytest.approx(-2.2006)
-    assert grid == tuple(-2.75 + 0.125 * index for index in range(13))
-    # Every value pilot 3 scanned is on it, its answer -2.0 included.
-    assert {-2.5, -2.25, -2.0, -1.875, -1.75, -1.5} <= set(grid)
+    assert scan.grid_centre(PILOT3_PARENT_LOG_STD) == -2.25
+    assert grid == tuple(-2.75 + 0.25 * index for index in range(7))
+    # Pilot 3's own grid is the first pass's middle, its answer -2.0 included.
+    assert {-2.5, -2.25, -2.0, -1.75, -1.5} <= set(grid)
 
 
 def test_a_parent_on_the_lattice_is_its_own_centre_and_the_grid_moves_with_the_parent():
-    assert scan.default_grid([-2.0, -3.0])[4] == -2.0
+    assert scan.default_grid([-2.0, -3.0])[2] == -2.0
     assert scan.default_grid([-1.0])[0] == -1.5
     assert scan.default_grid([-1.0])[-1] == 0.0
+    # The centre is on the 0.125 lattice, so a parent between two 0.25 steps keeps its own centre.
+    assert scan.default_grid([-2.13])[2] == -2.125
+    assert all(value / scan.REFINE_STEP == round(value / scan.REFINE_STEP) for value in scan.default_grid([-2.13]))
     with pytest.raises(scan.NoiseScanError, match="finite"):
         scan.default_grid([float("nan")])
+
+
+def test_the_refinement_halves_the_gap_above_the_first_passs_answer():
+    rows = [_row(-2.5, 120), _row(-2.25, 120), _row(-2.0, 120), _row(-1.75, 91), _row(-1.5, 9)]
+    # Pilot 3's first pass: -2.0 stood and -1.75 fell, so the refinement is the -1.875 pilot 3 added.
+    assert scan.refinement(rows) == -1.875
+    # A value below the answer that fell does not move it: the refinement follows the literal answer.
+    assert scan.refinement([_row(-2.5, 119), _row(-2.25, 120), _row(-2.0, 100)]) == -2.125
+
+
+def test_there_is_no_refinement_when_the_edge_lies_outside_the_first_pass():
+    # Nothing stood: the edge is below the grid.
+    assert scan.refinement([_row(-2.5, 100), _row(-2.25, 50)]) is None
+    # The largest value stood: the edge is above the grid.
+    assert scan.refinement([_row(-2.5, 120), _row(-2.25, 120)]) is None
+    # The next value up is already one refinement step away.
+    assert scan.refinement([_row(-2.0, 120), _row(-1.875, 100)]) is None
 
 
 def test_explicit_values_are_sorted_and_a_repeat_is_refused():
@@ -780,6 +801,99 @@ def test_the_scan_is_the_same_across_processes(tyrannosaurus_rex_parent, tmp_pat
     serial = _smoke(tyrannosaurus_rex_parent, TYRANNOSAURUS_REX, tmp_path / "serial")
     parallel = _smoke(tyrannosaurus_rex_parent, TYRANNOSAURUS_REX, tmp_path / "parallel", "--jobs", "2")
     assert parallel["settings"] == serial["settings"]
+    # A finished scan leaves no progress file, in either mode.
+    assert not (tmp_path / "serial" / scan.SCAN_PROGRESS).exists()
+    assert not (tmp_path / "parallel" / scan.SCAN_PROGRESS).exists()
+
+
+def _fake_rolls(monkeypatch, stands, *, interrupt_at: float | None = None) -> list[Any]:
+    """Replace the rollouts with records that stand when ``stands(setting)``; returns the settings rolled, per stream."""
+    rolled: list[Any] = []
+
+    def roll_setting(context, setting, stream):
+        if interrupt_at is not None and setting == interrupt_at:
+            raise KeyboardInterrupt
+        rolled.append(setting)
+        stood = bool(stands(setting))
+        return [_episode(stream, seed, stood=stood, reason=None if stood else "fallen") for seed in context.seeds]
+
+    monkeypatch.setattr(scan, "roll_setting", roll_setting)
+    return rolled
+
+
+def _default_grid_argv(parent: TinyParent, out_dir: Path) -> list[str]:
+    return [
+        *TYRANNOSAURUS_REX_ARGS, "--stage-dir", str(parent.stage_dir), "--seeds", SMOKE_SEEDS, "--streams", "1",
+        "--horizon", "2", "--out-dir", str(out_dir),
+    ]  # fmt: skip
+
+
+def test_the_default_grid_rolls_a_first_pass_then_one_refinement_above_its_answer(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    first = scan.default_grid(tyrannosaurus_rex_parent.log_std)
+    assert -2.0 in first and -1.75 in first
+    rolled = _fake_rolls(monkeypatch, lambda setting: isinstance(setting, str) or setting <= -2.0)
+    out = tmp_path / "out"
+    assert scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out)) == 0
+    report = json.loads((out / scan.SCAN_JSON).read_text(encoding="utf-8"))
+    # Pilot 3's pattern: -2.0 stood and -1.75 fell, so the second pass rolls -1.875 alone.
+    assert rolled == [scan.MEAN, scan.OWN, *first, -1.875]
+    assert report["grid"] == sorted([*first, -1.875])
+    assert [row["label"] for row in report["settings"]] == [
+        "mean",
+        "own",
+        *[scan.setting_label(value) for value in sorted([*first, -1.875])],
+    ]
+    answer = report["largest_all_standing"]
+    assert (answer["log_std"], answer["next_log_std"], answer["next_stood"]) == (-2.0, -1.875, 0)
+    assert "then -1.875, 0.125 above -2, the largest of those at which every episode stood" in report["grid_rule"]
+    assert report["complete"] is True and "pending" not in report
+    assert not (out / scan.SCAN_PROGRESS).exists()
+
+
+def test_the_default_grid_adds_no_refinement_when_the_edge_lies_above_it(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    first = scan.default_grid(tyrannosaurus_rex_parent.log_std)
+    rolled = _fake_rolls(monkeypatch, lambda setting: True)
+    out = tmp_path / "out"
+    assert scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out)) == 0
+    report = json.loads((out / scan.SCAN_JSON).read_text(encoding="utf-8"))
+    assert rolled == [scan.MEAN, scan.OWN, *first] and report["grid"] == list(first)
+    assert "no refinement: the largest value stood every episode" in report["grid_rule"]
+    assert report["largest_all_standing"]["edge_above_grid"] is True
+
+
+def test_an_explicit_grid_is_rolled_as_given_without_a_refinement(tyrannosaurus_rex_parent, tmp_path, monkeypatch):
+    rolled = _fake_rolls(monkeypatch, lambda setting: isinstance(setting, str) or setting <= -2.0)
+    argv = _default_grid_argv(tyrannosaurus_rex_parent, tmp_path / "out")
+    assert scan.main([*argv, "--log-std", "-2.0", "-1.5"]) == 0
+    assert rolled == [scan.MEAN, scan.OWN, -2.0, -1.5]
+
+
+def test_an_interrupted_scan_keeps_the_settings_it_finished_and_its_out_dir_is_then_refused(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    first = scan.default_grid(tyrannosaurus_rex_parent.log_std)
+    _fake_rolls(monkeypatch, lambda setting: True, interrupt_at=first[2])
+    out = tmp_path / "out"
+    with pytest.raises(KeyboardInterrupt):
+        scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out))
+    progress = json.loads((out / scan.SCAN_PROGRESS).read_text(encoding="utf-8"))
+    assert progress["schema"] == scan.SCAN_SCHEMA and progress["complete"] is False
+    assert [row["label"] for row in progress["settings"]] == [
+        "mean",
+        "own",
+        *[scan.setting_label(value) for value in first[:2]],
+    ]
+    assert progress["pending"] == [scan.setting_label(value) for value in first[2:]]
+    assert "largest_all_standing" not in progress
+    assert not (out / scan.SCAN_JSON).exists() and not (out / scan.SCAN_TEXT).exists()
+    # The interrupted rows are never replaced by a second scan into the same directory.
+    with pytest.raises(SystemExit, match="holds the rows an interrupted scan finished"):
+        scan.main(_default_grid_argv(tyrannosaurus_rex_parent, out))
+    assert json.loads((out / scan.SCAN_PROGRESS).read_text(encoding="utf-8")) == progress
 
 
 def test_a_parent_from_another_plant_is_refused(compsognathus_longipes_robot_parent, tmp_path):
@@ -843,4 +957,5 @@ def test_a_pair_that_changes_on_disk_during_the_scan_is_refused(tyrannosaurus_re
         scan.main(
             [*TYRANNOSAURUS_REX_ARGS, "--stage-dir", str(run / "01_stance"), *SHORT, "--out-dir", str(tmp_path / "out")]
         )
-    assert not (tmp_path / "out").exists()
+    # The progress file the scan wrote is removed with the refusal: those rows measure no one checkpoint.
+    assert not any((tmp_path / "out").iterdir())

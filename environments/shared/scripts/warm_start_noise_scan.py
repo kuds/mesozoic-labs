@@ -62,13 +62,18 @@ Protocol:
   a reset starts.  Then each value of the grid is written into every entry
   of the policy's ``log_std``, in memory only, and restored afterwards (an
   exception included).  The checkpoint files are only read.  The default
-  grid is centred on the parent's largest learned ``log_std``, rounded to
-  the nearest multiple of 0.125, and runs from 0.5 below it to 1.0 above it
-  in steps of 0.125: 13 values, all of them numbers a stage TOML can
-  declare.  On pilot 3's parent (largest learned log_std -2.20,
-  tail_1_yaw) that is -2.75 to -1.25, which holds pilot 3's own grid (-2.5
-  to -1.5 in steps of 0.25) and its edge, -1.875.  ``--log-std V [V ...]``
-  replaces the grid.
+  grid has two passes, as pilot 3's scan had.  The first is centred on the
+  parent's largest learned ``log_std``, rounded to the nearest multiple of
+  0.125, and runs from 0.5 below it to 1.0 above it in steps of 0.25: 7
+  values.  The second adds one value 0.125 above the largest first-pass
+  value at which every episode stood, halving the gap to the next value up.
+  It adds none when no first-pass value stood every episode, or when the
+  largest did.  Every default value is a multiple of 0.125, a number a stage
+  TOML can declare.  On pilot 3's parent (largest learned log_std -2.20,
+  tail_1_yaw) the first pass is -2.75 to -1.25, which holds pilot 3's own
+  grid (-2.5 to -1.5 in steps of 0.25); pilot 3's -2.0 stood and -1.75 fell,
+  so the second pass adds -1.875, the value pilot 3 added.  ``--log-std V
+  [V ...]`` replaces the grid, and is rolled as given, in one pass.
 * **Episodes.**  Each noisy setting rolls the reset seeds 3042-3081
   (``--seed`` and ``--episodes``, or ``--seeds``) in three independent noise
   streams (``--streams``): 120 episodes per value.  In stream ``k`` the
@@ -143,8 +148,13 @@ in the current directory): ``warm_start_noise_scan.json``
 the printed table.  The JSON holds the inputs and their sha256, the
 parent's per-actuator ``log_std``, the policy's classes, the grid, the
 definitions above, the summary per setting with every episode's record,
-and the answer.  An ``--out-dir`` that already holds a scan is refused, so
-a second parent's scan never replaces the first's; so is one inside a run
+and the answer.  While the scan runs, ``warm_start_noise_scan.partial.json``
+is rewritten as each setting finishes (``complete`` false, the rows so far
+and the settings still ``pending`` in the current pass), so an interrupted
+scan keeps what it measured; it is removed once the JSON and the table are
+written, and when the pair changed on disk during the scan.  An ``--out-dir`` that already holds a scan, finished or
+interrupted, is refused, so a second parent's scan never replaces the
+first's; so is one inside a run
 directory (the nearest ancestor holding ``provenance.json``), or inside the
 stage directory of the checkpoint or its statistics
 (``result_bundle.refuse_output_inside_run``): a result bundle's manifest
@@ -153,13 +163,18 @@ The tool changes no config, gate, reward, task, checkpoint or plant, and
 writes nothing into any run.
 
 Cost: one process steps the T. rex at about 1.5 ms per control step with
-a [512, 256] policy (measured on a shared 4-CPU machine), so the default
-scan of 40 ``mean`` episodes and 14 noisy settings x 120 episodes, at 1000
-steps each (1.72M steps, fewer where episodes fall), takes about 43 minutes
-of one CPU.  ``--jobs N`` splits the (setting, stream) pairs across N
-processes.  Each process loads its own copy of the pair and gives torch one
-thread, and the records are the same for any N.  The allosaurus's
-3000-step episodes triple the cost; ``--horizon`` shortens them.
+a [512, 256] policy (measured on a shared 4-CPU machine).  The default scan
+is 40 ``mean`` episodes and at most 9 noisy settings (``own``, 7 first-pass
+values and the refinement) x 120 episodes, at 1000 steps each: at most
+1.12M steps, fewer where episodes fall, about 28 minutes of one CPU at that
+rate.  A slower CPU, such as a Colab CPU runtime's, takes longer.  ``--jobs
+N`` splits each pass's (setting, stream) pairs across N processes.  Each
+process loads its own copy of the pair and gives torch one thread, and the
+records are the same for any N.  The allosaurus's 3000-step episodes triple
+the cost; ``--horizon`` shortens them.  Run the scan as a session of its
+own, after the parent's run is certified and published: it needs no GPU,
+and an 11M-step T. rex stance session leaves under two hours of Colab's
+24-hour limit, which the run's own certificate and bundle need.
 
 Usage::
 
@@ -179,7 +194,7 @@ from __future__ import annotations
 import argparse
 import math
 from collections import Counter
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -196,14 +211,20 @@ from environments.shared.stage_manifest import StageEntry, StageManifest
 SCAN_SCHEMA = "mesozoic.warm-start-noise-scan/v1"
 SCAN_JSON = "warm_start_noise_scan.json"
 SCAN_TEXT = "warm_start_noise_scan.txt"
+#: Rewritten as each setting finishes, and removed once the scan's JSON and table are written.
+SCAN_PROGRESS = "warm_start_noise_scan.partial.json"
 #: The default panel: seeds 3042-3081 in three noise streams (walking pilot 3's).
 DEFAULT_EPISODES = 40
 DEFAULT_STREAMS = 3
 DEFAULT_SEEDS = tuple(range(PUBLICATION_SEED_START, PUBLICATION_SEED_START + DEFAULT_EPISODES))
-#: The default grid: from GRID_BELOW under the parent's largest learned log_std to GRID_ABOVE over it.
+#: The default grid's first pass: from GRID_BELOW under the parent's largest learned log_std to GRID_ABOVE over
+#: it, in steps of GRID_STEP.
 GRID_BELOW = 0.5
 GRID_ABOVE = 1.0
-GRID_STEP = 0.125
+GRID_STEP = 0.25
+#: The default grid's lattice and its one refinement step: the centre is rounded to a multiple of it, so every
+#: default value, the refinement included, is one a stage TOML can declare.
+REFINE_STEP = 0.125
 #: The middle word of every noise stream's seed sequence (the date of the decision that built the tool).
 STREAM_ENTROPY = 20261126
 #: The reference settings, rolled before the grid: the mean action without noise, and the parent's own log_std.
@@ -261,11 +282,34 @@ def grid_reference(parent_log_std: Sequence[float]) -> float:
     return float(values.max())
 
 
+def grid_centre(parent_log_std: Sequence[float]) -> float:
+    """The reference rounded to the nearest multiple of :data:`REFINE_STEP`: the default grid's centre."""
+    return math.floor(grid_reference(parent_log_std) / REFINE_STEP + 0.5) * REFINE_STEP
+
+
 def default_grid(parent_log_std: Sequence[float]) -> tuple[float, ...]:
-    """The 13 default values: the reference rounded to a multiple of :data:`GRID_STEP`, -0.5 to +1.0 around it."""
-    centre = math.floor(grid_reference(parent_log_std) / GRID_STEP + 0.5) * GRID_STEP
+    """The first pass's 7 values: the centre, from :data:`GRID_BELOW` below it to :data:`GRID_ABOVE` above it."""
+    centre = grid_centre(parent_log_std)
     below, above = round(GRID_BELOW / GRID_STEP), round(GRID_ABOVE / GRID_STEP)
     return tuple(centre + index * GRID_STEP for index in range(-below, above + 1))
+
+
+def refinement(rows: Sequence[Mapping[str, Any]]) -> float | None:
+    """The default grid's second pass: one value :data:`REFINE_STEP` above the first pass's answer, or ``None``.
+
+    *rows* are the first pass's grid summaries.  The value halves the gap
+    between the largest value at which every episode stood and the next
+    value up, as walking pilot 3 added -1.875 between its -2.0 and -1.75.
+    There is none when no value stood every episode (the edge is below the
+    grid), when the answer is the grid's largest value (the edge is above
+    it), or when the next value up is already one step away.
+    """
+    answer = largest_standing(rows)
+    if answer["log_std"] is None or answer["next_log_std"] is None:
+        return None
+    if answer["next_log_std"] - answer["log_std"] <= REFINE_STEP + 1e-9:
+        return None
+    return float(answer["log_std"]) + REFINE_STEP
 
 
 def checked_grid(values: Sequence[float]) -> tuple[float, ...]:
@@ -389,12 +433,15 @@ def checkpoint_files(model: Path, vecnorm: Path) -> tuple[Path, Path]:
 
 
 def refuse_existing_scan(out_dir: Path) -> None:
-    """Refuse an *out_dir* that already holds a scan: a second parent's scan must not replace the first's."""
-    present = [name for name in (SCAN_JSON, SCAN_TEXT) if (out_dir / name).exists()]
+    """Refuse an *out_dir* that already holds a scan, finished or interrupted: a scan must not replace another's."""
+    present = [name for name in (SCAN_JSON, SCAN_TEXT, SCAN_PROGRESS) if (out_dir / name).exists()]
     if present:
+        interrupted = (
+            f" ({SCAN_PROGRESS} holds the rows an interrupted scan finished)" if SCAN_PROGRESS in present else ""
+        )
         raise NoiseScanError(
-            f"{out_dir} already holds {', '.join(present)} from an earlier scan; pass another --out-dir (one per "
-            "parent checkpoint), or remove those files to scan again"
+            f"{out_dir} already holds {', '.join(present)} from an earlier scan{interrupted}; pass another --out-dir "
+            "(one per parent checkpoint), or remove those files to scan again"
         )
 
 
@@ -697,13 +744,15 @@ def run_scan(
     streams: int,
     jobs: int = 1,
     context: ScanContext | None = None,
+    on_setting: Callable[[int, list[list[dict[str, Any]]]], None] | None = None,
 ) -> list[list[list[dict[str, Any]]]]:
     """Every setting's episodes, ``[setting][stream][seed]``; in this process, or across *jobs* processes.
 
     :data:`MEAN` rolls one stream (:func:`setting_streams`).  *context* is
     this process's, reused when *jobs* is 1.  The records do not depend on
     *jobs*: each (setting, stream) pair resets its own episodes and draws its
-    own noise.
+    own noise.  *on_setting* is called in this process with a setting's index
+    and episodes once its last stream is in, in the order of *settings*.
     """
     tasks = [
         (index, setting, stream)
@@ -713,12 +762,20 @@ def run_scan(
     results: list[list[list[dict[str, Any]]]] = [
         [[] for _ in range(setting_streams(setting, streams))] for setting in settings
     ]
+    remaining = [setting_streams(setting, streams) for setting in settings]
+
+    def finished(index: int, stream: int, episodes: list[dict[str, Any]]) -> None:
+        results[index][stream] = episodes
+        remaining[index] -= 1
+        if remaining[index] == 0 and on_setting is not None:
+            on_setting(index, results[index])
+
     if jobs <= 1:
         own = context if context is not None else open_context(spec)
         try:
             with one_torch_thread():
                 for index, setting, stream in tasks:
-                    results[index][stream] = roll_setting(own, setting, stream)
+                    finished(index, stream, roll_setting(own, setting, stream))
         finally:
             if context is None:
                 own.close()
@@ -733,7 +790,7 @@ def run_scan(
         initargs=(spec,),
     ) as pool:
         for index, stream, episodes in pool.map(_run_task, tasks):
-            results[index][stream] = episodes
+            finished(index, stream, episodes)
     return results
 
 
@@ -834,6 +891,13 @@ def largest_standing(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "below_first_failure_log_std": None if monotone < 0 else ordered[monotone]["log_std"],
         "failing_below": [ordered[index]["log_std"] for index in failing if standing and index < standing[-1]],
     }
+
+
+def ordered_rows(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """The reference rows (:data:`MEAN`, then :data:`OWN`), then the grid's rows by ascending ``log_std``."""
+    references = [row for kind in (MEAN, OWN) for row in rows if row["kind"] == kind]
+    grid = sorted((row for row in rows if row["kind"] == "grid"), key=lambda row: row["log_std"])
+    return [dict(row) for row in (*references, *grid)]
 
 
 def _protocol_note(*, seeds: Sequence[int], streams: int, horizon: int, episode_steps: int) -> str | None:
@@ -994,10 +1058,19 @@ def render_scan(report: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_scan(out_dir: Path, report: Mapping[str, Any], text: str) -> dict[str, Path]:
-    """Write :data:`SCAN_JSON`, then :data:`SCAN_TEXT`, into *out_dir*; returns them by name.
+def write_progress(out_dir: Path, report: Mapping[str, Any]) -> Path:
+    """Write :data:`SCAN_PROGRESS`: the rows finished so far, so an interrupted scan keeps what it measured."""
+    from environments.shared.file_io import atomic_write_json
 
-    The JSON goes first: a write that fails leaves no table without its record.
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return atomic_write_json(out_dir / SCAN_PROGRESS, report, allow_nan=False)
+
+
+def write_scan(out_dir: Path, report: Mapping[str, Any], text: str) -> dict[str, Path]:
+    """Write :data:`SCAN_JSON`, then :data:`SCAN_TEXT`, into *out_dir*, then remove :data:`SCAN_PROGRESS`.
+
+    The JSON goes first: a write that fails leaves no table without its
+    record, and the progress file stays until both are written.
     """
     from environments.shared.file_io import atomic_write_json, atomic_write_text
 
@@ -1005,6 +1078,7 @@ def write_scan(out_dir: Path, report: Mapping[str, Any], text: str) -> dict[str,
     written = {SCAN_JSON: atomic_write_json(out_dir / SCAN_JSON, report, allow_nan=False)}
     atomic_write_text(out_dir / SCAN_TEXT, text)
     written[SCAN_TEXT] = out_dir / SCAN_TEXT
+    (out_dir / SCAN_PROGRESS).unlink(missing_ok=True)
     return written
 
 
@@ -1049,8 +1123,9 @@ def _parser() -> argparse.ArgumentParser:
         type=float,
         nargs="+",
         metavar="V",
-        help=f"The grid (default: the parent's largest learned log_std, rounded to {GRID_STEP:g}, "
-        f"-{GRID_BELOW:g} to +{GRID_ABOVE:g} in steps of {GRID_STEP:g})",
+        help=f"The grid, rolled as given (default: the parent's largest learned log_std, rounded to "
+        f"{REFINE_STEP:g}, -{GRID_BELOW:g} to +{GRID_ABOVE:g} in steps of {GRID_STEP:g}, then one value "
+        f"{REFINE_STEP:g} above the largest that stood every episode)",
     )
     parser.add_argument("--seed", type=int, default=PUBLICATION_SEED_START, help="First reset seed (default 3042)")
     parser.add_argument("--episodes", type=int, default=DEFAULT_EPISODES, help="Seeds from --seed (default 40)")
@@ -1169,6 +1244,7 @@ def _scan(
         allow_legacy_plant=bool(args.allow_legacy_plant),
     )
     sha256 = {"checkpoint": sha256_file(model_path), "vecnorm": sha256_file(vecnorm_path)}
+    protocol = _protocol_note(seeds=seeds, streams=int(args.streams), horizon=horizon, episode_steps=episode_steps)
     context = open_context(spec)
     try:
         trained = context.policy.model
@@ -1176,67 +1252,104 @@ def _scan(
         policy_classes = {"algorithm": type(trained).__name__, "policy_class": type(trained.policy).__name__}
         model = context.env.unwrapped.model
         names = [str(model.actuator(index).name) for index in range(int(model.nu))]
+        report: dict[str, Any] = {
+            "schema": SCAN_SCHEMA,
+            **model_id.record(),
+            "complete": False,
+            "parent_stage": parent.id,
+            "walk_stage": walk.id,
+            "walk_config": walk_config,
+            "declared_warm_start_log_std": declared_warm_start_log_std(config["curriculum_kwargs"], stage=walk.id),
+            "checkpoint": str(model_path),
+            "vecnorm": str(vecnorm_path),
+            "handoff": handoff,
+            "sha256": sha256,
+            "checkpoint_plant_validated": not args.allow_legacy_plant,
+            "normalization": context.policy.normalization,
+            "policy": policy_classes,
+            "parent": {"actuator_names": names, "log_std": parent_log_std.tolist()},
+            "grid_rule": None,
+            "grid": [],
+            "seeds": list(seeds),
+            "streams": int(args.streams),
+            "horizon": horizon,
+            "episode_steps": episode_steps,
+            "full_protocol": protocol is None,
+            "control_dt": context.control_dt,
+            "lift_off_debounce_steps": context.debounce_steps,
+            "lift_off_grace_steps": context.grace_steps,
+            "reward_weights": dict(spec.reward_weights),
+            "definitions": {
+                "stands": STANDS_DEFINITION,
+                "sampling": SAMPLING_DEFINITION,
+                "lift_offs": lift_off_definition(
+                    debounce_steps=context.debounce_steps,
+                    grace_steps=context.grace_steps,
+                    control_dt=context.control_dt,
+                ),
+                "slide": SLIDE_DEFINITION,
+                "answer": ANSWER_RULE,
+            },
+            "settings": [],
+            "pending": [],
+        }
+        rows: list[dict[str, Any]] = []
+
+        def roll(settings: Sequence[Setting]) -> None:
+            """Roll one pass of *settings*, writing :data:`SCAN_PROGRESS` as each finishes."""
+
+            def record(index: int, by_stream: list[list[dict[str, Any]]]) -> None:
+                rows.append(summarize_setting(settings[index], by_stream, parent_log_std=parent_log_std.tolist()))
+                report["settings"] = ordered_rows(rows)
+                report["pending"] = [setting_label(setting) for setting in settings[index + 1 :]]
+                write_progress(out_dir, report)
+
+            report["pending"] = [setting_label(setting) for setting in settings]
+            run_scan(spec, settings, streams=int(args.streams), jobs=args.jobs, context=context, on_setting=record)
+
+        print(f"progress: {out_dir / SCAN_PROGRESS} (rewritten as each setting finishes)", flush=True)
         if args.log_std is None:
-            grid = default_grid(parent_log_std)
-            grid_rule = (
+            first = default_grid(parent_log_std)
+            report["grid"] = list(first)
+            report["grid_rule"] = (
                 f"the parent's largest learned log_std {grid_reference(parent_log_std):.4f} rounded to "
-                f"{grid[round(GRID_BELOW / GRID_STEP)]:g}, from {grid[0]:g} to {grid[-1]:g} in steps of {GRID_STEP:g}"
+                f"{grid_centre(parent_log_std):g}, from {first[0]:g} to {first[-1]:g} in steps of {GRID_STEP:g}"
             )
+            roll([MEAN, OWN, *first])
+            first_answer = largest_standing([row for row in rows if row["kind"] == "grid"])
+            extra = refinement([row for row in rows if row["kind"] == "grid"])
+            if extra is not None:
+                report["grid"] = sorted([*first, extra])
+                report["grid_rule"] += (
+                    f", then {extra:g}, {REFINE_STEP:g} above {first_answer['log_std']:g}, the largest of those at "
+                    "which every episode stood"
+                )
+                roll([extra])
+            elif first_answer["log_std"] is None:
+                report["grid_rule"] += "; no refinement: no value stood every episode"
+            else:
+                report["grid_rule"] += "; no refinement: the largest value stood every episode, so the edge lies above"
         else:
             grid = checked_grid(args.log_std)
-            grid_rule = "--log-std " + " ".join(f"{value:g}" for value in grid)
-        settings: list[Setting] = [MEAN, OWN, *grid]
-        results = run_scan(spec, settings, streams=args.streams, jobs=args.jobs, context=context)
+            report["grid"] = list(grid)
+            report["grid_rule"] = "--log-std " + " ".join(f"{value:g}" for value in grid)
+            roll([MEAN, OWN, *grid])
     finally:
         context.close()
     after = {"checkpoint": sha256_file(model_path), "vecnorm": sha256_file(vecnorm_path)}
     if after != sha256:
-        raise NoiseScanError(f"the checkpoint pair changed on disk during the scan: {sha256} -> {after}")
+        # Rows rolled from a pair that changed under them measure no one checkpoint: none is kept.
+        (out_dir / SCAN_PROGRESS).unlink(missing_ok=True)
+        raise NoiseScanError(
+            f"the checkpoint pair changed on disk during the scan: {sha256} -> {after}; nothing is kept (the progress "
+            "file is removed): scan again once the pair is no longer being written"
+        )
 
-    rows = [
-        summarize_setting(setting, by_stream, parent_log_std=parent_log_std.tolist())
-        for setting, by_stream in zip(settings, results)
-    ]
-    answer = largest_standing([row for row in rows if row["kind"] == "grid"])
-    protocol = _protocol_note(seeds=seeds, streams=int(args.streams), horizon=horizon, episode_steps=episode_steps)
-    report: dict[str, Any] = {
-        "schema": SCAN_SCHEMA,
-        **model_id.record(),
-        "parent_stage": parent.id,
-        "walk_stage": walk.id,
-        "walk_config": walk_config,
-        "declared_warm_start_log_std": declared_warm_start_log_std(config["curriculum_kwargs"], stage=walk.id),
-        "checkpoint": str(model_path),
-        "vecnorm": str(vecnorm_path),
-        "handoff": handoff,
-        "sha256": sha256,
-        "checkpoint_plant_validated": not args.allow_legacy_plant,
-        "normalization": context.policy.normalization,
-        "policy": policy_classes,
-        "parent": {"actuator_names": names, "log_std": parent_log_std.tolist()},
-        "grid_rule": grid_rule,
-        "grid": list(grid),
-        "seeds": list(seeds),
-        "streams": int(args.streams),
-        "horizon": horizon,
-        "episode_steps": episode_steps,
-        "full_protocol": protocol is None,
-        "control_dt": context.control_dt,
-        "lift_off_debounce_steps": context.debounce_steps,
-        "lift_off_grace_steps": context.grace_steps,
-        "reward_weights": dict(spec.reward_weights),
-        "definitions": {
-            "stands": STANDS_DEFINITION,
-            "sampling": SAMPLING_DEFINITION,
-            "lift_offs": lift_off_definition(
-                debounce_steps=context.debounce_steps, grace_steps=context.grace_steps, control_dt=context.control_dt
-            ),
-            "slide": SLIDE_DEFINITION,
-            "answer": ANSWER_RULE,
-        },
-        "settings": rows,
-        "largest_all_standing": answer,
-    }
+    del report["pending"]
+    report["complete"] = True
+    report["settings"] = ordered_rows(rows)
+    answer = largest_standing([row for row in report["settings"] if row["kind"] == "grid"])
+    report["largest_all_standing"] = answer
     report["recommendation"] = recommendation_line(
         answer,
         walk_config=walk_config,
