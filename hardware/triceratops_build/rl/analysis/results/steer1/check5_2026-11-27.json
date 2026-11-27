@@ -1,0 +1,344 @@
+{
+ "what": "Independent fifth check of the build branch before the steering dev runs, at e1f3025e (judged-weight rule, step sheet, script fixes, docs): two reviewers, each followed by a skeptic.",
+ "date": "2026-11-27",
+ "commit_reviewed": "e1f3025e",
+ "results_in_order": [
+  "review: code and numbers (C5-1..7)",
+  "review: sheet and rule (S1-S6)",
+  "verify: code and numbers (C5-1..7)",
+  "verify: sheet and rule (S1-S6)"
+ ],
+ "results": [
+  {
+   "findings": [
+    {
+     "id": "C5-1",
+     "severity": "low",
+     "title": "Two documents still describe the weight-2 noise condition loosely, and the loose versions do not match the fixed rule (3 M noise against 0.124)",
+     "location": "hardware/triceratops_build/rl/README.md, 'The weight' bullets ('Weight 2 needs the noise at or under the D22 figure'); hardware/triceratops_build/rl/PLAN_STEERING_RUN.md status bullet 4 ('Each dev run's own noise at 1-3 M is checked before the judged weight is fixed'); STEPS.md section 5 ('it stays in only if its run's noise is a little lower')",
+     "evidence": "I recomputed the limit from the committed episodes (scripts/weight_figs.py). Weight 2's worst-of-four nominal margin is +0.3668 at 0.12 and +0.2880 at 0.125, so it crosses 0.3 at 0.12424 (the 0.25 m/s cell binds). The D22 3 M noise is 0.1268, 0.1230, 0.1282 and 0.1280 (d22_action_std.json, which I reproduced byte for byte). Under the rule, weight 2 stays in at s1's 0.1230 and is out at the other three values. So 'at or under the D22 figure' (0.123-0.128) is wrong for 0.125-0.128. 'A little lower' than the D22 noise is also not quite right, because the D22 bottom value already passes. PLAN still says the noise is checked at 1-3 M, while the rule reads only the rollout nearest 3 M. The sheet's rule itself is precise and can be applied.",
+     "suggested_fix": "README: 'Weight 2 needs its 3 M noise at or under 0.124, the bottom of the D22 range'. PLAN: 'each dev run's 3 M noise is held against 0.124 (weight 2) and 0.158 (weight 1)'. Sheet: 'it stays in only if its run's noise is at the bottom of that range or lower'."
+    },
+    {
+     "id": "C5-2",
+     "severity": "low",
+     "title": "Every measuring tool takes the newest checkpoint pair, but section 5 does not say how the 5 M save is picked out for the rule's speed, falls and H",
+     "location": "hardware/triceratops_build/rl/runs/trike60-steer1-dev_STEPS.md section 5 ('The measures, all from each run's 5 M save'); analytics/gait_report.py find_pair (lines 894-905); analysis/foot_loads.py line 90; analysis/steer_heat_weight.py line 101 (zips[-1])",
+     "evidence": "find_pair keeps the pair with the largest step count, and none of the tools takes a step option. A run stopped after 5 M has a newer pair: train.py line 826 says 'Interrupted: saving a checkpoint pair before exiting.' A run left to finish has a 10 M pair. So pointing --ckpt-dir at a dev run's checkpoints/ folder silently measures that newer policy instead of the 5 M one. The analyst runs these tools, not the owner, so the Colab runs are not lost: the analysis would just have to be redone.",
+     "suggested_fix": "Add one line to section 5: copy trike60_5000000_steps.zip and its vecnormalize pair into their own folder and point every tool's --ckpt-dir there. Then check that each output's policy name or sha256 is that of the 5 M pair."
+    },
+    {
+     "id": "C5-3",
+     "severity": "low",
+     "title": "d22_action_std.py's new reader has no test; a null action_std in the chosen row crashes it",
+     "location": "hardware/triceratops_build/rl/analysis/d22_action_std.py trajectory() line 47; tests/ (no test imports d22_action_std)",
+     "evidence": "My synthetic logs (check5_steer/synth, scripts/synth_health.py) all behave correctly: c1, c2, c3 and c4 below. The only failure is c5: a row with action_std null at 2,998,272 (telemetry.health writes null for a non-finite std via _finite) raises 'TypeError: float() argument must be a string or a real number, not NoneType'. The failure is loud, not silent, and only a broken run would produce it. grep finds no test that imports d22_action_std, although the judged-weight rule depends on this tool.\n- c1: session A runs to 3.28 M and ends in a torn line; B resumes from 2,750,000 with std 0.5. The 3 M point gives B's row at 3,003,952 (0.5).\n- c2: B's first row is glued to the torn fragment and that row is skipped. Same result.\n- c3: B stops at 2,913,840. 3 M is null and A's discarded 2,990,080 row is not used.\n- c4: the resume is from a pair at a rollout end. A's row at the cut is dropped, and 3 M gives B's 3,006,464.",
+     "suggested_fix": "Add a small test to tests/test_steer_heat.py with a resumed log, a torn line and a gap. Treat a row whose action_std is not a number as missing: filter with isinstance(r.get('action_std'), (int, float))."
+    },
+    {
+     "id": "C5-4",
+     "severity": "low",
+     "title": "F4 left-over: the margin tables' column header still says '(4 policies)' whatever --runs holds",
+     "location": "hardware/triceratops_build/rl/analysis/steer_heat_weight.py margins_md line 141 ('| case | hottest drive at 20 s (4 policies) | ')",
+     "evidence": "My one-policy run (--runs fore128-s1 --stds 0.147 --late 0.5, check5_steer/hwB/heat_weight_margins.md) prints '(4 policies)' over a single value ('| noise | 1.07 |'). The sentence above it was fixed and reads 'the worst of the 1 policies'. The fourth check's F4 verifier named this '(4 policies)' header.",
+     "suggested_fix": "Use f\"| case | hottest drive at 20 s ({len(runs)} policies) | \"."
+    },
+    {
+     "id": "C5-5",
+     "severity": "low",
+     "title": "The every-drive ratio range '2.4-4.1 in the nominal cases at noise 0.125-0.2' leaves out the nominal noise-only case (4.42)",
+     "location": "hardware/triceratops_build/rl/README.md, 'Pricing every drive over the margin' bullet; DECISION_LOG.md D29 ('2.4-4.1 times as much (nominal cases, noise 0.125-0.2)')",
+     "evidence": "Pooled mean cost_sum_w1 / cost_w1 from the committed late-1 episodes (scripts/weight_figs.py):\n- the policies with noise: nominal 0.25 m/s 3.21 (0.125) to 4.10 (0.2); nominal 0.15 m/s 2.38 to 3.31;\n- the 'noise' case (std 0.2 around zero, a nominal case at noise 0.2): 4.42 at both speeds.\nSo the stated range holds for the policies with added noise only. The other figures are right: 2.14 at 0.11, 4.28 for x1.1, and 0.673 against 0.210 per step with margins +0.077 against +0.516.",
+     "suggested_fix": "Write 'for the policies with noise 0.125-0.2' (or add '4.4 for noise alone') in the README and D29."
+    },
+    {
+     "id": "C5-6",
+     "severity": "low",
+     "title": "The default margin tables were not regenerated after the md text change (header sentence only)",
+     "location": "hardware/triceratops_build/rl/analysis/results/steer1/heat_weight/heat_weight_margins.md and heat_weight_margins_every_drive.md, line 3",
+     "evidence": "I regenerated all six committed tables from their committed episodes with the repo's margins_md. The four _d22noise_* tables are identical. The two default tables differ only in line 3: the committed files keep 'standing pays no r_heat_peak. Each cell: the worst of the four policies'...' and lack the new clause 'cost at weight 1' is at this late scale. All numbers are identical (late 1, so cost_sum_w1 is unchanged by the F2 fix).",
+     "suggested_fix": "Regenerate the two default md files from heat_weight_episodes.json (no re-simulation needed)."
+    },
+    {
+     "id": "C5-7",
+     "severity": "low",
+     "title": "Small wording left-overs: an N5 test docstring, D29's check count, and the r_track window",
+     "location": "tests/test_steer_heat.py lines 75-78; DECISION_LOG.md D29 status; README 'The weight' bullet (tracking reward 1.20-1.29 at 3 M against 1.27-1.34 at 10 M)",
+     "evidence": "- The test docstring still gives the bias-corrected figures (0.26, 1.16-1.25, 20-23 %) without 'started in stance'. The README now says it.\n- D29 says 'independently reviewed 26 Nov, re-checked and checked a third time 27 Nov 2026'. The fourth check, and this one, are not mentioned.\n- The README's r_track ranges reproduce only with a window of about +-200 k steps (3 M: 1.20-1.29; the last 200 k before 10 M: 1.27-1.34). With the single nearest rollout they are 1.18-1.31 and 1.30-1.35, and the window is not stated (scripts/rtrack2.py).",
+     "suggested_fix": "Add 'started in stance' to the docstring. Update D29's status when the sheet goes FINAL. State the averaging window for the r_track figures, for example 'mean of the rollouts within 200 k steps'."
+    }
+   ],
+   "earlier_findings": [
+    {
+     "id": "F2",
+     "status": "fixed",
+     "evidence": "The code is fixed. steer_heat_weight.py line 82 multiplies cost_sum by env.late_scale.\n\nMy rerun of fore128-s1 at --stds 0.147 --late 0.5 (30 episodes, 0 falls) is bit-identical to the committed heat_weight_episodes_d22noise_2M.json, cost_sum_w1 included. Its md tables are identical to the committed episodes' tables for that policy.\n\nThe committed 2 M every-drive table, regenerated from its episodes, is identical to the file. Nominal 0.25 m/s at policy+0.147 now reads +0.61 at w 0.5 and +0.41 at w 1, against +0.41 and -0.02 at 94d946d9. The pooled every-drive/hottest ratio at 2 M is now 3.07, in line with the late-1 ratios of 2.7-3.4 at noise 0.15 (it was 6.86).\n\nThe new test_weight_script_prices_both_costs_at_the_late_scale passes and would fail without the factor."
+    },
+    {
+     "id": "F3",
+     "status": "fixed",
+     "evidence": "trajectory() now reads with read_health and then latest_branch, and records null beyond 8192 steps. Re-running on d22_health gives output byte-identical to the committed d22_action_std.json (cmp).\n\nOn my synthetic logs (check5_steer/synth):\n- c1: a resumed session from 2,750,000 with a torn line before it. 3 M gives B's 3,003,952 row (0.5), not A's discarded branch.\n- c2: an unended torn line glued to B's first row. That line is skipped and the result is the same.\n- c3: the resumed session stops at 2.91 M. 3 M is null; A's discarded 2,990,080 row is not used.\n- c4: the resume is from a pair at a rollout end. A's row at the cut is dropped.\n\nThe only residue is C5-3 (no test; a null action_std raises TypeError)."
+    },
+    {
+     "id": "F4",
+     "status": "partly fixed",
+     "evidence": "I probed the option checks myself. '--late 0.3', '--late 0.4999' and '--late nan' are refused, as are '--stds nan', 'inf', '0.1,0.1' and '0.125,0.1250001'. In each case no output folder is created. --late 0.5 is train.py's 2 M stage, where penalty_scale_at(2 M) = 1.\n\nThe line-80 comment, the docstring and the md sentence ('the worst of the N policies', 'cost at weight 1 is at this late scale') are updated.\n\nLeft over: the column header '(4 policies)' is still hard-coded (C5-4). '--stds -0.0' passes as the label 'policy+-0', which is harmless."
+    },
+    {
+     "id": "N6",
+     "status": "fixed",
+     "evidence": "The comment now reads 'weight 1, at the env's late scale (r_heat_peak includes it)', and the md says 'cost at weight 1' is at this late scale. My late-0.5 table's title reads 'at late scale 0.5'.\n\nThe newest-pair limitation stays by design. The docstring says 'the newest pair is used', and STEPS section 5 now says the check uses the D22 policies' margins with each dev run's measured noise and does not re-measure the dev policies. The same newest-pair behaviour in the other tools is C5-2."
+    },
+    {
+     "id": "F1/N1/N2",
+     "status": "fixed",
+     "evidence": "STEPS section 5 now names each measure: speed, falls 'a + b of 10', H = judge_d22's H_all = judge_run3 F2 'worst', and noise at the rollout nearest 3 M via d22_action_std.py. It also sets a 2-fall bar and covers the none, one and both cases exhaustively.\n\nIts limits reproduce from the committed episodes:\n- weight 2: 0.12424, from +0.3668 at 0.12 and +0.2880 at 0.125 (0.25 m/s);\n- weight 1: 0.15769, from +0.3762 at 0.15 and +0.1284 at 0.175 (0.15 m/s).\nThe quoted +0.37, +0.29, +0.38 and +0.13 match the tables.\n\nI also checked that a steering env holds command_speed for the gait report's straight cases (trike_env.py lines 866-879)."
+    },
+    {
+     "id": "N3",
+     "status": "fixed",
+     "evidence": "PLAN now has 'on gaits well over the margin ... 1.26 on the coolest group'. PLAN, D29 and README add the D22 task differences, which match the run_record: command_mode none, terrain_boxes 8, delay [0, 10], no whole-robot draws, no w_heat_peak, and train.py's default ramps. The 2.4-4.1 scope is stated, apart from the noise-only case (C5-5)."
+    },
+    {
+     "id": "N4",
+     "status": "fixed",
+     "evidence": "The README now says the 0.3 rule was set at noise 0.2, where the D22 policies miss it at 0.15 m/s with no heat cost (+0.22, which I confirmed in the committed table). It says the rule is applied where it binds (2 M margins are larger: +0.54-0.55 at weight 2), and that the gaits are the 10 M ones (r_track caveat: see C5-7)."
+    },
+    {
+     "id": "N5",
+     "status": "partly fixed",
+     "evidence": "The README now says 'Started in stance ... started in swing it would pass' and 'in 2-4 s'. The test docstring (test_steer_heat.py lines 77-78) still quotes the bias-corrected figures without the phase."
+    }
+   ],
+   "checked_ok": [
+    "Repository untouched. git status --short was empty before and after, HEAD is e1f3025e, and I made no commits. My scratch is under check5_steer (scripts/, hwA/, hwB/, synth/, the logs); I deleted my pytest temp folders. The folders gr_in, gr_out, runs and sheet in check5_steer are not mine and I left them alone.",
+    "Nothing the Colab runs execute changed in 94d946d9..e1f3025e: the diff is empty for train.py, trike_env.py, configs/, trike60_training.ipynb, telemetry/ and environments/. c42b6a93 (main's removal of hardware/) is not an ancestor of e1f3025e, as D36 says.",
+    "steer_heat_weight.py at --stds 0.12,0.125,0.13 --late 1.0 on fore128-s1 and fore128-s3: 108 episodes, 0 falls, 114 s, all bit-identical to the committed heat_weight_episodes_d22noise_3M_5M.json. Both md tables are identical to the committed episodes' tables for those policies.",
+    "steer_heat_weight.py at --stds 0.147 --late 0.5 on fore128-s1: 30 episodes, 0 falls, bit-identical to the committed _d22noise_2M episodes, cost_sum_w1 included.",
+    "The four committed _d22noise_* md tables regenerate byte-identically from their episodes. The two default tables match in every number (C5-6 is their header text only).",
+    "d22_action_std.py rerun: byte-identical to the committed d22_action_std.json. It gives 1 M 0.1777-0.1807, 2 M 0.1448-0.1483, 3 M 0.1230-0.1282, 5 M 0.1036-0.1110 and 10 M 0.0830-0.0911, matching README, PLAN and D29. The largest spread between the four runs is 0.0081 (10 M), which rounds to the README's 0.008.",
+    "README weight bullets, all recomputed from the committed episodes:\n- the six-row table: every cell and the hottest-drive ranges;\n- 0.15 m/s: +0.54, +0.31 and +0.09;\n- x1.1: +0.54 and +0.27, +0.57 and +0.31;\n- 2 M: +0.68 at weight 1 and +0.54-0.55 at weight 2;\n- weight 1 +0.52-0.57, weight 3 +0.01-0.09;\n- weight 2 at 0.12 (+0.37, +0.43) and 0.13 (+0.25, +0.34);\n- +0.11 (+0.04 x1.1) at 0.15 and -0.09 at 0.175;\n- limits 0.124 and 0.158;\n- +0.22 at noise 0.2, 0.15 m/s, weight 0;\n- 744 episodes with 0 falls;\n- standing's hottest drive at 20 s 0.464-0.511 (nominal);\n- every-drive 0.67 against 0.21 and +0.08 against +0.52.",
+    "PLAN status and 'The runs':\n- +0.52-0.57, +0.27-0.31, +0.01-0.09 and 1.26;\n- 2 M at full heat weight and 1 M at full pushes by 5 M (train.py defaults: late ramp 1-3 M, terrain ramp 1-4 M, penalty 0.1 -> 1 at 2 M);\n- 542-617 steps/s (D22 run records 541.9-616.6), giving 2.3-2.6 h to 5 M and 4.5-5.1 h for 10,002,432 steps.",
+    "DECISION_LOG:\n- D29's numbers are as above.\n- D31 matches train.py's defaults and the sheet.\n- D33: the presets have delay_steps_range [0, 20]; the evaluations use a fixed 10 ms.\n- D36: c42b6a93 is dated 2026-11-22 ('Move hardware notes to docs/hardware and remove hardware/'). Its docs/hardware/README.md line 68 lists the 60 cm build as 'never on main'.\n- D34 is marked superseded by D36.",
+    "The judged-weight rule's measures exist as named. The gait report has '0.25 m/s (target), randomised' and '0.15 m/s, randomised' cases with 5 episodes each, and a 'falls a + b of 10' line. judge_d22's H_all is judge_run3's F2 'worst' (the largest per-joint mean RMS/continuous). The rule's branches are exhaustive.",
+    "Presets: heat_peak tau 4 s and start 2 s come from TrikeEnvConfig defaults, the same as the weight script's HEAT. The D22 run settings are n_envs 8 and n_steps 1024 (8192 per rollout, the same as MAX_GAP) and log_std_init -1.6.",
+    "tests/test_steer_heat.py: 30 passed, the 8 new tests included. tests/test_trike_env.py -k digest: test_default_env_regression_digest and test_run3_env_regression_digest passed."
+   ],
+   "not_checked": [
+    "No training. Whether the dev runs' noise follows D22's under r_heat_peak and the steering task needs the runs themselves.",
+    "fore128-s0 and s2 were not re-run at 0.12-0.13 (I re-ran s1 and s3), and no default-file episode (stds 0-0.2) was re-simulated. Those were checked only by regenerating their tables.",
+    "gait_report.py, the sweep, steer_eval.py and demo_course.py were not run on a steering policy (none exists). I only checked that a steering env holds the requested command_speed.",
+    "The full tests/test_trike_env.py (only -k digest) and tests/test_telemetry.py were not run.",
+    "The notebook was not run on Colab. The sheet's REPO_REF and FINAL line are placeholders until the sheet is marked FINAL.",
+    "The main-pipeline content of D32-D35 (planned work on another branch) was not checked against code.",
+    "The fore160 health logs were not provided."
+   ]
+  },
+  {
+   "findings": [
+    {
+     "id": "S1",
+     "severity": "medium",
+     "title": "The rule's 'one left: that one' ignores H, but the both-left branch comes back to the owner when H is 0.85 or more because 'the planned heat rule would likely fail'",
+     "location": "hardware/triceratops_build/rl/runs/trike60-steer1-dev_STEPS.md section 5, the 'Then:' bullets",
+     "evidence": "I applied the rule step by step to two cases:\n- Both weights in, H 0.90 and 0.88: both are 0.85 or more, so 'I come back to you (the planned heat rule would likely fail with either)'.\n- Weight 1 out on speed (0.19 m/s), weight 2 in with H 0.95: 'one left: that one', so weight 2 becomes the judged weight with no check on its H.\n\nThe reason the sheet gives for coming back applies equally to a single surviving weight, so the rule commits the two judged runs (4.5-5 h each) to a weight that its own reasoning expects to fail PLAN's planned heat rule (PLAN_STEERING_RUN.md line 86, 'for example 0.85').\n\nThis case is plausible: the D22 128 mm gait reports give a worst drive of 0.83-0.95 (analytics/results/fore128-s*/gait_report.md). Every other case I tried is decided and consistent.",
+     "suggested_fix": "Change the line to: 'one left: that one if its H is under 0.85; otherwise I come back to you'."
+    },
+    {
+     "id": "S2",
+     "severity": "low",
+     "title": "The noise check states no precision, and the measured noise is expected to sit right at weight 2's limit",
+     "location": "STEPS.md section 5 ('noise over its limit: 0.124 for weight 2, 0.158 for weight 1'); analysis/d22_action_std.py output",
+     "evidence": "- d22_action_std.py prints 3 decimals ('fore128-s0 ... 3M 0.127') and writes 4 to its JSON (0.1268). I reproduced the committed d22_action_std.json byte for byte.\n- The limit 0.124 is a rounding of the interpolated crossing: 0.12424 from the unrounded cells, 0.124375 from the rounded table cells.\n- A dev-run noise of 0.1241-0.1244 prints as '0.124' (not over the limit) but is over 0.124 in the JSON.\n- Weight 2 is placed on this line by design: the D22 runs had 0.1230-0.1282 at 3 M.",
+     "suggested_fix": "Say which number is compared: the JSON's 4-decimal action_std, out if it is over 0.1240 (weight 2) or 0.1580 (weight 1). Optionally give the unrounded limits (0.1242, 0.1577)."
+    },
+    {
+     "id": "S3",
+     "severity": "low",
+     "title": "After any resume, the end-of-run lines in 2.7 and section 4 will differ from what the sheet says",
+     "location": "STEPS.md 2.7 ('Session completed: 10002432 steps ...', 'eval/eval_10002432.json') and section 4; 2.9 allows resumes",
+     "evidence": "- A resumed session counts its 8192-step blocks (8 envs x 1024) from the checkpoint it resumes from (train.py: learn(total_timesteps=remaining, reset_num_timesteps=False)).\n- Regular pairs are at multiples of 250,000. Since 250,000 = 2^4 x 15625, no multiple below 512 x 250,000 is a multiple of 8192, so any resume changes the end count.\n- Example: resuming from 3,250,000 ends at 10,000,208, with eval_10000208.json.\n- Run 3's sheet says so (runs/trike60-run3-s1_STEPS.md 3.10: 'after a stop ... another number from 10000000 to 10008184'); this sheet does not.\n- Under rule 1 the owner would stop and report a run that has in fact finished normally.",
+     "suggested_fix": "In 2.7 add: 'after a restart (2.9) the number is another one from 10000000 to 10008184, and the eval file is named after it'. Make the same change in section 4."
+    },
+    {
+     "id": "S4",
+     "severity": "low",
+     "title": "If a dev run drifts towards standing still, the gait report writes no Markdown summary; the rule's measures are then only in gait_report.json",
+     "location": "rl/analytics/gait_report.py markdown() (line 1135, stride_frequency_hz_all_feet None); STEPS.md section 5 measures",
+     "evidence": "I ran gait_report.py --quick on my steer1_dev_heat2 smoke-run folder (4096 steps; the policy stands still). It printed 'WARNING: Markdown summary not written (TypeError: unsupported format string passed to NoneType.__format__); gait_report.json is complete'.\n\nThe JSON still holds everything the rule needs:\n- cases target_0.25 and cmd_0.15, each with episodes, falls and speed.forward_speed_mps;\n- drives.per_joint[*].rms_over_continuous.mean;\n- the flat floor is applied and the command is held (trike_env reset with command_speed).\n\nA standing-still run is exactly the 'speed under 0.20' case. Every measure can still be read from the JSON, so the rule can still be applied.",
+     "suggested_fix": "Name gait_report.json as the source of each measure in section 5: cases.target_0.25.summary.speed.forward_speed_mps; falls of target_0.25 + cmd_0.15; the max of per_joint rms_over_continuous.mean. Optionally make markdown() tolerate a case with no strides."
+    },
+    {
+     "id": "S5",
+     "severity": "low",
+     "title": "PLAN still says each dev run's noise 'at 1-3 M' is checked, while the rule reads only the 3 M noise against fixed limits",
+     "location": "hardware/triceratops_build/rl/PLAN_STEERING_RUN.md line 62",
+     "evidence": "PLAN line 62 reads 'Each dev run's own noise at 1-3 M is checked before the judged weight is fixed'. The README (line 448) and D29 now point to section 5's rule: each run's own 3 M noise against 0.124 and 0.158.",
+     "suggested_fix": "Change the line to: 'The judged weight is picked by the rule in runs/trike60-steer1-dev_STEPS.md section 5 (speed, falls, H, and each run's 3 M noise against 0.124 / 0.158)'."
+    },
+    {
+     "id": "S6",
+     "severity": "low",
+     "title": "The notebook points the owner to COLAB_STEPS.md and calls the first run a 2 M-step pipeline test (pre-existing)",
+     "location": "rl/trike60_training.ipynb cell 0 (markdown) and cell 1 header and error texts",
+     "evidence": "- Cell 0: 'Follow the step sheet hardware/triceratops_build/rl/COLAB_STEPS.md. The first run is a pipeline test (about one hour, 2 million steps)'.\n- Cell 1: '1. PARAMETERS: COLAB_STEPS.md gives every value'.\n- The REPO_REF and git-fetch errors also name COLAB_STEPS.md.\n\nThe same notebook served run 3 and D22, so this is not new. Still, this sheet's 2.1 tells the owner only to expect the title, not this text.",
+     "suggested_fix": "In 2.1 add one line: 'the notebook's first text names COLAB_STEPS.md; follow this sheet instead'. Alternatively, re-word the notebook text in a later commit, not this run's REPO_REF."
+    }
+   ],
+   "earlier_findings": [
+    {
+     "id": "F1",
+     "status": "fixed",
+     "evidence": "Section 5 now names every part of the check:\n- the policies: the four D22 policies;\n- the cells: the worst margin at the two nominal speeds;\n- the scale: full scale (late 1);\n- the noise point: the rollout nearest 3,000,000 steps, read with d22_action_std.py;\n- the threshold: a noise limit read off the tables, so no tolerance and no --late 0.5 re-run are needed;\n- falls: '2 or more of the 10' in the gait report's two randomised cases.\n\nI recomputed the limits from the committed episode JSONs:\n- weight 2: the worst of the two speeds is 0.3668 at noise 0.12 and 0.2880 at 0.125, so the crossing is 0.12424 (0.124375 from the rounded cells), which rounds to 0.124;\n- weight 1: 0.3762 at 0.15 and 0.1284 at 0.175 (0.15 m/s), so the crossing is 0.15769, which rounds to 0.158.\n\nBoth worst-of-two curves fall monotonically over every measured row (weight 2: +0.92, +0.80, +0.50, +0.44, +0.37, +0.29, +0.25, +0.11, -0.18, -0.42), so each crossing is unique. The quoted cells (+0.37/+0.29 at 0.25 m/s; +0.38/+0.13 at 0.15 m/s) are the right ones.\n\n'Sits at the rule' is gone from the README, PLAN and D29, replaced by 'on the line' with the per-cell figures. The precision residual is S2."
+    },
+    {
+     "id": "N1",
+     "status": "fixed",
+     "evidence": "Section 5 now fixes:\n- the policies (four D22) and the noise point (3 M, latest branch);\n- the statistic (worst of four, nominal, both speeds) and a threshold read off measured rows, as N1's alternative suggested;\n- the plain statement that weight 2 is on the line at the D22 noise and stays in only if its own noise is lower.\n\nThe sheet also states that margins are not re-measured on the dev policies (N6's scope).\n\nThe 0.12 rows the limit uses reproduce: steer_heat_weight.py --stds 0.12 --runs fore128-s3 gave 30 of 30 episodes identical to the committed _d22noise_3M_5M rows. The 72 standing and noise rows are identical between the two committed files."
+    },
+    {
+     "id": "N2",
+     "status": "partly fixed",
+     "evidence": "Fixed:\n- (1) falls are named: the gait report's two randomised cases, out at 2 or more of 10, absolute;\n- (2) speed is named: the 0.25 m/s randomised case, forward_speed_mps as in the md;\n- (3) 'one left: that one' is explicit;\n- (4) if both H are 0.85 or more, the owner is asked.\nI checked that the both-left branch is exhaustive.\n\nNot changed, (5): the 0.85 cut still decides on a gap of any size, while the sheet calls differences under 0.1 seed spread. Applied mechanically:\n- H1 0.86, H2 0.84: weight 2;\n- H1 0.84, H2 0.86: weight 1;\n- H1 0.80, H2 0.69: weight 2;\n- H1 0.80, H2 0.72: weight 1.\n\nNew gap in the same bullet: S1 (the single surviving weight is not held to the 0.85 condition)."
+    },
+    {
+     "id": "N3",
+     "status": "fixed",
+     "evidence": "- PLAN now qualifies the share ('on gaits well over the margin ... 0.80-0.82 ... 1.26 on the coolest group'); 1.26 matches heat_average_comparison.md (0.15 m/s, std 0.0, warm).\n- PLAN, D29, the README and the d22_action_std.py docstring now state the task differences (straight task, terrain, 0-10 ms, no heat-peak cost).\n- The README and D29 give the scope of 2.4-4.1. My pooled ratios from the committed episodes: nominal 0.125-0.2 gives 2.38-4.10; 0.11 gives 2.14 (README '2.1'); x1.1 reaches 4.28 (README '4.3')."
+    },
+    {
+     "id": "N4",
+     "status": "fixed",
+     "evidence": "- The README now says the 0.3 rule was set at noise 0.2, where the D22 policies already miss it at 0.15 m/s with no heat cost. That is +0.22 in heat_weight_margins.md (policy+0.2, nominal 0.15 m/s, w 0).\n- It says the rule is now applied where it binds (3 M), and that the gaits are the 10 M ones.\n- Its tracking figures (1.20-1.29 at 3 M against 1.27-1.34 at 10 M) match my +-250k-step window means of r_track in the D22 logs: 1.205-1.288 and 1.268-1.335. The nearest single rollout gives 1.18-1.31 and 1.30-1.35; the README does not say which window it used."
+    },
+    {
+     "id": "N5",
+     "status": "partly fixed",
+     "evidence": "- README fixed: 'Started in stance, the bias-corrected version fails these (0.26 ..., 1.16-1.25 ..., 20-23 % in 2-4 s); started in swing it would pass, so the test runs both phases'; 'under 8 % of it in 2-4 s'.\n- Not fixed: the docstring of test_heat_peak_prices_a_stride_like_gait_without_an_early_spike (tests/test_steer_heat.py lines 77-78), which N5 also named. It still gives the bias-corrected 0.26, 1.16-1.25 and 20-23 % without 'when it starts in stance'."
+    }
+   ],
+   "checked_ok": [
+    "The repository is untouched: git status --short is empty before and after, and HEAD is e1f3025e. The local branch matches its origin tracking branch as last fetched.\n\nAnother reviewer process shares check5_steer/. I kept my files in check5_steer/sheet/ and deleted my large outputs: the 1.4 GB pytest temp folder, the run folders and the gait-report copies. Once, one of my scripts accidentally imported the other process's scripts/numbers.py. It failed on its first line, read sys.argv[1], and had no side effects.",
+    "I ran the notebook cells locally for steer1_dev_heat2 (TOTAL_STEPS 4096, N_ENVS 2, LOCAL_RUNS_DIR in my scratch), exit 0. The sheet's quoted lines match the code's output:\n- 'Packages: mujoco 3.10.0, numpy 2.5.5, gymnasium 1.4.0, stable-baselines3 2.9.2, torch 2.15.0+cpu, cloudpickle 3.1.2' and 'All pins hold: yes', word for word;\n- 'Run folder: <dir> (new run)';\n- 'Running: train.py --out <dir> --total-steps <N> --n-envs <E> --seed 0 --model trike60_C_closed_capsule_fore128 --resume --exit-with-parent <pid> --env-config <RL_DIR>/configs/steer1_dev_heat2.json';\n- 'Machine: <V> vCPUs; <E> envs; Python 3.13.18; torch 2.15.0+cpu';\n- 'Starting a new run in <dir> (0 of <N> steps).';\n- 'Session completed: 4096 steps (target 4096); 554 env steps/s over 7 s; last pair trike60_4096_steps.zip';\n- eval/eval_4096.json;\n- 'Run <RUN_ID> is finished; its files are in <dir>.'",
+    "I simulated the stop button: TOTAL_STEPS 10000000, with a SIGINT sent to the kernel-equivalent process after 25 s. The output, in order:\n- 'Stop requested: the step is asked to stop (train.py first saves a checkpoint pair). Wait for its last line; further clicks are ignored.'\n- 'Interrupted: saving a checkpoint pair before exiting.'\n- 'Session interrupted: 11472 steps (target 10000000); 524 env steps/s over 22 s; last pair trike60_11472_steps.zip'\n\nA second SIGINT printed '(the step is still saving: this click is ignored; please wait)'. Cell 5 then raised KeyboardInterrupt. The two Drive lines are Colab-only and come from flush_drive in that order.",
+    "Cell 1 refuses steer1_dev_heat1 with MODEL trike60_C_closed, _capsule and _capsule_fore160, using exactly the message 2.4 quotes, and accepts _fore128. The ENV_PRESET menu offers steer1_dev_heat1 and steer1_dev_heat2. The notebook defaults are N_ENVS 8, SEED 0 and EVAL_EPISODES 5.",
+    "The presets differ only in w_heat_peak (1.0 / 2.0). My smoke run_record shows:\n- heat: margin 0.8, tau 4 s, start 2 s;\n- commands: heading_and_speed, switching every 4 +- 1 s (the sheet's 3-5 s);\n- floor: terrain_boxes 0, push_prob 0.5, friction_low_hard 0.3;\n- draws: delay 0-20, whole robot 0.9-1.1, payload 0-1 kg;\n- schedules: lr 3e-4 to 3e-5, late ramp 1-3 M, terrain ramp 1-4 M, n_steps 1024, batch 2048, log_std_init -1.6.",
+    "train.py's cadences and counts:\n- defaults: --log-every 100000, --checkpoint-every 250000, --eval-every 250000 (two 'eval at' lines), --checks-every 0;\n- with 8 envs the step count moves by 8 and 250,000 is divisible by 8, so PairSaver hits exactly 5,000,000 (trike60_5000000_steps.zip), also after a resume from any pair;\n- 10002432 = 1221 x 8192.",
+    "Times and size:\n- 5e6 steps at 617-542 steps/s is 2.25-2.56 h; 1e7 steps is 4.50-5.13 h; the sheet says 2.3-2.6 h and 4.5-5.1 h.\n- A measured pair is 2,096,801 + 4,315 bytes, so about 41 pairs make about 86 MB ('about 90 MB').",
+    "The rule applied to the hypothetical cases:\n- Both in, H 0.90/0.88: back to the owner.\n- Weight 2 noise 0.126 (over 0.124): weight 2 out; weight 1 chosen if it passes speed and falls.\n- One fall in each run (1 of 10 each): both stay in. One fall in each case of the same run (1 + 1 = 2): that run is out.\n- Weight 1 out on speed: weight 2 is chosen whatever its H (S1).\n- Both-left branch: exhaustive. If not both H are 0.85 or more, H2 is not 0.1 or more below H1 and H1 is not under 0.85, then H2 must be under 0.85.\n- H is always defined for a weight still in: no analysed target episode means 5 falls.",
+    "Every measure can be obtained:\n- gait_report.py runs on a steer1 run folder (the flat floor applied, the command held at reset), and its JSON has the speed, falls and per-joint rms_over_continuous fields; F2 and judge_d22's H_all are max(per_joint rms_over_continuous.mean) of target_0.25.\n- d22_action_std.py reproduces the committed JSON byte for byte, and on a steering run's train_health.jsonl it returns null for points not reached.\n- For 8 envs the rollout nearest 3 M is at 2,998,272.",
+    "Tests:\n- test_steer_heat.py: exit 0, 30 tests, including the new late-scale test and the six option refusals.\n- test_trike_env.py -k 'notebook or cell or parameters': 10 passed, including test_notebook_cells_run_locally, test_notebook_stop_button_reaches_train_once and test_cell5_waits_for_the_save_through_a_second_stop_click.",
+    "README figures I checked:\n- 744 episodes (360 + 264 + 120), 0 falls; the 2 M file is at late 0.5.\n- Weight 2 at 0.12 and 0.13 noise: +0.37/+0.43 and +0.25/+0.34. Weight 1 at 0.125: +0.52-0.57. Weight 3: +0.01-0.09.\n- Every-drive ratios as in N3.\n- PLAN's 'Colab' section has 2.3-2.6 h and 4.5-5.1 h, as the sheet does."
+   ],
+   "not_checked": [
+    "Nothing was run on Colab: the Drive flush lines, Colab's stop button and process-group signal, opening the notebook by commit hash, and the High-RAM vCPU count are untested.",
+    "Without network access I could not confirm that e1f3025e (or the commit that marks the sheet FINAL) is on GitHub. I saw only the local tracking ref.",
+    "How fast the steering runs are on Colab. The sheet's times come from the D22 runs, which trained on terrain; flat ground may be faster.",
+    "How long box 6 takes with EVAL_EPISODES 5. I ran 1 episode per condition: 19.7 s locally.",
+    "d22_action_std.py on a real resumed log (F3, the code reviewer's scope). The full test_trike_env.py was not run; I ran only the 10 notebook tests.",
+    "steer_heat_weight.py was re-run for fore128-s3 at noise 0.12 only. The other new 0.12 and 0.13 rows were checked only through the tables, the shared rows and the interpolation.",
+    "The code-side items F2-F4 and N6. D32-D36, apart from their effect on the sheet: none, since main is not merged into this branch.",
+    "T. rex files were not opened."
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "C5-1",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The limit is right, and the README's loose sentence disagrees with it. I recomputed the worst-of-four weight-2 margins from the committed episodes (heat_weight_episodes.json plus _d22noise_3M_5M.json): +0.3668 at 0.12 and +0.2880 at 0.125 at 0.25 m/s, which crosses 0.3 at 0.12424. At 0.15 m/s it crosses only at 0.134, so 0.25 m/s binds. Weight 1 crosses at 0.1577 (0.15 m/s binds) and 0.1617 (0.25 m/s), which agrees with the sheet's 0.158. I reproduced d22_action_std.json byte for byte: the 3 M values are 0.1268, 0.1230, 0.1282 and 0.1280. Under the rule, weight 2 stays in only at s1's value. The README says 'Weight 2 needs the noise at or under the D22 figure', but its own table labels 0.125 as 'D22 at 3 M', and at 0.125 the rule puts weight 2 out. The next sentence of the README does give 0.124. The sheet's 'only if its run's noise is a little lower' and PLAN's 'noise at 1-3 M is checked' are loose but not contradictory. These are the weakest parts of the finding. The rule itself is precise and can be applied.",
+     "evidence": "I re-ran the crossing with check5_steer/v2/scripts/cross.py. Weight 2: 0.25 m/s 0.12:+0.3668, 0.125:+0.2880, crosses at 0.12424; 0.15 m/s crosses at 0.13396. Weight 1: crosses at 0.15769 and 0.16174. Running d22_action_std.py on the d22_health logs and comparing with cmp gives IDENTICAL to the committed d22_action_std.json. README line 422 labels the row '0.125 (D22 at 3 M)'; line 447 reads 'Weight 2 needs the noise at or under the D22 figure'. PLAN line 62 reads 'noise at 1-3 M'."
+    },
+    {
+     "id": "C5-2",
+     "verdict": "refuted",
+     "severity_after": "none",
+     "reasoning": "It is true that find_pair and steer_heat_weight's zips[-1] take the newest pair and that the tools have no step option. The defect described does not hold, for four reasons. (1) The sheet does say which save is read. Section 4: 'checkpoints/ (trike60_5000000_steps.zip and its vecnormalize pair is the one I read)'. (2) Every tool used on the dev runs documents the convention 'DIR holds one SB3 checkpoint pair and the run's run_record.json' (gait_report.py and steer_eval.py docstrings). (3) Pointing --ckpt-dir at a dev run's checkpoints/ folder would not silently measure a newer policy. train.py writes run_record.json to the run folder, not to checkpoints/, and gait_report.simulate, steer_eval and foot_loads.provenance all read <ckpt_dir>/run_record.json right after find_pair, so they would stop with a missing-file error. (4) Their outputs record the checkpoint name, the step count and the sha256 (gait_report 'policy': {checkpoint, steps, zip_sha256}; foot_loads provenance; steer_eval 'checkpoint'), so a wrong pair would show. steer_heat_weight.py is not run on the dev runs: the rule says it 'does not re-measure margins on the dev runs' own policies'.",
+     "evidence": "STEPS.md section 4, line 129-130. gait_report.py docstring lines 4-6 and simulate() lines 986-988 (find_pair, then cdir/'run_record.json'). steer_eval.py line 14 docstring and lines 102-103. train.py lines 36-38 and 649-650: ckpt_dir = out/'checkpoints', record_path = out/'run_record.json'. gait_report.py line 1024 records the checkpoint and steps. D22 scratch layout: d22_runs/fore128-s0/checkpoints holds run_record.json and the single final pair."
+    },
+    {
+     "id": "C5-3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "trajectory() keeps rows with 'action_std' in r, which is true even when the value is null. telemetry/health.py writes action_std through _finite, which returns None for a non-finite value. When the row nearest the requested point carries null, float(None) raises TypeError. In my own synthetic test, the resume handling works (B's branch is kept at 3,003,952 with std 0.5, and the torn line is skipped), and the null row at 2,998,272 raises the TypeError. No test imports d22_action_std. The failure is loud, and only a diverged run would produce it: train.py quarantines non-finite pairs and exits 1. Low.",
+     "evidence": "check5_steer/v2/scripts/synth.py prints 'resumed 3M: {timesteps: 3003952, action_std: 0.5} sessions [1, 2]' and 'nullstd: TypeError float() argument must be a string or a real number, not NoneType'. health.py lines 46-49 (_finite) and 146. grep -rn d22_action_std tests/ finds nothing."
+    },
+    {
+     "id": "C5-4",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "margins_md line 141 hard-codes '(4 policies)' in the column header. The sentence above it uses len(runs). Running margins_md on the committed episodes filtered to fore128-s1 prints 'the worst of the 1 policies' above a header that reads '(4 policies)', with a single value in that column.",
+     "evidence": "steer_heat_weight.py line 141: '| case | hottest drive at 20 s (4 policies) | '. check5_steer/v2/scripts/regen.py one-policy output: 'Falls: 0 of 90 episodes ... the worst of the 1 policies' ...', then the header '(4 policies)', then '| noise | 1.07 | -0.50 +-0.03 (-0.50) ...'."
+    },
+    {
+     "id": "C5-5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "I computed the pooled ratio of means, cost_sum_w1 to cost_w1, from the committed late-1 episodes. Policy cases, nominal, noise 0.125-0.2: 0.15 m/s 2.38-3.31, 0.25 m/s 3.21-4.10, so 2.4-4.1 holds for those cases. The 'noise' case (std 0.2 around zero) sits in the same nominal tables and gives 4.42 at both speeds. That is outside 2.4-4.1 and above the 'up to 4.3' quoted for x1.1 (4.28). The other quoted figures check: 2.14 at 0.11; 0.673 against 0.210 per step; margins +0.08 against +0.52. Wording only.",
+     "evidence": "check5_steer/v2/scripts/ratio.py: 'nominal 0.25 noise ... ratio_of_means 4.42'; 'nominal 0.15 policy+0.125 2.38'; 'nominal 0.25 policy+0.2 4.10'; 'x1.1 0.25 policy+0.2 4.28'; 'nominal 0.15 policy+0.11 2.14'; 'nominal 0.25 policy+0.125 cost_w1 0.210 cost_sum 0.673'. The every-drive 3M_5M table at 0.125, 0.25 m/s, w 1: +0.08."
+    },
+    {
+     "id": "C5-6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "I regenerated all six tables from their committed episode files with the repository's margins_md, using each file's own stds and late scale. The four _d22noise_* tables come out byte-identical. The two default tables differ only in line 3: the committed files lack \"'cost at weight 1' is at this late scale\" and still say 'the four policies' / 'their four standard errors', where the code now writes '4'. All numbers are identical.",
+     "evidence": "check5_steer/v2/scripts/regen.py: heat_weight_margins: identical=False, differing lines=[3]; heat_weight_margins_every_drive: identical=False, [3]; all four _d22noise_* tables identical=True. The diff on line 3 shows only the header-sentence wording. git log shows the default md was last changed in 94d946d9, before 69e829ac changed margins_md."
+    },
+    {
+     "id": "C5-7",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "All three items hold. (a) The test docstring at lines 75-78 gives 0.26, 1.16-1.25 and 20-23 % with no phase stated; README line 393 says 'Started in stance'. (b) D29's status reads 'independently reviewed 26 Nov, re-checked and checked a third time 27 Nov 2026' and does not mention the fourth check (check4_2026-11-27.json). (c) README line 417's r_track ranges do not reproduce with the nearest rollout and need a window that is not stated. With the readers' latest_branch I get: nearest rollout to 3 M 1.181-1.312, nearest to 10 M 1.298-1.347; mean within +-100 k of 3 M 1.198-1.288 (1.20-1.29); last 200 k before the end 1.271-1.337 (1.27-1.34). No script or record in the tree states how the README figures were computed.",
+     "evidence": "tests/test_steer_heat.py lines 75-78. README line 393. DECISION_LOG.md D29 row (status text quoted above). check5_steer/v2/scripts/rtrack.py: n3 1.181-1.312, n10 1.298-1.347, w3_100 1.198-1.288, w3_200 1.205-1.288, w10_200 1.271-1.337. grep for '1.20-1.29' finds only README line 417."
+    }
+   ]
+  },
+  {
+   "verdicts": [
+    {
+     "id": "S1",
+     "verdict": "confirmed",
+     "severity_after": "medium",
+     "reasoning": "I tried to refute this and could not. I checked every both-left case. That branch never picks a weight whose H is 0.85 or more. If both are at or over 0.85 it comes back to the owner. A weight 2 that is 0.1 cooler than weight 1 and still at 0.85 or more needs weight 1 at 0.95 or more, so both are over and it comes back first. Otherwise it picks the weight under 0.85. 'One left: that one' has no such check, although the sheet's own reason for coming back ('the planned heat rule would likely fail') applies just as much to a single weight. The case is not rare, and is probably the most likely outcome: weight 2's limit is 0.124, and three of the four D22 runs had more noise than that at 3 M (0.1268, 0.1282, 0.128; only s1 had 0.123). So weight 2 is likely out on noise, which leaves weight 1. The D22 policies' H was 0.83-0.95, three of four at 0.85 or more. That would carry a weight to the judged runs that the rule's own reasoning expects to fail the planned heat rule (PLAN 'for example 0.85'). It is limited, not high: the dev runs are not affected, and the pre-registration is reviewed independently before any judged run. The suggested fix is sound.",
+     "evidence": "STEPS.md lines 161-166, the 'Then:' bullets. I enumerated the both-left branch by hand: (0.90, 0.84) gives w2; (0.84, 0.95) gives w1; (0.99, 0.84) gives w2; (0.97, 0.86) comes back. My re-run of analysis/d22_action_std.py on the D22 health logs matches the committed d22_action_std.json byte for byte (cmp). The 3 M values are 0.1268, 0.123, 0.1282 and 0.128, against the 0.124 limit for weight 2 (STEPS line 154). analytics/results/fore128-s0..s3/gait_report.md line 10: worst drive 0.83, 0.89, 0.93, 0.95. PLAN_STEERING_RUN.md line 86: 'the worst drive under a margin below its rating (for example 0.85)'. check4 item (4) asked for the both-over-0.85 case, and only that branch got the come-back clause."
+    },
+    {
+     "id": "S2",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The precision is unstated and the facts hold. The tool prints 3 decimals and writes 4 to its JSON. The limits are roundings of the interpolated crossings. A measured 0.1241-0.1244 is 'over 0.124' read from the JSON but not from the printed line. Read literally against the JSON, the rule can still be applied. The gap is wording only, but weight 2 is expected to land right next to this limit.",
+     "evidence": "d22_action_std.py: print uses f\"{v['action_std']:.3f}\", and the JSON stores round(..., 4). My output for s0 was '3M 0.127', with 0.1268 in the JSON. I recomputed the crossings from the episode JSONs with the margins_md formula: weight 2 at 0.25 m/s gives +0.3668 at noise 0.12 and +0.2880 at 0.125, so it crosses 0.3 at 0.124237. Weight 1 at 0.15 m/s gives +0.3762 at 0.15 and +0.1284 at 0.175, so it crosses at 0.157686. From the rounded table cells: 0.124375 and 0.158."
+    },
+    {
+     "id": "S3",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "On a resume, train.py calls learn(total_timesteps=10M-n, reset_num_timesteps=False). SB3 adds num_timesteps to the target and keeps collecting 8192-step rollouts while num_timesteps < 10M. So the run ends at n + 8192*ceil((10M-n)/8192). That equals 10,002,432 only if n is a multiple of 8192. Regular pairs are at multiples of 250,000, and none below 512 x 250,000 qualifies. evaluate.py names the eval file after the final step count, so it differs too. Run 3's sheet warned about this and this sheet does not, so under rule 1 the owner would report a normal finish as a difference. Harmless but avoidable; wording.",
+     "evidence": "train.py line 806: remaining = total - num_timesteps. Line 820: learn(..., reset_num_timesteps=pair is None). Lines 423-424: PairSaver saves at multiples of 250,000. SB3 base_class.py line 416: total_timesteps += self.num_timesteps. on_policy_algorithm.py line 323: while self.num_timesteps < total_timesteps. Resuming at 3,250,000 ends at 3,250,000 + 824 x 8192 = 10,000,208. evaluate.py line 250: eval_{steps}.json. runs/trike60-run3-s1_STEPS.md lines 175-176: 'another number from 10000000 to 10008184'. STEPS.md 2.7 and section 4 give only 10002432."
+    },
+    {
+     "id": "S4",
+     "verdict": "partly",
+     "severity_after": "low",
+     "reasoning": "The code fact holds. markdown() formats stride_frequency_hz_all_feet with :.2f, and that is None when a case has no strides, so the Markdown fails. It also fails for a case other than the target: I set cmd_0.15's value to None and markdown() raised. But the title overstates it. It needs a case with no strides at all, not a run that merely drifts slower; a slow walker still has strides. The tool handles the failure by design: it writes a fallback gait_report.md that points to gait_report.json and prints a warning. The owner never runs it. Every measure the rule uses is in the JSON under the keys the finding names, so the rule stays applicable. What is left is a clarity point: the sheet quotes the Markdown form 'falls a + b of 10'. Naming the JSON keys is optional wording.",
+     "evidence": "gait_report.py line 698: stride_frequency_hz_all_feet is None when allp.size is 0. Lines 1135 and 1164 format it with :.2f. Lines 951-961: try/except writes a fallback md ('Every number is in gait_report.json'). My test: markdown() on fore128-s0's gait_report.json works (13370 chars). With cmd_0.15's stride_frequency_hz_all_feet set to None it raises 'TypeError unsupported format string passed to NoneType.__format__'. The JSON keys exist: cases.target_0.25.summary speed.forward_speed_mps 0.2348, falls 0, episodes 5, max rms_over_continuous.mean 0.8276."
+    },
+    {
+     "id": "S5",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "PLAN line 62 still says the noise is checked 'at 1-3 M'. The rule in STEPS section 5 reads only the rollout nearest 3 M, against 0.124 and 0.158. The README (lines 447-449) and D29 were updated to the 3 M figure and the limits. This is a minor inconsistency in wording only; PLAN line 67 points to the rule.",
+     "evidence": "PLAN_STEERING_RUN.md line 62: 'Each dev run's own noise at 1-3 M is checked before the judged weight is fixed'. STEPS.md lines 149-150 ('the rollout nearest 3,000,000 steps') and lines 154-158. README lines 447-449: 'each dev run's own noise at 3 M against a limit ... (0.124 for weight 2, 0.158 for weight 1)'. DECISION_LOG.md D29 row: 'each run's own 3 M noise against 0.124 ... and 0.158'."
+    },
+    {
+     "id": "S6",
+     "verdict": "confirmed",
+     "severity_after": "low",
+     "reasoning": "The text is there as described. It predates this work: the D22 sheet's 2.1 is the same, and the owner has used this notebook for run 3 and D22. The markdown text does not contradict any line the sheet asks the owner to check, and TOTAL_STEPS is set to 10000000 in 2.4. A one-line note would help; wording only.",
+     "evidence": "trike60_training.ipynb cell 0: 'Follow the step sheet hardware/triceratops_build/rl/COLAB_STEPS.md. The first run is a **pipeline test** (about one hour, 2 million steps)'. Cell 1 header: '1. PARAMETERS: COLAB_STEPS.md gives every value'. Cell 1 ValueError and cell 2 RuntimeError both name COLAB_STEPS.md. TOTAL_STEPS defaults to 2000000. runs/trike60-d22_STEPS.md 2.1 likewise gives only the address."
+    }
+   ]
+  }
+ ]
+}
