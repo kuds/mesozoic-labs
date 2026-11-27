@@ -581,7 +581,7 @@ net_arch = [512, 256]            # Match PPO architecture (obs is 59, heading-fr
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "stance_quality_heading/v1" # environments/shared/curriculum/gate_schema.py
-timesteps = 12000000
+timesteps = 11000000
 
 # ---------------------------------------------------------------------------
 # The 1a gate: physical stance quality, not return.
@@ -1048,8 +1048,8 @@ max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointR
                                         # Set 0 to keep every one.
 checkpoint_archive_every_timesteps = 500000  # Also keep the newest periodic checkpoint of every 500,000-step interval
                                         # (CheckpointRetentionCallback), beside the newest 5: the onset record. At the
-                                        # notebook's 100,000-step cadence a 12M run keeps 28 pairs (113 MB) instead of 5
-                                        # (20 MB), at 0.5M resolution; max_checkpoints = 0 would keep 120 (485 MB). A
+                                        # notebook's 100,000-step cadence an 11M run keeps 26 pairs (105 MB) instead of 5
+                                        # (20 MB), at 0.5M resolution; max_checkpoints = 0 would keep 110 (444 MB). A
                                         # retention key: in no gate, task or hyperparameter digest; only the stage-config
                                         # view digests move.
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.

@@ -1368,9 +1368,9 @@ robustness, **LOW** = cosmetic / QoL.
   notebook passes `train_stage`'s default `eval_freq=50_000`
   (`notebooks/sb3_training.ipynb:798`, a line of the `.ipynb` file), with no
   knob, and no stage TOML has a key for it. On a 1,000-step stance that is up
-  to 40,000 evaluation steps per 50,000 training steps, up to 9.6M over the
-  12M-step T. rex and velociraptor stances; the Allosaurus walk's 3,000-step
-  episodes make it up to 90,000 per 50,000. After training
+  to 40,000 evaluation steps per 50,000 training steps, up to 8.8M over an
+  11M-step stance at 40 episodes (6.6M at 30); the Allosaurus walk's
+  3,000-step episodes make it up to 90,000 per 50,000. After training
   `evaluate_stage_checkpoints` rolls up to 60 more episodes, and the command
   line's `curriculum` adds a 10-episode supplementary evaluation at every
   evaluation (`CurriculumCallback`, `curriculum/advancement.py:231-270`),
@@ -1391,10 +1391,11 @@ robustness, **LOW** = cosmetic / QoL.
   after every `train_freq` vector steps: every 64 transitions on the
   velociraptor, T. rex and dibothrosuchus stances, every 16 on the
   brachiosaurus and both Compsognathus models, every 4 on the Allosaurus
-  (SB3's default `train_freq` of 1). Over a stance that is about 94,000 rows
-  (the dibothrosuchus' 6M steps) to 750,000 (the Allosaurus' 3M), with 190,000
-  on the velociraptor's 12M, against about 730, 370 and 1,500 under PPO. Only
-  the rewrite is throttled: the whole history is saved uncompressed
+  (SB3's default `train_freq` of 1). Over a stance, 11M steps on every model,
+  that is about 172,000 rows (the velociraptor, T. rex and dibothrosuchus) to
+  2,750,000 (the Allosaurus), against about 1,300 under PPO (about 2,700 on
+  the two Compsognathus stances, whose `n_steps` is 1024). Only the rewrite
+  is throttled: the whole history is saved uncompressed
   (`file_io.atomic_savez`, `np.savez`, `file_io.py:171-182`) at most every
   60 s (`diagnostics.py:230,459`), on the Drive mount in the notebook. Rows
   that dense cannot be compared with a PPO run's per-rollout means either. And
@@ -3270,10 +3271,10 @@ note 15 and the stance-hack audit's §11). What it leaves open:
     transitions. `train_freq = 16` with `gradient_steps = 8`, commented "2:1
     data-to-update ratio" (the velociraptor's `stance.toml:276-277` and
     `locomotion.toml:137-138`, the T. rex's `stance.toml:575-576` and
-    `locomotion.toml:168-169`, the dibothrosuchus' `stance.toml:74-75`), is 8
+    `locomotion.toml:168-169`, the dibothrosuchus' `stance.toml:75-76`), is 8
     transitions per update on the notebook's 4 envs and 16 on the CLI's 8; the
     brachiosaurus' 4 and 4, "Match train_freq to maintain update-to-data
-    ratio" (`stance.toml:58-59`, `locomotion.toml:135-136`), and the
+    ratio" (`stance.toml:59-60`, `locomotion.toml:135-136`), and the
     dibothrosuchus walk's
     (`configs/dibothrosuchus_elaphros/anatomical/locomotion.toml:139-140`) are
     4; both Compsognathus models' uncommented 4 and 1 is 16, and the
@@ -3282,11 +3283,11 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   - *"Match PPO".* `learning_rate = 3e-4` is commented "Match PPO starting LR"
     on the velociraptor, brachiosaurus and dibothrosuchus stances
     (`configs/velociraptor_mongoliensis/anatomical/stance.toml:269`,
-    `configs/brachiosaurus_altithorax/anatomical/stance.toml:49`,
-    `configs/dibothrosuchus_elaphros/anatomical/stance.toml:67`) and `gamma =
-    0.99` "Match PPO" on the first two (:271, :52), beside `[ppo]` tables at
+    `configs/brachiosaurus_altithorax/anatomical/stance.toml:50`,
+    `configs/dibothrosuchus_elaphros/anatomical/stance.toml:68`) and `gamma =
+    0.99` "Match PPO" on the first two (:271, :53), beside `[ppo]` tables at
     3e-5 and 0.98; the velociraptor's `batch_size = 256` "matches PPO" (:270)
-    and the brachiosaurus' is "Larger than PPO's 64" (:50), where both `[ppo]`
+    and the brachiosaurus' is "Larger than PPO's 64" (:51), where both `[ppo]`
     tables say 128. The T. rex's `train_freq` and `gradient_steps` cite the
     "proven raptor SAC config" (`stance.toml:575-576`,
     `locomotion.toml:168-169`), a historical run on a plant several revisions
@@ -3439,7 +3440,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   the episodes it cites come from an older plant. The stance's `[sac]` "Match
   PPO" lines are in the `[sac]` comments entry, and the statue values the
   review also found stale are re-measured on physics r7
-  (`configs/brachiosaurus_altithorax/anatomical/stance.toml:68-86`). Fix:
+  (`configs/brachiosaurus_altithorax/anatomical/stance.toml:69-87`). Fix:
   re-measure the gait's height dip on a current walker and restate the comment
   (or the floor). (2026-11 notebook review: the height half of
   brachiosaurus-stale-recipe-comments)
@@ -3533,11 +3534,11 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   compsognathus-quick-test-passes-stance-at-init)
 - **MEDIUM** — **the SB3 notebook runs chains past Colab's ~24 h session cap
   with no time check, and resuming one is a manual second pass (read from the
-  code 2026-11-26).** The default walk chain is 9M-22M steps (stance plus
-  locomotion: the Allosaurus 3M + 6M, the T. rex and velociraptor 12M + 8M,
-  the brachiosaurus 6M + 16M), and the two 12M-step T. rex stances of
-  2026-11-07 took 23 h 07 min and 23 h 29 min on a Colab L4
-  (`docs/NEXT_STEPS.md:405-406`). The chain loop (cell 20) starts each node
+  code 2026-11-26).** The default walk chain is 14M-27M steps (stance plus
+  locomotion: the Compsognathus pair 11M + 3M, the T. rex and velociraptor
+  11M + 8M, the brachiosaurus 11M + 16M), and the two 12M-step T. rex
+  stances of 2026-11-07 took 23 h 07 min and 23 h 29 min on a Colab L4
+  (`docs/NEXT_STEPS.md:411-412`). The chain loop (cell 20) starts each node
   with no time check. The run memo is the kernel global `_ACTIVE_RUN_ID` (cell
   8, `notebooks/sb3_training.ipynb:383-384,449`), so a fresh runtime mints a
   new run unless `RUN_ID` is set; the loop recognises the interrupted node but
@@ -3614,10 +3615,9 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   - the Allosaurus, added 2026-11-21 and the only torque-driven plant, trains
     on near-default tables, three `[ppo]` keys and two `[sac]` keys
     (`configs/allosaurus_fragilis/anatomical/stance.toml:11-18`, copied into
-    the walk, `locomotion.toml:78-85`), with the shortest stance budget, 3M
-    steps against 6M-12M on the others (:23); neither its README nor its model
-    page calls it untuned, and its policy probe never runs (the Allosaurus
-    entry under Infrastructure).
+    the walk, `locomotion.toml:78-85`); neither its README nor its model page
+    calls it untuned, and its policy probe never runs (the Allosaurus entry
+    under Infrastructure).
 
   Fix: a per-node `status` in `stages.toml` (tuned, pilot or held, with a
   reason and a doc link), printed in the chain table, a warning or refusal
@@ -3783,7 +3783,8 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   SB3's own verbosity (`train_base.py:566`) as well as the progress bar's
   switch (`progress_bar=verbose >= 1`, :2064), so `VERBOSE = 1` also prints
   SB3's logger table every rollout, and the default 0 shows nothing for a node
-  of up to 23 h. `progress.json` already holds a `projected_finish`
+  of up to about 21.5 h (an 11M T. rex stance, scaled from the 12M runs).
+  `progress.json` already holds a `projected_finish`
   (`curriculum/progress_report.py:449-466`) that no cell reads; cell 15 prints
   that the diagnostics "will log to TensorBoard"
   (`sb3_training.ipynb:975-977`), but no cell opens it; and nothing tells the
@@ -3826,7 +3827,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   2026-11-26).** The robust-best rule has no warm-up
   (`RobustBestModelCallback`, `curriculum/checkpoints.py:36-80`), so it can
   hand off a shallow early checkpoint, and
-  [NEXT_STEPS.md](NEXT_STEPS.md):931-932 names "the audit and the handoff's
+  [NEXT_STEPS.md](NEXT_STEPS.md):955-956 names "the audit and the handoff's
   step count" as the guards. The step is written to `handoff_in_training.json`
   and logged at INFO (`reporting/stage_artifacts.py:492-515`), which no
   notebook cell shows, since none configures logging (the section 8 entry).

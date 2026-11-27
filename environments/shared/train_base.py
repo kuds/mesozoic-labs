@@ -1236,8 +1236,8 @@ def _build_core_callbacks(
         callback_on_new_best=save_vecnorm_cb,
         command_evaluation=command_evaluation,
         # eval_episodes.csv on the checkpoint cadence and at training end, not
-        # rewritten whole after every evaluation (about 31 MB by the end of a
-        # 12M T. rex stance); this callback runs before the CheckpointCallback,
+        # rewritten whole after every evaluation (about 28 MB by the end of an
+        # 11M T. rex stance); this callback runs before the CheckpointCallback,
         # so a checkpoint's evaluation rows are on disk before it is saved.
         ledger_flush_every_calls=checkpoint_stride,
     )
@@ -2110,7 +2110,7 @@ def _train_stage_body(
     # Report only: learn() skipped on_training_end after the interrupt, so the
     # checkpoint-cadence records (eval_episodes.csv, train_episodes.csv,
     # policy_probe.npz) lack their rows since the newest periodic checkpoint.
-    # Written here, after the final pair is saved (a 12M T. rex stance's
+    # Written here, after the final pair is saved (an 11M T. rex stance's
     # eval_episodes.csv takes seconds, a window in which a second Ctrl-C would
     # otherwise cost the final pair), and before anything re-judges the stage.
     if interrupted:

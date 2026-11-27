@@ -496,6 +496,25 @@ All on `main`, `notebooks/sb3_training.ipynb`, notebook defaults unless stated
 (`N_ENVS = 4`, `TRUNK_FROM = "auto"`). Times are
 the measured Colab wall clock of the section 2 runs or scaled from them.
 
+*2026-11-26: the maintainer's decision (no decision id yet): every stance
+trains 11M steps. `[curriculum] timesteps = 11000000` in every `stance.toml`;
+it was 12M for the T-Rex and the velociraptor, 6M for the brachiosaurus and
+the dibothrosuchus and 3M for the allosaurus, and both Compsognathus models
+were already at 11M. The budget is a schedule key in no task, gate or recipe
+digest, so the T-Rex stance stays task `2624c86a`, gate `d26c34e6` and recipe
+`c64211e8` with `CRITIC_PHASE = True`. A new stance session trains 11M: the
+6M stance of rows 4 and 5 reads 11M from here, and the 2026-11-06 note's "The
+stage trains 12M steps" stays the record of its finished certification (the
+2026-11-23 note below). Scaled from the two r10 certification runs (12M in
+23h06m55s and 23h28m58s), an 11M T-Rex stance trains in about 21h11m–21h31m
+on an L4, with about 0.8 h more for the certificate and the bundle inside the
+~24 h runtime cap; the other species have no stance run at the current
+evaluation cadence to scale from. A stance run launched before this change is
+resumed with `REPO_REF` set to the commit its `stage_config.json` records: on
+this budget its resume trains only to 11M, a 12M run interrupted past 11M
+without its final pair is refused, and its bundle warns that it fell short of
+its run budget.*
+
 *2026-11-24: a branch screen, a pilot or any other experiment trained through
 the notebook sets `RUN_KIND = "screen"`. The run is then written under
 `logs/<species>/<embodiment>/<algo>_screen/`, where `TRUNK_FROM = "auto"` and

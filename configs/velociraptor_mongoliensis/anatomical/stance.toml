@@ -228,7 +228,7 @@ ent_coef_end = 0.0                               # Decay entropy over the stage 
                                                  # 20260804_143747 it held the std at ~0.375 for 7M steps, a 16.7 Hz limit
                                                  # cycle that scored under the statue (issue #486) -- and on this plant
                                                  # the statue survives only sigma ~0.10 (r4 ~0.07; log_std_init below).
-ent_coef_decay_timesteps = 7000000               # The bonus reaches 0 at 7M of the 12M budget (the T-Rex's and the
+ent_coef_decay_timesteps = 7000000               # The bonus reaches 0 at 7M of the 11M budget (the T-Rex's and the
                                                  # Compsognathus's anchor; hop_watch_after_timesteps moves with it). Was
                                                  # 3M, anchored to that r2-era collapse point when the budget was 6M,
                                                  # and left there when the budget doubled (cdffea8, 2026-10-11), so the
@@ -271,7 +271,7 @@ batch_size = 256                  # Standard SAC batch size; matches PPO
 gamma = 0.99                     # Match PPO Stage 1; shorter horizon suits balance task
 tau = 0.005                      # Soft target update rate — standard default
 ent_coef = "auto"                # SAC's key advantage: auto-tuned entropy eliminates manual exploration tuning
-buffer_size = 300_000            # Sized for the stage when it was 6M steps (now 12M); smaller buffer keeps transitions recent
+buffer_size = 300_000            # Sized for the stage when it was 6M steps (now 11M); smaller buffer keeps transitions recent
 learning_starts = 10_000         # Collect 10K random transitions before gradient updates begin
 train_freq = 16                  # Collect 16 env steps before training — amortises gradient cost over more env steps
 gradient_steps = 8               # 2:1 data-to-update ratio — more gradient updates per env batch smooths learning curves
@@ -282,7 +282,7 @@ net_arch = [512, 256]            # Match PPO architecture for fair comparison
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "stance_quality_heading/v1" # environments/shared/curriculum/gate_schema.py
-timesteps = 12000000
+timesteps = 11000000
 
 # ---------------------------------------------------------------------------
 # The six-heading certificate (the maintainer's decision of 2026-11-06; the T-Rex's and the anatomical
@@ -580,8 +580,8 @@ collapse_peak_floor_fraction = 0.45    # RELATIVE floor, the T-Rex's (2026-11-06
 collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (the T-Rex's value and
                                          # reason, 2026-11-06): the untrained policy's statue-like first evaluations
                                          # must not arm the floor. 1.0M was measured on the T-Rex's 20260803_012355
-                                         # series (its initialisation advantage gone by 200k); it leaves 92% of
-                                         # this 12M budget protected. Untested on a full run at this start.
+                                         # series (its initialisation advantage gone by 200k); it leaves 91% of
+                                         # this 11M budget protected. Untested on a full run at this start.
 collapse_peak_floor_reference = 3241.7  # The zero-action statue's standing reward at noise 0.05: 2842.76 +/- 2.62,
                                         # 40 episodes, seeds 3042-3081, on physics r3 with the stance-quality terms
                                         # above, measured with `zero_action_baseline.py --model-id velociraptor_mongoliensis
@@ -627,8 +627,8 @@ checkpoint_archive_every_timesteps = 500000  # Also keep the newest periodic che
                                         # screens judged FINAL and intermediate checkpoints, and 11 of the 17
                                         # distinct screen runs whose notebook certificate passed (most on a
                                         # robust_best at or before 1.84M steps, near the statue) failed those
-                                        # checks; this keeps the checkpoints that judging needs (about 28 pairs on a 12M run instead of 5, as on the
-                                        # T-Rex's 12M stance). A retention key: in no gate,
+                                        # checks; this keeps the checkpoints that judging needs (about 26 pairs on an 11M run instead of 5, as on the
+                                        # T-Rex's 11M stance). A retention key: in no gate,
                                         # task or hyperparameter digest; only the stage-config view digests move.
 certification_seeds = 2                 # Publication bar, not a gate threshold (BEHAVIOR_RECIPES_PLAN §4.5, decision
                                         # D-B9; the T-Rex's, 2026-11-06): distinct-seed runs that must certify this node
@@ -637,7 +637,7 @@ certification_seeds = 2                 # Publication bar, not a gate threshold 
                                         # / 44 PASS / FAIL / PASS on one configuration, r7), and this species' r3 seeds
                                         # split too (seed 42 hopped on 25/40, seed 48 on 40/40). Enters neither
                                         # gate_sha256 nor hyperparameters_sha256 nor task_sha256.
-baseline_warn_after_budget_fraction = 0.35  # Warn once past this share of the budget (4.2M) if the policy has still
+baseline_warn_after_budget_fraction = 0.35  # Warn once past this share of the budget (3.85M) if the policy has still
                                          # never beaten the zero-action statue. Advisory only; the T-Rex's (2026-11-06),
                                          # after its run 20260804_143747 trained 10M steps under the statue and
                                          # nothing said so (issue #486).

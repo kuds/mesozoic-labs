@@ -750,7 +750,7 @@ class TestTheTrainerFlushesAfterASavedInterrupt:
         return events
 
     def test_every_record_is_rewritten_after_the_final_save(self, tmp_path, monkeypatch):
-        """After it: a second Ctrl-C during a rewrite (seconds on a 12M T. rex stance) cannot cost the final pair."""
+        """After it: a second Ctrl-C during a rewrite (seconds on an 11M T. rex stance) cannot cost the final pair."""
         events = self._train(tmp_path, monkeypatch)
 
         flushes = [event for event in events if isinstance(event, str) and event.startswith("flush")]
