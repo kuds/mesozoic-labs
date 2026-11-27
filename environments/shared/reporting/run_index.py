@@ -55,6 +55,20 @@ generation of its stage directories: ``NN_<stage_id>`` (from 2026-08-20),
 so a finished run of theirs reads as ``training_cut`` or
 ``post_training_cut``, and its report says so), or ``none``.
 
+A run is *stranded* (:func:`plant_drift`) when the plant it recorded (its
+``provenance.json``'s, else a ``plant_identity.json``) is not the model's
+current plant, as the committed generated plant manifest gives it: none of
+its checkpoints loads on this checkout, so its page names no step that
+re-enters, resumes or re-rolls it, its certified deliverables are a record,
+and its index row says ``stranded``.  Every run written before decision
+D-D59 is stranded: all seven plants moved and every checkpoint of every
+model was stranded once (``configs/plant_versions.toml``, note 24).  Those
+runs keep what the hunt nodes wrote, such as ``03_behavior/`` or
+``04_behavior/`` and their ``task_success/v1`` evidence
+(``evaluation_selected.csv``): a stage directory of a reserved id the
+model's manifest no longer declares still reads as its stage, after the
+declared ones, and its page says no chain walks or reuses it.
+
 A node a run holds as an ``ancestors/<stage_id>/`` record is reused, whatever
 else the run holds: when the run also holds its own stage directory for the
 node (its own verdict failed or no longer passed the reuse rule, and the chain
@@ -80,7 +94,9 @@ index row reads less: the manifest's status, ``provenance.json``, each
 stage's ``gate_verdict.json``, the names under ``ancestors/``, and for a run
 of the certification tree what ``run_exclusions.excluded_run_reason`` reads
 (``provenance.json`` and each stage's ``stage_config.json`` and
-``gate_verdict.json``).  Sizes and digests come from
+``gate_verdict.json``); a run whose ``provenance.json`` records no plant
+also reads a ``plant_identity.json``.  The committed generated plant
+manifest is read once per process.  Sizes and digests come from
 ``artifact_manifest.json`` when the run has one; nothing is ever hashed.  A
 partial, cut-off, legacy or empty run is a state the report names, with the
 next step for an unfinished one; a file that cannot be read is a warning in
@@ -208,6 +224,7 @@ ROLES = {
     "fingerprint": "the plant and task identities a node was trained on",
     "config": "the node's recorded configuration, and the gate resolution frozen before it trained",
     "verdict": "the node's gate verdict",
+    "handoff": "the record of the checkpoint pair a stage hands on, chosen by its gated statistic",
     "certificate": "the certification report the gate judged",
     "evidence": "the per-episode evidence the bundle audit recomputes",
     "ledger": "the records training writes as it goes",
@@ -218,6 +235,7 @@ ROLES = {
     "figure": "a stage figure",
     "training_history": "the stage-end training-history report",
     "replay": "a replay video or its per-frame stance CSV",
+    "trace": "the step trace a report-only figure is drawn from",
     "probe": "a report-only stance probe",
     "summary_text": "a human-readable summary",
     "ancestor_record": "the record of a node reused from another run",
@@ -268,19 +286,30 @@ ARTIFACT_ROLES: tuple[tuple[str, str, str], ...] = (
     # (and scripts/backfill_gate_verdict.py).
     ("stage", GATE_VERDICT_FILENAME, "verdict"),
     # reporting/stance_report.write_stance_gate_report and write_stance_heading_report, called by
-    # stage_artifacts._write_stance_gate_report / _write_stance_heading_certificate.
+    # stage_artifacts._write_stance_gate_report / _write_stance_heading_certificate.  A walk's command_tracking/v1
+    # report (decision D-D61): command_tracking_report.write_command_tracking_report, called by
+    # stage_artifacts._write_command_tracking_report (generate_stage_artifacts, and train_base's command-line judge),
+    # beside its panel (command_tracking_evidence.COMMAND_TRACKING_REPORT_TXT, _JSON and _PANEL_CSV).
     ("stage", "stance_gate_report.txt", "certificate"),
     ("stage", "stance_gate_report.json", "certificate"),
     ("stage", "stance_heading_report.txt", "certificate"),
     ("stage", "stance_heading_report.json", "certificate"),
-    # Their per-episode evidence (stance_report.write_stance_panel_evidence, _write_stance_heading_panel_evidence);
-    # csv_output.save_evaluation_episodes (train_base, stage_artifacts.evaluate_stage_checkpoints and
-    # _write_task_success_evidence); recovery_evaluation.write_recovery_evidence (recovery_<panel>_<controller>.csv).
+    ("stage", "command_tracking_report.txt", "certificate"),
+    ("stage", "command_tracking_report.json", "certificate"),
+    # Their per-episode evidence (stance_report.write_stance_panel_evidence, _write_stance_heading_panel_evidence,
+    # the command-tracking panel); csv_output.save_evaluation_episodes (stage_artifacts.evaluate_stage_checkpoints;
+    # before decision D-D59 removed the hunt nodes and their task_success/v1 gate, also train_base's post-training
+    # panel and stage_artifacts' task-success roll, whose evaluation_selected.csv the runs that trained a hunt keep);
+    # recovery_evaluation.write_recovery_evidence (recovery_<panel>_<controller>.csv).
     ("stage", "stance_panel_selected.csv", "evidence"),
     ("stage", "stance_heading_panel_selected.csv", "evidence"),
+    ("stage", "command_tracking_panel_selected.csv", "evidence"),
     ("stage", "evaluation_selected.csv", "evidence"),
     ("stage", "evaluation_final.csv", "evidence"),
     ("stage", "recovery_*.csv", "evidence"),
+    # The command-tracking chart episodes' step trace (command_tracking_trace.write_command_tracking_trace, after the
+    # verdict), which visualization.plot_command_tracking reads by its fixed path; nothing judges or publishes it.
+    ("stage", "command_tracking_trace.csv", "trace"),
     # The report-only probes stage_artifacts._run_stance_probes rolls last (stance_report.write_action_filter_sweep,
     # write_constant_hold_probe, write_constant_hold_ablation, write_impulse_probe, write_heading_probe).
     ("stage", "stance_gate_probe_*.txt", "probe"),
@@ -318,6 +347,9 @@ ARTIFACT_ROLES: tuple[tuple[str, str, str], ...] = (
     # RobustBestModelCallback (robust_best_model), SB3's CheckpointCallback (<label>_<N>_steps.zip and
     # <label>_vecnormalize_<N>_steps.pkl), train_base's final save (<label>_final.zip, <label>_final_vecnorm.pkl).
     # A checkpoint resolves as .zip or .pkl (reporting/bundles._resolve_model_artifact); the statistics first.
+    # models/handoff_choice.json: curriculum/checkpoints.write_handoff_choice (command_tracking_report.
+    # choose_command_handoff, decision D-D61), which select_handoff_checkpoint honours.
+    ("stage", "models/handoff_choice.json", "handoff"),
     ("stage", "models/*_vecnorm.pkl", "normalization"),
     ("stage", "models/*_vecnormalize_*_steps.pkl", "normalization"),
     ("stage", "models/*.zip", "checkpoint"),
@@ -325,7 +357,8 @@ ARTIFACT_ROLES: tuple[tuple[str, str, str], ...] = (
     # SB3's tensorboard_log (train_base), synced by tb_sync.
     ("stage", "tensorboard/*", "tensorboard"),
     # stage_layout: figures/training_history/ (stage_artifacts._write_training_history), figures/ (the
-    # visualization plots generate_stage_artifacts draws) and replays/ (evaluation.record_stage_video).
+    # visualization plots generate_stage_artifacts draws, and stage_artifacts.write_command_tracking_figures'
+    # command_tracking.png and command_gate_progress.png) and replays/ (evaluation.record_stage_video).
     ("stage", f"{stage_layout.FIGURES_DIRNAME}/{stage_layout.TRAINING_HISTORY_DIRNAME}/*", "training_history"),
     ("stage", f"{stage_layout.FIGURES_DIRNAME}/*", "figure"),
     ("stage", f"{stage_layout.REPLAYS_DIRNAME}/*.mp4", "replay"),
@@ -336,8 +369,12 @@ ARTIFACT_ROLES: tuple[tuple[str, str, str], ...] = (
     ("stage", "*.png", "figure"),
 )
 
-#: The certification reports, by the gate kinds that write them (their text forms are read, never the JSON).
-CERTIFICATE_REPORTS = ("stance_heading_report.txt", "stance_gate_report.txt")
+#: The certification reports, by the gate kinds that write them (their text forms are read, never the JSON): the
+#: six-heading stance certificate, the stance gates v1 and v2, and a walk's command_tracking/v1 report (D-D61).
+CERTIFICATE_REPORTS = ("stance_heading_report.txt", "stance_gate_report.txt", "command_tracking_report.txt")
+#: A family line of the command-tracking report's text form (``command_tracking_report.render_command_tracking_report``):
+#: ``cruise     18 / 20   successful (0.900); survived 20; ...``.
+_FAMILY_LINE = re.compile(r"\S+\s+\d+ / \d+\s+successful\b")
 #: The text report each stance probe's writer leaves in the stage directory, by the label
 #: ``stage_artifacts.declared_stance_probes`` names it with (stance_report.write_action_filter_sweep,
 #: write_constant_hold_probe, write_constant_hold_ablation, write_impulse_probe, write_heading_probe).
@@ -378,12 +415,20 @@ def _stage_id(name: str, model_id: "ModelId | None" = None) -> "str | None":
     """The stage id a run-directory child named *name* holds, in any layout generation, or ``None``.
 
     ``stage_manifest.stage_ref_from_dirname`` recognises the name: with the
-    model's manifest, any id it declares; without one, the reserved ids.
+    model's manifest, any id it declares; then, as without one, the reserved
+    ids, so a node the manifest no longer declares still reads as its stage:
+    the hunt's ``behavior`` (legacy stage 3), which decision D-D59 removed
+    from every manifest, and which the runs that trained it keep as
+    ``03_behavior/``, ``04_behavior/``, ``stage3/`` or ``behavior/``.
     """
     manifest = _manifest_of(model_id)
-    try:
-        ref = _stage_ref_from_dirname(name, model_id=model_id if manifest is not None else None)
-    except StageManifestError:
+    ref = None
+    if manifest is not None:
+        try:
+            ref = _stage_ref_from_dirname(name, model_id=model_id)
+        except StageManifestError:
+            ref = None
+    if ref is None:
         ref = _stage_ref_from_dirname(name)
     if ref is None:
         return None
@@ -599,6 +644,101 @@ def _started(provenance: "Mapping[str, Any] | None", run_dir: Path) -> "str | No
     return f"{day[:4]}-{day[4:6]}-{day[6:]}T{time[:2]}:{time[2:4]}:{time[4:]}"
 
 
+#: The fields of a recorded plant identity a checkpoint must share with the current plant to load
+#: (``plant_contract.PlantIdentity.compatibility_errors``), each with where the committed generated plant manifest
+#: holds the current value: ``(field, layer, key)``.
+_PLANT_FIELDS = (
+    ("physics_revision", "physics", "revision"),
+    ("physics_sha256", "physics", "sha256"),
+    ("nq", "physics", "nq"),
+    ("nv", "physics", "nv"),
+    ("nu", "physics", "nu"),
+    ("policy_interface_revision", "policy_interface", "revision"),
+    ("policy_interface_sha256", "policy_interface", "sha256"),
+    ("observation_dim", "policy_interface", "observation_dim"),
+    ("action_dim", "policy_interface", "action_dim"),
+)
+
+
+@lru_cache(maxsize=16)
+def _committed_plant(model_id: "ModelId | None") -> "Mapping[str, Any] | None":
+    """The model's entry in the committed generated plant manifest, read once per process; ``None`` when unknown.
+
+    ``configs/plant_manifest.generated.json`` (else the copy bundled with the
+    package), which the plant-contract check keeps equal to the code: the
+    current plant, read without building an environment.
+    """
+    if model_id is None:
+        return None
+    from ..plant_contract.errors import PlantContractError
+
+    # The reader the plant contract checks the file with (no public form exists).
+    from ..plant_contract.versions import _generated_plants, _load_generated_manifest
+
+    try:
+        return _generated_plants(_load_generated_manifest()).get(model_id)
+    except PlantContractError:
+        return None
+
+
+def _run_plant(
+    run_dir: Path, provenance: "Mapping[str, Any] | None", stage_dirs: Sequence[tuple[str, Path]]
+) -> "Mapping[str, Any] | None":
+    """The plant identity the run recorded, or ``None`` when no record names one.
+
+    Its ``provenance.json``'s (the storage cell's, which a later session must
+    match), else its ``plant_identity.json`` (the bundle writer's, or the
+    command-line curriculum's), else the first stage directory's
+    ``plant_identity.json`` (``config.save_stage_config``).
+    """
+    recorded = provenance.get("plant_identity") if provenance is not None else None
+    if isinstance(recorded, Mapping):
+        return recorded
+    for directory in (run_dir, *(stage_dir for _, stage_dir in stage_dirs)):
+        identity = read_json_object(directory / "plant_identity.json")
+        if identity is not None:
+            return identity
+    return None
+
+
+def plant_drift(recorded: "Mapping[str, Any] | None", model_id: "ModelId | None") -> "str | None":
+    """Why checkpoints trained on the plant *recorded* names load on no current plant of *model_id*; ``None`` if they do.
+
+    ``None`` too when the current plant cannot be read (the generated plant
+    manifest), so nothing is claimed either way.  The fields are the ones
+    ``plant_contract.PlantIdentity.compatibility_errors`` compares, read from
+    the committed manifest: every checkpoint written before decision D-D59
+    differs (``configs/plant_versions.toml``, note 24: all seven plants moved
+    and every checkpoint of every model is stranded once).
+    """
+    from ..plant_contract.constants import PLANT_IDENTITY_SCHEMA
+
+    committed = _committed_plant(model_id)
+    if committed is None or model_id is None:
+        return None
+    if not isinstance(recorded, Mapping):
+        return (
+            "no record of the run names the plant it trained on, and a checkpoint without a plant identity loads "
+            "nowhere that certifies"
+        )
+    if recorded.get("schema") != PLANT_IDENTITY_SCHEMA:
+        return f"its plant identity is of schema {recorded.get('schema')!r}, not {PLANT_IDENTITY_SCHEMA!r}"
+    named = (recorded.get("species"), recorded.get("embodiment"))
+    if named != (model_id.species, model_id.embodiment):
+        return f"its plant identity names the model {named[0]}/{named[1]}"
+    differences = []
+    for field, layer, key in _PLANT_FIELDS:
+        block = committed.get(layer)
+        current = block.get(key) if isinstance(block, Mapping) else None
+        if recorded.get(field) != current:
+            differences.append(
+                f"{field} differs" if field.endswith("sha256") else f"{field} {recorded.get(field)} (now {current})"
+            )
+    if not differences:
+        return None
+    return "it was trained on another plant of the model: " + ", ".join(differences)
+
+
 def _key_id(key: Any, manifest: "StageManifest | None") -> str:
     """A serialized stage key (``"1"``, ``"recovery"``) as its stage id."""
     text = str(key)
@@ -619,10 +759,16 @@ def _read_text(path: Path, warnings: list[str], what: str) -> "str | None":
 
 
 def _certificate_line(text: str) -> str:
-    """The certificate's verdict and headline statistic, from its text form: ``GATE: PASS; seeds clean ...``."""
+    """The certificate's verdict and headline statistic, from its text form: ``GATE: PASS; seeds clean ...``.
+
+    A command-tracking report's headline is each family's success count, up to its first ``;``.
+    """
     lines = [line.strip() for line in text.splitlines()]
     gate = [line for line in lines if line.startswith("GATE: ")]
     verdict = gate[-1] if gate else "no GATE line"
+    families = [" ".join(line.split(";", 1)[0].split()) for line in lines if _FAMILY_LINE.match(line)]
+    if families:
+        return f"{verdict}; {', '.join(families)}"
     for prefix in ("seeds clean at every heading", "clean episodes", "mean_unsupported_duty"):
         headline = next((line for line in lines if line.startswith(prefix)), None)
         if headline is not None:
@@ -701,6 +847,7 @@ def _blank_node(stage_id: str, directory: "str | None", verdict: str) -> dict[st
         "probes": [],
         "missing_probes": [],
         "probe_note": None,
+        "retired": False,
     }
 
 
@@ -718,11 +865,13 @@ def _own_node(
     detail: bool = True,
     rerun: "Mapping[str, Any] | None" = None,
     cache: "dict[Path, Mapping[str, Any] | None] | None" = None,
+    stranded: bool = False,
 ) -> dict[str, Any]:
     """A node trained in this run, from its stage directory; without *detail*, from ``gate_verdict.json`` alone.
 
     *rerun* is what a missing-probe warning's command names (:func:`_probe_commands`); *cache* keeps the records
-    read (:func:`_cached`), the verdict as ``read_gate_verdict`` gave it.
+    read (:func:`_cached`), the verdict as ``read_gate_verdict`` gave it.  A *stranded* run's warnings advise no
+    re-judging or re-rolling: its checkpoints load on no current plant (:func:`plant_drift`).
     """
     curriculum = _recorded_curriculum(stage_dir, cache) if detail else None
     recorded_kind = curriculum.get("gate_kind") if curriculum is not None else None
@@ -732,9 +881,13 @@ def _own_node(
         verdict = read_gate_verdict(stage_dir)
     except ResultBundleError as exc:
         warnings.append(
-            f"{_without_run_path(exc, run_dir)}: the node reads as not judged here, and nothing can reuse it; re-judge "
-            f"the stage, e.g. `python -m environments.shared.scripts.backfill_gate_verdict <run>/{stage_dir.name} "
-            "--force` (it refuses a run whose bundle is complete)"
+            f"{_without_run_path(exc, run_dir)}: the node reads as not judged here, and nothing can reuse it"
+            + (
+                " (the run is stranded besides)"
+                if stranded
+                else "; re-judge the stage, e.g. `python -m environments.shared.scripts.backfill_gate_verdict "
+                f"<run>/{stage_dir.name} --force` (it refuses a run whose bundle is complete)"
+            )
         )
         verdict = None
         node["verdict"] = "unreadable"
@@ -754,7 +907,9 @@ def _own_node(
             if detail and here is not None and not here.is_file():
                 warnings.append(
                     f"{stage_dir.name}/{GATE_VERDICT_FILENAME} names its {field} {shown}, which no longer exists "
-                    "(the verdict is bound to that file: re-judge the stage before reusing it)"
+                    "(the verdict is bound to that file"
+                    + ("" if stranded else ": re-judge the stage before reusing it")
+                    + ")"
                 )
     if not detail:
         return node
@@ -773,7 +928,7 @@ def _own_node(
                 {"label": label, "path": f"{stage_dir.name}/{name}", "line": _probe_line(text) if text else ""}
             )
     if node["certificate"] is not None:
-        _expect_probes(node, stage_dir, curriculum, warnings, rerun)
+        _expect_probes(node, stage_dir, curriculum, warnings, None if stranded else rerun, stranded=stranded)
     return node
 
 
@@ -839,6 +994,8 @@ def _expect_probes(
     curriculum: "Mapping[str, Any] | None",
     warnings: list[str],
     rerun: "Mapping[str, Any] | None" = None,
+    *,
+    stranded: bool = False,
 ) -> None:
     """The declared probes a stance stage holding a certificate lacks, by what judged it.
 
@@ -848,7 +1005,8 @@ def _expect_probes(
     with a command per probe that rolls it again outside the run.  The
     command-line curriculum's judge writes the certificate and rolls none: a
     note, not a warning.  A stage with no verdict, or one another tool
-    judged, expects nothing.
+    judged, expects nothing.  A *stranded* stage's warning names no command:
+    its checkpoint loads on no current plant.
     """
     from .stage_artifacts import GATE_VERDICT_JUDGED_BY
 
@@ -866,7 +1024,12 @@ def _expect_probes(
             "a runtime lost during them, or a probe that failed, leaves its report out, and nothing writes into the "
             "stage directory again, so this warning stays"
         )
-        if rerun is not None and curriculum is not None:
+        if stranded:
+            warning += (
+                ". Its checkpoint is stranded with the run (it loads on no current plant), so they cannot be rolled "
+                "again on this checkout"
+            )
+        elif rerun is not None and curriculum is not None:
             model_id = rerun.get("model_id")
             where = (
                 f"LOG_BASE/{model_id.species}/{model_id.embodiment}" if model_id else "LOG_BASE/<species>/<embodiment>"
@@ -915,9 +1078,12 @@ def _trunk_file(value: str, source_run: Any, run_dir: Path) -> "tuple[Path | Non
 
 
 def _reused_node(
-    stage_id: str, record_dir: Path, run_dir: Path, warnings: list[str], *, detail: bool = True
+    stage_id: str, record_dir: Path, run_dir: Path, warnings: list[str], *, detail: bool = True, stranded: bool = False
 ) -> dict[str, Any]:
-    """A node reused from another run, from its ``ancestors/<stage_id>/`` record; without *detail*, from its name."""
+    """A node reused from another run, from its ``ancestors/<stage_id>/`` record; without *detail*, from its name.
+
+    A *stranded* run's warning about a trunk file not on this machine advises nothing: nothing reuses the node.
+    """
     node = _blank_node(stage_id, None, "reused")
     if not detail:
         return node
@@ -950,8 +1116,13 @@ def _reused_node(
             beside = f" nor at {sibling}, in the trunk run beside this run" if sibling is not None else ""
             warnings.append(
                 f"{where}/{ANCESTOR_RECORD_NAME} names the trunk's {field} {value}, which is neither there{beside}: "
-                "the trunk run is not on this machine, so the reuse cannot be checked here and a run trunked from "
-                "this one cannot reuse the node here (read the run where its trunk run is)"
+                + (
+                    "the trunk run is not on this machine (the node is stranded with the run, so nothing reuses it "
+                    "in any case)"
+                    if stranded
+                    else "the trunk run is not on this machine, so the reuse cannot be checked here and a run trunked "
+                    "from this one cannot reuse the node here (read the run where its trunk run is)"
+                )
             )
     return node
 
@@ -965,6 +1136,7 @@ def _nodes(
     detail: bool = True,
     rerun: "Mapping[str, Any] | None" = None,
     cache: "dict[Path, Mapping[str, Any] | None] | None" = None,
+    stranded: bool = False,
 ) -> list[dict[str, Any]]:
     """The run's nodes in the manifest's order: its own stages and the ones reused from a trunk.
 
@@ -973,7 +1145,9 @@ def _nodes(
     directory of the run for the same node is named as kept but not
     published (``own_dir``, with its verdict), and nothing else is read
     from it.  Without *detail* a reused node is known by its record's name
-    alone.
+    alone.  A node whose id the model's manifest no longer declares (the
+    hunt's ``behavior``, decision D-D59) comes after the declared ones, as
+    ``retired``.
     """
     own = dict(stage_dirs)
     records: dict[str, Path] = {}
@@ -990,7 +1164,7 @@ def _nodes(
     nodes = []
     for stage_id in dict.fromkeys(ids):
         if stage_id in records:
-            node = _reused_node(stage_id, records[stage_id], run_dir, warnings, detail=detail)
+            node = _reused_node(stage_id, records[stage_id], run_dir, warnings, detail=detail, stranded=stranded)
             if stage_id in own:
                 node["own_dir"] = own[stage_id].name
                 kept = _cached(cache, own[stage_id] / GATE_VERDICT_FILENAME) if detail else None
@@ -1014,8 +1188,10 @@ def _nodes(
                     detail=detail,
                     rerun={**rerun, "stage": stage} if rerun is not None else None,
                     cache=cache,
+                    stranded=stranded,
                 )
             )
+        nodes[-1]["retired"] = manifest is not None and stage_id not in order
     return nodes
 
 
@@ -1092,7 +1268,24 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
     relative = run_dir.resolve().relative_to(model_dir.resolve())
     rerun = {"model_id": model_id, "run_path": relative.as_posix()} if detail else None
     cache: dict[Path, Mapping[str, Any] | None] = {}
-    nodes = _nodes(run_dir, model_id, stage_dirs, warnings, detail=detail, rerun=rerun, cache=cache)
+    run_plant = _run_plant(run_dir, provenance, stage_dirs)
+    holds = bool(stage_dirs) or (run_dir / ANCESTORS_DIRNAME).is_dir()
+    stranded = plant_drift(run_plant, model_id) if run_plant is not None or holds else None
+    if detail and model_id is not None and _committed_plant(model_id) is None:
+        warnings.append(
+            f"the current plant of {model_id} cannot be read (configs/plant_manifest.generated.json), so this page "
+            "does not say whether the run's checkpoints still load"
+        )
+    nodes = _nodes(
+        run_dir,
+        model_id,
+        stage_dirs,
+        warnings,
+        detail=detail,
+        rerun=rerun,
+        cache=cache,
+        stranded=stranded is not None,
+    )
     deliverables = _deliverables(provenance, manifest)
     sealed = status is not None
     primary_key = provenance.get("primary_deliverable") if provenance is not None else None
@@ -1124,6 +1317,8 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
         "layout": _layout(stage_dirs),
         "model": model_id.record() if model_id is not None else None,
         "state": state,
+        "stranded": stranded,
+        "provenance_plant": isinstance(provenance.get("plant_identity"), Mapping) if provenance is not None else False,
         "manifest_status": status,
         "started": _started(provenance, run_dir),
         "target": _key_id(target_key, manifest) if target_key is not None else None,
@@ -1307,8 +1502,23 @@ def render_run_report(
             f"Its stage directories (`{summary['layout']}`) are of a layout older than `{GATE_VERDICT_FILENAME}`: "
             "the state says which files the run holds, not that its training was cut off."
         )
-    elif summary["state"] in NEXT_STEPS and (summary["kind"] is not None or summary["state"] == BUNDLE_UNREADABLE):
+    elif summary["state"] in NEXT_STEPS and (
+        summary["state"] == BUNDLE_UNREADABLE or (summary["kind"] is not None and summary["stranded"] is None)
+    ):
         lines.append(NEXT_STEPS[summary["state"]].format(run_id=summary["run_id"]) + ".")
+    if summary["stranded"]:
+        lines.append(
+            f"**Stranded:** {summary['stranded']}. None of its checkpoints loads on the current plant "
+            "(`plant_contract.validate_recorded_identity`), so nothing on this checkout trains from, resumes or "
+            "reuses them"
+            + (
+                ", and a notebook session refuses to re-enter the run, whose `provenance.json` records its plant"
+                if summary["provenance_plant"]
+                else ""
+            )
+            + ". Every checkpoint written before decision D-D59 is stranded (`configs/plant_versions.toml`, note 24). "
+            "The run stays as a record; a new run trains the model again."
+        )
     if summary["excluded"]:
         lines.append(
             f"**Never counts:** {summary['excluded']} (`environments/shared/run_exclusions.py`): not as certified, "
@@ -1357,6 +1567,14 @@ def render_run_report(
                     "published; this page reads nothing else from it.",
                 ]
         for node in summary["nodes"]:
+            if node.get("retired"):
+                hunt = " (the hunt, removed with every hunt node by decision D-D59)" if node["id"] == "behavior" else ""
+                lines += [
+                    "",
+                    f"`{node['id']}`: the model's stage manifest declares no such node{hunt}, so the run holds it as "
+                    "a record: no chain walks or reuses it.",
+                ]
+        for node in summary["nodes"]:
             failures = node["failures"]
             if not failures:
                 continue
@@ -1375,7 +1593,7 @@ def render_run_report(
             for stage, what, item in reports
         ]
     else:
-        lines.append("None: no stage holds a stance certificate or probe report.")
+        lines.append("None: no stage holds a certificate or probe report.")
     lines += [
         f"- `{node['id']}` probes: none, as expected: {node['probe_note']}."
         for node in summary["nodes"]
@@ -1386,6 +1604,12 @@ def render_run_report(
         lines += [
             f"Recorded in `{DEFAULT_PROVENANCE_NAME}` by a bundle save that sealed no bundle (the run's "
             f"`{DEFAULT_MANIFEST_NAME}` is missing or cannot be read), so none of these is published:",
+            "",
+        ]
+    if summary["deliverables"] and summary["manifest_status"] is not None and summary["stranded"]:
+        lines += [
+            "Certified on the plant the run recorded, which is not the current one: a record of what passed then, "
+            "not a policy this checkout loads.",
             "",
         ]
     if summary["deliverables"]:
@@ -1466,6 +1690,7 @@ def _row(summary: Mapping[str, Any], model_dir: Path) -> dict[str, Any]:
         "replicates": summary["replicates"],
         "handoff": summary["handoff"],
         "excluded": summary["excluded"],
+        "stranded": summary["stranded"],
         "report": _report_of(summary["path"], model_dir),
     }
 
@@ -1487,6 +1712,7 @@ def _unreadable_row(run_dir: Path, model_dir: Path, error: Exception) -> dict[st
         "replicates": None,
         "handoff": None,
         "excluded": None,
+        "stranded": None,
         "report": _report_of(relative.as_posix(), model_dir),
         "error": f"{type(error).__name__}: {error}",
     }
@@ -1574,6 +1800,8 @@ def render_model_index(model_dir: "str | Path", rows: Sequence[Mapping[str, Any]
                 certified = f"none published (passed: {_cell(row['passed'])})"
             if row.get("excluded"):
                 certified += "; never counts (run_exclusions.py)"
+            if row.get("stranded"):
+                certified += "; stranded (loads on no current plant)"
             provisional = {None: "—", True: "yes", False: "no"}[row["provisional"]]
             report = _link("report", row["report"]) if row["report"] else "not built"
             if row.get("error"):

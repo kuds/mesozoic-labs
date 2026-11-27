@@ -49,6 +49,9 @@ from .result_bundle_helpers import (
 
 pytestmark = pytest.mark.usefixtures("stable_provenance")
 
+#: The reader of the committed generated plant manifest, before this module's autouse fixture replaces it.
+COMMITTED_PLANT = run_index._committed_plant
+
 SB3_NOTEBOOK = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
 DRIVE_SUMMARY = REPO_ROOT / "notebooks" / "google_drive_summary.ipynb"
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
@@ -152,6 +155,34 @@ RUN_FILES = (
     "ancestors/stance/task_fingerprint.json",
     "ancestors/stance/plant_identity.json",
 )
+
+
+def _committed_entry(identity: "dict[str, Any]") -> dict[str, Any]:
+    """*identity* (a recorded plant identity) as the generated plant manifest's entry of the plant it names."""
+    return {
+        "physics": {
+            "revision": identity["physics_revision"],
+            "sha256": identity["physics_sha256"],
+            **{key: identity[key] for key in ("nq", "nv", "nu")},
+        },
+        "policy_interface": {
+            "revision": identity["policy_interface_revision"],
+            "sha256": identity["policy_interface_sha256"],
+            "observation_dim": identity["observation_dim"],
+            "action_dim": identity["action_dim"],
+        },
+    }
+
+
+@pytest.fixture(autouse=True)
+def _the_fixture_plant_is_current(monkeypatch):
+    """The runs these tests build record the shared fake plant (``result_bundle_helpers._plant_identity``): it is the
+    current plant of each model here, so a run reads as stranded only where a test makes it so."""
+    monkeypatch.setattr(
+        run_index,
+        "_committed_plant",
+        lambda model_id: None if model_id is None else _committed_entry(_plant_identity(model_id)),
+    )
 
 
 def _replays(model_id: ModelId, label: str = "stage1") -> list[str]:
@@ -272,6 +303,101 @@ def test_the_recovery_stage_and_open_ids_classify_by_the_models_manifest():
     )
     assert run_index.classify("stage2/evaluations.npz", model_id=BRACHIOSAURUS_ALTITHORAX) == ("locomotion", "ledger")
     assert run_index.classify("09_no_such_node/stage_config.json", model_id=TYRANNOSAURUS_REX)[1] == "unclassified"
+
+
+@pytest.mark.parametrize("model_id", (TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX), ids=str)
+def test_a_command_driven_walk_stage_is_classified_and_its_report_read(tmp_path, model_id):
+    """The walk judged by ``command_tracking/v1`` (decision D-D61) as the chain loop leaves it (test_publish_cell's
+    run: its handoff choice, its command panel and report, its verdict), plus what the figure writer adds after the
+    verdict: every file has its role under the writers' own names, and the page reads the report's text form."""
+    from environments.shared.curriculum.checkpoints import HANDOFF_CHOICE_FILENAME
+    from environments.shared.curriculum.command_tracking_evidence import (
+        COMMAND_TRACKING_PANEL_CSV,
+        COMMAND_TRACKING_REPORT_JSON,
+        COMMAND_TRACKING_REPORT_TXT,
+    )
+    from environments.shared.reporting.command_tracking_trace import COMMAND_TRACKING_TRACE_CSV
+    from environments.shared.visualization import COMMAND_GATE_PROGRESS_FIGURE, COMMAND_TRACKING_FIGURE
+
+    from .test_publish_cell import _judged_run, _run_dir
+
+    run_dir = _run_dir(tmp_path, model_id, run_id="20261127_120000")
+    _provenance(run_dir, model_id)
+    _judged_run(run_dir, model_id, (1, 2))
+    walk = stage_dirname(model_id, 2)
+    (run_dir / walk / COMMAND_TRACKING_TRACE_CSV).write_text("step\n0\n", encoding="utf-8")
+    (run_dir / walk / "figures").mkdir(exist_ok=True)
+    for name in (COMMAND_TRACKING_FIGURE, COMMAND_GATE_PROGRESS_FIGURE):
+        (run_dir / walk / "figures" / name).write_bytes(b"png")
+    index = run_index.build_run_index(run_dir)
+    roles = {entry["path"]: (entry["stage"], entry["role"]) for entry in index["files"]}
+    assert not [path for path, (_, role) in roles.items() if role == run_index.UNCLASSIFIED], roles
+    expected = {
+        COMMAND_TRACKING_REPORT_TXT: "certificate",
+        COMMAND_TRACKING_REPORT_JSON: "certificate",
+        COMMAND_TRACKING_PANEL_CSV: "evidence",
+        COMMAND_TRACKING_TRACE_CSV: "trace",
+        f"models/{HANDOFF_CHOICE_FILENAME}": "handoff",
+        f"figures/{COMMAND_TRACKING_FIGURE}": "figure",
+        f"figures/{COMMAND_GATE_PROGRESS_FIGURE}": "figure",
+    }
+    for name, role in expected.items():
+        assert roles[f"{walk}/{name}"] == ("locomotion", role), name
+    page = run_index.render_run_report(run_dir)
+    assert index["summary"]["stranded"] is None and "Stranded" not in page
+    [line] = [line for line in page.splitlines() if line.startswith("- `locomotion` certificate, ")]
+    assert (
+        f"[{walk}/{COMMAND_TRACKING_REPORT_TXT}](<{walk}/{COMMAND_TRACKING_REPORT_TXT}>): GATE: PASS; cruise " in line
+    )
+    assert "successful" in line and ", stand " in line, line
+    assert "| locomotion | " + walk + " | PASS | command_tracking/v1 | " in page
+
+
+@pytest.mark.parametrize(
+    ("model_id", "dirname"),
+    (
+        (TYRANNOSAURUS_REX, "04_behavior"),
+        (COMPSOGNATHUS_LONGIPES_ROBOT, "04_behavior"),
+        (VELOCIRAPTOR_MONGOLIENSIS, "03_behavior"),
+        (DIBOTHROSUCHUS_ELAPHROS, "03_behavior"),
+        (BRACHIOSAURUS_ALTITHORAX, "stage3"),
+        (VELOCIRAPTOR_MONGOLIENSIS, "behavior"),
+    ),
+    ids=lambda value: str(value),
+)
+def test_a_hunt_stage_the_manifest_no_longer_declares_still_reads_as_its_stage(tmp_path, model_id, dirname):
+    """Decision D-D59 removed every hunt node, but the runs that trained one keep its stage directory and its
+    ``task_success/v1`` evidence: the directory still reads as the ``behavior`` stage, after the declared nodes, and
+    the page says no chain walks or reuses it."""
+    assert "behavior" not in [entry.id for entry in load_stage_manifest(model_id).stages]
+    run_dir = _run(tmp_path / "logs", model_id)
+    _provenance(run_dir, model_id)
+    _verdict(run_dir / stage_dirname(model_id, 1), model_id, 1, passed=True)
+    hunt = run_dir / dirname
+    (hunt / "models").mkdir(parents=True)
+    (hunt / "models" / "robust_best_model.zip").write_bytes(b"checkpoint")
+    (hunt / "models" / "robust_best_model_vecnorm.pkl").write_bytes(b"statistics")
+    (hunt / "stage_config.json").write_text(
+        json.dumps({"curriculum": {"gate_kind": "task_success/v1", "min_success_lcb": 0.5}}), encoding="utf-8"
+    )
+    (hunt / "evaluation_selected.csv").write_text("episode,success\n0,True\n", encoding="utf-8")
+    (hunt / "metrics.json").write_text("{}", encoding="utf-8")
+    assert run_index.classify(f"{dirname}/evaluation_selected.csv", model_id=model_id) == ("behavior", "evidence")
+    assert run_index.classify(f"{dirname}/models/robust_best_model.zip", model_id=model_id) == (
+        "behavior",
+        "checkpoint",
+    )
+    index = run_index.build_run_index(run_dir)
+    assert not [entry["path"] for entry in index["files"] if entry["role"] == run_index.UNCLASSIFIED]
+    nodes = index["summary"]["nodes"]
+    assert [node["id"] for node in nodes] == ["stance", "behavior"]
+    assert [node["retired"] for node in nodes] == [False, True]
+    page = run_index.render_run_report(run_dir)
+    assert (
+        "`behavior`: the model's stage manifest declares no such node (the hunt, removed with every hunt node by "
+        "decision D-D59), so the run holds it as a record: no chain walks or reuses it."
+    ) in page
+    assert f"| behavior | {dirname} | not judged | task_success/v1 | — |" in page
 
 
 def test_every_file_the_generation_tests_write_is_classified(tmp_path):
@@ -576,7 +702,7 @@ def test_a_reused_node_links_the_trunk_runs_report(tmp_path):
     assert f"| stance | — | reused (PASS) | reward_and_length/v1 | {trunk_link} |" in page
     assert (model_dir / "reports" / "ppo" / "trunk-run" / "report.md").is_file(), "the link resolves"
     assert "| locomotion | stage2 | not judged | — | — |" in page
-    assert "**State: complete.**" in page and "Target deliverable: `behavior`." in page
+    assert "**State: complete.**" in page and "Target deliverable: `locomotion`." in page
     assert "| locomotion | yes | no | 1 | 1 | stage2/models/best_model.pkl |" in page
     trunk_page = (model_dir / "reports" / "ppo" / "trunk-run" / "report.md").read_text(encoding="utf-8")
     assert "| stance | stage1 | PASS | reward_and_length/v1 | stage1/models/best_model.zip |" in trunk_page
@@ -816,8 +942,8 @@ def test_the_index_groups_by_state_newest_first(tmp_path):
         ("20261103_000000", "training_cut"),
         ("stance screen LTSB s52", "empty"),
     ]
-    assert rows[0]["certified"] == ["stance", "locomotion", "behavior"] and rows[0]["provisional"] is False
-    assert rows[0]["replicates"] == 1 and rows[0]["handoff"] == f"{stage_dirname(model_id, 3)}/models/best_model.pkl"
+    assert rows[0]["certified"] == ["stance", "locomotion"] and rows[0]["provisional"] is False
+    assert rows[0]["replicates"] == 1 and rows[0]["handoff"] == f"{stage_dirname(model_id, 2)}/models/best_model.pkl"
     assert rows[2]["passed"] == ["stance"] and rows[2]["handoff"] == "01_stance/models/robust_best_model.zip"
     assert rows[2]["tree"] == "ppo_screen" and rows[2]["kind"] == "screen" and rows[4]["kind"] == "quick_test"
     assert all("warnings" not in row for row in rows), "a row reads less than a report: it carries no warning count"
@@ -835,6 +961,139 @@ def test_the_index_groups_by_state_newest_first(tmp_path):
     run_document = json.loads((model_dir / "reports" / "ppo" / "newer" / "index.json").read_text(encoding="utf-8"))
     assert run_document["schema"] == run_index.RUN_INDEX_SCHEMA and run_document["state"] == "complete"
     assert "summary" not in run_document
+
+
+def _older_plant(model_id: ModelId) -> dict[str, Any]:
+    """The fixture plant one policy-interface revision back, four observation columns wider: a checkpoint from before
+    decision D-D59 (its target channels)."""
+    identity = _plant_identity(model_id)
+    return {
+        **identity,
+        "policy_interface_revision": identity["policy_interface_revision"] - 1,
+        "observation_dim": identity["observation_dim"] + 4,
+        "policy_interface_sha256": "sha256:" + "0" * 64,
+    }
+
+
+def _strand(run_dir: Path, model_id: ModelId) -> None:
+    """Make *run_dir*'s recorded plant (its provenance's) the older one, as every run written before D-D59 records."""
+    path = run_dir / "provenance.json"
+    provenance = json.loads(path.read_text(encoding="utf-8"))
+    provenance["plant_identity"] = _older_plant(model_id)
+    path.write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize("state", ("judged_no_bundle", "post_training_cut", "complete"))
+def test_a_stranded_run_is_named_and_no_step_reuses_its_checkpoints(tmp_path, state):
+    """A run whose recorded plant is not the current one: its page says so and names no step that re-enters it, its
+    certified deliverables are a record, and its index row says stranded."""
+    logs = tmp_path / "logs"
+    model_id = BRACHIOSAURUS_ALTITHORAX
+    if state == "complete":
+        run_dir = _run(logs, model_id)
+        _complete_bundle(
+            run_dir,
+            algorithm="PPO",
+            backend="stable-baselines3",
+            dirname=lambda stage: stage_dirname(model_id, stage),
+            model_id=model_id,
+        )
+    else:
+        run_dir, _ = _state_run(state, logs)
+    _strand(run_dir, model_id)
+    index = run_index.build_run_index(run_dir)
+    assert index["state"] == state
+    page = run_index.render_run_report(run_dir)
+    assert (
+        "**Stranded:** it was trained on another plant of the model: policy_interface_revision "
+        f"{_older_plant(model_id)['policy_interface_revision']} (now {_plant_identity(model_id)['policy_interface_revision']}), "
+        "policy_interface_sha256 differs, observation_dim "
+    ) in page
+    assert (
+        "so nothing on this checkout trains from, resumes or reuses them, and a notebook session refuses to re-enter "
+        "the run, whose `provenance.json` records its plant. Every checkpoint written before decision D-D59 is "
+        "stranded (`configs/plant_versions.toml`, note 24)."
+    ) in page
+    assert "Next: " not in page and "re-enter the run (`RUN_ID" not in page
+    if state == "complete":
+        assert "Certified on the plant the run recorded, which is not the current one" in page
+    [row] = run_index.build_model_index(model_id.path(logs))
+    assert row["stranded"] == index["summary"]["stranded"]
+    written = run_report.write_model_reports(model_id.path(logs))
+    assert "stranded (loads on no current plant)" in written.index["model_index"].read_text(encoding="utf-8")
+
+
+def test_a_stranded_stage_names_no_command_that_rolls_its_probes_again(tmp_path):
+    from .stance_heading_helpers import HEADING_CURRICULUM
+
+    run_dir = _run(tmp_path / "logs", TYRANNOSAURUS_REX)
+    _provenance(run_dir, TYRANNOSAURUS_REX)
+    stage_dir = run_dir / "01_stance"
+    stage_dir.mkdir()
+    _verdict(
+        stage_dir,
+        TYRANNOSAURUS_REX,
+        1,
+        passed=True,
+        curriculum={**HEADING_CURRICULUM, "stance_probe_hold_constant": True},
+    )
+    (stage_dir / "stance_heading_report.txt").write_text("GATE: PASS\n", encoding="utf-8")
+    (stage_dir / "models" / "robust_best_model.zip").unlink()
+    _strand(run_dir, TYRANNOSAURUS_REX)
+    warnings = run_index.build_run_index(run_dir)["warnings"]
+    [probe] = [warning for warning in warnings if "declares the constant hold probe" in warning]
+    assert probe.endswith(
+        "Its checkpoint is stranded with the run (it loads on no current plant), so they cannot be rolled again on "
+        "this checkout"
+    )
+    assert "stance_gate_report --species" not in probe
+    [gone] = [warning for warning in warnings if "names its checkpoint" in warning]
+    assert gone.endswith("which no longer exists (the verdict is bound to that file)"), gone
+
+
+def test_a_run_that_records_no_plant_is_stranded_and_one_without_nodes_is_not(tmp_path):
+    run_dir, _ = _state_run("training_cut", tmp_path / "logs")
+    assert run_index.build_run_index(run_dir)["summary"]["stranded"] == (
+        "no record of the run names the plant it trained on, and a checkpoint without a plant identity loads nowhere "
+        "that certifies"
+    )
+    fresh = _run(tmp_path / "logs", TYRANNOSAURUS_REX)
+    (fresh / "provenance.json").write_text("{}", encoding="utf-8")
+    assert run_index.build_run_index(fresh)["summary"]["stranded"] is None, "nothing trained, nothing stranded"
+
+
+def test_the_current_plant_is_the_committed_generated_manifest(monkeypatch):
+    """Without the fixture: the committed plant of every model is the post-D-D59 heading-free one, a recorded
+    identity of exactly that plant drifts nowhere, and one of the plant before D-D59 (four observation columns wider,
+    one interface revision back) is stranded."""
+    monkeypatch.setattr(run_index, "_committed_plant", COMMITTED_PLANT)
+    from environments.shared.plant_contract.constants import PLANT_IDENTITY_SCHEMA
+
+    for model_id in model_ids():
+        entry = COMMITTED_PLANT(model_id)
+        assert entry is not None, model_id
+        physics, interface = entry["physics"], entry["policy_interface"]
+        assert interface["observation_schema"].endswith("-heading-free/v1"), model_id
+        current = {
+            "schema": PLANT_IDENTITY_SCHEMA,
+            **model_id.record(),
+            "physics_revision": physics["revision"],
+            "physics_sha256": physics["sha256"],
+            "nq": physics["nq"],
+            "nv": physics["nv"],
+            "nu": physics["nu"],
+            "policy_interface_revision": interface["revision"],
+            "policy_interface_sha256": interface["sha256"],
+            "observation_dim": interface["observation_dim"],
+            "action_dim": interface["action_dim"],
+        }
+        assert run_index.plant_drift(current, model_id) is None, model_id
+        older = {**current, "policy_interface_revision": interface["revision"] - 1}
+        older["observation_dim"] = interface["observation_dim"] + 4
+        assert run_index.plant_drift(older, model_id).startswith(
+            "it was trained on another plant of the model: policy_interface_revision"
+        )
+    assert COMMITTED_PLANT(TYRANNOSAURUS_REX)["policy_interface"]["observation_dim"] == 59
 
 
 def test_the_certificate_and_probe_lines_come_from_the_text_reports(tmp_path, monkeypatch):

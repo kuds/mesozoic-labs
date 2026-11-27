@@ -38,6 +38,11 @@ run's manifest records), ``bundle_unreadable``, and without a manifest
 ``judged_no_bundle``, ``post_training_cut``, ``training_cut`` and ``empty``;
 the index adds ``unreadable`` for a run whose records raised while it read
 them.  ``reporting/run_index.py`` defines each from the files a run holds.
+A run whose recorded plant is not the model's current one is *stranded*
+(``run_index.plant_drift``): its page and its index row say so, and its page
+names no step that re-enters or re-rolls it.  Every run written before
+decision D-D59 is (``configs/plant_versions.toml``, note 24), and keeps the
+stage directory of the hunt it trained, which still reads as its stage.
 
 What it writes: only under ``<model_dir>/reports/``, and only what changed.
 The tool owns ``report.md`` and ``index.json`` in each run's report folder
@@ -66,8 +71,10 @@ what it wrote, and what was already up to date.
 
 Cost: it opens only small records (``provenance.json``, ``trunk_run.json``,
 ``stage_config.json``, ``gate_verdict.json``, ``ancestor.json``, the
-certificate and probe ``.txt`` reports, never their JSON) and the artifact
-manifest, and lists the run's files.  Nothing is hashed: sizes and digests
+certificate and probe ``.txt`` reports, never their JSON, and a
+``plant_identity.json`` for a run whose ``provenance.json`` records no plant),
+the committed generated plant manifest once, and the artifact manifest, and
+lists the run's files.  Nothing is hashed: sizes and digests
 are copied from ``artifact_manifest.json``, and a run without one gets its
 sizes from the listing and no digest.  Each index rebuild (every call of the
 first form: the SB3 notebook's every ``save_run_bundle`` and its verify

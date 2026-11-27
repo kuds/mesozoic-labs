@@ -132,12 +132,14 @@ layout, the generation of its stage directories: `NN_<stage_id>` (from
 | `fingerprint` | `plant_identity.json` (run and stage), `task_fingerprint.json` |
 | `config` | `stage_config.json`, and `gate_resolution.json`, frozen before the node trains |
 | `verdict` | `gate_verdict.json` |
-| `certificate` | `stance_gate_report.*` and `stance_heading_report.*` |
-| `evidence` | `evaluation_selected.csv`, `evaluation_final.csv`, the stance panel CSVs and `recovery_*.csv` |
+| `handoff` | `models/handoff_choice.json`, the pair a `command_tracking/v1` walk hands on |
+| `certificate` | `stance_gate_report.*`, `stance_heading_report.*` and `command_tracking_report.*` |
+| `evidence` | `evaluation_selected.csv` (a hunt's `task_success/v1` evidence too, in a run written before decision D-D59), `evaluation_final.csv`, the stance and command-tracking panel CSVs and `recovery_*.csv` |
 | `ledger` | what training writes as it goes (the stage table's ledgers, `progress.json`, `hop_watch.json`), and `curriculum_results.csv` |
 | `baseline` | `zero_action_baseline.json` |
 | `checkpoint`, `normalization` | `models/`: the policies, and their `_vecnorm.pkl` and `_vecnormalize_<steps>_steps.pkl` statistics |
 | `tensorboard`, `figure`, `training_history`, `replay` | `tensorboard/`, `figures/`, `figures/training_history/`, `replays/`, and the figures and replays of a stage root written before `replays/` existed |
+| `trace` | `command_tracking_trace.csv`, the step rows `figures/command_tracking.png` is drawn from |
 | `probe` | the stance probes |
 | `summary_text` | `training_summary.txt`, `stage_summary.txt` |
 | `ancestor_record` | everything under `ancestors/<stage_id>/` |
