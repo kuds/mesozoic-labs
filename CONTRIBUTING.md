@@ -328,10 +328,13 @@ until one is adopted (the maintainer's decision of 2026-11-26):
    embodiment's TOML (`extends` resolves only inside its own directory).
    Once steps 3 and 4 are in place (both tools accept only a model of the
    manifest), re-measure on the robot every number the stage files set from
-   a zero-action statue, such as a stance reward rail (`min_avg_reward`) and
-   each bar their comments say was measured on the statue, on the 40-seed
-   panel the stage files cite:
+   a zero-action statue, such as a stance reward rail (`min_avg_reward`), a
+   walk's collapse floor reference (`collapse_peak_floor_reference`, beside
+   the `statue_constants_physics_revision` it was measured on, which
+   `test_statue_constant_freshness.py` checks) and each bar their comments
+   say was measured on the statue, on the 40-seed panel the stage files cite:
    `python -m environments.shared.scripts.zero_action_baseline --model-id <species> robot --episodes 40`
+   (with `--stage 2` it scores the walk, under its live command)
    and `python -m environments.shared.scripts.stance_quality_baseline <reset_noise_scale> 40 --model-id <species> robot`,
    with the robot stance file's `reset_noise_scale` (the tool's default is
    0.05; the notebook's zero-action preflight scores the same 40 episodes).

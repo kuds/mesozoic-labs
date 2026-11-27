@@ -18,21 +18,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (verdict, gate kind, handoff, or the trunk run it was reused from, linked
   once that run's report exists, an `ancestors/` record standing for its node
   even beside the run's own stage directory, which the page names as not
-  published); the certificate and probe lines from the `.txt` reports; links
-  to its figures, training history and replays; and warnings: files no writer
-  names, the declared probes a stage that `generate_stage_artifacts` judged
-  lacks (one warning per stage, with a command per probe that writes under
-  `reports/<tree>/<run_id>.probes/`), the handoff checkpoint and normalization
-  a verdict or an ancestor record names that no longer exist, and records that
-  cannot be read. The index lists every run grouped by state, newest first,
-  with an `unreadable` group, showing the error, for a run whose records
-  cannot be read. A run without a sealed bundle certifies nothing there, and a
-  run `run_exclusions.py` names reads `never counts`. The tool only reads runs
-  and copies sizes and digests from `artifact_manifest.json` without hashing
-  anything. It rewrites nothing whose text is unchanged, and replaces a run's
-  report folder whole, keeping the old one if a build fails and copying in
-  what another tool left there. It refuses a model directory that is not a
-  `<species>/<embodiment>` directory, a run tree, and any output inside a run
+  published); the certificate and probe lines from the `.txt` reports (the
+  stance certificates, and the walk's `command_tracking_report.txt` with each
+  family's success count); links to its figures, training history and replays;
+  and warnings: files no writer names, the declared probes a stage that
+  `generate_stage_artifacts` judged lacks (one warning per stage, with a
+  command per probe that writes under `reports/<tree>/<run_id>.probes/`), the
+  handoff checkpoint and normalization a verdict or an ancestor record names
+  that no longer exist, and records that cannot be read. Every file of the
+  post-D-D59 writers has a role, the walk's handoff choice and step trace each
+  a role of their own. A run whose recorded plant is not the model's current
+  one, as the committed generated plant manifest gives it, is stranded
+  (`run_index.plant_drift`), as is every run written before decision D-D59:
+  its page names no next step and no command that re-judges or re-rolls it,
+  its certified deliverables read as a record, and its index row says
+  `stranded`. The hunt stage directories such runs hold (`03_behavior/`,
+  `04_behavior/`, `stage3/`) still read as the `behavior` stage, which the
+  page says no chain walks or reuses. The index lists every run grouped by
+  state, newest first, with an `unreadable` group, showing the error, for a
+  run whose records cannot be read. A run without a sealed bundle certifies
+  nothing there, and a run `run_exclusions.py` names reads `never counts`. The
+  tool only reads runs and copies sizes and digests from
+  `artifact_manifest.json` without hashing anything. It rewrites nothing whose
+  text is unchanged, and replaces a run's report folder whole, keeping the old
+  one if a build fails and copying in what another tool left there. It refuses
+  a model directory that is not a `<species>/<embodiment>` directory, a run
+  tree, and any output inside a run
   (`environments/shared/scripts/run_report.py`).
 - **The notebooks write the reports.** The SB3 notebook rewrites the run's
   report and the model index after every `save_run_bundle` and in the verify
@@ -45,18 +56,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference (the maintainer's decision of 2026-11-26) to everything under
   `LOG_BASE`. It covers the model level (the run trees,
   `zero_action_baselines/`, the `runs_summary.csv` files and the derived
-  `reports/` tree with its eight run states), the run level and the stage
-  level. Each item names its writers and readers by code path. It also covers
-  the three layout generations, the quick-test, screen, pilot and scratch
-  trees, the storage cell's `RUN_ID` rules and where each came from, the
-  placement rule and retention. No retention policy is set, and inside a run
-  checkpoint pruning in `models/` is the only deletion. `docs/README.md` lists
-  it, and the root README, `results/README.md`, `RESULT_BUNDLES.md`, the
-  behavior recipes page and both notebooks link it.
+  `reports/` tree with its eight run states and stranded runs), the run level
+  and the stage level: the stage chains of all seven models, which end at the
+  walk, its live command and its `command_tracking/v1` files, and the hunt
+  stage directories and `task_success/v1` evidence older runs hold. Each item
+  names its writers and readers by code path. It also covers the three layout
+  generations, the quick-test, screen, pilot and scratch trees, the storage
+  cell's `RUN_ID` rules and where each came from, the placement rule and
+  retention. No retention policy is set, and inside a run checkpoint pruning
+  in `models/` is the only deletion. `docs/README.md` lists it, and the root
+  README, `results/README.md`, `RESULT_BUNDLES.md`, the behavior recipes page
+  and both notebooks link it.
 - **A test that keeps the Drive map in step with the code.**
   `environments/shared/tests/test_drive_layout.py` fails when the page cites a
-  file or a `module.name` that no longer exists, misses a stage directory of
-  any of the seven models, or has a broken link to or from it. It also fails
+  file, a `module.name` or a private function that no longer exists, misses a
+  stage directory of any of the seven models or the gate kind, profile and
+  command mode of its walk, names a hunt directory or `task_success/v1`
+  without decision D-D59, or has a broken link to or from it. It also fails
   when the run-state table no longer lists `run_index.RUN_STATES` in order,
   the index's `unreadable` group goes unnamed, or the role table drifts from
   `run_index.ROLES`.
@@ -3574,9 +3590,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It names the lines that state them: the Key Features line of `intro.md` and
   the registration sentence of `api/overview.md`. Once the model is in the
   manifest, every number set from a zero-action statue (such as a stance
-  `min_avg_reward`) is measured again on the new embodiment on the 40-seed
-  panel the stage files cite. The commands are `zero_action_baseline
-  --episodes 40`, and `stance_quality_baseline` at the stance file's
+  `min_avg_reward` or a walk's `collapse_peak_floor_reference`) is measured
+  again on the new embodiment on the 40-seed panel the stage files cite. The
+  commands are `zero_action_baseline --episodes 40` (`--stage 2` for the
+  walk), and `stance_quality_baseline` at the stance file's
   `reset_noise_scale`. The checklist also adds the model page's still image
   and the `website/scripts/render_turntables.py` rerun. The species checklist
   and the custom models page now list the image step too.

@@ -109,7 +109,9 @@ files and an `ancestors/stance/` record:
 
 A run written before decision D-D59 removed the hunt nodes may also hold a
 `04_behavior/` stage directory, the hunt its chain ended at; no current stage
-resolves to it.
+resolves to it. Like every run written before that decision, it is stranded:
+its checkpoints load on no current plant, and its run report says so
+([DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#the-reports-tree)).
 
 A run can also hold both for one node. When the run's own verdict of a node
 below the target failed or no longer passes the reuse rule, the chain loop

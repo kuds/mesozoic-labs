@@ -804,6 +804,9 @@ A run that trained its stance holds `01_stance/` instead of
 no longer passes the reuse rule and the chain loop then reused the trunk's
 certified stance: the record stands for the node, and the bundle records
 stance as reused (published by the trunk run), never as trained in this run.
+A run written before decision D-D59 may also hold the hunt's `04_behavior/`;
+like every run of that time, its checkpoints load on no current plant, and
+its run report marks it stranded.
 [docs/DRIVE_LAYOUT.md](https://github.com/kuds/mesozoic-labs/blob/main/docs/DRIVE_LAYOUT.md)
 maps the whole tree under `<LOG_BASE>`, from the model directory down to each
 stage directory's files, with what writes and what reads each one.
