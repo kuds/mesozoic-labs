@@ -3589,6 +3589,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The decisions waiting for an id are numbered, and `docs/NEXT_STEPS.md`
+  gives every model's next sessions on the plants #703 left.** Decisions D-D67
+  to D-D78 are rows of `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6. Four were cited by date until now:
+  the T. rex's stance lessons applied to the Velociraptor (2026-11-06, #660),
+  the stance-landing decision of the same day (#661), the life-size
+  Velociraptor of 2026-11-08, amended 2026-11-09 (#666), and the 11M stance
+  budget of 2026-11-26 (#702). The other eight are the maintainer's decisions
+  of 2026-11-26: the K3 panel retired, the noise scan, the publish cell with
+  the cut-off T. rex r11 runs and no re-judge route for a published verdict,
+  the stance-gate upgrades to the six-heading certificate, the run-ID rules
+  with the robot page and one robot model per species, the Drive reports tree
+  with the placement rule, the Drive map and no Drive tidy, promotion after
+  the r11 T. rex and r5 Velociraptor stances certify, and this change. #703,
+  which comes before this change, uses D-D59 to D-D66, so the numbering
+  starts at D-D67. Each row keeps what was decided apart from what came
+  later, which follows in a dated note. `NEXT_STEPS.md` records T. rex
+  physics r11 and the other November plant revisions, and a §3 note of
+  2026-11-27 gives each model's next sessions, now that #703's revision of
+  all seven plants (note 24) has stranded every checkpoint: build each
+  model's `reports/INDEX.md` from Drive; certify the T. rex
+  stance afresh on physics r12 on two seeds, with the settings of both
+  sessions and one `REPO_REF` for the pair, then the noise scan, which rolls
+  the walk's live command and writes to Drive under the run's
+  `reports/<tree>/<run_id>.probes/`, and recovery after a pull request
+  re-measures the safe set on r12; the steps of D-D73's seal of T. rex run
+  `20261121_175147`, now a record only with `REPO_REF` pinned to
+  `2c1039f4c` since `main` refuses the run (whether that record is still
+  wanted is open); the Velociraptor's r6 certification and scan, and its
+  walk's collapse-backstop risk; the four models with no stance session
+  until their D-D74 gate revisions; and the scan before every model's first
+  walk. Its §7 opens with fourteen open choices, the walk pilot that #703's
+  D-D64 to D-D66 wait on among them, §2's Drive layout line points to
+  `docs/DRIVE_LAYOUT.md`, and the notes on the K3 panel, the publication
+  cell, the run-ID rules and the Drive housekeeping name the decisions that
+  changed them. D-B8's open question is answered; D-D73 and D-D77 note that
+  #703 stranded the run and superseded the plants they name, and D-D74 that
+  every observation is heading-free since #703; the `docs/KNOWN_ISSUES.md`
+  stance-gate entry has its new target and timing, and
+  `docs/GAIT_QUALITY_PLAN_2026_09.md` gains §18, which amends GQ-10 and PR-G8
+  for the four models. Records only.
 - **The Drive summary notebook never walks `reports/`.** Its run walker skips
   the reports tree at the top of each model directory.
 - **The run report reads which stance probes a stage rolls.**

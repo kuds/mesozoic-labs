@@ -1727,11 +1727,29 @@ robustness, **LOW** = cosmetic / QoL.
   and replay `_stance.csv` reach no summary or verdict. The dibothrosuchus r3
   quick-test handoff stood on three legs in its replay (2026-11-22), and no
   summary said so (its checkpoint is stranded by plant note 24). Until they
-  adopt v2 (GQ-10), give the reward-rail stances a report-only per-foot
+  adopt v2 (GQ-10; the six-heading certificate since D-D74, the next
+  update), give the reward-rail stances a report-only per-foot
   floor-load screen (each foot's share of the window's floor load, and the
   share of steps with a foot unloaded), which needs the four-foot
   `derive_stance_info` of the forefeet entry below (PR-G2). (2026-11 notebook
   review: dibothrosuchus-three-legged-stance-certified-unflagged-r3)
+  *Update (2026-11-27):* D-D74 (the maintainer's decision of 2026-11-26)
+  changes the plan above in its target and sets its timing: each model still
+  on v1 or a reward rail adopts `stance_quality_heading/v1`, the six-heading
+  certificate over v2's episode classification, not v2 at one heading,
+  before its next stance run, with bars measured on its own statue panel.
+  That is the allosaurus (added 2026-11-21) and the Compsognathus robot from
+  `stance_quality/v1`, and the brachiosaurus and the dibothrosuchus from
+  `reward_and_length/v1`. GQ-10 and PR-G8 name v2, which predates the
+  certificate; D-D74 amends both for these four
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §18). No config has changed
+  for D-D74 yet: #703 kept each of the four on its gate kind, though it
+  re-measured the dibothrosuchus' rail (1560 → 1500). Since its revision
+  of all seven plants (`configs/plant_versions.toml` note 24) every model's
+  observation is heading-free, the robot's and the two quadrupeds'
+  included, so each upgrade certifies a heading-free observation at six
+  headings, and the choice of v2 at one heading, open when D-D74 was
+  taken, is moot.
 
 - **MEDIUM** — **`stance_quality/v2` on the anatomical compsognathus certifies
   a soft two-foot bounce, a one-foot flutter and a fast weight shuttle

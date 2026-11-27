@@ -1104,3 +1104,27 @@ was set up under its own criteria, approved on 2026-10-27 before any training st
 D-D51); as a screen it certifies nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance.
 Its record is §26 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+## 18. Amendment (2026-11-27): the remaining stance gates move to the six-heading certificate
+
+*Appended 2026-11-27; §1–§17 above are unchanged.* The maintainer decided on 2026-11-26 that each model's stance gate
+is upgraded before that model's next stance run, to the gate the T. rex, the velociraptor and the anatomical
+compsognathus stances declare, `stance_quality_heading/v1` (D-D32: `stance_quality/v2`'s floor-truth episode
+classification at six whole-scene headings): decision D-D74 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+§6.2 and the consolidation plan's table, numbered on 2026-11-27). It covers the four stances not yet on it, each as a
+gate revision with bars measured on that model's own statue panel: the allosaurus (added on 2026-11-21, after this
+plan) and the Compsognathus robot from `stance_quality/v1`, and the brachiosaurus and the dibothrosuchus from
+`reward_and_length/v1`. No config changes with it.
+
+- **GQ-10 and PR-G8, for those four.** Both name `stance_quality/v2`, which predates the six-heading certificate. For
+  these four the target is `stance_quality_heading/v1`, and the revision comes before the model's next stance run,
+  which retrains its chain, as GQ-10 (a) asks. GQ-10 (a)'s other clauses, locomotion gates first and recovery
+  separately, are not part of D-D74.
+- **The observation.** The T. rex, the velociraptor and the anatomical compsognathus adopted the certificate with a
+  heading-free observation (D-D31, D-D67), and the allosaurus's observation was heading-free too. When D-D74 was
+  taken the robot and the two quadrupeds still observed the world heading (`bipedal-target/v1`,
+  `quadrupedal-target/v1`). Since the revision of all seven plants (decision D-D59, `configs/plant_versions.toml`
+  note 24, #703) every model's observation is heading-free (`bipedal-heading-free/v1`,
+  `quadrupedal-heading-free/v1`), so each of the four upgrades certifies a heading-free observation at six headings,
+  and keeping v2 at one heading is no longer a choice to make for them. #703 kept each of the four on its gate kind,
+  and re-measured the dibothrosuchus's rail (1560 → 1500).
