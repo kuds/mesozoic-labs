@@ -59,7 +59,7 @@ fixed again before any run (`rl/README.md`, "The steering run's training additio
   the same schedules (their train_health logs; the straight task with terrain, 0-10 ms delays and no heat-peak
   cost, so a guide only). There weight 1 keeps +0.52-0.57, weight 2 is on the line (+0.27-0.31) and weight 3 does
   not (+0.01-0.09). Earlier picks, both before any run: 1 and 3, then 0.5 and 1
-  on an assumed noise. Each dev run's own noise at 1-3 M is checked before the judged weight is fixed;
+  on an assumed noise. The judged weight is picked by the rule in `runs/trike60-steer1-dev_STEPS.md` section 5 (speed, falls, H, and each run's 3 M noise against 0.124 for weight 2 and 0.158 for weight 1);
 - the notebook refuses a steer1 preset on any model but the 128 mm one.
 
 ## The runs

@@ -75,7 +75,8 @@ def test_heat_peak_prices_a_stride_like_gait_without_an_early_spike(period):
     """A gait under the margin (RMS 0.75) costs at most 0.06 per step (in its first stride, when it starts in stance)
     and under 0.005 after 8 s; over the margin (RMS 0.95) the 18 s cost is 0.7-0.9 of F2's own price, 0.15 per step,
     with under 8 % of it in the first 100 steps (11 % of the time). The bias-corrected average, the second version,
-    gave 0.26 on the cool gait's first step, 1.16-1.25 of the price and 20-23 % in the first 100 steps."""
+    gave 0.26 on the cool gait's first step, 1.16-1.25 of the price and 20-23 % in the first 100 steps when started in
+    stance (started in swing it would pass, so both phases are run)."""
     for first in (True, False):
         cool = _square_wave_cost(0.75, first, period=period)
         assert cool.max() < 0.06 and cool[400:].max() < 0.005 and cool.mean() < 0.005
@@ -324,3 +325,27 @@ def test_weight_script_refuses_bad_options_before_running(args, tmp_path):
                         str(tmp_path), "--out", str(tmp_path / "out"), *args], capture_output=True, text=True,
                        timeout=120)
     assert p.returncode != 0 and ("--late" in p.stderr or "--stds" in p.stderr) and not (tmp_path / "out").exists()
+
+
+def test_noise_reader_keeps_the_latest_branch_and_skips_bad_rows(tmp_path):
+    """analysis/d22_action_std.py, which the judged-weight rule reads a dev run's 3 M noise with: a resumed run's
+    discarded branch is dropped, a torn line is skipped, a null action_std counts as missing, and a point with no
+    rollout within 8192 steps is null."""
+    sys.path.insert(0, str(RL_DIR / "analysis"))
+    import d22_action_std as das
+
+    rows = []
+    for n in range(8192, 3_280_000, 8192):  # session A, killed at 3.28 M
+        rows.append({"session": 0, "session_start": 0, "timesteps": n, "action_std": 0.15})
+    for n in range(2_750_000 + 8192, 4_000_000, 8192):  # session B resumes from 2.75 M
+        rows.append({"session": 1, "session_start": 2_750_000, "timesteps": n, "action_std": 0.12})
+    rows[-1]["action_std"] = None  # a non-finite std, written as null
+    lines = [json.dumps(r) for r in rows]
+    lines.insert(len(lines) // 2, '{"session": 1, "timest')  # a torn line
+    p = tmp_path / "run.jsonl"
+    p.write_text("\n".join(lines) + "\n")
+    t = das.trajectory(p, points=(1_000_000, 3_000_000, 5_000_000))
+    assert t["action_std"]["1000000"]["action_std"] == 0.15  # before the resume point: session A's row stands
+    assert t["action_std"]["3000000"]["action_std"] == 0.12  # A's discarded rows past 2.75 M are not used
+    assert t["action_std"]["5000000"] is None  # not reached
+    assert t["last_timesteps"] < 4_000_000 and all(isinstance(v, dict) or v is None for v in t["action_std"].values())

@@ -138,7 +138,7 @@ def margins_md(rows, key="cost_w1", stds=STDS, late=1.0) -> str:
         for cmd in COMMANDS:
             cases = [c for c in ["noise"] + [f"policy+{s:g}" for s in stds] if (cond, cmd, c, runs[0]) in g]
             L += [f"## {cond}, {cmd} m/s", "",
-                  "| case | hottest drive at 20 s (4 policies) | " + " | ".join(f"w {w:g}" for w in WEIGHTS) + " |",
+                  f"| case | hottest drive at 20 s ({len(runs)} policies) | " + " | ".join(f"w {w:g}" for w in WEIGHTS) + " |",
                   "|---" * (2 + len(WEIGHTS)) + "|"]
             for c in cases:
                 hot = " ".join(f"{m(g[(cond, cmd, c, r)], 'hottest_at_end'):.2f}" for r in runs)

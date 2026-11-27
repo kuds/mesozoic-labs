@@ -49,6 +49,8 @@ Three rules for the whole sheet (as before):
   2.1  Open this address:
          https://colab.research.google.com/github/kuds/mesozoic-labs/blob/<<REPO_REF>>/hardware/triceratops_build/rl/trike60_training.ipynb
        Expect a notebook titled "Mesozoic Labs: Triceratops 60 cm, walking-policy training (simulation only)".
+       Its first text names COLAB_STEPS.md and a 2 M-step pipeline test: that is from the first run; follow this
+       sheet instead.
 
   2.2  Menu File > Save a copy in Drive. Name the copy "trike60 <RUN_ID>". Work in that copy, and use the same copy
        if this run ever needs a restart.
@@ -91,7 +93,8 @@ Three rules for the whole sheet (as before):
              Session completed: 10002432 steps (target 10000000); <R> env steps/s over <T> s; last pair trike60_10002432_steps.zip
        Box 6 then tests the final policy (a few minutes) and writes eval/eval_10002432.json; box 7 prints
              Run <RUN_ID> is finished; its files are in /content/drive/MyDrive/mesozoic-labs/triceratops60/<RUN_ID>.
-       and the runtime lets go by itself.
+       and the runtime lets go by itself. After a restart (2.9) the number is another one from 10000000 to
+       10008184 (a resumed session counts on from its save), and the eval file is named after it: that is expected.
 
   2.8  STOPPING AFTER 5 M (only once I have told you the 5 M save is on your Drive; letting the run finish is also
        fine). Click the stop button at the left of box 5 (the square in a circle while it runs) ONCE, and wait: do
@@ -128,11 +131,15 @@ Three rules for the whole sheet (as before):
 
     My Drive / mesozoic-labs / triceratops60 / <RUN_ID> / : run_record.json, checkpoints/ (trike60_5000000_steps.zip
     and its vecnormalize pair is the one I read), eval_during_training.jsonl, train_health.jsonl, monitor/, and
-    eval/eval_10002432.json if the run finished.
+    eval/eval_<n>.json if the run finished (n is 10002432, or another number from 10000000 to 10008184 after a
+    restart).
 
 
 ## 5. WHAT I DO WITH THEM (not for you to do)
 
+    - The 5 M save: trike60_5000000_steps.zip and its vecnormalize pair, copied with the run's run_record.json into a
+      folder of their own, and every tool pointed there (the tools take the newest pair in a folder, and a stopped or
+      finished run has newer ones); each output's checkpoint sha256 is checked against that pair.
     - From the 5 M save of each run: the gait report, the sweep (with its x1.1 mass, payload and 20 ms delay points),
       the foot loads, steer_eval.py's courses and the demo course with turns, all on the flat floor with per-body
       randomisation only (README, "The steering run's training additions").
@@ -141,26 +148,33 @@ Three rules for the whole sheet (as before):
       only setting that differs; a difference in the hottest drive under about 0.1 of its rating is within the
       seed-to-seed spread seen in D22 (0.83-0.95 over four seeds) and is not read as a weight effect.
     - THE JUDGED WEIGHT, by this rule, fixed before the runs (27 Nov 2026). The measures, all from each run's 5 M save
-      unless said otherwise:
-        speed  the gait report's speed at the 0.25 m/s command (its randomised target case, 5 episodes);
-        falls  the gait report's falls in its two randomised cases, 0.25 and 0.15 m/s ("falls a + b of 10");
-        heat   H, the gait report's worst joint RMS torque over its continuous rating in the target case (F2's
-               figure, judge_d22's H_all);
-        noise  the action noise at the rollout nearest 3,000,000 steps in the run's train_health.jsonl, read with
-               analysis/d22_action_std.py (it keeps a resumed run's latest branch).
+      unless said otherwise, read from gait_report.json (its Markdown summary is not needed and may be missing for a
+      run that stands still):
+        speed  the speed at the 0.25 m/s command: cases.target_0.25.summary.speed.forward_speed_mps (the randomised
+               target case, 5 episodes);
+        falls  cases.target_0.25.summary.falls + cases.cmd_0.15.summary.falls (the two randomised cases, 10
+               episodes);
+        heat   H, the largest of cases.target_0.25.summary.drives.per_joint[*].rms_over_continuous.mean: the worst
+               joint's RMS torque over its continuous rating (F2's figure, judge_d22's H_all);
+        noise  the action noise at the rollout nearest 3,000,000 steps in the run's train_health.jsonl: the 4-decimal
+               action_std that analysis/d22_action_std.py writes to its JSON (it keeps a resumed run's latest
+               branch).
       A weight is out if any of:
         - speed under 0.20 m/s;
         - 2 or more falls of the 10;
-        - noise over its limit: 0.124 for weight 2, 0.158 for weight 1. Each limit is where that weight's worst
+        - noise over its limit: over 0.1240 for weight 2, over 0.1580 for weight 1 (the 4-decimal value). Each
+          limit is where that weight's worst
           margin over standing, at the two nominal speeds on the four D22 policies at full scale
           (analysis/results/steer1/heat_weight/heat_weight_margins_d22noise_3M_5M.md and heat_weight_margins.md),
           crosses the README's 0.3, by straight-line interpolation between the measured noise rows (weight 2: +0.37 at
-          0.12 and +0.29 at 0.125, at 0.25 m/s; weight 1: +0.38 at 0.15 and +0.13 at 0.175, at 0.15 m/s). Weight 2 is
-          on that line at the D22 runs' own 3 M noise (0.123-0.128): it stays in only if its run's noise is a little
-          lower, which r_heat_peak itself may cause, since it also prices noise.
+          0.12 and +0.29 at 0.125, at 0.25 m/s, crossing at 0.1242; weight 1: +0.38 at 0.15 and +0.13 at 0.175, at
+          0.15 m/s, crossing at 0.1577), rounded to three decimals. Weight 2 is on that line at the D22 runs' own 3 M
+          noise (0.1230, 0.1268, 0.1280, 0.1282): it stays in only if its run's noise is at the bottom of that range
+          or lower, which r_heat_peak itself may cause, since it also prices noise.
       Then:
         - none left: I come back to you before any judged run;
-        - one left: that one;
+        - one left: that one if its H is under 0.85; otherwise I come back to you (as below, the planned heat rule
+          would likely fail with it);
         - both left: if both H are 0.85 or more, I come back to you (the planned heat rule would likely fail with
           either); otherwise weight 2 if its H is at least 0.1 below weight 1's; otherwise weight 1 if its H is under
           0.85; otherwise weight 2 (its H is under 0.85 and weight 1's is not).

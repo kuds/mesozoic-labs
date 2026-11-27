@@ -34,7 +34,9 @@ MAX_GAP = 8192  # one rollout of 8 envs x 1024 steps
 
 
 def trajectory(path: Path, points=POINTS) -> dict:
-    lines = [r for r in latest_branch(read_health(path), "timesteps") if "action_std" in r]
+    lines = [r for r in latest_branch(read_health(path), "timesteps")
+             if isinstance(r.get("action_std"), (int, float)) and not isinstance(r.get("action_std"), bool)]
+    # a row whose action_std is null (telemetry.health writes null for a non-finite value) counts as missing
     if not lines:
         raise SystemExit(f"{path}: no rows with timesteps and action_std")
     out = {"rollouts": len(lines), "first_timesteps": lines[0]["timesteps"], "last_timesteps": lines[-1]["timesteps"],
