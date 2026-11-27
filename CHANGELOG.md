@@ -8,6 +8,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A walk warm-start noise-tolerance scan for every model (the maintainer's
+  decision of 2026-11-26).**
+  `environments/shared/scripts/warm_start_noise_scan.py` measures how much
+  policy noise a stance parent tolerates before a walk warm-starts from it, on
+  any of the seven models. It rolls the parent's handoff pair (`--stage-dir`,
+  or `--model` and `--vecnorm`) in its walk stage's env, with frozen
+  statistics and plant checks. Two reference settings come first: the mean
+  action without noise, and the parent's own `log_std`. Then comes a grid of
+  uniform `log_std` values set in memory. By default the first pass is 7
+  values in steps of 0.25, from 0.5 below the largest learned value (rounded
+  to 0.125) to 1.0 above it. A second pass adds one value 0.125 above the
+  largest that stood every episode, as walking pilot 3 added -1.875. Each
+  noisy setting runs seeds 3042-3081 in three noise streams to the walk's
+  episode length. The tool reports stand counts per stream, the causes of
+  early ends, lift-offs and slide. It names the largest value at which every
+  episode stood and, when a smaller value fell, the largest with every smaller
+  value standing too. It writes a text table and a JSON file outside any run,
+  never over an earlier scan, and sets no config: whether to declare
+  `[curriculum] warm_start_log_std` stays with the maintainer.
+  `warm_start_noise_scan.partial.json` keeps the finished rows of an
+  interrupted scan. The default T. rex scan is at most 1.12M control steps,
+  about 28 min of one CPU, and runs as a session of its own, not inside a
+  training session.
+- **The SB3 notebook can publish a run the chain loop does not write.** A new
+  opt-in cell after the chain loop (`PUBLISH_RUN = True`; the maintainer's
+  decision of 2026-11-26) writes the training summary and result bundle from
+  the run's own records with the chain loop's two calls. It then validates the
+  bundle and prints its status and what it certified. It walks the chain as
+  the chain loop does: root first, an ancestor's `ancestors/` record standing
+  for it, and stopping after the first failed verdict. So it seals a run cut
+  off before its bundle (T. rex `20261121_175147`) and counts a later seed
+  replicate into a `partial` bundle (decision D-B10), with no hand-typed
+  `save_run_bundle` call. Before anything is written it refuses a `complete`
+  run, a `BEHAVIOR` whose target differs from the one the run's
+  `provenance.json` records, an unjudged node, and a judged node the bundle
+  would leave out. It trains, judges and probes nothing and changes no stage
+  file. It also seals a run copied off its root (checkpoints found from each
+  verdict's hash-bound pair) and gives a Compsognathus summary its 0.02 s sim
+  time. Run it after the cells above section 5, without the chain loop, which
+  raises on a failed node.
+- **The SB3 notebook refuses a RUN_ID that names only another model's run.**
+  Before anything is written, the storage cell refuses an explicit `RUN_ID`
+  that names no run of the selected model in its trees for `ALGORITHM` but a
+  run of another manifest model there. The refusal lists every run with that
+  id, under either algorithm, with the settings that reach it. On 2026-10-27 a
+  T. rex run's id, typed with `SPECIES` still on the Velociraptor, opened a
+  new Velociraptor run. Every explicit `RUN_ID` now also prints a banner
+  naming the model, its species and embodiment, the algorithm, the run tree,
+  whether the run is new or re-entered, and every other run with that id under
+  `LOG_BASE`, of any model and either algorithm (the maintainer's decisions of
+  2026-11-26).
 - **A `LICENSE` file at the repository root** with the MIT text the project
   already declared in `pyproject.toml`; it ships in the wheel and sdist. The
   README's License section links it and points to the Apache-2.0 notice for
@@ -2664,6 +2715,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The publication docs name the publish cell.** `docs/RESULT_BUNDLES.md`,
+  the website recipes page, `docs/BEHAVIOR_RECIPES_PLAN.md` (§4.5 and a dated
+  D-B16 note), the notebook's section 6 text and `save_run_bundle` docstring,
+  and two dated updates in `docs/KNOWN_ISSUES.md` now point to the publish
+  cell for a `partial` run. The replication record of a `complete` bundle
+  still takes a hand-typed `save_run_bundle(chain_results(),
+  model_id=MODEL_ID)` call.
+- **A new RUN_ID uses only letters, digits, `_` and `-`.** The storage cell
+  refuses any other character in a new explicit `RUN_ID` before anything is
+  written, and offers an id made only of allowed characters. A run that
+  already exists in the selected tree is re-entered whatever its characters,
+  with a note (the maintainer's decision of 2026-11-26).
+- **Only the adopted design becomes a species' robot model.**
+  `docs/SPECIES_NAMING.md`, `CONTRIBUTING.md` and `docs/hardware/README.md`
+  now say so: designs studied in parallel stay in `examples/` or on hardware
+  branches until one is adopted (the maintainer's decision of 2026-11-26).
+  CONTRIBUTING's embodiment steps now also list the robot page's text in
+  `website/src/components/AnimalPage/interpretation.ts`.
 - **Every model's stance trains 11M steps** (the maintainer's decision of
   2026-11-26). `[curriculum] timesteps` is 11,000,000 in every
   `configs/<species>/<embodiment>/stance.toml`: the T. rex and velociraptor
@@ -5234,6 +5303,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The in-run K3 noise panel (the maintainer's decision of 2026-11-26).** The
+  panel was added earlier in this release (#645, listed under Added). This
+  removes `environments/shared/k3_panel.py` and its tests, `train()`'s
+  `k3_panel` keyword, the `train` command's `--k3-panel`,
+  `--k3-panel-sigma-file` and `--k3-panel-sigma-key` flags, the SB3 notebook's
+  `K3_PANEL` settings and its `k3_panel_config()` helper, and the
+  training-history report's reader of `k3_panel.json`, with its
+  checkpoint-table columns, page-17 lines and HTML table. Decision D-D48 added
+  the panel as a report-only readout for the first r10 T. rex stance round.
+  That purpose was met on 2026-10-28, when it equalled the offline judge's K3
+  at all 18 judged checkpoints (D-14 in
+  `docs/investigations/stance_2026_10/stance6_results/review/REVIEW.txt`). It
+  ran only in r10 screen runs that `environments/shared/run_exclusions.py`
+  excludes, and nothing read it. Its joint-space sigma came from r9-era
+  control runs and is 15 wide, so its joint test could run on the T. rex
+  alone. It cost about 20 min per 11M-step stance near Colab's 24 h cap. No
+  training run changes and no digest moves: the panel was off unless the
+  launch enabled it and was never a stage key. The screen runs' `k3_panel.csv`
+  and `k3_panel.json` stay on Drive and are no longer read. The report's K3
+  now comes from the judge files alone (`--judged`), and the offline judges'
+  K3 stays the K3 of record for r9 and r10. Those are T. rex judges, so no
+  other model had or loses a K3 readout
+  (`docs/TRAINING_ARTIFACT_PRESENTATION.md`; D-D48's rows in
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and
+  `docs/CONSOLIDATION_PLAN_2026_09.md`).
 - **The training figures' cost-of-transport and gait-symmetry panels.**
   `plot_diagnostics_graphs` no longer draws "Cost of Transport" in
   `locomotion_health.png` or "Gait Symmetry + Stride Frequency" in
@@ -5378,6 +5472,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **The Compsognathus robot page describes the robot.** It showed the
+  anatomical model's "the foot pads and toes share the load", and a header
+  saying the robot walks. The animal page now prefers a robot's own study
+  labels (`robot.studies` in
+  `website/src/components/AnimalPage/interpretation.ts`) and never shows the
+  anatomical model's reference recording on a robot page. The robot's stance
+  label describes its one flat sole per foot, its visual-only toes and its
+  current `stance_quality/v1` check, which is due to be replaced before its
+  next stance run. Its support line reads "Two legs". No label claims a
+  result.
+- **The Compsognathus push-recovery label describes the real pushes.** Both
+  models' pages said "a calibrated sideways or fore-and-aft push". The pushes
+  come from a random horizontal direction about every two seconds
+  (`environments/shared/perturbation.py`, both `recovery.toml` files).
 - **A screen or pilot no longer shares the certification run tree.** The SB3
   notebook wrote branch screens, walking pilots and certification runs into
   `LOG_BASE/<species>/<embodiment>/<algo>/`. That is the tree `TRUNK_FROM =
