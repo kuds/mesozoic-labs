@@ -417,13 +417,29 @@ def test_each_state_is_read_from_the_files(tmp_path, state):
     assert index["state"] == state and index["summary"]["layout"] == layout
     assert index["schema"] == run_index.RUN_INDEX_SCHEMA
     page = run_index.render_run_report(run_dir)
-    assert f"**State: {state}.** {run_index.STATE_DESCRIPTIONS[state].capitalize()}." in page
+    description = run_index.STATE_DESCRIPTIONS[state]
+    # The first character upper-cased, the rest as written: file names and "CSV" keep their case.
+    assert f"**State: {state}.** {description[:1].upper()}{description[1:]}." in page
+    assert "Artifact_manifest" not in page and "evaluation csv" not in page
     assert "cut off during" not in page and "cut off after" not in page, "a state names the files a run holds"
+    # An unfinished run of a notebook tree names what finishes it (a flat stage<N> run is a legacy run instead).
+    next_steps = {
+        "judged_no_bundle": "Next: the SB3 notebook's publish cell (section 6, `PUBLISH_RUN = True`, with "
+        f'`RUN_ID = "{run_dir.name}"`) writes the training summary and the bundle',
+        "post_training_cut": f'Next: re-enter the run (`RUN_ID = "{run_dir.name}"`) and run the chain loop: it judges',
+        "bundle_unreadable": "Restore `artifact_manifest.json` (Drive keeps a file's earlier versions)",
+    }
+    if state in next_steps:
+        assert next_steps[state] in page
+    else:
+        assert "Next: " not in page
     if state == "partial":
         assert "at least one deliverable it records is certified, and its target or another" in page
     if state == "bundle_unreadable":
         assert all(entry["hash_source"] == "none" for entry in index["files"])
-        assert any("cannot read artifact manifest" in warning for warning in index["warnings"])
+        [warning] = [warning for warning in index["warnings"] if "cannot read artifact manifest" in warning]
+        assert warning.startswith("cannot read artifact manifest artifact_manifest.json: ")
+        assert str(run_dir) not in warning, "the warning names the manifest run-relative"
 
 
 def test_a_flat_run_and_a_named_run_are_dated_and_indexed(tmp_path):
@@ -566,6 +582,194 @@ def test_a_reused_node_links_the_trunk_runs_report(tmp_path):
     assert "| stance | stage1 | PASS | reward_and_length/v1 | stage1/models/best_model.zip |" in trunk_page
 
 
+@pytest.mark.parametrize("own_stance", ["passed", "failed"])
+def test_an_ancestor_record_beside_the_runs_own_stage_directory_stands_for_the_node(tmp_path, own_stance, capsys):
+    """The run's own stance verdict no longer passed the reuse rule, so the chain loop reused the trunk's certified
+    stance (ancestors/stance/) beside the run's own 01_stance/, and the publish cell sealed the bundle with stance
+    reused (test_publish_cell's case). The page shows the node as reused, linked to the trunk's report, names the
+    run's own directory as kept but not published, and reads nothing else from it: no certificate, probe or
+    failure of its own, and the index row's passed nodes leave it out."""
+    from .test_publish_cell import _judged_run, _namespace, _publish, _run_dir, _trunked_run
+
+    model_id = TYRANNOSAURUS_REX
+    run_dir = _run_dir(tmp_path, model_id, run_id="20261123_120000")
+    configs = _trunked_run(run_dir, model_id)
+    _judged_run(run_dir, model_id, (1,), failed=(1,) if own_stance == "failed" else ())
+    own = run_dir / "01_stance"
+    # What would make the page read the stage directory: a certificate and a declared probe it lacks.
+    (own / "stance_gate_report.txt").write_text("GATE: FAIL\n", encoding="utf-8")
+    config = json.loads((own / "stage_config.json").read_text(encoding="utf-8"))
+    config["curriculum_kwargs"].update(gate_kind="stance_quality/v1", stance_probe_hold_constant=True)
+    (own / "stage_config.json").write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _publish(_namespace(run_dir, model_id, "walk", configs))
+    capsys.readouterr()
+    assert set(json.loads((run_dir / "provenance.json").read_text())["ancestors"]) == {"1"}
+    model_dir = model_id.path(tmp_path / "logs")
+    assert not run_report.write_model_reports(model_dir).failed
+    page = (model_dir / "reports" / "ppo" / run_dir.name / "report.md").read_text(encoding="utf-8")
+    verdict = "PASS" if own_stance == "passed" else "FAIL"
+    assert (
+        "| stance | 01_stance (not published) | reused (PASS) | reward_and_length/v1 | reused from "
+        "[ppo/20261101_000000/stage1](<../20261101_000000/report.md>) |"
+    ) in page
+    assert (
+        "`stance`: `ancestors/stance/` stands for this node, and the bundle records it as reused. The run's own "
+        f"`01_stance/` (its verdict there: {verdict}) stays in the run but is not published; this page reads nothing "
+        "else from it."
+    ) in page
+    assert "`stance` failed its gate" not in page and "stance_gate_report.txt:" not in page
+    assert "its stage_config.json declares the" not in page and "01_stance/gate_verdict.json names" not in page
+    [row] = [row for row in run_index.build_model_index(model_dir) if row["run_id"] == run_dir.name]
+    assert row["state"] == "complete" and row["passed"] == ["locomotion"] and row["certified"] == ["locomotion"]
+
+
+def test_a_trunk_directly_in_the_model_directory_is_linked(tmp_path):
+    """A node reused from a command-line ``curriculum_<timestamp>`` run, which sits in the model directory: the
+    link names that run, not ``<embodiment>/<run>``, and resolves once its report exists."""
+    from .result_bundle_helpers import _write_ancestor_record
+
+    model_id = BRACHIOSAURUS_ALTITHORAX
+    model_dir = model_id.path(tmp_path / "logs")
+    trunk = model_dir / "curriculum_20261120_101500"
+    run_dir = _run(tmp_path / "logs", model_id, run_id="20261126_100000")
+    _provenance(run_dir, model_id)
+    _write_ancestor_record(run_dir, 1, model_id=model_id, source_run_dir=trunk)
+    assert run_index.is_run_dir(trunk)
+    assert not run_report.write_model_reports(model_dir).failed
+    assert (model_dir / "reports" / "curriculum_20261120_101500" / "report.md").is_file()
+    page = (model_dir / "reports" / "ppo" / run_dir.name / "report.md").read_text(encoding="utf-8")
+    assert (
+        "| stance | — | reused (PASS) | reward_and_length/v1 | reused from "
+        "[curriculum_20261120_101500/stage1](<../../curriculum_20261120_101500/report.md>) |"
+    ) in page
+    assert "anatomical/curriculum_20261120_101500" not in page and "not built yet" not in page
+
+
+def test_a_trunk_read_where_it_was_not_written_is_found_beside_the_run(tmp_path):
+    """The logs folder read under another path (Drive for desktop, a renamed or shared folder): the ancestor
+    record's absolute handoff paths are gone, and the trunk run beside this run holds them, as the reuse rule
+    finds it. No warning; one only when the trunk's file is in neither place."""
+    import shutil
+
+    from .result_bundle_helpers import _write_ancestor_record
+
+    model_id = TYRANNOSAURUS_REX
+    run_dir = _run(tmp_path / "colab" / "logs", model_id, run_id="20261126_080000")
+    _provenance(run_dir, model_id)
+    _write_ancestor_record(run_dir, 1, model_id=model_id, source_run_dir=run_dir.parent / "20261120_090000")
+    moved = tmp_path / "My Drive" / "mesozoic-labs" / "logs"
+    shutil.copytree(tmp_path / "colab" / "logs", moved)
+    shutil.rmtree(tmp_path / "colab")
+    moved_run = model_id.path(moved) / "ppo" / run_dir.name
+    assert not [warning for warning in run_index.build_run_index(moved_run)["warnings"] if "ancestor.json" in warning]
+    (moved_run.parent / "20261120_090000" / "stage1" / "models" / "best_model.zip").unlink()
+    [warning] = [warning for warning in run_index.build_run_index(moved_run)["warnings"] if "ancestor.json" in warning]
+    sibling = moved_run.parent / "20261120_090000" / "stage1" / "models" / "best_model.zip"
+    assert warning.startswith("ancestors/stance/ancestor.json names the trunk's model_path ")
+    assert f", which is neither there nor at {sibling}, in the trunk run beside this run: " in warning
+
+
+@pytest.mark.parametrize("state", ("judged_no_bundle", "bundle_unreadable"))
+def test_deliverables_without_a_sealed_bundle_are_not_shown_as_certified(tmp_path, state):
+    """A bundle save records the deliverables in provenance.json before its manifest, which it writes last: a save
+    that stopped there, or a manifest that cannot be read, publishes nothing, so the index and the page show none
+    as certified."""
+    model_id = COMPSOGNATHUS_LONGIPES_ROBOT
+    run_dir = _run(tmp_path / "logs", model_id)
+    _complete_bundle(
+        run_dir,
+        algorithm="PPO",
+        backend="stable-baselines3",
+        dirname=lambda stage: stage_dirname(model_id, stage),
+        model_id=model_id,
+    )
+    _verdict(run_dir / "01_stance", model_id, 1, passed=True)
+    if state == "judged_no_bundle":
+        (run_dir / "artifact_manifest.json").unlink()
+    else:
+        (run_dir / "artifact_manifest.json").write_text("{not json", encoding="utf-8")
+    assert json.loads((run_dir / "provenance.json").read_text())["deliverables"]["1"]["certified"] is True
+    summary = run_index.build_run_index(run_dir)["summary"]
+    assert summary["state"] == state and summary["certified"] == [] and summary["provisional"] is None
+    assert summary["replicates"] is None and summary["passed"] == ["stance"]
+    page = run_index.render_run_report(run_dir)
+    assert (
+        "Recorded in `provenance.json` by a bundle save that sealed no bundle (the run's `artifact_manifest.json` is "
+        "missing or cannot be read), so none of these is published:"
+    ) in page
+    assert "| stance | yes | no |" in page, "the recorded table is still shown, under that line"
+    index = run_index.render_model_index(run_dir.parents[1], run_index.build_model_index(run_dir.parents[1]))
+    assert f"| {run_dir.name} | ppo | {state} | none published (passed: stance) |" in index
+
+
+def test_a_run_that_never_counts_says_so_in_its_row_and_page(tmp_path):
+    """A copy of a complete stance run named and recorded as one of the r10 screens (run_exclusions): the page
+    and the index say it never counts, as the Drive summary reads it; the same run in the screen tree is a screen
+    anyway and carries no marker."""
+    from environments.shared.run_exclusions import EXCLUSION_DECISION
+
+    model_id = TYRANNOSAURUS_REX
+    commit = "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+    rows = {}
+    for tree in ("ppo", "ppo_screen"):
+        run_dir = _run(tmp_path / "logs", model_id, tree=tree, run_id="stance6_r10LTSB_s42")
+        _complete_bundle(
+            run_dir,
+            algorithm="PPO",
+            backend="stable-baselines3",
+            dirname=lambda stage: stage_dirname(model_id, stage),
+            model_id=model_id,
+        )
+        provenance = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))
+        provenance["repository_commit"] = commit
+        (run_dir / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
+        rows[tree] = run_index.build_run_index(run_dir)["summary"]
+    assert rows["ppo_screen"]["excluded"] is None
+    reason = rows["ppo"]["excluded"]
+    assert reason.startswith(f"provenance.json: it was trained at commit {commit}") and EXCLUSION_DECISION in reason
+    page = run_index.render_run_report(model_id.path(tmp_path / "logs") / "ppo" / "stance6_r10LTSB_s42")
+    assert f"**Never counts:** {reason} (`environments/shared/run_exclusions.py`): not as certified" in page
+    model_dir = model_id.path(tmp_path / "logs")
+    index = run_index.build_model_index(model_dir)
+    assert {row["tree"]: row["excluded"] for row in index} == {"ppo": reason, "ppo_screen": None}
+    rendered = run_index.render_model_index(model_dir, index)
+    certified = ", ".join(rows["ppo"]["certified"])
+    assert f"| stance6_r10LTSB_s42 | ppo | complete | {certified}; never counts (run_exclusions.py) |" in rendered
+    assert f"| stance6_r10LTSB_s42 | ppo_screen | complete | {certified} |" in rendered
+
+
+def test_a_run_without_provenance_says_what_it_holds_instead(tmp_path):
+    flat, _ = _state_run("training_cut", tmp_path / "logs")
+    page = run_index.render_run_report(flat)
+    assert (
+        "None recorded: the run holds no `provenance.json`, so no bundle records deliverables. Its "
+        "`collected_results.csv` holds its stage results, as a run from before result bundles did."
+    ) in page
+    assert "holds no deliverables (no bundle was written)" not in page
+    cli = BRACHIOSAURUS_ALTITHORAX.path(tmp_path / "logs") / "curriculum_20261120_101500"
+    (cli / "01_stance" / "models").mkdir(parents=True)
+    (cli / "01_stance" / "stage_config.json").write_text("{}", encoding="utf-8")
+    (cli / "curriculum_results.csv").write_text("stage,passed\n1,True\n", encoding="utf-8")
+    assert "Its `curriculum_results.csv` holds a row per stage (the command-line curriculum writes no bundle)." in (
+        run_index.render_run_report(cli)
+    )
+
+
+def test_the_file_count_names_the_manifest_apart(tmp_path):
+    run_dir, _ = _state_run("complete", tmp_path / "logs")
+    files = run_index.build_run_index(run_dir)["files"]
+    page = run_index.render_run_report(run_dir)
+    assert (
+        f"lists the run's {len(files)} files: {len(files) - 1} with the size and digest `artifact_manifest.json` "
+        "records, and the manifest itself; nothing is re-hashed."
+    ) in page
+    assert "without a digest (never re-hashed)" not in page
+    (run_dir / "zero_action_baseline.json").write_text("{}\n", encoding="utf-8")
+    assert ", the manifest itself, and 1 it does not list (written after it), without a digest; " in (
+        run_index.render_run_report(run_dir)
+    )
+
+
 def test_the_index_groups_by_state_newest_first(tmp_path):
     logs = tmp_path / "logs"
     model_id = COMPSOGNATHUS_LONGIPES_ROBOT
@@ -672,9 +876,17 @@ def test_the_certificate_and_probe_lines_come_from_the_text_reports(tmp_path, mo
         "01_stance/stance_heading_report.txt",
     )
     assert "PROBE: a lateral impulse applied to the root partway through each episode." in page
-    assert "declares the constant hold probe, and it holds no stance_gate_probe_constant.txt" in page
-    assert "`stance_gate_report.py --hold-constant --out-dir <a scratch directory>` rolls it again" in page
-    assert "impulse probe, and it holds no" not in page
+    assert "declares the constant hold probe, and it holds no stance_gate_probe_constant.txt." in page
+    # A command that runs as shown once <model> is set: the model, the stage, the stage's own handoff pair, the
+    # probe's option and an --out-dir in reports/, outside the run.
+    assert (
+        "`<model>` is LOG_BASE/tyrannosaurus_rex/anatomical; the script scores the checkout's stage file with its own "
+        "episode counts): `python -m environments.shared.scripts.stance_gate_report --species tyrannosaurus_rex "
+        "--embodiment anatomical --stage 1 --model <model>/ppo/20261121_175147/01_stance/models/robust_best_model.zip "
+        "--vecnorm <model>/ppo/20261121_175147/01_stance/models/robust_best_model_vecnorm.pkl --hold-constant "
+        "--out-dir <model>/reports/ppo/20261121_175147.probes/01_stance/constant`"
+    ) in page
+    assert "stance_gate_probe_impulse.txt." not in page
     assert "`stance` failed its gate:\n- min_avg_reward: evidence=0.5 threshold=1.0" in page
 
 
@@ -704,7 +916,7 @@ def test_only_a_stage_generate_stage_artifacts_judged_expects_its_probes(tmp_pat
         _verdict(stage_dir, model_id, "stance", passed=True, curriculum=curriculum, judged_by=judged_by)
         (stage_dir / certificate).write_text("GATE: PASS\n", encoding="utf-8")
         index = run_index.build_run_index(run_dir)
-        missing = [warning for warning in index["warnings"] if "probe, and it holds no" in warning]
+        missing = [warning for warning in index["warnings"] if "its stage_config.json declares the " in warning]
         page = run_index.render_run_report(run_dir)
         if judged_by == command_line:
             assert missing == [] and index["summary"]["nodes"][0]["missing_probes"] == []
@@ -713,7 +925,14 @@ def test_only_a_stage_generate_stage_artifacts_judged_expects_its_probes(tmp_pat
                 f"probe(s), and the command-line curriculum that judged it ({judged_by}) rolls no probe."
             ) in page
         else:
-            assert len(missing) == len(declared) and index["summary"]["nodes"][0]["missing_probes"] == list(declared)
+            # One warning names every declared probe the stage lacks, with a command per probe.
+            [warning] = missing
+            assert index["summary"]["nodes"][0]["missing_probes"] == list(declared)
+            assert f"declares the {run_index._listed(list(declared))} probe" in warning
+            # One command per probe, and per cutoff of the filtered-action sweep.
+            calls = len(declared) - ("filtered action" in declared)
+            calls += len(stage_artifacts._probe_cutoffs(curriculum.get("stance_probe_filter_hz"), warn=False))
+            assert warning.count("python -m environments.shared.scripts.stance_gate_report") == calls
             assert "rolls no probe" not in page
 
 
@@ -838,9 +1057,7 @@ def test_the_runner_calls_every_writer_and_each_writers_switch_decides(tmp_path,
         ("stance_probe_spawn_yaw_deg", ["ninety"]),
     ),
 )
-def test_a_probe_value_that_is_no_number_declares_nothing_and_is_logged_at_stage_end(
-    tmp_path, caplog, key, value
-):
+def test_a_probe_value_that_is_no_number_declares_nothing_and_is_logged_at_stage_end(tmp_path, caplog, key, value):
     """A mistyped probe value (a unit inside the string) declares no probe, so the report expects none, and the
     probe's writer still logs it when the stage ends, as it did before the report read the rule."""
     from .test_stance_gate_report import _minimal_stance_report
@@ -1211,8 +1428,9 @@ def test_each_record_is_read_once_and_an_index_row_reads_less(tmp_path, monkeypa
     assert opened.count("stance_gate_report.txt") == 1
     opened.clear()
     run_index.build_model_index(model_id.path(logs))
-    assert opened.count("provenance.json") == 2
-    assert opened.count("stage_config.json") == 0 and opened.count("stance_gate_report.txt") == 0
+    assert opened.count("provenance.json") == 2 and opened.count("stance_gate_report.txt") == 0
+    # A certification-tree row reads each stage's stage_config.json once, for run_exclusions' rules (b) and (d).
+    assert opened.count("stage_config.json") == 2 and opened.count("gate_verdict.json") == 2
 
 
 def _unreadable_case(case: str, run_dir: Path, model_id: ModelId) -> str:
@@ -1240,7 +1458,7 @@ def _unreadable_case(case: str, run_dir: Path, model_id: ModelId) -> str:
     if case == "verdict corrupt":
         _verdict(stage_dir, model_id, 1, passed=True)
         (stage_dir / "gate_verdict.json").write_text("{not json", encoding="utf-8")
-        return "01_stance/gate_verdict.json: "
+        return "01_stance/gate_verdict.json is not readable JSON: "
     if case == "provenance corrupt":
         (run_dir / "provenance.json").write_text("{not json", encoding="utf-8")
         return "provenance.json cannot be read, or holds no JSON object"
@@ -1297,6 +1515,11 @@ def test_an_unreadable_or_missing_record_is_a_warning_and_the_report_is_written(
         assert f"- {expected}" in page
     if case == "verdict corrupt":
         assert "| stance | 01_stance | unreadable |" in page
+        [warning] = [warning for warning in warnings if warning.startswith(expected)]
+        assert str(run_dir) not in warning and warning.endswith(
+            "re-judge the stage, e.g. `python -m environments.shared.scripts.backfill_gate_verdict <run>/01_stance "
+            "--force` (it refuses a run whose bundle is complete)"
+        )
     if case == "certificate not UTF-8":
         assert "certificate, [01_stance/stance_gate_report.txt](<" in page and "): unreadable" in page
     assert _files(run_dir) == before, "the run is only read"

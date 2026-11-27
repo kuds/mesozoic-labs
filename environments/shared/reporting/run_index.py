@@ -50,10 +50,17 @@ raised something unforeseen while the index read them; its row shows the
 error.
 
 The states describe files, not history.  A run's ``layout`` is the
-generation of its stage directories: ``NN_<stage_id>`` (from 2026-08-21),
+generation of its stage directories: ``NN_<stage_id>`` (from 2026-08-20),
 ``stage<N>`` or ``bare <stage_id>`` (both older than ``gate_verdict.json``,
 so a finished run of theirs reads as ``training_cut`` or
 ``post_training_cut``, and its report says so), or ``none``.
+
+A node a run holds as an ``ancestors/<stage_id>/`` record is reused, whatever
+else the run holds: when the run also holds its own stage directory for the
+node (its own verdict failed or no longer passed the reuse rule, and the chain
+loop reused the trunk's certified node), the record stands for the node, as
+the bundle writer reads it, and the report names that directory as kept but
+not published and reads nothing else from it.
 
 The report expects a stance stage's declared probes
 (``stage_artifacts.declared_stance_probes``) only when
@@ -61,15 +68,23 @@ The report expects a stance stage's declared probes
 that is the one path that rolls them; the command-line curriculum's judge
 writes the certificate and rolls no probe.
 
+A run of the certification tree that ``run_exclusions.excluded_run_reason``
+names (the nine r10 stance screens, and runs built on them) never counts, and
+its row and page say so.
+
 Cost: every reader here opens only small records (``provenance.json`` once
 per run, ``trunk_run.json``, ``stage_config.json`` once per stage,
 ``gate_verdict.json``, ``ancestor.json``, the certificate and probe ``.txt``
 reports) and the artifact manifest, and lists the run's files.  A model
-index row reads less: the manifest's status, ``provenance.json`` and each
-stage's ``gate_verdict.json``.  Sizes and digests come from
+index row reads less: the manifest's status, ``provenance.json``, each
+stage's ``gate_verdict.json``, the names under ``ancestors/``, and for a run
+of the certification tree what ``run_exclusions.excluded_run_reason`` reads
+(``provenance.json`` and each stage's ``stage_config.json`` and
+``gate_verdict.json``).  Sizes and digests come from
 ``artifact_manifest.json`` when the run has one; nothing is ever hashed.  A
-partial, cut-off, legacy or empty run, and a file that cannot be read, is a
-warning in the report, never an error.
+partial, cut-off, legacy or empty run is a state the report names, with the
+next step for an unfinished one; a file that cannot be read is a warning in
+the report, never an error.
 """
 
 from __future__ import annotations
@@ -95,6 +110,7 @@ from ..result_bundle.gate_verdict import GATE_VERDICT_FILENAME, read_gate_verdic
 
 # The manifest's own litter rule, so the index lists exactly what the manifest would hash.
 from ..result_bundle.manifest import _is_ignored_litter, read_bundle_status
+from ..run_exclusions import excluded_commit_reason, excluded_stage_records_reason
 from ..run_tree import run_kind_of, run_tree_names
 from ..stage_manifest import LEGACY_STAGE_IDS, StageManifest, StageManifestError, load_stage_manifest
 from ..stage_manifest import stage_ref_from_dirname as _stage_ref_from_dirname
@@ -130,8 +146,8 @@ STATE_DESCRIPTIONS = {
     PARTIAL: "the bundle is partial: at least one deliverable it records is certified, and its target or another "
     "deliverable it records is not",
     FAILED: "the bundle is failed: no deliverable it records is certified",
-    BUNDLE_UNREADABLE: "artifact_manifest.json cannot be read or records another status, so the bundle's status "
-    "is unknown",
+    BUNDLE_UNREADABLE: "the run's artifact_manifest.json cannot be read or records another status, so the bundle's "
+    "status is unknown",
     JUDGED_NO_BUNDLE: "a stage holds gate_verdict.json, and the run holds no bundle (artifact_manifest.json)",
     POST_TRAINING_CUT: "a stage holds an evaluation CSV, and no stage holds a gate verdict nor the run a bundle",
     TRAINING_CUT: "a stage holds a checkpoint, and no stage holds an evaluation CSV or a gate verdict nor the run a "
@@ -152,14 +168,38 @@ _STAGE_N_DIRNAME = re.compile(r"stage[0-9]+")
 #: CURRICULUM_MANAGER_JUDGED_BY, STANCE_V2_POST_TRAINING_JUDGED_BY and STANCE_HEADING_POST_TRAINING_JUDGED_BY);
 #: it rolls no stance probe.
 _COMMAND_LINE_JUDGED_BY = "train_base.train_curriculum/"
-#: The ``stance_gate_report.py`` options that roll each probe again, by its label.
+#: What finishes a run in each unfinished state, for a run of a notebook tree (``{run_id}`` is its directory name).
+NEXT_STEPS = {
+    JUDGED_NO_BUNDLE: "Next: the SB3 notebook's publish cell (section 6, `PUBLISH_RUN = True`, with "
+    '`RUN_ID = "{run_id}"`) writes the training summary and the bundle from the verdicts the run holds; a chain loop '
+    "that trains or judges a further node of this run writes them too",
+    POST_TRAINING_CUT: 'Next: re-enter the run (`RUN_ID = "{run_id}"`) and run the chain loop: it judges a node that '
+    "was trained but never gated (an intact final pair and no verdict), then saves the bundle",
+    TRAINING_CUT: 'Next: re-enter the run (`RUN_ID = "{run_id}"`): the chain loop judges a node whose final pair is '
+    "intact, and section 5's RESUME cell (`RESUME_STAGE`) first finishes one cut off before its final pair",
+    BUNDLE_UNREADABLE: "Next: nothing writes into this run while its bundle's status is unknown: the bundle writer, "
+    "and every cell that writes into a run, refuse a manifest they cannot read (`result_bundle.read_bundle_status`). "
+    "Restore `artifact_manifest.json` (Drive keeps a file's earlier versions), then rebuild this page",
+}
+#: The ``stance_gate_report.py`` options that roll each probe again, by its label (the values are the stage's own).
 _PROBE_OPTIONS = {
-    "filtered action": "--filter-actions <Hz>",
+    "filtered action": "--filter-actions {values}",
     "constant hold": "--hold-constant",
     "release ablation": "--hold-release-ablation",
-    "impulse": "--impulse-probe",
-    "heading": "--spawn-yaw-offsets <offsets>",
+    "impulse": "--impulse-probe --impulse-speeds {values}",
+    "heading": "--spawn-yaw-offsets {values}",
 }
+#: The folder name each re-rolled probe goes in, under ``reports/<run path>.probes/<stage dir>/``.
+_PROBE_FOLDERS = {
+    "filtered action": "filtered",
+    "constant hold": "constant",
+    "release ablation": "release",
+    "impulse": "impulse",
+    "heading": "heading",
+}
+#: The suffix of the folder of ``reports/`` a missing-probe warning names for one's own re-rolled probes
+#: (``reports/<run path>.probes/``): no run's report folder, so ``scripts/run_report.py`` never touches it.
+PROBES_SUFFIX = ".probes"
 
 #: What each role means.  Every file a run holds is one of these, or ``unclassified``.
 ROLES = {
@@ -510,7 +550,7 @@ def _state(run_dir: Path, stage_dirs: Sequence[tuple[str, Path]], warnings: list
     try:
         status = read_bundle_status(run_dir)
     except ResultBundleError as exc:
-        warnings.append(f"{DEFAULT_MANIFEST_NAME}: {exc}")
+        warnings.append(_without_run_path(exc, run_dir.resolve()))
         return BUNDLE_UNREADABLE, None
     if status is not None:
         return status, status
@@ -605,9 +645,20 @@ def _probe_line(text: str) -> str:
     return first if len(first) <= 200 else first[:197] + "..."
 
 
-def _recorded_curriculum(stage_dir: Path) -> "Mapping[str, Any] | None":
+def _cached(cache: "dict[Path, Mapping[str, Any] | None] | None", path: Path) -> "Mapping[str, Any] | None":
+    """The JSON object at *path* (``file_io.read_json_object``), read once per :func:`_run_summary` through *cache*."""
+    if cache is None:
+        return read_json_object(path)
+    if path not in cache:
+        cache[path] = read_json_object(path)
+    return cache[path]
+
+
+def _recorded_curriculum(
+    stage_dir: Path, cache: "dict[Path, Mapping[str, Any] | None] | None" = None
+) -> "Mapping[str, Any] | None":
     """The ``[curriculum]`` block the stage's ``stage_config.json`` records (read once per stage), or ``None``."""
-    record = read_json_object(stage_dir / "stage_config.json") or {}
+    record = _cached(cache, stage_dir / "stage_config.json") or {}
     block = record.get("curriculum", record.get("curriculum_kwargs"))
     return block if isinstance(block, Mapping) else None
 
@@ -632,33 +683,63 @@ def _relative_to_run(path_text: Any, stage_dir: Path, run_dir: Path) -> "tuple[s
     return shown, here
 
 
-def _own_node(
-    stage_id: str, stage_dir: Path, run_dir: Path, warnings: list[str], *, detail: bool = True
-) -> dict[str, Any]:
-    """A node trained in this run, from its stage directory; without *detail*, from ``gate_verdict.json`` alone."""
-    curriculum = _recorded_curriculum(stage_dir) if detail else None
-    recorded_kind = curriculum.get("gate_kind") if curriculum is not None else None
-    node: dict[str, Any] = {
+def _blank_node(stage_id: str, directory: "str | None", verdict: str) -> dict[str, Any]:
+    return {
         "id": stage_id,
-        "dir": stage_dir.name,
-        "verdict": "not judged",
+        "dir": directory,
+        "verdict": verdict,
         "passed": None,
-        "gate_kind": str(recorded_kind) if recorded_kind is not None else None,
+        "gate_kind": None,
         "judged_by": None,
         "handoff": None,
+        "normalization": None,
         "failures": [],
         "reused_from": None,
+        "own_dir": None,
+        "own_verdict": None,
         "certificate": None,
         "probes": [],
         "missing_probes": [],
         "probe_note": None,
     }
+
+
+def _without_run_path(error: Exception, run_dir: Path) -> str:
+    """*error*'s message with the run directory's absolute path dropped, so each path it names reads run-relative."""
+    return str(error).replace(f"{run_dir}{os.sep}", "")
+
+
+def _own_node(
+    stage_id: str,
+    stage_dir: Path,
+    run_dir: Path,
+    warnings: list[str],
+    *,
+    detail: bool = True,
+    rerun: "Mapping[str, Any] | None" = None,
+    cache: "dict[Path, Mapping[str, Any] | None] | None" = None,
+) -> dict[str, Any]:
+    """A node trained in this run, from its stage directory; without *detail*, from ``gate_verdict.json`` alone.
+
+    *rerun* is what a missing-probe warning's command names (:func:`_probe_commands`); *cache* keeps the records
+    read (:func:`_cached`), the verdict as ``read_gate_verdict`` gave it.
+    """
+    curriculum = _recorded_curriculum(stage_dir, cache) if detail else None
+    recorded_kind = curriculum.get("gate_kind") if curriculum is not None else None
+    node = _blank_node(stage_id, stage_dir.name, "not judged")
+    node["gate_kind"] = str(recorded_kind) if recorded_kind is not None else None
     try:
         verdict = read_gate_verdict(stage_dir)
     except ResultBundleError as exc:
-        warnings.append(f"{stage_dir.name}/{GATE_VERDICT_FILENAME}: {exc}")
+        warnings.append(
+            f"{_without_run_path(exc, run_dir)}: the node reads as not judged here, and nothing can reuse it; re-judge "
+            f"the stage, e.g. `python -m environments.shared.scripts.backfill_gate_verdict <run>/{stage_dir.name} "
+            "--force` (it refuses a run whose bundle is complete)"
+        )
         verdict = None
         node["verdict"] = "unreadable"
+    if cache is not None:
+        cache[stage_dir / GATE_VERDICT_FILENAME] = verdict
     if verdict is not None:
         node.update(
             verdict="PASS" if verdict["passed"] else "FAIL",
@@ -669,8 +750,7 @@ def _own_node(
         )
         for field in ("checkpoint", "normalization"):
             shown, here = _relative_to_run(verdict.get(field), stage_dir, run_dir)
-            if field == "checkpoint":
-                node["handoff"] = shown
+            node["handoff" if field == "checkpoint" else "normalization"] = shown
             if detail and here is not None and not here.is_file():
                 warnings.append(
                     f"{stage_dir.name}/{GATE_VERDICT_FILENAME} names its {field} {shown}, which no longer exists "
@@ -693,20 +773,82 @@ def _own_node(
                 {"label": label, "path": f"{stage_dir.name}/{name}", "line": _probe_line(text) if text else ""}
             )
     if node["certificate"] is not None:
-        _expect_probes(node, stage_dir, curriculum, warnings)
+        _expect_probes(node, stage_dir, curriculum, warnings, rerun)
     return node
 
 
+def _probe_values(label: str, curriculum: Mapping[str, Any]) -> str:
+    """The stage's own values for a probe's ``stance_gate_report.py`` option, comma-separated."""
+    from .stage_artifacts import _probe_cutoffs, _probe_offsets, _probe_speeds
+
+    if label == "filtered action":
+        values = _probe_cutoffs(curriculum.get("stance_probe_filter_hz"), warn=False)
+    elif label == "impulse":
+        values = _probe_speeds(curriculum.get("stance_probe_impulse_speeds"), warn=False)
+    elif label == "heading":
+        values = _probe_offsets(curriculum.get("stance_probe_spawn_yaw_deg"), warn=False)
+    else:
+        return ""
+    return ",".join(f"{value:g}" for value in values)
+
+
+def _probe_commands(
+    node: Mapping[str, Any], labels: Sequence[str], curriculum: Mapping[str, Any], rerun: Mapping[str, Any]
+) -> list[str]:
+    """One ``stance_gate_report.py`` command per probe in *labels*, on the stage's handoff pair, written outside the run.
+
+    Paths start at ``<model>``, the model directory; ``--out-dir`` is a folder of
+    ``reports/<run path>.probes/`` (:data:`PROBES_SUFFIX`), which ``run_report`` never touches.
+    """
+    model_id: "ModelId | None" = rerun.get("model_id")
+    run_path = rerun["run_path"]
+    stage = rerun.get("stage")
+    model = (
+        f"--species {model_id.species} --embodiment {model_id.embodiment}" if model_id else "--species S --embodiment E"
+    )
+    pair = " ".join(
+        f"--{option} <model>/{run_path}/{path}" if path else f"--{option} <{option}>"
+        for option, path in (("model", node["handoff"]), ("vecnorm", node["normalization"]))
+    )
+    commands = []
+    for label in labels:
+        values = _probe_values(label, curriculum)
+        # The script filters at one cutoff per call: the stage's sweep is one call per cutoff.
+        runs = [(f"{_PROBE_FOLDERS[label]}_{value}hz", value) for value in values.split(",")]
+        if label != "filtered action" or not values:
+            runs = [(_PROBE_FOLDERS[label], values)]
+        for folder, value in runs:
+            options = _PROBE_OPTIONS[label].format(values=value)
+            out_dir = f"<model>/{REPORTS_DIRNAME}/{run_path}{PROBES_SUFFIX}/{node['dir']}/{folder}"
+            commands.append(
+                f"`python -m environments.shared.scripts.stance_gate_report {model}"
+                + (f" --stage {stage}" if stage is not None else "")
+                + f" {pair} {options} --out-dir {out_dir}`"
+            )
+    return commands
+
+
+def _listed(items: Sequence[str], last: str = "and") -> str:
+    """``a``, ``a and b``, ``a, b and c``."""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} {last} {items[-1]}"
+
+
 def _expect_probes(
-    node: dict[str, Any], stage_dir: Path, curriculum: "Mapping[str, Any] | None", warnings: list[str]
+    node: dict[str, Any],
+    stage_dir: Path,
+    curriculum: "Mapping[str, Any] | None",
+    warnings: list[str],
+    rerun: "Mapping[str, Any] | None" = None,
 ) -> None:
     """The declared probes a stance stage holding a certificate lacks, by what judged it.
 
     Only ``generate_stage_artifacts`` rolls the probes, last
     (``stage_artifacts._run_stance_probes``), so they are expected only on a
-    stage its verdict says it judged.  The command-line curriculum's judge
-    writes the certificate and rolls none: a note, not a warning.  A stage
-    with no verdict, or one another tool judged, expects nothing.
+    stage its verdict says it judged: one warning names every probe it lacks,
+    with a command per probe that rolls it again outside the run.  The
+    command-line curriculum's judge writes the certificate and rolls none: a
+    note, not a warning.  A stage with no verdict, or one another tool
+    judged, expects nothing.
     """
     from .stage_artifacts import GATE_VERDICT_JUDGED_BY
 
@@ -714,14 +856,28 @@ def _expect_probes(
     judged_by = node["judged_by"]
     if judged_by == GATE_VERDICT_JUDGED_BY:
         present = {probe["label"] for probe in node["probes"]}
-        node["missing_probes"] = [label for label in declared if label not in present]
-        for label in node["missing_probes"]:
-            warnings.append(
-                f"{stage_dir.name}: its stage_config.json declares the {label} probe, and it holds no "
-                f"{PROBE_REPORTS[label]} (the probes run last, each on its own: a runtime lost during them, or a "
-                f"probe that failed, leaves it out; `stance_gate_report.py {_PROBE_OPTIONS[label]} --out-dir <a "
-                "scratch directory>` rolls it again, never into the stage directory)"
+        node["missing_probes"] = missing = [label for label in declared if label not in present]
+        if not missing:
+            return
+        warning = (
+            f"{stage_dir.name}: its stage_config.json declares the {_listed(missing)} "
+            f"probe{'s' if len(missing) > 1 else ''}, and it holds no "
+            f"{_listed([PROBE_REPORTS[label] for label in missing], 'or')}. The probes run last, each on its own, so "
+            "a runtime lost during them, or a probe that failed, leaves its report out, and nothing writes into the "
+            "stage directory again, so this warning stays"
+        )
+        if rerun is not None and curriculum is not None:
+            model_id = rerun.get("model_id")
+            where = (
+                f"LOG_BASE/{model_id.species}/{model_id.embodiment}" if model_id else "LOG_BASE/<species>/<embodiment>"
             )
+            warning += (
+                f". To roll one again as report-only output of your own, outside the run (`<model>` is {where}; the "
+                "script scores the checkout's stage file with its own episode counts): "
+                + "; ".join(_probe_commands(node, missing, curriculum, rerun))
+                + " (a folder per call: each call also writes its own certification report beside the probe)"
+            )
+        warnings.append(warning)
     elif declared and isinstance(judged_by, str) and judged_by.startswith(_COMMAND_LINE_JUDGED_BY):
         node["probe_note"] = (
             f"its stage_config.json declares the {', '.join(declared)} probe(s), and the command-line curriculum "
@@ -729,24 +885,44 @@ def _expect_probes(
         )
 
 
-def _reused_node(stage_id: str, record_dir: Path, run_dir: Path, warnings: list[str]) -> dict[str, Any]:
+def _trunk_report_path(source_run: str) -> str:
+    """The trunk run's path under its model directory, by the layout: ``<tree>/<run_id>``, or ``<run>`` for a run
+    directly in the model directory (a command-line ``curriculum_<timestamp>`` run, or a flat one)."""
+    source = Path(source_run)
+    return "/".join(source.parts[-2:]) if source.parent.name in RUN_TREES else source.name
+
+
+def _trunk_file(value: str, source_run: Any, run_dir: Path) -> "tuple[Path | None, Path | None]":
+    """Where a trunk file an ancestor record names is on this machine, and the sibling path tried.
+
+    As recorded, else at the same place below the trunk run beside this run
+    (``ancestors._resolve_source_run_dir``'s rule, for a run read where it
+    was not written: Drive for desktop, a renamed or shared logs folder);
+    ``None`` first when neither exists.
+    """
+    recorded = Path(value)
+    if recorded.is_file():
+        return recorded, None
+    if not isinstance(source_run, str) or not source_run:
+        return None, None
+    source = Path(source_run)
+    try:
+        below = recorded.relative_to(source)
+    except ValueError:
+        return None, None
+    sibling = run_dir.parent / source.name / below
+    return (sibling if sibling.is_file() else None), sibling
+
+
+def _reused_node(
+    stage_id: str, record_dir: Path, run_dir: Path, warnings: list[str], *, detail: bool = True
+) -> dict[str, Any]:
+    """A node reused from another run, from its ``ancestors/<stage_id>/`` record; without *detail*, from its name."""
+    node = _blank_node(stage_id, None, "reused")
+    if not detail:
+        return node
     record = read_json_object(record_dir / ANCESTOR_RECORD_NAME)
     where = f"{ANCESTORS_DIRNAME}/{stage_id}"
-    node: dict[str, Any] = {
-        "id": stage_id,
-        "dir": None,
-        "verdict": "reused",
-        "passed": None,
-        "gate_kind": None,
-        "judged_by": None,
-        "handoff": None,
-        "failures": [],
-        "reused_from": None,
-        "certificate": None,
-        "probes": [],
-        "missing_probes": [],
-        "probe_note": None,
-    }
     if record is None:
         warnings.append(f"{where}/{ANCESTOR_RECORD_NAME} is missing or cannot be read")
         return node
@@ -760,16 +936,22 @@ def _reused_node(stage_id: str, record_dir: Path, run_dir: Path, warnings: list[
     handoff: Mapping[str, Any] = recorded_handoff if isinstance(recorded_handoff, Mapping) else {}
     node["reused_from"] = {
         "run_id": record.get("parent_run_id"),
-        "run": "/".join(Path(source_run).parts[-2:]) if isinstance(source_run, str) and source_run else None,
+        "run": _trunk_report_path(source_run) if isinstance(source_run, str) and source_run else None,
         "stage_dir": Path(source_stage).name if isinstance(source_stage, str) and source_stage else None,
         "source_run_dir": source_run if isinstance(source_run, str) else None,
     }
     node["handoff"] = handoff.get("model_path")
     for field in ("model_path", "normalization_path"):
         value = handoff.get(field)
-        if isinstance(value, str) and value and not Path(value).is_file():
+        if not isinstance(value, str) or not value:
+            continue
+        found, sibling = _trunk_file(value, source_run, run_dir)
+        if found is None:
+            beside = f" nor at {sibling}, in the trunk run beside this run" if sibling is not None else ""
             warnings.append(
-                f"{where}/{ANCESTOR_RECORD_NAME} names the trunk's {field} {value}, which does not exist here"
+                f"{where}/{ANCESTOR_RECORD_NAME} names the trunk's {field} {value}, which is neither there{beside}: "
+                "the trunk run is not on this machine, so the reuse cannot be checked here and a run trunked from "
+                "this one cannot reuse the node here (read the run where its trunk run is)"
             )
     return node
 
@@ -781,12 +963,22 @@ def _nodes(
     warnings: list[str],
     *,
     detail: bool = True,
+    rerun: "Mapping[str, Any] | None" = None,
+    cache: "dict[Path, Mapping[str, Any] | None] | None" = None,
 ) -> list[dict[str, Any]]:
-    """The run's nodes in the manifest's order: its own stages, and with *detail* the ones reused from a trunk."""
+    """The run's nodes in the manifest's order: its own stages and the ones reused from a trunk.
+
+    An ``ancestors/<stage_id>/`` record stands for its node, as the bundle
+    writer reads it (``result_bundle.load_ancestor_records``): a stage
+    directory of the run for the same node is named as kept but not
+    published (``own_dir``, with its verdict), and nothing else is read
+    from it.  Without *detail* a reused node is known by its record's name
+    alone.
+    """
     own = dict(stage_dirs)
     records: dict[str, Path] = {}
     ancestors = run_dir / ANCESTORS_DIRNAME
-    if detail and ancestors.is_dir():
+    if ancestors.is_dir():
         try:
             records = {path.name: path for path in sorted(ancestors.iterdir()) if path.is_dir()}
         except OSError as exc:
@@ -797,11 +989,60 @@ def _nodes(
     ids += [stage_id for stage_id in [*own, *records] if stage_id not in ids]
     nodes = []
     for stage_id in dict.fromkeys(ids):
-        if stage_id in own:
-            nodes.append(_own_node(stage_id, own[stage_id], run_dir, warnings, detail=detail))
+        if stage_id in records:
+            node = _reused_node(stage_id, records[stage_id], run_dir, warnings, detail=detail)
+            if stage_id in own:
+                node["own_dir"] = own[stage_id].name
+                kept = _cached(cache, own[stage_id] / GATE_VERDICT_FILENAME) if detail else None
+                passed = kept.get("passed") if kept is not None else None
+                node["own_verdict"] = ("PASS" if passed else "FAIL") if isinstance(passed, bool) else None
+            nodes.append(node)
         else:
-            nodes.append(_reused_node(stage_id, records[stage_id], run_dir, warnings))
+            stage = None
+            if rerun is not None and manifest is not None:
+                try:
+                    reference = manifest.resolve(stage_id).reference
+                    stage = reference if isinstance(reference, int) else None
+                except (StageManifestError, KeyError, ValueError):
+                    stage = None
+            nodes.append(
+                _own_node(
+                    stage_id,
+                    own[stage_id],
+                    run_dir,
+                    warnings,
+                    detail=detail,
+                    rerun={**rerun, "stage": stage} if rerun is not None else None,
+                    cache=cache,
+                )
+            )
     return nodes
+
+
+def _exclusion(
+    run_dir: Path, provenance: "Mapping[str, Any] | None", cache: "dict[Path, Mapping[str, Any] | None]"
+) -> "str | None":
+    """Why the run never counts (``run_exclusions.excluded_run_reason``'s answer), from the records read once.
+
+    Rule (a) on its ``provenance.json``, then rules (b) to (d) on each
+    immediate subdirectory's ``stage_config.json`` and ``gate_verdict.json``
+    (``run_exclusions.excluded_stage_records_reason``), each read through
+    *cache*.
+    """
+    if provenance is not None:
+        reason = excluded_commit_reason(provenance.get("repository_commit"))
+        if reason is not None:
+            return f"{DEFAULT_PROVENANCE_NAME}: {reason}"
+    try:
+        children = sorted(child for child in run_dir.iterdir() if child.is_dir())
+    except OSError:
+        return None
+    for child in children:
+        config = _cached(cache, child / "stage_config.json")
+        reason = excluded_stage_records_reason(child.name, config, _cached(cache, child / GATE_VERDICT_FILENAME))
+        if reason is not None:
+            return reason
+    return None
 
 
 def _deliverables(provenance: "Mapping[str, Any] | None", manifest: "StageManifest | None") -> list[dict[str, Any]]:
@@ -833,9 +1074,12 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
     """Everything a report reads about a run, from its small records only; without *detail*, what an index row reads.
 
     Without *detail* (:func:`build_model_index`), each stage is read from
-    its ``gate_verdict.json`` alone: no ``stage_config.json``, certificate,
-    probe, ``ancestors/`` or ``trunk_run.json``, and no evidence path is
-    checked, so ``warnings`` is not the report's.
+    its ``gate_verdict.json`` alone and a reused node from its record's
+    name: no ``stage_config.json``, certificate, probe, ``ancestor.json`` or
+    ``trunk_run.json``, and no handoff path is checked, so ``warnings`` is
+    not the report's.  Deliverables count as certified only behind a sealed
+    bundle (``complete``, ``partial`` or ``failed``): a save that stopped
+    before its manifest leaves them recorded in ``provenance.json`` alone.
     """
     warnings: list[str] = []
     provenance = read_json_object(run_dir / DEFAULT_PROVENANCE_NAME)
@@ -845,16 +1089,22 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
     manifest = _manifest_of(model_id)
     stage_dirs = _stage_dirs(run_dir, model_id)
     state, status = _state(run_dir, stage_dirs, warnings)
-    nodes = _nodes(run_dir, model_id, stage_dirs, warnings, detail=detail)
+    relative = run_dir.resolve().relative_to(model_dir.resolve())
+    rerun = {"model_id": model_id, "run_path": relative.as_posix()} if detail else None
+    cache: dict[Path, Mapping[str, Any] | None] = {}
+    nodes = _nodes(run_dir, model_id, stage_dirs, warnings, detail=detail, rerun=rerun, cache=cache)
     deliverables = _deliverables(provenance, manifest)
+    sealed = status is not None
     primary_key = provenance.get("primary_deliverable") if provenance is not None else None
     target_key = provenance.get("target_deliverable") if provenance is not None else None
-    primary = next((row for row in deliverables if row["key"] == str(primary_key)), None)
-    certified = [row for row in deliverables if row["certified"]]
+    primary = next((row for row in deliverables if row["key"] == str(primary_key)), None) if sealed else None
+    certified = [row for row in deliverables if row["certified"]] if sealed else []
     passed = [node for node in nodes if node["dir"] is not None and node["passed"] is True]
     handoff = primary["handoff"] if primary is not None else None
     if handoff is None and passed:
         handoff = passed[-1]["handoff"]
+    kind = run_kind_of(run_dir) if relative.parent.parts else None
+    excluded = _exclusion(run_dir, provenance, cache) if kind == "certify" else None
     trunk = None
     if detail and (run_dir / TRUNK_RECORD_NAME).exists():
         from ..result_bundle.trunk_record import read_trunk_record
@@ -863,13 +1113,14 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
             trunk = read_trunk_record(run_dir)
         except ResultBundleError as exc:
             warnings.append(f"{TRUNK_RECORD_NAME}: {exc}")
-    relative = run_dir.resolve().relative_to(model_dir.resolve())
     return {
         "run_id": run_dir.name,
         "provenance_run_id": provenance.get("run_id") if provenance is not None else None,
         "path": relative.as_posix(),
         "tree": relative.parent.as_posix() if relative.parent.parts else "",
-        "kind": run_kind_of(run_dir) if relative.parent.parts else None,
+        "kind": kind,
+        "excluded": excluded,
+        "provenance": provenance is not None,
         "layout": _layout(stage_dirs),
         "model": model_id.record() if model_id is not None else None,
         "state": state,
@@ -931,8 +1182,10 @@ def build_run_index(run_dir: "str | Path", *, model_dir: "str | Path | None" = N
     manifest, or a file written after the last bundle) its size from the
     listing, ``sha256`` ``None`` and ``hash_source`` ``"none"``.  Nothing is
     hashed.  ``warnings`` names unclassified files, files the manifest lists
-    that no longer exist or changed size, declared probes a stage lacks, and
-    evidence paths that no longer exist.  Schema :data:`RUN_INDEX_SCHEMA`.
+    that no longer exist or changed size, declared probes a stage lacks, the
+    handoff checkpoint and normalization a verdict or an ancestor record
+    names that no longer exist, and records that cannot be read.  Schema
+    :data:`RUN_INDEX_SCHEMA`.
     """
     run = Path(run_dir).resolve()
     model = Path(model_dir).resolve() if model_dir is not None else model_dir_of(run)
@@ -995,6 +1248,11 @@ def _link(text: str, target: "str | Path") -> str:
     return f"[{text}](<{destination}>)"
 
 
+def _sentence(text: str) -> str:
+    """*text* with its first character upper-cased and the rest as written (``str.capitalize`` lowers the rest)."""
+    return text[:1].upper() + text[1:]
+
+
 def _relative(target: Path, start: "Path | None") -> str:
     if start is None:
         return target.as_posix()
@@ -1042,12 +1300,19 @@ def render_run_report(
         f"{display}; run id `{built['run_id']}`; {where}; layout `{summary['layout']}`"
         + (f"; started {summary['started']}" if summary["started"] else ""),
         "",
-        f"**State: {summary['state']}.** {STATE_DESCRIPTIONS[summary['state']].capitalize()}.",
+        f"**State: {summary['state']}.** {_sentence(STATE_DESCRIPTIONS[summary['state']])}.",
     ]
     if summary["state"] in (TRAINING_CUT, POST_TRAINING_CUT) and summary["layout"] in _OLDER_LAYOUTS:
         lines.append(
             f"Its stage directories (`{summary['layout']}`) are of a layout older than `{GATE_VERDICT_FILENAME}`: "
             "the state says which files the run holds, not that its training was cut off."
+        )
+    elif summary["state"] in NEXT_STEPS and (summary["kind"] is not None or summary["state"] == BUNDLE_UNREADABLE):
+        lines.append(NEXT_STEPS[summary["state"]].format(run_id=summary["run_id"]) + ".")
+    if summary["excluded"]:
+        lines.append(
+            f"**Never counts:** {summary['excluded']} (`environments/shared/run_exclusions.py`): not as certified, "
+            "as a seed replicate or as a reusable ancestor, whatever its bundle records."
         )
     if summary["target"] is not None:
         lines.append(f"Target deliverable: `{summary['target']}`.")
@@ -1078,9 +1343,19 @@ def render_run_report(
             else:
                 handoff = _cell(node["handoff"])
                 verdict = node["verdict"]
+            directory = f"{node['own_dir']} (not published)" if node.get("own_dir") else node["dir"]
             lines.append(
-                f"| {_cell(node['id'])} | {_cell(node['dir'])} | {verdict} | {_cell(node['gate_kind'])} | {handoff} |"
+                f"| {_cell(node['id'])} | {_cell(directory)} | {verdict} | {_cell(node['gate_kind'])} | {handoff} |"
             )
+        for node in summary["nodes"]:
+            if node.get("own_dir"):
+                own_verdict = f" (its verdict there: {node['own_verdict']})" if node.get("own_verdict") else ""
+                lines += [
+                    "",
+                    f"`{node['id']}`: `{ANCESTORS_DIRNAME}/{node['id']}/` stands for this node, and the bundle records "
+                    f"it as reused. The run's own `{node['own_dir']}/`{own_verdict} stays in the run but is not "
+                    "published; this page reads nothing else from it.",
+                ]
         for node in summary["nodes"]:
             failures = node["failures"]
             if not failures:
@@ -1107,6 +1382,12 @@ def render_run_report(
         if node["probe_note"]
     ]
     lines += ["", "## Deliverables", ""]
+    if summary["deliverables"] and summary["manifest_status"] is None:
+        lines += [
+            f"Recorded in `{DEFAULT_PROVENANCE_NAME}` by a bundle save that sealed no bundle (the run's "
+            f"`{DEFAULT_MANIFEST_NAME}` is missing or cannot be read), so none of these is published:",
+            "",
+        ]
     if summary["deliverables"]:
         lines += [
             "| Deliverable | Certified | Provisional | Replicates | Seeds | Handoff |",
@@ -1119,7 +1400,18 @@ def render_run_report(
                 f"{_cell(row['certification_seeds'])} | {_cell(row['handoff'])} |"
             )
     else:
-        lines.append("None recorded: the run's `provenance.json` holds no deliverables (no bundle was written).")
+        held = {entry["path"] for entry in built["files"]}
+        if summary["provenance"]:
+            lines.append(
+                f"None recorded: the run's `{DEFAULT_PROVENANCE_NAME}` holds no deliverables (no bundle was written)."
+            )
+        else:
+            text = f"None recorded: the run holds no `{DEFAULT_PROVENANCE_NAME}`, so no bundle records deliverables."
+            if "collected_results.csv" in held:
+                text += " Its `collected_results.csv` holds its stage results, as a run from before result bundles did."
+            if "curriculum_results.csv" in held:
+                text += " Its `curriculum_results.csv` holds a row per stage (the command-line curriculum writes no bundle)."
+            lines.append(text)
     files = built["files"]
     lines += ["", "## Files", ""]
     for heading, roles in (
@@ -1133,10 +1425,20 @@ def render_run_report(
         lines.append(f"**{heading}:** " + (", ".join(_link(path, to_run(path)) for path in chosen) or "none"))
         lines.append("")
     hashed = sum(1 for entry in files if entry["hash_source"] == "manifest")
-    lines.append(
-        f"`{INDEX_JSON_FILENAME}` beside this page lists the run's {len(files)} files: {hashed} with the size and "
-        f"digest `{DEFAULT_MANIFEST_NAME}` records, {len(files) - hashed} without a digest (never re-hashed)."
-    )
+    later = [entry for entry in files if entry["hash_source"] != "manifest" and entry["path"] != DEFAULT_MANIFEST_NAME]
+    if hashed:
+        lines.append(
+            f"`{INDEX_JSON_FILENAME}` beside this page lists the run's {len(files)} files: {hashed} with the size and "
+            f"digest `{DEFAULT_MANIFEST_NAME}` records"
+            + (", the manifest itself" if later else ", and the manifest itself")
+            + (f", and {len(later)} it does not list (written after it), without a digest" if later else "")
+            + "; nothing is re-hashed."
+        )
+    else:
+        lines.append(
+            f"`{INDEX_JSON_FILENAME}` beside this page lists the run's {len(files)} files with their sizes and no "
+            f"digest: the run holds no `{DEFAULT_MANIFEST_NAME}` it can read, and nothing is hashed."
+        )
     lines += ["", "## Warnings", ""]
     lines += [f"- {warning}" for warning in built["warnings"]] or ["None."]
     return "\n".join(lines) + "\n"
@@ -1163,6 +1465,7 @@ def _row(summary: Mapping[str, Any], model_dir: Path) -> dict[str, Any]:
         "provisional": summary["provisional"],
         "replicates": summary["replicates"],
         "handoff": summary["handoff"],
+        "excluded": summary["excluded"],
         "report": _report_of(summary["path"], model_dir),
     }
 
@@ -1183,6 +1486,7 @@ def _unreadable_row(run_dir: Path, model_dir: Path, error: Exception) -> dict[st
         "provisional": None,
         "replicates": None,
         "handoff": None,
+        "excluded": None,
         "report": _report_of(relative.as_posix(), model_dir),
         "error": f"{type(error).__name__}: {error}",
     }
@@ -1268,6 +1572,8 @@ def render_model_index(model_dir: "str | Path", rows: Sequence[Mapping[str, Any]
             certified = _cell(row["certified"])
             if not row["certified"] and row["passed"]:
                 certified = f"none published (passed: {_cell(row['passed'])})"
+            if row.get("excluded"):
+                certified += "; never counts (run_exclusions.py)"
             provisional = {None: "—", True: "yes", False: "no"}[row["provisional"]]
             report = _link("report", row["report"]) if row["report"] else "not built"
             if row.get("error"):

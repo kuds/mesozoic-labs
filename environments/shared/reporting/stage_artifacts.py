@@ -889,11 +889,12 @@ def _probe_speeds(raw: Any, *, warn: bool = True) -> list[float]:
     return speeds
 
 
-def _probe_offsets(raw: Any) -> list[float]:
+def _probe_offsets(raw: Any, *, warn: bool = True) -> list[float]:
     """The finite, non-zero spawn turns ``stance_probe_spawn_yaw_deg`` names, in its order; empty when unset.
 
     :func:`_write_heading_probe`'s switch; ``stance_report.declares_heading_probe``
-    (:func:`declared_stance_probes`) reads the same values.
+    (:func:`declared_stance_probes`) reads the same values.  *warn* ``False``
+    drops the warning for an entry that is not a number (a report tool's call).
     """
     if not raw:
         return []
@@ -903,7 +904,8 @@ def _probe_offsets(raw: Any) -> list[float]:
         try:
             number = float(value)
         except (TypeError, ValueError):
-            logger.warning("stance_probe_spawn_yaw_deg entry is not a number: %r; ignoring it", value)
+            if warn:
+                logger.warning("stance_probe_spawn_yaw_deg entry is not a number: %r; ignoring it", value)
             continue
         if math.isfinite(number) and number != 0.0:
             offsets.append(number)

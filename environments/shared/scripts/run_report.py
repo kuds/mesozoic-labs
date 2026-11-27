@@ -73,9 +73,12 @@ sizes from the listing and no digest.  Each index rebuild (every call of the
 first form: the SB3 notebook's every ``save_run_bundle`` and its verify
 cell) also reads, for every other run of the model, its manifest's status,
 its ``provenance.json`` and each stage's ``gate_verdict.json``, with a
-directory listing per run and stage: a few small reads per run, which grows
-with the model's run count.  A partial, cut-off, legacy or empty run, or a
-file that cannot be read, is a warning on the run's page, never a failure.
+directory listing per run and stage (and, for a run of the certification
+tree, each stage's ``stage_config.json``, for ``run_exclusions``): a few
+small reads per run, which grows with the model's run count.  A partial,
+cut-off, legacy or empty run is a state the page names, with the next step
+for an unfinished one; a file that cannot be read is a warning on the run's
+page, never a failure.
 """
 
 from __future__ import annotations
