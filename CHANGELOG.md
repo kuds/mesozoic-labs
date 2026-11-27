@@ -39,19 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the run's own records with the chain loop's two calls. It then validates the
   bundle and prints its status and what it certified. It walks the chain as
   the chain loop does: root first, an ancestor's `ancestors/` record standing
-  for it, and stopping after the first failed verdict. So it seals a run cut
-  off before its bundle (T. rex `20261121_175147`) and counts a later seed
-  replicate into a `partial` bundle (decision D-B10), with no hand-typed
-  `save_run_bundle` call. Before anything is written it refuses a `complete`
-  run, a `BEHAVIOR` whose target differs from the one the run's
-  `provenance.json` records, a run that holds no node of the model (as
-  `RUN_ID = ""` opens one in a fresh runtime), an unjudged node, and a judged
-  node the bundle would leave out. It trains, judges and probes nothing and
-  changes no stage file. It also seals a run copied off its root (checkpoints
-  found from each verdict's hash-bound pair) and gives a Compsognathus summary
-  its 0.02 s sim time. Run it after the cells above section 5, without the
-  chain loop, which raises on a failed node, and then section 9's cell, which
-  flushes Drive's buffered writes before it releases the runtime.
+  for it, and stopping after the first failed verdict. So it can seal a run
+  cut off before its bundle and count a later seed replicate into a
+  `partial` bundle (decision D-B10), with no hand-typed `save_run_bundle`
+  call. Before anything is written it refuses a `complete` run, a `BEHAVIOR`
+  whose target differs from the one the run's `provenance.json` records, a
+  run that holds no node of the model (as `RUN_ID = ""` opens one in a fresh
+  runtime), an unjudged node, and a judged node the bundle would leave out.
+  It trains, judges and probes nothing and changes no stage file. It also
+  seals a run copied off its root (checkpoints found from each verdict's
+  hash-bound pair) and gives a Compsognathus summary its 0.02 s sim time. Run
+  it after the cells above section 5, without the chain loop, which raises on
+  a failed node, and then section 9's cell, which flushes Drive's buffered
+  writes before it releases the runtime.
 - **The SB3 notebook refuses a RUN_ID that names only another model's run.**
   Before anything is written, the storage cell refuses an explicit `RUN_ID`
   that names no run of the selected model in its trees for `ALGORITHM` but a
@@ -616,6 +616,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   takes about 85 s on the local 4-vCPU host. [inferred] One that holds all
   40 takes about 88 s, so a 12M-step run's 12 panels about 17.6 min; on a
   Colab L4 about 18 to 26 min, about 2 to 3% of a 14.4 to 15.4 h run.
+  Retired again before this release (see Removed).
 - **Training-history pages 13 to 19** (#645; the maintainer's decisions of
   2026-10-25 15:44 UTC, item (4), and 16:15 UTC: the observation
   normalization read through a whitelisting stub unpickler;
@@ -640,7 +641,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of their own so pages 13 to 18 are the specification's); the JSON gains
   `k3_panel`, `exploration` (each leg actuator's std at every K3 point, the
   point's own sigma where recorded) and `obs_normalization`. A ledger without the body columns, a run without the
-  probe, the pickles or the panel renders labelled absent panels. Measured:
+  probe, the pickles or the panel renders labelled absent panels. The
+  in-run panel's part of page 17 and of the JSON (`k3_panel`, its points in
+  `exploration`) went again with the panel before this release (see
+  Removed): page 17 reads K3 from the judge files alone. Measured:
   the probe's rows equal the pickles cast to float32 at their shared steps
   (the stance5 replication run s80 at 4,194,304, and in the suite).
 - **The stance5 replication judge's K3 criterion, read out over training in
@@ -2393,6 +2397,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **`train --k3-panel`, `--k3-panel-sigma-file` and `--k3-panel-sigma-key`
+  are gone**, with the in-run K3 panel (see Removed; the maintainer's
+  decision of 2026-11-26): argparse exits 2 with "unrecognized arguments" on
+  a launch line that names one, so drop it. `train()` loses its `k3_panel`
+  keyword (a call passing it raises `TypeError`), and
+  `environments/shared/k3_panel.py` is removed. The SB3 notebook loses
+  `K3_PANEL`, `K3_PANEL_SIGMA_FILE`, `K3_PANEL_SIGMA_KEY` and
+  `k3_panel_config()`. A copy of the notebook saved before this change
+  passes `k3_panel=` to `train()`, so against this library it fails when it
+  first trains a node: open the current notebook instead. The
+  training-history JSON keeps its `mesozoic.training-history/v1` schema
+  without the per-run `k3_panel` block, so a script that reads the block
+  must treat it as absent. **Drive:** nothing to move; the r10 screen runs'
+  `k3_panel.csv` and `k3_panel.json` stay and are no longer read.
 - **Every velociraptor checkpoint must be retrained; none can be widened**
   (velociraptor physics revision 4 → 5, policy interface revision 13 → 14,
   69 → 71 wide and 22 → 17 actions, visual revision 4 → 5; the maintainer's
@@ -5314,10 +5332,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--k3-panel-sigma-file` and `--k3-panel-sigma-key` flags, the SB3 notebook's
   `K3_PANEL` settings and its `k3_panel_config()` helper, and the
   training-history report's reader of `k3_panel.json`, with its
-  checkpoint-table columns, page-17 lines and HTML table. Decision D-D48 added
-  the panel as a report-only readout for the first r10 T. rex stance round.
-  That purpose was met on 2026-10-28, when it equalled the offline judge's K3
-  at all 18 judged checkpoints (D-14 in
+  checkpoint-table columns, page-17 lines and HTML table, the JSON's per-run
+  `k3_panel` block and the panel's points in `exploration.leg_std_at_k3` (the
+  schema stays `mesozoic.training-history/v1`; see Migration). Decision
+  D-D48 added the panel as a report-only readout for the first r10 T. rex
+  stance round. That purpose was met on 2026-10-28, when it equalled the
+  offline judge's K3 at all 18 judged checkpoints (D-14 in
   `docs/investigations/stance_2026_10/stance6_results/review/REVIEW.txt`). It
   ran only in r10 screen runs that `environments/shared/run_exclusions.py`
   excludes, and nothing read it. Its joint-space sigma came from r9-era
