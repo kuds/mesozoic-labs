@@ -43,15 +43,20 @@ committed and independently reviewed before any judged run.
 
 Each piece has its own tests and its own independent review before any run relies on it.
 
-**Status, 26 Nov 2026:** built (925550e0) and independently reviewed; the review's findings are fixed and checked
-again before any run (`rl/README.md`, "The steering run's training additions"):
+**Status, 27 Nov 2026:** built (925550e0), independently reviewed, fixed (09da2491), re-checked independently and
+fixed again before any run (`rl/README.md`, "The steering run's training additions"):
 - the whole-robot factors had reset every episode to the model's spring pose (no leg noise, soles at 0 mm): fixed;
 - the evaluations and analysis tools had inherited the whole-robot draws, so the target case would have measured a
   robot about 4 % heavier on average: they now draw the per-body factors only, as for F20, and the heavy robots
   are the sweep's stress points;
-- the heat average now starts at 2 s and is bias-corrected, so it prices from the start of F2's window;
-- the dev-run weights are 0.5 and 1, not 1 and 3: measured, a gait with the initial exploration noise earns less
-  than standing at weights 1 and 3 at full scale;
+- the heat average: the first version started at 0 at each reset (it priced 0.85-1.0 of rating at 38-61 %); the
+  second, bias-corrected from 2 s, front-loaded the cost onto the first second after 2 s (the re-check). It now
+  starts at 2 s from the margin, which weights every step alike and prices 0.80-0.82 of F2's own price; chosen
+  from seven candidates measured on the D22 policies (`rl/analysis/steer_heat_average.py`);
+- the dev-run weights are 0.5 and 1, not 1 and 3: at weight 3 a gait with the initial exploration noise earns
+  0.62 per step less than standing at full scale. 0.5 and 1 sit at the README's 0.3 margin rule if the noise
+  is 0.175 and 0.15 when the cost reaches full weight at 3 M; that assumption is checked in the dev runs (their
+  action noise at 1, 2 and 3 M) before the judged weight is fixed;
 - the notebook refuses a steer1 preset on any model but the 128 mm one.
 
 ## The runs

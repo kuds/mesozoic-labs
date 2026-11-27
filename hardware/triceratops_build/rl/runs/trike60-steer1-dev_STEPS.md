@@ -136,6 +136,8 @@ Three rules for the whole sheet (as before):
     - From the 5 M save of each run: the gait report, the sweep (with its x1.1 mass, payload and 20 ms delay points),
       the foot loads, steer_eval.py's courses and the demo course with turns, all on the flat floor with per-body
       randomisation only (README, "The steering run's training additions").
+    - Read each run's action noise at 1, 2 and 3 M steps (train_health.jsonl) and re-run
+      analysis/steer_heat_weight.py at that noise: the weights 0.5 and 1 assume about 0.175 and 0.15 at 3 M.
     - Compare the two weights: the hottest drive (target case and stress points), walking and turning, falls under
       pushes, and whether either run drifted towards standing still. Both runs use seed 0, so the weight is the
       only setting that differs; a difference in the hottest drive under about 0.1 of its rating is within the

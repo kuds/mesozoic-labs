@@ -352,17 +352,36 @@ Each is off by default: the straight task and run 3's preset are unchanged, and 
 
 - **The hottest drive's heat cost, `r_heat_peak` (D29),** a late term (x late scale, like `r_heat`):
   - each drive's (torque / continuous rating)^2, averaged over the step's physics steps;
-  - from `heat_peak_start_s` (2 s, where F2's window starts) on, low-passed with `heat_peak_tau_s` (4 s) and
-    bias-corrected (`heat_peak_update`). Until about tau it is the running mean since 2 s, F2's own estimator, and
-    after that the exponential average; a constant heat gives its own RMS from the first step (tested);
+  - from `heat_peak_start_s` (2 s, where F2's window starts) on, low-passed with `heat_peak_tau_s` (4 s), starting
+    from `heat_peak_margin`^2 (`heat_peak_update`). A cool drive starts at the margin and falls below it; a hot one
+    rises from it towards its own level;
   - cost = `w_heat_peak` x late scale x max(0, sqrt(the largest of the 12) - `heat_peak_margin`), margin 0.8
-    (against a heat rule near 0.85: in D22's 128 mm target cases, the hottest single episode sat 0.035-0.056 above
+    (against a heat rule near 0.85: in D22's 128 mm target cases, the hottest single episode sat 0.035-0.057 above
     the 5-episode figure; `analytics/results/fore128-s*/`);
-  - `info["heat_peak_rms"]`, the hottest drive's average (0 before 2 s), is there only when the term is on;
-  - the average is not observed. Under gamma 0.99, a step's heat reaches the return with about a third of the weight
-    of an unfiltered per-step cost (tau 4 s);
-  - changed after the review of 26 Nov 2026, before any run: the first version started the average at 0 at every
-    reset, so over a 20 s episode it priced a drive at 0.85-1.0 of its rating at 38-61 % of its steady cost.
+  - over 2-20 s the cost comes to 0.80-0.82 of F2's own price (900 steps x the excess of F2's 2-20 s RMS) on the
+    D22 policies, walking or with action noise, and the env's cost matches that offline figure;
+  - every step's heat carries the same weight wherever it falls in the window. While the hottest drive's average
+    is over the margin, a step's heat reaches the return (gamma 0.99) with a third of the weight of an unfiltered
+    per-step cost (alpha / (1 - 0.99 (1 - alpha)), tau 4 s); below the margin it adds nothing. The average is not
+    observed;
+  - `info["heat_peak_rms"]`, the hottest drive's average (0 before 2 s), is there only when the term is on.
+- **How the average was chosen** (both changes after independent reviews, before any run;
+  `analysis/steer_heat_average.py`, results in `analysis/results/steer1/heat_average/`). Seven candidates were
+  compared on the drive heat of the four D22 128 mm policies (72 episodes, no falls):
+  - The first version started at 0 at every reset. Over a 20 s episode it priced a drive at 0.85-1.0 of its rating
+    at 38-61 % of its steady cost (the first review).
+  - The second was bias-corrected from 2 s. Just after 2 s it is then the mean of a few 20 ms steps, and the cost
+    takes the largest of 12 such means, so it followed the stride, not the drive's RMS (the re-check). One step's
+    heat at 2.02 s weighed 4.43 against 0.34 at 15 s. 13-21 % of the cost fell in 2-4 s (11 % of the time). Gaits
+    under the margin paid 0.018 per step. A 0.5 s burst at twice the rating cost 1.80 times as much at 3 s as at
+    10 s.
+  - Starting at the margin (adopted): the same weight for every step, 4-5 % of the cost in 2-4 s, 0.005 per step
+    on gaits under the margin, and a burst at 3 s costs 1.13 times one at 10 s. It prices 0.80-0.82 of F2's
+    price, a near-constant share that the weight absorbs (1.26 on the lowest group, whose price is 0.015 per step).
+  - Bias correction with n floored at 200 steps came close (0.83-0.89 of the price, burst ratio 1.27) but weights
+    early steps up to 1.6 times later ones. A floor of 50 or 100 steps, or pricing from 4 s, kept the early weight.
+  - Tested: a stride-like input (a 0.68 Hz square wave) under the margin costs at most 0.05 in its first stride and
+    nothing after 8 s; over the margin (RMS 0.95) it costs 0.7-0.9 of F2's price.
 - **Whole-robot mass and payload (D26),** `mass_scale_whole_range` and `payload_kg_range`:
   - two uniforms drawn after every older draw, so a seed's delay, command, friction and per-body factors are as
     without them;
@@ -382,35 +401,50 @@ Each is off by default: the straight task and run 3's preset are unchanged, and 
   mass, payload, terrain and pushes.
 - **The weight** (measured; `analysis/steer_heat_weight.py`, results in `analysis/results/steer1/heat_weight/`).
   The README's method above, on the four D22 128 mm policies in their own env with the heat cost added, at full
-  scale, 0.25 m/s. The margin is the reward per step a walking gait with action noise earns over standing (standing
-  pays no `r_heat_peak`; its hottest drive is at 0.48). Worst of the four policies; no falls in 240 episodes:
+  scale (late and penalty scale 1, as from 3 M steps). The margin is the reward per step a walking gait with action
+  noise earns over standing (standing pays no `r_heat_peak`; its hottest drive's average is 0.46-0.51 at 20 s).
+  Each cell: the worst of the four policies' 3-seed means, +- the largest standard error of the four; 264 episodes,
+  no falls. 0.25 m/s:
 
-  | Action noise (std) | hottest drive | w 0 | w 0.5 | w 1 | w 3 |
+  | Action noise (std) | hottest drive's average at 20 s | w 0 | w 0.5 | w 1 | w 3 |
   |---|---|---|---|---|---|
-  | 0.2 (the initial policy's) | 1.18-1.26 | +0.350 | +0.147 | -0.055 | -0.864 |
-  | 0.15 | 1.10-1.16 | +0.656 | +0.483 | +0.310 | -0.382 |
-  | 0.1 | 0.98-1.06 | +0.868 | +0.749 | +0.630 | +0.156 |
-  | 0 (deterministic) | 0.88-0.96 | +1.133 | +1.071 | +1.003 | +0.672 |
+  | 0.2 (the initial policy's) | 1.18-1.26 | +0.35 +-0.03 | +0.19 +-0.04 | +0.02 +-0.04 | -0.62 +-0.07 |
+  | 0.175 | 1.15-1.21 | +0.50 +-0.07 | +0.35 +-0.07 | +0.20 +-0.07 | -0.39 +-0.09 |
+  | 0.15 | 1.10-1.16 | +0.66 +-0.03 | +0.52 +-0.03 | +0.38 +-0.04 | -0.16 +-0.07 |
+  | 0.1 | 0.98-1.05 | +0.87 +-0.04 | +0.78 +-0.04 | +0.68 +-0.04 | +0.31 +-0.04 |
+  | 0 (deterministic) | 0.87-0.96 | +1.13 +-0.05 | +1.08 +-0.05 | +1.03 +-0.05 | +0.80 +-0.07 |
 
-  - Exploration noise makes the hottest drive hotter, so the cost falls mostly on the noise. With weights 1 and 3,
-    the first presets, a gait with the initial noise would earn 0.06 and 0.86 per step less than standing at full
-    scale. That is the failure the 0.3 margin rule above guards against.
-  - The noise shrinks as training goes on: the D22 runs ended at std 0.083-0.091 (final checkpoints). Weight 1
-    keeps the margin at +0.31 at std 0.15, and 0.5 keeps it positive (+0.147) even at 0.2. So the dev runs use 0.5
-    and 1 (`configs/steer1_dev_heat05.json`, `steer1_dev_heat1.json`).
-  - Pricing every drive over the margin, rather than the hottest, would cost about four times as much under the
-    initial noise: -0.426 at weight 0.5 (`heat_weight_margins_every_drive.md`, from the same averages). D29's
-    hottest drive is kept.
-  - At 0.15 m/s the margins are lower at std 0.2 (+0.021 at weight 0.5) and close at 0.15 (+0.314 at weight 1).
-  - These are straight-task policies; the steering task's tracking reward differs, so this guides the dev runs and
-    predicts nothing.
+  At 0.15 m/s: std 0.2: +0.22, +0.07, -0.09 and -0.74 at weights 0, 0.5, 1 and 3; std 0.175: +0.44, +0.28,
+  +0.13, -0.49; std 0.15: +0.63, +0.50, +0.38, -0.14.
+  - Exploration noise makes the hottest drive hotter, so the cost falls mostly on the noise. At weight 3, one of the
+    first presets, a gait with the initial noise earns 0.62 per step less than standing at full scale: the failure
+    the 0.3 margin rule above guards against.
+  - The rule is applied at the noise expected when the cost reaches full weight (3 M steps), not at the initial
+    0.2, which has shrunk by then. No 10 M run has a noise figure before its end: shorter earlier runs with the
+    same start had 0.17-0.18 at 1-2 M (run 3's dev probe, pipe1), and the D22 runs ended at 0.083-0.091 at 10 M.
+    So the assumption is 0.15-0.175 at 3 M. With it, weight 0.5 sits at the rule at 0.175 (+0.35 at 0.25 m/s,
+    +0.28 at 0.15 m/s), and weight 1 at 0.15 (+0.38 at both speeds). The dev runs use 0.5 and 1
+    (`configs/steer1_dev_heat05.json`, `steer1_dev_heat1.json`): the edge of the rule at either noise level.
+    At 0.2 neither meets it, and today's reward without the term (w 0) already misses it at 0.15 m/s (+0.22).
+  - Before the judged weight is fixed: read each dev run's action noise at 1, 2 and 3 M steps
+    (`train_health.jsonl`, `action_std`), re-run `steer_heat_weight.py` at that noise, and check the margins.
+  - Pricing every drive over the margin, rather than the hottest, costs about four times as much under the initial
+    noise (1.22 against 0.30 per step at weight 1, 0.25 m/s): -0.01 at weight 0.5 and std 0.175, against +0.35
+    (`heat_weight_margins_every_drive.md`, from the same averages). D29's hottest drive is kept.
+  - The margins' standard errors are 0.02-0.09 on 3 seeds, so figures within about 0.05 of each other are not told
+    apart. These are straight-task policies; the steering task's tracking reward differs, so this guides the dev
+    runs and predicts nothing.
 - **The presets** (`configs/steer1_dev_heat05.json`, `steer1_dev_heat1.json`): speed and heading commands
   (`heading_and_speed`); flat floor (D28); pushes in half the episodes, up to 1.0 m/s; the slippery end at 0.3; the
   drift cost and slip at the contact as in run 3; servo delay 0-20 ms; the whole-robot factor x0.9-1.1 and a 0-1 kg
   payload; today's `w_heat` 0.3 kept, plus `r_heat_peak` at 0.5 or 1 (margin 0.8, tau 4 s, from 2 s). The model is
   `trike60_C_closed_capsule_fore128` (D25); the notebook refuses a steer1 preset with another MODEL. The presets set
-  no schedule: the learning rate, the late ramp (1 M to 3 M) and the push and friction ramp (1 M to 4 M) are
-  train.py's, and follow TOTAL_STEPS.
+  no schedule. The learning rate follows TOTAL_STEPS; the late ramp (1 M to 3 M) and the push and friction ramp
+  (1 M to 4 M) are fixed in steps, so a run shorter than 3 M never prices heat at full weight (hence D31: the dev
+  runs use the 10 M schedule and are read at 5 M).
+  - The 20 ms stress point is the top of the trained delay range (drawn in 1/21 of the episodes, 15-20 ms in 6/21),
+    as 10 ms was the top of 0-10 ms before; widening to 25 ms was considered and not adopted, so that the trained
+    range does not grow beyond what the stress point needs.
 - **During training,** the evaluations' per-drive RMS over rating (`eval_during_training.jsonl`) shows the hottest
   drive; `train_health.jsonl` shows `r_heat_peak`.
 

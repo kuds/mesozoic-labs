@@ -238,8 +238,7 @@ def chart_mass(res, out):
     if whole or pay:  # the whole-robot factor and the payload (the steering run on), on top of the per-body draws
         w, p = whole or (1.0, 1.0), pay or (0.0, 0.0)
         band = (w[0] * nom + p[0], w[1] * nom + p[1])
-        shaded = (f"x{w[0]:g}-{w[1]:g} for the whole robot plus a {p[0]:g}-{p[1]:g} kg payload, the training range "
-                  "(on top of per-body draws).")
+        shaded = f"training range, whole robot x{w[0]:g}-{w[1]:g} plus {p[0]:g}-{p[1]:g} kg."
     else:
         band, shaded = (0.9 * nom, 1.1 * nom), "x0.9-1.1, the per-body training range."
     standard_panels(axes, series, band, "robot mass (kg)", breaks_x=brk,

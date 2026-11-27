@@ -39,52 +39,86 @@ def test_heat_peak_reward_term_arithmetic():
     assert reward_terms(cfg, late_scale=0.0, heat_peak_excess=0.2, **base)["r_heat_peak"] == 0.0
 
 
-def test_heat_peak_update_is_bias_corrected():
-    """A constant input gives its own RMS from the first step; a changing one, the running mean while n alpha is small
-    (F2's estimator) and the exponential average later."""
+def test_heat_peak_update_starts_at_the_margin_and_weights_every_step_alike():
+    """From margin^2, a constant input x gives x + (margin^2 - x)(1 - alpha)^n; the average is linear in its inputs,
+    with the same weight for a step wherever it falls."""
     alpha = 1.0 - math.exp(-0.02 / 4.0)
-    ema = np.zeros(3)
+    m2 = 0.8 ** 2
     x = np.array([0.25, 0.81, 1.44])
+    ema = np.full(3, m2)
     for n in range(1, 400):
-        assert np.allclose(heat_peak_update(ema, n, x, alpha), np.sqrt(x), rtol=1e-12)
-    ema = np.zeros(1)
-    xs = np.random.default_rng(0).uniform(0.0, 2.0, 30)
-    for n, xi in enumerate(xs, 1):
-        got = heat_peak_update(ema, n, np.array([xi]), alpha)[0]
-        assert got == pytest.approx(math.sqrt(xs[:n].mean()), rel=0.08)  # 30 alpha = 0.15: close to the plain mean
+        got = heat_peak_update(ema, x, alpha)
+        assert np.allclose(got ** 2, x + (m2 - x) * (1.0 - alpha) ** n, rtol=1e-12)
+    # one extra unit of heat at step k moves the average at step N by alpha (1 - alpha)^(N - k), for any k
+    base, bump = np.full(1, m2), np.full(1, m2)
+    for n in range(300):
+        heat_peak_update(base, np.array([0.5]), alpha)
+        heat_peak_update(bump, np.array([0.5 + (1.0 if n == 10 else 0.0)]), alpha)
+    assert bump[0] - base[0] == pytest.approx(alpha * (1.0 - alpha) ** 289, rel=1e-9)
+
+
+def _square_wave_cost(rms, stance_first=True, steps=900, period=74, margin=0.8):
+    """A stride-like input (about 0.68 Hz at 20 ms steps): (torque / rating)^2 at 2 rms^2 for half a stride, 0 for
+    the other half. Returns the per-step cost at weight 1 from the average."""
+    alpha = 1.0 - math.exp(-0.02 / 4.0)
+    ema = np.full(1, margin ** 2)
+    out = []
+    for n in range(steps):
+        on = ((n if stance_first else n + period // 2) % period) < period // 2
+        rms_now = heat_peak_update(ema, np.array([2 * rms * rms if on else 0.0]), alpha)[0]
+        out.append(max(0.0, rms_now - margin))
+    return np.array(out)
+
+
+def test_heat_peak_prices_a_stride_like_gait_without_an_early_spike():
+    """A gait under the margin (RMS 0.75) costs at most 0.05 in its first stride and nothing after 400 steps (8 s);
+    over the margin (RMS 0.95) the 18 s cost is 0.7-0.9 of F2's own price, 0.15 per step. A bias-corrected average,
+    tried first, priced the cool gait's first step at its stance peak (cost 0.26) and put most of its cost there."""
+    for first in (True, False):
+        cool = _square_wave_cost(0.75, first)
+        assert cool.max() < 0.05 and cool[400:].max() == 0.0 and cool.mean() < 0.003
+        hot = _square_wave_cost(0.95, first)
+        assert 0.7 * 0.15 < hot.mean() < 0.9 * 0.15
 
 
 def test_heat_peak_follows_an_independent_recomputation():
     """With the cost on, the env's hottest-drive RMS and cost equal a recomputation from the per-physics-step torques
     (read by a substep hook): from heat_peak_start_s on, each drive's step mean of (torque / rating)^2, low-passed with
-    heat_peak_tau_s and bias-corrected; 0 before."""
-    cfg = TrikeEnvConfig(model_path=FORE128, w_heat_peak=1.5, heat_peak_margin=0.05, heat_peak_tau_s=0.5,
+    heat_peak_tau_s from heat_peak_margin^2; 0 before. A second episode starts from the margin again."""
+    cfg = TrikeEnvConfig(model_path=FORE128, w_heat_peak=1.5, heat_peak_margin=0.3, heat_peak_tau_s=0.5,
                          heat_peak_start_s=0.2, domain_randomization=False,
                          observation_noise=False)
     e = TrikeEnv(cfg)
-    e.reset(seed=5)
-    e.late_scale = 1.0
     inv_c2 = e._inv_cont2.copy()
     acc = []
     e.substep_hook = lambda env: acc.append(env.data.actuator_force[env._leg_ctrl_index] ** 2 * inv_c2)
-    ema, n = np.zeros(12), 0
     alpha = 1.0 - math.exp(-e.dt / cfg.heat_peak_tau_s)
-    rng = np.random.default_rng(0)
-    for k in range(1, 41):
-        acc.clear()
-        _, _, term, trunc, info = e.step(rng.uniform(-0.5, 0.5, 12))
-        if (k - 1) * e.dt < cfg.heat_peak_start_s - 1e-9:  # this step began before the start
-            assert info["r_heat_peak"] == 0.0 and info["heat_peak_rms"] == 0.0
+    for episode in range(2):
+        e.reset(seed=5)
+        e.late_scale = 1.0
+        ema, n = np.full(12, 0.3 ** 2), 0
+        rng = np.random.default_rng(0)
+        trace = []
+        for k in range(1, 41):
+            acc.clear()
+            _, _, term, trunc, info = e.step(rng.uniform(-0.5, 0.5, 12))
+            if (k - 1) * e.dt < cfg.heat_peak_start_s - 1e-9:  # this step began before the start
+                assert info["r_heat_peak"] == 0.0 and info["heat_peak_rms"] == 0.0
+            else:
+                n += 1
+                ema += alpha * (np.mean(acc, axis=0) - ema)
+                rms = np.sqrt(ema)
+                assert e.heat_peak_rms == pytest.approx(rms.max(), rel=1e-12)
+                assert info["heat_peak_rms"] == pytest.approx(rms.max(), rel=1e-12)
+                assert info["r_heat_peak"] == pytest.approx(-1.5 * max(0.0, rms.max() - 0.3), rel=1e-12)
+            trace.append(info["r_heat_peak"])
+            if term or trunc:
+                break
+        assert n == 30 and e.heat_peak_rms > 0.3  # the term was exercised from step 11 (0.2 s) on
+        if episode == 0:
+            first = trace
         else:
-            n += 1
-            ema += alpha * (np.mean(acc, axis=0) - ema)
-            rms = np.sqrt(ema / (1.0 - (1.0 - alpha) ** n))
-            assert e.heat_peak_rms == pytest.approx(rms.max(), rel=1e-12)
-            assert info["heat_peak_rms"] == pytest.approx(rms.max(), rel=1e-12)
-            assert info["r_heat_peak"] == pytest.approx(-1.5 * max(0.0, rms.max() - 0.05), rel=1e-12)
-        if term or trunc:
-            break
-    assert n == 30 and e.heat_peak_rms > 0.05  # the term was exercised from step 11 (0.2 s) on
+            assert trace == first  # the average restarts from the margin at reset
 
 
 def test_whole_robot_mass_and_payload_apply_without_accumulating():

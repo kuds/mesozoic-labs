@@ -7,8 +7,9 @@ Each case is one 20 s episode per seed (100000-100002), command 0.25 or 0.15 m/s
 the steering presets' heat settings (margin 0.8, tau 4 s, start 2 s) at weight 1. r_heat_peak is linear in its weight,
 so the base reward (every term but r_heat_peak) and the cost at weight 1 are recorded, and any weight w is evaluated
 afterwards as base - w x cost. Cases: standing (zero action); noise (Gaussian, std 0.2, around zero: the initial
-policy's); each policy deterministic, and with Gaussian action noise of std 0.05, 0.1, 0.15 and 0.2 added (PPO's
-exploration noise starts at 0.2, log_std_init -1.6; the D22 runs ended at about 0.085). Also the whole robot x1.1
+policy's); each policy deterministic, and with Gaussian action noise of std 0.05, 0.1, 0.15, 0.175 and 0.2 added
+(PPO's exploration noise starts at 0.2, log_std_init -1.6; shorter earlier runs had 0.17-0.18 at 1-2 M steps, and
+the D22 runs ended at about 0.085 at 10 M). Also the whole robot x1.1
 (standing, the policy, the policy + noise 0.2). The policies are the straight-task D22 policies; the steering task's
 r_track differs, so the margins are a guide for choosing the dev runs' weights, not a prediction. For reference, the
 cost of the alternative D29 did not choose, every drive priced (the sum over the 12 drives of max(0, RMS / rating -
@@ -17,7 +18,9 @@ cost of the alternative D29 did not choose, every drive priced (the sum over the
 Usage:
   python steer_heat_weight.py --runs-dir DIR --out OUT_DIR
 DIR holds fore128-s0 ... fore128-s3, each with run_record.json and checkpoints/ (the final pair is used), loaded with
-the gait analysis's safe loaders. Writes OUT_DIR/heat_weight_episodes.json and OUT_DIR/heat_weight_margins.md.
+the gait analysis's safe loaders. Writes OUT_DIR/heat_weight_episodes.json, OUT_DIR/heat_weight_margins.md and
+OUT_DIR/heat_weight_margins_every_drive.md. Each margin is given for the worst of the four policies, with the largest
+of the four policies' standard errors (per-seed margins, paired by seed with standing), then for each policy.
 """
 from __future__ import annotations
 
@@ -41,7 +44,7 @@ from trike_env import TrikeEnv, TrikeEnvConfig, flat_floor  # noqa: E402
 SEEDS = (100000, 100001, 100002)
 COMMANDS = (0.25, 0.15)
 HEAT = dict(w_heat_peak=1.0, heat_peak_margin=0.8, heat_peak_tau_s=4.0, heat_peak_start_s=2.0)
-STDS = (0.0, 0.05, 0.1, 0.15, 0.2)
+STDS = (0.0, 0.05, 0.1, 0.15, 0.175, 0.2)
 WEIGHTS = (0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0)
 TERMS = ("r_track", "r_heat", "r_saturation", "r_air_time", "r_slip", "r_energy")
 
@@ -68,9 +71,8 @@ def episode(env, policy, stats, seed, command, std):
         obs, r, terminated, truncated, info = env.step(act)
         base += r - info["r_heat_peak"]
         cost += -info["r_heat_peak"]  # weight 1, late scale 1
-        if env._heat_n:  # every drive priced, from the same bias-corrected averages (heat_peak_update)
-            rms = np.sqrt(env._heat_ema / (1.0 - (1.0 - env._heat_alpha) ** env._heat_n))
-            cost_sum += float(np.maximum(rms - HEAT["heat_peak_margin"], 0.0).sum())
+        if env._step_count > env._heat_start_step:  # every drive priced, from the same averages (heat_peak_update)
+            cost_sum += float(np.maximum(np.sqrt(env._heat_ema) - HEAT["heat_peak_margin"], 0.0).sum())
         for k in TERMS:
             terms[k] += info[k]
         n += 1
@@ -118,22 +120,27 @@ def margins_md(rows, key="cost_w1") -> str:
     title = "the hottest drive priced (D29)" if key == "cost_w1" else "every drive priced (reference, not used)"
     L = [f"# Reward margin over standing at full scale, by heat weight: {title} (steer_heat_weight.py)", "",
          f"Falls: {sum(r['fell'] for r in rows)} of {len(rows)} episodes. Per-step means over 3 seeds; margin = "
-         "(case's base - w x cost at weight 1) - (standing's base - w x standing's cost); standing pays no "
-         "r_heat_peak. The worst of the four policies is given, then all four.", ""]
+         "(case's base - w x cost at weight 1) - (standing's base - w x standing's cost), paired by seed; standing "
+         "pays no r_heat_peak. Each cell: the worst of the four policies' 3-seed means, +- the largest of their four "
+         "standard errors, then all four means. 'hottest drive' is the env's average (tau 4 s) at 20 s.", ""]
     for cond in ("nominal", "x1.1"):
         for cmd in COMMANDS:
             cases = [c for c in ["noise"] + [f"policy+{s:g}" for s in STDS] if (cond, cmd, c, runs[0]) in g]
             L += [f"## {cond}, {cmd} m/s", "",
-                  "| case | hottest drive at 20 s (4 runs) | " + " | ".join(f"w {w:g}" for w in WEIGHTS) + " |",
+                  "| case | hottest drive at 20 s (4 policies) | " + " | ".join(f"w {w:g}" for w in WEIGHTS) + " |",
                   "|---" * (2 + len(WEIGHTS)) + "|"]
             for c in cases:
                 hot = " ".join(f"{m(g[(cond, cmd, c, r)], 'hottest_at_end'):.2f}" for r in runs)
                 cells = []
                 for w in WEIGHTS:
-                    ms = [m(g[(cond, cmd, c, r)], "base") - w * m(g[(cond, cmd, c, r)], key)
-                          - (m(g[(cond, cmd, "standing", r)], "base") - w * m(g[(cond, cmd, "standing", r)], key))
-                          for r in runs]
-                    cells.append(f"{min(ms):+.3f} ({' '.join(f'{x:+.2f}' for x in ms)})")
+                    ms, ses = [], []
+                    for r in runs:
+                        cs = sorted(g[(cond, cmd, c, r)], key=lambda x: x["seed"])
+                        sd = sorted(g[(cond, cmd, "standing", r)], key=lambda x: x["seed"])
+                        per = [(a["base"] - w * a[key]) - (b["base"] - w * b[key]) for a, b in zip(cs, sd)]
+                        ms.append(st.mean(per))
+                        ses.append(st.stdev(per) / len(per) ** 0.5)
+                    cells.append(f"{min(ms):+.2f} +-{max(ses):.2f} ({' '.join(f'{x:+.2f}' for x in ms)})")
                 L.append(f"| {c} | {hot} | " + " | ".join(cells) + " |")
             L.append("")
     return "\n".join(L)

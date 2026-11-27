@@ -170,16 +170,18 @@ class TrikeEnvConfig:
     w_heat: float = 0.3
     # The hottest drive (D29; 0 = off, the default: the term is then exactly 0 and nothing else changes). From
     # heat_peak_start_s on (F2's window starts at 2 s), each drive's (torque / continuous rating)^2, averaged over the
-    # step's physics steps, is low-passed with heat_peak_tau_s, bias-corrected (heat_peak_update): until about tau
-    # it is the running mean since the start, F2's own estimator, and then an exponential average. The cost is
-    # w_heat_peak x late_scale x max(0, sqrt(the largest of the 12) - heat_peak_margin), in units of the rating's RMS.
-    # w_heat's mean over 12 drives prices a single hot drive at a twelfth of its own heat; this prices the drive that
-    # fails F2 (RMS torque at or over the continuous rating). The average is not in the observation, and under gamma
-    # 0.99 a step's heat reaches the return through it with a weight of about alpha / (1 - 0.99 (1 - alpha)) of an
-    # unfiltered per-step cost: 0.33 at tau 4 s (0.67 at 1 s, 0.5 at 2 s, 0.2 at 8 s). A shorter tau prices sooner but
-    # also charges short bursts (a push recovery) that the windings' 4-15 min time constants would not notice. The
-    # weight: README, "The steering run's training additions" (exploration noise makes the hottest drive hotter, and
-    # at weight 1 and the initial noise a noisy walking gait earns no more than standing).
+    # step's physics steps, is low-passed with heat_peak_tau_s (heat_peak_update), starting from heat_peak_margin^2:
+    # a cool drive starts at the margin and falls below it, a hot one rises from it. Every step's heat then carries
+    # the same weight wherever it falls in the window (a bias-corrected average, tried first, put up to 13x the weight
+    # on the steps just after 2 s: README). The cost is w_heat_peak x late_scale x max(0, sqrt(the largest of the 12)
+    # - heat_peak_margin), in units of the rating's RMS; over 2-20 s it comes to about 0.8 of F2's own price
+    # (900 steps x the excess of F2's 2-20 s RMS). w_heat's mean over 12 drives prices a single hot drive at a twelfth
+    # of its own heat; this prices the drive that fails F2 (RMS torque at or over the continuous rating). The average
+    # is not in the observation; while it is over the margin, a step's heat reaches the return (gamma 0.99) with
+    # alpha / (1 - 0.99 (1 - alpha)) of the weight of an unfiltered per-step cost: 0.33 at tau 4 s (0.67 at 1 s,
+    # 0.5 at 2 s, 0.2 at 8 s). A shorter tau prices sooner but also charges short bursts (a push recovery) that the
+    # windings' 4-15 min time constants would not notice. The weight: README, "The steering run's training additions"
+    # (exploration noise makes the hottest drive hotter; too high a weight makes standing pay better than a noisy gait).
     w_heat_peak: float = 0.0
     heat_peak_margin: float = 0.8  # RMS / continuous rating below which a drive costs nothing
     heat_peak_tau_s: float = 4.0  # low-pass time constant of each drive's (torque / rating)^2, s
@@ -456,13 +458,13 @@ def diagonal_score(contact) -> float:
     return 0.5 * (float(c[0] == c[3]) + float(c[1] == c[2])) - 0.5 * (float(c[0] == c[1]) + float(c[2] == c[3]))
 
 
-def heat_peak_update(ema: np.ndarray, n: int, x: np.ndarray, alpha: float) -> np.ndarray:
-    """One control step of ``r_heat_peak``'s average, in place on ``ema`` (zeros at the start): each drive's step mean
-    ``x`` of (torque / rating)^2, low-passed with ``alpha``; returns each drive's RMS over its rating, bias-corrected
-    by 1 - (1 - alpha)^n for the ``n`` steps averaged so far, so a constant input gives that input's RMS from the first
-    step (the running mean since the start while n alpha is small, then the exponential average)."""
+def heat_peak_update(ema: np.ndarray, x: np.ndarray, alpha: float) -> np.ndarray:
+    """One control step of ``r_heat_peak``'s average, in place on ``ema`` (heat_peak_margin^2 for every drive when the
+    average starts): each drive's step mean ``x`` of (torque / rating)^2, low-passed with ``alpha``. Returns each
+    drive's RMS over its rating. Linear in ``x``, with the same weight for every step: after n steps of a constant x,
+    ``ema`` = x + (start - x) (1 - alpha)^n."""
     ema += alpha * (x - ema)
-    return np.sqrt(ema / (1.0 - (1.0 - alpha) ** n))
+    return np.sqrt(ema)
 
 
 def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: float, yaw_rate: float, yaw_err: float,
@@ -739,9 +741,9 @@ class TrikeEnv(gym.Env):
         self._unloaded = np.zeros(4, dtype=np.int64)  # consecutive physics steps each foot has been unloaded
         self.touchdowns = 0  # debounced touchdowns this episode (diagnostic)
         self._v_lat_slow = 0.0  # sideways speed, low-passed (r_lateral_drift)
-        self._heat_ema = np.zeros(12)  # each drive's (torque / rating)^2, low-passed (r_heat_peak)
-        self._heat_n = 0  # control steps in that average
-        self.heat_peak_rms = 0.0  # sqrt of the largest of them (bias-corrected), this step
+        # each drive's (torque / rating)^2, low-passed (r_heat_peak), from the margin^2 when it starts
+        self._heat_ema = np.full(12, self.cfg.heat_peak_margin ** 2)
+        self.heat_peak_rms = 0.0  # sqrt of the largest of them, this step (0 before heat_peak_start_s)
         self._yaw_err_slow = 0.0  # steering: turn-rate error, low-passed (r_track)
         self._phys_step = 0  # physics steps since reset (the push's clock)
         self._push_dv, self._push_start, self._push_end = 0.0, -1, -1  # no push unless reset draws one
@@ -966,8 +968,7 @@ class TrikeEnv(gym.Env):
         heat_index = heat / (12 * cfg.frame_skip)
         heat_peak_excess = 0.0
         if peak_on and self._step_count > self._heat_start_step:  # each drive's step mean of (torque / rating)^2
-            self._heat_n += 1
-            rms = heat_peak_update(self._heat_ema, self._heat_n, heat_vec / cfg.frame_skip, self._heat_alpha)
+            rms = heat_peak_update(self._heat_ema, heat_vec / cfg.frame_skip, self._heat_alpha)
             self.heat_peak_rms = float(rms.max())
             heat_peak_excess = max(0.0, self.heat_peak_rms - cfg.heat_peak_margin)
         saturated_fraction = saturated / (12 * cfg.frame_skip)
