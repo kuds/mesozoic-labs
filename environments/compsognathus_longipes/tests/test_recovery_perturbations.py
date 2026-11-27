@@ -54,7 +54,8 @@ def test_enabled_push_preserves_reset_and_dynamics_until_its_first_window(env_cl
         reset_off, _ = off.reset(seed=37)
         reset_pushed, _ = pushed.reset(seed=37)
         np.testing.assert_array_equal(reset_off, reset_pushed)
-        np.testing.assert_array_equal(off.data.mocap_pos, pushed.data.mocap_pos)
+        np.testing.assert_array_equal(off.data.qpos, pushed.data.qpos)
+        np.testing.assert_array_equal(off.data.qvel, pushed.data.qvel)
         assert off.action_space == pushed.action_space
         assert off.observation_space == pushed.observation_space
         first_push = int(pushed._push_schedule_starts[0])

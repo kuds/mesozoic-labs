@@ -725,13 +725,14 @@ def test_under_a_pyramidal_cone_slip_is_unmeasured_and_said_so():
 
 
 def test_the_tex_statues_base_wrenches_carry_the_tail_and_the_neck():
-    """Standing still, each base carries its subtree's weight, and the neck's moment is TyrannosaurusRexEnv's own
-    figure (neck_pitch gravity torque 42.85 N m, ``_cache_ids``)."""
+    """Standing still, each base carries its subtree's weight, and the neck's moment is the neck's gravity torque:
+    41.51 N m on physics r12 (TyrannosaurusRexEnv._cache_ids quotes the 42.85 N m of the skull before its 0.2 kg
+    bite box left, plant_versions note 24)."""
     trace, layout, _qpos, _reference = _roll(TYRANNOSAURUS_REX, captures=True, steps=260, scale=0.0)
     out = episode_body_telemetry(trace, layout, settle_steps=200)
     assert out["tail_base_force_down_mean_n"] == pytest.approx(15.6 * 9.81, rel=5e-3)  # the tail's 15.6 kg
-    assert out["neck_base_force_down_mean_n"] == pytest.approx(13.7 * 9.81, rel=5e-3)  # neck and skull, 13.7 kg
-    assert out["neck_base_pitch_moment_mean_nm"] == pytest.approx(-42.85, abs=0.5)  # pitches the pelvis nose down
+    assert out["neck_base_force_down_mean_n"] == pytest.approx(13.5 * 9.81, rel=5e-3)  # neck and skull, 13.5 kg
+    assert out["neck_base_pitch_moment_mean_nm"] == pytest.approx(-41.51, abs=0.5)  # pitches the pelvis nose down
     assert out["tail_base_pitch_moment_mean_nm"] > 0.0  # the tail counterweight pitches it nose up
     assert out["tail_1_pitch_stop_share"] == 0.0  # physics r10: the springs hold the tail off its stop
 

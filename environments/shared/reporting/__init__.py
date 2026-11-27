@@ -38,6 +38,11 @@ from that layout:
   per-actuator trace of single episodes of a checkpoint, behind
   ``scripts/episode_trace_report.py``; report-only, and not re-exported
   here for the same reason
+* :mod:`~environments.shared.reporting.command_tracking_report` — the
+  ``command_tracking/v1`` post-stage report and the handoff chosen by the
+  gated statistic; and :mod:`~environments.shared.reporting.command_tracking_trace`
+  — the chart episodes' step trace its figures draw (report only).  Neither
+  is re-exported here (both roll environments), so import them by path
 * :mod:`~environments.shared.reporting.training_history` — a stage's training
   history read back from its ledgers and drawn as pages of graphs, behind
   ``scripts/plot_training_history.py`` and drawn into each stage's

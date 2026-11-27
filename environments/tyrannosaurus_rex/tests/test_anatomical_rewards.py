@@ -1,7 +1,7 @@
 """Species-specific reward tests for T-Rex.
 
-Common reward invariants (alive bonus, energy penalty, approach zero on first
-step, zero forward weight) are tested in
+Common reward invariants (alive bonus, energy penalty, zero forward weight)
+are tested in
 environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 """
 
@@ -57,9 +57,6 @@ class TestTyrannosaurusRexRewardComponents:
             + info["reward_alive"]
             + info["reward_energy"]
             + info["reward_tail"]
-            + info["reward_bite"]
-            + info["reward_approach"]
-            + info["reward_head_proximity"]
             + info["reward_head_clearance"]
             + info["reward_neck_posture"]
             + info["reward_posture"]
@@ -106,14 +103,6 @@ class TestTyrannosaurusRexRewardComponents:
     def test_heading_alignment_bounded(self, env):
         assert_heading_reward_bounded(env)
 
-    def test_bite_success_is_zero_initially(self, env):
-        """No bite success on the first step (prey is far away)."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["bite_success"] == 0.0
-        assert info["reward_bite"] == 0.0
-
     def test_height_reward_non_negative(self, env):
         """Height maintenance reward should be non-negative."""
         env.reset(seed=42)
@@ -125,20 +114,10 @@ class TestTyrannosaurusRexRewardComponents:
 class TestTyrannosaurusRexRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
-    def test_zero_bite_bonus_gives_no_bite_reward(self):
-        env = TyrannosaurusRexAnatomicalEnv(bite_bonus=0.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_bite"] == 0.0
-        env.close()
-
     def test_high_alive_bonus_dominates(self):
         env = TyrannosaurusRexAnatomicalEnv(
             alive_bonus=100.0,
             forward_vel_weight=0.0,
-            bite_approach_weight=0.0,
-            bite_bonus=0.0,
         )
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -171,24 +150,6 @@ class TestTyrannosaurusRexRewardWeightEffects:
         action2 = env.action_space.sample()
         _, _, _, _, info = env.step(action2)
         assert info["reward_smoothness"] == 0.0
-        env.close()
-
-    def test_zero_head_proximity_weight_zeroes_head_proximity_reward(self):
-        env = TyrannosaurusRexAnatomicalEnv(bite_head_proximity_weight=0.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_head_proximity"] == 0.0
-        env.close()
-
-    def test_positive_head_proximity_weight_gives_reward(self):
-        env = TyrannosaurusRexAnatomicalEnv(bite_head_proximity_weight=1.0)
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_head_proximity"] >= 0.0
-        assert info["head_proximity"] >= 0.0
-        assert info["head_prey_distance"] >= 0.0
         env.close()
 
     def test_zero_height_weight_zeroes_height_reward(self):
@@ -271,29 +232,11 @@ class TestCurriculumStageRewards:
 
     def test_stage1_balance_no_forward_reward(self):
         """Stage 1 config disables forward velocity reward."""
-        env = TyrannosaurusRexAnatomicalEnv(
-            forward_vel_weight=0.0,
-            bite_bonus=0.0,
-            bite_approach_weight=0.0,
-        )
+        env = TyrannosaurusRexAnatomicalEnv(forward_vel_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_forward"] == 0.0
-        assert info["reward_bite"] == 0.0
-        env.close()
-
-    def test_stage3_bite_has_approach_shaping(self):
-        """Stage 3 config enables approach shaping (delta-based)."""
-        env = TyrannosaurusRexAnatomicalEnv(bite_approach_weight=10.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        env.step(action)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert "approach_delta" in info
-        assert "reward_approach" in info
-        assert info["approach_delta"] != 0.0
         env.close()
 
     def test_stage2_locomotion_has_heading_and_gait(self):
@@ -552,9 +495,6 @@ class TestStageOneStanceRewardPrimitives:
             "reward_alive",
             "reward_energy",
             "reward_tail",
-            "reward_bite",
-            "reward_approach",
-            "reward_head_proximity",
             "reward_head_clearance",
             "reward_neck_posture",
             "reward_tail_home_pose",
@@ -617,9 +557,6 @@ class TestStageOneStanceRewardPrimitives:
             "reward_alive",
             "reward_energy",
             "reward_tail",
-            "reward_bite",
-            "reward_approach",
-            "reward_head_proximity",
             "reward_head_clearance",
             "reward_neck_posture",
             "reward_tail_home_pose",
@@ -854,8 +791,9 @@ class TestStanceFollowupTerms:
     def test_body_weight_is_the_whole_animal(self):
         env = TyrannosaurusRexAnatomicalEnv()
         try:
-            # 85.72 kg x 9.81: stance.toml's foot_load_balance_min_support_force divides the same weight.
-            assert env._body_weight_n == pytest.approx(840.9, abs=0.1)
+            # 85.52 kg x 9.81 (85.72 kg until the 0.2 kg head_bite box left with the hunt, D-D59):
+            # stance.toml's foot_load_balance_min_support_force is 5% of the same weight.
+            assert env._body_weight_n == pytest.approx(839.0, abs=0.1)
         finally:
             env.close()
 

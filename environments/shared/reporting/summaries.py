@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..curriculum.command_tracking_evidence import COMMAND_TRACKING_SUMMARY_KEYS
+from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
 from ..file_io import atomic_write_text
 from ..model_id import ModelId
 from .formatting import _optional_metric, format_duration_hms, parse_optional_bool
@@ -121,20 +123,32 @@ def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
         "selected_model_forward_vel_std": ("best_model_std_fwd_vel", 3),
         "selected_model_distance": ("best_model_distance", 3),
         "selected_model_success_rate": ("best_model_success_rate", 4),
-        # task_success/v1 (plan §4.4): the judged count, panel size and
-        # exact binomial lower bound, so the published row carries the
-        # statistic the gate certified rather than a rounded fraction.
-        "selected_model_success_count": ("best_model_success_count", 0),
-        "selected_model_n_episodes": ("best_model_n_episodes", 0),
-        "selected_model_success_lcb": ("best_model_success_lcb", 4),
     }
     for output_key, (result_key, digits) in selected_metrics.items():
         if result_key in result:
-            metric = _optional_metric(result.get(result_key), digits=digits)
-            # A count is an integer, not 20.0: the schema accepts integral
-            # floats, but the published row should not carry one.
-            stage_summary[output_key] = int(metric) if digits == 0 and metric is not None else metric
+            stage_summary[output_key] = _optional_metric(result.get(result_key), digits=digits)
+    # command_tracking/v1 (decision D-D61): the profile and each family's
+    # counts and bounds the post-stage judgement re-derived, under their
+    # stage-result names, which the catalog headline reads (the walk's
+    # command_cruise_success_lcb and command_stand_success_fraction, the
+    # follow's command_follow_success_lcb).  Only for a result that carries
+    # them -- a stage of any other kind keeps its row exactly -- and only
+    # from an admitted report (_apply_stage_gate copies nothing from a
+    # refused one), so a summary never states a number the judge refused.
+    if result.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        for key in COMMAND_TRACKING_SUMMARY_KEYS:
+            if key not in result:
+                continue
+            value = result.get(key)
+            if key == "command_profile":
+                stage_summary[key] = value if isinstance(value, str) else None
+            else:
+                stage_summary[key] = _optional_metric(value, digits=None if key.endswith(_COUNT_SUFFIXES) else 4)
     return stage_summary
+
+
+#: The command-tracking summary keys that are counts, written as whole numbers (the rest are bounds, at 4 digits).
+_COUNT_SUFFIXES = ("_episodes", "_successes", "_falls")
 
 
 def build_result_summary(

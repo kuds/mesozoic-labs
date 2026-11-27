@@ -17,6 +17,7 @@ from .reporting_helpers import make_plant_identity as _plant_identity
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 PILOT = ModelId("pilot_species", "anatomical")
 
 
@@ -38,7 +39,7 @@ class TestEvalPolicy:
                     "forward_vel": 1.0 + ep * 0.1,
                 }
                 if done:
-                    info["strike_success"] = float(ep % 2 == 0)
+                    info["course_complete"] = float(ep % 2 == 0)
                 step_returns.append((obs, np.array([1.0]), [done], [info]))
 
         env.step.side_effect = step_returns
@@ -50,7 +51,7 @@ class TestEvalPolicy:
         model.predict.return_value = (np.array([0.0]), None)
 
         rewards, lengths, fwd_vels, successes, distances = eval_policy(
-            model, env, success_keys=["strike_success"], n_episodes=2
+            model, env, success_keys=["course_complete"], n_episodes=2
         )
 
         assert len(rewards) == 2
@@ -64,7 +65,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, lengths, _, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, lengths, _, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert lengths[0] == 4.0
 
@@ -73,7 +74,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        rewards, _, _, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        rewards, _, _, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert rewards[0] == pytest.approx(3.0)  # 3 steps * 1.0 reward
 
@@ -82,7 +83,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert fwd_vels[0] > 0
 
@@ -92,17 +93,28 @@ class TestEvalPolicy:
         obs = np.zeros(10)
         env.reset.return_value = obs
 
-        # Episode 1: strike_success=1.0 in final step
+        # Episode 1: course_complete=1.0 in final step
         env.step.side_effect = [
             (obs, np.array([1.0]), [False], [{"forward_vel": 1.0}]),
-            (obs, np.array([1.0]), [True], [{"forward_vel": 1.0, "strike_success": 1.0}]),
+            (obs, np.array([1.0]), [True], [{"forward_vel": 1.0, "course_complete": 1.0}]),
         ]
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, _, successes, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, _, successes, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert successes[0] == 1.0
+
+    def test_no_success_keys_record_no_success_flags(self):
+        """A model that declares no success keys records no flag, so no success rate (never a zero)."""
+        env = self._make_mock_env(2, steps_per_ep=3)
+        model = MagicMock()
+        model.predict.return_value = (np.array([0.0]), None)
+
+        rewards, lengths, fwd_vels, successes, distances = eval_policy(model, env, success_keys=[], n_episodes=2)
+
+        assert len(rewards) == len(lengths) == len(fwd_vels) == len(distances) == 2
+        assert successes == []
 
     def test_no_forward_vel_defaults_to_zero(self):
         """When forward_vel is missing from info, fwd_vel should be 0.0."""
@@ -115,7 +127,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["course_complete"], n_episodes=1)
 
         assert fwd_vels[0] == 0.0
 
@@ -131,7 +143,7 @@ class TestEvalPolicyQuality:
                 [True],
                 [
                     {
-                        "bite_success": 0.0,
+                        "leg_home_pose_error": 0.0,
                         "r_foot_contact": 75.0,
                         "l_foot_contact": 25.0,
                     }
@@ -143,7 +155,7 @@ class TestEvalPolicyQuality:
                 [True],
                 [
                     {
-                        "bite_success": 0.0,
+                        "leg_home_pose_error": 0.0,
                         "r_foot_contact": 50.0,
                         "l_foot_contact": 50.0,
                     }
@@ -153,7 +165,7 @@ class TestEvalPolicyQuality:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        result = eval_policy_quality(model, env, success_keys=[], n_episodes=2)
+        result = eval_policy_quality(model, env, n_episodes=2)
 
         assert result["eval_mean_bilateral_support_duty"] == 1.0
         assert result["eval_mean_r_foot_load_share"] == pytest.approx(0.625)
@@ -171,7 +183,7 @@ class TestEvalPolicyQuality:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        result = eval_policy_quality(model, env, success_keys=[], n_episodes=1)
+        result = eval_policy_quality(model, env, n_episodes=1)
 
         assert "eval_mean_bilateral_support_duty" not in result
         assert "eval_mean_r_foot_load_share" not in result
@@ -579,7 +591,7 @@ class TestEvaluateFunction:
         mock_species_cfg = MagicMock()
         mock_species_cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
         mock_species_cfg.height_label = "Pelvis height"
-        mock_species_cfg.behavior_section_label = "Hunting"
+        mock_species_cfg.success_keys = []
 
         stage_configs = {
             1: {"name": "balance", "env_kwargs": {"forward_vel_weight": 0.0}},
@@ -616,8 +628,7 @@ class TestEvaluateFunction:
             model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=MagicMock(),
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
-            success_keys=["strike_success"],
+            success_keys=[],
         )
 
         with (
@@ -652,8 +663,7 @@ class TestEvaluateFunction:
             model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=MagicMock(),
             height_label="Pelvis height",
-            behavior_section_label="Hunting",
-            success_keys=["strike_success"],
+            success_keys=[],
         )
 
         with (
@@ -689,8 +699,7 @@ def _species_cfg():
         model_id=VELOCIRAPTOR_MONGOLIENSIS,
         env_class=MagicMock(),
         height_label="Pelvis height",
-        behavior_section_label="Hunting",
-        success_keys=["strike_success"],
+        success_keys=[],
     )
 
 
@@ -935,7 +944,7 @@ class TestEvaluateSeeding:
             ):
                 evaluate(
                     species_cfg=SimpleNamespace(
-                        model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=NoisyEnv, success_keys=["strike_success"]
+                        model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=NoisyEnv, success_keys=[]
                     ),
                     stage_configs={1: {"name": "balance", "env_kwargs": {}}},
                     model_path=str(tmp_path / "stage1_model.zip"),
@@ -974,7 +983,7 @@ class TestPostEvalEpisodes:
         monkeypatch.setattr(train_base, "_post_training_eval_panels", _panels)
         (tmp_path / "models").mkdir()
         train_base._report_hpt_metrics(
-            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=["strike_success"]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=[]),
             MagicMock(),
             MagicMock(),
             SimpleNamespace(best_mean_reward=12.5),
@@ -998,13 +1007,14 @@ class TestPostEvalEpisodes:
 
     def test_none_keeps_the_historical_50_and_30_episode_panels(self, tmp_path, monkeypatch):
         captured, metrics = self._report(tmp_path, monkeypatch, None)
-        assert captured == {"quality_episodes": 50, "velocity_episodes": 30}
+        # command_mode: the stage's, for the handoff sidecar's identity rule (decision D-D60); no stage config here.
+        assert captured == {"quality_episodes": 50, "velocity_episodes": 30, "command_mode": "none"}
         assert "post_eval_skipped" not in metrics
         assert metrics["mean_forward_vel"] == 1.5
 
     def test_a_positive_value_sizes_both_panels(self, tmp_path, monkeypatch):
         captured, _ = self._report(tmp_path, monkeypatch, 3)
-        assert captured == {"quality_episodes": 3, "velocity_episodes": 3}
+        assert captured == {"quality_episodes": 3, "velocity_episodes": 3, "command_mode": "none"}
 
     def test_the_counts_reach_the_rollout_loops(self, tmp_path, monkeypatch):
         pytest.importorskip("stable_baselines3")  # _post_training_eval_panels loads the checkpoint via SB3
@@ -1029,19 +1039,20 @@ class TestPostEvalEpisodes:
             None,
             quality_episodes=4,
             velocity_episodes=2,
+            command_mode="none",
         )
         assert seen == {"quality": 4, "velocity": 2}
         assert panel["quality_eval_checkpoint"] == "final_model"
 
-    def test_the_panel_records_the_success_count_and_writes_task_success_evidence(self, tmp_path, monkeypatch):
-        """D-B12: the count a task_success/v1 row is judged on, and the same panel as the on-disk evidence."""
-        import csv
+    def test_the_panel_records_the_success_count_and_writes_no_evidence(self, tmp_path, monkeypatch):
+        """D-B12: the exact k / n beside the rounded rate, from the handoff pair; no evaluation_selected.csv is
+        written (the task_success/v1 evidence panel left with the gate, decision D-D59), and the panel is not
+        re-seeded or resized for it."""
         import inspect
 
         pytest.importorskip("stable_baselines3")
         from environments.shared import curriculum as curriculum_package
         from environments.shared import evaluation, train_base
-        from environments.shared.result_bundle import sha256_file
 
         models = tmp_path / "models"
         models.mkdir()
@@ -1059,102 +1070,44 @@ class TestPostEvalEpisodes:
         monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
         monkeypatch.setattr(curriculum_package, "load_vecnorm_stats", lambda *a, **k: True)
         monkeypatch.setattr(evaluation, "eval_policy_quality", lambda *a, n_episodes: {})
-        monkeypatch.setattr(
-            train_base,
-            "eval_policy",
-            lambda *a, n_episodes: ([600.0] * 30, [1000] * 30, [1.0] * 30, [1.0] * 20 + [0.0] * 10, [5.0] * 30),
-        )
-        stage_config = {
-            "curriculum_kwargs": {
-                "gate_kind": "task_success/v1",
-                "min_success_lcb": 0.5,
-                "min_eval_episodes": 30,
-                "min_avg_reward": 361.0,
-            }
-        }
         seen: dict = {}
 
         def eval_policy(*a, n_episodes):
             seen["n_episodes"] = n_episodes
-            return ([600.0] * 30, [1000] * 30, [1.0] * 30, [1.0] * 20 + [0.0] * 10, [5.0] * 30)
+            return ([600.0] * 10, [1000] * 10, [1.0] * 10, [1.0] * 7 + [0.0] * 3, [5.0] * 10)
 
         monkeypatch.setattr(train_base, "eval_policy", eval_policy)
         panel = train_base._post_training_eval_panels(
-            SimpleNamespace(model_id=TYRANNOSAURUS_REX, success_keys=["bite_success"]),
+            SimpleNamespace(model_id=ALLOSAURUS_FRAGILIS, success_keys=["course_complete"]),
             MagicMock(),
             eval_env,
             models,
             "ppo",
             None,
-            stage_config,
             quality_episodes=4,
-            # Smaller than min_eval_episodes: the evidence panel is sized at the
-            # declared n, or the judge would refuse the trainer's own file.
             velocity_episodes=10,
+            command_mode="none",
         )
-        assert seen["n_episodes"] == 30
+        assert seen["n_episodes"] == 10
         assert panel["quality_eval_checkpoint"] == "robust_best_model"
         # A train() archive records its training seed (D-D11); loading it with seed=None keeps SB3 from
         # re-seeding eval_env with it, on the handoff and on the legacy best_model load alike.
         assert load_seeds == [None]
         source = inspect.getsource(train_base._post_training_eval_panels)
         assert source.count("load_sb3_model(") == source.count("env=eval_env, seed=None)") == 2
-        assert (panel["success_count"], panel["n_success_episodes"]) == (20, 30)
-        assert panel["mean_success_rate"] == pytest.approx(20 / 30)
-        # The same panel's aggregates, so the rail is judged on the panel the count came from.
-        assert (panel["selected_mean_reward"], panel["selected_mean_episode_length"]) == (600.0, 1000.0)
-        eval_env.seed.assert_called_once_with(3042)
-        with (tmp_path / "evaluation_selected.csv").open(newline="") as handle:
-            rows = list(csv.DictReader(handle))
-        assert len(rows) == 30
-        assert {row["checkpoint_sha256"] for row in rows} == {sha256_file(models / "robust_best_model.zip")}
-        assert {row["normalization_sha256"] for row in rows} == {sha256_file(models / "robust_best_model_vecnorm.pkl")}
-        assert {row["evaluation_seed"] for row in rows} == {"3042"}
-        assert sum(row["task_success"] == "True" for row in rows) == 20
-
-    def test_a_hunt_panel_without_a_handoff_pair_records_no_count(self, tmp_path, monkeypatch, caplog):
-        """The smoke-run shape (no checkpoint saved, final_model evaluated): no evidence CSV can be
-        bound, so no success_count is recorded either — metrics.json holds no count beside the
-        refused verdict, never a PASS beside a FAILED verdict file (D-B12 amendment)."""
-        pytest.importorskip("stable_baselines3")
-        from environments.shared import evaluation, train_base
-
-        (tmp_path / "models").mkdir()
-        eval_env = MagicMock()
-        monkeypatch.setattr(evaluation, "eval_policy_quality", lambda *a, n_episodes: {})
-        monkeypatch.setattr(
-            train_base,
-            "eval_policy",
-            lambda *a, n_episodes: ([600.0] * 30, [1000] * 30, [1.0] * 30, [1.0] * 25 + [0.0] * 5, [5.0] * 30),
-        )
-        stage_config = {
-            "curriculum_kwargs": {
-                "gate_kind": "task_success/v1",
-                "min_success_lcb": 0.5,
-                "min_eval_episodes": 30,
-                "min_avg_reward": 361.0,
-            }
-        }
-        with caplog.at_level(logging.WARNING):
-            panel = train_base._post_training_eval_panels(
-                SimpleNamespace(model_id=TYRANNOSAURUS_REX, success_keys=["bite_success"]),
-                MagicMock(),
-                eval_env,
-                tmp_path / "models",
-                "ppo",
-                None,
-                stage_config,
-                quality_episodes=4,
-                velocity_episodes=30,
-            )
-        assert panel["quality_eval_checkpoint"] == "final_model"
-        assert panel["mean_success_rate"] == pytest.approx(25 / 30)
-        assert not {"success_count", "n_success_episodes", "selected_mean_reward"} & set(panel)
-        assert "NOT recorded as a task_success/v1 count" in caplog.text
+        assert (panel["success_count"], panel["n_success_episodes"]) == (7, 10)
+        assert panel["mean_success_rate"] == pytest.approx(0.7)
+        assert not {"selected_mean_reward", "selected_mean_episode_length"} & set(panel)
         eval_env.seed.assert_not_called()
         assert not (tmp_path / "evaluation_selected.csv").exists()
+        assert list(inspect.signature(train_base.run_success_panel).parameters) == [
+            "eval_model",
+            "eval_env",
+            "species_cfg",
+            "n_episodes",
+        ]
 
-    def test_other_kinds_record_the_count_but_write_no_evidence(self, tmp_path, monkeypatch):
+    def test_a_panel_without_a_handoff_pair_records_the_count_of_the_final_model(self, tmp_path, monkeypatch):
         pytest.importorskip("stable_baselines3")
         from environments.shared import evaluation, train_base
 
@@ -1173,10 +1126,11 @@ class TestPostEvalEpisodes:
             tmp_path / "models",
             "ppo",
             None,
-            {"curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 1.0}},
             quality_episodes=4,
             velocity_episodes=3,
+            command_mode="none",
         )
+        assert panel["quality_eval_checkpoint"] == "final_model"
         assert (panel["success_count"], panel["n_success_episodes"]) == (1, 3)
         eval_env.seed.assert_not_called()
         assert not (tmp_path / "evaluation_selected.csv").exists()
@@ -1329,3 +1283,74 @@ class TestDetectStageFromPath:
         path = "/runs/x/follow_direction/models/best_model.zip"
         assert detect_stage_from_path(path) == 1
         assert detect_stage_from_path(path, model_id=PILOT) == 1
+
+
+class TestEvaluateRefusesAHuntCheckpointPath:
+    """Auto-detection refuses a hunt (legacy stage 3) path, never falling back to the stance (D-D59)."""
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/runs/tyrannosaurus_rex/stage3/best_model.zip",
+            "/runs/x/stage3/stage3_final.zip",
+            "/runs/x/03_behavior/models/best_model.zip",
+            "/runs/x/03_behavior_20260901_120000/models/best_model.zip",
+            "/runs/20260819/behavior/models/best_model.zip",
+        ],
+    )
+    def test_a_hunt_path_is_refused_naming_the_decision_and_the_walk(self, path):
+        from environments.shared.config import load_all_stages
+
+        mock_sb3 = _mock_sb3()
+        species_cfg = SimpleNamespace(
+            model_id=TYRANNOSAURUS_REX, env_class=MagicMock(), height_label="Pelvis height", success_keys=[]
+        )
+        stage_configs = load_all_stages(TYRANNOSAURUS_REX)
+        assert 3 not in stage_configs and 1 in stage_configs
+
+        with (
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
+            pytest.raises(ValueError, match="D-D59") as refused,
+        ):
+            evaluate(species_cfg=species_cfg, stage_configs=stage_configs, model_path=path, render=False)
+
+        assert "--stage locomotion" in str(refused.value)
+        species_cfg.env_class.assert_not_called()
+        mock_sb3["DummyVecEnv"].assert_not_called()
+
+    def test_only_the_component_detection_reads_decides(self):
+        from environments.shared.config import load_all_stages
+        from environments.shared.evaluation import _retired_hunt_path_component
+
+        stage_configs = load_all_stages(TYRANNOSAURUS_REX)
+        # The deepest stage component wins, as in detect_stage_from_path.
+        assert (
+            _retired_hunt_path_component("/runs/stage3/02_locomotion/models/best.zip", stage_configs, TYRANNOSAURUS_REX)
+            is None
+        )
+        assert (
+            _retired_hunt_path_component("/runs/03_behavior/stage2/best.zip", stage_configs, TYRANNOSAURUS_REX) is None
+        )
+        assert _retired_hunt_path_component("/tmp/some_model.zip", stage_configs, TYRANNOSAURUS_REX) is None
+        # A model that still declares stage 3 (the ladder fixture's shape) is not refused.
+        assert (
+            _retired_hunt_path_component("/runs/x/stage3/best.zip", {**stage_configs, 3: {}}, TYRANNOSAURUS_REX) is None
+        )
+
+    def test_an_explicit_stage_the_model_lacks_is_refused_before_any_environment(self):
+        mock_sb3 = _mock_sb3()
+        species_cfg = _species_cfg()
+
+        with (
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
+            pytest.raises(ValueError, match=r"unknown stage 3 for this model; available: \['1'\]"),
+        ):
+            evaluate(
+                species_cfg=species_cfg,
+                stage_configs={1: {"name": "stance", "env_kwargs": {}}},
+                model_path="/tmp/model.zip",
+                render=False,
+                stage=3,
+            )
+
+        species_cfg.env_class.assert_not_called()

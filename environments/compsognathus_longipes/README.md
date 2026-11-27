@@ -2,9 +2,8 @@
 
 *Compsognathus longipes* was a small, long-tailed bipedal theropod. The species has two models: an anatomical
 reconstruction scaled from a fossil, and the Rev B robot, a twelve-servo biped with a fixed head and an unpowered
-tail. Both are for learning to stand, to recover from pushes, to walk, and to reach a target marker and stop beside
-it. They are research abstractions: the anatomical model is not a validated model of how the animal moved, and the
-robot has not been built.
+tail. Both are for learning to stand, to recover from pushes and to walk. They are research abstractions: the
+anatomical model is not a validated model of how the animal moved, and the robot has not been built.
 
 ## Models
 
@@ -84,7 +83,7 @@ snout camera, and `--help` shows examples.
 
 The species has no smoke-test script of its own, so `tests/test_training_env.py` stands in for one: it checks both
 Gymnasium environments' contract, resets and steps of every stage across seeds, a full episode at zero action,
-rejection of invalid actions and slow, upright target arrival.
+rejection of invalid actions, a scene and a task without a target, and the spawn heading as the forward reference.
 
 ## Training
 
@@ -95,9 +94,9 @@ python -m environments.shared.train --species compsognathus_longipes --embodimen
 python -m environments.shared.train --species compsognathus_longipes --embodiment robot curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then target reaching, each warm-started from its parent in `stages.toml` and run
-with the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The target reaching that followed locomotion was removed with every hunt node (decision D-D59). To
+reuse the certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical \
@@ -105,14 +104,14 @@ python -m environments.shared.train --species compsognathus_longipes --embodimen
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "compsognathus_longipes"`,
-`EMBODIMENT` to `"anatomical"` or `"robot"` and `BEHAVIOR` to `"stance"`, `"recover"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT` to `"anatomical"` or `"robot"` and `BEHAVIOR` to `"stance"`, `"recover"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
 
 **These policies read simulator state, not the head camera.** Both models' policies are MLPs over joint state, pelvis
-motion, foot forces and the target's position taken from the simulator, so they cannot be deployed as-is on the
-robot. `env.render_head_camera()` returns the 640 × 480 RGB camera image separately. State estimation, sensor noise,
+motion and foot forces taken from the simulator (the pelvis velocity among them, which the hardware cannot measure
+directly), so they cannot be deployed as-is on the robot. `env.render_head_camera()` returns the 640 × 480 RGB camera image separately. State estimation, sensor noise,
 control latency, motor calibration and sim-to-real validation are future work.
 
 Species notes:
@@ -138,35 +137,58 @@ Species notes:
 
 ## Task and rewards
 
-A target marker spawns ahead of the animal at a random distance and side offset. The task is to reach it and stop:
-the upright pelvis must enter the target radius in the ground plane at or below a speed limit, with no body part but
-the feet on the floor. The environment reports `target_success` and ends the episode. The marker is not touched or
-bitten; the robot's head is fixed.
+The trained tasks are the stance, recovery from pushes and the walk. The target reach, the hunt that followed the
+walk, was removed by decision D-D59, and with it the target marker, its terms and its kwargs: the scene holds the
+animal and the floor, and the species declares no success event. Under the stance and recovery, forward, sideways and
+heading are measured against the episode's reference heading, the spawn's own forward.
 
-The observation holds the joint positions and velocities, the pelvis gyro and accelerometer, the foot forces, the
-target's direction and distance, and the command. The anatomical observation reads no world heading: it uses projected
-gravity, the pelvis velocity in a gravity-aligned heading frame and the target direction in pelvis coordinates. The
-robot reads the world-frame pelvis orientation, velocity and target direction. Actions are offsets from the `home`
+**The walk follows a live command** (decision D-D62); the stance and recovery run no command. Each walk episode draws
+one request at reset and holds it for the whole 20 s episode: a forward cruise at 0.04-0.08 m/s (the robot 0.02-0.04
+m/s) along a heading up to 0.26 rad (15 degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero
+command, which asks the animal to stand still. The command is the observation's last three values. A Gaussian term
+pays tracking the commanded velocity and yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms,
+which the walk sets to 0, and the terms that read a forward direction measure along the commanded heading. On a zero
+command a stand block (`[commands.stand_weights]`, 16 weights on the anatomical model, 6 on the robot) pays the
+stance's reward weights, so zero means stand still, not march in place. The commanded speeds ramp from 0.25 of their
+end values to the full range over the first 2M training steps. After training the walk is judged on its
+`command_tracking/v1` panel: the cruise family's survival and success bounds, the stand family's hold and the biped
+gait clause with its flight cap. The bars are provisional, and no controller has yet been shown to clear them; the
+tracking width (0.02 m/s, the robot 0.01 m/s) lies under the estimated lateral sway of a stepping gait on these
+plants, and neither has a walking controller to measure it (decision D-D62 (16)). The tracking term and the gate score
+a moving command on the trailing mean of the last 1.22 s (the robot 1.50 s), a stride estimated from the leg length at
+half the cruise speed (`[commands] tracking_window_s`, decision D-D64). That only partly relieves the risk: on a
+pendulum model of the sway, the windowed error fits the tolerance for about half of the plausible strides at the
+anatomical model's home support width, and for about one in seven on the robot's (decision D-D64 (7)).
+
+Both observations read no world heading (`bipedal-heading-free/v1`): the joint positions and velocities, projected
+gravity, the pelvis gyro, the pelvis velocity in a gravity-aligned heading frame, the pelvis accelerometer, one force
+channel per foot and the command, 51 values on the anatomical model and 41 on the robot. The anatomical model's foot
+channels are its touch sensors. The robot's read each sole's normal force against the floor: its soles collide with
+each other, and its touch sensors count a sole resting on the other foot as support. Its reward still reads the touch
+sensors ([KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md)). Checkpoints of the anatomical policy interface r6 or earlier, and
+of the robot's r3 or earlier, no longer load. Actions are offsets from the `home`
 keyframe: zero holds the standing pose, and -1 and +1 reach each servo's limits. The anatomical model's ten leg
 actions are softened near home (a soft-cubic residual); its neck, jaw and tail, and every robot servo, map linearly.
-The docstrings of [`base_env.py`](base_env.py) and [`anatomical/env.py`](anatomical/env.py) give both layouts.
+The docstrings of [`base_env.py`](base_env.py) and [`anatomical/env.py`](anatomical/env.py) give the layout and
+both action mappings.
 
 The main reward groups:
 
 - **Survival and posture:** an alive bonus paid while the feet carry weight, upright posture, pelvis height, the home
   joint pose and a fall penalty.
-- **Progress:** forward velocity and progress toward the target, heading alignment and a target-reach bonus.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity and heading alignment, which the walk sets to 0.
 - **Stability:** drift, sideways-velocity and spin penalties, and an optional gait-symmetry term.
-- **Stance quality** (anatomical stance and recovery): support under both feet, level pads and the settled stance
-  width on loaded feet, the home leg pose and every support geom loaded, and penalties on floor impacts, airborne
-  physics substeps, commands held at their limits and action jerk.
+- **Stance quality** (anatomical stance and recovery, and the anatomical walk's zero command): support under both
+  feet, level pads and the settled stance width on loaded feet, the home leg pose and every support geom loaded, and
+  penalties on floor impacts, airborne physics substeps, commands held at their limits and action jerk.
 - **Effort:** energy and action smoothness.
 
 The weights are the `CompsognathusLongipesEnv` constructor defaults in `base_env.py` and, for the stance-quality
 terms, the `CompsognathusLongipesAnatomicalEnv` defaults in `anatomical/env.py`, where they are off. The `[env]` table
 of each stage TOML under `configs/compsognathus_longipes/<embodiment>/` overrides them. An episode ends on a
-non-finite state, a pelvis too low or too high, excessive tilt, any body part but the feet touching the floor, or a
-target reached. The thresholds are in `base_env.py`.
+non-finite state, a pelvis too low or too high, excessive tilt or any body part but the feet touching the floor. The
+thresholds are in `base_env.py`.
 
 ## Robot embodiment
 
@@ -188,10 +210,10 @@ notes, with the sizes tried for every robot concept and the parts and costs of t
 
 | Path | Contents |
 |---|---|
-| [`base_env.py`](base_env.py) | `CompsognathusLongipesEnv`, the species base: task, observation, action mapping, rewards, termination and the head camera |
-| [`anatomical/env.py`](anatomical/env.py) | `CompsognathusLongipesAnatomicalEnv`: the soft-cubic leg actions, the heading-free observation and the stance-quality terms |
+| [`base_env.py`](base_env.py) | `CompsognathusLongipesEnv`, the species base: task, heading-free observation, action mapping, rewards, termination and the head camera |
+| [`anatomical/env.py`](anatomical/env.py) | `CompsognathusLongipesAnatomicalEnv`: the soft-cubic leg actions and the stance-quality terms |
 | [`anatomical/assets/`](anatomical/assets/) | The anatomical MJCF |
-| [`robot/env.py`](robot/env.py) | `CompsognathusLongipesRobotEnv` |
+| [`robot/env.py`](robot/env.py) | `CompsognathusLongipesRobotEnv`, with its floor-contact foot channels |
 | [`robot/assets/`](robot/assets/) | The robot MJCF and its leg and casing meshes |
 | [`robot/references/`](robot/references/) | The original Rev B MJCF, the Open Duck Mini license and its attribution notice |
 | [`model.py`](model.py) | Model-only helpers for the viewer and validation: loading, motors off, visual bounds and floor contacts |
@@ -214,8 +236,8 @@ notes, with the sizes tried for every robot concept and the parts and costs of t
 - [Training validation](TRAINING_VALIDATION.md): the SB3 integration checks and the anatomical physics r2 measurements.
 - [Stance-hack audit, 2026-10](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md): the floor-truth stance gate,
   and in §11 its adoption on the anatomical model.
-- [Heading-free observations](../../docs/HEADING_INVARIANCE_DESIGN_2026_10.md): the design of the anatomical
-  observation and of the six-heading stance check.
+- [Heading-free observations](../../docs/HEADING_INVARIANCE_DESIGN_2026_10.md): the design of the heading-free
+  observation, first on the anatomical model, and of the six-heading stance check.
 - [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
   `configs/compsognathus_longipes/<embodiment>/behaviors/`, trained by
   `python -m environments.shared.train_behaviors`.

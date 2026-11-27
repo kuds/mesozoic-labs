@@ -155,7 +155,7 @@ canonical_mujoco_version = "3.10.0"
 #     pinned by tests/fixtures/phase_c_reset_golden.json); the SB3/MJX
 #     plant-contract probes now inject a non-zero command; the
 #     height-channel removal queued in note 11 is deliberately NOT batched
-#     here (D3).  All six plants move, the two compsognathus recovery
+#     here (D3; note 24 removed it).  All six plants move, the two compsognathus recovery
 #     calibrations are restamped (not re-measured).  Existing checkpoints
 #     are widened, never re-labelled: environments/shared/scripts/widen_checkpoint.py.
 #     The compsognathus recovery calibrations were restamped (plant identity
@@ -191,6 +191,148 @@ canonical_mujoco_version = "3.10.0"
 #     physics and visual digest equal, so those counters carry over.  Source
 #     closures move with the paths (source-only).  Every existing checkpoint
 #     is invalidated, which D-D33 accepts.
+#
+# 24. The prey removed from every scene, the hunt-only body parts with it, and
+#     every model's observation made heading-free without target channels
+#     (decision D-D59, the maintainer's decisions of 2026-11-23; its fourth change).
+#     The one policy-interface revision D-D59 accepted: every checkpoint of
+#     every model is stranded, once, and all seven plants move together.
+#
+#     a) The scene.  The mocap target leaves every scene: the velociraptor's,
+#        T-Rex's and dibothrosuchus's prey, the brachiosaurus's food, both
+#        compsognathus models' prey (scripts/build_models.py scene(), both
+#        XMLs regenerated) and the allosaurus's target (build_anatomy.py,
+#        regenerated).  nmocap is 0 on all seven, and the plant contract
+#        refuses a mocap body.  The hunt-only parts go too: the velociraptor's
+#        colliding claw geoms r/l_claw_geom (2/2, they touched only the prey),
+#        their contact exclude, the r/l_claw_tip sites and the r/l_claw_pos
+#        sensors nothing read (the 11 g each claw body needs as a moving body
+#        stays, as the non-colliding capsule r/l_toe_d2_ungual, so the claw
+#        joint and servo stay and the action space keeps 17); the T-Rex's
+#        head_bite box (0.2 kg) and the dibothrosuchus's snout_snap box
+#        (0.02 kg).  The T-Rex head_tip, the dibothrosuchus snout_tip and the
+#        brachiosaurus head_tip and its framepos sensor stay.
+#
+#     b) The dynamics, measured in raw MuJoCo on three compiles of each plant:
+#        HEAD's MJCF (git show), the same with its mocap body deleted through
+#        MjSpec, and the new MJCF.  Home keyframe, qpos[7:] and qvel jittered
+#        U(+-0.05), seeds 0-9; 5000 physics steps on the home ctrl and 3000
+#        under clip(home + 0.3 x half range x N(0, 1)) resampled every 10;
+#        qpos and qvel compared with np.array_equal.  Removing the mocap body
+#        ALONE is bit-identical on all seven plants (20/20 rollouts each).
+#        Removing the hunt-only parts is bit-identical on the velociraptor
+#        (20/20: the claw touched nothing but the prey) and a REAL change on
+#        the T-Rex (skull 8.7 -> 8.5 kg, animal 85.72 -> 85.52 kg; 0/20 equal,
+#        differing from the first physics step: max |dqpos| 0.7-1.1e-4 rad
+#        after 10 steps, 0.8e-2 after 1000) and the dibothrosuchus (skull 0.51
+#        -> 0.49 kg, animal 8.65 -> 8.63 kg; 0/20 equal, 1.7-3.3e-4 rad after
+#        10 steps).  So the velociraptor, brachiosaurus, both compsognathus and
+#        allosaurus plants are dynamically bit-identical to their predecessors
+#        (and so were their environments' rollouts on the stage configs: zero
+#        action on seeds 3042-3081, clipped action noise on 3042-3061 and the
+#        noise-free seed 0, qpos, qvel and observation equal every step); their
+#        PHYSICS digests move only because the fingerprint covers the body,
+#        geom, site, sensor and exclude structure.  The T-Rex and
+#        dibothrosuchus PHYSICS really moves: the T-Rex's settled neck, tail
+#        and leg targets (_NECK_SETTLED_QPOS, _TAIL_SETTLED_QPOS,
+#        _LEG_SETTLED_QPOS), natural_pitch 0.017 -> 0.012 and the stance
+#        nosedive_termination_threshold 0.503 -> 0.508 (the absolute cut stays
+#        -0.520) were re-measured on the r12 statue, its recovery push derived
+#        at capture multiple 1.5 falls 165.6 -> 159.7 N (the home CoM 4.6 mm
+#        further back, the home contact box's nearest side margin 77.2 ->
+#        74.6 mm), and the dibothrosuchus reference walk's sway_phase 0.08 ->
+#        0.06 (its touchdown order broke on r4 from stride 10).  Every model's CoM stance pins were re-read.
+#
+#     c) The observation.  Every model is heading-free and reads no target:
+#        bipedal-heading-free/v1 (root pelvis: the velociraptor, T-Rex, both
+#        compsognathus models and the allosaurus) and
+#        quadrupedal-heading-free/v1 (root torso: the brachiosaurus and the
+#        dibothrosuchus), in one segment order: joint_position,
+#        joint_velocity, <root>_projected_gravity, <root>_angular_velocity
+#        (gyro), <root>_heading_linear_velocity, <root>_linear_acceleration
+#        (accelerometer), foot_contact, command (3, last).
+#        heading_free_root_segments lost its target argument and return.
+#
+#          model                          was  now  change
+#          velociraptor anatomical         71   67  target direction 3 and distance 1 dropped
+#          T-Rex anatomical                63   59  the same
+#          compsognathus anatomical        55   51  the same
+#          allosaurus anatomical           45   41  the same
+#          brachiosaurus anatomical        86   81  world frame -> heading-free (quaternion 4 ->
+#          dibothrosuchus anatomical       80   75  projected gravity 3, world velocity ->
+#          compsognathus robot             46   41  heading-frame velocity), target 4 dropped
+#
+#        The robot's two foot channels read the floor-contact normal force on
+#        its soles (BaseDinoEnv._foot_floor_contact_forces over the class's
+#        FOOT_OBSERVATION_FLOOR_GEOMS), no longer its touch sensors, so a sole
+#        resting on the other foot is not read as support (docs/KNOWN_ISSUES.md);
+#        on the statue (seeds 3042-3061, 1000 zero-action steps) the two read
+#        the same to 0.0 N.  Its reward's support flag still reads touch
+#        (docs/GAIT_QUALITY_PLAN_2026_09.md, PR-G7).  Both compsognathus
+#        models share one CompsognathusLongipesEnv._get_obs.  The schema
+#        strings are renamed: bipedal-target-heading-free/v1 ->
+#        bipedal-heading-free/v1, and the world-frame bipedal-target/v1 and
+#        quadrupedal-target/v1 -> the two heading-free names.  This departs
+#        from the D-C6 precedent notes 12, 14 and 22 followed (a segment's
+#        composition is recorded in the policy-interface digest, not in the
+#        schema name): here segments leave and three models change frame, the
+#        old names described the target segments that no longer exist, and
+#        the rename lands in the revision that strands every checkpoint
+#        anyway; the contract refuses every other schema string.
+#
+#     d) The reset.  BaseDinoEnv.reset draws the joint and velocity jitter and
+#        nothing else before the push schedule (recovery only) and the command
+#        hook (no draw under command_mode "none").  Gone: the target placement
+#        draws (distance and lateral on the velociraptor, T-Rex,
+#        dibothrosuchus and both compsognathus models; distance, lateral and
+#        height on the brachiosaurus; none on the allosaurus), the state-inert
+#        root-height jitter draw with its knob reset_height_noise_scale and its
+#        bound (the removal note 12 deferred), and the prey range kwargs.  The
+#        jitter was always drawn first and the ground settle removed the height
+#        draw's effect, so every post-reset state is unchanged; only the
+#        generator state after reset moves, and with it every unseeded later
+#        episode and every seeded push schedule.  The species' hook is
+#        _reset_episode_state (was _spawn_target), and the spawn root's unit
+#        forward, _reference_heading_2d, replaces the prey bearing everywhere:
+#        the forward, lateral and heading terms and the allosaurus course,
+#        which now ends on a line 7.65 m along the spawn heading (the
+#        reference walk crosses it one control step earlier, 2362 steps).
+#        The stance heading_weight is 0 on the velociraptor, the T-Rex (its
+#        recovery by extends) and the dibothrosuchus: a heading-free stance
+#        with no command cannot observe a heading error.
+#
+#     e) PHYSICS, POLICY INTERFACE and VISUAL move on all seven (the visual
+#        layer fingerprints the removed geoms and sites), and so does every
+#        source closure:
+#          velociraptor   physics r5 -> r6 (dd8483.. -> be9a35..), policy r14 -> r15
+#                         (88c11f.. -> efa13e..), visual r6 -> r7 (5af8c9.. -> e2fa36..)
+#          T-Rex          physics r11 -> r12 (e07c51.. -> fbb083..), policy r16 -> r17
+#                         (a0c18d.. -> 74fd4d..), visual r5 -> r6 (dcbad9.. -> 179cb7..)
+#          brachiosaurus  physics r6 -> r7 (9af976.. -> 9ac902..), policy r11 -> r12
+#                         (ad4608.. -> c2a8ca..), visual r3 -> r4 (62cb54.. -> c0fb1f..)
+#          dibothrosuchus physics r3 -> r4 (658345.. -> 9d3e88..), policy r10 -> r11
+#                         (429fac.. -> 30bd1a..), visual r2 -> r3 (cf90f9.. -> f75262..)
+#          compsognathus  physics r3 -> r4 (4c65ed.. -> ec45aa..), policy r6 -> r7
+#           anatomical    (76d552.. -> 0c99a7..), visual r3 -> r4 (8432fe.. -> 077e54..)
+#          compsognathus  physics r1 -> r2 (728f0c.. -> 985be0..), policy r3 -> r4
+#           robot         (1bab55.. -> 00d94c..), visual r1 -> r2 (ff33b8.. -> 817808..)
+#          allosaurus     physics r1 -> r2 (3cbd89.. -> 215afe..), policy r1 -> r2
+#                         (885c37.. -> 950710..), visual r1 -> r2 (1afa43.. -> 54dfea..)
+#        Every checkpoint of every model is refused (the plant check compares
+#        the digests and the widths) and none can be widened: widen_checkpoint
+#        only appends a command segment.  Re-measured on the new plants: every
+#        stage's statue-derived constants (statue_constants_physics_revision
+#        follows each physics revision: the velociraptor stance 3341.0 ->
+#        3241.7 with its rail 2000 -> 1950 and locomotion 796.6 -> 798.4; the
+#        T-Rex stance 4470.6 -> 4372.7, locomotion 1092.7 -> 1094.8 and pushed
+#        recovery 1613.2 -> 1730.6; the dibothrosuchus stance rail 1560 -> 1500
+#        and floor 1950 -> 1870; the anatomical compsognathus 4574.4 carried),
+#        the T-Rex mirror map, the Phase C reset golden (recaptured: every
+#        reset half's qpos and qvel re-took equal, its generator state and
+#        push schedules moved), and both compsognathus recovery calibrations,
+#        re-measured rather than restamped because their push schedules and
+#        recorded [env] moved (selected multiple 1.2 on both, as before), so
+#        every recovery freeze is refused.
 
 # 14. The velociraptor stands on its servos, on flat toes, and feels its whole
 #     foot.  Four measured defects of the r2 plant, fixed together so the
@@ -504,10 +646,10 @@ canonical_mujoco_version = "3.10.0"
 # Visual r6 adds the articulated feathered body surface, differentiated digits
 # and recurved unguals over the specimen-scale r5 mechanical model.
 [plants.velociraptor_mongoliensis.anatomical]
-physics_revision = 5
-policy_interface_revision = 14
-visual_revision = 6
-observation_schema = "bipedal-target-heading-free/v1"
+physics_revision = 6
+policy_interface_revision = 15
+visual_revision = 7
+observation_schema = "bipedal-heading-free/v1"
 
 # 4. The T-Rex theropod stance correction.  The home keyframe stood the animal
 #    on a near-straight knee (172.1 deg interior, 7.9 deg from full extension),
@@ -800,10 +942,10 @@ observation_schema = "bipedal-target-heading-free/v1"
 #     See docs/reviews/TREX_ANATOMICAL_REVIEW_2026_11.md for stance, physical
 #     walking trials and evaluation-only transfers of archived r10 policies.
 [plants.tyrannosaurus_rex.anatomical]
-physics_revision = 11
-policy_interface_revision = 16
-visual_revision = 5
-observation_schema = "bipedal-target-heading-free/v1"
+physics_revision = 12
+policy_interface_revision = 17
+visual_revision = 6
+observation_schema = "bipedal-heading-free/v1"
 
 # 7. Brachiosaurus can stand: residual action mapping and load-bearing servos.
 #
@@ -919,10 +1061,10 @@ observation_schema = "bipedal-target-heading-free/v1"
 #     compares the interface digest), so neither can seed a warm start or a
 #     trunk reuse on the new revision.
 [plants.brachiosaurus_altithorax.anatomical]
-physics_revision = 6
-policy_interface_revision = 11
-visual_revision = 3
-observation_schema = "quadrupedal-target/v1"
+physics_revision = 7
+policy_interface_revision = 12
+visual_revision = 4
+observation_schema = "quadrupedal-heading-free/v1"
 
 # The revised forelimbs, digital contacts and centered torso inertia change the
 # mechanics. The foot sensors and rear-knee coordinates change policy meaning
@@ -933,10 +1075,10 @@ observation_schema = "quadrupedal-target/v1"
 # [plants.brachiosaurus_altithorax.anatomical] (SB3-only, the frozen MJX
 # interface core removed).
 [plants.dibothrosuchus_elaphros.anatomical]
-physics_revision = 3
-policy_interface_revision = 10
-visual_revision = 2
-observation_schema = "quadrupedal-target/v1"
+physics_revision = 4
+policy_interface_revision = 11
+visual_revision = 3
+observation_schema = "quadrupedal-heading-free/v1"
 
 # Initial training interfaces for the anatomical and Rev B robot variants.
 # Existing kinematics, masses and actuators are retained. Diagnostic frame
@@ -1041,19 +1183,19 @@ observation_schema = "quadrupedal-target/v1"
 # Fossil-scaled limb and skull proportions, revised mass geometry, loaded toe pads
 # and paired passive flexors. New gravity-preload targets change the action mapping.
 [plants.compsognathus_longipes.anatomical]
-physics_revision = 3
-policy_interface_revision = 6
-visual_revision = 3
-observation_schema = "bipedal-target-heading-free/v1"
+physics_revision = 4
+policy_interface_revision = 7
+visual_revision = 4
+observation_schema = "bipedal-heading-free/v1"
 
 [plants.compsognathus_longipes.robot]
-physics_revision = 1
-policy_interface_revision = 3
-visual_revision = 1
-observation_schema = "bipedal-target/v1"
+physics_revision = 2
+policy_interface_revision = 4
+visual_revision = 2
+observation_schema = "bipedal-heading-free/v1"
 
 [plants.allosaurus_fragilis.anatomical]
-physics_revision = 1
-policy_interface_revision = 1
-visual_revision = 1
-observation_schema = "bipedal-target-heading-free/v1"
+physics_revision = 2
+policy_interface_revision = 2
+visual_revision = 2
+observation_schema = "bipedal-heading-free/v1"

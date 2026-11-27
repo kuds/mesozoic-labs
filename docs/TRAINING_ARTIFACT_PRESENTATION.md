@@ -606,6 +606,70 @@ an `--out` inside the run directory (the nearest ancestor holding
 `provenance.json`): a result bundle's manifest hashes every file there, and
 verification rejects a file it did not list.
 
+### The command-tracking figures
+
+A `command_tracking/v1` stage (decision D-D61) also gets two figures, drawn
+after its verdict by `generate_stage_artifacts` and by the command-line
+curriculum's judge (`stage_artifacts.write_command_tracking_figures`, which
+never raises; each figure is in its own guard):
+
+- `figures/command_tracking.png` (`visualization.plot_command_tracking`):
+  one column per chart episode, the certification panel's first cruise
+  episode and first stand episode, rolled again with their step rows into
+  `command_tracking_trace.csv` (`reporting/command_tracking_trace.py`) on
+  the pair the report scored. Each column draws commanded against achieved
+  speed (along the requested heading, and planar), commanded against
+  achieved yaw rate and the heading error (on a stand, the distance from the
+  spawn), with the tolerances, the start of the window the gate judges and
+  the settle deadline, and shades the steps the gate's per-step test holds.
+  The column's title gives the episode's verdict from the report and says
+  whether the re-rolled episode's record is the certified one. The bottom
+  panel is the tracking fraction over training: `diagnostics.npz`'s
+  `tracking_in_tolerance`, the training rollouts' mean of the environment's
+  in-tolerance flag (`DiagnosticsCallback` records it, with
+  `tracking_error_v`, `tracking_error_yaw` and `reward_tracking`, only for a
+  run whose environment emits them), against the profile's tracking bar. It
+  mixes both families and every step of a stochastic policy, so it shows the
+  trend, not the gate's statistic. When the recorded task declares a cruise
+  ramp, its window is shaded up to the last recorded rollout, so a run
+  shorter than its ramp (a quick test) keeps the axis its data spans, and
+  the label then says the ramp continues past the run. The reward
+  decomposition of `locomotion_health.png` draws `reward_tracking`, the
+  walk's dominant term, beside the other terms on a live stage whose
+  command config pays it (`tracking_weight` above 0), as a heavier black
+  line: the other terms take tab10 colours by index, which wrap every ten
+  terms, so the tracking term would otherwise share its colour and line
+  style with an active walk term. A command-free stage has no such series
+  and draws what it drew before.
+- `figures/command_gate_progress.png`
+  (`visualization.plot_command_gate_progress`): the kind's gate-progress
+  view. One panel per gated statistic (walk: the cruise survival and success
+  bounds and the stand success fraction; follow: the survival and success
+  bounds, and the paired difference when declared), each with every handoff
+  candidate's value on the selection panel (`models/handoff_choice.json`;
+  filled for a candidate that passed), in the order training saved them, the
+  certified handoff's value on the certification panel as a star, and the
+  bar; and a panel counting the certification episodes that failed each
+  criterion, per family. The title states the stage's verdict, which can
+  refuse a report that records a pass (a missing handoff choice, say); drawn
+  without one it reads "report records PASS" (or FAIL).
+
+The figures describe the judgement that drew them. The writer first removes
+the trace and both figures an earlier judgement left, and draws nothing
+when this judgement built no report (the panel could not be rolled, and the
+gate failed closed). Both paths draw the two figures into a local staging
+directory and copy them into the stage's `figures/` with `atomic_copy`:
+the notebook's post-stage pipeline (`generate_stage_artifacts`) and the
+command-line curriculum's post-training judge alike, so a runtime that dies
+mid-draw leaves no half-written png on a Drive mount. The copy runs even
+when a draw raises or is interrupted (Ctrl-C, a Colab interrupt), so the
+writer first removes the failed figure's partial file: the stage's
+`figures/` then holds no copy of that figure. Each trace row carries
+the checkpoint digest it was rolled on, and the tracking figure draws only
+the rows of the report's handoff, so a trace of another pair never appears
+as this one's. Nothing reads the trace or the figures: they are
+report-only.
+
 ## Evaluation episodes: `eval_episodes.csv`
 
 `gate_progress.npz` keeps one value per evaluation, a mean over its
@@ -873,9 +937,10 @@ rollout, over the episodes that ended in it: `rollout_balance/episodes`,
 
 A fall here is any episode that did not reach the time limit (`cause` not
 `truncated`). On a stance stage no termination is a success. On a task stage
-the env also terminates on success (`bite_success`, `strike_success`,
-`food_reached`, `target_reached`, `snap_success`), and those episodes
-count as falls in the ledger's summaries (`rollout_balance/falls`,
+the env also terminates on success (the Allosaurus walk's `course_complete`;
+before decision D-D59 removed the hunt stages, also `bite_success`,
+`strike_success`, `food_reached`, `target_reached` and `snap_success`), and
+those episodes count as falls in the ledger's summaries (`rollout_balance/falls`,
 `training_rollouts.falls`, `fall_fraction`, `falls_total` and the `_falls`
 means) and in `rollout_falls` below; the ledger's `cause` column and
 `rollout_term_count_<reason>` name them.
@@ -919,28 +984,46 @@ trains, or what its critic makes of a lean. `PolicyProbeCallback`
 rollout (so for the policy that collected it, before `train()` updates
 it), the policy's state and its outputs on a fixed bank of states.
 
-The bank is ten states of the stage's own env, on reset seeds 3042 and
-3043: the settled statue at step 199, the statue at step 599,
-mirror-symmetric ankle leans of +0.03 and -0.03 action units (ramped over
-steps 200 to 300, then held) at step 599, and a -0.05 lean at step 400.
-The lean is applied as `sign × x` to each side of every sagittal ankle
-pair, with each side's leftward-axis sign, so it is the same posture on
-every model. The bank is built once per session on a separate env instance
-that nothing else steps, with a horizon of its own (the stage's, or 601
-steps if that is longer), so a short stage horizon still yields all ten
-states. On a stage with scheduled pushes (a recovery stage's
+The bank specifies ten states (`policy_probe.BANK_SPEC`) of the stage's own
+env, on reset seeds 3042 and 3043: the settled statue at step 199, the
+statue at step 599, mirror-symmetric ankle leans of +0.03 and -0.03 action
+units (ramped over steps 200 to 300, then held) at step 599, and a -0.05
+lean at step 400. The lean is applied as `sign × x` to each side of every
+sagittal ankle pair, with each side's leftward-axis sign, so it is the same
+posture on every model. The bank is built once per session on a separate env
+instance that nothing else steps, with a horizon of its own (the stage's, or
+601 steps if that is longer), so a short stage horizon truncates no row
+before its kept step. A row whose episode ends at or before its kept step is
+dropped, with one warning naming every dropped row; a scalar that compares
+with it averages the seeds whose rows remain and reads NaN (`null` in
+`progress.json`) when none does. A guard snapshots and restores the global
+random generators around the build, which draws from none of them. The
+build costs about 5.6 s per session on the T. rex. SAC gets no bank and no
+rows.
+
+Since T. rex physics r12 (`configs/plant_versions.toml` note 24) the
+T. rex's bank holds nine of the ten states, on its stance and recovery
+stages alike: the +0.03 lean, a backward lean of the shank, falls on seed
+3043 at step 515, before its kept step 599, so that row is dropped. It held
+on r11; the r12 statue, its skull's 0.2 kg bite box gone, stands 4.6 mm
+further back, and a +0.025 lean holds on seeds 3042 to 3045. The bank's
+specification stays as it is: a dropped row is what the probe is built to
+tolerate, and the T. rex's scalars that compare with the +0.03 lean average
+the seed-3042 row alone (measured 2026-11-23; both Compsognathus banks hold
+all ten).
+
+On a stage with scheduled pushes (a recovery stage's
 `perturbation_capture_velocity_multiple`), the bank env runs with the
 pushes off (`policy_probe.bank_env_kwargs`): a push topples the statue and
-the leans before their kept steps, and with the pushes on the T. rex
-recovery stage kept 4 of the 10 states (no `statue` row) and the anatomical
-Compsognathus recovery stage 6. With the multiple at 0 the env's reset
-draws exactly what a push-free reset of the same seed draws, and the
-observation does not depend on it. A row whose episode still ends at or
-before its kept step is dropped, with one warning naming every dropped row, and
-the scalars that compare with it read NaN (`null` in `progress.json`). A
-guard snapshots and restores the global random generators around the
-build, which draws from none of them. The build costs about 5.6 s per
-session on the T. rex. SAC gets no bank and no rows.
+the leans before their kept steps. With the pushes on, the T. rex recovery
+stage kept 4 of the 10 states (no `statue` row) and the anatomical
+Compsognathus recovery stage 6, measured on the T. rex's physics r11 and
+the push schedules of that date. Note 24 moved both schedules (the reset
+draws fewer numbers before them): on the current plants the same build
+keeps 5 of the 10 on the T. rex (neither `statue` row), all 10 on the
+anatomical Compsognathus and 9 on the robot (measured 2026-11-23). With the
+multiple at 0 the env's reset draws exactly what a push-free reset of the
+same seed draws, and the observation does not depend on it.
 
 Per update the probe reads parameters and runs `torch.no_grad()` forward
 passes of the constant bank: no sampling, no gradient, and no parameter,
@@ -1001,7 +1084,7 @@ space reads NaN, with one warning, and a pass that fails costs the row's
 
 The per-update arrays are float32, but the step counts and `rollout_rows`
 (int64) and `obs_rms_count` (float64): about 2.4 KB per update on the
-T. rex (15 actuators, 63 observations, 10 states; 0.5 KB of it the
+T. rex of policy interface r16 (15 actuators, 63 observations, 10 states; 0.5 KB of it the
 `rollout_*` arrays), about 3.5 MB over the 1,465 updates of a 12M run. A
 same-stage resume from a file written before the `rollout_*` arrays keeps
 its rows, with 0 rows and NaN there. TensorBoard gets, at every update and
@@ -1176,9 +1259,30 @@ The pair loads frozen and checked against the current plant, as the episode
 trace loads it (`--allow-legacy-plant` admits a pre-contract checkpoint and
 records `checkpoint_plant_validated` false), and its recorded task must be
 the walk's declared parent. The walk stage defaults to the manifest's `walk`
-node that warm-starts from the parent (`locomotion`). Its env is built
-through `config.build_env` from the committed `[env]` keys, with the forward
-weight at the reward ramp's start value. Two reference settings come first:
+node that warm-starts from the parent (`locomotion`, from the stance on
+every model). Its env is built through `config.build_env` from the
+committed `[env]` and `[commands]` keys and set as a fresh live walk starts
+training (decision D-D62): its commands are drawn from the cruise ramp's
+start, the config the ramp `train_base._cruise_ramp_callback` builds primes
+the training workers with at ramp step 0 (`cruise_speed` and `speed_range` at
+`cruise_ramp_start_fraction`, 0.25 on every walk; the stop probability,
+heading offset, tracking terms and stand block the walk's own), each
+episode's command the one the walk's command stream draws for its reset
+seed. No reward weight is ramped: a live walk has no forward-velocity ramp
+(`load_stage_config` refuses `ramp_start_value` and `ramp_timesteps` under
+`[commands]`). A parent that already tracked a command is refused, as
+training refuses its cruise ramp, and so are statistics whose command slice
+is off identity, as `load_vecnorm_stats` refuses them. The policy is
+prepared in memory as `train_base._create_or_load_model` prepares the
+walk's: a critic-phase parent's critic loses its phase inputs, as no walk
+declares one (`critic_phase_ppo.drop_critic_phase`), then the command
+columns of a parent that never saw a command are zeroed
+(`policy_loading.neutralize_command_columns`) and the policy proven
+unchanged on zero commands and blind to live ones (`assert_command_blind`).
+The stance's untrained command weights would otherwise turn the walk's
+commands into noise of their own; prepared, its actions do not depend on the
+command, and neither do the walk's terminations, so the stand counts depend
+on the noise and the reset seeds alone. Two reference settings come first:
 `mean`, the policy's mean action with no noise, rolled once per seed, and
 `own`, the parent's learned `log_std`. Then each grid value is written into
 every entry of the policy's `log_std`, in memory, and restored. The default
@@ -1202,13 +1306,14 @@ setting:
 | Field | Meaning |
 |---|---|
 | `stood_per_stream`, `stood`, `episodes` | Standing episodes per noise stream and in total |
+| `stood_by_command_family` | Standing episodes and episodes per command family (`cruise`, `stand`), read off each episode's first step |
 | `ends` | The early ends by `termination_reason` |
-| `mean_length`, `mean_return` | Over every episode, the return at the warm start's reward weights (over the finite returns) |
+| `mean_length`, `mean_return` | Over every episode, the return at the warm start's commands and reward weights (over the finite returns) |
 | `nonfinite_episodes` | Episodes whose return or displacement was not finite (a `nonfinite_state` end); their record holds `None` |
 | `lift_offs_per_standing_episode`, `standing_episodes_with_lift_off` | Touch-sensor lift-offs of the standing episodes after the 0.1 s spawn grace: a foot is down when its touch force exceeds 0.1 N on at least half the substeps, debounced over 20 ms (the gait rule, in seconds: 2 steps at 0.01 s, 1 step, so no debounce, on the Compsognathus models' 0.02 s; the JSON's `lift_off_debounce_steps`) |
-| `forward_displacement_mean_m`, `forward_displacement_sd_m` | The slide of the standing episodes along the walk reward's forward reference at reset |
+| `forward_displacement_mean_m`, `forward_displacement_sd_m` | The slide of the standing episodes along the walk reward's forward reference at reset (the commanded heading) |
 | `clipped_fraction` | The share of action entries the clip changed |
-| `episode_records` | Every episode's seed, stream, length, end, return, lift-offs and displacement |
+| `episode_records` | Every episode's seed, stream, length, end, command family and requested speed, return, lift-offs and displacement |
 
 `largest_all_standing` is the largest grid value at which every episode
 stood (`docs/NEXT_STEPS.md`'s "largest value at which 120/120 episodes
@@ -1219,7 +1324,10 @@ value standing too; it differs only when a smaller value fell
 measurements, the two reference rows and, for a shortened panel, how it was
 shortened, and nothing else. The JSON also records the inputs and their
 sha256 (checked unchanged after the scan), the parent's per-actuator
-`log_std`, the policy's classes and the definitions. `--out-dir` is refused
+`log_std`, the policy's classes, the warm start's commands (`command`: the
+mode, the ramp step and fraction, the commanded speeds, the stop probability
+and the seeds that draw a stand), its policy preparation
+(`warm_start_policy`) and the definitions. `--out-dir` is refused
 inside a run directory or the parent's stage directory
 (`result_bundle.refuse_output_inside_run`), and when it already holds a
 scan, finished, running or interrupted. The scan creates
@@ -1233,7 +1341,7 @@ false, the pass's grid and rule, the rows so far and the current pass's
 rewrite that fails is warned about and the scan goes on. It is removed once
 both outputs are written. The tool changes no config, gate,
 reward, task, checkpoint or plant. The default T. rex scan is at most 1.12M
-control steps, about 28 minutes of one CPU at the measured 1.5 ms per step;
+control steps, about 26 minutes of one CPU at the measured 1.4 ms per step;
 `--jobs N` splits each pass over N processes with the same records. It runs
 as a session of its own, never inside a training session.
 
@@ -1285,7 +1393,7 @@ every key and type the file had before is kept.
 | `policy` | PPO stages: the policy probe's latest row, its `policy_probe/*` scalars (without the prefix) and `update_timesteps` |
 | `training_rollouts` | The training episodes that ended in the last 262,144 steps (`window_timesteps`): `episodes`, `falls` (episodes that did not reach the time limit, a task stage's success terminations included), `fall_fraction`, `com_fore_aft_mean_m` over them, `com_fore_aft_last_falls_m` and `force_limited_fraction_falls` over the falls, and per foot with touch shares `touch_shares` (`pad`, each digit, `digits`; each a mean of the episodes' shares); then this session's `episodes_total` and `falls_total` |
 | `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes and the screen, with each rail's `_mean` and `_over_bar_fraction`, and the screen's `screen_v2_clean_count` and `screen_v2_clean_lcb`, where recorded |
-| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
+| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (the robust tracker's score: mean minus one standard deviation; on a live-command stage the family-aware score of decision D-D62, each family's mean minus one standard deviation weighted at the stage's family probabilities, cruise 1 - p and stand p, on the families each evaluation rolled, so the step is the evaluation whose score the tracker saved at). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
 | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
 
 ## Training history pages: `plot_training_history.py`
@@ -1631,21 +1739,38 @@ the pages inline; open `training_history.html` from the stage directory.
 A stance certificate scores the handoff checkpoint (`robust_best_model`
 first) on its own panel, but nothing beside it said at which in-training
 evaluation that checkpoint was saved, or how it scored there. Whenever a
-stance gate (any of its kinds) scores the handoff checkpoint, after that
-attempt has returned, whatever it returned, the stage writes
-`handoff_in_training.json` into its directory and logs one line, for
-example `Handoff in training: robust_best_model, saved at
-655,360 steps: evaluation mean 3959.1, std 0.0 over 40 episodes (mean -
-1.0 x std = 3959.1)`.
+stance gate (any of its kinds) or the `command_tracking/v1` report scores
+the handoff checkpoint, after that attempt has returned, whatever it
+returned, the stage writes `handoff_in_training.json` into its directory
+and logs one line, for example `Handoff in training: robust_best_model,
+saved at 655,360 steps: evaluation mean 3959.1, std 0.0 over 40 episodes
+(mean - 1.0 x std = 3959.1)`.
 
 | Key | Meaning |
 |---|---|
 | `selected` | The handoff checkpoint's name |
 | `timesteps` | Its own `num_timesteps`, from the zip's `data` member (no torch load) |
 | `mean_reward`, `std_reward`, `episodes` | The evaluation at exactly that step in `evaluations.npz` (the standard deviation with ddof 0, as the robust selector computes it) |
-| `selection_rule`, `selection_score` | `mean - 1.0 x std` for `robust_best_model` and `mean` for `best_model`, and its value at that evaluation |
+| `selection_rule`, `selection_score` | `mean - 1.0 x std` for `robust_best_model` and `mean` for `best_model`, and its value at that evaluation. On a live-command stage `robust_best_model` reads the tracker's family-aware rule instead, named with the stage's family weights, for example `family-weighted mean - 1.0 x std (cruise 0.85, stand 0.15)`: each family's mean minus one standard deviation on the families that evaluation rolled, weighted at the stop probability p (cruise 1 - p, stand p) and renormalized over the families it holds, the number `RobustBestModelCallback` compared, bit for bit |
 | `first_scoring_timesteps`, `step_agrees` | The first evaluation whose score equals the history's best (`progress.json`'s reading) and whether it is the checkpoint's own step |
-| `error` | Only when a value could not be found (a truncated zip, no `evaluations.npz`, no evaluation at that step, as for `stage1_final`): the reason, with the values not found `null` |
+| `error` | Only when a value could not be found (a truncated zip, no `evaluations.npz`, no evaluation at that step, as for `stage1_final`, or a live stage's record without its families): the reason, with the values not found `null` |
+
+On a live-command stage (decision D-D62) the families come from the
+record itself: `StageAwareEvalCallback` adds each evaluation's episode
+families (`cruise` or `stand`, read from each episode's first command) to
+the `evaluations.npz` SB3 has just written, as a `command_families` array
+aligned with `results`, before the file is published to the stage
+directory. An extra key of the record rather than a sidecar file, because
+every reader of `evaluations.npz` reads its keys by name and the families
+then travel wherever the record does: the publish copy, a same-stage
+resume (which seeds them with the rest of the history, scores the prior
+record on them, and reads a record written before they were kept as the
+plan's) and the result bundle. So the sidecar and `progress.json` score
+each evaluation without replaying the command plan. A widened checkpoint
+carries no record, and so no families: `widen_checkpoint` never writes
+`evaluations.npz`, and the widened node is re-paneled before it certifies.
+A command-free stage's record has no such key, and its sidecar is the
+pooled one, byte for byte as before.
 
 It is a sidecar, not a key of the certificate: a failure inside the
 certificate's own guard fails the stage closed, so nothing new runs there.

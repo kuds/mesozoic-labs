@@ -10,11 +10,11 @@ export const MODEL = requireModel('compsognathus_longipes', 'anatomical');
 
 # Compsognathus longipes (Anatomical)
 
-The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 55 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 none of them reads the world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the target's direction relative to its body, so turning the whole scene changes nothing it observes.
+The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 51 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 none of them reads the world heading: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes. Since policy interface r7 (decision D-D59) the scene holds no target and the observation no target direction or distance.
 
 The reconstructed French-specimen proportions give a 95 mm femur, 114 mm tibia, 70 mm metatarsus and 87 mm skull. The MTP joint carries three loaded toes, and a short medial hallux sits above the floor. Bounded joint torque represents active muscle action. A passive digital flexor spanning ankle and MTP stores energy as it stretches and returns it during recoil. The settled mass projection lies 30.5 mm inside the two-foot support boundary and 20.9 mm outside either individual footprint. [Anatomical review and model comparison](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md)
 
-Training footage recorded before physics r3 documents the earlier anatomy and contact mechanics. Demonstrating a learned behavior on this reconstruction requires evaluating the policy on r3 and recording that rollout.
+Training footage recorded before physics r3 documents the earlier anatomy and contact mechanics. Demonstrating a learned behavior on this reconstruction requires training a policy on the current plant (physics r4, whose dynamics are those of r3, and policy interface r7), evaluating it and recording that rollout.
 
 The stance node certifies stance quality, not reward: since physics r2 its gate is `stance_quality/v2`, which judges
 every episode of a 40-episode panel on the floor's force under each foot (no hop or stomp at reset, no long two-foot
@@ -26,11 +26,13 @@ that lifts for less than half of a 20 ms control step, can still pass it, so a t
 softened near the standing pose (a soft-cubic residual that keeps both ends of each joint's range), so the small
 exploration noise PPO starts with no longer topples the standing animal.
 
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance and recovery run no command. Each walk episode draws one request at reset and holds it for its whole 20 s: a forward cruise at 0.04-0.08 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (16 weights) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the biped gait clause with its flight cap), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet been shown to clear them: the tracking width (0.02 m/s) lies under the estimated lateral sway of a stepping gait on this plant, and no walking controller exists to measure it (decision D-D62 (16)). A moving command is scored on the trailing mean of the last 1.22 s, a stride estimated from the leg length at half the cruise speed (decision D-D64); on a pendulum model of the sway that fits the tolerance for about half of the plausible strides at the home support width, so the risk is only partly relieved. The later follow nodes will widen this distribution as the walk's exact continuation.
+
 <SpeciesCatalog species={MODEL} />
 
 ## Training
 
-Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "anatomical"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares four nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's default, `BEHAVIOR = "auto"`, resolves to the behavior node here; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`). The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "anatomical"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares three nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance) and `locomotion` (walk, warm-started from stance). The non-contact target-reach hunt that followed walk was removed by decision D-D59, so the notebook's `BEHAVIOR = "auto"` default resolves to walk here as for every model; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`).
 
 ```bash
 pip install -e ".[train]"
@@ -41,12 +43,12 @@ python -m environments.compsognathus_longipes.scripts.view_model --embodiment an
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical train --stage 1
 
-# The advancing stages in manifest order; reuse an earlier run's certified stance and walk
+# The advancing stages in manifest order; reuse an earlier run's certified stance, train walk here
 python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical \
   curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
-Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state and target coordinates are privileged MLP inputs; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
+Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state, the pelvis velocity among it, is a privileged MLP input; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
 
 The initial configurations and short integration runs establish training compatibility. They do not establish learned walking, behavior convergence or hardware readiness. The zero-action standing baseline should be measured before tuning. Every node is judged on its own and its verdict written to `gate_verdict.json` beside the handoff checkpoint; a later run reuses it only under the reuse rule (a passed verdict, the same task digest and plant, chained by the parent's checkpoint digest) — see [Behavior Recipes](/docs/training/recipes).
 

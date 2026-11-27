@@ -8,14 +8,20 @@ model, environments, callbacks, config writer, CSV writer and verdict writer;
 ``test_cli.py`` mocks ``train_curriculum`` itself), so nothing ran the path from
 argv to artifacts.  These tests do: the real entry point,
 ``environments/shared/train.py --species <s> --embodiment <e> curriculum``, runs in a
-subprocess with tiny budgets and 32-step episodes, and ``--override`` sets
-every gate so that each stage advances on its first evaluation.  They check
+subprocess with tiny budgets and 32-step episodes, and ``--override`` opens
+the stance's gate so that it advances on its first evaluation.  They check
 the run's on-disk contract, not learning.
 
-The ladder is the Dibothrosuchus's: all three of its advancing stages gate on
-``reward_and_length/v1``, which ``--override`` opens (velociraptor's was, until
-its stance moved to ``stance_quality/v2`` with physics r3, decision D-D25: the
-overrides that open a reward gate are keys v2 refuses).  Compsognathus's stance
+The ladder is the Dibothrosuchus's: its stance gates on
+``reward_and_length/v1``, which stage-scoped ``--override`` keys open
+(``stance.curriculum.*``; velociraptor's was, until its stance moved to
+``stance_quality/v2`` with physics r3, decision D-D25: the overrides that open
+a reward gate are keys v2 refuses), and its walk tracks a live command on
+``command_tracking/v1`` (decision D-D62; its snap hunt left with decision
+D-D59), which refuses those keys and is judged once, after the stage, on its
+command panel: a 64-step policy on 32-step episodes settles no heading, so
+the walk's verdict is a recorded FAIL, the run's target, and the run still
+completes.  No gate is opened for it: no bar of the kind can be.  Compsognathus's stance
 node, gated by ``stance_quality/v1``, is run on its own (``--target stance``)
 and judged at the overridden 32-step horizon (cleanup CU-10a):
 ``train_curriculum`` hands ``CurriculumCallback`` the horizon of the
@@ -50,7 +56,10 @@ from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.reporting import CSV_METRIC_COLUMNS  # noqa: E402
 from environments.shared.result_bundle import sha256_file  # noqa: E402
 from environments.shared.stage_manifest import load_stage_manifest, stage_dirname, stage_label  # noqa: E402
-from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY  # noqa: E402
+from environments.shared.train_base import (  # noqa: E402
+    COMMAND_TRACKING_POST_TRAINING_JUDGED_BY,
+    CURRICULUM_MANAGER_JUDGED_BY,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODEL_ID = ModelId("dibothrosuchus_elaphros", "anatomical")
@@ -59,23 +68,23 @@ LABEL = "cli-e2e"
 
 # The run's shape: one 64-step stage (two 32-step PPO rollouts), one evaluation
 # at step 64 over 32-step episodes, one supplementary episode, and a single
-# passing evaluation to advance.
+# passing evaluation to advance the stance (the walk's command_tracking/v1
+# reads no consecutive passes, so the key is the stance's alone).
 RUN_SHAPE = (
     "curriculum.timesteps=64",
-    "curriculum.required_consecutive=1",
+    "stance.curriculum.required_consecutive=1",
     "curriculum.supplementary_episodes=1",
     "env.max_episode_steps=32",
     "ppo.n_steps=32",
     "ppo.batch_size=32",
     "ppo.n_epochs=1",
 )
-# Every reward_and_length/v1 criterion opened: 0.0 disables the forward-velocity
-# and success-rate criteria, and no panel reward is below the rail.
+# The stance's reward_and_length/v1 criteria opened: no panel reward is below
+# the rail, and no episode is too short.  Stage-scoped: the walk's
+# command_tracking/v1 refuses them at load (decision D-D62).
 OPEN_GATES = (
-    "curriculum.min_avg_reward=-1000000000",
-    "curriculum.min_avg_episode_length=0",
-    "curriculum.min_avg_forward_vel=0",
-    "curriculum.min_success_rate=0",
+    "stance.curriculum.min_avg_reward=-1000000000",
+    "stance.curriculum.min_avg_episode_length=0",
 )
 # The compsognathus robot's stance node under stance_quality/v1 at the 32-step
 # horizon (cleanup CU-10a). Only what is sized to the TOML's 1,000-step episode
@@ -180,7 +189,7 @@ def _assert_checkpoints_record_the_run_seed(models: Path, run: dict[str, Any]) -
 
 @pytest.fixture(scope="module")
 def ladder(tmp_path_factory):
-    """One full CLI curriculum run (stance -> locomotion -> behavior), shared by the tests below."""
+    """One full CLI curriculum run (stance -> locomotion), shared by the tests below."""
     run_dir = tmp_path_factory.mktemp("cli_curriculum") / "ladder"
     result = _run_cli(run_dir)
     return run_dir, result
@@ -194,7 +203,7 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
 
     manifest = load_stage_manifest(MODEL_ID)
     chain = [entry for entry in manifest.stages if entry in manifest.advancing_stages]
-    assert [entry.reference for entry in chain] == [1, 2, 3]
+    assert [entry.reference for entry in chain] == [1, 2]
     configs = _expected_configs(*RUN_SHAPE, *OPEN_GATES)
 
     # The run directory: one stage directory per advancing node, the run's
@@ -231,17 +240,28 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
             assert (models / f"{stem}.zip").is_file(), f"{stage_dir.name}/models/{stem}.zip"
             assert (models / f"{stem}_vecnorm.pkl").is_file(), f"{stage_dir.name}/models/{stem}_vecnorm.pkl"
 
-        # The in-training verdict (D-A5), hash-bound to the handoff pair and to
-        # the gate this run judged under (D-A22).
+        # The verdict (D-A5), hash-bound to the handoff pair and to the gate
+        # this run judged under (D-A22): the stance's in-training one, the
+        # walk's from its post-stage command panel on the pair its gated
+        # statistic chose (decisions D-D61, D-D62).
         verdict = _read(stage_dir / "gate_verdict.json")
-        assert verdict["passed"] is True and verdict["failures"] == []
         assert ModelId.from_record(verdict) == MODEL_ID
         assert verdict["stage"] == stage and verdict["stage_id"] == entry.id
-        assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
-        assert verdict["gate_kind"] == "reward_and_length/v1"
         cur_kwargs = configs[stage]["curriculum_kwargs"]
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(cur_kwargs))
-        assert verdict["gate"]["thresholds"]["min_avg_reward"] == -1_000_000_000
+        if entry.id == "stance":
+            assert verdict["passed"] is True and verdict["failures"] == []
+            assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
+            assert verdict["gate_kind"] == "reward_and_length/v1"
+            assert verdict["gate"]["thresholds"]["min_avg_reward"] == -1_000_000_000
+        else:
+            assert verdict["passed"] is False and verdict["failures"]
+            assert verdict["judged_by"] == COMMAND_TRACKING_POST_TRAINING_JUDGED_BY
+            assert verdict["gate_kind"] == "command_tracking/v1"
+            assert (stage_dir / "command_tracking_report.json").is_file()
+            choice = _read(models / "handoff_choice.json")
+            assert verdict["checkpoint"] == f"models/{choice['selected']}.zip"
+            assert verdict["checkpoint_sha256"] == choice["checkpoint_sha256"]
         checkpoint = stage_dir / verdict["checkpoint"]
         normalization = stage_dir / verdict["normalization"]
         assert checkpoint.parent == models and checkpoint.name.endswith(".zip")
@@ -281,8 +301,8 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     # writer (reporting.csv_output.write_results_csv in append mode), so the
     # header is the sorted hyperparameter columns then CSV_METRIC_COLUMNS.
     rows = _rows(run_dir)
-    assert [row["stage"] for row in rows] == ["1", "2", "3"]
-    assert {row["stage_passed"] for row in rows} == {"True"}
+    assert [row["stage"] for row in rows] == ["1", "2"]
+    assert [row["stage_passed"] for row in rows] == ["True", "False"]
     # The CSV records the time learn() took, a part of the node's recorded duration (to 0.1 s).
     for row, entry in zip(rows, chain):
         run = _read(run_dir / stage_dirname(MODEL_ID, entry.reference) / "stage_config.json")["run"]
@@ -294,7 +314,7 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     assert {(row["plant_species"], row["plant_embodiment"]) for row in rows} == {
         (MODEL_ID.species, MODEL_ID.embodiment)
     }
-    assert {row["reward_threshold"] for row in rows} == {"-1000000000"}
+    assert rows[0]["reward_threshold"] == "-1000000000"
     header = _header(run_dir)
     assert header[-len(CSV_METRIC_COLUMNS) :] == CSV_METRIC_COLUMNS
     assert header[: -len(CSV_METRIC_COLUMNS)] == sorted(header[: -len(CSV_METRIC_COLUMNS)])
@@ -313,31 +333,34 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
     _assert_succeeded(result)
     _assert_no_cloud_imports(result)
 
-    target_dir = stage_dirname(MODEL_ID, 3)
+    target_dir = stage_dirname(MODEL_ID, 2)
     assert {path.name for path in run_dir.iterdir()} == {
         "ancestors",
         target_dir,
         "plant_identity.json",
         "curriculum_results.csv",
     }
-    for stage_id in ("stance", "locomotion"):
+    assert sorted(path.name for path in (run_dir / "ancestors").iterdir()) == ["stance"]
+    for stage_id in ("stance",):
         assert (run_dir / "ancestors" / stage_id / "ancestor.json").is_file()
         assert (run_dir / "ancestors" / stage_id / "gate_verdict.json").is_file()
         # A record, never the checkpoint.
         assert not list((run_dir / "ancestors" / stage_id).glob("*.zip"))
 
-    parent_verdict = _read(trunk / stage_dirname(MODEL_ID, 2) / "gate_verdict.json")
+    parent_verdict = _read(trunk / stage_dirname(MODEL_ID, 1) / "gate_verdict.json")
     run = _read(run_dir / target_dir / "stage_config.json")["run"]
     assert run["seed"] == 1  # not the trunk's 0, so a warm start that keeps its parent's seed is caught
-    assert Path(run["load_path"]) == trunk / stage_dirname(MODEL_ID, 2) / parent_verdict["checkpoint"]
+    assert Path(run["load_path"]) == trunk / stage_dirname(MODEL_ID, 1) / parent_verdict["checkpoint"]
     assert run["parent_checkpoint_sha256"] == parent_verdict["checkpoint_sha256"]
     assert run["parent_run_id"] == trunk.name
-    assert _read(run_dir / target_dir / "gate_verdict.json")["passed"] is True
+    # The walk is judged on its command panel after the stage (decision D-D62); a 64-step policy fails it.
+    verdict = _read(run_dir / target_dir / "gate_verdict.json")
+    assert verdict["passed"] is False and verdict["judged_by"] == COMMAND_TRACKING_POST_TRAINING_JUDGED_BY
     # Warm-started from the other run's checkpoint (seed 0), and re-seeded under this run's seed 1 (D-D11).
     _assert_checkpoints_record_the_run_seed(run_dir / target_dir / "models", run)
 
     # A reused node writes no curriculum_results.csv row.
-    assert [row["stage"] for row in _rows(run_dir)] == ["3"]
+    assert [row["stage"] for row in _rows(run_dir)] == ["2"]
 
 
 def test_a_failed_gate_stops_the_cli_curriculum_after_recording_it(tmp_path):

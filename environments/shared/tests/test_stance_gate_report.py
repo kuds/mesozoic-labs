@@ -3437,6 +3437,136 @@ class TestTheHandoffSidecar:
         # The step is the checkpoint's own: known whenever its data member can be read.
         assert block["timesteps"] == (None if case in ("truncated zip", "no data member") else 655_360)
 
+    #: The bytes ``_write_handoff_sidecar`` wrote for the three handoffs of the five-evaluation history before the
+    #: family-aware reader (decision D-D62): a command-free stage's sidecar must stay exactly these.
+    NONE_STAGE_SIDECARS = {
+        "robust_best_model": (
+            655_360,
+            b'{\n  "selected": "robust_best_model",\n  "timesteps": 655360,\n  "mean_reward": 4.2,\n  '
+            b'"std_reward": 0.20000000000000018,\n  "episodes": 2,\n  "selection_rule": "mean - 1.0 x std",\n  '
+            b'"selection_score": 4.0,\n  "first_scoring_timesteps": 655360,\n  "step_agrees": true\n}\n',
+        ),
+        "best_model": (
+            524_288,
+            b'{\n  "selected": "best_model",\n  "timesteps": 524288,\n  "mean_reward": 6.0,\n  '
+            b'"std_reward": 3.0,\n  "episodes": 2,\n  "selection_rule": "mean",\n  "selection_score": 6.0,\n  '
+            b'"first_scoring_timesteps": 524288,\n  "step_agrees": true\n}\n',
+        ),
+        "stage1_final": (
+            655_360,
+            b'{\n  "selected": "stage1_final",\n  "timesteps": 655360,\n  "mean_reward": 4.2,\n  '
+            b'"std_reward": 0.20000000000000018,\n  "episodes": 2,\n  "selection_rule": null,\n  '
+            b'"selection_score": null,\n  "first_scoring_timesteps": null,\n  "step_agrees": null\n}\n',
+        ),
+    }
+
+    @pytest.mark.parametrize("config", ["no config", "stance", "stance with a stray families key"])
+    def test_a_command_free_stage_writes_the_bytes_it_wrote_before(self, tmp_path, config):
+        """Under command_mode "none" the sidecar is the pooled one, byte for byte, whatever the record holds."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.reporting.stage_artifacts import _write_handoff_sidecar
+
+        stage_config = None if config == "no config" else load_stage_config(TYRANNOSAURUS_REX, "stance")
+        assert stage_config is None or stage_config["env_kwargs"].get("command_mode", "none") == "none"
+        _evaluations(tmp_path)
+        if config == "stance with a stray families key":
+            np.savez(
+                tmp_path / "evaluations.npz",
+                timesteps=np.array(HANDOFF_STEPS),
+                results=np.array(HANDOFF_RESULTS),
+                command_families=np.array([["stand", "cruise"]] * len(HANDOFF_STEPS)),
+            )
+        for name, (steps, expected) in self.NONE_STAGE_SIDECARS.items():
+            model_zip = _checkpoint_zip(tmp_path / "models" / f"{name}.zip", num_timesteps=steps)
+            _write_handoff_sidecar(tmp_path, name, model_zip, stage_config)
+            assert (tmp_path / "handoff_in_training.json").read_bytes() == expected, name
+
+    @staticmethod
+    def _live_record(stage_dir: Path, families: "list[str] | None") -> "tuple[list[int], list[list[float]]]":
+        """Three evaluations of a six-episode panel (five cruise, one stand), written as a live stage writes them.
+
+        The record SB3 writes, then the families ``StageAwareEvalCallback`` adds to it.  The first evaluation stands
+        well (the family-aware best); the second cruises a little faster and stands poorly, which narrows the
+        family gap, so the pooled ``mean - std`` would pick it.
+        """
+        from environments.shared.eval_diagnostics import StageAwareEvalCallback
+
+        steps = [100, 200, 300]
+        results = [
+            [500.0, 502.0, 498.0, 501.0, 499.0, 5720.0],
+            [550.0, 552.0, 548.0, 551.0, 549.0, 3000.0],
+            [400.0, 402.0, 398.0, 401.0, 399.0, 5000.0],
+        ]
+        stage_dir.mkdir(parents=True, exist_ok=True)
+        np.savez(stage_dir / "evaluations", timesteps=steps, results=results, ep_lengths=[[1000] * 6] * 3)
+        if families is not None:
+            writer = object.__new__(StageAwareEvalCallback)
+            writer.log_path = str(stage_dir / "evaluations")
+            writer.evaluations_command_families = [list(families) for _ in steps]
+            writer._persist_command_families()
+        return steps, results
+
+    def test_a_live_stage_scores_the_robust_handoff_as_its_tracker_did(self, tmp_path):
+        """On a live stage the robust handoff is scored by family on the families the record carries: the same
+        number the tracker compared, bit for bit, at the step it saved, under the rule it used."""
+        pytest.importorskip("stable_baselines3")
+        from types import SimpleNamespace
+
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum import RobustBestModelCallback
+        from environments.shared.curriculum.command_evaluation import CommandEvaluationPlan
+        from environments.shared.reporting.stage_artifacts import _handoff_in_training
+
+        families = ["cruise"] * 5 + ["stand"]
+        steps, results = self._live_record(tmp_path, families)
+        walk = load_stage_config(VELOCIRAPTOR_MONGOLIENSIS, "locomotion")
+        stop = walk["env_kwargs"]["command_config"].stop_probability
+        plan = CommandEvaluationPlan(seed=1042, families=tuple(families), stop_probability=stop)
+        # The tracker, driven through its evaluations as training drives it.
+        source = SimpleNamespace(command_evaluation=plan, evaluations_results=[], evaluations_command_families=[])
+        tracker = RobustBestModelCallback(source, model_dir=tmp_path / "models")
+        tracker.model = SimpleNamespace(save=lambda path: None, get_vec_normalize_env=lambda: None)
+        saved_at = None
+        for step, row in zip(steps, results):
+            source.evaluations_results.append(row)
+            source.evaluations_command_families.append(list(families))
+            before = tracker.best_score
+            tracker._on_step()
+            if tracker.best_score != before:
+                saved_at = step
+        assert saved_at == 100
+        block = _handoff_in_training(
+            tmp_path, "robust_best_model", _checkpoint_zip(tmp_path / "models" / "r.zip", num_timesteps=100), walk
+        )
+        assert block["selection_score"] == tracker.best_score, "bit for bit"
+        assert (block["first_scoring_timesteps"], block["step_agrees"]) == (100, True)
+        assert block["selection_rule"] == "family-weighted mean - 1.0 x std (cruise 0.85, stand 0.15)"
+        assert "error" not in block
+        pooled = [float(np.mean(row) - np.std(row)) for row in results]
+        assert steps[int(np.argmax(pooled))] == 200, "the pooled rule would have read another step"
+        # best_model keeps SB3's mean, and a final pair has no rule, on a live stage too.
+        mean = _handoff_in_training(
+            tmp_path, "best_model", _checkpoint_zip(tmp_path / "models" / "b.zip", num_timesteps=100), walk
+        )
+        assert (mean["selection_rule"], mean["step_agrees"]) == ("mean", True)
+        final = _handoff_in_training(
+            tmp_path, "locomotion_final", _checkpoint_zip(tmp_path / "models" / "f.zip", num_timesteps=300), walk
+        )
+        assert final["selection_rule"] is None and "error" not in final
+
+    def test_a_live_record_without_its_families_scores_nothing(self, tmp_path):
+        from environments.shared.config import load_stage_config
+        from environments.shared.reporting.stage_artifacts import _handoff_in_training
+
+        self._live_record(tmp_path, None)
+        walk = load_stage_config(VELOCIRAPTOR_MONGOLIENSIS, "locomotion")
+        block = _handoff_in_training(
+            tmp_path, "robust_best_model", _checkpoint_zip(tmp_path / "models" / "r.zip", num_timesteps=100), walk
+        )
+        assert block["mean_reward"] == pytest.approx(np.mean([500.0, 502.0, 498.0, 501.0, 499.0, 5720.0]))
+        assert block["selection_rule"] is None and block["selection_score"] is None
+        assert "records no command families" in block["error"]
+
     @staticmethod
     def _certify(stage_dir: Path, monkeypatch) -> "tuple[dict | None, dict]":
         """The stance report path with a stub panel, then the verdict, as generate_stage_artifacts runs them."""

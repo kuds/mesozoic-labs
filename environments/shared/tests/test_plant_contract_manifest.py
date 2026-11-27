@@ -40,16 +40,18 @@ CANONICAL_MUJOCO_VERSION = load_plant_versions()[0]
 # replaces the 4-wide quaternion), and the velociraptor from 70 to 69 at revision 13 (2026-11-06) and to 71 at
 # revision 14, the life-size plant (note 22, 2026-11-08: six per-site foot channels; its action 22 -> 17).
 # Brachiosaurus and dibothrosuchus, the last two, left it at revisions 11 and 10 (note 23), when the core was
-# removed: every model is SB3-only.
+# removed: every model is SB3-only.  The target-free revision dropped the 4 target channels from all seven and made
+# the brachiosaurus, the dibothrosuchus and the Compsognathus robot heading-free as well (quaternion 4 -> projected
+# gravity 3): 45/55/46/71/63/86/80 -> 41/51/41/67/59/81/75.
 #: Each SB3-only model's observation width.
 SB3_ONLY_OBSERVATION_WIDTH = {
-    ALLOSAURUS_FRAGILIS: 45,
-    COMPSOGNATHUS_LONGIPES: 55,
-    COMPSOGNATHUS_LONGIPES_ROBOT: 46,
-    VELOCIRAPTOR_MONGOLIENSIS: 71,
-    TYRANNOSAURUS_REX: 63,
-    BRACHIOSAURUS_ALTITHORAX: 86,
-    DIBOTHROSUCHUS_ELAPHROS: 80,
+    ALLOSAURUS_FRAGILIS: 41,
+    COMPSOGNATHUS_LONGIPES: 51,
+    COMPSOGNATHUS_LONGIPES_ROBOT: 41,
+    VELOCIRAPTOR_MONGOLIENSIS: 67,
+    TYRANNOSAURUS_REX: 59,
+    BRACHIOSAURUS_ALTITHORAX: 81,
+    DIBOTHROSUCHUS_ELAPHROS: 75,
 }
 #: Each SB3-only model's action width, resolved from the bundled manifest alone.
 BUNDLED_ACTION_DIM = {
@@ -64,11 +66,11 @@ BUNDLED_ACTION_DIM = {
 #: (observation_dim, action_dim) of the identity generated from each executable environment.  Exempt: both
 #: Compsognathus models, whose widths SB3_ONLY_OBSERVATION_WIDTH and BUNDLED_ACTION_DIM pin.
 IDENTITY_DIMS = {
-    ALLOSAURUS_FRAGILIS: (45, 10),
-    VELOCIRAPTOR_MONGOLIENSIS: (71, 17),
-    TYRANNOSAURUS_REX: (63, 15),
-    BRACHIOSAURUS_ALTITHORAX: (86, 30),
-    DIBOTHROSUCHUS_ELAPHROS: (80, 27),
+    ALLOSAURUS_FRAGILIS: (41, 10),
+    VELOCIRAPTOR_MONGOLIENSIS: (67, 17),
+    TYRANNOSAURUS_REX: (59, 15),
+    BRACHIOSAURUS_ALTITHORAX: (81, 30),
+    DIBOTHROSUCHUS_ELAPHROS: (75, 27),
 }
 _TABLES = {
     "SB3_ONLY_OBSERVATION_WIDTH": (SB3_ONLY_OBSERVATION_WIDTH, frozenset()),

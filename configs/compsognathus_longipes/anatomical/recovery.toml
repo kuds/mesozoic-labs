@@ -16,9 +16,12 @@ description = "Pilot: recover an upright stance after calibrated horizontal push
 [env]
 # Plant-scaled finite force pulses. The selected multiple is calibrated separately
 # for each embodiment; see RECOVERY_CALIBRATION.md and recovery_calibration.json.
-# Physics r3 remeasurement. The first qualifying push was 1.2 times capture velocity.
-# The zero-command null survived 17/40 held-out episodes and met the recovery criterion in
-# 6/40. The fixed brace survived 18/40 and passed 6/40. See recovery_calibration.json.
+# Physics r4 remeasurement (plant_versions note 24: the reset no longer draws the prey
+# placement or the height jitter, so every push schedule moved; the dynamics did not). The
+# first qualifying push is still 1.2 times capture velocity. The zero-command null survived
+# 12/40 held-out episodes and met the recovery criterion in 4/40. The fixed brace survived
+# 12/40 and passed 4/40 (physics r3: 17/40 and 6/40; 18/40 and 6/40). See
+# recovery_calibration.json.
 perturbation_capture_velocity_multiple = 1.2
 perturbation_interval = 2.0
 perturbation_jitter = 0.25

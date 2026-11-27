@@ -1,14 +1,21 @@
 # Website Improvement Plan
 
 **Status (2026-09-30): complete.** Everything under Completed holds. The two
-items left under Remaining are settled: the two apex GIFs stay, unused, by the
-maintainer's decision of 2026-09-30 (they share their blobs with
+items left under Remaining are settled: the two apex GIFs stayed, unused, by the
+maintainer's decision of 2026-09-30 (they shared their blobs with
 `results/velociraptor/{ppo,sac}/stage3_strike.gif`, so the cleanup plan allowed
 deleting both copies or neither; [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)
 §3.2, CU-16 row), and the logo's size is a [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
 entry (Configs, docs & website), which corrects the remedy below: the SVG
 wraps one PNG and has no paths and no SVG editor metadata, so SVGO would not
 shrink it.
+
+*Update 2026-11-23 (decision D-D59):* both copies are now deleted. The apex
+GIFs were hunt footage (the velociraptor strike), so they left the website
+together with their `results/` copies, the `strike.gif` files, when the hunt
+and its published results were removed
+([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2, D-D59). The last
+commit holding them is `6c9982d81c8a34c0402905feb2724cffde04e974`.
 
 ## Completed
 
@@ -33,6 +40,7 @@ The following items from the original plan have been implemented:
 ## Remaining
 
 ### Use the Training GIFs
+*Closed 2026-11-23 (decision D-D59): both GIFs were deleted with the hunt results, so there is nothing left to embed.*
 - `static/img/ppo_apex.gif` (1.1 MB) and `static/img/sac_apex.gif` (22 MB) exist but are unused
 - `raptor_balance_ppo.gif` is used in the Simulation section, but the apex GIFs show more advanced locomotion
 - Consider embedding `ppo_apex.gif` in the hero or a results section; `sac_apex.gif` may be too large (22 MB) for web use without compression

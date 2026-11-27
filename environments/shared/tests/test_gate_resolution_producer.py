@@ -32,6 +32,7 @@ import numpy as np
 import pytest
 
 from environments.shared import recovery_evaluation
+from environments.shared.config import load_stage_config
 from environments.shared.curriculum.gate_resolver import (
     GateResolutionError,
     require_gate_resolution,
@@ -159,6 +160,26 @@ class TestCalibratedSafeSetIsSingleSourced:
         """A hand panel judged on a different clock could not be compared."""
         assert (offdist.T_RECOVER_STEPS, offdist.DWELL_STEPS) == (producer.T_RECOVER_STEPS, producer.DWELL_STEPS)
         assert (offdist.PANEL_EPISODES, offdist.PANEL_SEED) == (producer.MIN_EVAL_EPISODES, producer.PANEL_SEED_START)
+
+    def test_the_hand_harness_magnitude_rows_push_their_newtons_on_the_current_plant(self):
+        """§6.1's 120 N and 210 N rows are converted to multiples on the plant the env builds, so a physics
+        revision that moves the derived push cannot move them (on r12 the old fixed multiples pushed about 115.8 N
+        and 203.0 N); the training and timing rows keep the recovery stage's multiple."""
+        assert offdist.MAGNITUDE_TARGETS_N == {"mag120": 120.0, "mag210": 210.0}
+        assert set(offdist.SCHEDULES) == {"on", "timing", *offdist.MAGNITUDE_TARGETS_N}
+        stage = float(
+            load_stage_config(TYRANNOSAURUS_REX, "recovery")["env_kwargs"]["perturbation_capture_velocity_multiple"]
+        )
+        for schedule in offdist.SCHEDULES:
+            env = offdist.build_env(schedule, model_id=TYRANNOSAURUS_REX)
+            try:
+                if schedule in offdist.MAGNITUDE_TARGETS_N:
+                    assert env._push_force_n == pytest.approx(offdist.MAGNITUDE_TARGETS_N[schedule], rel=1e-12)
+                else:
+                    assert env.perturbation_capture_velocity_multiple == stage
+                    assert env._push_force_n == pytest.approx(159.7, abs=0.01)  # physics r12 at multiple 1.5
+            finally:
+                env.close()
 
     def test_the_support_clause_is_vacuous_under_the_calibrated_set(self, monkeypatch):
         """§4.2: certified stance itself reads 0.0 N, so support cannot gate.

@@ -240,12 +240,18 @@ def statue_episode():
     return trace, layout
 
 
+#: The nosedive's ankle offset.  The probe's -0.05 nosedived at step 500; on physics r12, whose statue stands 4.6 mm
+#: further back (the skull's 0.2 kg bite box gone, plant_versions note 24), -0.05 stands the 600 steps, and -0.06
+#: nosedives at step 468 with the XcoM 1.53 s past the toe line and the friction cone at most 0.231 used.
+NOSEDIVE_ANKLE_OFFSET = -0.06
+
+
 @pytest.fixture(scope="module")
 def nosedive_episode():
     env = make_env(TYRANNOSAURUS_REX)
     try:
         morphology, layout = _layout(env, TYRANNOSAURUS_REX)
-        trace, _rows = _episode(env, TYRANNOSAURUS_REX, steps=600, morphology=morphology, offset=-0.05)
+        trace, _rows = _episode(env, TYRANNOSAURUS_REX, steps=600, morphology=morphology, offset=NOSEDIVE_ANKLE_OFFSET)
     finally:
         env.close()
     return trace, layout
@@ -275,10 +281,10 @@ def test_the_statue_stands_inside_its_toe_line_with_a_quiet_hof_split_and_little
 
 def test_a_scripted_nosedive_shows_the_xcom_past_the_toe_line_well_before_the_fall(nosedive_episode):
     trace, layout = nosedive_episode
-    assert trace.terminated and not trace.truncated and trace.length < 600  # the probe: terminated at step 500
+    assert trace.terminated and not trace.truncated and trace.length < 600  # the probe: step 500 (r12: 468)
     balance = episode_balance_telemetry(trace, layout, settle_steps=SETTLE)
     forces = episode_force_telemetry(trace, layout, settle_steps=SETTLE)
-    assert 1.0 <= balance["xcom_toe_lead_s"] <= 2.5  # the probe: 1.64 s against the ankle-anchored toe line
+    assert 1.0 <= balance["xcom_toe_lead_s"] <= 2.5  # the probe: 1.64 s against the ankle-anchored toe line (r12: 1.53)
     assert balance["xcom_past_toe_fraction"] > 0.0 and balance["xcom_toe_margin_min_m"] < 0.0
     assert balance["time_to_toe_min_s"] < 1.0
     assert max(forces[f"{label}_cone_use_max"] for label in layout.labels) > 0.15  # the probe: 0.236

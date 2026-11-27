@@ -51,11 +51,11 @@ pytest environments/velociraptor_mongoliensis/tests
 
 For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebook selects the model with two dropdowns, `SPECIES` and `EMBODIMENT`, rather than separate files for each model, and it handles dependency installation automatically.
 
-The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/content/mesozoic-labs` as a sparse checkout: only `environments`, `configs`, `notebooks` and `results`, plus the files at the repository root, which keeps a fresh runtime's download to about 38 MB. It then runs that checkout's `notebooks/colab_install.py`, which installs the project with its `train` and `viz` extras under `constraints.txt`, keeps Colab's own torch, and stops with a list of any version that does not match.
+The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/content/mesozoic-labs` as a sparse checkout: only `environments`, `configs`, `notebooks` and `results`, plus the files at the repository root, which keeps a fresh runtime's download to about 14 MB. It then runs that checkout's `notebooks/colab_install.py`, which installs the project with its `train` and `viz` extras under `constraints.txt`, keeps Colab's own torch, and stops with a list of any version that does not match.
 
 Both notebooks open in Google Colab.
 
-- [`notebooks/sb3_training.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb) - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
+- [`notebooks/sb3_training.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb) - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable, which is walk on every model; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
 - [`notebooks/google_drive_summary.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/google_drive_summary.ipynb) - Training-run summaries and comparisons
 
 ## Dependencies

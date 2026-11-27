@@ -103,11 +103,13 @@ class TestLoadVecnormIntoEnvsResolution:
                 train_env,
                 eval_env,
                 task_load_mode="resume_same_stage",
+                command_mode="none",
             )
         mock_load.assert_called_once_with(
             str(tmp_path / "stage2_vecnormalize_5000000_steps.pkl"),
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
             carry_ret_rms=True,
         )
@@ -121,11 +123,14 @@ class TestLoadVecnormIntoEnvsResolution:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs(str(sidecar), train_env, eval_env, task_load_mode="initialize_next_stage")
+            _load_vecnorm_into_envs(
+                str(sidecar), train_env, eval_env, task_load_mode="initialize_next_stage", command_mode="none"
+            )
         mock_load.assert_called_once_with(
             str(sidecar),
             train_env,
             eval_env,
+            command_mode="none",
             unsafe_skip_plant_validation=True,
         )
 
@@ -143,6 +148,7 @@ class TestLoadVecnormIntoEnvsResolution:
                     train_env,
                     eval_env,
                     task_load_mode="resume_same_stage",
+                    command_mode="none",
                 )
 
     def test_real_vecnormalize_stats_round_trip_via_periodic_naming(self, tmp_path):
@@ -150,10 +156,11 @@ class TestLoadVecnormIntoEnvsResolution:
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-        TinyEnv = tiny_env_class()
+        # One dim and the (zero) command slice every observation ends with, held at identity as training saves it.
+        TinyEnv = tiny_env_class(obs_dim=4)
         source_env = VecNormalize(DummyVecEnv([TinyEnv]), norm_obs=True, norm_reward=True)
-        source_env.obs_rms.mean = np.full(1, 0.42)
-        source_env.obs_rms.var = np.full(1, 2.5)
+        source_env.obs_rms.mean = np.array([0.42, 0.0, 0.0, 0.0])
+        source_env.obs_rms.var = np.array([2.5, 1.0, 1.0, 1.0])
         source_env.ret_rms.var = np.full((), 7.5)
         source_ret_var = source_env.ret_rms.var.copy()
         source_env.save(str(tmp_path / "stage2_vecnormalize_5000000_steps.pkl"))
@@ -167,10 +174,11 @@ class TestLoadVecnormIntoEnvsResolution:
                 new_train,
                 new_eval,
                 task_load_mode="resume_same_stage",
+                command_mode="none",
             )
-            np.testing.assert_allclose(new_train.obs_rms.mean, [0.42])
-            np.testing.assert_allclose(new_train.obs_rms.var, [2.5])
-            np.testing.assert_allclose(new_eval.obs_rms.mean, [0.42])
+            np.testing.assert_allclose(new_train.obs_rms.mean, [0.42, 0.0, 0.0, 0.0])
+            np.testing.assert_allclose(new_train.obs_rms.var, [2.5, 1.0, 1.0, 1.0])
+            np.testing.assert_allclose(new_eval.obs_rms.mean, [0.42, 0.0, 0.0, 0.0])
             # Same-stage resume: the return statistics carry too (TC6).
             np.testing.assert_allclose(new_train.ret_rms.var, source_ret_var)
             assert new_eval.training is False

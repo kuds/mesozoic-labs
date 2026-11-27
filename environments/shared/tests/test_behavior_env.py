@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import inspect
 import json
+import math
 from dataclasses import asdict
 from functools import cache
 from pathlib import Path
@@ -317,11 +318,18 @@ def test_small_species_cannot_pass_a_walk_command_while_stationary(make_env, mod
     env.reset(seed=42)
     env.data.qvel[:] = 0
     mujoco.mj_forward(env.model, env.data)
-    env._get_reward_info(zeros(env))
+    env._reward_with_command_tracking(zeros(env))
     assert not env._command_metrics["tracking_in_tolerance"]
     assert env._command_metrics["tracking_error_requested_speed"] == pytest.approx(SPEEDS[model_id])
     ratio = env.task_fingerprint["command"]["config"]["speed_scale"] / 1.5
-    assert env.tracking_tolerances == {"velocity_tolerance": 0.2 * ratio, "stop_speed_tolerance": 0.1 * ratio}
+    # The speed tolerances scale with the command's speed scale (the base env's, from the command config).
+    assert env.tracking_tolerances == {
+        "velocity_tolerance": 0.2 * ratio,
+        "yaw_rate_tolerance": 0.15,
+        "heading_tolerance": math.pi / 12,
+        "stop_speed_tolerance": 0.1 * ratio,
+        "stop_yaw_rate_tolerance": 0.15,
+    }
     assert env.tracking_velocity_sigma == pytest.approx(env.direction_controller.config.speed_scale / 6)
 
 
@@ -532,11 +540,21 @@ def test_recipe_commands_draw_from_their_own_stream_through_the_base_hook(make_e
 
 
 def test_the_behavior_env_has_no_command_source_of_its_own():
-    """Consolidation PR-9: the commands come through BaseDinoEnv's controller, hook and step update only; of the
-    three direct writes of self._command one is left, set_direction applying its target through the base update."""
+    """Consolidation PR-9: the commands come through BaseDinoEnv's controller, hook and step update only.  Since
+    decision D-D60 the tracking reward, metrics and dwell and set_direction are the base env's too, so the mixin
+    writes none of the command attributes: only its own command stream (_command_rng) remains."""
     import ast
 
-    for name in ("_draw_episode_command", "_update_command", "command_manifest", "_heading", "behavior_identity"):
+    for name in (
+        "_draw_episode_command",
+        "_update_command",
+        "command_manifest",
+        "_heading",
+        "behavior_identity",
+        "_get_reward_info",
+        "_reward_with_command_tracking",
+        "set_direction",
+    ):
         assert name not in vars(SpeciesBehaviorMixin), name
     assert get_behavior_env_class(TYRANNOSAURUS_REX)._draw_episode_command is BaseDinoEnv._draw_episode_command
     tree = ast.parse(Path(inspect.getfile(SpeciesBehaviorMixin)).read_text())
@@ -547,15 +565,15 @@ def test_the_behavior_env_has_no_command_source_of_its_own():
         for target in node.targets
         if isinstance(target, ast.Attribute) and target.attr in ("_command", "_command_state", "direction_controller")
     ]
-    assert writes == ["self._command = self._update_command()"]
+    assert writes == []
 
 
 @pytest.mark.parametrize(
     "model_id", (VELOCIRAPTOR_MONGOLIENSIS, DIBOTHROSUCHUS_ELAPHROS), ids=lambda m: f"{m.species}-{m.embodiment}"
 )
 def test_dwell_is_reported_before_a_new_command_event_restarts_it(make_env, model_id):
-    """Consolidation PR-9: the base step advances the command; the mixin still reports the dwell the executed
-    command earned and restarts it afterwards (a stand-still stop stays in tolerance for these two)."""
+    """Consolidation PR-9: the base step advances the command and (decision D-D60) reports the dwell the executed
+    command earned, restarting it afterwards (a stand-still stop stays in tolerance for these two)."""
     env = make_env(
         model_id, commands=commands(model_id, stop_probability=1.0, switch_interval_s=0.05), reset_noise_scale=0.0
     )

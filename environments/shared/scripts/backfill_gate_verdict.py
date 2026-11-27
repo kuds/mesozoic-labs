@@ -48,12 +48,9 @@ evidence the directory already holds, through the one shared judge
   the frozen ``gate_resolution.json`` is paired against were never
   persisted, so there is no evidence to re-judge from (re-judge through
   the notebook chain, which rolls the panel);
-* ``task_success/v1`` — from the selected checkpoint's
-  ``evaluation_selected.csv`` ONLY, hash-bound to the handoff checkpoint:
-  the judge forms the exact binomial lower bound from the per-episode
-  ``task_success`` column, and a rounded ``mean_success_rate`` cannot
-  recover ``k/n``, so a directory without that file (a CLI ``curriculum``
-  hunt, whose only verdict is the in-training one) is refused.
+* a retired gate kind or ``[curriculum]`` key (``task_success/v1``,
+  ``min_success_rate`` and the rest, removed with the hunt nodes by decision
+  D-D59) — refused naming the decision, never written as a FAIL.
 
 Every missing input is a refusal, never a default: a verdict re-derived
 from nothing would be exactly the pass-by-absence the record exists to
@@ -193,18 +190,19 @@ def selected_evidence_metrics(
         lengths = [float(row["length"]) for row in rows]
         velocities = [float(row["mean_forward_velocity"]) for row in rows]
         distances = [float(row["distance_traveled"]) for row in rows]
-        successes = [parse_optional_bool(row["task_success"]) for row in rows]
+        # No task_success column: a model with no success keys records no
+        # success flag, so the verdict records no success rate.
+        records_success = "task_success" in rows[0]
+        successes = [parse_optional_bool(row["task_success"]) for row in rows] if records_success else []
     except (KeyError, TypeError, ValueError) as exc:
         raise BackfillError(f"{path} is malformed: {exc}") from exc
     if any(success is None for success in successes):
         raise BackfillError(f"{path} carries a non-boolean task_success")
-    from environments.shared.curriculum.recovery_gate import binomial_lcb
 
     reward_mean, reward_std = _mean_std(rewards)
     length_mean, length_std = _mean_std(lengths)
     velocity_mean, velocity_std = _mean_std(velocities)
-    success_count = sum(1 for success in successes if success)
-    return {
+    evidence: dict[str, Any] = {
         "best_model_reward": reward_mean,
         "best_model_std_reward": reward_std,
         "best_model_length": length_mean,
@@ -212,13 +210,10 @@ def selected_evidence_metrics(
         "best_model_fwd_vel": velocity_mean,
         "best_model_std_fwd_vel": velocity_std,
         "best_model_distance": float(statistics.fmean(distances)),
-        "best_model_success_rate": float(statistics.fmean(1.0 if success else 0.0 for success in successes)),
-        # task_success/v1's judged numbers (plan §4.4), so the backfilled
-        # verdict carries the count and bound the judge re-derives.
-        "best_model_success_count": success_count,
-        "best_model_n_episodes": len(successes),
-        "best_model_success_lcb": binomial_lcb(success_count, len(successes)),
     }
+    if records_success:
+        evidence["best_model_success_rate"] = float(statistics.fmean(1.0 if success else 0.0 for success in successes))
+    return evidence
 
 
 def backfill_gate_verdict(
@@ -245,7 +240,9 @@ def backfill_gate_verdict(
     result bundle; returns the written path.
     """
     from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
-    from environments.shared.curriculum.gate_schema import gate_config_view
+    from environments.shared.curriculum.command_tracking_evidence import COMMAND_TRACKING_REPORT_JSON
+    from environments.shared.curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND, CommandTrackingResult
+    from environments.shared.curriculum.gate_schema import gate_config_view, retired_gate_declarations
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
     from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
@@ -254,9 +251,10 @@ def backfill_gate_verdict(
         STANCE_HEADING_REPORT_JSON,
         StanceHeadingResult,
     )
-    from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
     from environments.shared.reporting import build_stage_results_from_eval_data, evaluate_stage_gate
+    from environments.shared.reporting.command_tracking_report import command_tracking_stage_result
     from environments.shared.reporting.gates import (
+        _admit_command_tracking_report,
         _admit_stance_heading_report,
         _current_task_sha256,
         stance_v2_report_refusals,
@@ -334,6 +332,12 @@ def backfill_gate_verdict(
             model_id,
             entry.id,
         )
+    # A block the judge would refuse for a retired kind or key is a refusal
+    # here, not a FAIL verdict that reads as "judged and failed" to every
+    # later --trunk-from.
+    retired = retired_gate_declarations(curriculum)
+    if retired:
+        raise BackfillError(f"the {gate} {entry.id!r} block cannot be judged: " + "; ".join(retired))
     # Recorded as declared (null when undeclared; the judge then fails it).
     gate_kind: Any = curriculum.get("gate_kind")
     # The results builder is typed for the legacy integer but reads the
@@ -357,6 +361,8 @@ def backfill_gate_verdict(
         )
     stance_report: dict[str, Any] | None = None
     rederived_certificate: StanceHeadingResult | None = None
+    command_report: dict[str, Any] | None = None
+    rederived_command: CommandTrackingResult | None = None
     if gate_kind == STANCE_GATE_KIND:
         stance_report = _load_json(stage_path / "stance_gate_report.json", what="stance_gate_report.json")
         if not isinstance(stance_report, Mapping):
@@ -407,6 +413,25 @@ def backfill_gate_verdict(
                 f"{'; '.join(refusals)}. Re-judge the node through the notebook JUDGE branch / "
                 "generate_stage_artifacts, which rolls the six-heading certificate on the handoff pair"
             )
+    elif gate_kind == COMMAND_TRACKING_GATE_KIND:
+        report_path = stage_path / COMMAND_TRACKING_REPORT_JSON
+        loaded = _load_json(report_path, what=COMMAND_TRACKING_REPORT_JSON)
+        if not isinstance(loaded, Mapping):
+            raise BackfillError(f"{report_path} must hold a JSON object")
+        command_report = dict(loaded)
+        # The judge's own admission (D-D61): a report not bound to this gate,
+        # handoff choice, task and command, or not re-derivable from its
+        # records, is a REFUSAL naming why, never a FAIL verdict.  The
+        # re-derivation is kept: its numbers are what is copied.
+        refusals, rederived_command = _admit_command_tracking_report(
+            curriculum, command_report, stage=entry.reference, stage_dir=stage_path
+        )
+        if refusals:
+            raise BackfillError(
+                f"{report_path} cannot back a {gate_kind} verdict under the {gate} {entry.id!r} block: "
+                f"{'; '.join(refusals)}. Re-judge the node through the notebook JUDGE branch / "
+                "generate_stage_artifacts, which chooses the handoff by the gated statistic and rolls the panel on it"
+            )
 
     stage_config = {
         "name": record.get("name", ""),
@@ -433,14 +458,7 @@ def backfill_gate_verdict(
     selected = selected_evidence_metrics(stage_path, model_zip=model_zip, normalization=normalization_path)
     if selected is not None:
         stage_results.update(selected)
-    elif gate_kind == TASK_SUCCESS_GATE_KIND:
-        # The judge below would refuse anyway ("absent"); name the reason
-        # here so the tool exits before touching the directory.
-        raise BackfillError(
-            f"{entry.id!r} declares task_success/v1: no {SELECTED_EVIDENCE_CSV} hash-bound to the handoff, "
-            "so the verdict cannot be re-derived"
-        )
-    elif stance_report is None and not (stage_path / "evaluations.npz").is_file():
+    elif stance_report is None and command_report is None and not (stage_path / "evaluations.npz").is_file():
         raise BackfillError(
             f"{stage_path} holds neither {SELECTED_EVIDENCE_CSV} nor evaluations.npz, so there is no measurement "
             f"to judge {gate_kind!r} on"
@@ -452,12 +470,15 @@ def backfill_gate_verdict(
         stage=entry.reference,
         stance_report=stance_report,
         stage_dir=stage_path,
+        command_tracking_report=command_report,
     )
     if gate_kind == STANCE_GATE_V2_KIND:
         # The numbers the re-derived verdict was judged on (admitted above).
         stage_results.update(stance_v2_stage_result(stance_report))
     elif gate_kind == STANCE_HEADING_GATE_KIND:
         stage_results.update(stance_heading_stage_result(stance_report, rederived=rederived_certificate))
+    elif gate_kind == COMMAND_TRACKING_GATE_KIND:
+        stage_results.update(command_tracking_stage_result(command_report, rederived=rederived_command))
     stage_results["gate_kind"] = gate_kind
     stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
     stage_results["gate_passed"] = passed

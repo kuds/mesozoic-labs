@@ -29,16 +29,18 @@ are unchanged.  Each entry may declare three more keys:
   order by construction and every in-order walker stays correct.
 * ``deliverable`` — this node's certified checkpoint is a published policy.
 * ``recipe`` — the behavior label the node belongs to (``stance`` /
-  ``recover`` / ``walk`` / ``hunt`` / ...).  A label resolves to its deepest
+  ``recover`` / ``walk`` / ...).  A label resolves to its deepest
   deliverable in manifest order.  On every committed manifest ``stance`` is
-  the stance node alone and ``recover`` the recovery node (stance ->
-  recovery) where a model has one (decision D-D35; before it the recovery
-  node was labelled ``stand`` too, so ``stand`` resolved to recovery on the
-  T-Rex and both Compsognathus models).  A label may equal a stage id only
-  when it resolves to that stage, as ``stance`` does (decision D-D38).  The
-  stance node's label was ``stand`` until D-D38; a retired label
-  (:data:`RETIRED_RECIPE_LABELS`) does not resolve and is refused naming
-  its replacement, the rule for retired identifiers of decision D-D33.
+  the stance node alone, ``recover`` the recovery node (stance -> recovery)
+  where a model has one (decision D-D35; before it the recovery node was
+  labelled ``stand`` too, so ``stand`` resolved to recovery on the T-Rex and
+  both Compsognathus models), and ``walk`` the locomotion node, where every
+  chain ends since the ``hunt`` nodes were removed (decision D-D59).  A
+  label may equal a stage id only when it resolves to that stage, as
+  ``stance`` does (decision D-D38).  The stance node's label was ``stand``
+  until D-D38; a retired label (:data:`RETIRED_RECIPE_LABELS`: ``stand``,
+  renamed, and ``hunt``, removed) does not resolve and is refused naming
+  what to use instead, the rule for retired identifiers of decision D-D33.
 
 **Recipes are derived from the edges, never declared in a second table**: a
 recipe is a deliverable plus its ``warm_start_from`` chain
@@ -88,7 +90,11 @@ STAGE_MANIFEST_SCHEMAS = (STAGE_MANIFEST_SCHEMA_V1, STAGE_MANIFEST_SCHEMA_V2)
 #: meaning everywhere: model-free readers (:func:`stage_ref_from_dirname`,
 #: ``evaluation.detect_stage_from_path``) recognise them
 #: without a manifest in hand, and the numbered three map through
-#: :data:`LEGACY_STAGE_IDS`.
+#: :data:`LEGACY_STAGE_IDS`.  ``behavior`` (legacy stage 3, the hunt) stays
+#: reserved although no committed manifest declares it since decision D-D59:
+#: old run directories still carry it.  The loader still accepts a
+#: ``behavior`` node with legacy number 3 under any label but ``hunt``, as the
+#: test ladder (``tests/ladder_helpers.py``) declares one.
 RESERVED_STAGE_IDS = ("stance", "recovery", "locomotion", "behavior")
 
 #: Semantic identity of the historical numeric stages, used to validate that
@@ -108,25 +114,45 @@ _POSITION_PREFIXED_DIRNAME = re.compile(r"^[0-9]{2}_(?P<id>[a-z][a-z0-9_]*)$")
 _V1_ENTRY_KEYS = frozenset({"id", "config", "legacy_number"})
 _V2_ENTRY_KEYS = _V1_ENTRY_KEYS | {"warm_start_from", "deliverable", "recipe"}
 
-#: Recipe labels retired by a decision: the old label, mapped to the label
-#: that replaced it and the decision.  A retired label is no alias: it does not
+#: How a recipe label was retired: renamed (its nodes live on under the
+#: replacement label) or removed (its nodes are gone; the replacement is the
+#: behavior they were trained from, the nearest one still published).
+RETIRED_RENAMED = "renamed"
+RETIRED_REMOVED = "removed"
+
+#: Recipe labels retired by a decision: the old label, mapped to the label to
+#: use instead, the decision, and how it was retired (:data:`RETIRED_RENAMED`
+#: or :data:`RETIRED_REMOVED`).  A retired label is no alias: it does not
 #: resolve (decision D-D33's rule for retired identifiers), and every place
-#: that takes a label refuses it naming its replacement
+#: that takes a label refuses it naming what to use instead
 #: (:func:`retired_recipe_label_message`): :meth:`StageManifest.resolve_behavior`
 #: (the notebook's ``BEHAVIOR``, ``curriculum --target``, ``train_curriculum``'s
 #: ``target`` and the species manifest's deliverables) and the loader (a
-#: manifest declaring one).
-RETIRED_RECIPE_LABELS: "dict[str, tuple[str, str]]" = {"stand": ("stance", "D-D38")}
+#: manifest declaring one).  ``stand`` was renamed to ``stance`` (decision
+#: D-D38); ``hunt`` was removed with every hunt node, each of which
+#: warm-started from the walk (decision D-D59).
+RETIRED_RECIPE_LABELS: "dict[str, tuple[str, str, str]]" = {
+    "stand": ("stance", "D-D38", RETIRED_RENAMED),
+    "hunt": ("walk", "D-D59", RETIRED_REMOVED),
+}
 
 
 def retired_recipe_label_message(name: str) -> str:
     """The pointer a retired recipe label is refused with.
 
     ``retired_recipe_label_message("stand")`` is ``"'stand' was renamed to
-    'stance' (decision D-D38); use 'stance'"``.  *name* must be a key of
+    'stance' (decision D-D38); use 'stance'"`` and
+    ``retired_recipe_label_message("hunt")`` is ``"'hunt' was removed with
+    every node it labelled (decision D-D59); use 'walk', the behavior those
+    nodes were trained from"``.  *name* must be a key of
     :data:`RETIRED_RECIPE_LABELS`.
     """
-    replacement, decision = RETIRED_RECIPE_LABELS[name]
+    replacement, decision, how = RETIRED_RECIPE_LABELS[name]
+    if how == RETIRED_REMOVED:
+        return (
+            f"{name!r} was removed with every node it labelled (decision {decision}); "
+            f"use {replacement!r}, the behavior those nodes were trained from"
+        )
     return f"{name!r} was renamed to {replacement!r} (decision {decision}); use {replacement!r}"
 
 
@@ -295,9 +321,9 @@ class StageManifest:
         accepts a label equal to a stage id only when it resolves to that
         stage (``stance``, decision D-D38), so a label and an id never name
         two nodes.  A retired label (:data:`RETIRED_RECIPE_LABELS`) is
-        refused naming its replacement, whatever the manifest declares, so a
-        custom manifest's stage whose id is a retired label (no committed
-        manifest has one) is never a behavior; stage-id references
+        refused naming what to use instead, whatever the manifest declares,
+        so a custom manifest's stage whose id is a retired label (no
+        committed manifest has one) is never a behavior; stage-id references
         (:meth:`by_id`, :meth:`resolve`) still name it.
         """
         if name in RETIRED_RECIPE_LABELS:
@@ -377,7 +403,7 @@ def load_stage_manifest_file(path: "Path | str") -> StageManifest:
     disagrees with the declared order, and — under v2 — an edge that does
     not name an earlier entry, a non-boolean ``deliverable``, a recipe label
     that is malformed, retired (:data:`RETIRED_RECIPE_LABELS`, refused naming
-    its replacement) or equal to a stage id it does not resolve to, a
+    what to use instead) or equal to a stage id it does not resolve to, a
     numbered reserved id without its legacy number, or a manifest with
     nothing to publish.  A v1 body carrying v2 keys is fatal rather than
     silently derived over.

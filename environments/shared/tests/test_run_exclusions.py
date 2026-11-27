@@ -345,11 +345,10 @@ def test_reuse_rule_9_is_applied_at_a_followed_source(tmp_path):
 
 def _chain_and_configs():
     manifest = load_stage_manifest(TYRANNOSAURUS_REX)
-    chain = tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion", "behavior"))
+    chain = tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion"))
     configs = {
         1: {"env_kwargs": {}, "curriculum_kwargs": STANCE_CURRICULUM},
         2: {"env_kwargs": {}, "curriculum_kwargs": LOCOMOTION_CURRICULUM},
-        3: {"env_kwargs": {}, "curriculum_kwargs": {"gate_kind": "task_success/v1", "timesteps": 10}},
     }
     return chain, configs
 

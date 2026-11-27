@@ -16,13 +16,12 @@ from __future__ import annotations
 import ast
 import inspect
 import logging
-from pathlib import Path
+import re
 
 import pytest
 
 from environments.shared.curriculum import CurriculumManager, thresholds_from_configs
 from environments.shared.curriculum.gate_schema import GATE_SCHEMA_VERSION, GateSchemaError
-from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.model_id import ModelId
 
 #: A schema-valid recovery gate declaration.  Threshold values are stand-ins:
@@ -36,16 +35,31 @@ _RECOVERY = {
     "recovery_dwell_steps": 66,
 }
 
-#: A schema-valid task_success/v1 declaration at the plan's provisional bar
-#: (D-B2: 0.5 at n=30, 20/30 clears it and 19/30 does not) with the reward
-#: rail the hunting statue clears.
-_TASK_SUCCESS = {
+#: The T. rex bite's frozen gate block as its stage_config.json recorded it
+#: (task_success/v1 at the provisional D-B2 bar, with the reward rail its
+#: hunting statue cleared).  The kind and its bar were removed with the hunt
+#: nodes (decision D-D59); every reader must refuse the record naming that
+#: decision, never judge it as an unknown kind or on its reward rail.
+_RETIRED_TASK_SUCCESS = {
     "gate_schema_version": GATE_SCHEMA_VERSION,
-    "gate_kind": TASK_SUCCESS_GATE_KIND,
+    "gate_kind": "task_success/v1",
     "min_success_lcb": 0.5,
     "min_eval_episodes": 30,
     "min_avg_reward": 100.0,
 }
+
+#: A hunt stage's frozen reward_and_length/v1 block with its success floor
+#: (the velociraptor strike's shape), every other threshold trivially met.
+_RETIRED_SUCCESS_FLOOR = {
+    "gate_schema_version": GATE_SCHEMA_VERSION,
+    "gate_kind": "reward_and_length/v1",
+    "min_avg_reward": 100.0,
+    "min_success_rate": 0.5,
+}
+
+#: The refusal every reader gives for the retired kind and the retired key.
+_RETIRED_KIND_MESSAGE = r"gate_kind 'task_success/v1' was removed with the hunt nodes \(decision D-D59\)"
+_RETIRED_KEY_MESSAGE = r"'min_success_rate' was removed with the hunt nodes \(decision D-D59\)"
 
 #: Evaluation results no criterion could reject — if the stage advances on
 #: these, it advanced on evidence nobody checked.
@@ -92,45 +106,14 @@ class TestManagerRefusesUnevaluatableKinds:
         for _ in range(5):
             assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
 
-    def test_task_success_never_advances_on_sky_high_reward(self):
-        """Plan §4.4: the hunting gate is the binomial bound, never the reward.
-
-        10/30 successes bound at 0.21 and must refuse beside a reward of 1e9;
-        20/30 (bound 0.5006) with hysteresis 1 advances.
-        """
-        thresholds = thresholds_from_configs({1: {"curriculum_kwargs": dict(_TASK_SUCCESS, required_consecutive=1)}})
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
-        )
-        low = [1.0] * 10 + [0.0] * 20
-        for _ in range(3):
-            assert not mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL, success_rates=low)
+    def test_a_retired_task_success_threshold_never_advances_and_names_the_decision(self, caplog):
+        """A threshold built by hand past the schema still refuses, naming D-D59 rather than an unknown kind."""
+        mgr = _manager("task_success/v1")
+        with caplog.at_level(logging.ERROR, logger="environments.shared.curriculum.manager"):
+            for _ in range(3):
+                assert not mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL)
         assert mgr.summary()["consecutive_passes"][1] == 0
-        latest = mgr.summary()["eval_history"][1][-1]
-        assert (latest["success_count"], latest["n_success_samples"]) == (10, 30)
-
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
-        )
-        assert mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL, success_rates=[1.0] * 20 + [0.0] * 10)
-
-    def test_task_success_refuses_without_a_success_sample(self, caplog):
-        thresholds = thresholds_from_configs({1: {"curriculum_kwargs": dict(_TASK_SUCCESS, required_consecutive=1)}})
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
-        )
-        with caplog.at_level(logging.WARNING, logger="environments.shared.curriculum.manager"):
-            assert not mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL)
-        assert "no per-episode success sample" in caplog.text
-        assert mgr.summary()["consecutive_passes"][1] == 0
-
-    def test_task_success_refuses_a_panel_below_the_declared_size(self):
-        """19/19 bounds at 0.85 but the bound's power is specified at n=30."""
-        thresholds = thresholds_from_configs({1: {"curriculum_kwargs": dict(_TASK_SUCCESS, required_consecutive=1)}})
-        mgr = CurriculumManager(
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
-        )
-        assert not mgr.should_advance([1e9] * 19, [1000.0] * 19, success_rates=[1.0] * 19)
+        assert "decision D-D59" in caplog.text
 
     def test_a_schema_valid_recovery_config_still_refuses_end_to_end(self):
         """The exact F1 scenario: P5 flips a config's gate kind to recovery.
@@ -151,99 +134,76 @@ class TestManagerRefusesUnevaluatableKinds:
             assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
 
 
-class TestTaskSuccessSchemaRequiresTheBarAndThePanelSize:
-    """min_eval_episodes is REQUIRED for the kind (unlike every other), because the bound's power is
-    a function of the declared n: without the pin, thresholds_from_configs would leave the manager
-    at DEFAULT_MIN_EVAL_EPISODES = 10 and a 9/10 panel (bound 0.61) would clear a 0.5 bar in-training
-    while the post-stage judge refused the same config."""
+class TestRetiredTaskSuccessGateFailsClosed:
+    """task_success/v1 and min_success_rate were deleted with the hunt nodes (decision D-D59).
 
-    @pytest.mark.parametrize("missing", ["min_eval_episodes", "min_success_lcb"])
-    def test_the_schema_names_the_missing_key(self, missing):
-        from environments.shared.curriculum.gate_schema import validate_gate_config
-
-        block = {key: value for key, value in _TASK_SUCCESS.items() if key != missing}
-        with pytest.raises(GateSchemaError, match=rf"missing required threshold field\(s\) \['{missing}'\]"):
-            validate_gate_config(3, block, advancement_enabled=True)
-        with pytest.raises(GateSchemaError, match=missing):
-            thresholds_from_configs({3: {"curriculum_kwargs": block}}, advancement_enabled=True)
-
-
-def _selected_evidence(stage_dir: Path, successes: list[bool], *, checkpoint: str = "robust_best_model") -> Path:
-    """A handoff pair plus an evaluation_selected.csv bound to it, as the trainers write them."""
-    from environments.shared.reporting import save_evaluation_episodes
-
-    models = stage_dir / "models"
-    models.mkdir(parents=True, exist_ok=True)
-    zip_path = models / f"{checkpoint}.zip"
-    zip_path.write_bytes(f"{checkpoint} weights".encode())
-    vecnorm = models / f"{checkpoint}_vecnorm.pkl"
-    vecnorm.write_bytes(b"statistics")
-    n = len(successes)
-    return save_evaluation_episodes(
-        stage_dir,
-        rewards=[600.0] * n,
-        lengths=[1000] * n,
-        forward_velocities=[1.5] * n,
-        distances=[10.0] * n,
-        successes=successes,
-        evaluation_seed=3042,
-        checkpoint_label="selected",
-        checkpoint_path=zip_path,
-        normalization_path=vecnorm,
-    )
-
-
-class TestTaskSuccessGateIsConsulted:
-    """Plan §8 invariant 10 for task_success/v1: the fail-closed dispatch test.
-
-    Registering the kind in GATE_KINDS without the judge arm routed a
-    hunting stage to the reward conjunction, which certifies on
-    ``min_avg_reward`` — a collapse rail the ~600 statue clears.  These pin
-    that the bound is consulted, that the reward cannot substitute for it,
-    and that the NEXT registered kind fails closed by construction.
+    A stage TOML or a frozen record (a ``stage_config.json``) that still
+    names either must be refused by every reader, naming the decision: the
+    schema at config load, the in-training thresholds, the post-stage judge
+    and the recorded-history reading.  The failure mode this guards is the
+    fall-through: an unregistered kind read as merely unknown, and a
+    reward_and_length/v1 block judged on the floors it has left once its
+    success floor is no longer read — a hunt certified on its reward rail.
     """
 
-    STAGE_RESULTS = {"best_model_reward": 1e9, "best_model_length": 1000.0}
+    STAGE_RESULTS = {
+        "best_model_reward": 1e9,
+        "best_model_length": 1000.0,
+        "best_model_success_rate": 1.0,
+    }
 
-    def _judge(self, stage_dir, curriculum=None):
+    def test_the_schema_refuses_the_kind_naming_the_decision(self):
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        with pytest.raises(GateSchemaError, match=_RETIRED_KIND_MESSAGE) as caught:
+            validate_gate_config(3, dict(_RETIRED_TASK_SUCCESS), advancement_enabled=True)
+        # Its bar is retired with it, and the refusal names that too.
+        assert "'min_success_lcb' was removed" in str(caught.value)
+        assert "unknown gate_kind" not in str(caught.value)
+        with pytest.raises(GateSchemaError, match=_RETIRED_KIND_MESSAGE):
+            thresholds_from_configs({3: {"curriculum_kwargs": dict(_RETIRED_TASK_SUCCESS)}}, advancement_enabled=True)
+
+    def test_the_schema_refuses_min_success_rate_naming_the_decision(self):
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        with pytest.raises(GateSchemaError, match=_RETIRED_KEY_MESSAGE) as caught:
+            validate_gate_config(3, dict(_RETIRED_SUCCESS_FLOOR), advancement_enabled=True)
+        assert "unrecognised" not in str(caught.value)
+        # Even a disabled (0.0) floor: a key no reader evaluates is refused, not ignored.
+        with pytest.raises(GateSchemaError, match=_RETIRED_KEY_MESSAGE):
+            thresholds_from_configs(
+                {3: {"curriculum_kwargs": dict(_RETIRED_SUCCESS_FLOOR, min_success_rate=0.0)}},
+                advancement_enabled=True,
+            )
+
+    def test_the_schema_refuses_the_panel_size_key(self):
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        block = {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "none/v1", "task_success_panel_episodes": 30}
+        with pytest.raises(GateSchemaError, match=r"'task_success_panel_episodes' was removed .*D-D59"):
+            validate_gate_config("pilot", block, advancement_enabled=False)
+
+    @pytest.mark.parametrize(
+        ("curriculum", "message"),
+        [(_RETIRED_TASK_SUCCESS, _RETIRED_KIND_MESSAGE), (_RETIRED_SUCCESS_FLOOR, _RETIRED_KEY_MESSAGE)],
+        ids=["task_success-v1", "min_success_rate"],
+    )
+    def test_the_judge_refuses_a_frozen_record_naming_the_decision(self, tmp_path, curriculum, message):
         from environments.shared.reporting import evaluate_stage_gate
 
-        return evaluate_stage_gate(curriculum or dict(_TASK_SUCCESS), self.STAGE_RESULTS, stage=3, stage_dir=stage_dir)
-
-    def test_sky_high_reward_with_no_success_evidence_is_refused(self, tmp_path):
-        models = tmp_path / "models"
-        models.mkdir()
-        (models / "best_model.zip").write_bytes(b"w")
-        (models / "best_model_vecnorm.pkl").write_bytes(b"s")
-        passed, failures = self._judge(tmp_path)
+        passed, failures = evaluate_stage_gate(dict(curriculum), self.STAGE_RESULTS, stage=3, stage_dir=tmp_path)
         assert passed is False
-        assert any("evaluation_selected.csv" in failure and "absent" in failure for failure in failures)
+        assert failures and all(failure.startswith("stage 3: ") for failure in failures)
+        assert any(re.search(message, failure) for failure in failures)
 
-    def test_no_stage_dir_is_refused(self):
-        passed, failures = self._judge(None)
-        assert passed is False
-        assert any("no stage_dir was given" in failure for failure in failures)
+    @pytest.mark.parametrize("curriculum", [_RETIRED_TASK_SUCCESS, _RETIRED_SUCCESS_FLOOR], ids=["kind", "key"])
+    def test_the_recorded_history_reading_proves_nothing(self, curriculum):
+        from environments.shared.reporting import evaluate_recorded_gate
 
-    def test_a_low_lcb_is_refused_despite_reward_far_above_the_rail(self, tmp_path):
-        _selected_evidence(tmp_path, [True] * 19 + [False] * 11)
-        passed, failures = self._judge(tmp_path)
-        assert passed is False
-        assert any("task_success_lcb" in failure and "19/30" in failure for failure in failures)
-
-    def test_twenty_of_thirty_passes_at_the_provisional_bar(self, tmp_path):
-        _selected_evidence(tmp_path, [True] * 20 + [False] * 10)
-        assert self._judge(tmp_path) == (True, [])
-
-    def test_the_plan_sizing_table_pins_binomial_lcb(self):
-        """Plan §4.4: ≥ 0.5 needs 20/30 or 26/40; the committed 29/30 bounds at 0.851."""
-        from environments.shared.curriculum.recovery_gate import binomial_lcb
-
-        assert binomial_lcb(20, 30) >= 0.5
-        assert binomial_lcb(20, 30) == pytest.approx(0.5006, abs=1e-3)
-        assert binomial_lcb(19, 30) < 0.5
-        assert binomial_lcb(26, 40) >= 0.5
-        assert binomial_lcb(25, 40) < 0.5
-        assert binomial_lcb(29, 30) == pytest.approx(0.851, abs=1e-3)
+        evaluations = [
+            {"mean_reward": 1e9, "mean_episode_length": 1000.0, "n_episodes": 30, "mean_success_rate": 1.0}
+        ] * 5
+        assert evaluate_recorded_gate(dict(curriculum, required_consecutive=1), evaluations) is None
 
     def test_a_registered_kind_without_an_evaluator_is_refused_not_routed_to_the_reward_arm(self, monkeypatch):
         from environments.shared.curriculum import gate_schema
@@ -258,65 +218,53 @@ class TestTaskSuccessGateIsConsulted:
         assert passed is False
         assert any("has no evaluator" in failure and "made_up/v1" in failure for failure in failures)
 
-    def test_what_would_have_to_be_deleted_for_the_lcb_to_stop_being_consulted(self, tmp_path, monkeypatch):
-        """The consulted test (plan §8 invariant 10): the call chain, by AST and at runtime.
+    def test_what_would_have_to_be_deleted_for_the_retired_refusal_to_stop_being_consulted(self):
+        """The consulted test (plan §8 invariant 10) for the refusal, by AST.
 
-        evaluate_stage_gate dispatches on TASK_SUCCESS_GATE_KIND into
-        _task_success_stage_gate BEFORE the reward_and_length return;
-        _task_success_stage_gate calls evaluate_task_success_gate; and that
-        calls binomial_lcb.  Then the runtime half: with binomial_lcb raising,
-        judging a valid hunting panel raises — the bound was consulted.
+        evaluate_stage_gate calls retired_gate_declarations, and returns on
+        what it finds, BEFORE its first comparison of the gate kind and so
+        before the reward_and_length return; validate_gate_config calls it
+        before the unknown-key check.
         """
-        from environments.shared.curriculum import task_success_gate
+        from environments.shared.curriculum import gate_schema
         from environments.shared.reporting import gates
 
         module = ast.parse(inspect.getsource(gates))
-        functions = {node.name: node for node in module.body if isinstance(node, ast.FunctionDef)}
-        dispatch = functions["evaluate_stage_gate"]
-        task_success_branch = None
-        reward_return = None
-        for index, node in enumerate(ast.walk(dispatch)):
-            if isinstance(node, ast.If) and isinstance(node.test, ast.Compare):
-                names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
-                if {"gate_kind", "TASK_SUCCESS_GATE_KIND"} <= names:
-                    calls = {
-                        c.func.id for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
-                    }
-                    assert "_task_success_stage_gate" in calls
-                    task_success_branch = node.lineno
-            if isinstance(node, ast.Return) and isinstance(node.value, ast.Call):
-                func = node.value.func
-                if isinstance(func, ast.Name) and func.id == "_reward_and_length_stage_gate":
-                    reward_return = node.lineno
-        assert task_success_branch is not None and reward_return is not None
-        assert task_success_branch < reward_return
-
-        arm_calls = {
-            c.func.id
-            for c in ast.walk(functions["_task_success_stage_gate"])
-            if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
-        }
-        assert "evaluate_task_success_gate" in arm_calls
-
-        gate_module = ast.parse(inspect.getsource(task_success_gate))
-        evaluator = next(
-            node
-            for node in gate_module.body
-            if isinstance(node, ast.FunctionDef) and node.name == "evaluate_task_success_gate"
+        dispatch = next(
+            node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == "evaluate_stage_gate"
         )
-        evaluator_calls = {
-            c.func.id for c in ast.walk(evaluator) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
-        }
-        assert "binomial_lcb" in evaluator_calls
+        retired_call = min(
+            node.lineno
+            for node in ast.walk(dispatch)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "retired_gate_declarations"
+        )
+        first_kind_compare = min(
+            node.lineno
+            for node in ast.walk(dispatch)
+            if isinstance(node, ast.Compare)
+            and any(isinstance(n, ast.Name) and n.id == "gate_kind" for n in ast.walk(node))
+        )
+        assert retired_call < first_kind_compare
 
-        _selected_evidence(tmp_path, [True] * 20 + [False] * 10)
-
-        def consulted(*args, **kwargs):
-            raise RuntimeError("consulted")
-
-        monkeypatch.setattr(task_success_gate, "binomial_lcb", consulted)
-        with pytest.raises(RuntimeError, match="consulted"):
-            self._judge(tmp_path)
+        schema = ast.parse(inspect.getsource(gate_schema))
+        validator = next(
+            node for node in schema.body if isinstance(node, ast.FunctionDef) and node.name == "validate_gate_config"
+        )
+        calls = [
+            node.lineno
+            for node in ast.walk(validator)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "retired_gate_declarations"
+        ]
+        unknown = min(
+            node.lineno
+            for node in ast.walk(validator)
+            if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "unknown" for t in node.targets)
+        )
+        assert calls and min(calls) < unknown
 
 
 class TestStanceV2GateIsConsulted:
@@ -596,3 +544,135 @@ class TestStanceHeadingGateIsConsulted:
         legacy_loop = source.index("elif recorded_pass:")
         assert heading_arm < legacy_loop
         assert "_validate_stance_heading_panel_evidence(" in source[heading_arm:legacy_loop]
+
+
+class TestCommandTrackingGateIsConsulted:
+    """Plan §8 invariant 10 for the command-tracking certificate (``command_tracking/v1``, decision D-D61).
+
+    The kind's verdict is a post-stage panel on the handoff chosen by the
+    gated statistic.  These pin that the manager refuses it on any reward,
+    that a history never certifies it, that the judge's command arm is
+    consulted before the reward return and down to the exact binomial bound,
+    and that publication has its arm before the legacy reward loop.
+    """
+
+    @staticmethod
+    def _curriculum():
+        from .test_command_tracking_wiring import WALK_CURRICULUM
+
+        return dict(WALK_CURRICULUM)
+
+    def test_the_manager_never_advances_on_sky_high_reward(self, caplog):
+        """The normal path of every walk: refused at every evaluation, said once per stage at INFO, never an ERROR."""
+        mgr = _manager("command_tracking/v1")
+        with caplog.at_level(logging.DEBUG, logger="environments.shared.curriculum.manager"):
+            for _ in range(5):
+                assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+        assert mgr.summary()["consecutive_passes"][1] == 0
+        refusals = [record for record in caplog.records if "command_tracking/v1" in record.getMessage()]
+        assert [record.levelno for record in refusals] == [logging.INFO], "one record over five evaluations"
+        assert "command_tracking_report.json" in refusals[0].getMessage()
+        assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+    def test_the_refusal_is_said_once_per_stage(self, caplog):
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            stage_thresholds={
+                stage: {"gate_kind": "command_tracking/v1", "min_eval_episodes": 1, "required_consecutive": 1}
+                for stage in (1, 2)
+            },
+        )
+        with caplog.at_level(logging.INFO, logger="environments.shared.curriculum.manager"):
+            for _ in range(3):
+                assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+            mgr.advance()
+            for _ in range(3):
+                assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+        refusals = [record.getMessage() for record in caplog.records if "command_tracking/v1" in record.getMessage()]
+        assert [message.split(" declares", 1)[0] for message in refusals] == ["Stage 1", "Stage 2"]
+
+    def test_a_schema_valid_command_config_still_refuses_end_to_end(self):
+        thresholds = thresholds_from_configs(
+            {1: {"curriculum_kwargs": dict(self._curriculum(), required_consecutive=1)}}
+        )
+        assert thresholds[1]["gate_kind"] == "command_tracking/v1"
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
+        for _ in range(3):
+            assert not mgr.should_advance(_SKY_HIGH_PANEL * 2, _FULL_PANEL * 2)
+
+    def test_the_judge_and_the_history_reader_never_certify_on_reward(self, tmp_path):
+        from environments.shared.reporting import evaluate_recorded_gate, evaluate_stage_gate
+
+        reward_history = [{"mean_reward": 1e9, "mean_episode_length": 1000.0, "n_episodes": 40}] * 5
+        assert evaluate_recorded_gate({**self._curriculum(), "min_avg_reward": 1.0}, reward_history) is None
+        results = {"mean_reward": 1e9, "mean_episode_length": 1000.0, "n_episodes": 40}
+        passed, failures = evaluate_stage_gate(self._curriculum(), results, stage=2, stage_dir=tmp_path)
+        assert not passed and "no command-tracking report" in failures[0]
+
+    def test_what_would_have_to_be_deleted_for_the_panel_bound_to_stop_being_consulted(self, tmp_path, monkeypatch):
+        """The call chain by AST, then at runtime: with the exact bound raising, judging an admitted report raises."""
+        from environments.shared.curriculum import command_tracking_gate
+        from environments.shared.reporting import evaluate_stage_gate, gates
+
+        from .test_command_tracking_wiring import _choose, _panel, _report, _stage_dir
+
+        module = ast.parse(inspect.getsource(gates))
+        functions = {node.name: node for node in module.body if isinstance(node, ast.FunctionDef)}
+        command_branch = reward_return = None
+        for node in ast.walk(functions["evaluate_stage_gate"]):
+            if isinstance(node, ast.If) and isinstance(node.test, ast.Compare):
+                names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
+                calls = {c.func.id for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+                if {"gate_kind", "COMMAND_TRACKING_GATE_KIND"} <= names:
+                    assert "_command_tracking_stage_gate" in calls and "_reward_and_length_stage_gate" not in calls
+                    command_branch = node.lineno
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Call):
+                func = node.value.func
+                if isinstance(func, ast.Name) and func.id == "_reward_and_length_stage_gate":
+                    reward_return = node.lineno
+        assert command_branch is not None and reward_return is not None and command_branch < reward_return
+
+        def calls_in(name: str) -> set[str]:
+            return {
+                c.func.id for c in ast.walk(functions[name]) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+            }
+
+        assert "_admit_command_tracking_report" in calls_in("_command_tracking_stage_gate")
+        assert "_admit_command_tracking_report" in calls_in("command_tracking_report_refusals")
+        assert "_rederive_command_tracking_verdict" in calls_in("_admit_command_tracking_report")
+        assert "evaluate_command_tracking_gate" in calls_in("_rederive_command_tracking_verdict")
+        gate_module = ast.parse(inspect.getsource(command_tracking_gate))
+        gate_functions = {node.name: node for node in gate_module.body if isinstance(node, ast.FunctionDef)}
+
+        def gate_calls(name: str) -> set[str]:
+            node = gate_functions[name]
+            return {c.func.id for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+
+        assert {"evaluate_walk_profile", "evaluate_follow_profile"} <= gate_calls("evaluate_command_tracking_gate")
+        assert "_lcb" in gate_calls("evaluate_walk_profile") and "_lcb" in gate_calls("evaluate_follow_profile")
+        assert "binomial_lcb" in gate_calls("_lcb")
+
+        stage_dir = _stage_dir(tmp_path)
+        _choose(stage_dir)
+        report = _report(stage_dir, _panel())
+        assert evaluate_stage_gate(
+            self._curriculum(), {}, stage=2, stage_dir=stage_dir, command_tracking_report=report
+        )[0]
+
+        def consulted(*args, **kwargs):
+            raise RuntimeError("consulted")
+
+        monkeypatch.setattr(command_tracking_gate, "binomial_lcb", consulted)
+        with pytest.raises(RuntimeError, match="consulted"):
+            evaluate_stage_gate(self._curriculum(), {}, stage=2, stage_dir=stage_dir, command_tracking_report=report)
+
+    def test_publication_has_a_command_arm_before_the_legacy_reward_loop(self):
+        from environments.shared.result_bundle import evidence
+
+        source = inspect.getsource(evidence.validate_evaluation_evidence)
+        command_arm = source.index("elif recorded_pass and gate_kind == COMMAND_TRACKING_GATE_KIND:")
+        legacy_loop = source.index("elif recorded_pass:")
+        assert command_arm < legacy_loop
+        assert "_validate_command_tracking_panel_evidence(" in source[command_arm:legacy_loop]

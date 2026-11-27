@@ -15,8 +15,9 @@ import numpy as np
 from environments.shared.config import load_all_stages
 
 from ..model_id import ModelId
-from .gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, validate_gate_config
-from .recovery_gate import RECOVERY_GATE_KIND, binomial_lcb
+from .command_tracking_gate import COMMAND_TRACKING_GATE_KIND
+from .gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, retired_gate_declarations, validate_gate_config
+from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
@@ -25,7 +26,6 @@ from .stance_gate import (
 )
 from .stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS, StanceV2Thresholds
 from .stance_heading_gate import STANCE_HEADING_GATE_KIND
-from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,6 @@ class StageThreshold:
     min_avg_reward: float = -np.inf
     min_avg_episode_length: float = 0.0
     min_avg_forward_vel: float = 0.0
-    min_success_rate: float = 0.0
 
     # stance_quality/v1.  Ceilings default to +inf and the floor to 0.0 so a
     # field the schema failed to populate cannot silently tighten the gate;
@@ -67,13 +66,9 @@ class StageThreshold:
     max_unsupported_duty_ucb: float = np.inf
     settle_steps: int = 0
 
-    # task_success/v1.  +inf so a field the schema failed to populate can
-    # never be reached: no binomial bound is >= inf, which is the fail-closed
-    # default for a floor (the schema requires the real value of the kind).
-    min_success_lcb: float = np.inf
-
-    # stance_quality/v2 (decision D-D23).  The bar defaults to +inf, the
-    # fail-closed default for a floor, exactly as min_success_lcb does.
+    # stance_quality/v2 (decision D-D23).  The bar defaults to +inf so a
+    # field the schema failed to populate can never be reached: no binomial
+    # bound is >= inf, which is the fail-closed default for a floor.
     # Every per-episode criterion defaults to None, meaning "not declared":
     # the gate module applies only declared criteria and the schema
     # guarantees the required ones are present, so v1's +inf ceilings --
@@ -168,7 +163,10 @@ class CurriculumManager:
         stage_thresholds: Mapping from stage number to threshold dict.
             Keys in each dict should match ``StageThreshold`` fields.
         start_stage: Initial curriculum stage (default 1).
-        total_stages: Total number of stages (default 3).
+        total_stages: Total number of stages; default (None) the number of
+            the model's advancing (legacy-numbered) stages, two on every
+            committed manifest since decision D-D59 removed the hunt (the
+            fixed default of 3 counted the hunt's stage).
     """
 
     def __init__(
@@ -176,8 +174,12 @@ class CurriculumManager:
         model_id: ModelId,
         stage_thresholds: dict[int, dict[str, Any]] | None = None,
         start_stage: int = 1,
-        total_stages: int = 3,
+        total_stages: int | None = None,
     ):
+        if total_stages is None:
+            from ..stage_manifest import load_stage_manifest
+
+            total_stages = len(load_stage_manifest(model_id).advancing_stages)
         self.model_id = model_id
         self.total_stages = total_stages
         self._current_stage = start_stage
@@ -194,6 +196,8 @@ class CurriculumManager:
         # History of evaluation results per stage
         self._eval_history: dict[int, list[dict[str, float]]] = {s: [] for s in range(1, total_stages + 1)}
         self._consecutive_passes: dict[int, int] = {s: 0 for s in range(1, total_stages + 1)}
+        # The stages whose command_tracking/v1 refusal has been logged (once per stage, at INFO).
+        self._command_tracking_refusal_logged: set[int] = set()
 
         logger.info(
             "CurriculumManager initialized for %s: stage %d/%d",
@@ -227,7 +231,6 @@ class CurriculumManager:
         rewards: list[float],
         episode_lengths: list[float],
         forward_velocities: list[float] | None = None,
-        success_rates: list[float] | None = None,
         stance_panel: StancePanel | None = None,
     ) -> dict[str, float]:
         """Record evaluation results for the current stage.
@@ -237,8 +240,6 @@ class CurriculumManager:
             episode_lengths: List of episode lengths from evaluation.
             forward_velocities: Optional list of mean forward velocities
                 per episode (m/s). Used for locomotion stage gating.
-            success_rates: Optional list of per-episode success flags
-                (1.0 if prey contact / food reached, 0.0 otherwise).
             stance_panel: Optional stance summary for ``stance_quality/v1``.
                 Build it with
                 :func:`~environments.shared.curriculum.stance_gate.stance_panel_from_episode_duties`
@@ -258,14 +259,6 @@ class CurriculumManager:
         }
         if forward_velocities is not None:
             summary["mean_forward_vel"] = float(np.mean(forward_velocities))
-        if success_rates is not None:
-            summary["mean_success_rate"] = float(np.mean(success_rates))
-            # The count and the sample size, so task_success/v1 can form its
-            # binomial bound from the same panel: the flags are 0/1, so the
-            # rounded sum is exact for the npz sample (the 10-episode
-            # supplementary fallback then fails min_eval_episodes by its n).
-            summary["success_count"] = int(round(float(np.sum(success_rates))))
-            summary["n_success_samples"] = len(success_rates)
         if stance_panel is not None:
             # The bound is stored as a scalar rather than the raw duties: it is
             # a pure function of them, and the history is serialized into run
@@ -279,9 +272,6 @@ class CurriculumManager:
         vel_str = ""
         if "mean_forward_vel" in summary:
             vel_str = f", fwd_vel={summary['mean_forward_vel']:.2f} m/s"
-        success_str = ""
-        if "mean_success_rate" in summary:
-            success_str = f", success={summary['mean_success_rate']:.0%}"
         stance_str = ""
         if "full_horizon_fraction" in summary:
             stance_str = (
@@ -290,14 +280,13 @@ class CurriculumManager:
                 f" (ucb {summary['unsupported_duty_ucb']:.4f}, n={summary['n_duty_episodes']:.0f})"
             )
         logger.info(
-            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s%s%s (%d eps)",
+            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s%s (%d eps)",
             self._current_stage,
             summary["mean_reward"],
             summary["std_reward"],
             summary["mean_length"],
             summary["std_length"],
             vel_str,
-            success_str,
             stance_str,
             summary["n_episodes"],
         )
@@ -308,7 +297,6 @@ class CurriculumManager:
         rewards: list[float] | None = None,
         episode_lengths: list[float] | None = None,
         forward_velocities: list[float] | None = None,
-        success_rates: list[float] | None = None,
         stance_panel: StancePanel | None = None,
     ) -> bool:
         """Check whether performance thresholds are met for advancement.
@@ -320,8 +308,6 @@ class CurriculumManager:
             rewards: Per-episode total rewards.
             episode_lengths: Per-episode step counts.
             forward_velocities: Per-episode mean forward velocities (m/s).
-            success_rates: Per-episode success flags (1.0 if prey contact
-                / food reached, 0.0 otherwise).
             stance_panel: Stance summary, required by ``stance_quality/v1``.
                 A stage declaring that kind without one fails closed.
 
@@ -334,10 +320,14 @@ class CurriculumManager:
             ``stance_quality/v2`` and ``stance_quality_heading/v1`` too:
             their certificate is the post-stage floor-truth panel (the
             heading kind's, six of them) on the handoff pair — see
-            :meth:`_stance_v2_gate_refuses`.
+            :meth:`_stance_v2_gate_refuses`.  And always False for
+            ``command_tracking/v1`` (decision D-D61): its certificate is the
+            stage's command panel on the handoff chosen by the gated
+            statistic, rolled after the stage — see
+            :meth:`_command_tracking_gate_refuses`.
         """
         if rewards is not None and episode_lengths is not None:
-            self.record_eval(rewards, episode_lengths, forward_velocities, success_rates, stance_panel)
+            self.record_eval(rewards, episode_lengths, forward_velocities, stance_panel)
 
         threshold = self._thresholds[self._current_stage]
         history = self._eval_history[self._current_stage]
@@ -358,8 +348,6 @@ class CurriculumManager:
             passes = self._stance_gate_passes(latest)
         elif threshold.gate_kind == "reward_and_length/v1":
             passes = self._reward_and_length_gate_passes(latest, threshold)
-        elif threshold.gate_kind == TASK_SUCCESS_GATE_KIND:
-            passes = self._task_success_gate_passes(latest, threshold)
         elif threshold.gate_kind == RECOVERY_GATE_KIND:
             passes = self._recovery_gate_refuses()
         elif threshold.gate_kind == STANCE_GATE_V2_KIND:
@@ -371,6 +359,20 @@ class CurriculumManager:
             # The six-heading certificate (D-D32) is v2 on a grid of turned
             # spawns: refused here for v2's reason, six times over.
             passes = self._stance_v2_gate_refuses(STANCE_HEADING_GATE_KIND)
+        elif threshold.gate_kind == COMMAND_TRACKING_GATE_KIND:
+            # Never the reward arm: the command panel is a post-stage
+            # certificate (D-D61), on seeds and a checkpoint this path never has.
+            passes = self._command_tracking_gate_refuses()
+        elif retired := retired_gate_declarations({"gate_kind": threshold.gate_kind}):
+            # A retired kind (task_success/v1, decision D-D59) is refused by
+            # the schema before a threshold is built; a threshold built by hand
+            # still names the decision rather than the generic refusal below.
+            logger.error(
+                "Stage %d refuses to advance: %s.",
+                self._current_stage,
+                "; ".join(retired),
+            )
+            passes = False
         else:
             # A kind with no evaluator here: a future entry added to
             # gate_schema.GATE_KINDS (the schema's documented extension path
@@ -418,59 +420,6 @@ class CurriculumManager:
             mean_vel = latest.get("mean_forward_vel", 0.0)
             passes = passes and mean_vel >= threshold.min_avg_forward_vel
 
-        # Success rate gate (only checked when threshold is > 0)
-        if threshold.min_success_rate > 0.0:
-            mean_success = latest.get("mean_success_rate", 0.0)
-            passes = passes and mean_success >= threshold.min_success_rate
-
-        return passes
-
-    def _task_success_gate_passes(self, latest: dict[str, float], threshold: StageThreshold) -> bool:
-        """Evaluate ``task_success/v1`` against one evaluation (plan §4.4).
-
-        The same bound the post-stage judge forms from the evidence CSV —
-        :func:`~environments.shared.curriculum.recovery_gate.binomial_lcb`
-        over the panel's per-episode successes — formed here from the
-        ``success_count`` / ``n_success_samples`` :meth:`record_eval` keeps
-        beside the mean, at the panel size the bound's power is specified
-        at; ``required_consecutive`` hysteresis is applied by the caller.
-        An evaluation with no per-episode success sample fails closed and
-        says so, rather than falling through to the reward criteria: the
-        reward rail is a collapse backstop the hunting statue clears.
-        """
-        if "success_count" not in latest or "n_success_samples" not in latest:
-            logger.warning(
-                "Stage %d declares gate_kind %s but the evaluation carried no per-episode success sample; "
-                "refusing to advance. The eval path must pass the panel's success flags to record_eval().",
-                self._current_stage,
-                TASK_SUCCESS_GATE_KIND,
-            )
-            return False
-        n = int(latest["n_success_samples"])
-        k = int(latest["success_count"])
-        if n < threshold.min_eval_episodes or n <= 0:
-            logger.info(
-                "Stage %d task_success gate not met: n_episodes %d < min_eval_episodes %d",
-                self._current_stage,
-                n,
-                threshold.min_eval_episodes,
-            )
-            return False
-        lcb = binomial_lcb(k, n)
-        passes = lcb >= threshold.min_success_lcb
-        if not passes:
-            logger.info(
-                "Stage %d task_success gate not met: task_success_lcb %.4f < %.4f (%d/%d episodes succeeded)",
-                self._current_stage,
-                lcb,
-                threshold.min_success_lcb,
-                k,
-                n,
-            )
-        # The collapse rail and the optional length floor are conjuncts,
-        # exactly as the post-stage judge applies them.
-        passes = passes and latest["mean_reward"] >= threshold.min_avg_reward
-        passes = passes and latest["mean_length"] >= threshold.min_avg_episode_length
         return passes
 
     def _recovery_gate_refuses(self) -> bool:
@@ -556,6 +505,49 @@ class CurriculumManager:
             self._current_stage,
             kind,
         )
+        return False
+
+    def _command_tracking_gate_refuses(self) -> bool:
+        """Refuse ``command_tracking/v1`` here, naming where its verdict comes from instead (decision D-D61).
+
+        The verdict is a per-episode classification of the stage's own
+        command panel -- the reset seeds planned from the certification seed
+        3042 so that each walk family holds exactly its minimum, every
+        episode's command drawn by the stage's own command stream, its gait
+        clause measured on floor truth through the substep contact recorder
+        -- rolled deterministically on the handoff pair chosen by the gated
+        statistic on a separate selection panel.  The in-training
+        evaluation has none of that: ``EvalCallback`` rolls its own seeds on
+        whatever checkpoint is current, with no recorder and no family
+        construction, so nothing it records can be classified against the
+        gate's criteria.
+
+        So the verdict is produced once, after the stage, by
+        ``reporting.command_tracking_report.build_command_tracking_report``
+        judged through ``reporting.gates.evaluate_stage_gate`` --
+        ``generate_stage_artifacts`` on the notebook path, the post-training
+        judge in ``train_base.train_curriculum`` on the CLI path.  Returning
+        ``False`` never counts toward the consecutive-pass streak and never
+        falls through to the reward gate, which ``StageThreshold``'s
+        permissive reward defaults would pass on any evaluation.  The kind's
+        threshold keys are deliberately not copied onto ``StageThreshold``
+        (:func:`thresholds_from_configs`): nothing here reads them.
+
+        Every walk declares the kind, so this is the normal path, run at
+        every in-training evaluation: it says so once per stage, at INFO,
+        and refuses silently after that.
+        """
+        if self._current_stage not in self._command_tracking_refusal_logged:
+            self._command_tracking_refusal_logged.add(self._current_stage)
+            logger.info(
+                "Stage %d declares gate_kind %r: the in-training curriculum does not advance it. Its verdict comes "
+                "after the stage from the post-stage command_tracking_report.json (the stage's command panel, seeds "
+                "planned from 3042, rolled on the handoff chosen by the gated statistic), through "
+                "reporting.gates.evaluate_stage_gate; each in-training evaluation refuses to advance without "
+                "logging again.",
+                self._current_stage,
+                COMMAND_TRACKING_GATE_KIND,
+            )
         return False
 
     def _stance_gate_passes(self, latest: dict[str, float]) -> bool:
@@ -688,30 +680,27 @@ def thresholds_from_configs(
         # config edited after the freeze cannot change a verdict the frozen
         # record already fixed.  should_advance refuses the kind outright.
         #
-        # task_success/v1's min_success_lcb IS copied: unlike recovery, the
-        # manager judges this kind in-training from the EvalCallback panel's
-        # per-episode successes (the same bound the post-stage judge forms
-        # from the evidence CSV), so the bar must reach StageThreshold —
-        # whose +inf default otherwise refuses every evaluation.
-        #
         # stance_quality/v2's keys are copied too, unlike recovery's: they
         # are read from the config (there is no frozen record to defer to),
         # so the threshold states the gate the schema validated, and the
         # in-training screen a later tier adds reads them from here.  The
         # manager refuses the kind until then (_stance_v2_gate_refuses).
         # The six-heading certificate (D-D32) declares the same keys.
+        #
+        # command_tracking/v1's keys (D-D61) are NOT copied, like recovery's:
+        # the manager refuses the kind (_command_tracking_gate_refuses) and its
+        # verdict is the post-stage panel's, which reads them from the stage's
+        # [curriculum] block through command_tracking_gate.thresholds_from_curriculum.
         threshold_fields: dict[str, Any] = {"gate_kind": gate_kind}
         v2_keys = _STANCE_V2_COPIED_KEYS if gate_kind in FLOOR_TRUTH_STANCE_GATE_KINDS else ()
         for key in (
             "min_avg_reward",
             "min_avg_episode_length",
             "min_avg_forward_vel",
-            "min_success_rate",
             "min_full_horizon_fraction",
             "max_unsupported_duty",
             "max_unsupported_duty_ucb",
             "settle_steps",
-            "min_success_lcb",
             "min_eval_episodes",
             "required_consecutive",
             *v2_keys,

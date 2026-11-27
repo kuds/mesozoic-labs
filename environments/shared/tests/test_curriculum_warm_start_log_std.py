@@ -106,9 +106,10 @@ class TestSchema:
         other["curriculum_kwargs"][WARM_START_LOG_STD_KEY] = -1.514
         digests = {hyperparameters_sha256(c, "PPO") for c in (config, without, other)}
         assert len(digests) == 3
-        # Absent, main's locomotion digest (before the warm_start_ prefix existed) is unchanged.
+        # Absent, the locomotion digest is the one without the prefix (test_critic_phase.MAIN_RECIPE_DIGESTS: main's
+        # until decision D-D62 took the forward-velocity ramp keys out of the walk's [curriculum]).
         assert hyperparameters_sha256(without, "PPO") == (
-            "sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c"
+            "sha256:1703f55481fc4a88d2b89ceb5aa693a881d54ff990b0d94c9b4240993bc33e38"
         )
         # A record without a run block derives the same digest from its blocks (decision D-B16).
         recorded = {
@@ -253,10 +254,10 @@ class TestTheReset:
 
 
 # ---------------------------------------------------------------------------------------------------- train()
-def _zip(path: Path) -> Path:
+def _zip(path: Path, data: dict | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr("data", json.dumps({}))
+        archive.writestr("data", json.dumps(data or {}))
     return path
 
 
@@ -343,8 +344,18 @@ class TestThroughTrain:
         assert entered["record"]["curriculum"][WARM_START_LOG_STD_KEY] == -1.5
         assert run["hyperparameters_sha256"] == hyperparameters_sha256(configs[2], "PPO")
 
-        # The notebook's RESUME cell: the same stage directory, a periodic checkpoint, resume_same_stage.
-        periodic = _zip(stage_dir / "models" / "stage2_2097152_steps.zip")
+        # The notebook's RESUME cell: the same stage directory, a periodic checkpoint, resume_same_stage.  The walk
+        # ramps its cruise in (decision D-D62), so its checkpoint records the ramp's position, as every session
+        # attaches it (curriculum.cruise_ramp), and the resume continues the ramp from there.
+        from environments.shared.curriculum.cruise_ramp import MODEL_CRUISE_RAMP_ATTRIBUTE, cruise_ramp_record
+
+        ramp = cruise_ramp_record(
+            configs[2]["env_kwargs"]["command_config"], steps_before_session=0, session_start_num_timesteps=0
+        )
+        periodic = _zip(
+            stage_dir / "models" / "stage2_2097152_steps.zip",
+            {MODEL_CRUISE_RAMP_ATTRIBUTE: ramp, "num_timesteps": 2_097_152},
+        )
         resumed = self._train(tmp_path, monkeypatch, capsys, stage_dir=stage_dir, load_path=periodic, configs=configs)
         assert resumed["loaded"] == str(periodic)
         assert th.allclose(resumed["std_at_learn"], th.full((15,), 0.095))  # as loaded, not reset

@@ -50,16 +50,15 @@ from .constants import (
     DEFAULT_CLIP_REWARD,
     DEFAULT_NORM_OBS,
     DEFAULT_NORM_REWARD,
-    PUBLICATION_SEED_START,
 )
 from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
 from .critic_phase import CriticPhaseError, CriticPhaseSpec, pop_critic_phase, read_critic_phase
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
+from .curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
 from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, WARM_START_LOG_STD_KEY, declared_warm_start_log_std
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
-from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .model_id import ModelId
 from .paths import REPOSITORY_ROOT
 from .plant_contract import (
@@ -106,17 +105,15 @@ class SpeciesConfig:
 
     stage_descriptions: str
     """Short stage legend for ``--stage`` argparse help
-    (e.g. ``"1=stance, 2=locomotion, 3=strike"``)."""
+    (e.g. ``"1=stance, 2=locomotion"``)."""
 
     height_label: str
     """Label used in evaluation log output (``"Pelvis height"`` or ``"Torso height"``)."""
 
-    behavior_section_label: str
-    """Section header for the behavior stage's eval results (``"Hunting"`` or ``"Food Reaching"``)."""
-
     success_keys: list
-    """Info-dict keys that signal a successful episode
-    (e.g. ``["strike_success", "bite_success"]``)."""
+    """Info-dict keys that signal a successful episode (``["course_complete"]``
+    on the Allosaurus); empty for a model with no success event, whose
+    evaluations then record no success rate rather than a zero."""
 
 
 # ── Utility helpers ──────────────────────────────────────────────────────
@@ -168,6 +165,75 @@ def _validate_post_eval_episodes(post_eval_episodes: int | None) -> None:
             "--post-eval-episodes (post_eval_episodes) must be a non-negative integer — 0 skips "
             f"the panels; got {post_eval_episodes}"
         )
+
+
+def _command_evaluation_plan(stage_config: dict[str, Any], seed: "int | None") -> Any:
+    """A live-command stage's in-training evaluation plan; ``None`` under command_mode "none".
+
+    The evaluation env (seeded :func:`eval_env_seed`) is reseeded with that
+    seed before every evaluation, so every evaluation rolls the same
+    episodes and stand count, and ``robust_best_model`` is scored by family
+    (:mod:`~environments.shared.curriculum.command_evaluation`, decision
+    D-D62).  A live stage needs the run's *seed*.
+    """
+    from .command_frame import COMMAND_MODE_NONE
+    from .curriculum.command_evaluation import command_evaluation_plan
+
+    env_kwargs = stage_config.get("env_kwargs", {})
+    if str(env_kwargs.get("command_mode", COMMAND_MODE_NONE)) == COMMAND_MODE_NONE:
+        return None
+    if seed is None:
+        raise ValueError(
+            "a live-command stage's in-training evaluation is reseeded with the run's evaluation seed at every "
+            "evaluation; pass the run's seed"
+        )
+    return command_evaluation_plan(
+        env_kwargs["command_config"], eval_env_seed(seed), _eval_episodes_for_stage(stage_config)
+    )
+
+
+def _refuse_resume_seed_change(
+    stage_config: dict[str, Any],
+    *,
+    seed: int,
+    log_path: Path,
+    load_path: str | None,
+    task_load_mode: str,
+) -> None:
+    """Refuse a same-stage resume of a live-command stage under a seed other than the run's (decision D-D62 (20)).
+
+    A live stage's in-training evaluation rolls one panel drawn from the run's
+    evaluation seed (:func:`_command_evaluation_plan`), and a resume seeds its
+    best trackers and evaluation history from the prior session's record, so
+    a resume under another seed would rank the prior evaluations' mean against
+    another panel's and rewrite the record's ``run.seed``.  The run's seed is
+    read from this directory's ``stage_config.json``, else from the one beside
+    the checkpoint (``<stage_dir>/models/<checkpoint>``, the directory the
+    CLI's default resume, which mints a fresh one, seeds its history from).
+    Stance and recovery (``command_mode = "none"``) are untouched; a record
+    that names no seed is not refused.
+    """
+    from .command_frame import COMMAND_MODE_NONE
+    from .config import read_recorded_stage_config
+
+    if not load_path or task_load_mode != "resume_same_stage":
+        return
+    if str(stage_config.get("env_kwargs", {}).get("command_mode", COMMAND_MODE_NONE)) == COMMAND_MODE_NONE:
+        return
+    for stage_dir in (Path(log_path), Path(load_path).resolve().parent.parent):
+        record = read_recorded_stage_config(stage_dir)
+        if record is None:
+            continue
+        run_block = record.get("run")
+        recorded = run_block.get("seed") if isinstance(run_block, dict) else None
+        if isinstance(recorded, int) and not isinstance(recorded, bool) and recorded != seed:
+            raise ValueError(
+                f"{stage_dir / 'stage_config.json'} records run.seed {recorded}, and this same-stage resume of a "
+                f"live-command stage was given seed {seed}: its in-training evaluation panel is drawn from the "
+                f"run's seed, so a resume under another one would rank the prior evaluations against another "
+                f"panel (decision D-D62 (20)). Resume with --seed {recorded} (the notebook's SEED = {recorded})."
+            )
+        return
 
 
 def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
@@ -705,7 +771,7 @@ def _load_vecnorm_into_envs(
     allow_legacy_plant: bool = False,
     task_load_mode: str,
     allow_fresh_vecnorm: bool = False,
-    command_mode: str = "none",
+    command_mode: str,
     vecnorm_path: str | None = None,
 ) -> None:
     """Carry forward VecNormalize stats from a prior stage or reset eval env.
@@ -728,23 +794,19 @@ def _load_vecnorm_into_envs(
     distribution is unchanged, so resetting ``ret_rms`` only distorts the
     first post-resume updates (review TC6).
 
-    ``command_mode`` is the target stage's ``[env]`` command mode: a live
-    mode reseeds the trailing command slice of the carried ``obs_rms`` on
-    both envs (BEHAVIOR_RECIPES_PLAN §4.6, invariant 8) through
-    ``load_vecnorm_stats(reseed_command_slice=True)`` — EXCEPT on a
-    same-stage resume.  The reseed exists for a parent whose command slice
-    was constant zero (var ≈ 1e-11 would clip a live command); a
-    ``resume_same_stage`` parent is the same task, so its sidecar already
-    holds the statistics the policy trained under and reseeding them would
-    restart the run under a normaliser it never saw (the ``carry_ret_rms``
-    reasoning above, applied to the command slice).  Every committed stage
-    is ``"none"``, so no load reseeds today.  The rule follows the node, not
-    the parent: a cross-stage load from a parent whose own command slice was
-    live (its recorded task fingerprint has a ``command`` section) is
-    reseeded too, while :func:`_create_or_load_model` neutralizes the
-    policy's command columns only for a parent that never saw a command; no
-    such live parent exists until a live manifest node does, and that edge
-    is settled with it.
+    ``command_mode`` is the target stage's command mode (its ``[commands]``
+    table's ``mode``; ``"none"`` without one; required, as for
+    ``load_vecnorm_stats``, so no caller loads a live stage's statistics
+    under the "none" branch), which ``load_vecnorm_stats`` applies the
+    identity rule with (decision D-D60), on every load mode:
+    training holds the command slice of ``obs_rms`` at mean 0 / var 1, so a
+    sidecar saved under the rule loads unchanged, for a resume, a warm start
+    from a command-free parent and a warm start from a live one alike.  A
+    slice off identity is refused for a live stage and re-imposed, with a
+    warning, for a ``"none"`` one.  A live parent's statistics and command
+    columns are then carried unchanged into a live child (walk into follow
+    is an exact continuation), while :func:`_create_or_load_model` zeroes the
+    command columns of a parent that never saw a command.
     """
     from .curriculum import load_vecnorm_stats
     from .policy_loading import _resolve_vecnorm_sidecar
@@ -761,9 +823,7 @@ def _load_vecnorm_into_envs(
             load_kwargs = {"unsafe_skip_plant_validation": True}
         if task_load_mode == "resume_same_stage":
             load_kwargs["carry_ret_rms"] = True
-        if command_mode != "none" and task_load_mode != "resume_same_stage":
-            load_kwargs["reseed_command_slice"] = True
-        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env, **load_kwargs):
+        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env, command_mode=command_mode, **load_kwargs):
             if not allow_fresh_vecnorm:
                 raise FileNotFoundError(
                     f"VecNormalize sidecar not found for {load_path!r} (probed {_vecnorm_path!r}). "
@@ -956,8 +1016,11 @@ def _create_or_load_model(
                 # that read its command inputs never received a gradient.
                 # Zero them and their optimizer moments, proving the policy
                 # unchanged on zero commands and blind to live ones before the
-                # first update (BEHAVIOR_RECIPES_PLAN §4.6, "Exact transfer");
-                # a live parent keeps what it learned.
+                # first update (BEHAVIOR_RECIPES_PLAN §4.6, "Exact transfer").
+                # A live parent keeps what it learned: its statistics hold the
+                # command slice at identity, as the child's do (decision
+                # D-D60), so the child acts exactly as the parent on every
+                # command (walk into follow is an exact continuation).
                 from .policy_loading import assert_command_blind, neutralize_command_columns
                 from .task_fingerprint import MODEL_TASK_ATTRIBUTE
 
@@ -1044,7 +1107,10 @@ def _build_core_callbacks(
     """Build the standard callback set shared by train() and train_curriculum().
 
     Returns ``(callbacks, eval_callback, save_vecnorm_cb)`` so callers can
-    append additional stage-specific callbacks.
+    append additional stage-specific callbacks.  The first callback is the
+    :class:`~environments.shared.curriculum.CommandIdentityCallback`, which
+    holds the command observation slice at identity normalization before
+    any later callback copies or saves the statistics (decision D-D60).
 
     ``total_timesteps`` is the cumulative step count this session actually
     trains to (the stage body's resume-aware ``target_timesteps``).  The
@@ -1053,7 +1119,11 @@ def _build_core_callbacks(
     budget, which a ``--timesteps`` override or a shortened resume budget
     silently mis-timed (review TC9).  ``None`` keeps the TOML fallback for
     callers that predate the parameter.  ``seed`` is the run's seed, which
-    ``progress.json`` records (``None``: not recorded).
+    ``progress.json`` records (``None``: not recorded); on a live-command
+    stage the evaluation env is reseeded with its :func:`eval_env_seed`
+    before every evaluation and the robust pair is scored by command family
+    (:func:`_command_evaluation_plan`, decision D-D62), so a live stage
+    needs it.
     ``policy_probe_env_factory(horizon)`` builds a bare env of the stage
     with that ``max_episode_steps`` and any scheduled pushes off
     (``policy_probe.bank_env_kwargs``), the policy probe's state-bank env
@@ -1062,6 +1132,7 @@ def _build_core_callbacks(
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
         CheckpointRetentionCallback,
+        CommandIdentityCallback,
         PublishEvalArtifactsCallback,
         RobustBestModelCallback,
         SaveVecNormalizeCallback,
@@ -1079,7 +1150,12 @@ def _build_core_callbacks(
     from .rollout_ledger import build_training_ledger_callback
     from .tb_sync import PeriodicTbSyncCallback
 
-    callbacks: list[Any] = []
+    # FIRST: the command observation slice held at identity normalization
+    # (decision D-D60).  It re-imposes the slice after the reset update and
+    # after every step's update, before any callback below reads or saves the
+    # statistics in the same step: the EvalCallback's copy into the eval env
+    # and its best-model pair, the robust pair and the periodic checkpoints.
+    callbacks: list[Any] = [CommandIdentityCallback(eval_env=eval_env)]
 
     # EvalCallback rewrites evaluations.npz in place on every eval; on a
     # Drive/GCS FUSE mount that streaming rewrite can be observed — or
@@ -1106,6 +1182,28 @@ def _build_core_callbacks(
     # records written on that cadence (eval_episodes.csv, train_episodes.csv,
     # policy_probe.npz) are rewritten on the same calls.
     checkpoint_stride = max(1, save_freq // n_envs)
+    # A live-command stage's evaluations all roll one command panel, and its robust pair is scored by family
+    # (decision D-D62); None under command_mode "none".
+    command_evaluation = _command_evaluation_plan(stage_config, seed)
+    if command_evaluation is not None:
+        counts = command_evaluation.family_counts()
+        logger.info(
+            "In-training evaluation: the same %d episodes at every evaluation (evaluation env reseeded with %d): "
+            "%d cruise, %d stand; robust_best_model scores each family's mean - std, weighted %.2f / %.2f",
+            len(command_evaluation.families),
+            command_evaluation.seed,
+            counts["cruise"],
+            counts["stand"],
+            *command_evaluation.family_weights().values(),
+        )
+        if not counts["stand"] or not counts["cruise"]:
+            logger.warning(
+                "In-training evaluation: seed %d draws no %s episode in its %d; best_model and robust_best_model "
+                "rank the other family alone (the selection and certification panels still roll both)",
+                command_evaluation.seed,
+                "stand" if not counts["stand"] else "cruise",
+                len(command_evaluation.families),
+            )
     local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_{stage_label(stage)}_")
     eval_callback, plateau_callback = build_stage_evaluation_callbacks(
         eval_env,
@@ -1128,6 +1226,7 @@ def _build_core_callbacks(
         render=False,
         verbose=max(verbose, 1),
         callback_on_new_best=save_vecnorm_cb,
+        command_evaluation=command_evaluation,
         # eval_episodes.csv on the checkpoint cadence and at training end, not
         # rewritten whole after every evaluation (about 28 MB by the end of an
         # 11M T. rex stance); this callback runs before the CheckpointCallback,
@@ -1138,7 +1237,8 @@ def _build_core_callbacks(
     callbacks.append(plateau_callback)
     callbacks.append(PublishEvalArtifactsCallback(eval_callback, publish_dir=log_path))
     # Risk-adjusted (mean - std) checkpoint alongside SB3's mean-reward
-    # best_model; next-stage loading prefers it when present.
+    # best_model; next-stage loading prefers it when present.  On a live
+    # stage it reads the evaluation callback's plan and scores by family.
     robust_callback = RobustBestModelCallback(
         eval_callback, model_dir=model_dir, verbose=verbose, staging_dir=handoff_staging_dir
     )
@@ -1411,8 +1511,12 @@ def _stage_entry_shaping_callbacks(
     target_fwd_weight = stage_config["env_kwargs"].get("forward_vel_weight", 1.0)
     # Ramping forward_vel_weight only makes sense when the stage USES it:
     # recovery mirrors stance and sets it to 0.0, and ramping 0.1 -> 0.0
-    # would inject a walk incentive the task fingerprint says is absent.
-    if target_fwd_weight > 0.0:
+    # would inject a walk incentive the task fingerprint says is absent.  A
+    # stage with a live command gets none: its entry ramp is the cruise ramp
+    # (_cruise_ramp_callback, decision D-D62), and load_stage_config refuses
+    # the forward ramp's [curriculum] keys there.
+    live = stage_config["env_kwargs"].get("command_config") is not None
+    if target_fwd_weight > 0.0 and not live:
         shaping.append(
             RewardRampCallback(
                 attr_name="forward_vel_weight",
@@ -1422,6 +1526,49 @@ def _stage_entry_shaping_callbacks(
             )
         )
     return shaping
+
+
+def _cruise_ramp_callback(
+    stage_config: dict[str, Any],
+    *,
+    task_load_mode: str,
+    load_path: str | None,
+) -> Any:
+    """The stage's cruise ramp (decision D-D62), or ``None`` for a stage whose command config declares none.
+
+    Unlike the stage-entry shaping, the ramp is part of the task (its spec is
+    in the command config the fingerprint records), so it runs on every load
+    mode: from ramp step 0 on a fresh stage or a load across the node's edge,
+    and on a ``resume_same_stage`` load from the position the checkpoint
+    records (``curriculum.cruise_ramp.resume_ramp_steps``, which refuses a
+    checkpoint without one).  A ramp on a stage warm-started from a parent
+    whose task fingerprint has a ``command`` section is refused: that parent
+    was trained at the full cruise, and the warm start keeps its command
+    columns so the child continues it exactly (decision D-D60 (5)); such a
+    stage states ``cruise_ramp_start_fraction = 1.0`` and
+    ``cruise_ramp_timesteps = 0`` in its ``[commands]``, overriding the pair
+    it inherits from the walk (the loader refuses a ramp of zero steps whose
+    start fraction is below 1).
+    """
+    config = stage_config.get("env_kwargs", {}).get("command_config")
+    if config is None or not config.has_cruise_ramp:
+        return None
+    from .curriculum import CruiseRampCallback, CruiseRampError
+    from .curriculum.cruise_ramp import resume_ramp_steps
+    from .task_fingerprint import read_checkpoint_task_fingerprint
+
+    start = 0
+    if load_path and task_load_mode == "initialize_next_stage":
+        parent = read_checkpoint_task_fingerprint(load_path)
+        if parent is not None and parent.get("command") is not None:
+            raise CruiseRampError(
+                f"the stage declares a cruise ramp, but its parent {load_path} already tracked a command: the warm "
+                "start continues it exactly at the full cruise, so state cruise_ramp_start_fraction = 1.0 and "
+                "cruise_ramp_timesteps = 0 in the stage's [commands]"
+            )
+    elif load_path:
+        start = resume_ramp_steps(load_path, config)
+    return CruiseRampCallback(config, start_ramp_steps=start)
 
 
 def _save_final_and_sync_tb(
@@ -1447,8 +1594,16 @@ def _save_final_and_sync_tb(
     zip they accept and never no final zip at all. (Removing the sidecar
     first would briefly leave no final zip when there was none before.)
 
+    The command slice of the training statistics is held at identity
+    (decision D-D60) before the sidecar is written: a ``KeyboardInterrupt``
+    can end ``learn()`` between a step's statistics update and the
+    ``CommandIdentityCallback`` that re-imposes it.
+
     Returns the final model path (without ``.zip`` extension).
     """
+    from .curriculum import hold_vec_normalize_command_identity
+
+    hold_vec_normalize_command_identity(train_env)
     final_path = model_dir / f"{stage_label(stage)}_final"
     if _is_remote_mount_path(model_dir):
         import shutil as _shutil
@@ -1618,6 +1773,15 @@ def _train_stage_body(
         plant_identity=plant_identity,
         critic_phase_gamma=(0.99 if alg_gamma is None else alg_gamma) if critic_phase_on else None,
     )
+    # The task fingerprint's command section was derived from the stage's
+    # [commands] before any environment existed (stage_task_fingerprint); the
+    # environments must report that same controller manifest (decision D-D60).
+    from .task_fingerprint import check_env_command_manifest
+
+    for manifest in train_env.env_method("command_manifest"):
+        check_env_command_manifest(
+            manifest, task_fingerprint, artifact=f"{species_cfg.model_id} stage {stage} training environment"
+        )
 
     if announce:
         logger.info("Creating evaluation environment...")
@@ -1830,6 +1994,14 @@ def _train_stage_body(
             load_path=load_path,
         )
     )
+    # The cruise ramp (decision D-D62) is the task's, on every load mode; its
+    # first fraction is set on the training workers now, before learn()'s
+    # first reset draws the first commands.  The evaluation env keeps the
+    # stage's declared (end-state) command config.
+    cruise_ramp = _cruise_ramp_callback(config, task_load_mode=task_load_mode, load_path=load_path)
+    if cruise_ramp is not None:
+        callbacks.append(cruise_ramp)
+        cruise_ramp.prime(train_env)
 
     callback_list = sb3["CallbackList"](callbacks)
     if before_learn is not None:
@@ -1895,11 +2067,36 @@ def _train_stage_body(
     # Report only: learn() skipped on_training_end after the interrupt, so the
     # checkpoint-cadence records (eval_episodes.csv, train_episodes.csv,
     # policy_probe.npz) lack their rows since the newest periodic checkpoint.
-    # Written here, after the final pair is saved (a 12M T. rex stance's
+    # Written here, after the final pair is saved (an 11M T. rex stance's
     # eval_episodes.csv takes seconds, a window in which a second Ctrl-C would
     # otherwise cost the final pair), and before anything re-judges the stage.
     if interrupted:
         _flush_report_records(callbacks)
+
+    # A command_tracking/v1 stage (decision D-D61) hands on the checkpoint its
+    # gated statistic chooses, not the reward-chosen one: each complete
+    # candidate (robust_best_model, best_model, the final pair) is rolled on
+    # the selection panel and models/handoff_choice.json records the winner,
+    # which select_handoff_checkpoint honors from here on.  Never after an
+    # interruption: an interrupted node is unjudged, and is chosen when judged.
+    if not interrupted and stage_configs[stage].get("curriculum_kwargs", {}).get("gate_kind") == (
+        COMMAND_TRACKING_GATE_KIND
+    ):
+        from .reporting.stage_artifacts import ensure_command_handoff_choice
+
+        try:
+            ensure_command_handoff_choice(
+                model_id=species_cfg.model_id,
+                stage=stage,
+                stage_config=stage_configs[stage],
+                model_dir=model_dir,
+                final_stem=final_path,
+            )
+        except KeyboardInterrupt:
+            if not save_on_interrupt:
+                raise
+            logger.warning("The handoff choice was interrupted by the user; the final checkpoint pair is saved.")
+            interrupted = True
 
     return _TrainedStage(
         model=model,
@@ -2049,7 +2246,10 @@ def train(
     the directory's ``stage_config.json`` records
     (:func:`~environments.shared.config.refuse_resume_recipe_change`).  A
     checkpoint whose recorded task fingerprint differs is refused before
-    anything is written as well.  The re-saved record keeps the first
+    anything is written as well, and so, with ``ValueError``, is a
+    same-stage resume of a live-command stage under a seed other than the
+    one the run recorded (:func:`_refuse_resume_seed_change`, decision
+    D-D62 (20)).  The re-saved record keeps the first
     session's commit, library version, budget, label and load lineage, and
     this session is listed under ``run.resume_sessions`` once its model has
     loaded, just before ``learn()``
@@ -2098,6 +2298,8 @@ def train(
     config = stage_configs[stage]
     model_id = species_cfg.model_id
     plant_identity = current_plant_identity(model_id)
+    # A live stage's command section is its [commands] controller manifest, derived from the config the env
+    # is built from (and checked against the built env in _train_stage_body); a "none" stage has none.
     task_fingerprint = stage_task_fingerprint(model_id, stage, stage_config=config, plant_identity=plant_identity)
     # The node and its declared edge, resolved once: the edge keys the
     # declared-parent refusal below and the stage-entry shaping further down.
@@ -2203,6 +2405,9 @@ def train(
         task_load_mode=task_load_mode if load_path else None,
         label=label,
     )
+    # A live walk's resume keeps the run's seed, which fixes its evaluation panel (decision D-D62 (20)); read
+    # before the re-save below rewrites the record's run.seed.
+    _refuse_resume_seed_change(config, seed=seed, log_path=log_path, load_path=load_path, task_load_mode=task_load_mode)
 
     log_path.mkdir(parents=True, exist_ok=True)
     model_dir = log_path / "models"
@@ -2431,9 +2636,9 @@ def _report_hpt_metrics(
                 model_dir,
                 algorithm,
                 plant_identity,
-                stage_config,
                 quality_episodes=quality_episodes,
                 velocity_episodes=velocity_episodes,
+                command_mode=str((stage_config or {}).get("env_kwargs", {}).get("command_mode", "none")),
             )
         )
 
@@ -2468,8 +2673,9 @@ def _report_hpt_metrics(
 
 
 #: What :func:`run_success_panel` returns beside the ``metrics.json`` entries:
-#: the per-episode rewards, lengths, forward velocities, success flags and
-#: distances of the panel, in :func:`~environments.shared.evaluation.eval_policy` order.
+#: the per-episode rewards, lengths, forward velocities, success flags (none
+#: for a model without success keys) and distances of the panel, in
+#: :func:`~environments.shared.evaluation.eval_policy` order.
 PanelEpisodes = tuple[list[Any], list[Any], list[Any], list[Any], list[Any]]
 
 
@@ -2479,90 +2685,23 @@ def run_success_panel(
     species_cfg: SpeciesConfig,
     *,
     n_episodes: int,
-    curriculum: "Mapping[str, Any] | None",
-    evaluated_handoff: "tuple[str, str, str] | None",
-    stage_dir: Path,
 ) -> tuple[PanelEpisodes, dict[str, Any]]:
-    """Run the post-training velocity/success panel; for a hunt it doubles as the gate evidence.
+    """Run the post-training velocity/success panel.
 
     Its one caller is :func:`_post_training_eval_panels`, the panel
     ``train()`` rolls with ``report_metrics=True`` (decision D-B12 and its
-    amendment).  Returns the panel's
-    per-episode sequences and the ``metrics.json`` entries they add:
-
-    * For every kind, ``success_count`` / ``n_success_episodes`` — the exact
-      ``k`` / ``n`` a rounded ``mean_success_rate`` cannot recover.
-    * For a stage declaring ``task_success/v1`` whose panel evaluated the
-      handoff pair (*evaluated_handoff*, the ``select_handoff_checkpoint``
-      triple), the panel is sized at ``max(n_episodes, min_eval_episodes)``,
-      re-seeded to the publication seed, and written as
-      ``<stage_dir>/evaluation_selected.csv`` hash-bound to the pair; the
-      count keys are recorded ONLY when that file was written, together
-      with ``selected_mean_reward`` / ``selected_mean_episode_length`` (the
-      rail and length-floor inputs off the same rows).  A hunt panel that
-      did not evaluate the handoff pair (no checkpoint saved, the smoke-run
-      shape) or whose evidence write failed records no count at all, so
-      ``metrics.json`` holds no count beside a directory the judge refuses,
-      never a PASS beside a FAILED verdict file.
+    amendment).  Returns the panel's per-episode sequences and the
+    ``metrics.json`` entries they add: ``success_count`` /
+    ``n_success_episodes``, the exact ``k`` / ``n`` a rounded
+    ``mean_success_rate`` cannot recover.  The panel measures the success
+    event of the model's ``SUCCESS_KEYS``; a model that declares none records
+    no success flag, so neither entry is written.
     """
-    curriculum = curriculum or {}
-    task_success = curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND
-    evidence_panel = task_success and evaluated_handoff is not None
-    panel_episodes = n_episodes
-    if evidence_panel:
-        declared = curriculum.get("min_eval_episodes")
-        if declared is not None:
-            panel_episodes = max(n_episodes, int(declared))
-        # The panel doubles as the stage's gate evidence, so it runs on the
-        # publication seed like the notebook's selected-checkpoint panel;
-        # VecEnv.seed applies at the next reset, which eval_policy makes.
-        eval_env.seed(PUBLICATION_SEED_START)
-    episodes: PanelEpisodes = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=panel_episodes)
-    rewards, lengths, fwd_vels, successes, distances = episodes
-    metrics: dict[str, Any] = {}
+    episodes: PanelEpisodes = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=n_episodes)
+    successes = episodes[3]
     if not successes:
-        return episodes, metrics
-    count = {"success_count": sum(1 for flag in successes if flag), "n_success_episodes": len(successes)}
-    if not task_success:
-        metrics.update(count)
-        return episodes, metrics
-    if evaluated_handoff is None:
-        logger.warning(
-            "Task-success panel evaluated no handoff pair (quality_eval_checkpoint is a fallback), so its "
-            "%d/%d successes are NOT recorded as a task_success/v1 count: the gate is judged from "
-            "evaluation_selected.csv bound to the handoff, and this panel cannot be.",
-            count["success_count"],
-            count["n_success_episodes"],
-        )
-        return episodes, metrics
-    _, ckpt_path, ckpt_vecnorm = evaluated_handoff
-    try:
-        from .reporting import save_evaluation_episodes
-
-        written = save_evaluation_episodes(
-            stage_dir,
-            rewards=rewards,
-            lengths=lengths,
-            forward_velocities=fwd_vels,
-            distances=distances,
-            successes=successes,
-            evaluation_seed=PUBLICATION_SEED_START,
-            checkpoint_label="selected",
-            checkpoint_path=f"{ckpt_path}.zip",
-            normalization_path=ckpt_vecnorm,
-        )
-    except Exception:  # noqa: BLE001 - evidence must not sink the run; the judge refuses without it
-        logger.warning(
-            "Task-success evidence could not be written; the panel's count is not recorded either, "
-            "so metrics.json holds no count beside the refused verdict",
-            exc_info=True,
-        )
-        return episodes, metrics
-    logger.info("Task-success evidence for the handoff pair written to: %s", written)
-    metrics.update(count)
-    metrics["selected_mean_reward"] = float(sum(float(r) for r in rewards) / len(rewards))
-    metrics["selected_mean_episode_length"] = float(sum(float(n) for n in lengths) / len(lengths))
-    return episodes, metrics
+        return episodes, {}
+    return episodes, {"success_count": sum(1 for flag in successes if flag), "n_success_episodes": len(successes)}
 
 
 def _post_training_eval_panels(
@@ -2572,12 +2711,16 @@ def _post_training_eval_panels(
     model_dir: Path,
     algorithm: str,
     plant_identity: PlantIdentity | None,
-    stage_config: "dict[str, Any] | None" = None,
     *,
     quality_episodes: int,
     velocity_episodes: int,
+    command_mode: str,
 ) -> dict[str, Any]:
     """Run the post-training quality and velocity/success panels.
+
+    ``command_mode`` is the stage's (required, as for
+    ``load_vecnorm_stats``): the handoff's sidecar loads under the identity
+    rule of decision D-D60.
 
     Returns the ``metrics.json`` entries they produce, including
     ``quality_eval_checkpoint`` — the checkpoint the panels describe.  Each
@@ -2587,11 +2730,8 @@ def _post_training_eval_panels(
     The velocity/success panel is :func:`run_success_panel`: it records
     ``success_count`` / ``n_success_episodes`` beside ``mean_success_rate``
     — the exact ``k`` / ``n`` a rounded rate cannot recover (decision
-    D-B12) — and, when *stage_config* declares ``task_success/v1`` and the
-    panel evaluated the handoff pair, writes the same episodes as
-    ``<stage_dir>/evaluation_selected.csv`` hash-bound to the pair, so the
-    post-stage judge (``generate_stage_artifacts``) and ``metrics.json``
-    agree by construction.
+    D-B12) — for a model that declares success keys, and none of the three
+    for one that does not.
     """
     import numpy as _np
 
@@ -2612,10 +2752,8 @@ def _post_training_eval_panels(
     # was 261.79 ± 261.72). The chosen name is recorded in the sidecar as
     # quality_eval_checkpoint.
     handoff = _select_handoff_checkpoint(model_dir)
-    evaluated_handoff: "tuple[str, str, str] | None" = None
     if handoff is not None:
         ckpt_name, ckpt_path, ckpt_vecnorm = handoff
-        evaluated_handoff = handoff
         # seed=None: an archive that recorded its training seed (every stage
         # train() or the CLI curriculum trains, D-D11) would otherwise re-seed
         # eval_env with it on load.
@@ -2627,7 +2765,7 @@ def _post_training_eval_panels(
             load_kwargs = {"current_plant": plant_identity}
         else:
             load_kwargs = {"unsafe_skip_plant_validation": True}
-        load_vecnorm_stats(ckpt_vecnorm, eval_env, **load_kwargs)
+        load_vecnorm_stats(ckpt_vecnorm, eval_env, command_mode=command_mode, **load_kwargs)
         eval_env.training = False
         eval_env.norm_reward = False
         panel["quality_eval_checkpoint"] = ckpt_name
@@ -2657,9 +2795,7 @@ def _post_training_eval_panels(
     from .evaluation import eval_policy_quality
 
     try:
-        quality_metrics = eval_policy_quality(
-            eval_model, eval_env, species_cfg.success_keys, n_episodes=quality_episodes
-        )
+        quality_metrics = eval_policy_quality(eval_model, eval_env, n_episodes=quality_episodes)
         panel.update(quality_metrics)
         logger.info(
             "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",
@@ -2674,7 +2810,6 @@ def _post_training_eval_panels(
     # Run for all stages so mean_distance_traveled is always captured.
     # Guarded so a mid-eval failure still writes the metrics.json sidecar
     # with whatever was collected above.
-    curriculum = (stage_config or {}).get("curriculum_kwargs", {})
     success_panel_metrics: dict[str, Any] = {}
     try:
         (_, _, fwd_vels, success_flags, distances), success_panel_metrics = run_success_panel(
@@ -2682,9 +2817,6 @@ def _post_training_eval_panels(
             eval_env,
             species_cfg,
             n_episodes=velocity_episodes,
-            curriculum=curriculum,
-            evaluated_handoff=evaluated_handoff,
-            stage_dir=model_dir.parent,
         )
     except Exception:
         logger.warning("Post-training eval_policy failed — skipping velocity/success metrics.", exc_info=True)
@@ -2712,9 +2844,7 @@ def _post_training_eval_panels(
             sum(1 for flag in success_flags if flag),
             len(success_flags),
         )
-    # The count and the panel size (D-B12). For task_success/v1 the shared
-    # panel records them only when it wrote the evidence file the judge
-    # reads, so the count always has the rows behind it.
+    # The count and the panel size (D-B12).
     panel.update(success_panel_metrics)
     return panel
 
@@ -2725,44 +2855,6 @@ def _post_training_eval_panels(
 #: (decision D-A5): the CurriculumManager's advancement decision, not the
 #: evidence-backed post-stage judgement ``generate_stage_artifacts`` makes.
 CURRICULUM_MANAGER_JUDGED_BY = "train_base.train_curriculum/CurriculumManager"
-
-
-def _in_training_task_success_result(
-    manager: Any,
-    stage: "int | str",
-    curriculum: Mapping[str, Any],
-) -> "dict[str, Any] | None":
-    """The ``stage_result`` the in-training verdict records for a ``task_success/v1`` node.
-
-    ``success_count`` / ``n_success_samples`` of the LAST evaluation the
-    manager recorded for *stage* (the panel the verdict was judged on) and
-    the bound it formed, under the persisted ``best_model_*`` names so the
-    verdict projects them; ``None`` for every other kind, and for a
-    task_success stage whose history carries no success sample (the verdict
-    then failed closed, and nothing is invented for it).
-    """
-    if curriculum.get("gate_kind") != TASK_SUCCESS_GATE_KIND:
-        return None
-    history = manager.summary()["eval_history"].get(stage) or []
-    latest = history[-1] if history else {}
-    if "success_count" not in latest or "n_success_samples" not in latest:
-        return None
-    from .curriculum.recovery_gate import binomial_lcb
-
-    count = int(latest["success_count"])
-    n_samples = int(latest["n_success_samples"])
-    return {
-        "stage": stage,
-        "success_count": count,
-        "n_success_samples": n_samples,
-        "best_model_success_count": count,
-        "best_model_n_episodes": n_samples,
-        "best_model_success_lcb": binomial_lcb(count, n_samples) if n_samples > 0 else float("nan"),
-        "mean_reward": latest.get("mean_reward"),
-        "mean_episode_length": latest.get("mean_length"),
-        "gate_kind": curriculum.get("gate_kind"),
-        "gate_schema_version": curriculum.get("gate_schema_version"),
-    }
 
 
 #: What ``train_curriculum``'s verdict records as ``judged_by`` for a
@@ -2833,6 +2925,92 @@ def _post_training_stance_verdict(
         "gate_failures": failures,
         **admitted(curriculum, report, stage=stage, stage_dir=stage_dir),
     }
+    return passed, failures, stage_result
+
+
+#: The same for a ``command_tracking/v1`` node (decision D-D61): the
+#: post-training judgement of the command panel rolled on the handoff its
+#: gated statistic chose, through the same report writer and judge
+#: ``generate_stage_artifacts`` uses.
+COMMAND_TRACKING_POST_TRAINING_JUDGED_BY = "train_base.train_curriculum/command_tracking_report"
+
+#: The gate kinds the in-training manager refuses and ``train_curriculum`` judges after the node's budget.
+POST_TRAINING_JUDGED_GATE_KINDS: frozenset[str] = frozenset(
+    {*FLOOR_TRUTH_STANCE_GATE_KINDS, COMMAND_TRACKING_GATE_KIND}
+)
+
+
+def _post_training_command_verdict(
+    model_id: ModelId,
+    stage: "int | str",
+    config: dict[str, Any],
+    *,
+    stage_dir: Path,
+    model_dir: Path,
+) -> "tuple[bool, list[str], dict[str, Any]]":
+    """Judge a ``command_tracking/v1`` node after its training: ``(passed, failures, stage_result)``.
+
+    The in-training manager refuses the kind (D-D61), so without this a CLI
+    curriculum could never advance such a node.  The command panel is rolled
+    on the handoff pair ``select_handoff_checkpoint`` picks -- the pair the
+    handoff choice made at the end of training chose by the gated statistic,
+    which the verdict is hash-bound to and the next node loads -- by the
+    same ``stage_artifacts._write_command_tracking_report`` the post-stage
+    pipeline calls, and judged through ``reporting.gates.evaluate_stage_gate``,
+    which refuses a report that is not bound to this gate, handoff choice,
+    task and command, and re-derives the verdict from its records.  Never
+    raises: a panel that could not be rolled or judged is a FAIL naming why.
+    After the verdict, ``stage_artifacts.write_command_tracking_figures``
+    draws the command-tracking trace and figures, the figures into a
+    ``stage_layout.staged_artifacts`` directory published into the stage's
+    ``figures/`` with ``atomic_copy``, as ``generate_stage_artifacts`` does
+    for the notebook.
+    """
+    from .reporting.gates import evaluate_stage_gate
+    from .reporting.stage_artifacts import _write_command_tracking_report, admitted_command_tracking_stage_result
+
+    curriculum = config.get("curriculum_kwargs", {})
+    report = _write_command_tracking_report(
+        model_id=model_id, stage=stage, stage_config=config, stage_dir=stage_dir, model_dir=model_dir
+    )
+    try:
+        passed, failures = evaluate_stage_gate(
+            curriculum, {}, stage=stage, stage_dir=stage_dir, command_tracking_report=report
+        )
+    except Exception as exc:  # noqa: BLE001 - a verdict that cannot be formed is a FAIL, never a crash mid-curriculum
+        logger.warning("Stage %s %s verdict could not be formed", stage, COMMAND_TRACKING_GATE_KIND, exc_info=True)
+        passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
+    stage_result: dict[str, Any] = {
+        "stage": stage,
+        "gate_kind": curriculum.get("gate_kind"),
+        "gate_schema_version": curriculum.get("gate_schema_version"),
+        "gate_passed": passed,
+        "gate_failures": failures,
+        **admitted_command_tracking_stage_result(curriculum, report, stage=stage, stage_dir=stage_dir),
+    }
+    # After the verdict, as generate_stage_artifacts draws them: the trace and the two command figures (never
+    # raises; nothing here is read by the verdict above).  The figures are drawn into a local staging directory
+    # and published into the stage's figures/ with atomic_copy on exit, as the notebook path publishes its own, so
+    # a runtime killed mid-savefig leaves no half-written png on the mount.  The publish runs in a finally, on an
+    # error or an interrupt too, so the writer removes a failed figure's partial file from staging before the error
+    # goes on.  The stale-figure sweep inside still removes an earlier judgement's published copies from the
+    # stage's figures/ before anything is drawn.
+    from .reporting import stage_layout
+    from .reporting.stage_artifacts import write_command_tracking_figures
+
+    try:
+        with stage_layout.staged_artifacts(stage_dir) as staging:
+            write_command_tracking_figures(
+                model_id=model_id,
+                stage=stage,
+                stage_config=config,
+                stage_dir=stage_dir,
+                figures_out=stage_layout.figures_dir(staging, create=True),
+                report=report,
+                verdict=passed,
+            )
+    except Exception:  # noqa: BLE001 - staging that cannot be set up costs the figures, never the verdict
+        logger.warning("Stage %s's command figures could not be staged", stage, exc_info=True)
     return passed, failures, stage_result
 
 
@@ -3254,6 +3432,7 @@ def train_curriculum(
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
 
+        # With the command section of a live stage's [commands], as train() derives it.
         task_fingerprint = stage_task_fingerprint(model_id, stage, stage_config=config, plant_identity=plant_identity)
 
         # The parent resolves first, for a reused node as much as a trained
@@ -3527,11 +3706,7 @@ def train_curriculum(
         passed = bool(curriculum_cb.ready_to_advance) and not interrupted
         verdict_failures = [] if passed else ["stage budget exhausted without meeting advancement thresholds"]
         verdict_judged_by = CURRICULUM_MANAGER_JUDGED_BY
-        # A task_success/v1 node's in-training verdict is the manager's
-        # bound over the LAST EvalCallback panel (never the post-stage
-        # evidence CSV, which this path does not write); record the count
-        # it was judged on so the verdict is auditable.
-        verdict_stage_result = _in_training_task_success_result(manager, stage, cur_kwargs)
+        verdict_stage_result: "dict[str, Any] | None" = None
         if not interrupted and cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS:
             # The manager refuses stance_quality/v2 and the six-heading
             # certificate in-training, so the node is judged here instead,
@@ -3546,6 +3721,15 @@ def train_curriculum(
                 if cur_kwargs.get("gate_kind") == STANCE_HEADING_GATE_KIND
                 else STANCE_V2_POST_TRAINING_JUDGED_BY
             )
+        if not interrupted and cur_kwargs.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+            # The manager refuses command_tracking/v1 in-training too (D-D61):
+            # the command panel on the handoff the gated statistic chose,
+            # judged by evaluate_stage_gate.  Its own statement, not an elif
+            # of the stance branch: the kinds are disjoint.
+            passed, verdict_failures, verdict_stage_result = _post_training_command_verdict(
+                model_id, stage, config, stage_dir=stage_dir, model_dir=model_dir
+            )
+            verdict_judged_by = COMMAND_TRACKING_POST_TRAINING_JUDGED_BY
         if interrupted:
             logger.warning(
                 "Stage %s was interrupted before its budget ran out; no gate verdict recorded "
@@ -3603,12 +3787,12 @@ def train_curriculum(
             curriculum_cb,
             training_duration_seconds=stage_duration,
             plant_identity=plant_identity,
-            # A floor-truth stance node's verdict is the post-training
-            # judgement above, not the manager's (which refuses the kind);
-            # the row records it.
-            stage_passed=passed if cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS else None,
+            # A floor-truth stance or command-tracking node's verdict is the
+            # post-training judgement above, not the manager's (which refuses
+            # the kind); the row records it.
+            stage_passed=passed if cur_kwargs.get("gate_kind") in POST_TRAINING_JUDGED_GATE_KINDS else None,
             stance_result=(
-                verdict_stage_result if cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS else None
+                verdict_stage_result if cur_kwargs.get("gate_kind") in POST_TRAINING_JUDGED_GATE_KINDS else None
             ),
         )
 
@@ -3663,7 +3847,8 @@ def _record_stage_result(
     recorded outcome -- a ``stance_quality/v2`` or six-heading certificate
     node is judged after training, not by the manager -- and
     ``stance_result`` is that judgement's ``stage_result`` (its clean count
-    and bound; the certificate's grouped ones).
+    and bound; the certificate's grouped ones; a ``command_tracking/v1``
+    node's family counts and bounds, decision D-D61).
     """
     import numpy as _np
 
@@ -3728,8 +3913,6 @@ def _record_stage_result(
         "reward_threshold": cur_kwargs.get("min_avg_reward", ""),
         "ep_length_threshold": cur_kwargs.get("min_avg_episode_length", ""),
         "forward_vel_threshold": cur_kwargs.get("min_avg_forward_vel", ""),
-        "success_rate_threshold": cur_kwargs.get("min_success_rate", ""),
-        "success_lcb_threshold": cur_kwargs.get("min_success_lcb", ""),
         # stance_quality/v1. A stance-gated stage otherwise records only its
         # reward rail, which reads as though reward were the gate.
         "gate_kind": cur_kwargs.get("gate_kind", ""),
@@ -3767,6 +3950,12 @@ def _record_stage_result(
                 "stance_heading_clean_seed_lcb": judged.get("stance_heading_clean_seed_lcb", ""),
             }
         )
+    elif cur_kwargs.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        # command_tracking/v1 (D-D61): the profile, each family's counts and
+        # bounds -- reporting.csv_output's command columns, on such a row only.
+        from .reporting.csv_output import command_tracking_columns
+
+        result_row.update(command_tracking_columns(cur_kwargs, stance_result or {}))
     if plant_identity is not None:
         result_row.update({f"plant_{key}": value for key, value in plant_identity.to_dict().items()})
     append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)

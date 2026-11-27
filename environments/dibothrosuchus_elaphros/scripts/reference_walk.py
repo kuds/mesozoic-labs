@@ -39,7 +39,13 @@ class ReferenceWalk(QuadrupedReferenceWalk):
         ipsilateral_phase=0.28,
         lift=0.018,
         sway=0.017,
-        sway_phase=0.08,
+        # 0.08 until physics r4: with the 20 g snout_snap box gone the lighter
+        # head moves 0.4% of the weight off the forefeet, and from about the
+        # tenth stride the right forefoot then loaded on the same control step
+        # as the left hind foot. 0.04, 0.05, 0.06 and 0.07 all keep the four
+        # beats apart over the regression test's 20 strides (0.10 does not);
+        # 0.06 has a passing value on each side.
+        sway_phase=0.06,
         start=START,
         lowering=0.007,
     )
@@ -70,11 +76,8 @@ def run_walk(seed: int = 0, reset_noise: float = 0.0, strides: int = 9) -> tuple
     """Advance a freely moving animal and measure the lowest point of each entire support foot."""
     if strides < 5:
         raise ValueError("The walk needs three startup strides and at least two measured strides.")
-    env = DibothrosuchusElaphrosAnatomicalEnv(
-        reset_noise_scale=reset_noise,
-        prey_distance_range=(strides * ReferenceWalk.cycle.stride + 2,) * 2,
-        prey_lateral_range=(0, 0),
-    )
+    # The progress terms measure along the spawn's heading, +x at the home keyframe.
+    env = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=reset_noise)
     try:
         env.max_episode_steps = round((START + strides * PERIOD) / env.dt)
         morph = Morphology.from_env(env, MODEL)

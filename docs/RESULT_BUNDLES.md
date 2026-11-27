@@ -32,7 +32,7 @@ notebook's `BEHAVIOR` node in the chain loop). The bundle status is:
 | status | meaning |
 |---|---|
 | `complete` | the target is present and certified **and** every deliverable present in the run is certified — the bundle is then immutable |
-| `partial` | at least one deliverable is certified, but not the target or not every present one — a stance-only run targeting hunt, a walk-only run targeting hunt, a run whose hunt leaf failed above a trunk it trained and certified |
+| `partial` | at least one deliverable is certified, but not the target or not every present one — a stance-only run targeting walk, a run whose walk failed above a stance it trained and certified |
 | `failed` | no deliverable is certified — a failed root, a trunk whose gate failed below every leaf, or a trunked run whose only trained node (its target) failed |
 
 `summary.json` is written whenever at least one deliverable is certified, so a
@@ -56,7 +56,8 @@ documented in the
 Under a v1 stage manifest (one deliverable — the last advancing node — with
 edges to the previous advancing node) these rules collapse to the historical
 "every advancing stage present and passed / terminal = last advancing stage"
-rule. Schema-2 summaries keep their own rules.
+rule. These are the only rules: the readers accept schema 5 alone (decision
+D-D63 retired schema 2, which had its own).
 
 ## Canonical layout
 
@@ -68,7 +69,7 @@ writer and its readers.
 A node trained or judged in the run has its stage directory, and a node
 reused from another run has an `ancestors/<stage_id>/` record. The bundle
 writer refuses a bundle that records one node both ways
-(`reporting/bundles.py`, `result_schema.py`). A Tyrannosaurus rex hunt run
+(`reporting/bundles.py`, `result_schema.py`). A Tyrannosaurus rex walk run
 that trained its stance:
 
 ```text
@@ -87,11 +88,10 @@ that trained its stance:
 │   ├── evaluation_final.csv
 │   ├── evaluation_selected.csv
 │   └── models/
-├── 03_locomotion/               # 02 is the recovery node, which this chain does not walk
-└── 04_behavior/
+└── 03_locomotion/               # the walk, the last stage since D-D59; 02 is recovery, off this chain
 ```
 
-The same hunt with its stance reused from the trunk run holds the same run
+The same walk with its stance reused from the trunk run holds the same run
 files and an `ancestors/stance/` record:
 
 ```text
@@ -104,9 +104,12 @@ files and an `ancestors/stance/` record:
 │       ├── stage_config.json
 │       ├── task_fingerprint.json
 │       └── plant_identity.json
-├── 03_locomotion/
-└── 04_behavior/
+└── 03_locomotion/
 ```
+
+A run written before decision D-D59 removed the hunt nodes may also hold a
+`04_behavior/` stage directory, the hunt its chain ended at; no current stage
+resolves to it.
 
 A run can also hold both for one node. When the run's own verdict of a node
 below the target failed or no longer passes the reuse rule, the chain loop
@@ -126,16 +129,21 @@ none, and the audit does not require it. A run judged before Phase A
 therefore cannot serve as a `--trunk-from` / `TRUNK_FROM` trunk until its
 stage directories are re-judged — by `generate_stage_artifacts`, or by
 `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>`,
-which re-derives a `stance_quality/v1`, `reward_and_length/v1` or
-`task_success/v1` verdict from the evidence the directory already holds
-(`judged_by = "backfill"`; the last only from an `evaluation_selected.csv`
-hash-bound to the handoff pair), re-derives a `stance_quality/v2` verdict only
+which re-derives a `stance_quality/v1` or `reward_and_length/v1` verdict
+from the evidence the directory already holds (`judged_by = "backfill"`),
+refuses a recorded block that names a gate kind or key retired with the hunt
+nodes (`task_success/v1`, `min_success_rate` and the rest; decision D-D59),
+re-derives a `stance_quality/v2` verdict only
 from a `stance_gate_report.json` the judge admits for the stage's gate,
 measurement definition, handoff pair and recorded task and can re-derive
 from its own rows (decision D-D23), re-derives a `stance_quality_heading/v1`
 verdict only from a `stance_heading_report.json` the judge admits the same
 way and for its protocol, six-heading grid and certification seeds (decision
-D-D32; a directory holding only a v2 report is refused), refuses
+D-D32; a directory holding only a v2 report is refused), re-derives a
+`command_tracking/v1` verdict only from a `command_tracking_report.json` the
+judge admits for the stage's gate, handoff pair, handoff choice, task and
+command (decision D-D61) and for the current panel protocol
+(`command_panel/v2` since decision D-D64, which refuses a v1 report), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
 the panel). It also refuses, `--force` or not and before it writes anything,
@@ -325,8 +333,31 @@ validator treats disagreements as conflicts.
   the role, and its policy rows (and, where a statue-relative criterion is
   declared, its statue rows) must be the complete, unique grid of those seeds
   at the six headings, each heading's stamped statue reference what its
-  statue rows reduce to.  The role is bound per
-  evidence file, not through
+  statue rows reduce to.  A recorded `command_tracking/v1` PASS (decision
+  D-D61) is re-derived from `command_tracking_panel_selected.csv` alone (one
+  row per episode record, every row stamped with the profile, the
+  measurement, the scored pair's digests, the task and gate digests, the
+  panel's first seed, horizon and control step): the rows must record the
+  certified pair, the task and gate digest of the block the stage records,
+  the stage's horizon and control step, and be exactly the panel the stage's
+  thresholds and command plan from the role, in order; a follow profile's
+  reference rows must be the parent checkpoint the stage entered on, on the
+  same seeds.  The stage directory also holds `command_tracking_report.json`
+  and its text form, which the post-stage judge admits, and
+  `models/handoff_choice.json`, the handoff chosen by the gated statistic on
+  a selection panel from seed 2042 that shares no seed with the
+  certification panel (the judge refuses a choice whose recorded selection
+  plan does), which `select_handoff_checkpoint` honors.
+  `command_tracking_trace.csv` (the step rows of the chart episodes, rolled
+  again after the verdict, each stamped with the checkpoint digest it was
+  rolled on) and
+  `figures/command_tracking.png` and `figures/command_gate_progress.png`
+  (drawn into a local staging directory and copied into `figures/` with
+  `atomic_copy` on the notebook and CLI paths alike; a figure whose draw
+  raises or is interrupted has its partial file removed before the copy,
+  and a runtime killed mid-draw copies nothing, so a half-written png never
+  lands) are report-only: publication neither binds nor reads them.
+  The role is bound per evidence file, not through
   `evaluation_protocols` (its name deliberately lacks "evaluation"), and it
   may equal the publication seed;
 - deterministic evaluation protocols and episode counts;
@@ -448,7 +479,7 @@ It trains, judges and probes nothing and changes no stage file. It walks the
 chain as the chain loop does: root first, an ancestor's `ancestors/<id>/`
 record standing for it (the target never, D-A18), and stopping after the
 first failed verdict, where the chain loop halted after its write. Every
-other node of that walk must hold a `gate_verdict.json` in its stage
+other node it meets on the chain must hold a `gate_verdict.json` in its stage
 directory (found as the reuse rule finds one, `stage_dir_candidates`), whose
 `stage_result` re-enters the bundle, as the chain loop's reuse of a node of
 this run does. Before it writes anything it refuses a `complete` run (it is
@@ -458,10 +489,16 @@ counted into one), a `BEHAVIOR` whose target differs from the
 the run, and a shallower target seals it `complete` without the nodes below),
 a run that holds no node of the model, neither a stage directory nor an
 `ancestors/` record (usually `RUN_ID = ""` in a fresh runtime, where the
-storage cell opens a new run), a node of the walk that is neither judged nor
+storage cell opens a new run), a node on the chain that is neither judged nor
 recorded (the chain loop judges
-or trains it first), and a node judged in the run that the bundle would leave
-out (off the chain, or below the failed node). A run that never wrote a
+or trains it first), a node judged in the run that the bundle would leave
+out (off the chain, or below the failed node), and a node whose verdict
+passed but whose stage directory no longer hands on the pair the verdict
+hashes (`select_handoff_checkpoint`, as the chain loop's reuse checks it; on
+the command-driven walk the pair its handoff choice,
+`models/handoff_choice.json`, names, decision D-D61). The walk node
+re-enters from its `command_tracking/v1` verdict, and the writer re-derives
+its pass from `command_tracking_panel_selected.csv`. A run that never wrote a
 bundle records no target, so for it the cell trusts `BEHAVIOR`. A missing
 report-only file, such as a probe the cut-off skipped, does not block it. A
 stage result recorded under another root (a run copied off Drive) is found
@@ -597,13 +634,19 @@ results/<species>/<embodiment>/jax_ppo/summary.json   # JAX/MJX PPO, recorded be
 The validator still files a `jax-mjx` summary under `jax_<algorithm>/`, so a
 JAX run recorded before D-D17 retired that backend (cleanup PR-B) is never
 mislabeled as a different reinforcement-learning algorithm; nothing writes one
-now, and `results/` holds only Stable-Baselines3 results. The paths are
+now, and `results/` holds only Stable-Baselines3 results (none at present:
+decision D-D59 deleted the four historical summaries with the hunt nodes their
+last stage trained; `results/README.md` names the last commit that holds them). The paths are
 unchanged by schema v4; the summary carries the deliverables map. Decision
 D-D33 added the `<embodiment>` level and made `species` and `embodiment` two
 required fields of every summary (result schema 5; the CSV gains an
-`embodiment` column). The readers accept schema 2 and 5. Schema 2 is the
-curated historical form: the four committed summaries predate the plant
-contract, and D-D33 amended their identity in place (the binomial `species`
-and `"embodiment": "anatomical"`), leaving every other value as recorded. A
-summary of schema 3 or 4 names a species ID that no longer exists and is
-refused.
+`embodiment` column). The readers accept schema 5 alone. A summary of
+schema 3 or 4 names a species ID that no longer exists and is refused.
+Schema 2, the integer-stage form of the four summaries committed until
+D-D59 (`git show 6c9982d81c8a:results/<path>`), is refused too since
+decision D-D63, by a message that names that commit as the tree that
+still reads them (version 0.4.0.dev2). It names the commit, not the
+version: a later tree that still declares 0.4.0.dev2 came after D-D59
+removed the stage 3 they record, and refuses them. `results/` holds no
+summary at present, and no writer has emitted schema 2 since schema 3
+replaced it.

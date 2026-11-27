@@ -1013,7 +1013,7 @@ def _tyrannosaurus_rex_stage_configs(**stance_curriculum_overrides):
     return {
         1: {"env_kwargs": {}, "curriculum_kwargs": {**STANCE_CURRICULUM, **stance_curriculum_overrides}},
         2: {"env_kwargs": {}, "curriculum_kwargs": LOCOMOTION_CURRICULUM},
-        3: {"env_kwargs": {}, "curriculum_kwargs": {"gate_kind": "task_success/v1", "timesteps": 10}},
+        3: {"env_kwargs": {}, "curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "timesteps": 10}},
     }
 
 
@@ -1044,7 +1044,16 @@ def _select(log_dir, **overrides):
 
 
 class TestSelectTrunk:
-    """Decision D-A25: ``TRUNK_FROM = "auto"`` picks the sibling run covering the most of the chain."""
+    """Decision D-A25: ``TRUNK_FROM = "auto"`` picks the sibling run covering the most of the chain.
+
+    Run on the three-stage fixture ladder (``ladder_helpers``): every committed chain ends at walk since
+    decision D-D59, so a target with two ancestors to cover needs the fixture's third advancing node."""
+
+    @pytest.fixture(autouse=True)
+    def _three_stage_ladder(self, tmp_path_factory, monkeypatch):
+        from .ladder_helpers import install_three_stage_ladder
+
+        install_three_stage_ladder(tmp_path_factory.mktemp("ladder_configs"), monkeypatch)
 
     def test_the_trunk_record_never_takes_the_auto_knob_for_a_run_id(self):
         """``result_bundle.trunk_record`` spells this knob as a literal (it does not import this module): a run named

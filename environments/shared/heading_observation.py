@@ -1,41 +1,51 @@
-"""Heading-free root observation frames: the ``bipedal-target-heading-free/v1`` schema.
+"""Heading-free root observation frames: the ``bipedal-heading-free/v1`` and ``quadrupedal-heading-free/v1`` schemas.
 
-A policy that reads the root's world quaternion, world linear velocity and
-world target direction can learn to depend on its world heading, which no
-stance criterion sees (docs/HEADING_INVARIANCE_DESIGN_2026_10.md).  This
-schema replaces those three blocks with quantities a rotation about world
-vertical leaves unchanged:
+A policy that reads the root's world quaternion and world linear velocity
+can learn to depend on its world heading, which no stance criterion sees
+(docs/HEADING_INVARIANCE_DESIGN_2026_10.md).  These schemas replace those
+blocks with quantities a rotation about world vertical leaves unchanged:
 
-* projected gravity ``g = R^T (0, 0, -1)``, the unit down direction in pelvis
+* projected gravity ``g = R^T (0, 0, -1)``, the unit down direction in root
   coordinates (tilt is kept, world yaw is dropped);
 * ``H v``, the root's world linear velocity in the gravity-aligned
-  pelvis-heading frame (forward, left, up);
-* ``R^T d``, the normalized world target direction in pelvis coordinates.
+  root-heading frame (forward, left, up).
 
-``R`` maps pelvis coordinates to world coordinates.  It is built from the
-free root's own quaternion ``qpos[3:7]``, validated and normalized in
-float64, never from ``xmat`` or an orientation sensor: ``_get_obs`` runs at
-construction before any forward pass, where both are still zero.  A global
-yaw ``Q`` gives ``R' = Q R``, ``v' = Q v`` and ``d' = Q d``, so all three
-outputs are invariant; the gyro and accelerometer already report in their
-own site frame and are not rotated again.
+The root is the free-floating body: the pelvis on the bipeds
+(``bipedal-heading-free/v1``) and the torso on the quadrupeds
+(``quadrupedal-heading-free/v1``); the two schemas differ only in that label
+(:data:`HEADING_FREE_ROOT_LABELS`).  ``R`` maps root coordinates to world
+coordinates.  It is built from the free root's own quaternion ``qpos[3:7]``,
+validated and normalized in float64, never from ``xmat`` or an orientation
+sensor: ``_get_obs`` runs at construction before any forward pass, where both
+are still zero.  A global yaw ``Q`` gives ``R' = Q R`` and ``v' = Q v``, so
+both outputs are invariant; the gyro and accelerometer already report in
+their own site frame and are not rotated again.
 
 Pure NumPy; nothing here reads or writes the simulator.  The plant contract
 hashes the source tokens of every function named in
-:data:`HEADING_FREE_FUNCTIONS` into a heading-free species' policy-interface
-digest (``interface_implementations.heading_free_observation``), so an edit
-to any of them is a policy-interface revision of every species on the
-schema.  Only function bodies are hashed, so the thresholds live in them as
-literals rather than as module constants, and the bodies use ``%``
-formatting (the token digest refuses f-strings).
+:data:`HEADING_FREE_FUNCTIONS` into every model's policy-interface digest
+(``interface_implementations.heading_free_observation``), so an edit to any
+of them is a policy-interface revision of every model.  Only function bodies
+are hashed, so the thresholds live in them as literals rather than as module
+constants, and the bodies use ``%`` formatting (the token digest refuses
+f-strings).
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-#: The observation schema these helpers implement (configs/plant_versions.toml note 18).
-HEADING_FREE_OBSERVATION_SCHEMA = "bipedal-target-heading-free/v1"
+#: The observation schemas these helpers implement.  The bipeds' and the quadrupeds' layouts are the same
+#: segments, labelled by the free root body; ``bipedal-target-heading-free/v1`` (configs/plant_versions.toml
+#: note 18) carried two more, the target direction and distance, before every scene lost its target.
+BIPEDAL_HEADING_FREE_SCHEMA = "bipedal-heading-free/v1"
+QUADRUPEDAL_HEADING_FREE_SCHEMA = "quadrupedal-heading-free/v1"
+
+#: Each heading-free schema's root label: the name of the free-floating body its root segments describe.
+HEADING_FREE_ROOT_LABELS = {
+    BIPEDAL_HEADING_FREE_SCHEMA: "pelvis",
+    QUADRUPEDAL_HEADING_FREE_SCHEMA: "torso",
+}
 
 #: Every function of this module, in call order: the plant contract fingerprints all of them.
 HEADING_FREE_FUNCTIONS = (
@@ -71,7 +81,7 @@ def root_quaternion(qpos: np.ndarray) -> np.ndarray:
 
 
 def body_to_world(quaternion: np.ndarray) -> np.ndarray:
-    """``R``, pelvis coordinates to world coordinates, from a unit wxyz quaternion.
+    """``R``, root coordinates to world coordinates, from a unit wxyz quaternion.
 
     Quadratic in the quaternion, so ``q`` and ``-q`` give the same matrix.
     Agrees with ``mujoco.mju_quat2Mat`` to a few ULPs.
@@ -88,16 +98,16 @@ def body_to_world(quaternion: np.ndarray) -> np.ndarray:
 
 
 def projected_gravity(rotation: np.ndarray) -> np.ndarray:
-    """``g = R^T (0, 0, -1)``: the unit down direction in pelvis coordinates (minus ``R``'s third row)."""
+    """``g = R^T (0, 0, -1)``: the unit down direction in root coordinates (minus ``R``'s third row)."""
     return -np.array(rotation[2, :], dtype=np.float64)
 
 
 def world_to_heading(rotation: np.ndarray) -> np.ndarray:
-    """``H``: world coordinates to the gravity-aligned pelvis-heading frame (forward, left, up).
+    """``H``: world coordinates to the gravity-aligned root-heading frame (forward, left, up).
 
-    Forward is the normalized horizontal projection of pelvis X.  When that
-    projection is shorter than 1e-8 (pelvis X vertical, a terminal pose),
-    the horizontal projection of pelvis Y rotated clockwise 90 degrees
+    Forward is the normalized horizontal projection of root X.  When that
+    projection is shorter than 1e-8 (root X vertical, a terminal pose),
+    the horizontal projection of root Y rotated clockwise 90 degrees
     defines forward instead: it rotates with the scene and is finite there,
     though no yaw chart can be continuous at that singularity.
     """
@@ -111,18 +121,14 @@ def world_to_heading(rotation: np.ndarray) -> np.ndarray:
 def heading_free_root_segments(
     qpos: np.ndarray,
     root_linear_velocity: np.ndarray,
-    target_direction: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """``(g, H v, R^T d)`` in float64: the schema's three root segments.
+) -> tuple[np.ndarray, np.ndarray]:
+    """``(g, H v)`` in float64: the schemas' two root segments.
 
     *qpos* is the simulator's full ``qpos`` (the free root first);
-    *root_linear_velocity* is the free joint's world-frame ``qvel[0:3]``;
-    *target_direction* is the normalized world-frame direction from the
-    pelvis to the target.  The caller casts the assembled observation to
-    float32.
+    *root_linear_velocity* is the free joint's world-frame ``qvel[0:3]``.
+    The caller casts the assembled observation to float32.
     """
     rotation = body_to_world(root_quaternion(qpos))
     gravity = projected_gravity(rotation)
     heading_velocity = world_to_heading(rotation) @ np.asarray(root_linear_velocity, dtype=np.float64)
-    target_direction_body = rotation.T @ np.asarray(target_direction, dtype=np.float64)
-    return gravity, heading_velocity, target_direction_body
+    return gravity, heading_velocity

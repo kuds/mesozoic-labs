@@ -1,6 +1,6 @@
 # Heading-free observations and stance certification
 
-Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; both halves are carried out (2026-10-11): the observation migration (D-D31), and the six-heading certificate, implemented and declared by both stances (D-D32); the Velociraptor followed on 2026-11-06 (2026-11-06)**.
+Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; both halves are carried out (2026-10-11): the observation migration (D-D31), and the six-heading certificate, implemented and declared by both stances (D-D32); the Velociraptor followed on 2026-11-06 (2026-11-06); every other model's observation followed on 2026-11-23, when the target segments this design kept were removed with the prey and the schemas were renamed `bipedal-heading-free/v1` and `quadrupedal-heading-free/v1` (decision D-D59, `configs/plant_versions.toml` note 24)**.
 Repository baseline: `10f859f96223054932bdc4fa883b1153dde78500` (#604).
 
 ## Recommendation

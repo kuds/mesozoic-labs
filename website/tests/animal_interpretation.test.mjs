@@ -69,6 +69,21 @@ test('the Compsognathus robot stance describes its soles and its current check, 
   assert.match(PAGE, /model\.embodiment === 'robot' \? 'Two legs' : 'Two hind limbs'/);
 });
 
+test('the Compsognathus robot walk describes the command-driven walk it trains', () => {
+  // configs/compsognathus_longipes/robot/locomotion.toml (decision D-D62): one whole-episode command per trial, a
+  // forward cruise on a heading within 15 degrees of the spawn's or, with stop_probability 0.15, a stand, judged by
+  // command_tracking/v1's walk profile.
+  const walk = modelOf('compsognathus_longipes', 'robot').stages.find((stage) => stage.id === 'locomotion');
+  assert.equal(walk.advancement_gate.gate_kind, 'command_tracking/v1');
+  assert.equal(walk.advancement_gate.profile, 'walk');
+  assert.match(walk.description, /follow a forward command with heading hold, and stand still on a zero command/);
+  const {description} = COMPSOGNATHUS.robot.studies.locomotion;
+  assert.match(description, /one command/);
+  assert.match(description, /commanded speed, holding a heading close to the one it starts on/);
+  assert.match(description, /about one trial in seven, stand still/);
+  assert.doesNotMatch(description, /move forward on its two feet/);
+});
+
 test('the Compsognathus push-recovery label describes the pushes both models get', () => {
   // configs/compsognathus_longipes/{anatomical,robot}/recovery.toml: perturbation_direction = "uniform_horizontal"
   // (environments/shared/perturbation.py draws each push's heading uniformly on the horizontal circle) and

@@ -4,7 +4,9 @@
 # the stage was known as before the manifest existed — old artifacts and
 # integer references resolve through it, which is why locomotion stays
 # "stage 2" to history at position 3 here. recovery has no legacy_number and
-# is addressed by id everywhere.
+# is addressed by id everywhere. The bite hunt, legacy stage 3 (id "behavior",
+# recipe "hunt"), was removed with every hunt node (decision D-D59), so the
+# chain ends at walk; legacy number 3 resolves to no stage.
 #
 # v2 adds the recipe DAG on top of the same ids, numbers and config files:
 #   warm_start_from  the EARLIER entry this node initialises from
@@ -46,12 +48,4 @@ config = "locomotion.toml"
 legacy_number = 2
 warm_start_from = "stance"       # the 2026-08-23 lineage rule, now declared;
 recipe = "walk"                  # flips to "recovery" once a recovery run passes (plan A2)
-deliverable = true
-
-[[stages]]                       # id stays "behavior"; the label is the recipe
-id = "behavior"
-config = "behavior.toml"
-legacy_number = 3
-warm_start_from = "locomotion"
-recipe = "hunt"
 deliverable = true

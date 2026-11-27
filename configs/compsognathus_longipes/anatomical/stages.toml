@@ -1,17 +1,18 @@
 # compsognathus_longipes/anatomical stage manifest (mesozoic.stage-manifest/v2; BEHAVIOR_RECIPES_PLAN §4.1/§4.8).
 # The species landed (PRs #521-#526) with a v1 manifest declaring exactly the
 # T-Rex layout; this v2 file keeps the same ids, legacy numbers, config files
-# and order — every artifact and integer reference keeps its meaning — and
-# makes the edges the v1 reader derived explicit (each node warm-starts from
-# the previous advancing entry, so recovery and locomotion both start from
-# stance) so that stance, recover and walk publish as deliverables instead of
-# only the behavior leaf. Recipe labels follow the shared convention: the
-# behavior node is labelled "hunt" whatever its task name (here
-# target_reach), so the notebook's BEHAVIOR="hunt" default resolves for every
-# species, the recovery node is labelled "recover" (decision D-D35) and the
-# stance node "stance", its own id (decision D-D38; it was "stand", which is
-# now refused naming "stance"), so "stance" is the stance node alone, as on
-# every model, and "recover" trains stance -> recovery.
+# and order for the stages it still declares — every artifact and integer
+# reference keeps its meaning — and makes the edges the v1 reader derived
+# explicit (each node warm-starts from the previous advancing entry, so
+# recovery and locomotion both start from stance) so that stance, recover and
+# walk publish as deliverables instead of only the behavior leaf. The behavior
+# leaf, the target_reach hunt (id "behavior", legacy number 3, recipe "hunt"),
+# was removed with every hunt node (decision D-D59), so the chain ends at
+# walk. Recipe labels follow the shared convention: the recovery node is
+# labelled "recover" (decision D-D35) and the stance node "stance", its own id
+# (decision D-D38; it was "stand", which is now refused naming "stance"), so
+# "stance" is the stance node alone, as on every model, and "recover" trains
+# stance -> recovery.
 
 schema = "mesozoic.stage-manifest/v2"
 
@@ -35,12 +36,4 @@ config = "locomotion.toml"
 legacy_number = 2
 warm_start_from = "stance"       # the previous advancing entry, as the v1 reader derived
 recipe = "walk"
-deliverable = true
-
-[[stages]]                       # id stays "behavior"; the task name (target_reach) is the TOML's [stage] name
-id = "behavior"
-config = "behavior.toml"
-legacy_number = 3
-warm_start_from = "locomotion"
-recipe = "hunt"
 deliverable = true

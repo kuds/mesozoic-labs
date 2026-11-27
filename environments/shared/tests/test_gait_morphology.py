@@ -1,7 +1,8 @@
 """Tests for the floor-truth morphology: the explicit six-model registry, and the measurement manifest.
 
 The anchors are the current plants (``61a3424``, mujoco 3.10.0): body weights
-840.91 / 147.15 (the velociraptor since its physics r5) / 9.81 / 15.55 / 84.86 / 1719.69 N, every sole frame normal
+838.95 (the T-Rex since its physics r12) / 147.15 (the velociraptor since its physics r5) / 9.81 / 15.55 / 84.66 (the
+dibothrosuchus since its physics r4) / 1719.69 N, every sole frame normal
 ``-z`` and forward ``+x``, and the authored home soles lie flat.  The registry is explicit for all six models, and
 :data:`GENERIC_ONLY` / :data:`REGISTRY_ONLY` name every place it departs from
 the generic rule -- the test fails if a departure appears, or disappears,
@@ -50,11 +51,11 @@ MODEL_IDS = (
 )
 BODY_WEIGHT_N = {
     ALLOSAURUS_FRAGILIS: 14540.38,
-    TYRANNOSAURUS_REX: 840.91,
+    TYRANNOSAURUS_REX: 838.95,  # 85.52 kg since physics r12 (the 0.2 kg bite box left; r11 840.91 N)
     VELOCIRAPTOR_MONGOLIENSIS: 147.15,  # 15.0 kg since physics r5 (r4 13.5 kg, 132.44 N)
     COMPSOGNATHUS_LONGIPES: 9.81,
     COMPSOGNATHUS_LONGIPES_ROBOT: 15.55,
-    DIBOTHROSUCHUS_ELAPHROS: 84.86,
+    DIBOTHROSUCHUS_ELAPHROS: 84.66,  # 8.63 kg since physics r4 (the 0.02 kg snap box left; r3 84.86 N)
     BRACHIOSAURUS_ALTITHORAX: 1719.69,
 }
 FEET = {
@@ -81,9 +82,10 @@ GENERIC_ONLY = {
     ALLOSAURUS_FRAGILIS: (),
     TYRANNOSAURUS_REX: ("{s}_metatarsus_geom",),  # the capsule above the plantar box: 0 statue load
     # Since physics r5 the MTP pad shares the metatarsus body with the shaft capsule, which ends 8 mm short
-    # of the condyle and stands 14.4 mm clear at home, and digit II's sickle claw hangs off that body (2/2
-    # against the floor's 1/1): neither touches the floor, so neither bears statue load.
-    VELOCIRAPTOR_MONGOLIENSIS: ("{s}_metatarsus_geom", "{s}_claw_geom"),
+    # of the condyle and stands 14.4 mm clear at home: it never touches the floor, so it bears no statue
+    # load.  (Physics r5 also counted digit II's sickle claw here, a 2/2 geom on that body; since physics r6
+    # the claw collides with nothing, so neither rule takes it.)
+    VELOCIRAPTOR_MONGOLIENSIS: ("{s}_metatarsus_geom",),
     COMPSOGNATHUS_LONGIPES: (),
     COMPSOGNATHUS_LONGIPES_ROBOT: ("{side}_roll_cheek_-1", "{side}_roll_cheek_1"),  # a cheek down is a rolled foot
     DIBOTHROSUCHUS_ELAPHROS: (),
@@ -308,10 +310,10 @@ def test_an_unknown_model_is_refused_and_an_empty_registry_gets_the_generic_rule
         Morphology.from_env(env, ModelId("not_a_species", "anatomical"))
     generic = Morphology.from_env(env, VELOCIRAPTOR_MONGOLIENSIS, registry={})
     assert generic.model_id == VELOCIRAPTOR_MONGOLIENSIS and generic.registry_entry is None
-    # The MTP pad and the metatarsus shaft (the pad's body), the claw it carries, digits III and IV: the
-    # touch-site bodies' colliding geoms on the physics-r5 foot (r3 / r4: digit III, digit IV, the
-    # metatarsus and the claw, 4).
-    assert [len(foot.support_geoms) for foot in generic.feet] == [5, 5]
+    # The MTP pad and the metatarsus shaft (the pad's body), digits III and IV: the touch-site bodies'
+    # colliding geoms on the physics-r6 foot (r5 also counted the sickle claw, 5; r3 / r4: digit III,
+    # digit IV, the metatarsus and the claw, 4).
+    assert [len(foot.support_geoms) for foot in generic.feet] == [4, 4]
 
 
 def test_building_a_morphology_leaves_the_env_untouched(stance_env):
@@ -491,7 +493,7 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
         5,
         0.01,
     )
-    assert manifest["body_weight_n"] == pytest.approx(840.91, abs=0.01)
+    assert manifest["body_weight_n"] == pytest.approx(838.95, abs=0.01)  # 840.91 before physics r12
     assert manifest["registry"] == {
         "support": list(_TYRANNOSAURUS_REX_ENTRY.support),
         "sole": "{s}_plantar_geom",

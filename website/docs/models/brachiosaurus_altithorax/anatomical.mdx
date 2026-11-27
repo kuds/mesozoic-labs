@@ -12,7 +12,9 @@ export const MODEL = requireModel('brachiosaurus_altithorax', 'anatomical');
 
 # Brachiosaurus Model
 
-A sauropod-inspired quadrupedal simulation model designed for four-legged locomotion and head-positioning tasks.
+A sauropod-inspired quadrupedal simulation model designed for four-legged stance and locomotion.
+
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance runs no command. Each walk episode draws one request at reset and holds it for its whole 10 s: a forward cruise at 0.375-0.75 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (10 weights) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The standing-idle penalty is not paid on a zero command. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the quadruped gait clause with the lead-swap bar), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet passed the committed panel: the gait-symmetry term pays a standing statue its whole weight (decision D-D62 (16)). A moving command is scored on the trailing mean of the last 1.40 s, one stride of the reference walk (decision D-D64): at a command it matches (0.35 m/s, just below the commanded range) the reference walk reads tracking quality 0.98 (0.34 a step on its own) and passes the whole walk gate, but on the committed panel it clears the cruise bars only at the slowest commands. The later follow nodes will widen this distribution as the walk's exact continuation.
 
 <SpeciesCatalog species={MODEL} />
 
@@ -23,17 +25,16 @@ A sauropod-inspired quadrupedal simulation model designed for four-legged locomo
 - A deep shoulder region and nearly equal-length humerus and femur, with the forelimbs gaining height through the forearm and metacarpus
 - Distinct forefeet and hindfeet with level, load-bearing soles, a padded hind heel and three medial hind claws
 - A tapered, supported neck and tail, with opposite flexion directions at the elbow and hind knee
-- Head-positioning behavior using neck articulation
-- Three published behaviors on one trunk (`configs/brachiosaurus_altithorax/anatomical/stages.toml`): stance (`stance`), walk (`locomotion`, warm-started from stance) and hunt (`behavior` — the food-reach task, warm-started from locomotion); see [Behavior Recipes](/docs/training/recipes)
+- Two published behaviors on one trunk (`configs/brachiosaurus_altithorax/anatomical/stages.toml`): stance (`stance`) and walk (`locomotion`, warm-started from stance); the food-reach hunt that followed walk was removed by decision D-D59 with its reward, termination and constructor arguments, and since policy interface r12 and physics r7 (the same decision) so is the food target, from the scene and from the observation. See [Behavior Recipes](/docs/training/recipes)
+- An observation that reads no world heading since policy interface r12: the direction of gravity in the torso's own frame and the torso's velocity relative to the way it faces replace the world-frame torso orientation and velocity, so turning the whole scene changes nothing the policy observes
 
 ## Unique Characteristics
 
 Brachiosaurus differs from the bipedal species in the project:
 
 - **Quadrupedal gait** instead of bipedal
-- **Target-proximity task** using the head tip instead of a predatory contact task
 
-## Diagnostic Metrics (behavior node, hunt)
+## Diagnostic Metrics
 
 After each training stage the `eval` command reports:
 
@@ -41,8 +42,6 @@ After each training stage the `eval` command reports:
 |--------|-------------|
 | `mean_forward_velocity` | Average forward speed (m/s) |
 | `mean_pelvis_height` | Torso height stability (m) |
-| `success_rate` | Fraction of episodes where the head tip enters the configured distance threshold around the food target |
-| `min_prey_distance` | Closest approach to food (m, `head_food_distance`) |
 
 ## Reference walk
 
@@ -69,10 +68,10 @@ python -m environments.brachiosaurus_altithorax.scripts.reference_walk
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 1
 
-# The advancing stages (stance, locomotion, behavior) in manifest order
+# The advancing stages (stance, locomotion) in manifest order
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```

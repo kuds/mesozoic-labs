@@ -48,10 +48,59 @@ function formatVerdict(stage: ResultStage): string {
 
 function requireCriterion(gate: AdvancementGate, value: number | null, key: string): number {
   // The Python renderer indexes a kind's own threshold directly and fails
-  // on a missing one; a recovery_quality/v1 or task_success/v1 gate without
+  // on a missing one; a recovery_quality/v1 or floor-truth stance gate without
   // its thresholds is a catalog bug, not a row to render with blanks.
   if (value === null) throw new Error(`${gate.gateKind} gate is missing ${key}`);
   return value;
+}
+
+function requireCommandBar(gate: AdvancementGate, value: number | null, key: string): number {
+  // As requireCriterion: the Python renderer indexes the profile's own bars directly and fails on a missing one.
+  if (value === null) throw new Error(`${gate.gateKind} gate is missing ${key}`);
+  return value;
+}
+
+function formatCommandTrackingGate(gate: AdvancementGate): string {
+  // Mirrors _format_command_tracking_gate in species_catalog.py: the profile's families, the gait clause, the
+  // declared tolerance overrides and the verdict's source; test_website_gate_formatter_mirrors_python pins the
+  // phrases on both sides.
+  const command = gate.commandTracking;
+  if (command === null) throw new Error(`${gate.gateKind} gate is missing its command-tracking bars`);
+  const bar = (value: number | null, key: string) => requireCommandBar(gate, value, key);
+  let criteria: string[];
+  if (command.profile === 'follow') {
+    criteria = [
+      `command-following episodes success LCB95 ≥ ${bar(command.minFollowSuccessLcb, 'min_follow_success_lcb').toLocaleString()} and survival LCB95 ≥ ${bar(command.minFollowSurvivalLcb, 'min_follow_survival_lcb').toLocaleString()} over ≥ ${bar(command.minFollowEpisodes, 'min_follow_episodes').toLocaleString()} episodes of ≥ ${bar(command.minFollowHorizonS, 'min_follow_horizon_s').toLocaleString()} s`,
+      `an episode succeeds when it survives, stays in tolerance on ≥ ${formatPercent(bar(command.minFollowTrackingFraction, 'min_follow_tracking_fraction'))} of its steps, settles ≥ ${formatPercent(bar(command.minFollowEventSettleFraction, 'min_follow_event_settle_fraction'))} of its commands, ≥ ${formatPercent(bar(command.minFollowStopSettleFraction, 'min_follow_stop_settle_fraction'))} of its stops and ≥ ${formatPercent(bar(command.minFollowTurnSettleFraction, 'min_follow_turn_settle_fraction'))} of its turns (each where the schedule draws them) and passes the gait clause`,
+      `≥ ${bar(command.minFollowCommandEpisodes, 'min_follow_command_episodes').toLocaleString()} episodes exposed to each of stops and turns`,
+    ];
+    if (command.minFollowCourseFraction !== null) {
+      criteria.push(
+        `course ≥ ${formatPercent(command.minFollowCourseFraction)} of ${bar(command.followCourseDistanceM, 'follow_course_distance_m').toLocaleString()} m`,
+      );
+    }
+    if (command.minFollowReferenceDeltaLcb !== null) {
+      criteria.push(`paired Δ success vs the parent policy LCB95 ≥ ${command.minFollowReferenceDeltaLcb.toLocaleString()}`);
+    }
+  } else {
+    criteria = [
+      `cruise episodes (a non-zero reset command) success LCB95 ≥ ${bar(command.minCruiseSuccessLcb, 'min_cruise_success_lcb').toLocaleString()} and survival LCB95 ≥ ${bar(command.minCruiseSurvivalLcb, 'min_cruise_survival_lcb').toLocaleString()} over ≥ ${bar(command.minCruiseEpisodes, 'min_cruise_episodes').toLocaleString()} episodes`,
+      `a cruise episode succeeds when it reaches the horizon, settles its initial heading within 1 s + |error| / yaw_rate_max + the stage's tracking window ([commands] tracking_window_s, decision D-D64) and holds it 1 s, stays in tolerance on ≥ ${formatPercent(bar(command.minCruiseTrackingFraction, 'min_cruise_tracking_fraction'))} of its steps after the settle (its velocity and yaw-rate errors read on that window's means), makes ≥ ${bar(command.minCruiseSpeedRatio, 'min_cruise_speed_ratio').toLocaleString()} × the commanded speed along the heading after 2 s and passes the gait clause`,
+      `stand episodes (an exactly zero command) over ≥ ${bar(command.minStandEpisodes, 'min_stand_episodes').toLocaleString()}: ≥ ${formatPercent(bar(command.minStandSuccessFraction, 'min_stand_success_fraction'))} hold the stop (it settles, and holds on ≥ ${formatPercent(bar(command.minStandHoldFraction, 'min_stand_hold_fraction'))} of the steps after 1 s) and ≤ ${bar(command.maxStandFalls, 'max_stand_falls').toLocaleString()} fall`,
+    ];
+  }
+  const bars = command.gaitCriteria.map(
+    ({key, bar: value}) => `${key} ${key.startsWith('min_') ? '≥' : '≤'} ${value.toLocaleString()}`,
+  );
+  criteria.push(`gait clause (gait_limbs ${command.gaitLimbs}): ${bars.join(', ')}`);
+  if (command.toleranceOverrides.length > 0) {
+    const overrides = command.toleranceOverrides.map(({key, value}) => `${key} ${value.toLocaleString()}`);
+    criteria.push(`tolerances overridden for the gate: ${overrides.join(', ')}`);
+  }
+  criteria.push(
+    'handoff chosen by the gated statistic on a separate selection panel; verdict from command_tracking_report.json on that pair (post-stage; fail-closed when absent)',
+  );
+  return criteria.join('; ');
 }
 
 function formatGate(gate: AdvancementGate): string {
@@ -86,26 +135,6 @@ function formatGate(gate: AdvancementGate): string {
       'verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)',
     );
     return recoveryCriteria.join('; ');
-  }
-  // A task_success/v1 verdict is produced once, post-stage, from the
-  // selected checkpoint's per-episode evaluation_selected.csv: the binomial
-  // LCB95 on task success against the declared bar at the declared panel
-  // size, with min_avg_reward as a collapse RAIL ("reward rail"), never the
-  // gate; required_consecutive is in-training hysteresis only, so the
-  // generic consecutive-passes tail is not rendered here either.
-  if (gate.gateKind === 'task_success/v1') {
-    const taskCriteria = [
-      `task success LCB95 ≥ ${requireCriterion(gate, gate.minSuccessLcb, 'min_success_lcb').toLocaleString()}`,
-    ];
-    if (gate.minAverageReward !== null) taskCriteria.push(`reward rail ≥ ${gate.minAverageReward.toLocaleString()}`);
-    if (gate.minAverageEpisodeLength !== null) {
-      taskCriteria.push(`episode length ≥ ${gate.minAverageEpisodeLength.toLocaleString()}`);
-    }
-    taskCriteria.push(
-      `≥ ${gate.minEvaluationEpisodes} episodes/evaluation`,
-      "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
-    );
-    return taskCriteria.join('; ');
   }
   // A stance_quality/v2 verdict is produced once, post-stage, from the
   // floor-truth stance_gate_report.json rolled on the handoff pair at the
@@ -174,6 +203,10 @@ function formatGate(gate: AdvancementGate): string {
     );
     return headingCriteria.join('; ');
   }
+  // A command_tracking/v1 verdict (decision D-D61) is produced once, post-stage, from
+  // command_tracking_report.json: the stage's command panel rolled on the handoff its gated statistic chose; the
+  // in-training manager refuses the kind, so no consecutive-passes tail, as for the stance kinds.
+  if (gate.gateKind === 'command_tracking/v1') return formatCommandTrackingGate(gate);
   const criteria: string[] = [];
   if (gate.minAverageReward !== null) criteria.push(`reward ≥ ${gate.minAverageReward.toLocaleString()}`);
   if (gate.minAverageEpisodeLength !== null) {
@@ -182,7 +215,6 @@ function formatGate(gate: AdvancementGate): string {
   if (gate.minAverageForwardVelocity !== null) {
     criteria.push(`avg. velocity ≥ ${gate.minAverageForwardVelocity.toLocaleString()} m/s`);
   }
-  if (gate.minSuccessRate !== null) criteria.push(`task success ≥ ${formatPercent(gate.minSuccessRate)}`);
   if (gate.minFullHorizonFraction !== null) {
     criteria.push(`full-horizon episodes ≥ ${formatPercent(gate.minFullHorizonFraction)}`);
   }
@@ -218,7 +250,7 @@ function formatWarmStart(stage: SpeciesStage, headings: Map<string, string>): st
   return heading;
 }
 
-/** `task success 96.7%` / `unsupported duty 95% UCB not recorded` (_format_headline_metric, D-A9). */
+/** `clean stance episodes 96.7%` / `unsupported duty 95% UCB not recorded` (_format_headline_metric, D-A9). */
 function formatHeadlineMetric(metric: HeadlineMetric): string {
   if (metric.value === null) return `${metric.label} not recorded`;
   if (metric.unit === 'percent') return `${metric.label} ${formatPercent(metric.value)}`;
@@ -360,9 +392,9 @@ export function PublishedResults({species}: {species: Species}): React.JSX.Eleme
               ))}
             </tbody>
           </table>
-          {/* Only a schema-4 result publishes deliverables; the committed ladder
-              summaries publish none, so their rendering is byte-identical to
-              the pre-Phase-A page (decision D-A10). */}
+          {/* Every published result carries deliverables (decision D-D63 retired
+              the schema-2 ladder summaries, which published none and rendered as
+              the pre-Phase-A page did: decision D-A10). */}
           {result.deliverables.length > 0 && (
             <>
               <h4>Deliverables</h4>

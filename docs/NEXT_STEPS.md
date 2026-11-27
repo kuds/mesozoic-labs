@@ -42,7 +42,9 @@ compsognathus_robot `20260924_031815`), and only compsognathus
 zero-action statue passes every stance gate; the robot's touch sensors count
 sole-on-sole contact as floor support; and the in-progress dibothrosuchus
 re-run `20260928_012318` is, at 4.3M, a three-legged skid its gate would pass.
-No locomotion gate reads a foot contact.
+No locomotion gate read a foot contact then; since D-D61 and D-D62 (2026-11-23
+and 2026-11-24) every walk's `command_tracking/v1` gate judges each cruise
+episode's floor-truth footfalls through its gait clause, at provisional bars.
 [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) proposes the fix
 (floor-truth gait measurement, per-episode gait gates, per-species reward
 revisions) and puts all of its code after the 0.3.9 cut and, by the
@@ -199,10 +201,74 @@ the mirror-symmetrised policies of two handoffs were clean on 4 and 6 more
 seeds of 40, and on a third checkpoint on 3 fewer, and the plan judges that
 it would not remove an offset both feet share). None of those figures is an
 r5 one: each candidate is re-measured on the r5 statue first, and the order
-is the maintainer's.* Section 2 labels each
-audited node except the in-training dibothrosuchus re-run, which section 3's
-session-4 row describes, and the plan's §10 holds a prompt for continuing the
-gait work in a fresh session.
+is the maintainer's.* *2026-11-23: the maintainer took D-D59: the hunt is
+removed. No manifest declares a `behavior` node now, so every chain ends at
+walk, `BEHAVIOR = "hunt"` and `--target hunt` are refused naming `walk`, and
+the sessions below that name a hunt (or `hunt` among a stance's sessions)
+record the plan before that day; the four historical ladder summaries under
+`results/` (three from March 2026 and the Brachiosaurus run of 2026-07-18),
+whose last stage was a hunt, are deleted (`results/README.md` names the last commit
+that holds them). Walk becomes command-driven and follow-direction is the
+path after it, in later changes.* *2026-11-23, later (the same decision,
+`configs/plant_versions.toml` note 24): the prey, food and course target left
+every scene and every model's observation became heading-free in one
+revision of all seven plants (physics, policy interface and visual), so every
+checkpoint named below, certified or not, fails the plant check, cannot be
+widened and cannot seed a warm start or a trunk reuse; every session below
+starts from a fresh stance on the new revisions, whose statue-derived rails
+were re-measured (the velociraptor stance rail 2000 → 1950, the
+dibothrosuchus 1560 → 1500).* *2026-11-24 (decision D-D62): the walk is now
+command-driven on all seven models: it follows a forward cruise command with
+a small initial heading offset and holds a stop on about 15% of its episodes,
+under the `command_tracking/v1` walk gate, whose bars are provisional and not
+yet shown attainable: D-D62 (16) leaves its open risks, per-step tracking
+under a gait's sway first among them, to the maintainer (KNOWN_ISSUES). A
+walk session needs a stance retrained on the current interface first (its
+warm start begins command-blind). The follow-direction nodes that widen the
+walk are next and not built; until one exists, or a command-free walk config
+is added, the terrain recipes have no parent a user can produce. The
+development version is `0.4.0.dev3` from this day.* *2026-11-25 (decision
+D-D63): the maintainer answered the series' open questions. For the
+per-step tracking (D-D62 (16)(a)) the answer is a stride-averaged tracking
+measure, in both the reward and the gate, on live-command stages only, with
+a `COMMAND_PANEL_PROTOCOL` bump. It is implemented by the next decision
+row, so until then the walk's bars stay provisional and the other open
+risks stay open. The in-training evaluation keeps the declared end-state commands
+during the cruise ramp, so candidates are ranked on the task that is
+certified. The library version a run records is read from the checkout's
+`pyproject.toml` first. Result-summary schema 2 is retired. The T. rex
+policy probe keeps 9 of its 10 bank rows. The SB3 notebook review
+([reviews/SB3_NOTEBOOK_REVIEW_2026_11.md](reviews/SB3_NOTEBOOK_REVIEW_2026_11.md)) is committed with
+its status of this day; triaging its 110 open findings into KNOWN_ISSUES is pending, after the
+stride-averaged tracking lands.* *2026-11-26 (decision D-D64): the stride-averaged tracking has
+landed. Each walk declares `[commands] tracking_window_s`, about one stride (0.70-1.50 s), and at
+a moving command the tracking term and the gate's in-tolerance test read a trailing boxcar mean
+over it, under the panel protocol `command_panel/v2`, which refuses v1 reports and records. Under
+a command it matches, every reference walk now clears the in-tolerance fraction and the speed
+ratio: the brachiosaurus and dibothrosuchus references pass the whole walk gate, and the T. rex and
+Allosaurus fail heading_settle on their scripted starts; the statue still fails every walk. The bars
+stay provisional and no controller has passed a committed walk panel (KNOWN_ISSUES). Every walk's
+task digest moved, so a walk session trains a walk afresh; the T. rex walk's collapse floor is
+2.16 x 1248.7 (D-D62 (15), as D-D64 reads it). The review triage the previous note deferred is
+no longer waiting on it.* *2026-11-26 (decision D-D65): the maintainer answered D-D64's open
+questions. The collapse floor's walker is now measured on the matched basis on every model, so the
+brachiosaurus and dibothrosuchus walks' floors are raised from the absolute 100 to 1.20 x 2359.7 =
+2831.6 and 1.31 x 2286.0 = 2994.7; on those walks a standing plateau no longer arms the backstop.
+`longest_stop_s` stays report-only until the pilot, D-D64's window design is accepted as recorded,
+and the notebook review's 110 open findings are folded into KNOWN_ISSUES next.* *2026-11-26
+(decision D-D65 (4), done): the SB3 notebook review is folded into KNOWN_ISSUES. Re-checked on
+this day's tree, no finding changed status (11 addressed, 20 moot, 110 open), and the 110 open
+ones are carried by 52 new entries and 8 amendments, each naming its ids; the review's addendum
+"Folded on 2026-11-26" records the counts and the amendments. The triage the 2026-11-25 note left
+pending is done.* *2026-11-26 (decision D-D66): the maintainer answered D-D65's four open
+questions; no code changes. The dibothrosuchus walk keeps its floor fraction 1.31, not 1.32; a
+walk that tracks no committed command is accepted as within D-D65's trade;
+`collapse_drop_fraction` stays 0.5 and D-D64 (11)'s start overshoot uncharged, both to be decided
+after the pilot. At 0.5 a return to standing after a matched reference walk stops the run on 27.4%
+of seeds on the T. rex, 84.7% on the velociraptor and 15.1% on the dibothrosuchus (17.2% with each
+run's own episodes fixed), never on the brachiosaurus.* Section 2 labels each audited node except
+the in-training dibothrosuchus re-run, which section 3's session-4 row describes, and the plan's
+§10 holds a prompt for continuing the gait work in a fresh session.
 
 The notebook ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb)) is the one SB3 training
 notebook; the consolidation plan's §4 maps its cells. Its sizes from consolidation PR-3 on are in the
@@ -210,8 +276,10 @@ consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; th
 after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
 Configuration-cell defaults:
-`BEHAVIOR = "hunt"` (dropdown: `stance`, `recover`, `walk`, `hunt`, stage ids by
-free input; the eleven direction/terrain values leave with the PR-12 slice;
+`BEHAVIOR = "auto"`, the model's last deliverable, walk on every model since
+decision D-D59 (dropdown: `auto`, `stance`, `recover`, `walk`, stage ids by
+free input; `hunt` is refused naming `walk` since D-D59; the eleven
+direction/terrain values leave with the PR-12 slice;
 `recover`, stance then push recovery on the T-Rex and both Compsognathus
 models, since decision D-D35, before which `stand` meant that chain there;
 `stance`, the stance stage alone on every model, labelled `stand` until
@@ -298,7 +366,8 @@ run-level summaries. A cell ending "gait audit 2026-09-28: …" gives, in plain
 words, what the 2026-09-28 replays show that node doing
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md)
 §4); the label changes no certification fact, and a verdict still certifies
-only what its gate checks (no locomotion gate reads a foot contact).
+only what its gate checks (no locomotion gate read a foot contact then; since
+D-D61 and D-D62 the walk gate's gait clause does).
 *2026-10-06: T-Rex is physics r8 since D-D24, so the plant contract refuses every
 T-Rex run below (physics r7) and none is reused; each T-Rex row ends with a dated
 "stranded by physics r8" note, and its facts are as they were.*
@@ -432,10 +501,11 @@ trains 11M steps. `[curriculum] timesteps = 11000000` in every `stance.toml`;
 it was 12M for the T-Rex and the velociraptor, 6M for the brachiosaurus and
 the dibothrosuchus and 3M for the allosaurus, and both Compsognathus models
 were already at 11M. The budget is a schedule key in no task, gate or recipe
-digest, so the T-Rex stance stays task `433d4add`, gate `d26c34e6` and recipe
-`c64211e8` with `CRITIC_PHASE = True`. The 12M of the procedures below (the
-2026-11-06 note's "The stage trains 12M steps") and the 6M stance of rows 4
-and 5 read 11M from here. Scaled from the two r10 certification runs (12M in
+digest, so the T-Rex stance stays task `2624c86a`, gate `d26c34e6` and recipe
+`c64211e8` with `CRITIC_PHASE = True`. A new stance session trains 11M: the
+6M stance of rows 4 and 5 reads 11M from here, and the 2026-11-06 note's "The
+stage trains 12M steps" stays the record of its finished certification (the
+2026-11-23 note below). Scaled from the two r10 certification runs (12M in
 23h06m55s and 23h28m58s), an 11M T-Rex stance trains in about 21h11m–21h31m
 on an L4, with about 0.8 h more for the certificate and the bundle inside the
 ~24 h runtime cap; the other species have no stance run at the current
@@ -920,6 +990,13 @@ next session pins `TRUNK_FROM` to the run the maintainer chooses. This
 records change keeps the stance-landing decision's date citation; its number
 is still to be assigned. The record is §31 of the stance record.*
 
+*Note 2026-11-23 (decision D-D59's amendment): the hunt reward code left the
+T. rex environment, which moved its stance task again, so
+`environments/shared/tests/test_ltsb_stance_recipe.py`, which checked the
+settings above against the notebook and the committed stance against the
+screen's recorded task, is retired; the settings stay as the record of the
+finished certification.*
+
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was
 typed then. The stance stage's recipe label is now `stance`, its own id:
@@ -1043,7 +1120,9 @@ Not recommended yet: direction/terrain pilots (evaluation only, D-D9; command
 line only from the notebook-only PR-12 slice on, with `--checkpoint` /
 `--vecnormalize` naming the pair, [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md);
 one T-Rex `follow_direction` pilot pointed at the September walker's locomotion
-checkpoint pair is harmless but disposable) and T-Rex hunting (off the direction path). Never
+checkpoint pair is harmless but disposable; since decision D-D62 no committed
+path produces a walker a pilot can start from, section 1's note of
+2026-11-24). T-Rex hunting is removed (decision D-D59). Never
 re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 
 ---
@@ -1080,7 +1159,7 @@ and PR-14a .. PR-14c (landed by `0.3.9`), whose sections the plan's §3 keeps as
 | PR-8 | One behavior env, part 2: one terrain selector (`terrain_sampler` kwarg, `terrain_contact` family), command constants imported from `command_frame`, delete `BehaviorVecNormalize` | M (about −170) | PR-7; D-D3 |
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
-| PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
+| PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `locomotion` (planned after the hunt node `behavior`, which decision D-D59 removed), trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
 | PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
 | PR-15 | Docs fold (a residual pass for PR-8 .. PR-13), pin budget; the CHANGELOG half and the notebook-cell helper are done (the plan's PR-15 section) | M (about −290) | PR-14c |

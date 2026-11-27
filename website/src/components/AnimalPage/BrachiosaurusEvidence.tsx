@@ -40,9 +40,10 @@ export default function BrachiosaurusEvidence({image}: {image: string}) {
         </figcaption>
       </figure>
       <details className={styles.prediction}>
-        <summary>Would a food target 0.6 m from the model’s head tip count as a reach?</summary>
-        <p>Yes. In the simulation, a reach counts when the head tip comes within 0.8 m of the target.
-          A different neck posture would change which targets fall within that distance.{' '}
+        <summary>Does the simulation train the model to reach for food?</summary>
+        <p>Not any more. The model trains to stand and then to walk on command. A food-reach task, which
+          counted a reach when the head tip came within 0.8 m of a target, was removed in November 2026,
+          along with the target itself.{' '}
           <Link to="/docs/models/brachiosaurus_altithorax/anatomical">Read the model notes</Link></p>
       </details>
       <p className={styles.feedback}>

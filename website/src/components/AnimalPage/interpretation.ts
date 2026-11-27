@@ -66,7 +66,7 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
   },
   brachiosaurus_altithorax: {
     classification: 'Late Jurassic · Sauropod',
-    title: 'Reaching from a four-legged stance',
+    title: 'A long neck over four legs',
     anatomy: 'The raised shoulders sit above compact forefeet. The hindfeet have padded heels and three claws. A four-beat walk transfers weight between them while the long neck holds the head above the chest.',
     alt: 'Brachiosaurus with a deep chest, raised shoulders, tapered tail and elevated neck',
     detailLabel: 'Head and neck control', detail: '6 actuators',
@@ -81,13 +81,12 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
           controllerPath: 'environments/brachiosaurus_altithorax/scripts/reference_walk.py',
         },
       },
-      behavior: {title: 'Guide the head', description: 'Food targets appear 2.0–3.5 m above the ground. A reach counts when the head tip comes within 0.8 m of the target.'},
     },
   },
   velociraptor_mongoliensis: {
     classification: 'Late Cretaceous · Theropod',
     title: 'A claw held clear of the ground',
-    anatomy: 'Each foot supports the body on a rounded pad and two toes. The sickle claw rides above them. The model can move that claw separately as it approaches prey.',
+    anatomy: 'Each foot supports the body on a rounded pad and two toes. The sickle claw rides above them. The model can move that claw separately.',
     alt: 'Feathered Velociraptor with a long, low snout, folded arms and a raised sickle claw on each foot',
     detailLabel: 'Tail control', detail: '4 actuators',
     studies: {
@@ -101,7 +100,6 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
           controllerPath: 'environments/velociraptor_mongoliensis/scripts/reference_walk.py',
         },
       },
-      behavior: {title: 'Aim the sickle claw', description: 'Either raised claw can score a strike by touching the simulated prey.'},
     },
   },
   tyrannosaurus_rex: {
@@ -122,7 +120,6 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
           controllerPath: 'environments/tyrannosaurus_rex/scripts/reference_walk.py',
         },
       },
-      behavior: {title: 'Make head contact', description: 'A contact surface on the head represents a bite. Touching simulated prey with that surface counts as success.'},
     },
   },
   dibothrosuchus_elaphros: {
@@ -142,13 +139,12 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
           controllerPath: 'environments/dibothrosuchus_elaphros/scripts/reference_walk.py',
         },
       },
-      behavior: {title: 'Place the snout', description: 'The MuJoCo task scores a touch of the snout on the prey.'},
     },
   },
   compsognathus_longipes: {
     classification: 'Late Jurassic · Theropod',
     title: 'Two ways to balance a small biped',
-    anatomy: 'The anatomical model carries a long, articulated tail. A second model fixes the head and tail to a robot chassis. Both use their legs to balance and approach a target.',
+    anatomy: 'The anatomical model carries a long, articulated tail. A second model fixes the head and tail to a robot chassis. Both use their legs to balance and walk.',
     alt: 'Small bipedal Compsognathus model with a narrow body, long hind legs and an extended tail',
     detailLabel: 'Anatomical tail', detail: 'Articulated',
     robot: {
@@ -158,14 +154,13 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
       detailLabel: 'Head and tail', detail: 'Fixed to the chassis',
       studies: {
         stance: {title: 'Stand on two flat soles', description: 'Each foot rests on one flat sole. The toes are surface detail and carry no weight. The current check asks the robot to last almost every trial without falling, while a touch sensor under at least one foot reports contact nearly all the time. It is an older check, due to be replaced by a stricter one before the robot next trains to stand.'},
-        locomotion: {title: 'Walk upright', description: 'The task asks the robot to move forward on its two feet. A trial ends as soon as any other part of the robot touches the floor.'},
+        locomotion: {title: 'Walk upright', description: 'Each trial gives the robot one command for its two feet: walk forward at the commanded speed, holding a heading close to the one it starts on, or, in about one trial in seven, stand still. A trial ends as soon as any other part of the robot touches the floor.'},
       },
     },
     studies: {
       stance: {title: 'Settle onto both feet', description: 'The stance test checks that the foot pads and toes share the load without hopping or tipping onto an edge.'},
       recovery: {title: 'Regain balance', description: 'In this pilot task, calibrated pushes from a random horizontal direction, about every two seconds, test how the standing model responds.'},
       locomotion: {title: 'Walk upright', description: 'The model advances on its hind feet while keeping the rest of its body clear of the floor.'},
-      behavior: {title: 'Arrive and slow down', description: 'The pelvis must enter a target zone at low speed with the body still upright. The target moves to a new position each episode.'},
     },
   },
 };

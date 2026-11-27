@@ -74,16 +74,18 @@ class TestOnStep:
         assert callback._step_infos["reward_alive"] == [0.5]
 
     def test_collects_info_keys(self, callback):
-        callback.locals = {"infos": [{"forward_vel": 2.0, "prey_distance": 5.0}]}
+        callback.locals = {"infos": [{"forward_vel": 2.0, "pelvis_height": 0.5, "prey_distance": 5.0}]}
         callback._on_step()
         assert callback._step_infos["forward_vel"] == [2.0]
-        assert callback._step_infos["prey_distance"] == [5.0]
+        assert callback._step_infos["pelvis_height"] == [0.5]
+        # The hunt's prey distance is not an INFO_KEY since decision D-D59 removed the hunt.
+        assert "prey_distance" not in callback._step_infos
 
     def test_derives_tyrannosaurus_rex_contact_duties_and_load_share(self, callback):
         callback.locals = {
             "infos": [
                 {
-                    "bite_success": 0.0,
+                    "leg_home_pose_error": 0.0,
                     "r_foot_contact": 75.0,
                     "l_foot_contact": 25.0,
                 }
@@ -99,7 +101,7 @@ class TestOnStep:
         callback.locals = {
             "infos": [
                 {
-                    "bite_success": 0.0,
+                    "leg_home_pose_error": 0.0,
                     "r_foot_contact": 75.0,
                     "l_foot_contact": 25.0,
                     "foot_load_imbalance": 0.125,
@@ -218,10 +220,10 @@ class TestOnRolloutEnd:
         assert callback._history_rewards["reward_forward"] == [1.5]
 
     def test_nan_for_missing_info_keys(self, callback):
-        # Only forward_vel has data, prey_distance does not
+        # Only forward_vel has data, pelvis_height does not
         callback._step_infos["forward_vel"] = [1.0]
         callback._on_rollout_end()
-        assert np.isnan(callback._history["prey_distance"][-1])
+        assert np.isnan(callback._history["pelvis_height"][-1])
 
     def test_logs_termination_fractions(self, callback):
         callback._rollout_terminations = Counter({"fallen": 3, "truncated": 7})

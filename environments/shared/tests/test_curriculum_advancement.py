@@ -1,6 +1,7 @@
 """Tests for environments.shared.curriculum.advancement."""
 
 import logging
+import re
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -83,41 +84,26 @@ class TestCallbackMethodsMocked:
         assert "Stage 1 locomotion: forward_velocity=1.500, total_distance=10.000, pelvis_height=0.300" in messages
         assert "Stage 1 terminations (1 eps): fall=1, timeout=3" in messages
 
-    def test_success_samples_are_na_when_stage_has_no_success_gate(self):
+    def test_no_success_sample_is_collected(self):
+        """No gate kind consumes task success since decision D-D59, so neither eval collects success flags."""
+        import inspect
+
         cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_forward_velocities = [[1.0]]
         cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.0)
+        cb.curriculum_manager.current_threshold = StageThreshold()
+        cb.curriculum_manager.should_advance.return_value = False
+        cb._read_latest_eval = MagicMock(return_value=([100.0], [1000.0], 1))
+        cb._run_supplementary_eval = MagicMock(return_value=([1.0], []))
+        cb._log_locomotion_metrics = MagicMock()
 
-        result = cb._success_rates_for_stage([1.0, 0.0], [1.0])
+        assert cb._on_step_with_eval_callback() is True
 
-        assert result is None
-
-    def test_task_success_stage_gates_on_the_sample_without_a_rate_floor(self):
-        """task_success/v1 consumes no min_success_rate; the kind alone selects the sample."""
-        cb = object.__new__(CurriculumCallback)
-        cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(gate_kind="task_success/v1", min_success_rate=0.0)
-
-        assert cb._success_rates_for_stage([1.0, 0.0], [1.0]) == [1.0, 0.0]
-        assert cb._success_rates_for_stage(None, [1.0, 0.0]) == [1.0, 0.0]
-
-    def test_success_gate_prefers_full_eval_samples(self):
-        cb = object.__new__(CurriculumCallback)
-        cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.5)
-
-        result = cb._success_rates_for_stage([0.0, 0.0], [1.0])
-
-        assert result == [0.0, 0.0]
-
-    def test_success_gate_falls_back_to_supplementary_samples(self):
-        cb = object.__new__(CurriculumCallback)
-        cb.curriculum_manager = MagicMock()
-        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.5)
-
-        result = cb._success_rates_for_stage(None, [1.0, 0.0])
-
-        assert result == [1.0, 0.0]
+        assert cb.curriculum_manager.should_advance.call_args.args == ([100.0], [1000.0], [1.0], None)
+        assert not hasattr(CurriculumCallback, "_success_rates_for_stage")
+        source = inspect.getsource(CurriculumCallback)
+        assert not {"success_flags", "ep_success", "bite_success", "successes"} & set(re.findall(r"\w+", source))
 
     def test_forward_velocity_gate_prefers_main_eval_sample(self):
         cb = object.__new__(CurriculumCallback)
@@ -143,8 +129,8 @@ class TestCallbackMethodsMocked:
         cb.curriculum_manager = MagicMock()
         cb.curriculum_manager.current_threshold = StageThreshold(min_avg_forward_vel=1.0)
         cb.curriculum_manager.should_advance.return_value = False
-        cb._read_latest_eval = MagicMock(return_value=([100.0] * 3, [1000.0] * 3, None, 1))
-        cb._run_supplementary_eval = MagicMock(return_value=([9.0], [1.0], []))
+        cb._read_latest_eval = MagicMock(return_value=([100.0] * 3, [1000.0] * 3, 1))
+        cb._run_supplementary_eval = MagicMock(return_value=([9.0], []))
         cb._log_locomotion_metrics = MagicMock()
 
         assert cb._on_step_with_eval_callback() is True
@@ -153,7 +139,6 @@ class TestCallbackMethodsMocked:
             [100.0] * 3,
             [1000.0] * 3,
             [1.0, 1.5, 2.0],
-            None,
             # No stance panel: this stage gates on reward_and_length/v1, so
             # the stance capture is not consulted at all.
             None,
@@ -245,16 +230,14 @@ class _OneStepVecEnv:
 
 
 class TestSpeciesSuccessKeys:
-    """The supplementary and standalone evaluations read the species' success keys.
+    """The supplementary and standalone evaluations' locomotion reports read the species' success keys.
 
-    Both used to loop over (bite_success, strike_success, food_reached), so an upright Dibothrosuchus
-    (snap_success), Allosaurus (course_complete) or Compsognathus (target_success) success read 0.0.
+    Both used to loop over (bite_success, strike_success, food_reached), so an Allosaurus course_complete read 0.0.
+    No gate reads success since decision D-D59, so the keys reach the locomotion report only, never the gate.
     """
 
     CASES = [
-        (ModelId("dibothrosuchus_elaphros", "anatomical"), "snap_success"),
         (ModelId("allosaurus_fragilis", "anatomical"), "course_complete"),
-        (ModelId("compsognathus_longipes", "anatomical"), "target_success"),
     ]
 
     @staticmethod
@@ -267,7 +250,7 @@ class TestSpeciesSuccessKeys:
         cb.n_eval_episodes = episodes
         cb.curriculum_manager = MagicMock()
         cb.curriculum_manager.current_stage = 3
-        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.5)
+        cb.curriculum_manager.current_threshold = StageThreshold()
         cb.curriculum_manager.should_advance.return_value = False
         if success_keys is not None:
             cb.success_keys = success_keys
@@ -280,39 +263,39 @@ class TestSpeciesSuccessKeys:
         return get_species_config(model_id).success_keys
 
     @pytest.mark.parametrize(("model_id", "key"), CASES, ids=lambda case: str(case))
-    def test_the_supplementary_evaluation_counts_the_species_success(self, model_id, key):
+    def test_the_supplementary_evaluation_reports_the_species_success(self, model_id, key):
         cb = self._callback({"forward_vel": 0.0, key: 1.0}, self._species_keys(model_id))
 
-        _, success_flags, reports = cb._run_supplementary_eval()
+        _, reports = cb._run_supplementary_eval()
 
-        assert success_flags == [1.0, 1.0, 1.0]
         assert [report["success_rate"] for report in reports] == [1.0, 1.0, 1.0]
 
     @pytest.mark.parametrize(("model_id", "key"), CASES, ids=lambda case: str(case))
-    def test_the_standalone_evaluation_gates_on_the_species_success(self, model_id, key):
+    def test_the_standalone_evaluation_passes_no_success_to_the_gate(self, model_id, key):
         cb = self._callback({"forward_vel": 0.0, key: 1.0}, self._species_keys(model_id))
+        cb._log_locomotion_metrics = MagicMock()
 
         assert cb._on_step_standalone() is True
 
-        rewards, lengths, _, success_arg, _ = cb.curriculum_manager.should_advance.call_args.args
-        assert (rewards, lengths, success_arg) == ([1.0] * 3, [1.0] * 3, [1.0] * 3)
+        rewards, lengths, _, stance_panel = cb.curriculum_manager.should_advance.call_args.args
+        assert (rewards, lengths, stance_panel) == ([1.0] * 3, [1.0] * 3, None)
+        (reports,) = cb._log_locomotion_metrics.call_args.args
+        assert [report["success_rate"] for report in reports] == [1.0, 1.0, 1.0]
 
     def test_another_species_key_is_not_a_success(self):
-        cb = self._callback({"forward_vel": 0.0, "bite_success": 1.0, "snap_success": 0.0}, ["snap_success"])
+        cb = self._callback({"forward_vel": 0.0, "bite_success": 1.0, "course_complete": 0.0}, ["course_complete"])
 
-        _, success_flags, reports = cb._run_supplementary_eval()
+        _, reports = cb._run_supplementary_eval()
 
-        assert success_flags == [0.0, 0.0, 0.0]
         assert [report["success_rate"] for report in reports] == [0.0, 0.0, 0.0]
 
-    @pytest.mark.parametrize("key", ["snap_success", "course_complete", "target_success"])
-    def test_without_species_keys_the_fallback_reads_every_species_key(self, key):
-        cb = self._callback({"forward_vel": 0.0, key: 1.0}, None)
+    def test_without_species_keys_no_success_is_reported(self):
+        cb = self._callback({"forward_vel": 0.0, "course_complete": 1.0, "bite_success": 1.0}, None)
         assert cb.success_keys is None
 
-        _, success_flags, _ = cb._run_supplementary_eval()
+        _, reports = cb._run_supplementary_eval()
 
-        assert success_flags == [1.0, 1.0, 1.0]
+        assert reports and not any("success_rate" in report for report in reports)
 
     def test_the_constructor_takes_them_after_the_existing_parameters(self):
         pytest.importorskip("stable_baselines3")
@@ -321,8 +304,8 @@ class TestSpeciesSuccessKeys:
         positional = CurriculumCallback(manager, MagicMock(), 50000, 30, None, 10, 0, None)
         assert positional.success_keys is None
 
-        given = CurriculumCallback(curriculum_manager=manager, eval_env=MagicMock(), success_keys=["snap_success"])
-        assert given.success_keys == ["snap_success"]
+        given = CurriculumCallback(curriculum_manager=manager, eval_env=MagicMock(), success_keys=["course_complete"])
+        assert given.success_keys == ["course_complete"]
 
 
 class TestStageWarmupCallbackMocked:
@@ -547,17 +530,16 @@ class TestReadLatestEval:
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock(spec=[])  # no log_path attr
         cb._last_seen_n_evals = 0
-        rewards, lengths, successes, n = cb._read_latest_eval()
+        rewards, lengths, n = cb._read_latest_eval()
         assert rewards is None
         assert lengths is None
-        assert successes is None
 
     def test_returns_none_when_npz_missing(self, tmp_path):
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock()
         cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 0
-        rewards, lengths, successes, n = cb._read_latest_eval()
+        rewards, lengths, n = cb._read_latest_eval()
         assert rewards is None
 
     def test_reads_latest_eval_from_npz(self, tmp_path):
@@ -577,11 +559,10 @@ class TestReadLatestEval:
         cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 0
 
-        rewards, lengths, successes, n = cb._read_latest_eval()
+        rewards, lengths, n = cb._read_latest_eval()
 
         assert rewards == [30.0, 40.0]  # last row
         assert lengths == [300.0, 400.0]
-        assert successes is None  # npz has no successes array
         assert n == 2
         assert cb._last_seen_n_evals == 2
 
@@ -601,14 +582,14 @@ class TestReadLatestEval:
         cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 1  # Already seen
 
-        rewards, lengths, successes, n = cb._read_latest_eval()
+        rewards, lengths, n = cb._read_latest_eval()
         assert rewards is None
 
 
 class TestReadLatestEvalSuccesses:
-    """_read_latest_eval returns per-episode successes when SB3 saved them."""
+    """_read_latest_eval reads no successes array (decision D-D59: no gate kind consumes one)."""
 
-    def test_reads_successes_array(self, tmp_path):
+    def test_ignores_a_successes_array(self, tmp_path):
         import numpy as np
 
         np.savez(
@@ -625,9 +606,7 @@ class TestReadLatestEvalSuccesses:
         cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 0
 
-        rewards, lengths, successes, n = cb._read_latest_eval()
-        assert successes == [1.0, 1.0]  # latest eval row
-        assert n == 2
+        assert cb._read_latest_eval() == ([30.0, 40.0], [300.0, 400.0], 2)
 
     def test_reads_from_sb3_prefix_convention(self, tmp_path):
         """The npz path is derived from SB3's file-prefix log_path, not a dir."""
@@ -644,8 +623,7 @@ class TestReadLatestEvalSuccesses:
         cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 0
 
-        rewards, lengths, successes, n = cb._read_latest_eval()
+        rewards, lengths, n = cb._read_latest_eval()
         assert rewards == [10.0, 20.0]
         assert lengths == [100.0, 200.0]
-        assert successes is None
         assert n == 1

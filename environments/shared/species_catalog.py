@@ -26,12 +26,21 @@ import mujoco
 from environments.shared import record_fields
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.curriculum import StageThreshold
+from environments.shared.curriculum.command_tracking_gate import (
+    COMMAND_TRACKING_GATE_KIND,
+    COMMAND_TRACKING_THRESHOLD_KEYS,
+    FOLLOW_PROFILE,
+    GAIT_CRITERIA,
+    GAIT_LIMBS_KEY,
+    TOLERANCE_OVERRIDE_KEYS,
+)
 from environments.shared.curriculum.gate_schema import (
     FLOOR_TRUTH_STANCE_GATE_KINDS,
     GATE_KINDS,
     STANCE_GATE_KIND,
     GateSchemaError,
     declared_certification_seeds,
+    retired_gate_declarations,
 )
 from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
 from environments.shared.curriculum.stance_gate_v2 import (
@@ -40,7 +49,6 @@ from environments.shared.curriculum.stance_gate_v2 import (
     STANCE_V2_THRESHOLD_KEYS,
 )
 from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
-from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.model_id import EMBODIMENT_LABELS, EMBODIMENTS, ModelId
 from environments.shared.paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 from environments.shared.plant_contract import (
@@ -129,7 +137,7 @@ class CatalogError(ValueError):
 # Which statistic headlines a published deliverable is chosen by the gate
 # kind it was certified under: a stance policy is judged on unsupported duty
 # and full-horizon episodes, a recovery policy on its recovery-success lower
-# bound, a walk on velocity and a hunt on task success.  Each spec is
+# bound and a walk on velocity.  Each spec is
 # ``(summary key, label, unit)``; the VALUE is read from the published stage
 # row under that key, and a statistic the summary does not carry (stance and
 # recovery, whose per-stage gate metrics reach summary.json in a later phase
@@ -179,24 +187,24 @@ def _recovery_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec
 
 def _reward_and_length_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     # The historical gate measures whatever the stage declares: a walk
-    # (velocity floor) headlines its velocity, a hunt (success floor) its
-    # task success, and a stage gated on both publishes both.
+    # (velocity floor) headlines its velocity.
     specs: list[_HeadlineSpec] = []
     if current_gate.get("min_avg_forward_velocity") is not None:
         specs.append(("avg_forward_vel", "avg. forward velocity", "m/s"))
-    if current_gate.get("min_success_rate") is not None:
-        specs.append(("mean_success_rate", "task success", "percent"))
     return specs
 
 
-def _task_success_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
-    # The hunting gate certifies the exact binomial lower bound on task
-    # success (plan §4.4), which the summary stage row records as
-    # selected_model_success_lcb; the raw selected-checkpoint rate follows
-    # it so a reader sees both the bound and the fraction it bounds.
+def _command_tracking_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    # The command-tracking gate (D-D61) certifies exact binomial lower bounds
+    # on per-episode success: the walk profile's cruise family (with its
+    # stand family judged on a fraction beside it) and the follow profile's
+    # panel.  The profile key names which.  Null until the summary carries
+    # them (D-B15), as for the stance kinds.
+    if current_gate.get("profile") == FOLLOW_PROFILE:
+        return [("command_follow_success_lcb", "command-following episodes LCB95", "ratio")]
     return [
-        ("selected_model_success_lcb", "task success LCB95", "ratio"),
-        ("selected_model_success_rate", "task success", "percent"),
+        ("command_cruise_success_lcb", "cruise episodes on the command LCB95", "ratio"),
+        ("command_stand_success_fraction", "stand episodes holding the stop", "percent"),
     ]
 
 
@@ -210,8 +218,8 @@ _HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]
     STANCE_GATE_V2_KIND: _stance_v2_headline_specs,
     STANCE_HEADING_GATE_KIND: _stance_heading_headline_specs,
     RECOVERY_GATE_KIND: _recovery_headline_specs,
+    COMMAND_TRACKING_GATE_KIND: _command_tracking_headline_specs,
     "reward_and_length/v1": _reward_and_length_headline_specs,
-    TASK_SUCCESS_GATE_KIND: _task_success_headline_specs,
     "none/v1": _no_headline_specs,
 }
 
@@ -235,10 +243,14 @@ def _deliverable_headline(
     record it.  A null *gate_kind* (a record whose verdict and config both
     left the kind unrecorded) headlines nothing: choosing a metric by the
     CURRENT gate would present a statistic the certifying gate never
-    measured.  A non-null kind outside the registry is fatal.
+    measured.  A non-null kind outside the registry is fatal, and a retired
+    one (``task_success/v1``, decision D-D59) says so.
     """
     if gate_kind is None:
         return []
+    retired = retired_gate_declarations({"gate_kind": gate_kind})
+    if retired:
+        raise CatalogError("; ".join(retired))
     specs = _HEADLINE_BY_GATE_KIND.get(gate_kind)
     if specs is None:
         raise CatalogError(
@@ -510,6 +522,17 @@ _STANCE_V2_EXPORTED_KEYS = tuple(
 )
 
 
+#: The ``command_tracking/v1`` keys the catalog exports beside the shared
+#: ones on a stage that declares the kind (decision D-D61), and on no other:
+#: both profiles' keys, declared or null, so the published gate is the one the
+#: post-stage judge enforces.  Like the v2 keys, the first committed stage to
+#: declare the kind cannot regenerate the catalog without teaching the website
+#: adapter (``website/src/data/species.ts`` ``RawStage.advancement_gate``)
+#: these keys and its ``formatGate`` this arm, which
+#: ``test_website_adapter_declares_every_exported_key`` pins both ways.
+_COMMAND_TRACKING_EXPORTED_KEYS = tuple(sorted(COMMAND_TRACKING_THRESHOLD_KEYS - {"required_consecutive"}))
+
+
 def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
     """The stage's effective early-advancement gate as the catalog exports it."""
     gate = {
@@ -521,7 +544,6 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
         "min_avg_reward": curriculum.get("min_avg_reward"),
         "min_avg_episode_length": curriculum.get("min_avg_episode_length"),
         "min_avg_forward_velocity": curriculum.get("min_avg_forward_vel"),
-        "min_success_rate": curriculum.get("min_success_rate"),
         # stance_quality/v1. Exported so the published gate is the
         # one actually enforced: a stance-gated stage whose only
         # listed criterion was its reward rail would read as gated
@@ -539,9 +561,6 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
         "min_paired_success_delta_lcb": curriculum.get("min_paired_success_delta_lcb"),
         "recovery_t_recover_steps": curriculum.get("recovery_t_recover_steps"),
         "recovery_dwell_steps": curriculum.get("recovery_dwell_steps"),
-        # task_success/v1 (plan §4.4): the LCB bar the hunting deliverable
-        # is certified on; null on every other kind.
-        "min_success_lcb": curriculum.get("min_success_lcb"),
         "min_eval_episodes": int(curriculum.get("min_eval_episodes", DEFAULT_STAGE_THRESHOLD.min_eval_episodes)),
         "required_consecutive": int(
             curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
@@ -553,6 +572,10 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
         # floor-truth one actually enforced rather than a list that shows
         # only the shared rail and panel size.
         gate.update({key: curriculum.get(key) for key in _STANCE_V2_EXPORTED_KEYS})
+    if curriculum.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        # command_tracking/v1 (D-D61): its profile and every bar, declared or
+        # null, so the published gate is the panel the judge enforces.
+        gate.update({key: curriculum.get(key) for key in _COMMAND_TRACKING_EXPORTED_KEYS})
     return gate
 
 
@@ -704,10 +727,10 @@ def _validate_provenance(provenance: Any, *, result_path: str) -> dict[str, Any]
 def _validate_result_summary(summary: Any, *, model_id: ModelId, relative_path: str) -> dict[str, Any]:
     """Validate public results while preserving the catalog error API.
 
-    Publishable, not complete (decision D-A2): a schema-4 run that certified
-    walk but failed hunt publishes its certified deliverables as ``partial``.
-    Below schema 4 the two flags are synonyms, so the four committed v2
-    summaries validate exactly as before.
+    Publishable, not complete (decision D-A2): a run that certified stance
+    but failed walk publishes its certified deliverables as ``partial``.  A
+    summary is read at schema 5 alone (decision D-D63 retired schema 2), so
+    every published result certifies at least one deliverable.
     """
     try:
         return validate_result_summary(
@@ -832,18 +855,16 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
     deliverables, primary_deliverable, target_deliverable = _build_result_deliverables(
         model_id, summary, validated_provenance, raw_stages_by_id, relative_path=relative_path
     )
-    # The exported provenance is the identity/status surface alone.  A v4
+    # The exported provenance is the identity/status surface alone.  The
     # block also validates to its deliverables map, ancestors, primary and
     # target (and a canonical one to run_id, seeds, ...); those are published
-    # ONLY through the per-deliverable rows below, so every schema exports
-    # the same six keys and the website adapter's RawResult.provenance stays
-    # honest for the first committed schema-4 summary.
+    # ONLY through the per-deliverable rows below, so the website adapter's
+    # RawResult.provenance holds the same six keys for every result.
     provenance = {
         key: validated_provenance[key]
         for key in ("model_revision_status", "verification_status", "evaluation_episodes", *PROVENANCE_IDENTIFIERS)
     }
     max_average_forward_velocity = _max_reported_velocity(stage_summaries)
-    stage_three = next((stage for stage in stage_summaries if stage["number"] == 3), None)
     return {
         "summary_path": relative_path,
         "algorithm": summary["algorithm"],
@@ -858,14 +879,14 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
         ),
         "total_training_time": summary.get("total_training_time"),
         "final_avg_reward": summary.get("final_avg_reward"),
+        # The fastest reported stage velocity.  The website headlines a result
+        # by its primary deliverable (below), and by this only for a result
+        # without one, which schema 5 never publishes (decision D-D63 retired
+        # the schema-2 ladder summaries that had none). The stage-3
+        # task-success headline left with the hunt nodes (decision D-D59).
         "max_average_forward_velocity": max_average_forward_velocity,
-        # The historical ladder headline (plan §4.3): unchanged for every
-        # committed row; a v4 result's headline comes from its primary
-        # deliverable below, and a v4 run without a behavior stage is null.
-        "stage3_success_rate": stage_three.get("mean_success_rate") if stage_three else None,
         "provenance": provenance,
-        # Per-deliverable publication (schema 4): [] and nulls for every
-        # schema-2 summary — never synthesized from a ladder pass.
+        # Per-deliverable publication (schema 4 onward).
         "deliverables": deliverables,
         "primary_deliverable": primary_deliverable,
         "target_deliverable": target_deliverable,
@@ -888,14 +909,10 @@ def _build_result_deliverables(
     id to its summary row as written, so a headline reads the statistic the
     summary records (``unsupported_duty_ucb``, ``full_horizon_fraction``,
     ``recovery_success_lcb`` once a later phase exports them — D-A9,
-    deferred by D-B15; ``selected_model_success_lcb`` for a task_success/v1
-    hunt is exported now) rather than the ladder projection, which carries
+    deferred by D-B15) rather than the ladder projection, which carries
     only the fixed ladder columns.
 
-    A schema-2 ladder summary publishes NO deliverable: its ``stage_passed``
-    was a pass of the retired reward gate, and relabelling it "certified"
-    would mint a certification nothing measured.  From schema 4 on each
-    ``provenance.deliverables`` record becomes a row carrying its gate kind,
+    Each ``provenance.deliverables`` record becomes a row carrying its gate kind,
     certification, model hash, replication count, the CURRENT
     ``certification_seeds`` and the provisional label re-derived from the
     two (plan §4.5, decisions D-B10/D-B11: the catalog validates the
@@ -905,9 +922,7 @@ def _build_result_deliverables(
     that is absent, unknown, uncertified or not the one the deliverables
     imply is a catalog failure.
     """
-    schema_version = int(summary.get("schema_version") or 0)
-    if schema_version < 4:
-        return [], None, None
+    schema_version = summary.get("schema_version")
     raw_records = provenance.get("deliverables")
     if not raw_records:
         raise CatalogError(f"schema-{schema_version} result {relative_path} publishes no provenance.deliverables")
@@ -1382,7 +1397,7 @@ def _format_warm_start(stage: dict[str, Any], stage_headings: dict[str, str]) ->
 
 
 def _format_headline_metric(metric: dict[str, Any]) -> str:
-    """``task success 96.7%`` / ``unsupported duty 95% UCB not recorded`` (D-A9)."""
+    """``clean stance episodes 96.7%`` / ``unsupported duty 95% UCB not recorded`` (D-A9)."""
     value = metric["value"]
     if value is None:
         return f"{metric['label']} not recorded"
@@ -1454,27 +1469,6 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
             ]
         )
         return "; ".join(recovery_criteria)
-    # A task_success/v1 verdict is produced once, post-stage, from the
-    # selected checkpoint's per-episode evaluation_selected.csv (plan §4.4):
-    # the exact binomial LCB95 on task success against the declared bar at
-    # the declared panel size, with min_avg_reward as a collapse RAIL, never
-    # the gate -- rendered as "reward rail" so it cannot be read as the
-    # reward_and_length/v1 criterion. required_consecutive is in-training
-    # scheduler hysteresis only (D-B3), so the generic consecutive-passes
-    # tail is not rendered here either.
-    if gate.get("gate_kind") == "task_success/v1":
-        task_criteria = [f"task success LCB95 ≥ {gate['min_success_lcb']:g}"]
-        if gate["min_avg_reward"] is not None:
-            task_criteria.append(f"reward rail ≥ {gate['min_avg_reward']:g}")
-        if gate["min_avg_episode_length"] is not None:
-            task_criteria.append(f"episode length ≥ {gate['min_avg_episode_length']:g}")
-        task_criteria.extend(
-            [
-                f"≥ {gate['min_eval_episodes']} episodes/evaluation",
-                "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
-            ]
-        )
-        return "; ".join(task_criteria)
     # A stance_quality/v2 verdict is produced once, post-stage, from the
     # floor-truth stance_gate_report.json rolled on the handoff pair at the
     # certification panel seeds (D-D23); the in-training manager refuses the
@@ -1542,6 +1536,12 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
             "when absent, never the yaw-zero panel)"
         )
         return "; ".join(heading_criteria)
+    # A command_tracking/v1 verdict (D-D61) is produced once, post-stage, from
+    # command_tracking_report.json: the stage's command panel rolled on the
+    # handoff its gated statistic chose; the in-training manager refuses the
+    # kind, so no consecutive-passes tail, as for the stance kinds.
+    if gate.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+        return _format_command_tracking_gate(gate)
     criteria: list[str] = []
     if gate["min_avg_reward"] is not None:
         criteria.append(f"reward ≥ {gate['min_avg_reward']:g}")
@@ -1549,8 +1549,6 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
         criteria.append(f"episode length ≥ {gate['min_avg_episode_length']:g}")
     if gate["min_avg_forward_velocity"] is not None:
         criteria.append(f"avg. velocity ≥ {gate['min_avg_forward_velocity']:g} m/s")
-    if gate["min_success_rate"] is not None:
-        criteria.append(f"task success ≥ {_format_percent(gate['min_success_rate'])}")
     if gate.get("min_full_horizon_fraction") is not None:
         criteria.append(f"full-horizon episodes ≥ {_format_percent(gate['min_full_horizon_fraction'])}")
     if gate.get("max_unsupported_duty") is not None:
@@ -1559,6 +1557,60 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
         criteria.append(f"unsupported duty 95% upper bound ≤ {gate['max_unsupported_duty_ucb']:g}")
     criteria.append(f"≥ {gate['min_eval_episodes']} episodes/evaluation")
     criteria.append(f"{gate['required_consecutive']} consecutive passes")
+    return "; ".join(criteria)
+
+
+def _format_command_tracking_gate(gate: dict[str, Any]) -> str:
+    """The ``command_tracking/v1`` criteria as the catalog renders them: the profile's families, the gait clause, the source."""
+    if gate.get("profile") == FOLLOW_PROFILE:
+        criteria = [
+            f"command-following episodes success LCB95 ≥ {gate['min_follow_success_lcb']:g} and survival LCB95 ≥ "
+            f"{gate['min_follow_survival_lcb']:g} over ≥ {gate['min_follow_episodes']:g} episodes of ≥ "
+            f"{gate['min_follow_horizon_s']:g} s",
+            "an episode succeeds when it survives, stays in tolerance on ≥ "
+            f"{_format_percent(gate['min_follow_tracking_fraction'])} of its steps, settles ≥ "
+            f"{_format_percent(gate['min_follow_event_settle_fraction'])} of its commands, ≥ "
+            f"{_format_percent(gate['min_follow_stop_settle_fraction'])} of its stops and ≥ "
+            f"{_format_percent(gate['min_follow_turn_settle_fraction'])} of its turns (each where the schedule draws "
+            "them) and passes the gait clause",
+            f"≥ {gate['min_follow_command_episodes']:g} episodes exposed to each of stops and turns",
+        ]
+        if gate.get("min_follow_course_fraction") is not None:
+            criteria.append(
+                f"course ≥ {_format_percent(gate['min_follow_course_fraction'])} of "
+                f"{gate['follow_course_distance_m']:g} m"
+            )
+        if gate.get("min_follow_reference_delta_lcb") is not None:
+            criteria.append(f"paired Δ success vs the parent policy LCB95 ≥ {gate['min_follow_reference_delta_lcb']:g}")
+    else:
+        criteria = [
+            f"cruise episodes (a non-zero reset command) success LCB95 ≥ {gate['min_cruise_success_lcb']:g} and "
+            f"survival LCB95 ≥ {gate['min_cruise_survival_lcb']:g} over ≥ {gate['min_cruise_episodes']:g} episodes",
+            "a cruise episode succeeds when it reaches the horizon, settles its initial heading within 1 s + "
+            "|error| / yaw_rate_max + the stage's tracking window ([commands] tracking_window_s, decision D-D64) "
+            "and holds it 1 s, stays in tolerance on ≥ "
+            f"{_format_percent(gate['min_cruise_tracking_fraction'])} of its steps after the settle (its velocity "
+            "and yaw-rate errors read on that window's means), makes ≥ "
+            f"{gate['min_cruise_speed_ratio']:g} × the commanded speed along the heading after 2 s and passes the "
+            "gait clause",
+            f"stand episodes (an exactly zero command) over ≥ {gate['min_stand_episodes']:g}: ≥ "
+            f"{_format_percent(gate['min_stand_success_fraction'])} hold the stop (it settles, and holds on ≥ "
+            f"{_format_percent(gate['min_stand_hold_fraction'])} of the steps after 1 s) and ≤ "
+            f"{gate['max_stand_falls']:g} fall",
+        ]
+    bars = [
+        f"{key} {'≥' if direction == 'min' else '≤'} {gate[key]:g}"
+        for key, _, direction in GAIT_CRITERIA
+        if gate.get(key) is not None
+    ]
+    criteria.append(f"gait clause ({GAIT_LIMBS_KEY} {gate.get(GAIT_LIMBS_KEY)}): " + ", ".join(bars))
+    overrides = [f"{key} {gate[key]:g}" for key, _ in TOLERANCE_OVERRIDE_KEYS if gate.get(key) is not None]
+    if overrides:
+        criteria.append("tolerances overridden for the gate: " + ", ".join(overrides))
+    criteria.append(
+        "handoff chosen by the gated statistic on a separate selection panel; verdict from "
+        "command_tracking_report.json on that pair (post-stage; fail-closed when absent)"
+    )
     return "; ".join(criteria)
 
 
@@ -1717,22 +1769,20 @@ def render_readme_results(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                     f"{_format_percent(stage['mean_success_rate'])} | "
                     f"{_format_millions(stage['timesteps'])} | {_format_verdict(stage)} |"
                 )
-            # Only a schema-4 result publishes deliverables; the four
-            # committed ladder summaries publish none, and this block is
-            # byte-identical to its pre-Phase-A rendering for them (D-A10).
-            if result["deliverables"]:
-                lines.extend(
-                    [
-                        "",
-                        "**Deliverables:** "
-                        + " · ".join(
-                            _format_deliverable(
-                                deliverable, primary=deliverable["stage_key"] == result["primary_deliverable"]
-                            )
-                            for deliverable in result["deliverables"]
-                        ),
-                    ]
-                )
+            # Every published result certifies at least one deliverable (schema 5 alone is read; decision D-D63
+            # retired the schema-2 ladder summaries, which published none and rendered no line here).
+            lines.extend(
+                [
+                    "",
+                    "**Deliverables:** "
+                    + " · ".join(
+                        _format_deliverable(
+                            deliverable, primary=deliverable["stage_key"] == result["primary_deliverable"]
+                        )
+                        for deliverable in result["deliverables"]
+                    ),
+                ]
+            )
             lines.extend(
                 [
                     "",
@@ -1741,6 +1791,11 @@ def render_readme_results(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                     f"{result_metric['definition']}",
                 ]
             )
+    if not any(model["historical_results"] for model in catalog["models"]):
+        # Decision D-D59 deleted the four historical ladder summaries with
+        # the hunt nodes their last stage trained; an empty block says so rather
+        # than ending on a preamble with nothing under it.
+        lines.extend(["", "No result summary is published under `results/` at present."])
     return "\n".join(lines)
 
 

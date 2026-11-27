@@ -1,7 +1,7 @@
 """Species-specific reward tests for Brachiosaurus.
 
-Common reward invariants (alive bonus, energy penalty, approach zero on first
-step, zero forward weight) are tested in
+Common reward invariants (alive bonus, energy penalty, zero forward weight)
+are tested in
 environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 """
 
@@ -43,9 +43,6 @@ class TestBrachiosaurusAltithoraxRewardComponents:
             + info["reward_spin"]
             + info["reward_speed"]
             + info["reward_idle"]
-            + info["reward_food"]
-            + info["reward_approach"]
-            + info["reward_head_proximity"]
         )
         if terminated:
             expected += env.fall_penalty
@@ -57,14 +54,6 @@ class TestBrachiosaurusAltithoraxRewardComponents:
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_gait"] <= 0.0
-
-    def test_food_reached_is_zero_initially(self, env):
-        """Food should not be reached on the first step (food is far away)."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["food_reached"] == 0.0
-        assert info["reward_food"] == 0.0
 
     def test_gait_instability_non_negative(self, env):
         """Gait instability metric should be non-negative."""
@@ -84,20 +73,10 @@ class TestBrachiosaurusAltithoraxRewardComponents:
 class TestBrachiosaurusAltithoraxRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
-    def test_zero_food_bonus_gives_no_food_reward(self):
-        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=0.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_food"] == 0.0
-        env.close()
-
     def test_high_alive_bonus_dominates(self):
         env = BrachiosaurusAltithoraxAnatomicalEnv(
             alive_bonus=100.0,
             forward_vel_weight=0.0,
-            food_approach_weight=0.0,
-            food_reach_bonus=0.0,
         )
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -131,16 +110,6 @@ class TestBrachiosaurusAltithoraxRewardWeightEffects:
         assert info["reward_speed"] == 0.0
         env.close()
 
-    def test_food_reach_threshold_respected(self):
-        """Food reach should only trigger within threshold distance."""
-        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_threshold=0.001)
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        # With a tiny threshold, food should not be reached
-        assert info["food_reached"] == 0.0
-        env.close()
-
     def test_actuator_count(self):
         """30 actuators: 6 neck + 20 legs (5 per leg) + 4 tail (pitch/yaw on tail_1, pitch on tail_2/3)."""
         env = BrachiosaurusAltithoraxAnatomicalEnv()
@@ -153,27 +122,9 @@ class TestCurriculumStageRewards:
     """Test that reward configs from TOML produce expected behavior."""
 
     def test_stage1_balance_no_forward_reward(self):
-        env = BrachiosaurusAltithoraxAnatomicalEnv(
-            forward_vel_weight=0.0,
-            food_reach_bonus=0.0,
-            food_approach_weight=0.0,
-        )
+        env = BrachiosaurusAltithoraxAnatomicalEnv(forward_vel_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_forward"] == 0.0
-        assert info["reward_food"] == 0.0
-        env.close()
-
-    def test_stage3_food_reach_has_approach_shaping(self):
-        """Stage 3 config enables approach shaping (delta-based)."""
-        env = BrachiosaurusAltithoraxAnatomicalEnv(food_approach_weight=10.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        env.step(action)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert "approach_delta" in info
-        assert "reward_approach" in info
-        assert info["approach_delta"] != 0.0
         env.close()

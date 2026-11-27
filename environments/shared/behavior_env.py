@@ -18,12 +18,8 @@ import mujoco
 import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
-from environments.shared.direction_commands import (
-    DirectionCommandConfig,
-    gaussian_tracking_reward,
-    tracking_metrics,
-    wrap_angle,
-)
+from environments.shared.command_frame import COMMAND_STREAM_DOMAIN
+from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import REPOSITORY_ROOT, current_plant_identity, validate_compiled_plant
 from environments.shared.species_registry import get_species_config
@@ -52,7 +48,27 @@ RECIPE_TASK_STAGE = "command-terrain/v2"
 
 
 class SpeciesBehaviorMixin(BaseDinoEnv):
-    """Compose command tracking with each species' canonical balance behavior."""
+    """Compose command tracking with each species' canonical balance behavior.
+
+    The tracking reward, metrics, info keys and dwell are ``BaseDinoEnv``'s,
+    live under the ``heading_and_speed`` mode this env always runs (decision
+    D-D60).  The env adds terrain, the course diagnostics and three things that
+    keep every recipe's task as it was: its own command stream (run seed,
+    episode seed and episode index, reported in the reset info), its
+    ``tracking_weight`` kwarg, recorded in the task's env section, and the
+    reward rules before the live walk (decision D-D62,
+    :meth:`_rewards_follow_command` is False): its terms read the spawn's
+    heading and position, never the command's, its idle term is computed at
+    a zero command too and the Allosaurus' course is the "none" one.  A
+    recipe zeroes every forward, heading, lateral, drift and idle weight, so
+    the live rules would move no recipe reward, only diagnostics such as
+    ``forward_vel`` and ``drift_distance`` (and the Allosaurus' course
+    events), which the pilot rollout golden pins.  A recipe's command config
+    may declare no stand block, no cruise ramp and no tracking window
+    (decision D-D64): the recipe pipeline runs none of them (the follow
+    nodes that supersede it will), and the behavior certificate judges the
+    per-step signal.
+    """
 
     model_id: ModelId
     _canonical_env_class: type[BaseDinoEnv]
@@ -77,6 +93,20 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         if not np.isfinite(course_distance) or course_distance <= 0:
             raise ValueError("course_distance must be finite and positive")
         commands = commands or DirectionCommandConfig()
+        unrecorded_window = DirectionCommandConfig.UNRECORDED_VALUES["tracking_window_s"]
+        if commands.stand_weights or commands.has_cruise_ramp or commands.tracking_window_s != unrecorded_window:
+            raise ValueError(
+                "a behavior recipe's commands declare no stand_weights, no cruise ramp and no tracking window: the "
+                "recipe pipeline runs none of them, and the behavior certificate reads the per-step signal "
+                "(decisions D-D62, D-D64)"
+            )
+        unrecorded_weight = DirectionCommandConfig.UNRECORDED_VALUES["tracking_weight"]
+        if commands.tracking_weight != unrecorded_weight:
+            raise ValueError(
+                f"commands.tracking_weight is {commands.tracking_weight!r}: a behavior env weights tracking by its "
+                f"tracking_weight kwarg ([env] tracking_weight in a recipe), so leave the command config's at "
+                f"{unrecorded_weight}"
+            )
         self.terrain_config = terrain
         self.terrain_sampler = terrain_sampler
         if terrain_sampler is not None:
@@ -91,25 +121,16 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         self.run_seed = int(run_seed)
         self._episode_index = 0
         self._episode_seed = 0
-        self.tracking_weight = float(tracking_weight)
+        self._command_seed = 0
         self.course_distance = float(course_distance)
         self.terrain: TerrainRealization | None = None
         self._probe_hit_geom: int | None = None
-        self._heading_before = 0.0
-        self._command_metrics: dict[str, Any] = {}
-        self._tracking_dwell_s = 0.0
         self._max_radius = 0.0
-        # Tolerances are fractions of the command's physical speed scale;
-        # millimetre-scale robots must not pass a walk command while standing.
-        speed_ratio = commands.speed_scale / 1.5
-        self.tracking_tolerances = {
-            "velocity_tolerance": 0.2 * speed_ratio,
-            "stop_speed_tolerance": 0.1 * speed_ratio,
-        }
-        self.tracking_velocity_sigma = 0.25 * speed_ratio
         parameters = inspect.signature(self._canonical_env_class).parameters
-        # Fixed target, straight-line and stationary objectives conflict with
-        # requested turns/stops. Only pass parameters the species supports.
+        # Straight-line and stationary objectives (along the spawn's reference
+        # heading, or holding the spawn) conflict with requested turns/stops.
+        # Only pass parameters the species supports.  The hunt and target
+        # kwargs left with their code (decision D-D59).
         for name in (
             "forward_vel_weight",
             "heading_weight",
@@ -119,26 +140,14 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             "spin_penalty_weight",
             "speed_penalty_weight",
             "idle_penalty_weight",
-            "strike_bonus",
-            "strike_approach_weight",
-            "strike_proximity_weight",
-            "strike_claw_proximity_weight",
-            "food_reach_bonus",
-            "food_approach_weight",
-            "food_head_proximity_weight",
-            "snap_bonus",
-            "snap_approach_weight",
-            "snap_snout_proximity_weight",
-            "target_reach_bonus",
-            "target_approach_weight",
-            "bite_bonus",
-            "bite_approach_weight",
-            "bite_head_proximity_weight",
         ):
             if name in parameters:
                 env_kwargs[name] = 0.0
         env_kwargs.setdefault("max_episode_steps", 2500)
         super().__init__(command_mode="heading_and_speed", command_config=commands, **env_kwargs)
+        # The base read the command config's weight; this env's is its own kwarg (read live, like the
+        # reward and the task fingerprint read it).  The sigmas and tolerances stay the config's.
+        self.tracking_weight = float(tracking_weight)
         self.parent_plant_identity = current_plant_identity(self.model_id)
         validate_compiled_plant(self.model, self.parent_plant_identity)
         self._home_ground_clearance_m = self.home_ground_clearance()
@@ -155,17 +164,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             self._assert_same_animal(self._plane_model, self._terrain_model)
             self._assert_matching_ids(self._plane_model, self._terrain_model)
             self._terrain_data = mujoco.MjData(self._terrain_model)
-        # Preserve target observation channels, while making target props
-        # unable to obstruct a route. Includes descendants of mocap props.
-        prop_bodies: set[int] = set()
-        for body in range(1, self.model.nbody):
-            if self.model.body_mocapid[body] >= 0 or int(self.model.body_parentid[body]) in prop_bodies:
-                prop_bodies.add(body)
-        prop_geoms = np.isin(self.model.geom_bodyid, list(prop_bodies))
-        for model in (self._plane_model, self._terrain_model):
-            if model is not None:
-                model.geom_contype[prop_geoms] = 0
-                model.geom_conaffinity[prop_geoms] = 0
         if self._terrain_contact_probe_geoms:
             # A separate collision-only model detects probe-geom/surface
             # intersections without letting the non-colliding geom support the
@@ -313,8 +311,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     def _probe_terrain_contacts(self) -> None:
         """Substep hook: latch the first probe geom that penetrates the floor."""
         self._probe_data.qpos[:] = self.data.qpos
-        self._probe_data.mocap_pos[:] = self.data.mocap_pos
-        self._probe_data.mocap_quat[:] = self.data.mocap_quat
         mujoco.mj_kinematics(self._probe_model, self._probe_data)
         mujoco.mj_collision(self._probe_model, self._probe_data)
         pairs = self._probe_data.contact.geom
@@ -346,33 +342,9 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 info["termination_reason"] = "terrain_boundary"
         return terminated, info
 
-    def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
-        reward, info = self._canonical_env_class._get_reward_info(self, action)
-        if self._command_state is not None:
-            yaw_rate = float(wrap_angle(self._heading() - self._heading_before) / self.dt)
-            metrics = tracking_metrics(
-                self._command_state,
-                self.data.qvel[:2],
-                yaw_rate,
-                current_heading=self._heading(),
-                **self.tracking_tolerances,
-            )
-            self._command_metrics = {**self._command_state.as_info(), **metrics}
-            self._command_metrics["heading_error_rad"] = (
-                float(wrap_angle(self._command_state.desired_heading - self._heading()))
-                if self._command_state.heading_active
-                else 0.0
-            )
-            tracking = gaussian_tracking_reward(
-                metrics["tracking_error_v"],
-                metrics["tracking_error_yaw"],
-                velocity_sigma=self.tracking_velocity_sigma,
-            )
-            reward += self.tracking_weight * tracking
-            info["reward_tracking"] = self.tracking_weight * tracking
-            self._tracking_dwell_s = self._tracking_dwell_s + self.dt if metrics["tracking_in_tolerance"] else 0.0
-        info["reward_total"] = reward
-        return reward, info
+    def _rewards_follow_command(self) -> bool:
+        """Always False: a recipe task keeps the reward rules before the live walk (see the class docstring)."""
+        return False
 
     def _ground_height_at(self, xy: np.ndarray) -> float:
         if self.terrain is None:
@@ -453,9 +425,9 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         # or the parent's pose-noise sequence.
         terrain_seed = int(np.random.SeedSequence([self.run_seed, self._episode_seed, 0x7E22]).generate_state(1)[0])
         command_seed = int(
-            np.random.SeedSequence([self.run_seed, self._episode_seed, self._episode_index, 0xC044]).generate_state(1)[
-                0
-            ]
+            np.random.SeedSequence(
+                [self.run_seed, self._episode_seed, self._episode_index, COMMAND_STREAM_DOMAIN]
+            ).generate_state(1)[0]
         )
         self._select_contact_model(use_terrain=surface is not None)
         self.terrain = None
@@ -470,7 +442,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             if self._viewer is not None:
                 self._viewer.update_hfield(0)
         self._probe_hit_geom = None
-        self._tracking_dwell_s = 0.0
         self._max_radius = 0.0
         self._command_seed = command_seed
         obs, info = super().reset(seed=seed, options=options)
@@ -494,41 +465,25 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         return obs, info
 
     def _command_rng(self) -> np.random.Generator:
-        # Its own stream (0xC044 above), so commands never shift the parent's reset draws or a terrain map.
+        # The recipe's own stream (run seed, episode seed, episode index; see reset), which the base's
+        # reset-seed stream replaces for manifest stages: either way commands never shift the parent's reset
+        # draws or a terrain map, and this one keeps every recipe's command schedules as they were.
         return np.random.default_rng(self._command_seed)
 
-    def set_direction(self, heading: float, speed: float) -> np.ndarray:
-        """Set a persistent world heading (radians) and speed (m/s).
-
-        Returns the updated observation to use for the next policy action.
-        """
-        assert self.direction_controller is not None
-        self.direction_controller.set_target(heading, speed, time_s=self._step_count * self.dt)
-        self._command = self._update_command()
-        self._tracking_dwell_s = 0.0
-        return self._get_obs()
-
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        if self._command_state is None:
-            raise RuntimeError("reset must be called before step")
-        self._heading_before = self._heading()
         self._probe_hit_geom = None
-        previous_event = self._command_state.event_id
         obs, reward, terminated, truncated, info = super().step(action)
-        info.update(self._command_metrics)
         radius = float(np.linalg.norm(self.data.qpos[:2] - self._initial_pos_2d))
         self._max_radius = max(self._max_radius, radius)
         # This is a traversal diagnostic, not an automatic training gate. A
         # complete route evaluator additionally checks heading/speed and falls.
+        # Keep the base is_success=False: radial displacement alone cannot
+        # certify command following or a terrain route.
         info["course_progress_m"] = radius
         info["course_reached"] = bool(self._max_radius >= self.course_distance)
-        info["tracking_dwell_s"] = self._tracking_dwell_s
+        # The base step reports the dwell; a recipe's info has always carried it after the course diagnostics.
+        info["tracking_dwell_s"] = info.pop("tracking_dwell_s")
         info["terrain_height_m"] = self._ground_height_at(self.data.xpos[self._root_body_id, :2])
-        # Keep the base is_success=False: radial displacement alone cannot
-        # certify command following or a terrain route.  The base step has
-        # advanced the command; a new event restarts the dwell after it is reported.
-        if previous_event != self._command_state.event_id:
-            self._tracking_dwell_s = 0.0
         return obs, reward, terminated, truncated, info
 
 

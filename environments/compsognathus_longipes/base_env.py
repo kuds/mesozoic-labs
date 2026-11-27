@@ -1,14 +1,16 @@
 """The species base environment of the anatomical and robot Compsognathus MuJoCo models.
 
-Actions are normalized residuals about the gravity-preloaded ``home`` controls. The
-55-dimensional anatomical and 46-dimensional robot observations use the repository's
-privileged bipedal state/target layout, followed by the 3-dim body-relative command
-segment (BEHAVIOR_RECIPES_PLAN §4.6; zeros under ``command_mode = "none"``). Since its
-policy interface r4 the anatomical layout is heading-free (``bipedal-target-heading-free/v1``,
-``CompsognathusLongipesAnatomicalEnv._get_obs``): projected gravity, the heading-frame root
-velocity and the pelvis-frame target direction replace the world quaternion, velocity and
-direction the robot still reads. Camera pixels are available separately; these MLP
-policies are simulation baselines, not onboard policies.
+Actions are normalized residuals about the gravity-preloaded ``home`` controls. Both
+embodiments read the repository's heading-free bipedal layout (``bipedal-heading-free/v1``,
+:meth:`CompsognathusLongipesEnv._get_obs`): joint state, projected gravity, the pelvis
+gyro, the heading-frame root velocity, the pelvis accelerometer and the two foot
+channels, followed by the 3-dim body-relative command segment (BEHAVIOR_RECIPES_PLAN
+§4.6; zeros under ``command_mode = "none"``). That is 51 values on the anatomical model
+(since its policy interface r7) and 41 on the robot (since its policy interface r4),
+whose foot channels read floor-contact force rather than its touch sensors. The scene
+holds the animal and the floor alone: the prey target and its task went with the hunt
+(decision D-D59). Camera pixels are available separately; these MLP policies are
+simulation baselines, not onboard policies.
 """
 
 from __future__ import annotations
@@ -22,18 +24,19 @@ import numpy as np
 from environments.compsognathus_longipes.model import pelvis_subtree_body_ids
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.heading_observation import heading_free_root_segments
 from environments.shared.stance_diagnostics import derive_stance_info
 
 
 class CompsognathusLongipesEnv(BaseDinoEnv):
-    """Balance, push recovery, locomotion and target reaching.
+    """Balance, push recovery and locomotion.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods both embodiments share, on the linear
-    home-keyframe residual and the world-frame observation the robot keeps.
-    An embodiment subclass (``anatomical/env.py``, ``robot/env.py``) sets
-    ``embodiment``, ``MODEL_PATH`` and ``nominal_pelvis_height``; this class
-    is never instantiated itself.
+    home-keyframe residual the robot keeps and the heading-free observation
+    both read.  An embodiment subclass (``anatomical/env.py``,
+    ``robot/env.py``) sets ``embodiment``, ``MODEL_PATH`` and
+    ``nominal_pelvis_height``; this class is never instantiated itself.
     """
 
     #: Set by each embodiment subclass: its embodiment, its MJCF and the
@@ -43,8 +46,16 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
     nominal_pelvis_height: float
     #: The species' training labels (species_registry.get_species_config).
     HEIGHT_LABEL = "Pelvis height"
-    BEHAVIOR_SECTION_LABEL = "Target Reaching"
-    SUCCESS_KEYS = ("target_success",)
+    #: No success event: target reaching, its only one, was removed with the
+    #: hunt and the prey (decision D-D59).
+    SUCCESS_KEYS: tuple[str, ...] = ()
+    #: The observation's foot channels as floor-contact geom groups, by geom
+    #: name, right foot first as in ``_foot_sensor_groups``: each channel sums
+    #: its geoms' normal force against the floor (``_cache_ids`` resolves them
+    #: into ``_foot_observation_floor_geoms``).  None, the default, keeps the
+    #: touch sensors.  The robot names its soles: they collide with each
+    #: other, and its touch sensors count sole-on-sole force as support.
+    FOOT_OBSERVATION_FLOOR_GEOMS: tuple[tuple[str, ...], ...] | None = None
     supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 1.15
@@ -71,16 +82,9 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
         lateral_penalty_weight: float = 0.1,
         heading_weight: float = 0.0,
         gait_symmetry_weight: float = 0.0,
-        target_approach_weight: float = 0.0,
-        target_reach_bonus: float = 0.0,
-        target_radius: float = 0.08,
-        target_max_speed: float = 0.10,
-        prey_distance_range: tuple[float, float] = (0.6, 1.0),
-        prey_lateral_range: tuple[float, float] = (-0.2, 0.2),
         healthy_z_range: tuple[float, float] | None = None,
         max_tilt_angle: float = 0.7,
         reset_noise_scale: float = 0.01,
-        reset_height_noise_scale: float = 0.0,
         perturbation_capture_velocity_multiple: float = 0.0,
         perturbation_interval: float = 2.0,
         perturbation_jitter: float = 0.5,
@@ -95,13 +99,8 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
             raise ValueError("frame_skip must be a positive integer")
         if not isinstance(max_episode_steps, int) or isinstance(max_episode_steps, bool) or max_episode_steps <= 0:
             raise ValueError("max_episode_steps must be a positive integer")
-        for name, value in (
-            ("forward_vel_max", forward_vel_max),
-            ("target_radius", target_radius),
-            ("target_max_speed", target_max_speed),
-        ):
-            if not np.isfinite(value) or value <= 0:
-                raise ValueError(f"{name} must be finite and positive")
+        if not np.isfinite(forward_vel_max) or forward_vel_max <= 0:
+            raise ValueError("forward_vel_max must be finite and positive")
         if not np.isfinite(reset_noise_scale) or not 0 <= reset_noise_scale <= 0.1:
             raise ValueError("reset_noise_scale must be between 0 and 0.1 radians")
         if not np.isfinite(max_tilt_angle) or not 0 < max_tilt_angle < np.pi / 2:
@@ -116,11 +115,6 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
             ):
                 if not np.isfinite(value):
                     raise ValueError(f"{name} must be finite")
-        for name, bounds in (("prey_distance_range", prey_distance_range), ("prey_lateral_range", prey_lateral_range)):
-            if len(bounds) != 2 or not np.all(np.isfinite(bounds)) or bounds[0] > bounds[1]:
-                raise ValueError(f"{name} must contain two ordered finite bounds")
-        if prey_distance_range[0] <= target_radius:
-            raise ValueError("Targets must spawn outside target_radius")
 
         self.forward_vel_max = forward_vel_max
         self.posture_weight = posture_weight
@@ -132,15 +126,6 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
         self.lateral_penalty_weight = lateral_penalty_weight
         self.heading_weight = heading_weight
         self.gait_symmetry_weight = gait_symmetry_weight
-        self.target_approach_weight = target_approach_weight
-        self.target_reach_bonus = target_reach_bonus
-        self.target_radius = target_radius
-        self.target_max_speed = target_max_speed
-        self.prey_distance_range = (prey_distance_range[0], prey_distance_range[1])
-        self.prey_lateral_range = (prey_lateral_range[0], prey_lateral_range[1])
-        self._initial_pos_2d = np.zeros(2)
-        self._initial_prey_dir_2d = np.array([1.0, 0.0])
-        self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
         nominal_height = self.nominal_pelvis_height
         height_range = healthy_z_range or (0.60 * nominal_height, 1.45 * nominal_height)
@@ -159,7 +144,6 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
             healthy_z_range=height_range,
             max_tilt_angle=max_tilt_angle,
             reset_noise_scale=reset_noise_scale,
-            reset_height_noise_scale=reset_height_noise_scale,
             perturbation_capture_velocity_multiple=perturbation_capture_velocity_multiple,
             perturbation_interval=perturbation_interval,
             perturbation_jitter=perturbation_jitter,
@@ -172,8 +156,6 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
 
     def _cache_ids(self) -> None:
         self.pelvis_id = self.model.body("pelvis").id
-        self.prey_id = self.model.body("prey").id
-        self._target_mocap_id = int(self.model.body_mocapid[self.prey_id])
         self.floor_geom_id = self.model.geom("floor").id
         self._reset_keyframe_id = self.model.key("home").id
         self._home_ctrl = self.model.key_ctrl[self._reset_keyframe_id].copy()
@@ -184,6 +166,12 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
         self._sensor_quat_start = int(self.model.sensor("diagnostic_pelvis_quat").adr[0])
         self._foot_sensor_groups = tuple(
             (int(self.model.sensor(name).adr[0]),) for name in ("r_foot_touch", "l_foot_touch")
+        )
+        floor_geoms = self.FOOT_OBSERVATION_FLOOR_GEOMS
+        self._foot_observation_floor_geoms = (
+            None
+            if floor_geoms is None
+            else tuple(tuple(int(self.model.geom(name).id) for name in group) for group in floor_geoms)
         )
         foot_bodies = {
             int(self.model.site_bodyid[int(self.model.sensor(name).objid[0])])
@@ -211,21 +199,37 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
         )
 
     def _get_obs(self) -> np.ndarray:
-        relative = self.data.mocap_pos[self._target_mocap_id] - self.data.xpos[self.pelvis_id]
-        distance = np.linalg.norm(relative)
+        """The bipedal-heading-free/v1 observation (51 values anatomical, policy interface r7; 41 robot, r4).
+
+        No channel carries the world heading: projected gravity replaces the
+        pelvis quaternion and the root's world linear velocity is expressed
+        in the gravity-aligned heading frame, both from the free root's own
+        quaternion qpos[3:7] (environments/shared/heading_observation.py).
+        The gyro and accelerometer stay in their own site frame.  The two
+        foot channels are the touch sensors, or, where the embodiment names
+        floor-contact geoms (``FOOT_OBSERVATION_FLOOR_GEOMS``, the robot),
+        their normal force against the floor alone.  The command is the last
+        block (command_frame.command_slice reads obs[-3:]).  The anatomical
+        model's layout since its policy interface r4 (D-D31) without the
+        target direction and distance; the robot read the world-frame
+        bipedal-target/v1 layout through its policy interface r3.
+        """
         sensors = self.data.sensordata
+        gravity, heading_velocity = heading_free_root_segments(self.data.qpos, self.data.qvel[0:3])
+        if self._foot_observation_floor_geoms is None:
+            foot_contact = np.array(self._foot_contact_forces())
+        else:
+            foot_contact = np.array(self._foot_floor_contact_forces())
         return np.asarray(
             np.concatenate(
                 [
                     self.data.qpos[7:],
                     self.data.qvel[6:],
-                    sensors[self._sensor_quat_start : self._sensor_quat_start + 4],
+                    gravity,
                     sensors[self._sensor_gyro_start : self._sensor_gyro_start + 3],
-                    self.data.qvel[:3],
+                    heading_velocity,
                     sensors[self._sensor_accel_start : self._sensor_accel_start + 3],
-                    self._foot_contact_forces(),
-                    relative / (distance + 1e-8),
-                    [distance],
+                    foot_contact,
                     self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
                 ]
             ),
@@ -235,21 +239,28 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         position = self.data.xpos[self.pelvis_id]
         velocity = self.data.qvel[:2]
-        forward = float(np.dot(velocity, self._initial_prey_dir_2d))
-        lateral = float(np.dot(velocity, [-self._initial_prey_dir_2d[1], self._initial_prey_dir_2d[0]]))
+        # Forward, lateral and heading are read against the episode's forward
+        # reference: the spawn's own forward under command_mode "none"
+        # (BaseDinoEnv.reset), the commanded heading under a live command; the
+        # drift against the drift anchor, the spawn or the command event's
+        # start (BaseDinoEnv._forward_reference_2d and _drift_anchor_2d,
+        # decision D-D62).
+        reference = self._forward_reference_2d()
+        anchor = self._drift_anchor_2d()
+        forward = float(np.dot(velocity, reference))
+        lateral = float(np.dot(velocity, [-reference[1], reference[0]]))
         quaternion = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt = self._quat_to_tilt(quaternion)
-        heading = float(np.dot(self._quat_to_forward_2d(quaternion), self._initial_prey_dir_2d))
+        heading = float(np.dot(self._quat_to_forward_2d(quaternion), reference))
         height = self._clearance(position)
         height_error = (height - self.target_standing_z) / self.target_standing_z
         joint_error = self.data.qpos[self._actuated_qpos] - self._home_qpos[self._actuated_qpos]
-        distance = float(np.linalg.norm(self.data.mocap_pos[self._target_mocap_id, :2] - position[:2]))
-        progress = 0.0 if self._prev_prey_distance is None else (self._prev_prey_distance - distance) / self.dt
-        self._prev_prey_distance = distance
+        # The support flag stays on the touch sensors on both embodiments,
+        # the robot's sole-on-sole force included: the robot's floor-contact
+        # support is a reward revision of its own (docs/GAIT_QUALITY_PLAN_2026_09.md
+        # PR-G7, gait-r1); only its observation reads the floor.
         right, left = self._aggregated_foot_contact_forces()
         support = float(right + left > self._contact_threshold)
-        _, status = self._is_terminated()
-        success = float(status.get("success", False))
         smoothness, _ = self._reward_action_smoothness(action)
         gait, _ = self._compute_gait_symmetry(right, left, self.gait_symmetry_weight)
         components = {
@@ -262,13 +273,10 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
             "reward_home_pose": -self.home_pose_weight * float(np.mean(np.square(joint_error))),
             "reward_smoothness": smoothness,
             "reward_spin": -self.spin_penalty_weight * float(np.dot(self.data.qvel[3:6], self.data.qvel[3:6])),
-            "reward_drift": -self.drift_penalty_weight * float(np.linalg.norm(position[:2] - self._initial_pos_2d)),
+            "reward_drift": -self.drift_penalty_weight * float(np.linalg.norm(position[:2] - anchor)),
             "reward_lateral": -self.lateral_penalty_weight * lateral**2,
             "reward_heading": self.heading_weight * heading,
             "reward_gait": gait,
-            "reward_approach": self.target_approach_weight
-            * float(np.clip(progress, -self.forward_vel_max, self.forward_vel_max)),
-            "reward_target": self.target_reach_bonus * success,
         }
         reward = float(sum(components.values()))
         info = {
@@ -277,15 +285,12 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
             "forward_vel": forward,
             "pelvis_height": height,
             "tilt_angle": tilt,
-            "prey_distance": distance,
             "heading_alignment": heading,
             "r_foot_contact": right,
             "l_foot_contact": left,
             "pelvis_angular_vel": float(np.linalg.norm(self.data.qvel[3:6])),
             "pelvis_yaw_vel": float(abs(self.data.qvel[5])),
-            "drift_distance": float(np.linalg.norm(position[:2] - self._initial_pos_2d)),
-            "target_success": success,
-            "is_success": bool(success),
+            "drift_distance": float(np.linalg.norm(position[:2] - anchor)),
         }
         info.update(derive_stance_info(info))
         return reward, info
@@ -301,23 +306,14 @@ class CompsognathusLongipesEnv(BaseDinoEnv):
         terminated, reason = self._check_floor_contact(self._body_ground_geoms, self.floor_geom_id)
         if terminated:
             return True, {"termination_reason": reason, "success": False}
-        distance = float(
-            np.linalg.norm(self.data.mocap_pos[self._target_mocap_id, :2] - self.data.xpos[self.pelvis_id, :2])
-        )
-        if (
-            self.target_reach_bonus > 0
-            and distance <= self.target_radius
-            and np.linalg.norm(self.data.qvel[:2]) <= self.target_max_speed
-        ):
-            return True, {"termination_reason": "target_reached", "success": True}
         return False, {"success": False}
 
-    def _spawn_target(self) -> None:
-        position = self._spawn_target_2d(self.prey_distance_range, self.prey_lateral_range, 0.025)
-        self._initial_pos_2d = self.data.qpos[:2].copy()
-        direction = position[:2] - self._initial_pos_2d
-        self._initial_prey_dir_2d = direction / (np.linalg.norm(direction) + 1e-8)
-        self._prev_prey_distance = float(np.linalg.norm(direction))
+    def _reset_episode_state(self) -> None:
+        """Clear the per-episode state: the action history and the gait tracking.
+
+        BaseDinoEnv.reset has already set the drift anchor and the reference
+        heading from the spawn; nothing here draws a random number.
+        """
         self._prev_action = None
         self._prev_prev_action = None
         self._reset_gait_state()

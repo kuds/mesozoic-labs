@@ -2,8 +2,9 @@
 
 This is the layer a trained policy is actually coupled to, so it also captures
 the observation-builder and action-mapping *semantics* of the one training
-backend, Stable-Baselines3.  A model on the ``bipedal-target-heading-free/v1``
-schema also hashes the frame helpers its observation calls
+backend, Stable-Baselines3.  Every model is on a heading-free schema
+(``bipedal-heading-free/v1`` or ``quadrupedal-heading-free/v1``) and also
+hashes the frame helpers its observation calls
 (``environments/shared/heading_observation.py``).  The ``jax-mjx`` backend and
 the frozen MJX interface core that served it were removed (configs/plant_versions.toml
 note 23); a model that still declares it is refused."""
@@ -16,7 +17,7 @@ import mujoco
 import numpy as np
 
 from ..command_frame import COMMAND_COMPONENTS, COMMAND_PROBE_VECTOR, COMMAND_SEGMENT_NAME, COMMAND_WIDTH
-from ..heading_observation import HEADING_FREE_FUNCTIONS, HEADING_FREE_OBSERVATION_SCHEMA
+from ..heading_observation import HEADING_FREE_FUNCTIONS, HEADING_FREE_ROOT_LABELS
 from .constants import (
     _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL,
     _ACTION_MAPPING_MIDPOINT,
@@ -162,8 +163,6 @@ def _deterministic_probe_data(model: mujoco.MjModel) -> mujoco.MjData:
         probe_data.sensordata[:] = np.linspace(0.05, 0.05 * model.nsensordata, model.nsensordata)
     for index in range(model.nbody):
         probe_data.xpos[index] = (0.1 + 0.03 * index, -0.4 + 0.02 * index, 0.6 + 0.01 * index)
-    for index in range(model.nmocap):
-        probe_data.mocap_pos[index] = (1.25 + 0.1 * index, -0.45 + 0.05 * index, 0.8 + 0.02 * index)
     return probe_data
 
 
@@ -210,15 +209,15 @@ def _observation_probe(model: mujoco.MjModel, env: Any) -> dict[str, Any]:
     }
 
 
-def _mocap_target_name(model: mujoco.MjModel) -> str:
-    """Return the name of the plant's single mocap target body."""
+def _require_no_mocap_body(model: mujoco.MjModel, model_id: Any) -> None:
+    """Refuse a plant with a mocap body: no scene carries a target since the prey, food and course target went."""
     mocap_ids = np.flatnonzero(np.asarray(model.body_mocapid) >= 0)
-    if mocap_ids.size != 1:
-        raise PlantContractError(f"plant must define exactly one mocap target body, found {mocap_ids.size}")
-    name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, int(mocap_ids[0]))
-    if not name:
-        raise PlantContractError("the mocap target body must be named")
-    return str(name)
+    if model.nmocap or mocap_ids.size:
+        names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, int(index)) for index in mocap_ids]
+        raise PlantContractError(
+            f"{model_id} defines {int(model.nmocap)} mocap bodies {names}; no plant carries a mocap body "
+            "(the observation reads no target)"
+        )
 
 
 def _command_segment() -> dict[str, Any]:
@@ -279,24 +278,71 @@ def _foot_contact_groups(model: mujoco.MjModel, env: Any) -> list[list[str]]:
     return [[touch_by_address[address] for address in group] for group in groups]
 
 
+def _foot_floor_contact_groups(model: mujoco.MjModel, env: Any) -> list[list[str]]:
+    """Each floor-contact foot channel's geoms, by name, from the env's ``_foot_observation_floor_geoms``.
+
+    Refused empty, with an empty channel, off the model's geoms, on the floor
+    geom itself, or with a geom in two channels.
+    """
+    geom_names = _names(model, mujoco.mjtObj.mjOBJ_GEOM, model.ngeom)
+    groups = [[int(geom) for geom in group] for group in env._foot_observation_floor_geoms]
+    flat = [geom for group in groups for geom in group]
+    floor = int(env.floor_geom_id)
+    if (
+        not groups
+        or not all(groups)
+        or any(not 0 <= geom < model.ngeom for geom in flat)
+        or floor in flat
+        or len(set(flat)) != len(flat)
+    ):
+        raise PlantContractError(
+            f"the floor-contact foot_contact segment needs disjoint, non-empty groups of the model's geoms, none the "
+            f"floor geom {floor}; _foot_observation_floor_geoms={groups}"
+        )
+    return [[geom_names[geom] for geom in group] for group in groups]
+
+
+def _foot_contact_segment(model: mujoco.MjModel, env: Any) -> dict[str, Any]:
+    """The observation's foot channels: touch-sensor groups, or floor-contact geom groups where the env declares them.
+
+    A model that declares ``_foot_observation_floor_geoms`` (the
+    Compsognathus robot, whose soles collide with each other) reads each
+    channel as its geoms' summed normal force against the floor geom, so
+    force between the animal's own geoms is not counted; every other model
+    reads touch sensors (:func:`_foot_contact_groups`).
+    """
+    if getattr(env, "_foot_observation_floor_geoms", None) is None:
+        foot_groups = _foot_contact_groups(model, env)
+        return {"name": "foot_contact", "width": len(foot_groups), "groups": foot_groups}
+    geom_groups = _foot_floor_contact_groups(model, env)
+    return {
+        "name": "foot_contact",
+        "width": len(geom_groups),
+        "source": "floor-contact-normal-force",
+        "floor_geom": _names(model, mujoco.mjtObj.mjOBJ_GEOM, model.ngeom)[int(env.floor_geom_id)],
+        "geom_groups": geom_groups,
+    }
+
+
 def _heading_free_observation_segments(
     model: mujoco.MjModel,
     env: Any,
     root_label: str,
-    target_label: str,
 ) -> list[dict[str, Any]]:
-    """The ``bipedal-target-heading-free/v1`` layout (configs/plant_versions.toml note 18, D-D31).
+    """The heading-free layout: ``bipedal-heading-free/v1`` (root ``pelvis``) and ``quadrupedal-heading-free/v1``
+    (root ``torso``), the ``bipedal-target-heading-free/v1`` layout of configs/plant_versions.toml note 18 (D-D31)
+    without its target direction and distance.
 
-    The three root blocks are named for their frame and source, with the
+    The two root blocks are named for their frame and source, with the
     fallback and normalization thresholds the helpers apply, and the foot
     channels are described by their touch sensors: one per foot (a sum over
     its listed sensors), or one per group of the env's
     ``_foot_observation_groups`` where it declares them (the velociraptor's
-    per-site channels since its policy interface r14), so the widths sum to
-    the observation width -- the legacy table's ``foot_contact`` lists every
-    touch sensor instead, and the caller checks the sum on this schema only.
+    per-site channels since its policy interface r14), or by their geoms
+    where the env reads floor-contact force instead
+    (:func:`_foot_contact_segment`), so the widths sum to the observation
+    width, which the caller checks.
     """
-    foot_groups = _foot_contact_groups(model, env)
     return [
         {"name": "joint_position", "components": _joint_component_names(model, velocity=False)},
         {"name": "joint_velocity", "components": _joint_component_names(model, velocity=True)},
@@ -319,14 +365,7 @@ def _heading_free_observation_segments(
             "fallback_threshold": _canonical_float(1e-8),
         },
         {"name": f"{root_label}_linear_acceleration", "width": 3, "frame": "accelerometer-site"},
-        {"name": "foot_contact", "width": len(foot_groups), "groups": foot_groups},
-        {
-            "name": f"{target_label}_direction_body",
-            "width": 3,
-            "frame": root_label,
-            "normalization_epsilon": _canonical_float(1e-8),
-        },
-        {"name": f"{target_label}_distance", "width": 1},
+        _foot_contact_segment(model, env),
         _command_segment(),
     ]
 
@@ -336,41 +375,25 @@ def _policy_interface_payload(
     env: Any,
     version: PlantVersion,
 ) -> dict[str, Any]:
-    touch_sensor_names = [
-        name
-        for index, name in enumerate(_names(model, mujoco.mjtObj.mjOBJ_SENSOR, model.nsensor))
-        if int(model.sensor_type[index]) == int(mujoco.mjtSensor.mjSENS_TOUCH)
-    ]
-    # Segment labels come from the plant itself rather than a species
-    # allow-list: the root follows the declared observation schema and the
-    # target follows the MJCF mocap body name.
-    root_label = "torso" if version.observation_schema == "quadrupedal-target/v1" else "pelvis"
-    target_label = _mocap_target_name(model)
-    heading_free = version.observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
-    if heading_free:
-        observation_segments = _heading_free_observation_segments(model, env, root_label, target_label)
-        segment_widths = [_segment_width(segment) for segment in observation_segments]
-        observation_width = int(np.prod(env.observation_space.shape))
-        if sum(segment_widths) != observation_width or observation_segments[-1]["name"] != COMMAND_SEGMENT_NAME:
-            raise PlantContractError(
-                f"{version.model_id}'s {HEADING_FREE_OBSERVATION_SCHEMA} segments must sum to the observation "
-                f"width {observation_width} and end with the command; widths {segment_widths} sum to "
-                f"{sum(segment_widths)}, last segment {observation_segments[-1]['name']!r}"
-            )
-    else:
-        # Kept byte-identical for every species on the two legacy schemas.
-        observation_segments = [
-            {"name": "joint_position", "components": _joint_component_names(model, velocity=False)},
-            {"name": "joint_velocity", "components": _joint_component_names(model, velocity=True)},
-            {"name": f"{root_label}_orientation_quaternion", "width": 4},
-            {"name": f"{root_label}_angular_velocity", "width": 3},
-            {"name": f"{root_label}_linear_velocity", "width": 3},
-            {"name": f"{root_label}_linear_acceleration", "width": 3},
-            {"name": "foot_contact", "components": touch_sensor_names},
-            {"name": f"{target_label}_direction", "width": 3, "normalization_epsilon": _canonical_float(1e-8)},
-            {"name": f"{target_label}_distance", "width": 1},
-            _command_segment(),
-        ]
+    # The root label follows the declared observation schema; the legacy
+    # world-frame schemas (bipedal-target/v1, quadrupedal-target/v1) went
+    # with the target, so every model declares a heading-free one.
+    schema = version.observation_schema
+    if schema not in HEADING_FREE_ROOT_LABELS:
+        raise PlantContractError(
+            f"{version.model_id} declares observation schema {schema!r}; the observation schemas are "
+            f"{sorted(HEADING_FREE_ROOT_LABELS)}"
+        )
+    _require_no_mocap_body(model, version.model_id)
+    observation_segments = _heading_free_observation_segments(model, env, HEADING_FREE_ROOT_LABELS[schema])
+    segment_widths = [_segment_width(segment) for segment in observation_segments]
+    observation_width = int(np.prod(env.observation_space.shape))
+    if sum(segment_widths) != observation_width or observation_segments[-1]["name"] != COMMAND_SEGMENT_NAME:
+        raise PlantContractError(
+            f"{version.model_id}'s {schema} segments must sum to the observation width {observation_width} "
+            f"and end with the command; widths {segment_widths} sum to {sum(segment_widths)}, last segment "
+            f"{observation_segments[-1]['name']!r}"
+        )
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
     action_mapping = _action_mapping_contract(model, env)
@@ -378,13 +401,18 @@ def _policy_interface_payload(
     interface_implementations: dict[str, Any] = {
         "sb3_observation": _callable_semantics(env._get_obs),
         "sb3_action_mapping": _callable_semantics(env._scale_action),
-    }
-    if heading_free:
         # _get_obs calls these helpers: hashing only its call site would leave
         # the frame arithmetic outside the digest.
-        interface_implementations["heading_free_observation"] = _module_function_semantics(
+        "heading_free_observation": _module_function_semantics(
             "environments.shared.heading_observation",
             HEADING_FREE_FUNCTIONS,
+        ),
+    }
+    if getattr(env, "_foot_observation_floor_geoms", None) is not None:
+        # The observation probe has no contacts to read, so the floor-contact
+        # reading's arithmetic enters the digest through its tokens.
+        interface_implementations["foot_floor_contact_observation"] = _callable_semantics(
+            env._foot_floor_contact_forces
         )
     # Explicit capability declaration, never an import-error fallback.
     interface_implementations["supported_training_backends"] = list(backends)

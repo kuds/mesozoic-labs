@@ -75,6 +75,24 @@ class TestWriteStageSummary:
         assert "88.0" in text
         assert "75%" in text
 
+    def test_the_best_model_header_states_the_panel_it_is_given(self, tmp_path):
+        """The header's episode count is the panel's own (EVALUATION_PANEL_EPISODES), not a default of 30."""
+        from environments.shared.reporting.stage_artifacts import EVALUATION_PANEL_EPISODES
+
+        result = make_stage_result(1, best_model_reward=88.0, best_model_std_reward=2.0)
+        model_id = ModelId("velociraptor_mongoliensis", "anatomical")
+        text = write_stage_summary(tmp_path, result, model_id, "PPO", evaluation_episodes=7).read_text()
+        assert "Best Model Evaluation (7 episodes)" in text
+        text = write_stage_summary(tmp_path, {**result, "best_model_n_episodes": 99}, model_id, "PPO").read_text()
+        assert "Best Model Evaluation\n" in text and "99" not in text
+        assert EVALUATION_PANEL_EPISODES == 30
+
+    def test_no_success_line_without_a_measured_rate(self, tmp_path):
+        """A model with no success keys measures no rate (best_model_success_rate stays ""): no line, no 0%."""
+        result = make_stage_result(1, best_model_reward=88.0, best_model_std_reward=2.0, best_model_success_rate="")
+        path = write_stage_summary(tmp_path, result, ModelId("velociraptor_mongoliensis", "anatomical"), "PPO")
+        assert "Success rate" not in path.read_text()
+
     def test_no_best_eval_when_empty(self, tmp_path):
         result = make_stage_result(1, best_eval_reward="", best_eval_std="")
         path = write_stage_summary(tmp_path, result, ModelId("velociraptor_mongoliensis", "anatomical"), "PPO")

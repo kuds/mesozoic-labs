@@ -103,15 +103,6 @@ _PERSISTED_STAGE_RESULT_KEYS = (
     "best_model_std_fwd_vel",
     "best_model_distance",
     "best_model_success_rate",
-    # task_success/v1 (plan §4.4): the count, panel size and bound the
-    # verdict was judged on, copied by _apply_stage_gate from the evidence
-    # — and, for the CLI curriculum's in-training verdict, the manager's
-    # LAST EvalCallback panel count under its own names (D-B12 amendment).
-    "best_model_success_count",
-    "best_model_n_episodes",
-    "best_model_success_lcb",
-    "success_count",
-    "n_success_samples",
     # stance_quality/v2 (decision D-D23): the clean count, panel size,
     # clean fraction and bound the floor-truth verdict was re-derived on, and
     # the statue panel's full-horizon mean reward its statue-relative rail
@@ -132,6 +123,28 @@ _PERSISTED_STAGE_RESULT_KEYS = (
     "stance_heading_clean_seed_fraction",
     "stance_heading_clean_seed_lcb",
     "stance_heading_statue_mean_reward_min",
+    # command_tracking/v1 (decision D-D61): the profile, each judged family's
+    # episode and success counts and bounds (the walk's cruise and stand
+    # families, the follow profile's one family and its paired reference
+    # bound) and the handoff name the panel scored, re-derived from the
+    # admitted report by _apply_stage_gate and the CLI curriculum's
+    # post-training judge (reporting.command_tracking_report.COMMAND_TRACKING_STAGE_RESULT_KEYS).
+    "command_profile",
+    "command_n_episodes",
+    "command_cruise_episodes",
+    "command_cruise_successes",
+    "command_cruise_success_lcb",
+    "command_cruise_survival_lcb",
+    "command_stand_episodes",
+    "command_stand_successes",
+    "command_stand_success_fraction",
+    "command_stand_falls",
+    "command_follow_episodes",
+    "command_follow_successes",
+    "command_follow_success_lcb",
+    "command_follow_survival_lcb",
+    "command_paired_delta_lcb",
+    "command_handoff_selected",
     "model_path",
     "vecnorm_path",
     "plant_identity",

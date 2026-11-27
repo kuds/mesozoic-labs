@@ -27,5 +27,6 @@ class DibothrosuchusElaphrosAnatomicalEnv(DibothrosuchusElaphrosEnv):
         "foot_site": "{s}_foot_contact",
     }
     #: The digest snapshot's reward probe: the roll's action-noise amplitude,
-    #: and the MJCF element (kind, name) the success probe moves the target onto.
-    REWARD_PROBE = (0.2, "geom", "snout_snap")
+    #: and no success-probe effector, as the species declares no SUCCESS_KEYS
+    #: since the snap was removed with the hunt (decision D-D59).
+    REWARD_PROBE = (0.2,)

@@ -54,7 +54,8 @@ RECORDED_CURRICULUM: dict[str, Any] = {
 
 
 #: The hunting gate (plan §4.4) as a recorded block: the bar, its panel size
-#: and the reward rail the evidence below clears.
+#: and the reward rail.  The kind was deleted with the hunt nodes (decision
+#: D-D59), so a directory that recorded it is refused, never re-judged.
 TASK_SUCCESS_CURRICULUM: dict[str, Any] = {
     "gate_kind": "task_success/v1",
     "gate_schema_version": 1,
@@ -342,8 +343,8 @@ class TestBackfill:
             backfill_gate_verdict(stage_dir, gate="current")
         assert read_gate_verdict(stage_dir) is None
 
-    def test_a_task_success_gate_is_re_derived_from_hash_bound_evidence(self, tmp_path):
-        """task_success/v1 (plan §4.4): 20/30 bound to the handoff backfills as a PASS with the count keys."""
+    def test_a_retired_task_success_gate_is_refused_even_with_hash_bound_evidence(self, tmp_path):
+        """task_success/v1 left with the hunt nodes (decision D-D59): refused naming it, never written as a FAIL."""
         from environments.shared.reporting import save_evaluation_episodes
 
         stage_dir = _stage_dir(tmp_path, curriculum=TASK_SUCCESS_CURRICULUM, evidence=False)
@@ -361,20 +362,19 @@ class TestBackfill:
             normalization_path=models / "best_model_vecnorm.pkl",
         )
 
-        backfill_gate_verdict(stage_dir)
+        with pytest.raises(
+            BackfillError,
+            match=r"the recorded 'stance' block cannot be judged: gate_kind 'task_success/v1' was removed with the "
+            r"hunt nodes \(decision D-D59\)",
+        ):
+            backfill_gate_verdict(stage_dir)
+        assert read_gate_verdict(stage_dir) is None
 
-        verdict = read_gate_verdict(stage_dir)
-        assert verdict is not None
-        assert verdict["passed"] is True and verdict["failures"] == []
-        assert verdict["gate_kind"] == "task_success/v1"
-        assert verdict["stage_result"]["best_model_success_count"] == 20
-        assert verdict["stage_result"]["best_model_n_episodes"] == 30
-        assert verdict["stage_result"]["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
-        assert verdict["gate"]["thresholds"]["min_success_lcb"] == 0.5
-
-    def test_a_task_success_gate_without_evidence_is_refused(self, tmp_path):
-        stage_dir = _stage_dir(tmp_path, curriculum=TASK_SUCCESS_CURRICULUM, evidence=False)
-        with pytest.raises(BackfillError, match=r"declares task_success/v1: no evaluation_selected.csv"):
+    def test_a_retired_success_floor_is_refused(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path, curriculum=dict(RECORDED_CURRICULUM, min_success_rate=0.5))
+        with pytest.raises(
+            BackfillError, match=r"'min_success_rate' was removed with the hunt nodes \(decision D-D59\)"
+        ):
             backfill_gate_verdict(stage_dir)
         assert read_gate_verdict(stage_dir) is None
 
@@ -418,6 +418,25 @@ class TestBackfill:
             backfill_gate_verdict(stage_dir, force=True)
         backfill_gate_verdict(stage_dir, model_id=anatomical, force=True)
         assert ModelId.from_record(read_gate_verdict(stage_dir)) == anatomical
+
+    def test_evidence_without_a_task_success_column_records_no_success_rate(self, tmp_path):
+        """A model with no success keys writes no task_success column (decision D-D59's amendment); the verdict then
+        records no best_model_success_rate rather than a zero."""
+        stage_dir = _stage_dir(tmp_path)
+        path = stage_dir / SELECTED_EVIDENCE_CSV
+        with path.open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            rows = list(reader)
+            fieldnames = [name for name in reader.fieldnames or [] if name != "task_success"]
+        with path.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["stage_result"]["best_model_reward"] == pytest.approx(200.0)
+        assert "best_model_success_rate" not in verdict["stage_result"]
 
     def test_missing_evidence_is_refused(self, tmp_path):
         stage_dir = _stage_dir(tmp_path, evidence=False)
@@ -533,7 +552,7 @@ class TestStanceReports:
         stages = load_all_stages(model_id)
         current = {**stages[1]["curriculum_kwargs"], "gate_kind": "stance_quality/v2"}
         rail = current["min_avg_reward"]
-        assert rail == 2000.0
+        assert rail == 1950.0  # 0.60 x the physics-r6 statue (3241.7); 2000 on r5
         served = {**stages, 1: {**stages[1], "curriculum_kwargs": current}}
         monkeypatch.setattr(config_module, "load_all_stages", lambda species: served)
         older = {**current, "min_avg_reward": 900.0}

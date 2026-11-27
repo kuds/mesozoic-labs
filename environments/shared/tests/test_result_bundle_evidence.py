@@ -30,6 +30,8 @@ from .result_bundle_helpers import (
     _rewrite_csv_column,
 )
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+
 
 def test_save_evaluation_episodes_preserves_per_episode_evidence(tmp_path: Path) -> None:
     path = save_evaluation_episodes(
@@ -122,6 +124,119 @@ def test_legacy_success_header_still_audits(tmp_path: Path, stable_provenance: N
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-valid"
     assert not report["errors"]
+
+
+def test_save_evaluation_episodes_writes_no_success_column_without_success_flags(tmp_path: Path) -> None:
+    """A model with no success keys records no flag (decision D-D59's amendment): no column of False."""
+    path = save_evaluation_episodes(
+        tmp_path / "stage1",
+        rewards=[10.5, 20.5],
+        lengths=[100, 200],
+        forward_velocities=[0.1, 0.2],
+        distances=[1.0, 2.0],
+        successes=[],
+        evaluation_seed=123,
+        checkpoint_label="selected",
+    )
+
+    with path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        rows = list(reader)
+    assert reader.fieldnames == [
+        "episode",
+        "evaluation_seed",
+        "checkpoint",
+        "reward",
+        "length",
+        "mean_forward_velocity",
+        "distance_traveled",
+    ]
+    assert [row["reward"] for row in rows] == ["10.5", "20.5"]
+    with pytest.raises(ValueError, match="equal lengths"):
+        save_evaluation_episodes(
+            tmp_path / "stage1",
+            rewards=[10.5, 20.5],
+            lengths=[100, 200],
+            forward_velocities=[0.1, 0.2],
+            distances=[1.0, 2.0],
+            successes=[True],
+            evaluation_seed=123,
+            checkpoint_label="selected",
+        )
+
+
+def _bundle_without_success_keys(run_dir: Path) -> None:
+    """A complete bundle as a model with no success keys writes it: no rate recorded, no task_success column."""
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    for result in stage_results:
+        del result["mean_success_rate"]
+        result["best_model_success_rate"] = ""
+    for evidence in sorted(run_dir.glob("*/evaluation_*.csv")):
+        _rewrite_csv_column(evidence, field="task_success", value=None)
+    save_result_bundle(
+        stage_results,
+        stage_configs,
+        VELOCIRAPTOR_MONGOLIENSIS,
+        "PPO",
+        42,
+        run_dir,
+        backend="stable-baselines3",
+        backend_version="test-backend-1.0",
+        parallel_envs=4,
+        evaluation_episodes=3,
+        evaluation_seeds=[101, 102, 103],
+        plant_identity=_plant_identity(),
+        run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
+    )
+
+
+def test_a_model_without_success_keys_publishes_null_success_rates(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    _bundle_without_success_keys(run_dir)
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    for stage in summary["stages"].values():
+        assert stage["mean_success_rate"] is None and stage["selected_model_success_rate"] is None
+    with (run_dir / "collected_results.csv").open(newline="", encoding="utf-8") as source:
+        rows = list(csv.DictReader(source))
+    assert rows and all(row["mean_success_rate"] == row["selected_model_success_rate"] == "" for row in rows)
+    assert not {"success_count", "n_success_episodes"} & set(rows[0])
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid", report["errors"]
+    assert not report["errors"]
+
+
+def test_a_success_rate_without_its_evidence_column_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    """The summary's rate and the evidence's task_success column come together or not at all."""
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    _rewrite_csv_column(run_dir / "stage1" / "evaluation_selected.csv", field="task_success", value=None)
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert any("has no task_success column to derive it from" in error for error in report["errors"]), report
+
+
+def test_a_task_success_column_without_a_summary_rate_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    _bundle_without_success_keys(run_dir)
+    for evidence in sorted(run_dir.glob("*/evaluation_selected.csv")):
+        with evidence.open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            rows, fieldnames = list(reader), [*(reader.fieldnames or []), "task_success"]
+        for row in rows:
+            row["task_success"] = "False"
+        with evidence.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert any(
+        "summary is missing selected evaluation aggregate selected_model_success_rate" in error
+        for error in report["errors"]
+    ), report
 
 
 def test_save_evaluation_episodes_rejects_incomplete_rows(tmp_path: Path) -> None:
@@ -647,11 +762,11 @@ def test_a_checkpoint_rewritten_after_evaluation_cannot_be_published(
     """
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    (run_dir / "stage3" / "models" / "best_model.pkl").write_bytes(b"arbitrary bytes written after evaluation")
+    (run_dir / "stage2" / "models" / "best_model.pkl").write_bytes(b"arbitrary bytes written after evaluation")
 
     with pytest.raises(
         ResultBundleError,
-        match=r"stage 3 selected evaluation evidence was produced by checkpoint sha256:[0-9a-f]{64}, "
+        match=r"stage 2 selected evaluation evidence was produced by checkpoint sha256:[0-9a-f]{64}, "
         r"not the certified selected checkpoint",
     ):
         _save_bundle(run_dir, stage_results, stage_configs)
@@ -713,11 +828,11 @@ def test_a_sidecar_rewritten_after_evaluation_cannot_be_published(
     """
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    (run_dir / "stage3" / "models" / "best_model_vecnorm.pkl").write_bytes(b"statistics written after evaluation")
+    (run_dir / "stage2" / "models" / "best_model_vecnorm.pkl").write_bytes(b"statistics written after evaluation")
 
     with pytest.raises(
         ResultBundleError,
-        match=r"stage 3 selected evaluation evidence ran under VecNormalize statistics sha256:[0-9a-f]{64}, "
+        match=r"stage 2 selected evaluation evidence ran under VecNormalize statistics sha256:[0-9a-f]{64}, "
         r"not the certified selected statistics sha256:[0-9a-f]{64}",
     ):
         _save_bundle(run_dir, stage_results, stage_configs)
@@ -775,7 +890,7 @@ def test_jax_evidence_has_no_sidecar_to_bind_and_no_warning(
     """JAX certifies no VecNormalize statistics: no column, no comparison, no noise."""
     run_dir = tmp_path / "run"
     _complete_bundle(run_dir, algorithm="JAX_PPO", backend="jax-mjx")
-    for stage in (1, 2, 3):
+    for stage in (1, 2):
         for label in ("selected", "final"):
             _rewrite_csv_column(
                 run_dir / f"stage{stage}" / f"evaluation_{label}.csv", field="normalization_sha256", value=None
@@ -950,9 +1065,9 @@ def _bundle_summary_and_provenance(run_dir: Path) -> tuple[dict[str, Any], dict[
     return summary, provenance
 
 
-def _raise_stage_three_bar(run_dir: Path) -> None:
-    """Rewrite the resolved stage-3 config so its reward rail sits above the evidence."""
-    config_path = run_dir / "stage3" / "stage_config.json"
+def _raise_leaf_stage_bar(run_dir: Path) -> None:
+    """Rewrite the resolved leaf (stage-2) config so its reward rail sits above the evidence."""
+    config_path = run_dir / "stage2" / "stage_config.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     block = config["curriculum"] if "curriculum" in config else config["curriculum_kwargs"]
     block["min_avg_reward"] = 1e9
@@ -964,8 +1079,8 @@ def test_a_recorded_pass_must_reproduce_from_the_evidence(tmp_path: Path, stable
     summary, provenance = _bundle_summary_and_provenance(run_dir)
     validate_evaluation_evidence(run_dir, summary, provenance)
 
-    _raise_stage_three_bar(run_dir)
-    with pytest.raises(ResultBundleError, match="stage 3 publication gate fails min_avg_reward"):
+    _raise_leaf_stage_bar(run_dir)
+    with pytest.raises(ResultBundleError, match="stage 2 publication gate fails min_avg_reward"):
         validate_evaluation_evidence(run_dir, summary, provenance)
 
 
@@ -975,16 +1090,16 @@ def test_a_recorded_failure_is_bound_to_its_evidence_but_never_re_gated(
     """A failed node's aggregates still bind, but the gate is not re-derived from them."""
     run_dir = tmp_path / "run"
     summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _raise_stage_three_bar(run_dir)
-    summary["stages"]["3"]["stage_passed"] = False
-    summary["stages"]["3"]["publication_gate_passed"] = False
-    provenance["deliverables"]["3"]["certified"] = False
+    _raise_leaf_stage_bar(run_dir)
+    summary["stages"]["2"]["stage_passed"] = False
+    summary["stages"]["2"]["publication_gate_passed"] = False
+    provenance["deliverables"]["2"]["certified"] = False
 
     validate_evaluation_evidence(run_dir, summary, provenance)
 
     tampered = json.loads(json.dumps(summary))
-    tampered["stages"]["3"]["final_eval_reward"] += 1.0
-    with pytest.raises(ResultBundleError, match="final evaluation aggregate for stage 3 final_eval_reward differs"):
+    tampered["stages"]["2"]["final_eval_reward"] += 1.0
+    with pytest.raises(ResultBundleError, match="final evaluation aggregate for stage 2 final_eval_reward differs"):
         validate_evaluation_evidence(run_dir, tampered, provenance)
 
 
@@ -992,8 +1107,8 @@ def test_a_certified_flag_beside_a_failed_verdict_is_refused(tmp_path: Path, sta
     """Defence in depth beside the schema rule: certified implies a recorded pass."""
     run_dir = tmp_path / "run"
     summary, provenance = _bundle_summary_and_provenance(run_dir)
-    summary["stages"]["3"]["stage_passed"] = False
-    assert provenance["deliverables"]["3"]["certified"] is True
+    summary["stages"]["2"]["stage_passed"] = False
+    assert provenance["deliverables"]["2"]["certified"] is True
 
     with pytest.raises(
         ResultBundleError, match="recorded as a certified deliverable, but the summary records stage_passed=False"
@@ -1007,7 +1122,7 @@ def test_a_recovery_resolution_must_start_at_the_certification_panel_seed(
     """A frozen ``gate_resolution.json`` registers its panel; that panel must be the declared one (D-B17)."""
     run_dir = tmp_path / "run"
     summary, provenance = _bundle_summary_and_provenance(run_dir)
-    resolution_path = run_dir / "stage3" / "gate_resolution.json"
+    resolution_path = run_dir / "stage2" / "gate_resolution.json"
 
     def _freeze(panel_seed_start: Any) -> None:
         resolution = {
@@ -1022,121 +1137,85 @@ def test_a_recovery_resolution_must_start_at_the_certification_panel_seed(
     _freeze(3050)
     with pytest.raises(
         ResultBundleError,
-        match=r"stage 3 gate_resolution.json registers panel_seed_start 3050, not the certification_panel seed 3042",
+        match=r"stage 2 gate_resolution.json registers panel_seed_start 3050, not the certification_panel seed 3042",
     ):
         validate_evaluation_evidence(run_dir, summary, provenance)
 
     _freeze(3042)
     without_role = json.loads(json.dumps(provenance))
     del without_role["seed_roles"]["certification_panel"]
-    with pytest.raises(ResultBundleError, match=r"must declare certification_panel: stage 3 holds a frozen"):
+    with pytest.raises(ResultBundleError, match=r"must declare certification_panel: stage 2 holds a frozen"):
         validate_evaluation_evidence(run_dir, summary, without_role)
 
 
-def _declare_task_success_on_stage_three(run_dir: Path, *, min_success_lcb: float, min_eval_episodes: int = 3) -> None:
-    """Switch the resolved stage-3 config to task_success/v1 (plan §4.4) at the given bar."""
-    config_path = run_dir / "stage3" / "stage_config.json"
+def _declare_on_leaf_stage(run_dir: Path, curriculum: dict[str, Any]) -> None:
+    """Replace the resolved leaf (stage-2) config's curriculum block with *curriculum*."""
+    config_path = run_dir / "stage2" / "stage_config.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     key = "curriculum" if "curriculum" in config else "curriculum_kwargs"
-    config[key] = {
-        "gate_kind": "task_success/v1",
-        "gate_schema_version": 1,
-        "min_success_lcb": min_success_lcb,
-        "min_eval_episodes": min_eval_episodes,
-        "min_avg_reward": 1.0,
-    }
+    config[key] = curriculum
     config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-#: The fixture's selected evidence records 2 of 3 successes: an exact
-#: one-sided 95% lower bound of 0.1354.
-_FIXTURE_LCB = 0.1354
+# ── task_success/v1 and min_success_rate: retired (decision D-D59) ────────────
 
 
-def test_publication_refuses_a_task_success_pass_below_the_bar(tmp_path: Path, stable_provenance: None) -> None:
-    """A recorded PASS whose evidence bounds below min_success_lcb is refused, whatever the reward."""
+@pytest.mark.parametrize(
+    ("curriculum", "message"),
+    [
+        (
+            {
+                "gate_kind": "task_success/v1",
+                "gate_schema_version": 1,
+                "min_success_lcb": 0.1,
+                "min_eval_episodes": 3,
+                "min_avg_reward": 1.0,
+            },
+            r"stage 2 publication gate config: gate_kind 'task_success/v1' was removed with the hunt nodes "
+            r"\(decision D-D59\)",
+        ),
+        (
+            {
+                "gate_kind": "reward_and_length/v1",
+                "gate_schema_version": 1,
+                "min_avg_reward": 1.0,
+                "min_success_rate": 0.1,
+            },
+            r"stage 2 publication gate config: \[curriculum\] key 'min_success_rate' was removed with the hunt nodes "
+            r"\(decision D-D59\)",
+        ),
+    ],
+    ids=["task_success-v1", "min_success_rate"],
+)
+def test_publication_refuses_a_retired_gate_naming_the_decision(
+    tmp_path: Path, stable_provenance: None, curriculum: dict[str, Any], message: str
+) -> None:
+    """A stage whose frozen config names a retired kind or key is never published, pass or not.
+
+    The fixture's evidence (2 of 3 successes, rewards above 1.0) clears both
+    blocks as they were judged before the hunt's removal; neither is now
+    re-derivable, and the legacy loop would certify the stage on its reward
+    floor alone.
+    """
     run_dir = tmp_path / "run"
     summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.2)
+    _declare_on_leaf_stage(run_dir, curriculum)
 
-    with pytest.raises(ResultBundleError, match=r"stage 3 publication gate fails task_success/v1: task_success_lcb"):
+    with pytest.raises(ResultBundleError, match=message):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+    summary["stages"]["2"]["stage_passed"] = False
+    with pytest.raises(ResultBundleError, match=message):
         validate_evaluation_evidence(run_dir, summary, provenance)
 
 
-def test_a_task_success_pass_reproduces_from_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
+def test_the_retired_task_success_stage_row_keys_are_not_re_derived(tmp_path: Path, stable_provenance: None) -> None:
+    """selected_model_success_{lcb,count} / _n_episodes have no reader since D-D59, like any unnamed row key."""
     run_dir = tmp_path / "run"
     summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
-
-    validate_evaluation_evidence(run_dir, summary, provenance)
-
-    # The panel size is judged too: n=3 below a declared 30 is a refusal.
-    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1, min_eval_episodes=30)
-    with pytest.raises(ResultBundleError, match=r"n_episodes 3 < min_eval_episodes 30"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-
-
-def test_a_task_success_pass_needs_the_checkpoint_column(tmp_path: Path, stable_provenance: None) -> None:
-    """Unbound evidence only warns for the legacy kinds; a task_success pass is refused on it."""
-    run_dir = tmp_path / "run"
-    summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
-    _rewrite_csv_column(run_dir / "stage3" / "evaluation_selected.csv", field="checkpoint_sha256", value=None)
-
-    with pytest.raises(ResultBundleError, match=r"stage 3 selected evidence records no checkpoint_sha256"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-
-
-def test_a_recorded_task_success_count_must_match_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
-    """The bound is checked at a tolerance; the published k/n must equal the rows' exactly."""
-    run_dir = tmp_path / "run"
-    summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
-
-    summary["stages"]["3"].update(
-        {"selected_model_success_lcb": _FIXTURE_LCB, "selected_model_success_count": 2, "selected_model_n_episodes": 3}
+    summary["stages"]["2"].update(
+        {"selected_model_success_lcb": 0.9, "selected_model_success_count": 3, "selected_model_n_episodes": 30}
     )
     validate_evaluation_evidence(run_dir, summary, provenance)
-
-    # A laundered headline: the bound still matches, the count claims 3/3.
-    summary["stages"]["3"]["selected_model_success_count"] = 3
-    with pytest.raises(ResultBundleError, match=r"stage 3 selected_model_success_count records 3, but .* 2/3"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-    summary["stages"]["3"]["selected_model_success_count"] = 2
-    summary["stages"]["3"]["selected_model_n_episodes"] = 30
-    with pytest.raises(ResultBundleError, match=r"stage 3 selected_model_n_episodes records 30"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
-
-
-def test_a_task_success_pass_needs_a_certified_checkpoint_to_bind_to(tmp_path: Path, stable_provenance: None) -> None:
-    """Defence in depth beside the schema: no certified hash means nothing the evidence can be bound to."""
-    from environments.shared.result_bundle.evidence import _validate_task_success_evidence
-
-    run_dir = tmp_path / "run"
-    _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
-    curriculum = {"gate_kind": "task_success/v1", "min_success_lcb": 0.1, "min_eval_episodes": 3}
-    with pytest.raises(ResultBundleError, match=r"stage 3 records no certified selected checkpoint"):
-        _validate_task_success_evidence(
-            run_dir / "stage3" / "evaluation_selected.csv",
-            curriculum,
-            selected_aggregates={"reward": 1.0, "episode_length": 1.0},
-            certified_hash=None,
-            stage=3,
-        )
-
-
-def test_a_recorded_task_success_lcb_must_match_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
-    run_dir = tmp_path / "run"
-    summary, provenance = _bundle_summary_and_provenance(run_dir)
-    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
-
-    summary["stages"]["3"]["selected_model_success_lcb"] = _FIXTURE_LCB
-    validate_evaluation_evidence(run_dir, summary, provenance)
-
-    summary["stages"]["3"]["selected_model_success_lcb"] = 0.9
-    with pytest.raises(ResultBundleError, match=r"stage 3 selected_model_success_lcb differs"):
-        validate_evaluation_evidence(run_dir, summary, provenance)
 
 
 # ── stance_quality/v2 (decision D-D23) ───────────────────────────────────────
@@ -1480,4 +1559,156 @@ def test_a_stance_heading_grid_off_the_certification_panel_or_contradicting_a_fl
     with pytest.raises(
         ResultBundleError, match=r"\(seed 3050, \+90 deg\) records clean=False but re-derives clean=True"
     ):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+# ── command_tracking/v1 through a complete bundle (decision D-D61) ────────────
+
+
+def _make_command_tracking_gated(run_dir: Path, stage: int = 1) -> dict[str, Any]:
+    """Declare command_tracking/v1 (walk) on a stage of an otherwise complete bundle; returns the block.
+
+    The stage records its environment as ``save_stage_config`` does, under
+    ``reward_weights`` (the design's live walk command, the panel's horizon
+    and control step), while its ``env_kwargs`` keep the helper's command-free
+    block: a publication that read ``env_kwargs`` would find no command.
+    """
+    from environments.shared.config import env_kwargs_record
+
+    from .test_command_tracking_wiring import FRAME_SKIP, HORIZON, TASK_SHA256, WALK_CONFIG, WALK_CURRICULUM
+
+    config_path = run_dir / f"stage{stage}" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    block: dict[str, Any] = dict(WALK_CURRICULUM)
+    config["curriculum_kwargs"] = block
+    config["reward_weights"] = {
+        "max_episode_steps": HORIZON,
+        "frame_skip": FRAME_SKIP,
+        "command_mode": "heading_and_speed",
+        "command_config": env_kwargs_record({"command_config": WALK_CONFIG})["command_config"],
+    }
+    assert "command_config" not in config["env_kwargs"]
+    config["task_fingerprint"] = {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": TASK_SHA256}
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return block
+
+
+def _write_command_tracking_panel(
+    run_dir: Path, tmp_path: Path, stage: int = 1, overrides_by_seed: dict[str, Any] | None = None
+) -> Path:
+    """The panel CSV a synthetic walk report writes, rolled on the stage's certified pair; only the CSV is copied in."""
+    from environments.shared.curriculum.command_tracking_evidence import COMMAND_TRACKING_PANEL_CSV
+    from environments.shared.reporting.command_tracking_report import (
+        assemble_command_tracking_report,
+        write_command_tracking_report,
+    )
+
+    from .test_command_tracking_wiring import (
+        HORIZON,
+        MEASUREMENT,
+        PLAN,
+        TASK_SHA256,
+        WALK_CONFIG,
+        WALK_CURRICULUM,
+        _panel,
+    )
+
+    models = run_dir / f"stage{stage}" / "models"
+    report = assemble_command_tracking_report(
+        VELOCIRAPTOR_MONGOLIENSIS,
+        stage,
+        curriculum=WALK_CURRICULUM,
+        command_config=WALK_CONFIG,
+        plan=PLAN,
+        episodes=_panel(**(overrides_by_seed or {})),
+        measurement=MEASUREMENT,
+        horizon=HORIZON,
+        control_dt=0.01,
+        policy="best_model.pkl — VecNormalize stats applied (clip 10)",
+        normalization={"mode": "vecnormalize-frozen", "clip_obs": 10.0, "epsilon": 1e-8},
+        handoff={
+            "checkpoint": "best_model.pkl",
+            "checkpoint_sha256": sha256_file(models / "best_model.pkl"),
+            "normalization_sha256": sha256_file(models / "best_model_vecnorm.pkl"),
+        },
+        task_sha256=TASK_SHA256,
+        plant_identity={"plant": "test"},
+        checkpoint_plant_validated=True,
+    )
+    scratch = tmp_path / "scratch_command"
+    scratch.mkdir(parents=True, exist_ok=True)
+    written = write_command_tracking_report(scratch, report)
+    target = run_dir / f"stage{stage}" / COMMAND_TRACKING_PANEL_CSV
+    target.write_bytes(written["command_tracking_panel_csv"].read_bytes())
+    return target
+
+
+def test_a_command_tracking_pass_publishes_when_its_panel_re_derives_it(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """The publication arm is reached through validate_evaluation_evidence and re-derives the pass from the CSV, with
+    the stage's command read from ``reward_weights``; without the certification_panel role it is refused."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+    _write_command_tracking_panel(run_dir, tmp_path)
+
+    paths = _save_bundle(run_dir, stage_results, stage_configs)
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    assert provenance["seed_roles"]["certification_panel"] == 3042
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    del provenance["seed_roles"]["certification_panel"]
+    with pytest.raises(
+        ResultBundleError,
+        match=r"provenance seed_roles must declare certification_panel for a command_tracking/v1 pass",
+    ):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_command_tracking_pass_without_its_panel_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    """The reward rail never stands in for the panel: the helper's block-free reward stage would otherwise pass."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+
+    with pytest.raises(
+        ResultBundleError, match=r"command_tracking/v1.*command_tracking_panel_selected\.csv is missing"
+    ):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_command_tracking_panel_with_an_edited_success_flag_or_a_failing_panel_is_refused(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    from .test_command_tracking_wiring import PLAN
+
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+    path = _write_command_tracking_panel(run_dir, tmp_path)
+    _rewrite_grid(path, edit=lambda row: row.update(success="false") if row["seed"] == str(PLAN.seeds[0]) else None)
+    with pytest.raises(ResultBundleError, match=r"records success=False but re-derives success=True"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+    _write_command_tracking_panel(
+        run_dir, tmp_path, overrides_by_seed={f"seed_{PLAN.seeds[0]}": {"first_event_settled": False}}
+    )
+    with pytest.raises(ResultBundleError, match=r"publication gate fails command_tracking/v1"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_command_tracking_panel_is_read_against_the_recorded_command(tmp_path: Path, stable_provenance: None) -> None:
+    """A stage whose recorded environment carries no live command has nothing its panel could have tracked."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_command_tracking_gated(run_dir)
+    _write_command_tracking_panel(run_dir, tmp_path)
+    config_path = run_dir / "stage1" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    del config["reward_weights"]["command_config"]
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ResultBundleError, match=r"records no live command_config"):
         _save_bundle(run_dir, stage_results, stage_configs)

@@ -34,8 +34,8 @@ The panel **passes** when:
 * it holds at least ``min_eval_episodes`` episodes, every one measured with
   the declared ``settle_steps``;
 * :func:`~environments.shared.curriculum.recovery_gate.binomial_lcb` (exact
-  one-sided Clopper-Pearson, the bound ``recovery_quality/v1`` and
-  ``task_success/v1`` certify with) of ``k`` clean of ``n`` clears
+  one-sided Clopper-Pearson, the bound ``recovery_quality/v1`` certifies
+  with) of ``k`` clean of ``n`` clears
   ``min_clean_stance_lcb``;
 * the declared panel rails hold: the absolute ``min_avg_reward``, the
   statue-relative ``min_avg_reward_statue_ratio``, the optional
@@ -413,7 +413,7 @@ class StanceV2Thresholds:
     def from_curriculum(cls, curriculum: Mapping[str, Any]) -> StanceV2Thresholds:
         """Read the thresholds a stage's ``[curriculum]`` table declares.
 
-        Strict, like ``TaskSuccessGateThresholds``: a required key that is
+        Strict: a required key that is
         missing, non-numeric or non-finite raises ``ValueError`` naming it,
         and so does a DECLARED optional key that is not a finite number -- a
         criterion the reader silently dropped would be the disabled-by-typo

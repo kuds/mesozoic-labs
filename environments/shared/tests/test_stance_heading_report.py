@@ -382,16 +382,19 @@ def test_the_turn_text_cites_the_elliptic_cone():
     from .test_stance_heading_probe import STANDS, _sweeps
 
     # The observation half (D-D31): the T-Rex from r14 and the anatomical Compsognathus from r4 observe no world
-    # heading, and the Velociraptor from r13 (the maintainer's decision of 2026-11-06), so a whole-scene turn
-    # changes nothing they see; only the robot still observes it.
+    # heading, and the Velociraptor from r13 (the maintainer's decision of 2026-11-06), and since the revision that
+    # removed every scene's target (plant_versions note 24, D-D59) the other four do not either, so a whole-scene
+    # turn changes nothing any model sees.
     assert "D-D31" in doc and "policy interface r14" in doc and "anatomical Compsognathus from r4" in doc
     assert "the Velociraptor from r13" in doc
-    assert "The Compsognathus robot still observes those world-frame channels" in doc
+    assert "Every model now observes no world heading" in doc
+    assert "the other four with the revision that removed every scene's target" in doc
+    assert "The Compsognathus robot still observes those world-frame channels" not in doc
     assert "The Velociraptor and the Compsognathus robot still observe" not in doc
     assert "only the world-frame observation differs" not in doc
     text, payload = stance_report.render_heading_probe(*_sweeps(STANDS), probe_episodes=8)
     assert "elliptic friction cone" in payload["note"] and "stance_quality_heading/v1" in payload["note"]
     assert "the six-heading certificate, D-D32" in text and "not a gate result" in text
-    assert "observe no world heading (D-D31)" in payload["note"] and "only the world-frame" not in payload["note"]
-    assert "the T-Rex r14, anatomical Compsognathus r4 and Velociraptor" in text and "r13 observe none" in text
-    assert "nor does the Velociraptor (r13" in payload["note"] and "the Velociraptor's and" not in payload["note"]
+    assert "every model observes no world heading (the heading-free schemas)" in payload["note"]
+    assert "only the world-frame" not in payload["note"] and "the Velociraptor's and" not in payload["note"]
+    assert "only a world-frame observation would" in text and "and every model observes none" in text

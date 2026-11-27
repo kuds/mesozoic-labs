@@ -49,9 +49,7 @@ from .result_bundle_helpers import _complete_bundle, _snapshot_files
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 MANIFEST = load_stage_manifest(TYRANNOSAURUS_REX)
-STANCE, RECOVERY, LOCOMOTION, BEHAVIOR = (
-    MANIFEST.by_id(node) for node in ("stance", "recovery", "locomotion", "behavior")
-)
+STANCE, RECOVERY, LOCOMOTION = (MANIFEST.by_id(node) for node in ("stance", "recovery", "locomotion"))
 WALK = (STANCE, LOCOMOTION)
 FRESH = "20260924_120000"
 
@@ -207,11 +205,13 @@ class TestCompleteRunSession:
             tmp_path, model_id=TYRANNOSAURUS_REX, chain=WALK, target=LOCOMOTION, trunk_dir=None
         ) == ("stance",)
         # The target is looked for in this run only: a record never stands in for it.
-        _recorded(tmp_path, BEHAVIOR)
-        chain = (STANCE, LOCOMOTION, BEHAVIOR)
+        target_only = tmp_path / "target-recorded"
+        _marker(target_only, "complete")
+        _recorded(target_only, STANCE)
+        _recorded(target_only, LOCOMOTION)
         assert complete_run_writes(
-            tmp_path, model_id=TYRANNOSAURUS_REX, chain=chain, target=BEHAVIOR, trunk_dir=trunk
-        ) == ("behavior",)
+            target_only, model_id=TYRANNOSAURUS_REX, chain=WALK, target=LOCOMOTION, trunk_dir=trunk
+        ) == ("locomotion",)
 
     def test_a_record_with_a_stage_directory_beside_it_does_not_stand_in(self, tmp_path):
         """A stage directory without a verdict is what the loop judges or trains into when the trunk does not cover
@@ -470,7 +470,7 @@ class TestTrunkOtherThanRecorded:
             assert "Train 'locomotion' again in a fresh RUN_ID, with TRUNK_FROM naming this run" in message
             assert _snapshot_files(run_dir) == before
         # Another node of the same run, or no node (a session-level check), is not that refusal.
-        self._check(run_dir, log_dir, log_dir / "A", resumed=BEHAVIOR)
+        self._check(run_dir, log_dir, log_dir / "A", resumed=RECOVERY)
         self._check(run_dir, log_dir, log_dir / "A", resumed=None)
 
     def test_a_complete_run_is_left_to_the_complete_run_guard(self, tmp_path):

@@ -39,7 +39,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.config import build_env, load_stage_config
+from environments.shared.config import build_env, env_kwargs_record, load_stage_config
 from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.curriculum.gate_schema import STANCE_GATE_KINDS
 from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
@@ -51,7 +51,8 @@ from environments.shared.result_bundle import read_bundle_status
 from environments.shared.species_names import add_model_id_argument, model_display_name, parsed_model_ids
 
 #: Legacy stage numbers this script accepts; files resolve via the manifest.
-KNOWN_STAGES = frozenset({1, 2, 3})
+#: 1 stance, 2 locomotion.  3 (the hunt) resolves to no stage since decision D-D59.
+KNOWN_STAGES = frozenset({1, 2})
 
 #: The models scored when no ``--model-id`` is given: the panel this tool has
 #: always measured, written out as models (decision D-D33) so its default
@@ -327,7 +328,7 @@ def preflight(model_ids, *, stage: int, episodes: int, seed: int, model_id: Mode
                 "margin_over_mean": gate_margin(gate, result["reward_mean"]),
                 "margin_over_standing": gate_margin(gate, result["reward_mean_standing"]),
                 **({} if stance_gate is None else {"stance_gate": stance_gate}),
-                "env_kwargs": stage_cfg["env_kwargs"],
+                "env_kwargs": env_kwargs_record(stage_cfg["env_kwargs"]),
                 "plant_identity": current_plant_identity(name).to_dict(),
             }
         )

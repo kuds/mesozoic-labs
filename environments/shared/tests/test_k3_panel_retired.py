@@ -67,7 +67,7 @@ def test_the_command_line_refuses_the_retired_flags(capsys, flag):
 
     species_cfg = MagicMock()
     species_cfg.model_id = TYRANNOSAURUS_REX
-    mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+    mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2)})
     with (
         patch("environments.shared.config.load_all_stages", mock_load),
         patch("environments.shared.train_base.train") as mock_train,

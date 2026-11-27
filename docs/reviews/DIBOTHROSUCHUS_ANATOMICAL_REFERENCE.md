@@ -2,6 +2,17 @@
 
 **November 21, 2026 · physics r3 · moved from the species README**
 
+> **Status update (2026-11-23):** physics r4 (`configs/plant_versions.toml` note 24, decision D-D59) removed the prey
+> sphere and the 0.02 kg `snout_snap` box with the snap task; the `snout_tip` site stays. The model is 8.63 kg. On r4,
+> with neutral commands for 6 s, the feet carry 84.66 N (11.14 N on each forefoot, 31.19 N on each hindfoot) and the
+> trunk tilts 0.008°; at the stance-calibration noise of 0.02, four of 80 starts turn more than 1° (worst 1.22°) and
+> seventeen exceed the 2.63 mm foot-travel target (worst 3.74 mm). The reference walk's `sway_phase` moved from 0.08 to
+> 0.06, because with 0.08 the right forefoot and the left hind foot landed together from about the tenth stride and
+> swapped order at one touchdown of twenty strides; with 0.06 every check of the walk section keeps its order, and the
+> nine-stride neutral walk reads 0.157 m/s, a 0.80 s stride, duty 0.681 fore and 0.725 hind. Everything below was
+> measured on r3, and the stance, locomotion and prey-contact environments it mentions are now the stance and the
+> locomotion.
+
 Until 2026-11-21 this review was the "Overview", "Anatomical review", "Standing balance", "Walking mechanics" and
 "Environment Details" sections of [the model's README](../../environments/dibothrosuchus_elaphros/README.md). It moved
 here on that date. The summary paragraph and the reproduction section are new; the rest is unchanged apart from

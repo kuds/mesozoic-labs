@@ -90,14 +90,22 @@ def test_camera_orientation_target_and_frustum_are_unoccluded(embodiment):
     np.testing.assert_allclose(rotation[:, 0], [0, -1, 0], atol=1e-10)
     np.testing.assert_allclose(rotation[:, 1], [0, 0, 1], atol=1e-10)
     np.testing.assert_array_equal(model.cam_resolution[cam], [640, 480])
-    # Put a target on the optical axis to prove that the camera can see forward.
-    mocap = model.body_mocapid[model.body("prey").id]
-    data.mocap_pos[mocap] = data.cam_xpos[cam] + forward * 0.5
-    mujoco.mj_forward(model, data)
+    # Put a probe sphere on the optical axis to prove that the camera can see forward.  The scene
+    # holds no object of its own to aim at since the prey left it (decision D-D59), so the probe is
+    # a static world body added to a copy of the MJCF; the animal's bodies, geoms and camera keep
+    # their ids, which come before the appended probe's.
+    spec = mujoco.MjSpec.from_file(str(MODEL_PATHS[embodiment]))
+    probe = spec.worldbody.add_body(name="optical_axis_probe", pos=data.cam_xpos[cam] + forward * 0.5)
+    probe.add_geom(type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[0.035, 0, 0], contype=0, conaffinity=0)
+    probed = spec.compile()
+    probed_data = mujoco.MjData(probed)
+    mujoco.mj_resetDataKeyframe(probed, probed_data, probed.key("home").id)
+    mujoco.mj_forward(probed, probed_data)
+    np.testing.assert_array_equal(probed_data.cam_xpos[cam], data.cam_xpos[cam])
     geom_id = np.full(1, -1, dtype=np.int32)
-    distance = mujoco.mj_ray(model, data, data.cam_xpos[cam], forward, None, True, -1, geom_id)
+    distance = mujoco.mj_ray(probed, probed_data, data.cam_xpos[cam], forward, None, True, -1, geom_id)
     assert 0 < distance < 0.5
-    assert model.geom_bodyid[geom_id[0]] == model.body("prey").id
+    assert probed.geom_bodyid[geom_id[0]] == probed.body("optical_axis_probe").id
     tan_v = np.tan(np.deg2rad(model.cam_fovy[cam]) / 2)
     bodies = set(pelvis_subtree_body_ids(model))
     # Includes visual-only geoms and the camera's own body; no exclusion cheat.

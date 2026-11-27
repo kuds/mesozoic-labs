@@ -43,12 +43,13 @@ STANCE_INFO_KEYS: tuple[str, ...] = (
     "height_error",
 )
 
-# ``bite_success`` already exists on every T. rex reward-info step and
-# distinguishes its biped contacts from similarly named quadruped front-foot
-# contacts without adding a new environment signal.
+# Keys only a biped's reward info carries, which distinguish its foot
+# contacts from similarly named quadruped front-foot contacts without adding
+# a new environment signal: the T. rex emits the last three on every step and
+# the velociraptor ``leg_home_pose_error`` (the T. rex's ``bite_success`` was
+# one until decision D-D59 removed the bite).
 STANCE_MARKER_KEYS: tuple[str, ...] = (
     "unsupported_duty",  # Explicit biped instrumentation (including Compsognathus).
-    "bite_success",
     "leg_home_pose_error",
     "head_pelvis_rel_z",
     "neck_posture_error",

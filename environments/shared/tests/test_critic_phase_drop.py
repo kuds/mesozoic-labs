@@ -435,6 +435,22 @@ _TRAIN: dict[str, Any] = {
 }
 
 
+#: Where the T. rex observation's trailing command slice starts (59 wide, the command its last 3 columns).
+_COMMAND = 59 - 3
+#: The actor's first layer, the one that reads the observation.
+_ACTOR_INPUT = "mlp_extractor.policy_net.0.weight"
+
+
+def _equal_but_the_command(state: dict, parent: dict, name: str) -> bool:
+    """*name* is the parent's bitwise, but for the command columns of the actor's first layer, which are zero: the
+    walk's command-blind warm start from a command-free stance (``policy_loading.neutralize_command_columns``)."""
+    if name != _ACTOR_INPUT:
+        return bool(torch.equal(state[name], parent[name]))
+    return bool(
+        torch.equal(state[name][:, :_COMMAND], parent[name][:, :_COMMAND]) and not torch.any(state[name][:, _COMMAND:])
+    )
+
+
 def _tyrannosaurus_rex_configs() -> dict:
     from environments.shared.config import load_all_stages
 
@@ -504,12 +520,16 @@ def test_the_trainer_drops_records_and_resumes_the_child_stock(phase_stance_pare
     assert len(lines) == 1 and lines[0].startswith("Warm start: dropped the critic's 3 episode-phase inputs")
     crosses_edge, state, policy_class = loaded[-1]
     assert crosses_edge is True and policy_class is ActorCriticPolicy
-    # The actor right after the load is the parent's, bitwise (the T. rex locomotion task records no live command,
-    # so no command column is neutralised here; the order against that step is the test above); the critic keeps
-    # every weight but the phase columns.
+    # The actor right after the load is the parent's, bitwise, but for the command columns of its first layer: the
+    # T. rex walk runs a live command (decision D-D62) and the stance parent never did, so the warm start zeroes them
+    # (the order against that step is the test above); the critic keeps every weight but the phase columns and its
+    # own command columns, zeroed the same way.
     actor = [name for name in state if name.startswith(ACTOR)]
-    assert actor and all(torch.equal(state[name], parent_policy[name]) for name in actor)
-    assert torch.equal(state[LAYER], parent_policy[LAYER][:, :63]) and tuple(parent_policy[LAYER].shape) == (512, 66)
+    assert actor and all(_equal_but_the_command(state, parent_policy, name) for name in actor)
+    # The real T. rex observation is 59 wide (plant_versions note 24), so the critic's first layer reads 59 + 3.
+    assert tuple(parent_policy[LAYER].shape) == (512, 62)
+    assert torch.equal(state[LAYER][:, :_COMMAND], parent_policy[LAYER][:, :_COMMAND])
+    assert not torch.any(state[LAYER][:, _COMMAND:59]) and tuple(state[LAYER].shape) == (512, 59)
     assert (
         type(child) is PPO and type(child.policy) is ActorCriticPolicy and type(child.rollout_buffer) is RolloutBuffer
     )
@@ -580,9 +600,9 @@ def test_the_drop_and_the_log_std_reset_apply_at_the_same_warm_start(
     assert lines[0].startswith("Warm start: dropped the critic's 3 episode-phase inputs")
     assert lines[1].startswith("Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators")
     assert torch.equal(after_reset["log_std"], torch.full((15,), -1.5))
-    for name, value in after_reset.items():
+    for name in after_reset:
         if name.startswith(ACTOR) and name != "log_std":
-            assert torch.equal(value, parent_policy[name]), name
+            assert _equal_but_the_command(after_reset, parent_policy, name), name
     run = json.loads((tmp_path / "locomotion" / "stage_config.json").read_text())["run"]
     assert run[WARM_START_LOG_STD_KEY] == -1.5 and run["critic_phase_dropped"]["settle_steps"] == 200
 

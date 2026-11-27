@@ -34,8 +34,8 @@ The generic rule (no species knowledge)
   animal's left.  All five species with a sole give normal ``-z``, forward
   ``+x``.
 * **Body weight:** ``body_subtreemass[root] * |g_z|`` -- the load the floor
-  carries at rest -- never ``mj_getTotalmass``, which counts props and prey
-  (STAGE1_SPLIT_PLAN's body-weight rule).
+  carries at rest -- never ``mj_getTotalmass``, which counts every body of
+  the scene, props included (STAGE1_SPLIT_PLAN's body-weight rule).
 
 The registry (explicit for all six models)
 ------------------------------------------

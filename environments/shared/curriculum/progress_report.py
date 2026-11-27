@@ -238,12 +238,32 @@ def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> list[int]:
     return sorted(steps)
 
 
-def _first_evaluation_scoring(results: Sequence[Any], timesteps: Sequence[Any], best: float, score: Any) -> int | None:
-    """The step of the first evaluation whose ``score(rewards)`` equals *best* (the one its checkpoint was saved at)."""
+def _first_evaluation_scoring(
+    results: Sequence[Any],
+    timesteps: Sequence[Any],
+    best: float,
+    score: Any,
+    families: "Sequence[Any] | None" = None,
+) -> int | None:
+    """The step of the first evaluation whose ``score(rewards)`` equals *best* (the one its checkpoint was saved at).
+
+    With *families* (a live stage's, one entry per evaluation, decision
+    D-D62) each evaluation is scored ``score(rewards, families[index])``,
+    the family-aware robust score; an evaluation without an entry, or one
+    *score* cannot score, matches nothing.
+    """
     if not math.isfinite(best):
         return None
-    for rewards, step in zip(results, timesteps):
-        if score(np.asarray(rewards, dtype=float)) == best:
+    for index, (rewards, step) in enumerate(zip(results, timesteps)):
+        values = np.asarray(rewards, dtype=float)
+        if families is None:
+            value = score(values)
+        else:
+            try:
+                value = score(values, families[index])
+            except (IndexError, KeyError, TypeError, ValueError):
+                continue
+        if value == best:
             return int(step)
     return None
 
@@ -297,10 +317,14 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         policy_probe: Any = None,
         rollout_ledger: Any = None,
         verbose: int = 0,
+        live_command: bool = False,
     ):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for TrainingProgressCallback.")
         super().__init__(verbose)
+        # A live-command stage reports no zero-action reward: the run's zero_action_baseline.json is the stance's
+        # statue, another task's reference (decision D-D62).
+        self.live_command = bool(live_command)
         self.eval_callback = eval_callback
         self.plateau_callback = plateau_callback
         self.stage_dir = Path(stage_dir)
@@ -441,7 +465,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         }
 
     def _zero_action_reward(self) -> float | None:
-        if self.model_id is None:
+        """The run's zero-action (statue) reward for the model; ``None`` without one, or on a live-command stage."""
+        if self.model_id is None or self.__dict__.get("live_command", False):
             return None
         cached = self.__dict__.get("_zero_action_cache")
         if cached is None:
@@ -548,9 +573,20 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         if robust is not None:
             risk = float(getattr(robust, "risk_coef", 1.0))
             score = float(getattr(robust, "best_score", -math.inf))
-            out["robust_best_model_timesteps"] = _first_evaluation_scoring(
-                results, timesteps, score, lambda r: float(r.mean() - risk * r.std())
-            )
+            if getattr(robust, "command_evaluation", None) is None:
+                out["robust_best_model_timesteps"] = _first_evaluation_scoring(
+                    results, timesteps, score, lambda r: float(r.mean() - risk * r.std())
+                )
+            else:
+                # A live stage (decision D-D62): each evaluation scored by the tracker's own family-aware rule on the
+                # families it rolled, the number it compared with its best.
+                out["robust_best_model_timesteps"] = _first_evaluation_scoring(
+                    results,
+                    timesteps,
+                    score,
+                    robust.score,
+                    getattr(source, "evaluations_command_families", None) or [],
+                )
             out["robust_best_score"] = _number(score)
         return out
 
@@ -634,4 +670,5 @@ def build_training_progress_callback(
         policy_probe=policy_probe,
         rollout_ledger=rollout_ledger,
         verbose=verbose,
+        live_command=str((stage_config.get("env_kwargs", {}) or {}).get("command_mode", "none")) != "none",
     )

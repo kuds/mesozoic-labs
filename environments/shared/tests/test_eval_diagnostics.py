@@ -1,5 +1,6 @@
 """Tests for stage-aware SB3 evaluation diagnostics."""
 
+import inspect
 import logging
 import math
 from dataclasses import fields, replace
@@ -14,7 +15,6 @@ from environments.shared import eval_diagnostics as eval_diagnostics_module
 from environments.shared.eval_diagnostics import (
     StageAwareEvalCallback,
     StageGatePlateauCallback,
-    success_metric_applicable,
 )
 from environments.shared.model_id import ModelId
 
@@ -23,54 +23,54 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 
 
-class TestSuccessMetricApplicable:
-    def test_requires_positive_configured_gate(self):
-        assert success_metric_applicable({"curriculum_kwargs": {"min_success_rate": 0.5}}) is True
-        assert success_metric_applicable({"curriculum_kwargs": {"min_success_rate": 0.0}}) is False
-        assert success_metric_applicable({"curriculum_kwargs": {}}) is False
-        assert success_metric_applicable({}) is False
+class TestTaskSuccessIsNoGate:
+    """min_success_rate and task_success/v1 left with the hunt nodes (decision D-D59): success gates nothing."""
 
-    def test_task_success_kind_applies_by_kind(self):
-        """task_success/v1 gates on the sample through min_success_lcb, not a rate floor."""
-        assert success_metric_applicable(
-            {"curriculum_kwargs": {"gate_kind": "task_success/v1", "min_success_lcb": 0.5}}
-        )
+    def test_the_gate_reader_is_gone(self):
+        assert not hasattr(eval_diagnostics_module, "success_metric_applicable")
 
-    def test_the_plateau_follows_the_lcb_bar_for_a_task_success_stage(self):
-        callback, eval_callback = _plateau_callback(
-            {"gate_kind": "task_success/v1", "min_success_lcb": 0.5, "min_eval_episodes": 30, "min_avg_reward": 361.0},
-            stage=3,
-        )
-        eval_callback.evaluations_successes.append([1.0] * 20 + [0.0] * 10)
-        metric = next(m for m in callback._metrics_for_evaluation(0) if m.key == "mean_success_rate")
-        assert metric.label == "success rate (LCB95 bar)"
-        assert metric.threshold == 0.5
+    def test_the_built_evaluation_callback_never_collects_success(self):
+        gym = pytest.importorskip("gymnasium")
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3.common.monitor import Monitor
+        from stable_baselines3.common.vec_env import DummyVecEnv
 
-    @pytest.mark.parametrize(
-        "model_id",
-        [VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX],
-        ids=lambda m: f"{m.species}-{m.embodiment}",
-    )
-    def test_real_configs_enable_success_only_for_stage_three(self, model_id):
-        from environments.shared.config import load_all_stages
+        from environments.shared.eval_diagnostics import build_stage_evaluation_callbacks
 
-        configs = load_all_stages(model_id)
+        class TinyEvalEnv(gym.Env):
+            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
 
-        assert success_metric_applicable(configs[1]) is False
-        assert success_metric_applicable(configs[2]) is False
-        assert success_metric_applicable(configs[3]) is True
+        eval_env = DummyVecEnv([lambda: Monitor(TinyEvalEnv())])
+        try:
+            callback, _plateau = build_stage_evaluation_callbacks(
+                eval_env,
+                stage="walk",
+                stage_config={"curriculum_kwargs": {"min_avg_reward": 1.0}, "env_kwargs": {}},
+            )
+        finally:
+            eval_env.close()
+        # The success_applicable switch is gone with its last False (decision D-D59's amendment).
+        assert not hasattr(callback, "success_applicable")
+        assert "success_applicable" not in inspect.signature(StageAwareEvalCallback.__init__).parameters
+
+    def test_the_plateau_never_follows_success(self):
+        """A success sample beside a (retired) success floor yields no plateau metric."""
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 100.0, "min_success_rate": 0.5}, stage=3)
+        eval_callback.evaluations_results.append([200.0] * 10)
+        eval_callback.evaluations_length.append([1000.0] * 10)
+        eval_callback.evaluations_successes.append([0.0] * 10)
+        assert "mean_success_rate" not in StageGatePlateauCallback._METRIC_PRIORITY
+        assert "mean_success_rate" not in StageGatePlateauCallback._GUIDANCE
+        assert [metric.key for metric in callback._metrics_for_evaluation(0)] == ["mean_reward"]
 
 
 def _bare_stage_aware_callback(
     *,
-    success_applicable: bool,
     settle_steps: int = 0,
 ) -> StageAwareEvalCallback:
-    if success_applicable:
-        pytest.importorskip("stable_baselines3")
     callback = object.__new__(StageAwareEvalCallback)
-    callback.stage = 3 if success_applicable else 1
-    callback.success_applicable = success_applicable
+    callback.stage = 1
     callback.settle_steps = settle_steps
     callback._is_success_buffer = []
     callback.evaluations_forward_velocities = []
@@ -105,8 +105,8 @@ def _bare_stage_aware_callback(
 
 
 class TestStageAwareEvalCallback:
-    def test_inapplicable_success_does_not_populate_sb3_buffer(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+    def test_success_never_populates_the_sb3_buffer(self):
+        callback = _bare_stage_aware_callback()
 
         callback._log_success_callback(
             {"i": 0, "done": True, "info": {"is_success": True, "forward_vel": 1.0}},
@@ -115,27 +115,17 @@ class TestStageAwareEvalCallback:
 
         assert callback._is_success_buffer == []
 
-    def test_applicable_zero_success_remains_a_real_zero(self):
-        callback = _bare_stage_aware_callback(success_applicable=True)
-
-        callback._log_success_callback(
-            {"i": 0, "done": True, "info": {"is_success": False, "forward_vel": 1.0}},
-            {},
-        )
-
-        assert callback._is_success_buffer == [False]
-
     def test_captures_per_episode_mean_forward_velocity(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
 
         callback._log_success_callback({"i": 0, "done": False, "info": {"forward_vel": 1.0}}, {})
         callback._log_success_callback({"i": 0, "done": True, "info": {"forward_vel": 3.0}}, {})
 
         assert callback._current_eval_forward_velocities == [2.0]
 
-    def test_prints_na_for_inapplicable_evaluation(self, capsys):
+    def test_prints_no_success_line(self, capsys):
         pytest.importorskip("stable_baselines3")
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.eval_freq = 10
         callback.n_calls = 10
         callback.verbose = 1
@@ -143,24 +133,10 @@ class TestStageAwareEvalCallback:
         with patch.object(eval_diagnostics_module._EvalCallback, "_on_step", return_value=True):
             assert callback._on_step() is True
 
-        assert "Success rate: N/A (not an active Stage 1 gate)" in capsys.readouterr().out
+        assert "Success rate" not in capsys.readouterr().out
         assert callback.evaluations_forward_velocities == [[]]
 
-    @pytest.mark.parametrize(
-        ("success_applicable", "expected_successes", "expected_output"),
-        [
-            (False, False, "Success rate: N/A"),
-            (True, True, "Success rate: 0.00%"),
-        ],
-    )
-    def test_npz_schema_and_console_output(
-        self,
-        tmp_path,
-        capsys,
-        success_applicable,
-        expected_successes,
-        expected_output,
-    ):
+    def test_npz_schema_and_console_output(self, tmp_path, capsys):
         gym = pytest.importorskip("gymnasium")
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.monitor import Monitor
@@ -197,8 +173,7 @@ class TestStageAwareEvalCallback:
 
         callback = StageAwareEvalCallback(
             eval_env,
-            stage=3 if success_applicable else 1,
-            success_applicable=success_applicable,
+            stage=1,
             log_path=str(tmp_path),
             eval_freq=1,
             n_eval_episodes=2,
@@ -209,12 +184,9 @@ class TestStageAwareEvalCallback:
         assert callback.on_step() is True
 
         data = np.load(tmp_path / "evaluations.npz")
-        assert ("successes" in data.files) is expected_successes
-        if expected_successes:
-            assert data["successes"].shape == (1, 2)
-            assert data["successes"].tolist() == [[False, False]]
+        assert "successes" not in data.files
         assert callback.evaluations_forward_velocities == [[1.5, 1.5]]
-        assert expected_output in capsys.readouterr().out
+        assert "Success rate" not in capsys.readouterr().out
 
 
 def _plateau_callback(
@@ -260,10 +232,8 @@ def _add_evaluation(
     reward: float,
     length: float,
     forward_vel: float | None = None,
-    success_rate: float | None = None,
     n_episodes: int = 10,
     forward_vel_episodes: int | None = None,
-    success_episodes: int | None = None,
     unsupported_duty: float | None = None,
     bilateral_duty: float | None = None,
 ) -> None:
@@ -276,9 +246,6 @@ def _add_evaluation(
     if forward_vel is not None:
         count = n_episodes if forward_vel_episodes is None else forward_vel_episodes
         eval_callback.evaluations_forward_velocities.append([forward_vel] * count)
-    if success_rate is not None:
-        count = n_episodes if success_episodes is None else success_episodes
-        eval_callback.evaluations_successes.append([success_rate] * count)
     callback.num_timesteps += 50_000
     assert callback._on_step() is True
 
@@ -310,70 +277,70 @@ class TestPlateauMessagesRenderForSemanticStages:
 class TestStageGatePlateauCallback:
     def test_waits_for_full_evaluation_window(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         for _ in range(2):
-            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
+            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
 
         assert "EVALUATION PLATEAU" not in caplog.text
 
-    def test_warns_once_for_stable_blocking_success_gate(self, caplog):
+    def test_warns_once_for_stable_blocking_velocity_gate(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         with caplog.at_level("WARNING", logger="environments.shared.eval_diagnostics"):
             for _ in range(4):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
 
         warnings = [record.message for record in caplog.records if "EVALUATION PLATEAU" in record.message]
         assert len(warnings) == 1
-        assert "STAGE 3" in warnings[0]
-        assert "success rate" in warnings[0]
-        assert "latest 0.0%, required 50.0%" in warnings[0]
+        assert "STAGE 2" in warnings[0]
+        assert "forward velocity" in warnings[0]
+        assert "latest 0.000 m/s, required 0.500 m/s" in warnings[0]
         assert "Training continues" in warnings[0]
         assert callback._plateau_active is True
 
     def test_rearms_only_after_meaningful_movement(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         with caplog.at_level("WARNING", logger="environments.shared.eval_diagnostics"):
             for _ in range(3):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
-            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.1)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
+            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.1)
             for _ in range(3):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.0)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.0)
 
         warnings = [record for record in caplog.records if "EVALUATION PLATEAU" in record.message]
         assert len(warnings) == 2
         assert callback._plateau_active is True
 
-    def test_relative_range_uses_actual_success_gate_scale(self):
+    def test_relative_range_uses_actual_velocity_gate_scale(self):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
-        for success_rate in (0.0, 0.04, 0.0):
-            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=success_rate)
+        for forward_vel in (0.0, 0.04, 0.0):
+            _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=forward_vel)
 
         callback.logger.record.assert_any_call("diagnostics/eval_plateau_relative_range", pytest.approx(0.08))
 
     def test_does_not_warn_when_all_configured_gates_pass(self, caplog):
         callback, eval_callback = _plateau_callback(
-            {"min_avg_reward": 100.0, "min_success_rate": 0.5},
-            stage=3,
+            {"min_avg_reward": 100.0, "min_avg_forward_vel": 0.5},
+            stage=2,
         )
 
         with caplog.at_level("WARNING", logger="environments.shared.eval_diagnostics"):
             for _ in range(3):
-                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, success_rate=0.6)
+                _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, forward_vel=0.6)
 
         assert "EVALUATION PLATEAU" not in caplog.text
         callback.logger.record.assert_any_call("diagnostics/eval_gate_met", 1.0)
@@ -597,7 +564,7 @@ class TestStanceShareCapture:
     """
 
     def test_both_shares_are_captured_per_episode(self):
-        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=0)
+        callback = _bare_stage_aware_callback(settle_steps=0)
         # Two steps planted on both feet, then one airborne, then done.
         for forces, done in (((400.0, 400.0), False), ((400.0, 400.0), False), ((0.0, 0.0), True)):
             callback._log_success_callback(
@@ -609,7 +576,7 @@ class TestStanceShareCapture:
 
     def test_shares_sum_with_single_support(self):
         """Single support counts toward neither share, which is the point."""
-        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=0)
+        callback = _bare_stage_aware_callback(settle_steps=0)
         for forces, done in (((400.0, 0.0), False), ((400.0, 400.0), False), ((0.0, 0.0), True)):
             callback._log_success_callback(
                 {"i": 0, "done": done, "info": {"r_foot_contact": forces[0], "l_foot_contact": forces[1]}},
@@ -1078,7 +1045,7 @@ class TestDeterministicActionStatistics:
 
     def test_dc_and_ac_are_separated(self):
         """A steady offset with a tremor on top must not read as one number."""
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         # Two actuators: the first holds 0.5 and shakes +/-0.1, the second
         # holds 0.0 and is still. A pooled std cannot express that.
         self._feed(callback, [[0.6, 0.0], [0.4, 0.0]] * 10, done_at=19)
@@ -1090,7 +1057,7 @@ class TestDeterministicActionStatistics:
 
     def test_differences_invert_through_the_reward_formulas(self):
         """Sums are over actuators, so they feed straight back into the terms."""
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         # Alternating +/-1 on one actuator: |delta| = 2 every step after the
         # first, and the second difference is -/+4.
         self._feed(callback, [[1.0], [-1.0]] * 8, done_at=15)
@@ -1102,27 +1069,27 @@ class TestDeterministicActionStatistics:
 
     def test_the_settling_window_is_excluded(self):
         """Same window as the duty: the reset transient is not the tremor."""
-        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=4)
+        callback = _bare_stage_aware_callback(settle_steps=4)
         self._feed(callback, [[9.0]] * 4 + [[1.0]] * 4, done_at=7)
         callback._publish_action_statistics()
         assert callback.evaluations_action_dc[0] == pytest.approx([1.0])
 
     def test_an_evaluation_with_no_actions_records_nan_not_zero(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback._publish_action_statistics()
         assert callback.evaluations_action_dc[0] == []
         assert math.isnan(callback.evaluations_action_delta[0])
 
     def test_a_missing_actions_local_does_not_raise(self):
         """`actions` is a local of SB3's evaluate_policy, not a contract."""
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback._log_success_callback({"i": 0, "done": True, "info": {}}, {})
         callback._publish_action_statistics()
         assert callback.evaluations_action_dc[0] == []
 
     def test_episodes_do_not_leak_their_last_action_into_the_next(self):
         """The difference across an episode boundary is not a real difference."""
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         self._feed(callback, [[1.0]], done_at=0)
         self._feed(callback, [[-1.0]], done_at=0)
         callback._publish_action_statistics()
@@ -1133,7 +1100,7 @@ class TestDeterministicActionStatistics:
         assert callback._action_delta_count == 0
 
     def test_reward_terms_are_averaged_per_episode(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         self._feed(callback, [[0.0]] * 4, done_at=3, info={"reward_energy": -1.0})
         callback._publish_action_statistics()
         assert callback.evaluations_reward_terms[0] == {"reward_energy": pytest.approx(-4.0)}
@@ -1150,7 +1117,7 @@ class TestGateProgressCarriesTheNewSeries:
         return cb
 
     def test_action_statistics_and_terms_reach_the_file(self, tmp_path):
-        ev = _bare_stage_aware_callback(success_applicable=False)
+        ev = _bare_stage_aware_callback()
         ev.evaluations_action_dc = [[0.8, 0.8]]
         ev.evaluations_action_ac_rms = [[0.2, 0.2]]
         ev.evaluations_action_delta = [1.0]
@@ -1168,7 +1135,7 @@ class TestGateProgressCarriesTheNewSeries:
         assert data["action_dc_per_actuator"].shape == (1, 2)
 
     def test_a_constant_action_reports_zero_frequency_not_nan(self, tmp_path):
-        ev = _bare_stage_aware_callback(success_applicable=False)
+        ev = _bare_stage_aware_callback()
         ev.evaluations_action_dc = [[0.5]]
         ev.evaluations_action_ac_rms = [[0.0]]
         ev.evaluations_action_delta = [0.0]
@@ -1214,7 +1181,7 @@ def _pad_capturing_callback(monkeypatch, recorders, *, quota=2):
     """A bare capture callback mid-evaluation, its pad reduction replaced by one value per episode."""
     from environments.shared.gait import pad_telemetry
 
-    callback = _bare_stage_aware_callback(success_applicable=False)
+    callback = _bare_stage_aware_callback()
     callback.foot_pad_keys = PAD_KEYS
     callback._foot_setup = [(None, None, None, "layout")] * len(recorders)
     callback._pad_recorders = dict(enumerate(recorders))
@@ -1303,7 +1270,7 @@ class TestPadTelemetryCapture:
 
     def test_a_callback_without_a_model_records_no_pad_field(self):
         pytest.importorskip("stable_baselines3")
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.eval_freq = 10
         callback.n_calls = 10
         callback.verbose = 0
@@ -1313,12 +1280,12 @@ class TestPadTelemetryCapture:
         assert callback.foot_pad_keys == () and callback.leg_dc_pairs == ()
 
     def test_seeded_prior_evaluations_carry_an_empty_pad_record(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.seed_prior_history(2)
         assert callback.evaluations_foot_pad == [{}, {}]
 
     def test_an_env_that_cannot_be_recorded_warns_once_and_leaves_the_keys_empty(self, caplog):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.model_id = TYRANNOSAURUS_REX
         callback.eval_env = SimpleNamespace()  # neither a DummyVecEnv nor a wrapper of one
         with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
@@ -1615,7 +1582,7 @@ class TestSagittalLegDc:
         from environments.shared.eval_diagnostics import sagittal_leg_dc_pairs
 
         env, morphology, *_ = _mirrored_legs()
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.leg_dc_pairs = sagittal_leg_dc_pairs(env, morphology)
         callback._foot_setup = [(env, env.model, morphology, None)]
         callback.evaluations_action_dc = [[0.0] * 8, []]
@@ -1635,7 +1602,7 @@ class TestSagittalLegDc:
         assert set(callback.evaluations_leg_dc[2]) == {"leg_dc_l_minus_r_hip_pitch_deg", "leg_dc_l_minus_r_knee_deg"}
 
     def test_seeded_prior_evaluations_carry_an_empty_leg_dc_record(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.seed_prior_history(2)
         assert callback.evaluations_leg_dc == [{}, {}]
 
@@ -2011,7 +1978,7 @@ class TestTerminationCauses:
 
     def test_each_finished_episode_appends_its_cause_and_the_evaluation_publishes_them(self):
         pytest.importorskip("stable_baselines3")
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.eval_freq = 10
         callback.n_calls = 10
         callback.verbose = 0
@@ -2032,7 +1999,7 @@ class TestTerminationCauses:
         assert callback.evaluations_termination_causes == [["nosedive", "truncated"]]
 
     def test_seeded_prior_evaluations_carry_no_cause(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.seed_prior_history(2)
         assert callback.evaluations_termination_causes == [[], []]
 
@@ -2184,7 +2151,7 @@ def _screened_evaluation(traces, *, ledger_dir=None, timesteps=1000, causes=None
     from environments.shared.gait.pad_telemetry import RailFoot, RailLayout
     from environments.shared.tests.test_gait_pad_telemetry import LAYOUT
 
-    callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=100)
+    callback = _bare_stage_aware_callback(settle_steps=100)
     callback.eval_freq = 10
     callback.n_calls = 10
     callback.verbose = 0
@@ -2635,7 +2602,7 @@ class TestTheEvalEpisodeLedger:
         prior = (tmp_path / "eval_episodes.csv").read_text()
         from environments.shared.episode_ledger import EpisodeLedger
 
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         assert callback.seed_prior_record(tmp_path, max_timesteps=None) == 0  # no ledger: nothing to seed
         callback._ledger = EpisodeLedger(None, fixed_columns=eval_diagnostics_module.EVAL_LEDGER_FIXED_COLUMNS)
         assert callback.seed_prior_record(tmp_path, max_timesteps=999) == 0
@@ -2959,7 +2926,7 @@ class TestTheBalanceKeysReachGateProgress:
         assert math.isnan(callback._foot_telemetry_scalars(0)["fall_xcom_toe_lead_s"])  # no fall: NaN, still supplied
 
     def test_the_matrix_row_is_the_mean_over_the_episodes_with_a_window(self):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.foot_pad_keys = PAD_KEYS
         callback.balance_keys = ("com_fore_aft_mean_m",)
         callback._foot_setup = [(None, SimpleNamespace(nu=3), None, None)]
@@ -3000,7 +2967,7 @@ class TestTheRewardTermSplit:
 
     @staticmethod
     def _callback(episodes):
-        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback = _bare_stage_aware_callback()
         callback.horizon = 4
         callback._reset_forward_velocity_capture()
         for length, alive in episodes:
@@ -3032,7 +2999,7 @@ class TestTheRewardTermSplit:
 
 
 def test_seeded_prior_evaluations_carry_the_extensions_placeholders():
-    callback = _bare_stage_aware_callback(success_applicable=False)
+    callback = _bare_stage_aware_callback()
     callback.seed_prior_history(2)
     assert callback.evaluations_screen_v2 == [None, None]
     assert callback.evaluations_actuator_force_frac == [[], []]
