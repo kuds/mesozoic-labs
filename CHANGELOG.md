@@ -8,6 +8,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Run reports and a per-model run index.** `python -m
+  environments.shared.scripts.run_report RUN_DIR` (or `--model-dir
+  LOG_BASE/<species>/<embodiment>` for every run of a model) writes
+  `<model>/reports/<tree>/<run_id>/report.md` and `index.json`, then rebuilds
+  `<model>/reports/INDEX.md` and `index.json`, beside the run trees and
+  outside every run (the maintainer's decision of 2026-11-26). A run's page
+  gives its state, with the next step for an unfinished run (a judged run
+  without a bundle that also holds a node trained and not judged gets that
+  node's chain-loop or RESUME step, since the publish cell refuses it); a
+  row per node (verdict, gate kind, handoff, or the trunk run it was reused
+  from, linked
+  once that run's report exists, an `ancestors/` record standing for its node
+  even beside the run's own stage directory, which the page names as not
+  published); the certificate and probe lines from the `.txt` reports (the
+  stance certificates, and the walk's `command_tracking_report.txt` with each
+  family's success count); links to its figures, training history and replays;
+  and warnings: files no writer names, the declared probes a stage that
+  `generate_stage_artifacts` judged lacks (one warning per stage, with a
+  command per probe that writes under `reports/<tree>/<run_id>.probes/`), the
+  handoff checkpoint and normalization a verdict or an ancestor record names
+  that no longer exist, and records that cannot be read. Every file of the
+  post-D-D59 writers has a role, the walk's handoff choice and step trace each
+  a role of their own. A run whose recorded plant is not the model's current
+  one, as the committed generated plant manifest gives it, is stranded
+  (`run_index.plant_drift`), as is every run written before decision D-D59:
+  its page names no next step (but restoring an unreadable
+  `artifact_manifest.json`, which re-enters nothing) and no command that
+  re-judges or re-rolls it, its certified deliverables read as a record, and
+  its index row says `stranded`. A run whose `provenance.json` records
+  another plant identity only in fields no checkpoint depends on (a change to
+  the plant's appearance or source files) keeps checkpoints that load, but
+  the storage cell refuses to re-enter it, so its page says so and names no
+  such step either (`run_index.reentry_drift`). Where the plant contract
+  cannot be imported (no MuJoCo), each page says the current plant cannot be
+  read and claims nothing. The hunt stage directories such runs hold
+  (`03_behavior/`, `04_behavior/`, `stage3/`) still read as the `behavior`
+  stage, which the
+  page says no chain walks or reuses. The index lists every run grouped by
+  state, newest first, with an `unreadable` group, showing the error, for a
+  run whose records cannot be read. A run without a sealed bundle certifies
+  nothing there, and a run `run_exclusions.py` names reads `never counts`. The
+  tool only reads runs and copies sizes and digests from
+  `artifact_manifest.json` without hashing anything. It rewrites nothing whose
+  text is unchanged, and replaces a run's report folder whole, keeping the old
+  one if a build fails and copying in what another tool left there. It refuses
+  a model directory that is not a `<species>/<embodiment>` directory, a run
+  tree, and any output inside a run
+  (`environments/shared/scripts/run_report.py`).
+- **The notebooks write the reports.** The SB3 notebook rewrites the run's
+  report and the model index after every `save_run_bundle` and in the verify
+  cell, best-effort: a failure prints one warning line with the command that
+  rebuilds it. The storage cell prints the first lines of the model's
+  `reports/INDEX.md`, and an index it cannot read costs that print alone. The
+  Drive summary notebook's last cell rebuilds every model's reports and names
+  each run that fails; this is also the backfill for runs already on Drive.
+- **A map of the Drive tree, `docs/DRIVE_LAYOUT.md`.** It is a living
+  reference (the maintainer's decision of 2026-11-26) to everything under
+  `LOG_BASE`. It covers the model level (the run trees,
+  `zero_action_baselines/`, the `runs_summary.csv` files and the derived
+  `reports/` tree with its eight run states and stranded runs), the run level
+  and the stage level: the stage chains of all seven models, which end at the
+  walk, its live command and its `command_tracking/v1` files, and the hunt
+  stage directories and `task_success/v1` evidence older runs hold. Each item
+  names its writers and readers by code path. It also covers the three layout
+  generations, the quick-test, screen, pilot and scratch trees, the storage
+  cell's `RUN_ID` rules and where each came from, the placement rule and
+  retention. No retention policy is set, and inside a run only checkpoint
+  pruning in `models/` and a re-judged walk's removal of the trace and command
+  figures an earlier judgement left delete a file a writer did not just
+  write. `docs/README.md` lists it, and the root
+  README, `results/README.md`, `RESULT_BUNDLES.md`, the behavior recipes page
+  and both notebooks link it.
+- **A test that keeps the Drive map in step with the code.**
+  `environments/shared/tests/test_drive_layout.py` fails when the page cites a
+  file, a `module.name` or a private function that no longer exists, misses a
+  stage directory of any of the seven models or the gate kind, profile and
+  command mode of its walk, names a hunt directory or `task_success/v1`
+  without decision D-D59, or has a broken link to or from it. It also fails
+  when the run-state table no longer lists `run_index.RUN_STATES` in order,
+  the index's `unreadable` group goes unnamed, or the role table drifts from
+  `run_index.ROLES`.
+- **A website test for each model's images.**
+  `website/tests/animal_images.test.mjs` fails when a model of the generated
+  catalog has no still image
+  `website/static/img/animals/<species>-<embodiment>.webp`, or lacks the
+  turntable poster or the light and dark videos derived from it. Each failure
+  names the next step. The build does not catch either case, because the page
+  names the files at run time.
 - **The SB3 notebook review of 2026-11-22, with its status of 2026-11-25**
   (decision D-D63 (7)). `docs/reviews/SB3_NOTEBOOK_REVIEW_2026_11.md` is the
   cross-species review of `notebooks/sb3_training.ipynb`, the pipeline behind
@@ -3501,6 +3589,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The Drive summary notebook never walks `reports/`.** Its run walker skips
+  the reports tree at the top of each model directory.
+- **The run report reads which stance probes a stage rolls.**
+  `stage_artifacts.declared_stance_probes` names the probes a stage's
+  `[curriculum]` block switches on, by each writer's own switch (the heading
+  probe's is `stance_report.declares_heading_probe`), and a test pins that
+  they agree. `_run_stance_probes` still calls every writer, so what training
+  writes and logs is unchanged, the warning for a probe value that is not a
+  number included.
+- **The embodiment checklist covers images and statue numbers.** The 'Adding
+  an embodiment' checklist in `CONTRIBUTING.md` no longer quotes model counts.
+  It names the lines that state them: the Key Features line of `intro.md` and
+  the registration sentence of `api/overview.md`. Once the model is in the
+  manifest, every number set from a zero-action statue (such as a stance
+  `min_avg_reward` or a walk's `collapse_peak_floor_reference`) is measured
+  again on the new embodiment on the 40-seed panel the stage files cite. The
+  commands are `zero_action_baseline --episodes 40` (`--stage 2` for the
+  walk), and `stance_quality_baseline` at the stance file's
+  `reset_noise_scale`. The checklist also adds the model page's still image
+  and the `website/scripts/render_turntables.py` rerun. The species checklist
+  and the custom models page now list the image step too.
+- **`train --output-dir` help names the stage directory.** The help now reads
+  "Stage directory (overrides --log-dir)", which is what `train_base.train`
+  does with the flag. It used to read "Base output directory".
 - **The brachiosaurus and dibothrosuchus walks' collapse floors are raised
   above the stander** (decision D-D65, taken 2026-11-26,
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2). D-D62 (15)'s floor rule now measures
@@ -7520,6 +7632,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **Stale layout statements are corrected.** `RESULT_BUNDLES.md` now draws a
+  trained and a reused stance apart. It says that a run can hold both a stage
+  directory and an `ancestors/` record for one node, when its own verdict no
+  longer passes the reuse rule and the chain loop reused the trunk's node. The
+  record then stands for the node, and the stage directory is not published.
+  It also adds `zero_action_baseline.json` and says the `NN` prefix is the
+  manifest position. The Drive summary notebook and `RESULT_BUNDLES.md` now
+  put the pre-2026-03-31 flat runs, the March 2026 sweeps and the pre-rename
+  quick tests under the retired-id trees `logs/<old id>/`, which the notebook
+  skips, not under the model directories. `results/README.md` now says the
+  bundle is saved after every node, and `summary.json` is written whenever a
+  deliverable is certified. The recipes page's run tree gains the run-level
+  files. The stage-end training history has twenty pages, not nineteen. The
+  SB3 notebook's zero-action markdown and preflight cell no longer count six
+  models. The `stage_layout.py` and `stage_artifacts.py` docstrings no longer
+  count about 35 runs or say the backfill tool records every artifact. The
+  probe comment now says a runtime lost during the probes also loses the
+  training summary and bundle, which the notebook writes after the probes.
 - **The package version prefers the checkout's `pyproject.toml`** (decision
   D-D63 (4); no digest moves). `config.get_library_version` asked
   `importlib.metadata` first, so a stale editable install recorded the

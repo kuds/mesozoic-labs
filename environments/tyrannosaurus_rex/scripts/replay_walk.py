@@ -48,7 +48,9 @@ def require_a_runnable_checkout() -> None:
     accepted = inspect.signature(TyrannosaurusRexAnatomicalEnv).parameters
     refused = [name for name in PILOT4_ARGUMENTS if name not in accepted]
     with TyrannosaurusRexAnatomicalEnv() as env:
-        width = int(env.observation_space.shape[0])
+        shape = env.observation_space.shape
+    # A gymnasium Space may have no shape; the environment's Box always has one.
+    width = int(shape[0]) if shape else None
     if refused or width != PILOT4_OBSERVATION_DIM:
         raise RuntimeError(
             f"replay_walk cannot run on this checkout: the Pilot4 stage's config passes {list(PILOT4_ARGUMENTS)} "

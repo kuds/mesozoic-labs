@@ -65,12 +65,16 @@ of the current model.
 
 SB3 training runs are saved to Google Drive as portable result bundles (so were
 the JAX/MJX runs before decision D-D17 retired that backend; they still validate).
-The shared exporter captures provenance at run time, writes one canonical
-`summary.json` after the run's last stage, derives `collected_results.csv` from the
-same normalized metrics, binds selected and terminal claims to episode-level
-evidence, records the selected checkpoint (and SB3 normalization state) for
-every stage, and writes an artifact manifest last. See
-[`docs/RESULT_BUNDLES.md`](../docs/RESULT_BUNDLES.md).
+The shared exporter captures provenance at run time and saves the bundle after
+every node the training notebook trains or judges. Each save writes the
+canonical `summary.json` whenever at least one deliverable is certified,
+derives `collected_results.csv` from the same normalized metrics, binds
+selected and terminal claims to episode-level evidence, records the selected
+checkpoint (and SB3 normalization state) for every stage, and writes an
+artifact manifest last. See
+[`docs/RESULT_BUNDLES.md`](../docs/RESULT_BUNDLES.md), and
+[`docs/DRIVE_LAYOUT.md`](../docs/DRIVE_LAYOUT.md) for where each file sits on
+Drive.
 
 Files are promoted into this curated directory deliberately rather than by
 every notebook automatically. The catalog consumes `summary.json`; CSV and

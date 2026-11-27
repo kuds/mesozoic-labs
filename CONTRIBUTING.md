@@ -296,7 +296,11 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
       the model table in `docs/SPECIES_NAMING.md` and its Gymnasium ID to the
       list in `website/docs/api/overview.md` (contract tests compare the three
       lists and the `_category_.json` with the manifest), and update the
-      model counts those pages state
+      counts those pages state, as step 6 of the next section lists them
+    - Add the animal page's still image
+      `website/static/img/animals/<species>-anatomical.webp` and its rotating
+      view (`python website/scripts/render_turntables.py <species>-anatomical`),
+      as step 6 of the next section describes
 
 ## Adding an embodiment (a robot)
 
@@ -322,6 +326,21 @@ until one is adopted (the maintainer's decision of 2026-11-26):
    `stages.toml`, and every behavior recipe of the species with
    `embodiment = "robot"`. Write each file whole: never `extends` another
    embodiment's TOML (`extends` resolves only inside its own directory).
+   Once steps 3 and 4 are in place (both tools accept only a model of the
+   manifest), re-measure on the robot every number the stage files set from
+   a zero-action statue, such as a stance reward rail (`min_avg_reward`), a
+   walk's collapse floor reference (`collapse_peak_floor_reference`, beside
+   the `statue_constants_physics_revision` it was measured on, which
+   `test_statue_constant_freshness.py` checks) and each bar their comments
+   say was measured on the statue, on the 40-seed panel the stage files cite:
+   `python -m environments.shared.scripts.zero_action_baseline --model-id <species> robot --episodes 40`
+   (with `--stage 2` it scores the walk, under its live command)
+   and `python -m environments.shared.scripts.stance_quality_baseline <reset_noise_scale> 40 --model-id <species> robot`,
+   with the robot stance file's `reset_noise_scale` (the tool's default is
+   0.05; the notebook's zero-action preflight scores the same 40 episodes).
+   Never copy the anatomical model's numbers (the Compsognathus
+   robot's `stance.toml` still holds the anatomical reward target, as its
+   comment says).
 3. **The manifest table** `[species.<species>.embodiments.robot]`, with its own
    `training_backends = ["stable-baselines3"]`.
 4. **The plant table** `[plants.<species>.robot]` in
@@ -341,8 +360,16 @@ until one is adopted (the maintainer's decision of 2026-11-26):
    - a link to the model page in the model list of `website/docs/intro.md`
    - the model's row in the model table of `docs/SPECIES_NAMING.md`, and its
      Gymnasium ID in the list in `website/docs/api/overview.md`
-   - the model counts `intro.md` and `api/overview.md` state ("Six Models of
-     Five Species", "registers all six")
+   - the Key Features line of `intro.md` that counts the training models and
+     species and names them, and the sentence of `api/overview.md` that says
+     how many models `import environments` registers
+   - the still image `website/static/img/animals/<species>-robot.webp` that
+     `animalModelImage` (`website/src/data/animals.ts`) names for the model's
+     animal page, with its source in `website/static/img/animals/SOURCES.md`,
+     and the rotating view: `python website/scripts/render_turntables.py <species>-robot`
+     renders it from the robot's MJCF into `website/static/videos/turntables/`
+     (`website/tests/animal_images.test.mjs` fails for a catalog model
+     without both)
    - the robot page's text in
      `website/src/components/AnimalPage/interpretation.ts`: a `robot` entry
      under the species (the page header) and, in its `studies`, a label for

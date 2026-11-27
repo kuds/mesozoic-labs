@@ -354,7 +354,8 @@ def _namespace(
     quick_test: bool = False,
 ) -> dict[str, Any]:
     """What the publish cell reads after sections 1-6: the resolve cell's chain (``MANIFEST.resolve_behavior``,
-    ``chain_for``), the storage cell's run and seeds, and the helpers cell's real wrappers over the library."""
+    ``chain_for``), the storage cell's run, seeds and ``LOG_BASE``, and the helpers cell's real wrappers over the
+    library, ``save_run_bundle``'s run report (``write_run_report_quietly``) included."""
     manifest = load_stage_manifest(model_id)
     target = manifest.resolve_behavior(behavior)
     calls: list[dict[str, Any]] = []
@@ -372,6 +373,8 @@ def _namespace(
     namespace: dict[str, Any] = {
         "Path": Path,
         "RUN_DIR": run_dir,
+        # The storage cell's log base: <LOG_BASE>/<species>/<embodiment>/<tree>/<run_id>.
+        "LOG_BASE": run_dir.parents[3],
         "_ACTIVE_RUN_ID": run_dir.name,
         "MODEL_ID": model_id,
         "BEHAVIOR": behavior,
@@ -397,7 +400,7 @@ def _namespace(
         "bundle_calls": calls,
     }
     infra = _cell(INFRA_CELL_MARKER)
-    for name in ("chain_results", "write_training_summary", "save_run_bundle"):
+    for name in ("chain_results", "write_training_summary", "write_run_report_quietly", "save_run_bundle"):
         exec_top_level_def(infra, name, namespace)
     return namespace
 
@@ -637,16 +640,32 @@ class TestRefusals:
         [_, walk] = namespace["bundle_calls"][0]["stage_results_list"]
         assert walk["model_path"] == str(locomotion / "models" / "best_model")
 
-    @pytest.mark.parametrize("held", ["nothing", "unjudged checkpoints", "an ancestor record of the target"])
-    def test_an_unjudged_node_is_refused_by_name_before_anything_is_written(self, tmp_path, held):
+    @pytest.mark.parametrize(
+        "held", ["nothing", "unjudged checkpoints", "an evaluated, unjudged node", "an ancestor record of the target"]
+    )
+    def test_an_unjudged_node_is_refused_by_name_before_anything_is_written(self, tmp_path, monkeypatch, held):
         """Walk on the velociraptor: stance judged here, locomotion (the target) not judged. The chain loop judges a
-        finished node and trains a missing one; an ancestors/ record never stands in for the target (D-A18)."""
+        finished node and trains a missing one; an ancestors/ record never stands in for the target (D-A18). The run's
+        report names the step that judges a trained node, never this cell, which refuses the run."""
+        from environments.shared.reporting import run_index
+
+        from .test_run_index import _committed_entry
+
+        monkeypatch.setattr(run_index, "_committed_plant", lambda model: _committed_entry(_plant(model).to_dict()))
         run_dir = _run_dir(tmp_path, VELOCIRAPTOR_MONGOLIENSIS)
         configs = _judged_run(run_dir, VELOCIRAPTOR_MONGOLIENSIS, (1,))
+        # The plant the stance trained on, as config.save_stage_config records it: the current one here.
+        (run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, 1) / "plant_identity.json").write_text(
+            json.dumps(_plant(VELOCIRAPTOR_MONGOLIENSIS).to_dict()), encoding="utf-8"
+        )
         locomotion = run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, 2)
-        if held == "unjudged checkpoints":
+        if held in ("unjudged checkpoints", "an evaluated, unjudged node"):
             (locomotion / "models").mkdir(parents=True)
             (locomotion / "models" / "stage2_final.zip").write_bytes(b"trained, never judged")
+            (locomotion / "models" / "stage2_final_vecnorm.pkl").write_bytes(b"its statistics")
+        if held == "an evaluated, unjudged node":
+            # The runtime was lost after the evaluation, during the walk's command panel, before the verdict.
+            (locomotion / "evaluation_selected.csv").write_text("episode,reward\n0,1.0\n", encoding="utf-8")
         elif held == "an ancestor record of the target":
             _write_ancestor_record(run_dir, 2, source_run_dir=run_dir.parent / "20261101_000000")
         before = _files(run_dir)
@@ -659,6 +678,29 @@ class TestRefusals:
         assert "re-run sections 2-3 and the helpers cell" in message
         assert "the target is never reused from another run (D-A18)" in message
         assert _files(run_dir) == before and namespace["bundle_calls"] == [] and namespace["NODE_RESULTS"] == {}
+        page = run_index.render_run_report(run_dir)
+        assert "**State: judged_no_bundle.**" in page
+        if held in ("nothing", "an ancestor record of the target"):
+            assert (
+                "writes the training summary and the bundle from the verdicts the run holds, once every node of "
+                "`BEHAVIOR`'s chain down to its first failed verdict is judged here or reused (it refuses the run "
+                "otherwise)"
+            ) in page
+            return
+        step = {
+            "unjudged checkpoints": 'Next: re-enter the run (`RUN_ID = "20261121_175147"`): the chain loop judges a '
+            "node whose final pair is intact, and section 5's RESUME cell (`RESUME_STAGE`) first finishes one cut "
+            "off before its final pair",
+            "an evaluated, unjudged node": 'Next: re-enter the run (`RUN_ID = "20261121_175147"`) and run the chain '
+            "loop: it judges a node that was trained but never gated (an intact final pair and no verdict), then saves "
+            "the bundle",
+        }[held]
+        unjudged = (
+            "The run holds `locomotion` (`02_locomotion/`) trained and not judged, and the publish cell refuses a run "
+            "while a node of its chain is not judged."
+        )
+        assert f"{step}. {unjudged}" in page
+        assert "publish cell (section 6" not in page
 
     def test_a_run_that_holds_no_node_is_refused_as_a_run_id_mistake(self, tmp_path):
         """RUN_ID = "" in a fresh runtime lets the storage cell open a new run, which holds only its provenance and the
@@ -738,11 +780,17 @@ class TestPublishing:
     @pytest.mark.parametrize("model_id", MODELS, ids=str)
     @pytest.mark.parametrize("tree", ["ppo", "ppo_screen", "ppo_quick_test"])
     def test_a_run_cut_off_before_its_bundle_is_sealed_without_touching_a_stage_file(
-        self, tmp_path, capsys, model_id, tree
+        self, tmp_path, capsys, monkeypatch, model_id, tree
     ):
         """The r11 T. rex stance case, for every model and every run tree: the stance verdict, summary, figures and
         replays are on disk and the stance probes are not (the runtime ended during them). The bundle appears,
-        complete, and verifies; the stage directory is byte-for-byte what it was."""
+        complete, and verifies; the stage directory is byte-for-byte what it was. The helpers' plant is the current
+        one here, as for a run trained on this checkout, so the run report reads the run as not stranded."""
+        from environments.shared.reporting import run_index
+
+        from .test_run_index import _committed_entry
+
+        monkeypatch.setattr(run_index, "_committed_plant", lambda model: _committed_entry(_plant(model).to_dict()))
         run_dir = _run_dir(tmp_path, model_id, tree)
         configs = _judged_run(run_dir, model_id, (1,))
         stage_dir = run_dir / stage_dirname(model_id, 1)
@@ -766,6 +814,11 @@ class TestPublishing:
         out = capsys.readouterr().out
         assert "Result bundle published and checked: complete (canonical-valid), target 'stance'" in out
         assert "  stance: certified, 1 run of 1 seed" in out
+        # save_run_bundle then wrote the run's report and the model's index outside the run, which still verifies.
+        reports = model_id.path(tmp_path / "logs") / "reports"
+        assert f"Run report: {reports / tree / run_dir.name / 'report.md'}" in out
+        assert "**State: complete.**" in (reports / tree / run_dir.name / "report.md").read_text(encoding="utf-8")
+        assert f"| {run_dir.name} | {tree} | complete | stance |" in (reports / "INDEX.md").read_text(encoding="utf-8")
         # The summary's sim time is the episode length times the node's own control step (a verdict records none:
         # the cell takes it from a bare env of the task, 0.02 s for the Compsognathus pair, 0.01 s for the rest).
         summary = (run_dir / "training_summary.txt").read_text(encoding="utf-8")

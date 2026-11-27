@@ -296,3 +296,10 @@ python -m environments.shared.species_catalog --check
 The check also confirms that every implemented model is represented in the
 manifest and that all declared configs, notebooks, videos, and summaries are
 valid.
+
+The model's animal page also needs a still image and a rotating view, which
+the generator does not make: the still is
+`website/static/img/animals/<species>-<embodiment>.webp`, and
+`python website/scripts/render_turntables.py <species>-<embodiment>` renders
+the view from the model's MJCF into `website/static/videos/turntables/`.
+`npm test` in `website/` fails for a catalog model without them.

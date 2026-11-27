@@ -569,12 +569,12 @@ bundle from its verdict, as the loop's reuse does (the walk's from its
 `command_tracking/v1` verdict), and a missing report-only file, such as a
 probe the cut-off skipped, does not block it.
 
-**Walk on a stance trunk.** An earlier run `20260901_120000` certified
+**Walk on a stance trunk.** An earlier run `20261127_150000` certified
 stance for the Velociraptor under PPO. In a fresh session:
 
 ```python
 BEHAVIOR = "walk"
-TRUNK_FROM = "20260901_120000"
+TRUNK_FROM = "20261127_150000"
 ```
 
 The chain is `stance -> locomotion`. The loop reuses the trunk's stance if
@@ -775,25 +775,41 @@ or embodiment, algorithm or backend.
 
 ## What a run directory holds
 
-After a notebook run that reused a trunk's stance, a T-Rex run directory
+After a notebook walk run that reused a trunk's stance, a T-Rex run directory
 (under `<LOG_BASE>/tyrannosaurus_rex/anatomical/ppo/`) looks like this:
 
 ```
-20260912_120000/
+20261128_120000/
+├── provenance.json             deliverables {locomotion}, with certified;
+│                               ancestors {stance} — reused, still published by run 20261127_150000
+├── plant_identity.json, trunk_run.json, zero_action_baseline.json,
+│   collected_results.csv, training_summary.txt
+├── summary.json                written whenever anything certified; status complete | partial
+├── artifact_manifest.json      the bundle's status and every file's hash; written last
 ├── ancestors/
-│   └── stance/                 reused from run 20260901: ancestor.json + copies of its
+│   └── stance/                 reused from run 20261127_150000: ancestor.json + copies of its
 │       ├── ancestor.json         gate_verdict, stage_config, task_fingerprint, plant_identity
 │       └── ...                   (never the checkpoint)
-├── 03_locomotion/
-│   ├── models/robust_best_model.zip + _vecnorm.pkl
-│   ├── stage_config.json       run block: load_mode = initialize_next_stage,
-│   │                             parent_checkpoint_sha256 = the stance digest, parent_run_id
-│   └── gate_verdict.json       passed, hash-bound to the handoff pair above; the target,
-│                                 always trained here
-├── provenance.json             deliverables {locomotion}, with certified;
-│                               ancestors {stance} — reused, still published by run 20260901
-└── summary.json                written whenever anything certified; status complete | partial
+└── 03_locomotion/              NN is the node's manifest position; 02 is recovery, off this chain
+    ├── models/                 the robust_best_model, best_model and final pairs (.zip + _vecnorm.pkl)
+    │                             and handoff_choice.json, the pair the gated statistic chose (D-D61)
+    ├── stage_config.json       run block: load_mode = initialize_next_stage,
+    │                             parent_checkpoint_sha256 = the stance digest, parent_run_id
+    └── gate_verdict.json       passed, hash-bound to the handoff pair above; the target,
+                                  always trained here
 ```
+
+A run that trained its stance holds `01_stance/` instead of
+`ancestors/stance/`. A run can hold both when its own stance verdict failed or
+no longer passes the reuse rule and the chain loop then reused the trunk's
+certified stance: the record stands for the node, and the bundle records
+stance as reused (published by the trunk run), never as trained in this run.
+A run written before decision D-D59 may also hold the hunt's `04_behavior/`;
+like every run of that time, its checkpoints load on no current plant, and
+its run report marks it stranded.
+[docs/DRIVE_LAYOUT.md](https://github.com/kuds/mesozoic-labs/blob/main/docs/DRIVE_LAYOUT.md)
+maps the whole tree under `<LOG_BASE>`, from the model directory down to each
+stage directory's files, with what writes and what reads each one.
 
 The `run` block of each `stage_config.json` records:
 

@@ -142,6 +142,16 @@ class TestMainDispatch:
             main(species_cfg)
             mock_train.assert_called_once()
 
+    def test_train_output_dir_help_names_the_stage_directory(self, species_cfg, capsys):
+        """``train --output-dir`` is the stage directory itself and wins over ``--log-dir``
+        (``train_base.train``), so the help says so: it was "Base output directory"."""
+        with pytest.raises(SystemExit) as excinfo, patch("sys.argv", ["prog", "train", "--help"]):
+            main(species_cfg)
+        assert excinfo.value.code == 0
+        help_text = " ".join(capsys.readouterr().out.split())
+        assert "--output-dir OUTPUT_DIR Stage directory (overrides --log-dir)" in help_text
+        assert "Base output directory" not in help_text
+
     def test_curriculum_command(self, species_cfg):
         """main() with 'curriculum' should call train_curriculum()."""
         mock_curriculum = MagicMock()
