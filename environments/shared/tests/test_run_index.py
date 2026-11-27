@@ -1625,6 +1625,36 @@ def test_the_storage_cell_prints_the_first_lines_of_the_model_index(tmp_path, mo
     assert f"Run index:     {index} cannot be read (" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("code", ("EACCES", "EIO"))
+def test_the_storage_cell_survives_a_model_index_it_cannot_reach(tmp_path, monkeypatch, capsys, code):
+    """Drive FUSE can fail a stat or a read of reports/INDEX.md with EIO, and a reports/ folder the session may not
+    search fails one with EACCES: the storage cell prints one line and finishes, RUN_DIR set, so Run all goes on."""
+    import errno
+
+    from .test_run_id_rules import _run_storage, _storage_namespace
+
+    model_id = COMPSOGNATHUS_LONGIPES_ROBOT
+    index = model_id.path(tmp_path / "logs") / "reports" / "INDEX.md"
+    index.parent.mkdir(parents=True)
+    index.write_text("# Runs\n", encoding="utf-8")
+    number = getattr(errno, code)
+
+    def failing(real):
+        def call(self, *args, **kwargs):
+            if self.name == "INDEX.md":
+                raise OSError(number, os.strerror(number), str(self))
+            return real(self, *args, **kwargs)
+
+        return call
+
+    namespace, _ = _storage_namespace(tmp_path, monkeypatch, model_id)
+    monkeypatch.setattr(Path, "stat", failing(Path.stat))
+    monkeypatch.setattr(Path, "read_text", failing(Path.read_text))
+    _run_storage(namespace)
+    assert f"Run index:     {index} cannot be read ([Errno {number}] " in capsys.readouterr().out
+    assert namespace["RUN_DIR"].is_dir()
+
+
 # ---------------------------------------------------------------------------------------------- the Drive summary
 def test_the_drive_walker_never_enters_the_reports_tree(tmp_path, monkeypatch):
     from environments.shared.stage_manifest import stage_ref_from_dirname
