@@ -305,7 +305,11 @@ species: it shares the species' base class, task, rewards, stage graph and
 docs, and adds its own body. It takes exactly these, and nothing in
 `environments/shared/` beyond its per-model test tables (step 7), CI,
 `pyproject.toml`, pre-commit, the website sidebar or the notebooks (the
-notebook's `EMBODIMENT` dropdown already offers `robot`):
+notebook's `EMBODIMENT` dropdown already offers `robot`). Only the adopted
+design takes these steps: a species has one robot model, and alternative
+designs studied in parallel (the [hardware notes](docs/hardware/README.md)
+compare 75 cm and 60 cm bodies) stay in `examples/` or on hardware branches
+until one is adopted (the maintainer's decision of 2026-11-26):
 
 1. **The package** `environments/<species>/robot/`:
    - `__init__.py`
@@ -339,6 +343,12 @@ notebook's `EMBODIMENT` dropdown already offers `robot`):
      Gymnasium ID in the list in `website/docs/api/overview.md`
    - the model counts `intro.md` and `api/overview.md` state ("Six Models of
      Five Species", "registers all six")
+   - the robot page's text in
+     `website/src/components/AnimalPage/interpretation.ts`: a `robot` entry
+     under the species (the page header) and, in its `studies`, a label for
+     every stage whose species label does not fit the robot (the page shows
+     the species label otherwise; `website/tests/animal_interpretation.test.mjs`
+     checks that every robot model has the entry)
 7. **The tests:** the entries the per-model test tables ask for when their
    coverage assertions name the new model, and robot-specific tests in
    `environments/<species>/tests/` (already in CI and `testpaths`).

@@ -4,7 +4,10 @@ High-level notes on the robot versions of the simulated species: the parts and c
 happened and what was learned. This repository holds simulation only; hardware implementation will get its own
 repository. Nothing has been built or bought: every result is from simulation or a desk estimate. The one robot model
 kept here is the Compsognathus revision B ([model](../../environments/compsognathus_longipes/README.md),
-[design record](../reviews/COMPSOGNATHUS_ROBOT_DESIGN.md)).
+[design record](../reviews/COMPSOGNATHUS_ROBOT_DESIGN.md)). Only the adopted design becomes a species' robot model (its
+one `robot` embodiment, [species naming](../SPECIES_NAMING.md)): alternative designs studied in parallel, such as the
+75 cm and 60 cm bodies below, stay in `examples/` or on hardware branches until one is adopted (the maintainer's
+decision of 2026-11-26).
 
 ## Where things stand
 

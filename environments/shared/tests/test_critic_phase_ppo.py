@@ -22,7 +22,7 @@ from stable_baselines3 import PPO  # noqa: E402
 from stable_baselines3.common.buffers import RolloutBuffer  # noqa: E402
 from stable_baselines3.common.callbacks import BaseCallback  # noqa: E402
 from stable_baselines3.common.monitor import Monitor  # noqa: E402
-from stable_baselines3.common.policies import ActorCriticPolicy  # noqa: E402
+from stable_baselines3.common.policies import ActorCriticPolicy, BaseModel  # noqa: E402
 from stable_baselines3.common.running_mean_std import RunningMeanStd  # noqa: E402
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize  # noqa: E402
 
@@ -304,8 +304,6 @@ def _with(obs: np.ndarray, phase: np.ndarray) -> np.ndarray:
 
 
 def test_the_actor_is_exactly_blind_to_the_phase_on_every_path(mirror_map):
-    from environments.shared.k3_panel import policy_mean_action
-
     model = MK.enable_mirror_kl(_make(), SY.SymmetryConfig(), mirror_map)
     model.learn(total_timesteps=64)  # one update: trained weights, the mirror installed
     policy = model.policy
@@ -338,10 +336,13 @@ def test_the_actor_is_exactly_blind_to_the_phase_on_every_path(mirror_map):
         np.testing.assert_array_equal(
             model.predict(o62.numpy()[0], deterministic=True)[0], model.predict(obs[0], deterministic=True)[0]
         )
-        # The K3 panel's (and the judge's) forward pass on the 59 inputs, one row as it runs it.
+        # The offline judges' forward pass on the 59 inputs, one row as they run it: the actor's features, its
+        # latent and action_net, not predict().
         with torch.no_grad():
             single = policy.get_distribution(o62[:1]).mode().numpy()[0].astype(np.float64)
-        np.testing.assert_array_equal(policy_mean_action(policy, obs[0]), single)
+            features = BaseModel.extract_features(policy, torch.as_tensor(obs[:1]), policy.pi_features_extractor)
+            judged = policy.action_net(extractor.forward_actor(features)).numpy()[0].astype(np.float64)
+        np.testing.assert_array_equal(judged, single)
         # MirrorKLPPO's mirrored KL term and mirrored critic on the stored rows.
         update = model._mirror_begin_update()
         rollout = SimpleNamespace(observations=o62, returns=torch.zeros(16))

@@ -43,7 +43,7 @@ import math
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+from typing import Any, Callable, Mapping
 
 from .constants import (
     DEFAULT_CLIP_OBS,
@@ -80,9 +80,6 @@ from .tb_sync import (  # noqa: F401  (used internally; test_train_base also imp
     _mirror_remote_run_dirs,
     _sync_tb_to_gcs,
 )
-
-if TYPE_CHECKING:
-    from .k3_panel import K3PanelConfig
 
 logger = logging.getLogger(__name__)
 
@@ -1106,8 +1103,6 @@ def _build_core_callbacks(
     total_timesteps: int | None = None,
     seed: int | None = None,
     policy_probe_env_factory: Callable[[int], Any] | None = None,
-    k3_panel: "K3PanelConfig | None" = None,
-    k3_panel_env_factory: Callable[[], Any] | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
@@ -1132,9 +1127,7 @@ def _build_core_callbacks(
     ``policy_probe_env_factory(horizon)`` builds a bare env of the stage
     with that ``max_episode_steps`` and any scheduled pushes off
     (``policy_probe.bank_env_kwargs``), the policy probe's state-bank env
-    (``None``: no probe).  ``k3_panel`` is the launch-time option that turns
-    the in-run K3 noise panel on (``None``, the default: off), and
-    ``k3_panel_env_factory()`` builds its bare env of the stage.
+    (``None``: no probe).
     """
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
@@ -1153,7 +1146,6 @@ def _build_core_callbacks(
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
-    from .k3_panel import build_k3_panel_callback
     from .policy_probe import build_policy_probe_callback
     from .rollout_ledger import build_training_ledger_callback
     from .tb_sync import PeriodicTbSyncCallback
@@ -1310,27 +1302,6 @@ def _build_core_callbacks(
             archive_every_timesteps=checkpoint_archive_every(stage_config.get("curriculum_kwargs", {})),
         )
     )
-
-    # Report-only, and off unless the launch enables it (no stage TOML key, so
-    # no digest moves): the stance5 replication judge's two K3 noise tests (20
-    # spawns each, own-sigma and joint-space) on a CPU copy of the live policy
-    # and a copy of the normalizer's statistics, in an env of its own, at
-    # every 1,048,576 steps and at training end (after the final save, by
-    # _roll_final_k3_panels), into k3_panel.csv/.json.
-    # After the checkpoint callbacks, so a checkpoint pair saved at the same
-    # step is on disk first; it reads the same weights and statistics.  No
-    # global draw, no env of the run touched.  See `k3_panel`.
-    k3_panel_cb = build_k3_panel_callback(
-        k3_panel,
-        model_id=model_id,
-        stage=stage,
-        stage_config=stage_config,
-        env_factory=k3_panel_env_factory,
-        log_dir=log_path,
-        verbose=verbose,
-    )
-    if k3_panel_cb is not None:
-        callbacks.append(k3_panel_cb)
 
     callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
 
@@ -1733,7 +1704,6 @@ def _train_stage_body(
     stage_callback: Callable[..., Any] | None = None,
     save_on_interrupt: bool,
     announce: bool,
-    k3_panel: "K3PanelConfig | None" = None,
     before_learn: Callable[[], Any] | None = None,
 ) -> _TrainedStage:
     """Train one stage: the body :func:`train` and :func:`train_curriculum` share (cleanup CU-10b).
@@ -1768,9 +1738,7 @@ def _train_stage_body(
     logs ``train()``'s own lines (the environments being created, the model
     architecture, the start of training, "Training ended early"); without
     it the early end is logged as the curriculum logs it, naming the stage.
-    ``k3_panel`` (``train()``'s launch option; ``None``: off) adds the in-run
-    K3 noise panel (:mod:`~environments.shared.k3_panel`) on its own env of
-    the stage.  ``before_learn`` is called once the model has loaded and the
+    ``before_learn`` is called once the model has loaded and the
     callbacks are built, just before ``learn()``: ``train()`` records a
     same-stage resume's session there
     (:func:`~environments.shared.config.record_resume_session`), so a load
@@ -1967,10 +1935,6 @@ def _train_stage_body(
         policy_probe_env_factory=lambda horizon: species_cfg.env_class(
             **bank_env_kwargs(config["env_kwargs"], horizon)
         ),
-        # The K3 panel's env is the judge's: the stage's own kwargs unchanged,
-        # a fresh bare env per test per panel, never a training or evaluation env.
-        k3_panel=k3_panel,
-        k3_panel_env_factory=lambda: species_cfg.env_class(**config["env_kwargs"]),
     )
 
     if resuming:
@@ -1999,13 +1963,6 @@ def _train_stage_body(
                 log_path,
             )
         seed_resume_eval_state(eval_callback, callbacks, seed_path, max_timesteps=loaded_steps)
-        # The K3 panel's catch-up at training start reads the restored pair's
-        # statistics, copied here: learn() resets the training env first, and
-        # VecNormalize updates its statistics with the reset observations.
-        for callback in callbacks:
-            hold = getattr(callback, "hold_restored_normalization", None)
-            if callable(hold):
-                hold(model.get_vec_normalize_env())
 
     # The decay anchor is an ABSOLUTE step count.  On a resume the default
     # (when the TOML sets no ent_coef_decay_timesteps) must be the cumulative
@@ -2116,19 +2073,6 @@ def _train_stage_body(
     if interrupted:
         _flush_report_records(callbacks)
 
-    # Report only: the in-run K3 panel's final panel reads the final weights
-    # and statistics, so it runs here, with the final pair on disk, not in
-    # learn() (about 85 s on a real stance policy, a window in which an
-    # interruption would leave no final pair).  Not after an interruption.
-    if not interrupted:
-        try:
-            _roll_final_k3_panels(callbacks)
-        except KeyboardInterrupt:
-            if not save_on_interrupt:
-                raise
-            logger.warning("The final K3 panel was interrupted by the user; the final checkpoint pair is saved.")
-            interrupted = True
-
     # A command_tracking/v1 stage (decision D-D61) hands on the checkpoint its
     # gated statistic chooses, not the reward-chosen one: each complete
     # candidate (robust_best_model, best_model, the final pair) is rolled on
@@ -2173,10 +2117,9 @@ def _flush_report_records(callbacks: "list[Any]") -> None:
     ``learn()`` calls no ``on_training_end`` when a ``KeyboardInterrupt``
     leaves it, which is where ``eval_episodes.csv``, ``train_episodes.csv``
     and ``policy_probe.npz`` are written last.  Called after the final save.
-    A second Ctrl-C here is logged, as one during the final K3 panel is, and
-    leaves the records not yet rewritten as their last periodic write left
-    them, each whole (the writes are atomic).  A failure is logged (report
-    only).
+    A second Ctrl-C here is logged and leaves the records not yet rewritten
+    as their last periodic write left them, each whole (the writes are
+    atomic).  A failure is logged (report only).
     """
     for callback in callbacks:
         flush = getattr(callback, "flush_records", None)
@@ -2192,18 +2135,6 @@ def _flush_report_records(callbacks: "list[Any]") -> None:
             return
         except Exception:  # noqa: BLE001 - a report must not sink a run
             logger.warning("A report record could not be rewritten after the interrupt.", exc_info=True)
-
-
-def _roll_final_k3_panels(callbacks: "list[Any]") -> None:
-    """Roll the in-run K3 panel's final panel on each callback that has one (report only; a failure is logged)."""
-    for callback in callbacks:
-        roll = getattr(callback, "roll_final_panel", None)
-        if not callable(roll):
-            continue
-        try:
-            roll()
-        except Exception:  # noqa: BLE001 - a report must not sink a run
-            logger.warning("K3 panel: the final panel could not be rolled.", exc_info=True)
 
 
 def _warn_on_heading_probe_handoff(parent_stage_dir: "str | Path", *, stage: "int | str") -> None:
@@ -2255,7 +2186,6 @@ def train(
     vecnorm_path: str | None = None,
     report_metrics: bool = True,
     save_on_interrupt: bool = True,
-    k3_panel: "K3PanelConfig | None" = None,
 ):
     """Train a single stage of the curriculum.
 
@@ -2343,14 +2273,6 @@ def train(
     finishes the stage from the periodic checkpoints).  Everything from the
     environments to the final save is :func:`_train_stage_body`, which the
     command-line curriculum runs for each node it trains (cleanup CU-10b).
-
-    ``k3_panel`` turns on the in-run K3 noise panel
-    (:class:`~environments.shared.k3_panel.K3PanelConfig`; the notebook's
-    ``K3_PANEL`` cell and ``--k3-panel`` on the command line): report only,
-    ``None`` (the default) leaves it off, and it is a launch option, never a
-    stage key, so no digest records it.  It runs on the stage its
-    ``stage`` names (the stance) and writes ``k3_panel.csv`` and
-    ``k3_panel.json`` beside the ledgers.
     """
     stage_start = time.monotonic()
     _validate_post_eval_episodes(post_eval_episodes)
@@ -2560,7 +2482,6 @@ def train(
         allow_legacy_plant=allow_legacy_plant,
         save_on_interrupt=save_on_interrupt,
         announce=True,
-        k3_panel=k3_panel,
         before_learn=(
             (lambda: record_resume_session(log_path, load_path=str(load_path), timesteps=total_timesteps))
             if continues_record

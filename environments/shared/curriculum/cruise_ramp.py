@@ -22,7 +22,7 @@ the start fraction and rises linearly to 1 over the ramp's timesteps
   ``BaseDinoEnv.set_command_config``, from before ``learn()``'s first reset
   (:meth:`CruiseRampCallback.prime`), so the first episodes are drawn at the
   session's fraction.  The evaluation env, the selection and certification
-  panels, the policy-probe and K3 envs keep the stage's declared config: the
+  panels and the policy-probe env keep the stage's declared config: the
   handoff is chosen and certified on the end state, which is the task the
   fingerprint names, and an evaluation that followed the ramp would rank
   checkpoints on an easier task than the one they are chosen on.

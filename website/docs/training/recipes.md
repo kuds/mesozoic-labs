@@ -220,6 +220,77 @@ published by the run that certified them (D-A18) and appear here only under
 `provenance.ancestors`, so a trunked run whose target fails has nothing
 certified to publish.
 
+### Before a walk: the warm-start noise scan
+
+A walk node (`locomotion`, recipe `walk`) warm-starts PPO from its parent's
+handoff and keeps the parent's learned action std, `exp(log_std)`. With too
+little noise the walk explores nothing: the T-Rex's walking pilot 1 stood
+still on all three seeds from a parent of std 0.095. With too much, the
+parent falls at once: walking pilot 3's parent stood in 9 of 120 episodes at
+a uniform `log_std` of −1.5. `[curriculum] warm_start_log_std` in the walk's
+TOML resets every actuator's `log_std` at the warm start. No committed walk
+stage declares it.
+
+`environments/shared/scripts/warm_start_noise_scan.py` measures how much
+noise a parent tolerates in the walk's own env, for any model, before its
+first walk:
+
+```bash
+python -m environments.shared.scripts.warm_start_noise_scan \
+  --species velociraptor_mongoliensis --embodiment anatomical \
+  --stage-dir logs/<run>/01_stance --jobs 4 --out-dir scratch/noise_scan
+```
+
+It loads the stage's handoff pair (or `--model` and `--vecnorm`), checked
+against the current plant, into the walk stage's env, built from its
+committed config with the parent's VecNormalize statistics frozen. The env
+and the policy are set as a fresh walk starts training. Every walk is a
+live command walk, so the env draws its commands from the cruise ramp's
+start: the walk's own commands at 0.25 of their speeds, each reset seed's
+own draw (on the default seeds 3042–3081, three of them, 3052, 3060 and
+3074, draw a stand on every committed walk, against the walk's 15% stop
+probability). As training does, the scan zeroes the stance's weights on the
+command inputs, which never trained, and checks that the policy then
+ignores the command. So the commands change the return, never an action,
+and the stand counts measure the policy the walk starts from. Two reference
+settings come first: the policy's mean action with no noise, and the
+parent's own learned `log_std`. Each further setting writes one value
+into every actuator's `log_std`, in memory only. By default the grid has
+two passes. The first rounds the parent's largest learned `log_std` to a
+multiple of 0.125 and runs from 0.5 below it to 1.0 above it in steps of
+0.25, 7 values. The second adds one value 0.125 above the largest that stood
+every episode, as walking pilot 3 added −1.875 between its −2.0 and −1.75
+(`--log-std` names other values, rolled as given). Each noisy setting rolls
+seeds 3042–3081 in three noise streams, 120 episodes, with actions sampled
+from the policy's own distribution, up to the walk's episode length. An
+episode stands when it reaches that horizon without a termination. The tool
+prints a table and writes it with a JSON file into `--out-dir`. The table
+gives the stand counts per stream, the causes of the early ends, and the
+lift-offs and slide of the standing episodes. Below it is the largest grid
+value at which every episode stood. If a smaller value fell, the line also
+names the largest value with every smaller value standing too. While it
+runs, `warm_start_noise_scan.partial.json` holds the settings finished so
+far, so an interrupted scan keeps what it measured; the scan creates it
+before its first setting rolls, so a second scan started into the same
+directory at the same time is refused before it rolls. The tool refuses an
+output directory inside a run or one that already holds a scan, finished,
+running or interrupted, and it changes no config. The default scan is at
+most 1.12 million control steps on the T-Rex, about 26 minutes of one CPU
+on the machine it was measured on; a Colab CPU runtime is slower, and
+`--jobs N` divides the time. Run it as a session of its own once the
+parent's run is certified and published, not inside a training session:
+only a certified stance is a walk's parent, and the scan needs no GPU. An
+11M-step T-Rex stance trains in about 21h11m–21h31m on an L4, and setup,
+its certificate and its bundle take about 50 minutes more, so a training
+session ends with about 1.6 to 2 hours of Colab's 24-hour limit left:
+margin for a slow session, not time for a scan whose rate on a Colab CPU
+has not been measured.
+
+Whether to declare `warm_start_log_std` from a scan is the maintainer's
+decision, per model. A value does not carry from one model or plant
+revision to another: walking pilot 3's −2.0 was measured on a physics-r10
+T-Rex parent, and r11 changed the T-Rex legs.
+
 ## The reuse rule
 
 `environments/shared/ancestors.py` owns the rule; `curriculum --trunk-from`
@@ -345,7 +416,7 @@ BEHAVIOR = "auto"  # the model's final deliverable, a recipe label, or a deliver
 TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
-RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run (letters, digits, _ and - only; refused if, in this ALGORITHM's trees, it names only another model's run: SPECIES and EMBODIMENT pick the model); an existing run id re-enters that run to finish an interrupted or partial run (section 5)
 RUN_KIND = "certify"  # "certify" = a run that may certify, under <algo>/, the tree TRUNK_FROM = "auto" and seed replication scan; "screen" = a branch screen, pilot or other experiment, under <algo>_screen/: never a trunk or a seed replicate of a certification run, though it reuses certified ancestors; set it again to re-enter or resume a screen; QUICK_TEST wins (<algo>_quick_test/)
 ```
 
@@ -383,7 +454,21 @@ a new id starts a fresh run, and an existing run's id re-enters that run in
 place, to resume an interrupted node or finish a `partial` run; the storage
 cell prints whether it minted a new run or re-entered one. To start a fresh
 run in a runtime that already resolved one, set a new id (a timestamp such
-as `"20260924_120000"`, the format the storage cell mints). A run whose bundle
+as `"20260924_120000"`, the format the storage cell mints). `SPECIES` and
+`EMBODIMENT` select the model, never the id (the maintainer's decisions of
+2026-11-26). Before anything is written, the storage cell refuses an
+explicit id that names no run of the model but a run of another model under
+`<LOG_BASE>`, in the trees of this `ALGORITHM`, naming every run of that id
+and the knobs that reach it; and it refuses a new id with characters other
+than letters, digits, `_` and `-` (a run the tree already holds is
+re-entered whatever its characters, with a note). Every explicit id prints
+a banner naming the model, its species and embodiment, the algorithm, the
+run tree, whether the run is new or re-entered, and every other run of that
+id under `<LOG_BASE>`, of any model and either algorithm (a run of the id
+under the other algorithm alone is named, not refused). These rules cover
+the notebook's `RUN_ID` only: a run directory named on the command line
+(`--output-dir`, or `widen_checkpoint --to-stage-dir` below) is not checked,
+so name it by the same rule. A run whose bundle
 is `complete` is immutable: a session that would judge or train a node into
 it is refused before anything is trained or written (in the resolve cell, or
 in the chain loop for what the resolve cell cannot predict, such as a node
@@ -448,6 +533,41 @@ then released and the loop raises. A reuse that would ignore an edit to the
 node's algorithm block prints a warning naming the differing keys and points
 at `RETRAIN_FROM`. A stage directory that already records a node is refused,
 so a new variant is a new `RUN_ID`.
+
+**Publishing a run the loop does not write.** A node the loop reuses from
+this run's own records writes nothing, so a session that reuses every node
+writes no bundle: a run re-entered after a runtime ended between its last
+verdict and its bundle (a stance node's probes run last and are report only),
+or a `partial` run re-entered to count a replicate that certified later. The
+opt-in publish cell after the loop (`PUBLISH_RUN = True`; the maintainer's
+decision of 2026-11-26) writes the training summary and the bundle from the
+run's own records with the loop's two calls, checks the bundle and prints its
+status and what it certified. Set `RUN_ID` to the run and every other knob as
+its session had them (`ALGORITHM`, `SEED` and `N_ENVS` too, and `BEHAVIOR`
+above all: it sets the chain and the target). Then run every cell above
+section 5, the publish cell, and last the auto-disconnect cell (section 9),
+which in Colab flushes Drive's buffered writes before it releases the
+runtime (with `AUTO_DISCONNECT = False`, `drive.flush_and_unmount()` does
+the flush by hand). Skip the loop: it raises on a failed
+node, which most `partial` runs hold, and trains any node the run lacks. Run
+all works too when every node of the chain passed. The cell trains, judges and
+probes nothing and changes no stage file. It walks the chain as the loop does,
+an ancestor's `ancestors/` record standing for it, and stops after the first
+failed verdict, where the loop halted. Before it writes anything it refuses a
+`complete` run (already published and immutable), a `BEHAVIOR` whose target is
+not the one the run's `provenance.json` records (publishing would retarget the
+run), a run that holds no node of the model (usually `RUN_ID = ""` in a fresh
+runtime, where the storage cell opens a new run), a node on the chain, up to
+the first failed verdict, that is neither judged in the run (a
+`gate_verdict.json` in its stage directory) nor recorded under `ancestors/`
+(the loop judges or trains it first), a node judged in the run that the
+bundle would leave out, and a node whose verdict passed but whose stage no
+longer hands on the pair the verdict hashes (the loop's reuse refuses it too;
+on the command-driven walk, the pair its handoff choice,
+`models/handoff_choice.json`, names). A judged node's results re-enter the
+bundle from its verdict, as the loop's reuse does (the walk's from its
+`command_tracking/v1` verdict), and a missing report-only file, such as a
+probe the cut-off skipped, does not block it.
 
 **Walk on a stance trunk.** An earlier run `20260901_120000` certified
 stance for the Velociraptor under PPO. In a fresh session:
@@ -728,12 +848,16 @@ stage 3 they record) still reads:
   the label from the current config — no T-Rex stance bundle is committed
   yet; see `docs/KNOWN_ISSUES.md`). A replicate that certifies later is counted when the
   bundle of the run that should count it is written again with the sibling
-  present (a hand-typed `save_run_bundle(...)` call or a later committed
-  cell: the SB3 notebook has no stand-alone publication cell): a `partial`
-  bundle is rebuilt, and a `complete` bundle
+  present: a `partial` bundle is rebuilt, and a `complete` bundle
   regenerates its derived artifacts when the replication record is its
   only change — anything else on a complete bundle is still refused as
-  immutable.
+  immutable. In the SB3 notebook the publish cell writes a `partial` run's
+  bundle again, a chain stopped at a failed node included
+  (`PUBLISH_RUN = True`, [In the notebook](#in-the-notebook)); it refuses a
+  `complete` run, whose record a hand-typed
+  `save_run_bundle(chain_results(), model_id=MODEL_ID)` call regenerates
+  once the chain loop has re-entered the run, in a session run up to the
+  loop rather than Run all, which ends in the notebook's auto-disconnect.
 - `target_deliverable` names the node the run aimed at and
   `primary_deliverable` the published model — the target when certified,
   else the deepest certified deliverable; `selected_model_path` is the

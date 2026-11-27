@@ -1,19 +1,47 @@
 /** Museum labels for the models' distinguishing anatomy and movement experiments. */
-interface StudyLabel {
+export interface StudyLabel {
   title: string;
   description: string;
   referenceRecording?: {path: string; caption: string; controllerPath: string};
 }
 
-interface Interpretation {
+export interface Interpretation {
   classification: string;
   title: string;
   anatomy: string;
   alt: string;
   detailLabel: string;
   detail: string;
-  robot?: {title: string; anatomy: string; alt: string; detailLabel: string; detail: string};
+  /**
+   * The robot page's own text. Its `studies`, keyed by stage id like the species' own, replace the species'
+   * label of any stage whose anatomical text does not fit the robot. A species label shown on a robot page never
+   * brings its `referenceRecording`, which records the anatomical model.
+   */
+  robot?: {
+    title: string;
+    anatomy: string;
+    alt: string;
+    detailLabel: string;
+    detail: string;
+    studies?: Record<string, StudyLabel>;
+  };
   studies: Record<string, StudyLabel>;
+}
+
+/**
+ * The label of one stage on a model's page: on a robot page the robot's own label first, then the species' label
+ * without its reference recording (a recording of the anatomical model).
+ */
+export function studyLabel(
+  interpretation: Interpretation | undefined,
+  embodiment: string,
+  stageId: string,
+): StudyLabel | undefined {
+  const label = interpretation?.studies[stageId];
+  if (embodiment !== 'robot') return label;
+  const robotLabel = interpretation?.robot?.studies?.[stageId];
+  if (robotLabel) return robotLabel;
+  return label && {title: label.title, description: label.description};
 }
 
 export const INTERPRETATIONS: Record<string, Interpretation> = {
@@ -120,14 +148,18 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
     alt: 'Small bipedal Compsognathus model with a narrow body, long hind legs and an extended tail',
     detailLabel: 'Anatomical tail', detail: 'Articulated',
     robot: {
-      title: 'Walking with a fixed head and tail',
-      anatomy: 'Twelve leg servos move the robot. Its head camera and inertial sensor ride on the chassis, while the tail stays fixed as the model balances and walks.',
+      title: 'Balancing with a fixed head and tail',
+      anatomy: 'Twelve leg servos move the robot. The head and tail are fixed to its chassis, which carries the head camera and the inertial sensor.',
       alt: 'Compsognathus robot model with a fixed head and tail and a pair of articulated legs',
       detailLabel: 'Head and tail', detail: 'Fixed to the chassis',
+      studies: {
+        stance: {title: 'Stand on two flat soles', description: 'Each foot rests on one flat sole. The toes are surface detail and carry no weight. The current check asks the robot to last almost every trial without falling, while a touch sensor under at least one foot reports contact nearly all the time. It is an older check, due to be replaced by a stricter one before the robot next trains to stand.'},
+        locomotion: {title: 'Walk upright', description: 'Each trial gives the robot one command for its two feet: walk forward at the commanded speed, holding a heading close to the one it starts on, or, in about one trial in seven, stand still. A trial ends as soon as any other part of the robot touches the floor.'},
+      },
     },
     studies: {
       stance: {title: 'Settle onto both feet', description: 'The stance test checks that the foot pads and toes share the load without hopping or tipping onto an edge.'},
-      recovery: {title: 'Regain balance', description: 'In this pilot task, a calibrated sideways or fore-and-aft push tests how the standing model responds.'},
+      recovery: {title: 'Regain balance', description: 'In this pilot task, calibrated pushes from a random horizontal direction, about every two seconds, test how the standing model responds.'},
       locomotion: {title: 'Walk upright', description: 'The model advances on its hind feet while keeping the rest of its body clear of the floor.'},
     },
   },

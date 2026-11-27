@@ -922,7 +922,6 @@ RUN_ID = "trex_stance_r10_ltsb_s44"
 TRUNK_FROM = ""
 RETRAIN_FROM = ""
 CRITIC_PHASE = True
-K3_PANEL = False
 QUICK_TEST = False
 ```
 

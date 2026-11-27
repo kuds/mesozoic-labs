@@ -11,10 +11,10 @@
 2. :class:`CriticPhaseRolloutBuffer`: PPO's rollout buffer, 3 columns wider, so ``train()`` (and MirrorKLPPO's
    mirrored critic) see the phase of every stored row.
 3. :class:`CriticPhaseActorCriticPolicy`: SB3's ``MlpPolicy`` whose actor's first layer reads the observation's
-   columns alone (the same shapes, and on a 63-wide input the same tensor, as the stock actor) and whose critic's
-   first layer reads the observation and the phase.  Every actor path -- ``forward`` in the rollout,
+   columns alone (the same shapes, and on an observation-wide input the same tensor, as the stock actor) and whose
+   critic's first layer reads the observation and the phase.  Every actor path -- ``forward`` in the rollout,
    ``evaluate_actions`` and ``get_distribution`` in ``train()``, MirrorKLPPO's mirrored KL term, ``predict()`` in
-   evaluation, the probe, the K3 panel and the judge -- goes through ``mlp_extractor.forward_actor``, which slices
+   evaluation, the probe and the judge -- goes through ``mlp_extractor.forward_actor``, which slices
    the observation's columns off before the first layer: the actor is exactly independent of the phase, and gets no
    gradient through it.  ``predict()`` takes the env's own observation (the deploy interface) as well as the
    training one; a value asked of the critic without the phase is refused, never guessed.  A fresh model is a
@@ -211,8 +211,8 @@ class CriticPhaseMlpExtractor(MlpExtractor):
         return self.forward_actor(features), self.forward_critic(features)
 
     def forward_actor(self, features: th.Tensor) -> th.Tensor:
-        # The observation's columns alone, as one contiguous tensor: a 63-wide input passes as the very tensor it is,
-        # a 66-wide one as the copy of its first 63 columns -- the same tensor in both cases, so the actor computes
+        # The observation's columns alone, as one contiguous tensor: an observation-wide input passes as it is, a
+        # wider one as the copy of its observation columns -- the same tensor in both cases, so the actor computes
         # the same numbers whatever the phase (and whether one is attached), and nothing of the phase reaches it.
         latent: th.Tensor = self.policy_net(features[..., : self.actor_input_dim].contiguous())
         return latent

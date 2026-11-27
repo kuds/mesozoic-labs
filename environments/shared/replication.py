@@ -16,14 +16,16 @@ deliverable, which is the byte-identical-configuration reading
 
 The count is WRITER-RECORDED (decision D-B10): ``reporting.save_result_bundle``
 takes the replicates :func:`discover_replicates_for_run` finds when the
-publication cell runs and records them in each deliverable's ``replication``
+run's bundle is written and records them in each deliverable's ``replication``
 record, first this run, then the replicates; the catalog validates the
 record and re-derives only the provisional label from the CURRENT
 ``certification_seeds``, never aggregating across bundles.  A replicate that
-finishes later is counted when the run's publication cell is re-run with
-the sibling present: a partial bundle is rebuilt, and a complete bundle —
+finishes later is counted when the run's bundle is written again with
+the sibling present: a partial bundle is rebuilt (in the SB3 notebook, by
+its publish cell, ``PUBLISH_RUN = True``), and a complete bundle —
 immutable in every certified artifact and result — regenerates its derived
-artifacts when the replication record is the only thing that changed.
+artifacts when the replication record is the only thing that changed (a
+hand-typed ``save_run_bundle`` call: the publish cell refuses a complete run).
 
 Two pre-Phase-B shapes are handled deliberately differently (D-B16): a
 sibling whose run block records no ``hyperparameters_sha256`` (saved before

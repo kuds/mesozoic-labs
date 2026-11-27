@@ -743,20 +743,27 @@ robustness, **LOW** = cosmetic / QoL.
   records stay stance-only, with stance at replication 1, although the
   seed-44 sibling `20260920_010912` counts this run at 2; nothing reads them
   for reuse. Remedy in general: a `partial` bundle is rebuilt by the next
-  session that trains or judges a node in the run; PR-14a's complete-run
-  refusal does not change this
+  session that trains or judges a node in the run, or, since 2026-11-26, by
+  the notebook's publish cell (`PUBLISH_RUN = True`) under the target the
+  run records; PR-14a's complete-run refusal does not change this
   ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
   *Update (2026-11-26):* a replicate that certifies after a run's last node
   cannot be counted by hand either. `save_run_bundle`'s docstring in the SB3
-  notebook's helpers cell says "Re-run this cell once a replicate finishes to
-  count it" (`sb3_training.ipynb:939`), but that cell only defines the
-  function: the chain loop (:1622) and the manual cell (:1763) call it, and
-  only after a node trains or judges, and a re-entry that reuses every node
-  `continue`s before the call (:1478). Fix: a "republish" cell after the chain
-  loop that calls `save_run_bundle(chain_results())` (a `partial` bundle is
-  rebuilt; a `complete` one regenerates its derived artifacts when the
-  replication record is its only change), or a docstring that names the cell
-  to run. (2026-11 notebook review: no-republish-cell)
+  notebook's helpers cell said "Re-run this cell once a replicate finishes to
+  count it" (`sb3_training.ipynb:939`, before the publish cell), but that cell
+  only defines the function: the chain loop (:1683) and the manual cell
+  (:2099) call it, and only after a node trains or judges, and a re-entry that
+  reuses every node `continue`s before the call (:1539). Fix: a "republish"
+  cell after the chain loop that calls `save_run_bundle(chain_results())` (a
+  `partial` bundle is rebuilt; a `complete` one regenerates its derived
+  artifacts when the replication record is its only change), or a docstring
+  that names the cell to run. (2026-11 notebook review: no-republish-cell)
+  *Update (2026-11-26, later):* fixed for a `partial` run by the publish
+  cell (`PUBLISH_RUN = True`), which rebuilds its bundle and so counts the
+  replicate, and `save_run_bundle`'s docstring now names that cell. A
+  `complete` run's late replicate still takes a hand-typed
+  `save_run_bundle(chain_results(), model_id=MODEL_ID)` once the chain loop
+  has re-entered the run, as the cell's refusal of a complete run says.
 - **LOW (operational)** — **a re-entry that only reuses a `partial` or
   `failed` run's nodes stops at the bundle-verification cell (verified
   2026-09-24).** In a new runtime the storage cell's
@@ -796,6 +803,19 @@ robustness, **LOW** = cosmetic / QoL.
   differs in something other than `captured_at` (a new plant, env kwargs or
   score), so on an unchanged plant it is not one of the files that differ;
   `provenance.json` still is.
+  *Update (2026-11-26):* the publish cell after the chain loop
+  (`PUBLISH_RUN = True`; the maintainer's decision of 2026-11-26) does not
+  rebuild the bundle in such a re-entry. In a `partial` run, a session whose
+  chain loop reuses every node has a shallower `BEHAVIOR` than the run's
+  target (under the recorded one the loop raises on the failed node or
+  trains the missing one), and the cell refuses a `BEHAVIOR` whose target is
+  not the one the run's `provenance.json` records, before it writes
+  anything, since publishing would retarget the run. So the remedy above
+  stands for it. Run with the recorded `BEHAVIOR`, the cells above section 5
+  and then the publish cell rebuild a `partial` run's bundle over
+  `provenance.json` and `trunk_run.json`, and the bundle verifies again
+  (`environments/shared/tests/test_publish_cell.py`). A `complete` run is
+  refused there, which this entry does not affect.
 - **MEDIUM (operational)** — **a node's best-effort artifacts can go missing
   with nothing recording it, and a re-entry in place never regenerates them
   (read from the code 2026-11-26).** `generate_stage_artifacts` writes
@@ -804,7 +824,7 @@ robustness, **LOW** = cosmetic / QoL.
   and replays (rendered into local staging and published together on exit,
   `:2250`) and last the probes (`:2362`); the SB3 notebook's chain loop writes
   `training_summary.txt` and the bundle after it
-  (`notebooks/sb3_training.ipynb:1621-1622`). Each artifact step only logs its
+  (`notebooks/sb3_training.ipynb:1682-1683`). Each artifact step only logs its
   failure: one `try` covers the four older figure calls
   (`stage_artifacts.py:2256-2302`) and one both replays, so a failed selected
   replay skips the final one (`:2437-2541`; the renderer entry under
@@ -815,15 +835,17 @@ robustness, **LOW** = cosmetic / QoL.
   leaves a passed node that the reuse rule accepts on its verdict, digests and
   handoff pair (`find_certified_ancestor`, `ancestors.py`): a re-entry in the
   same `RUN_DIR` takes its results from the verdict (the `same_run` branch,
-  `sb3_training.ipynb:1450-1458`) and regenerates no figure, replay, probe or
+  `sb3_training.ipynb:1511-1519`) and regenerates no figure, replay, probe or
   bundle. A later node's bundle then seals the incomplete set, which verifies;
-  with no later node, nothing rebuilds the bundle and the verification cell
-  stops "Run all" (the entry "a re-entry that only reuses a `partial` or
-  `failed` run's nodes ..."). Fix: write a per-node `artifact_status.json` of
-  the files expected for its gate kind, model and role (the table the
-  artifact-guide entry under Configs, docs & website asks for) against those
-  present, state it in the stage summary, and have the `same_run` branch
-  regenerate what is missing and then the bundle. (2026-11 notebook review:
+  with no later node, the chain loop rebuilds no bundle and the verification
+  cell stops "Run all" (the entry "a re-entry that only reuses a `partial` or
+  `failed` run's nodes ..."), and the opt-in publish cell
+  (`PUBLISH_RUN = True`, since 2026-11-26) seals the same incomplete set.
+  Fix: write a per-node `artifact_status.json` of the files expected for its
+  gate kind, model and role (the table the artifact-guide entry under
+  Configs, docs & website asks for) against those present, state it in the
+  stage summary, and have the `same_run` branch regenerate what is missing
+  and then the bundle. (2026-11 notebook review:
   verdict-without-bundle-unrecoverable, silent-artifact-failures)
 - **LOW (operational)** — **a re-entry that is not a resume, under another
   trunk than the run's `trunk_run.json` records, is only warned (ROW-4/6;
@@ -983,13 +1005,13 @@ robustness, **LOW** = cosmetic / QoL.
   `hyperparameters_sha256` hashes the algorithm, its `[ppo]` or `[sac]` table
   and the shaping keys (`environments/shared/config.py:950-969`); `n_envs` is
   recorded beside the digest, never in it (the stage config's run block,
-  `train_base.py:2518`, :3676; the command line's `curriculum_results.csv`
-  row, :3974; `training_summary.txt`'s "Parallel envs" line,
+  `train_base.py:2440`, :3597; the command line's `curriculum_results.csv`
+  row, :3895; `training_summary.txt`'s "Parallel envs" line,
   `reporting/text_summaries.py:213`). It changes how the recipe trains: PPO
   collects `n_steps` × `n_envs` transitions per update (8,192 at the
   notebook's `N_ENVS = 4` on a 2048-step stance, 16,384 at 8), and SAC counts
   `train_freq` in vector steps. Seed-replicate discovery matches siblings on
-  that digest (`replication.py:222-227`), the trunk scan counts a node's
+  that digest (`replication.py:224-229`), the trunk scan counts a node's
   replicates through it (`ancestors.py:1057-1077`), and a same-stage resume
   refuses only a change of digest (`config.refuse_resume_recipe_change`,
   `config.py:1074`). So a replicate on another `N_ENVS` counts toward a
@@ -1132,7 +1154,7 @@ robustness, **LOW** = cosmetic / QoL.
   the stance statue, and calls a statue-level stance a failure (read from the
   code 2026-11-26).** A run keeps one statue reward: the SB3 notebook's
   preflight (cell 13) measures stage 1 only (`BASELINE_STAGE = 1`,
-  `notebooks/sb3_training.ipynb:689`) and copies the record, with its `stage`,
+  `notebooks/sb3_training.ipynb:763`) and copies the record, with its `stage`,
   into `RUN_DIR/zero_action_baseline.json`
   (`scripts/zero_action_baseline.py:385`, :417-432), and
   `read_zero_action_baseline` (`curriculum/baseline_watch.py:54-80`) takes no
@@ -1151,7 +1173,7 @@ robustness, **LOW** = cosmetic / QoL.
   tolerance-free `latest >= self.baseline_reward` test
   (`baseline_watch.py:137`), against a statue scored on the preflight's seeds
   3042-3081 rather than the in-training evaluation's own seed stream
-  (`train_base.eval_env_seed`, `train_base.py:1673`), cannot be met by a
+  (`train_base.eval_env_seed`, `train_base.py:1644`), cannot be met by a
   statue-level policy, and past 35% of the budget it warns once, also into
   `progress.json`'s warnings, that the run is "in a worse-than-trivial local
   optimum" like one that "failed its gate" (:153-178), beside a gate the
@@ -1361,12 +1383,12 @@ robustness, **LOW** = cosmetic / QoL.
   evaluation steps per training step on a stance, and no stage can set its
   cadence (re-read from the code 2026-11-26).** Every `eval_freq` steps
   `EvalCallback` rolls max(30, `min_eval_episodes`) episodes
-  (`train_base.py:155`, `:242-256`) one after another on one evaluation env
-  (`:1820-1830`): 40 on five of the seven stances (Allosaurus, both
+  (`train_base.py:152`, `:239-253`) one after another on one evaluation env
+  (`:1788-1798`): 40 on five of the seven stances (Allosaurus, both
   Compsognathus models, T. rex, velociraptor) and on the three recoveries, 30
   on the brachiosaurus and dibothrosuchus stances and on every walk. The SB3
   notebook passes `train_stage`'s default `eval_freq=50_000`
-  (`notebooks/sb3_training.ipynb:798`, a line of the `.ipynb` file), with no
+  (`notebooks/sb3_training.ipynb:856`, a line of the `.ipynb` file), with no
   knob, and no stage TOML has a key for it. On a 1,000-step stance that is up
   to 40,000 evaluation steps per 50,000 training steps, up to 8.8M over an
   11M-step stance at 40 episodes (6.6M at 30); the Allosaurus walk's
@@ -1401,26 +1423,26 @@ robustness, **LOW** = cosmetic / QoL.
   that dense cannot be compared with a PPO run's per-rollout means either. And
   nothing a report reads shows SAC's exploration:
   - the per-actuator std pages read a `log_std` tensor
-    (`reporting/training_history.py:968-982`) or `policy_probe.npz`, which
+    (`reporting/training_history.py:964-978`) or `policy_probe.npz`, which
     builds no bank and writes no row without a rollout buffer
     (`policy_probe.py:518-523`); under SAC's state-dependent std they are
     empty and say "policy.pth has no log_std (not a Gaussian PPO policy)"
-    (:1069) or "no leg actuator std: no policy_probe.npz std_per_actuator and
-    no checkpoint zip's log_std read" (:5680), not that SAC has no global std;
+    (:1065) or "no leg actuator std: no policy_probe.npz std_per_actuator and
+    no checkpoint zip's log_std read" (:5573), not that SAC has no global std;
   - SAC's entropy coefficient is captured as an `algo_` series and charted
     nowhere (`visualization.py` reads no `algo_` key;
     `scripts/compare_run_diagnostics.py:41-46` lists PPO's);
   - `progress.json` gets no `policy` block, which only a probe row fills
-    (`policy_probe.py:836`);
-  - `K3_PANEL = True` is switched off with an INFO log alone
-    (`k3_panel.py:679-681`), while the configuration cell prints "In-run K3
-    panel: on" (`sb3_training.ipynb:270`).
+    (`policy_probe.py:836`).
 
-  Fix: record the diagnostics on a fixed step cadence (for example one row per
-  8,192 transitions) for both algorithms and write them compressed; read SAC's
-  std from the actor's `log_std` head on a fixed state bank, or mark those
-  pages "not applicable to SAC"; chart the entropy coefficient; refuse or flag
-  `K3_PANEL` under SAC. (2026-11 notebook review: sac-diagnostics-density,
+  The review's fourth point, `K3_PANEL = True` switched off under SAC with an
+  INFO log alone while the configuration cell printed "In-run K3 panel: on",
+  is gone with the in-run K3 panel, retired on 2026-11-26 (decision D-D48's
+  retirement note). Fix: record the diagnostics on a fixed step cadence (for
+  example one row per 8,192 transitions) for both algorithms and write them
+  compressed; read SAC's std from the actor's `log_std` head on a fixed state
+  bank, or mark those pages "not applicable to SAC"; chart the entropy
+  coefficient. (2026-11 notebook review: sac-diagnostics-density,
   fu-sac-artifact-path-sac-exploration-unobservable)
 - **Watch item** — the biped home-residual action mapping has a
   slope discontinuity at action 0 (the two piecewise segments span
@@ -1885,7 +1907,7 @@ robustness, **LOW** = cosmetic / QoL.
   gate is re-frozen (D-D24); the plant is r12 now
   (`configs/plant_versions.toml` note 24), and the comment still names r10.
   The SB3 notebook freezes the T. rex recovery on it whenever the node trains
-  (cell 20, `sb3_training.ipynb:1558`; the manual cell, :1698); the freeze
+  (cell 20, `sb3_training.ipynb:1619`; the manual cell, :2034); the freeze
   summary's warnings (`freeze_recovery_gate.py:839-862`) say nothing of the
   judge, the quiet safe-set check that qualifies the parent on the other two
   models is skipped for it (:742-743), and neither `gate_resolution.json` nor
@@ -1902,7 +1924,7 @@ robustness, **LOW** = cosmetic / QoL.
   recovery can freeze is measured by `_quiet_brace_controller`
   (`harnesses/freeze_recovery_gate.py:411-470`, the bar at :425), which runs
   only inside `freeze_recovery_gate` when the chain loop starts the recovery
-  node (cell 20, `sb3_training.ipynb:1558`). Nothing measures it when the
+  node (cell 20, `sb3_training.ipynb:1619`). Nothing measures it when the
   stance is judged or handed off, so a stance can certify, and feed the walk,
   that the recovery freeze then refuses ("recalibrate the judge from qualified
   stance evidence before recovery training"), as the review's manual run of
@@ -2457,7 +2479,7 @@ robustness, **LOW** = cosmetic / QoL.
   `results/*/*/*/summary.json` (`species_catalog.py:1234-1237`) and never
   aggregates across bundles (D-B10, :917-920), and a cross-run ancestor writes
   no CSV row or summary stage in the run that reused it
-  (`sb3_training.ipynb:743-744`), so a chain built with `TRUNK_FROM`, or a
+  (`sb3_training.ipynb:817-818`), so a chain built with `TRUNK_FROM`, or a
   deliverable's seed replicates, cannot be published whole. Fix: a promotion
   tool and checklist built on `validate_result_bundle(...,
   require_publishable=True)` that refuses screens and quick tests, compares
@@ -2471,18 +2493,18 @@ robustness, **LOW** = cosmetic / QoL.
   from the code 2026-11-26).** `write_training_summary`
   (`reporting/text_summaries.py:188-256`) writes the `training_summary.txt`
   the SB3 notebook prints after every node
-  (`notebooks/sb3_training.ipynb:923`, called at :1621 and :1762): per node
-  its timesteps, duration, final and best evaluation and a "Best model:" path
-  (`text_summaries.py:238-244`), the last even for a node that failed, and no
-  gate kind, verdict, failure reason, reuse origin, certified statistic or
-  handoff.
+  (`notebooks/sb3_training.ipynb:980`, called at :1682, :1943 (the publish
+  cell) and :2098): per node its timesteps, duration, final and best
+  evaluation and a "Best model:" path (`text_summaries.py:238-244`), the last
+  even for a node that failed, and no gate kind, verdict, failure reason,
+  reuse origin, certified statistic or handoff.
   `stage_summary.txt` has the verdict and the failures (:166-185) and, on a
   walk, the family statistics and the handoff (`_command_tracking_lines`,
   :37-80), but no gate kind, and on a stance not the bound its verdict records
   (`stance_heading_clean_seed_lcb`, `result_bundle/gate_verdict.py:124`),
   which reaches only the stance reports and the CSV row
   (`reporting/csv_output.py:345`). The chain loop's own line is `<node>: gate
-  PASSED (<kind>); handoff <stem>.zip` (cell 20, `sb3_training.ipynb:1629`),
+  PASSED (<kind>); handoff <stem>.zip` (cell 20, `sb3_training.ipynb:1690`),
   and the report paths go to `logger.info`, which the notebook never shows. In
   `collected_results.csv`, `CSV_METRIC_COLUMNS` (`csv_output.py:80-99`) still
   lists `gate_evaluable`, `gate_reason`, `quality_score` and `quality_rank`,
@@ -2530,7 +2552,7 @@ robustness, **LOW** = cosmetic / QoL.
   and the walk only (`reporting/csv_output.py:328-350`), `stage_summary.txt`
   prints none, and `gate_progress.png` has no recovery panel. The chain loop
   prints the panel's count, `<k>/<n> episodes recovered`
-  (`sb3_training.ipynb:1598`), and the per-episode evidence is on disk
+  (`sb3_training.ipynb:1659`), and the per-episode evidence is on disk
   (`recovery_episodes_<controller>.csv`, `recovery_evaluation.py:346-359`),
   but no artifact states the bounds. T. rex and the two Compsognathus models
   have a recovery node. Fix: return the result's counts and bounds from the
@@ -2551,7 +2573,7 @@ robustness, **LOW** = cosmetic / QoL.
   Compsognathus models the walk sits in `03_locomotion` and reads "Stage 2",
   and the recovery reads "Stage recovery"; the notebook explains the two
   numberings only for `RESUME_STAGE` (cell 17,
-  `notebooks/sb3_training.ipynb:1043`). The legacy numbers and the file
+  `notebooks/sb3_training.ipynb:1101`). The legacy numbers and the file
   prefixes are deliberate (`stage_manifest.stage_dirname`,
   `stage_manifest.py:612-639`); the display is not. Fix: show the node id in
   this text, the legacy number only in parentheses where a file name needs it.
@@ -2696,16 +2718,16 @@ robustness, **LOW** = cosmetic / QoL.
   2026-11-26).** In `reporting/training_history.py`, `KEY_ACTUATORS =
   ("hip_pitch", "hip_roll", "knee", "ankle", "tail_3")` (:257) chooses the
   `10_policy_std` page's first panel and the checkpoint table's std columns
-  (:5514-5579, :6793-6795): the anatomical Compsognathus' `r_toe_act` and
+  (:5407-5472, :6604-6606): the anatomical Compsognathus' `r_toe_act` and
   `l_toe_act` and the Allosaurus' `r_mtp` and `l_mtp` are left out, and
   neither model has a `tail_3`. The exploration page draws
-  `EXPLORATION_REFERENCE_STD` 0.08 (:356), labelled "stance3 line-2 floor 0.08
-  (not applied)", on every model and node (:5781-5793); stance3 is a T. rex
+  `EXPLORATION_REFERENCE_STD` 0.08 (:352), labelled "stance3 line-2 floor 0.08
+  (not applied)", on every model and node (:5664-5676); stance3 is a T. rex
   stance design, and the label does not say so. `lr_columns` keeps the first
-  left-minus-right column per joint and the first hip-roll pair (:517-527), so
+  left-minus-right column per joint and the first hip-roll pair (:513-523), so
   on the dibothrosuchus, whose ledger lists the `fl_minus_fr` offsets before
   `rl_minus_rr`, the `09_asymmetry` page plots only the front pair, with no
-  pair named in its titles (:3524-3543; the caption names "the first foot pair
+  pair named in its titles (:3417-3436; the caption names "the first foot pair
   on a quadruped" for hip roll alone), while the rear pair carries about 73%
   of standing load (the review's measurement). Fix: derive the key actuators
   per model from its leg actuators, plot every left/right pair (or the
@@ -2756,10 +2778,10 @@ robustness, **LOW** = cosmetic / QoL.
   `evaluation_protocols` entry per evaluation seed role, each with the single
   `evaluation_episodes` count
   (`environments/shared/result_bundle/provenance.py:289-296`), and the SB3
-  notebook passes 30 (`notebooks/sb3_training.ipynb:440`, cell 8, and :955,
+  notebook passes 30 (`notebooks/sb3_training.ipynb:514`, cell 8, and :1013,
   cell 15). What runs differs. The in-training evaluation, the
   `checkpoint_selection_evaluation` role, rolls `max(30, min_eval_episodes)`
-  episodes (`train_base.py:242-256`): 40 on the five stances and the three
+  episodes (`train_base.py:239-253`): 40 on the five stances and the three
   recoveries that declare 40 (the velociraptor, the T. rex, both Compsognathus
   models and the Allosaurus; the T. rex and both Compsognathus recoveries). A
   walk's selection and certification panels roll their own family counts
@@ -2769,7 +2791,7 @@ robustness, **LOW** = cosmetic / QoL.
   each evaluation draws new episodes and `best_model` and `robust_best_model`
   rank checkpoints scored on different draws; only a live-command stage rolls
   the same episodes at every evaluation (`_command_evaluation_plan`,
-  `train_base.py:173-195`, decision D-D62). No gate reads the protocol block;
+  `train_base.py:170-192`, decision D-D62). No gate reads the protocol block;
   a reader of the bundle's provenance does. Fix: record episodes and seeds per
   role from what each evaluation ran, and reseed the stance and recovery
   evaluation env before every evaluation, as the walk's is. (2026-11 notebook
@@ -2793,7 +2815,7 @@ robustness, **LOW** = cosmetic / QoL.
   recorded task, so a checkpoint of another stage, task or plant revision is
   scored on the current stage with no warning. Nothing else reports on a
   recovery checkpoint either: `cli eval --stage recovery` is accepted
-  (`cli.py:702-707`), but `evaluate()` prints velocity, balance and
+  (`cli.py:667-672`), but `evaluate()` prints velocity, balance and
   terminations only (`evaluation.py:823-875`), no push or recovery outcome,
   and `roll_policy_panel` (`harnesses/freeze_recovery_gate.py:580`), the panel
   roller the chain loop judges with, has no command line (the module's `main`,
@@ -2854,10 +2876,10 @@ robustness, **LOW** = cosmetic / QoL.
   (`configs/velociraptor_mongoliensis/anatomical/stance.toml:633`,
   `configs/tyrannosaurus_rex/anatomical/stance.toml:1030`): the deliverable
   stays provisional until two distinct-seed runs of one recipe certify it.
-  `replication.discover_replicates` (`environments/shared/replication.py:98`)
+  `replication.discover_replicates` (`environments/shared/replication.py:100`)
   counts such sibling runs, but nothing starts them: the notebook and the
   command line's `train` and `curriculum` each run one `SEED` (`cli.py:351`,
-  :455), so the second seed is a second session set up by hand with the same
+  :433), so the second seed is a second session set up by hand with the same
   knobs. Sweeps were retired on purpose (D-D17;
   [ROADMAP.md](ROADMAP.md):383-384 asks a new decision for a tuning backend),
   but a replicate is not a sweep. Fix: a small launcher, a command-line option
@@ -2879,14 +2901,14 @@ robustness, **LOW** = cosmetic / QoL.
    `curriculum` node of a `reward_and_length/v1` or `stance_quality/v1` stance
    (the brachiosaurus, the dibothrosuchus, the Compsognathus robot and the
    Allosaurus) records the in-training manager's decision, `ready_to_advance`
-   (`environments/shared/train_base.py:3785`), bound to the pair
-   `select_handoff_checkpoint` names (:3764;
+   (`environments/shared/train_base.py:3706`), bound to the pair
+   `select_handoff_checkpoint` names (:3685;
    `curriculum/checkpoints.py:195-230`): `robust_best_model`, ranked on mean -
    std reward alone. So a command-line PASS can certify a checkpoint whose own
    evaluations never met the gate, where the notebook stops no node on a gate
    pass and judges that handoff once, after the stage
    (`generate_stage_artifacts`). Only the floor-truth stance kinds and the
-   walk are re-judged after training on the command line (:3789-3810). The
+   walk are re-judged after training on the command line (:3710-3731). The
    command line has no baseline watch either: the callback reads
    `zero_action_baseline.json` from the run directory
    (`curriculum/baseline_watch.py:218`), which only the notebook's preflight
@@ -3264,7 +3286,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
     [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md):105-108 counts it against
     forgetting between stages. Nothing in `environments/shared/` saves or
     loads a replay buffer, and a warm start restarts the step counter
-    (`reset_num_timesteps=not resuming`, `train_base.py:2070`), so a SAC walk
+    (`reset_num_timesteps=not resuming`, `train_base.py:2027`), so a SAC walk
     starts with an empty buffer and `learning_starts` (10,000) uniformly
     random steps.
   - *The ratio.* SB3 counts `train_freq` in vector-env steps, each `n_envs`
@@ -3350,7 +3372,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
     four digit pads per foot beside the sole
     (`environments/dibothrosuchus_elaphros/anatomical/env.py:24-28`), so every
     foot records `<label>_digit_share`;
-  - the stage-end report is "the nineteen pages" (:1672), and
+  - the stage-end report is "the nineteen pages" (:1678), and
     `training_history.page_names()` lists 20.
 
   Fix: a table of expected artifacts by gate kind, model and role, with the
@@ -3499,9 +3521,9 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   (`notebooks/sb3_training.ipynb:195`), but besides the run's tree
   (`environments/shared/run_tree.py`) and the `Quick test:` line of
   `training_summary.txt` it changes only `node_budget` (cell 15,
-  `sb3_training.ipynb:762-769`); no other library code reads it. Everything
+  `sb3_training.ipynb:836-843`); no other library code reads it. Everything
   after training runs at full size: the evaluation cadence
-  (`eval_freq=50_000`, :798), the stance certification panels (40 seeds; the
+  (`eval_freq=50_000`, :856), the stance certification panels (40 seeds; the
   six-heading certificate at each of six headings), the T. rex stance's probe
   battery (the probe-report entry under Configs, docs & website), and the
   replays with their extra camera views. Where a quick test stops depends on
@@ -3516,7 +3538,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   under Training / RL). Under the default `BEHAVIOR = "auto"` every quick test
   should therefore end at a gate failure, and `halt`
   (`environments/shared/notebook_runtime.py:51-57`, called at
-  `sb3_training.ipynb:1628`) raises before section 8: cells 24-30 (the
+  `sb3_training.ipynb:1689`) raises before section 8: cells 26-32 (the
   evaluation, the curves, the replays and the bundle check) never run, so the
   one end-to-end check open to a user never exercises them. In Colab with the
   defaults (`AUTO_DISCONNECT = True`, a run on Drive) the same halt releases
@@ -3540,18 +3562,18 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   stances of 2026-11-07 took 23 h 07 min and 23 h 29 min on a Colab L4
   (`docs/NEXT_STEPS.md:411-412`). The chain loop (cell 20) starts each node
   with no time check. The run memo is the kernel global `_ACTIVE_RUN_ID` (cell
-  8, `notebooks/sb3_training.ipynb:383-384,449`), so a fresh runtime mints a
+  8, `notebooks/sb3_training.ipynb:378-379,523`), so a fresh runtime mints a
   new run unless `RUN_ID` is set; the loop recognises the interrupted node but
-  only raises with instructions (`:1532-1540`); and `RESUME_STAGE` takes a
-  node, not `"auto"` (cell 18, `:1103`). Section 5's procedure (cell 17,
-  `:1016-1047`) sets `RUN_ID`, the `TRUNK_FROM` that `trunk_run.json` records,
+  only raises with instructions (`:1593-1601`); and `RESUME_STAGE` takes a
+  node, not `"auto"` (cell 18, `:1164`). Section 5's procedure (cell 17,
+  `:1074-1105`) sets `RUN_ID`, the `TRUNK_FROM` that `trunk_run.json` records,
   `RETRAIN_FROM = ""` and `RESUME_STAGE`, then a second Run all; `76b27b2`
   made the RESUME cell refuse what would not continue the node and warn on
   `BEHAVIOR = "auto"` and another commit, but the pass stays manual, as
   decision D-D16 (c) chose. A session the cap cuts off before its final save
   records no duration: `train_base.train` writes `run.duration_seconds` only
   at the final save, summed over the sessions that reached one
-  (`train_base.py:2496-2498`, :2531-2533, :2571; decision D-A15), so a capped
+  (`train_base.py:2418-2420`, :2453-2455, :2492; decision D-A15), so a capped
   segment drops out of `training_summary.txt`'s total. Fix: accept
   `RESUME_STAGE = "auto"` (adopt `trunk_run.json` and the interrupted node,
   keeping every refusal), persist `RUN_ID` to the run tree on Drive, record
@@ -3564,15 +3586,15 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   runtime; any other error keeps it assigned (read from the code
   2026-11-26).** `AUTO_DISCONNECT` (`notebooks/sb3_training.ipynb:229`, lines
   of the `.ipynb` file) acts in two places: `halt` after a node fails its gate
-  (`:1628`; `notebook_runtime.py:51-57`) and the auto-disconnect cell at the
-  end (§9, `sb3_training.ipynb:1936`). Every other raise stops "Run all"
+  (`:1689`; `notebook_runtime.py:51-57`) and the auto-disconnect cell at the
+  end (§9, `sb3_training.ipynb:2272`). Every other raise stops "Run all"
   before §9 and leaves the GPU runtime assigned until Colab reclaims it: the
   chain loop's refusals of a node that already holds a FAILED verdict, or a
-  passed one the reuse rule refused (`:1488-1500`), and of an interrupted node
-  (`:1533-1540`); any exception out of training, `generate_stage_artifacts`,
-  the figure display or `save_run_bundle` (`:1577-1622`); the report cell's
-  refusal of an uncertified target (§8, `:1793-1797`); and the verification
-  cell's second `validate_result_bundle`, which nothing guards (`:1900`). The
+  passed one the reuse rule refused (`:1549-1561`), and of an interrupted node
+  (`:1594-1601`); any exception out of training, `generate_stage_artifacts`,
+  the figure display or `save_run_bundle` (`:1638-1683`); the report cell's
+  refusal of an uncertified target (§8, `:2129-2133`); and the verification
+  cell's second `validate_result_bundle`, which nothing guards (`:2236`). The
   re-entry that stops at the verification cell (the Training / RL entry "a
   re-entry that only reuses a `partial` or `failed` run's nodes stops at the
   bundle-verification cell", whose remedy is to run §9 by hand) is one case of
@@ -3589,9 +3611,9 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   `configs/species_manifest.toml` has a status or hold field (the manifest's
   `status` keys describe project capabilities, :44-62, and
   `model_revision_status` its videos), and the chain table the resolve cell
-  prints (cell 9, `sb3_training.ipynb:558-567`) shows each node's id, name,
+  prints (cell 9, `sb3_training.ipynb:632-641`) shows each node's id, name,
   parent, recipe, deliverable flag and gate only. `BEHAVIOR = "auto"` resolves
-  to the last deliverable (:528), the walk on all seven models, so a plain Run
+  to the last deliverable (:602), the walk on all seven models, so a plain Run
   all trains the stance and then the walk. What the records say instead is
   prose the notebook never shows:
   - GQ-3 of [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)
@@ -3651,8 +3673,8 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   half the command line's environments and still runs the documented PPO-only
   cases under it (read from the code 2026-09-30 and 2026-11-26).**
   `environments/shared/cli.py` raises `n_envs` from 4 to 8 for SAC unless
-  `--n-envs` says otherwise (:548-551, applied at :575-577 for `train` and
-  :645-647 for `curriculum`), while the configuration cell (cell 6) of
+  `--n-envs` says otherwise (:526-529, applied at :550-552 for `train` and
+  :610-612 for `curriculum`), while the configuration cell (cell 6) of
   [notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb) sets `N_ENVS
   = 4` whatever `ALGORITHM` is (`sb3_training.ipynb:224`) and says nothing
   about SAC. The two entry points' default SAC runs differ twofold in
@@ -3663,21 +3685,21 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   Stages 1-3 with SAC" open), and only the T. rex stance's `[sac]` says so
   (`configs/tyrannosaurus_rex/anatomical/stance.toml:558-563`). Of the cases
   the repository documents as PPO-only, only the resume is refused (cell 18,
-  :1164-1170). Under SAC:
+  :1225-1231). Under SAC:
   - `CRITIC_PHASE = True` writes `[ppo] critic_phase = true` into every chain
-    node and prints "Critic phase on" (cell 9, :532-535; cell 6 prints it
-    too, :271), but SAC reads only its `[sac]` table
-    (`train_base.py:555-556`), so the switch does nothing;
+    node and prints "Critic phase on" (cell 9, :606-609; cell 6 prints it
+    too, :260), but SAC reads only its `[sac]` table
+    (`train_base.py:552-553`), so the switch does nothing;
   - the T. rex stance's mirror-symmetric PPO (`[ppo] symmetry = "mirror_kl"`,
     `stance.toml:511`) is dropped with no log: `pop_symmetry_config` runs only
-    when `algorithm == "ppo"` (`train_base.py:1858`);
+    when `algorithm == "ppo"` (`train_base.py:1826`);
   - the T. rex recovery, whose TOML says "this stage is PPO-only" and extends
     only the stance's `[stage]`, `[env]` and `[ppo]`
     (`configs/tyrannosaurus_rex/anatomical/recovery.toml:26-27,57`), still
     trains: it logs that SAC "will train on stable-baselines3's default
-    hyperparameters" (`train_base.py:557-565`) while the warm start keeps the
+    hyperparameters" (`train_base.py:554-562`) while the warm start keeps the
     stance checkpoint's saved SAC settings (the load passes only the empty
-    table's keys, `train_base.py:962`), and its hyperparameter digest hashes
+    table's keys, `train_base.py:959`), and its hyperparameter digest hashes
     that empty `[sac]` (`config.py:950-967`), so replicate matching ignores a
     change to the stance's `[sac]`;
   - with no trunk, the section-4 load preflight proves the load path on a
@@ -3729,7 +3751,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   (2026-11 notebook review: quick-test-indistinguishable)
 - **LOW** — **the SB3 notebook's section 8 evaluation shows and keeps nothing,
   because no cell configures logging (read from the code 2026-11-26).** Cell
-  24 (`notebooks/sb3_training.ipynb:1798-1807`) rolls `evaluate()` on the
+  26 (`notebooks/sb3_training.ipynb:2134-2143`) rolls `evaluate()` on the
   deliverable's handoff for 30 episodes, but `evaluate()`
   (`environments/shared/evaluation.py:618`) reports only through `logger.info`
   (`_log_eval_results`, :801) and returns `None` (:797-798), and no cell of
@@ -3744,16 +3766,16 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   shows), the six-heading certificate's summary (:566), the command-tracking
   report's (:668) and the baseline watch's per-evaluation line
   (`curriculum/baseline_watch.py:141-147`). The chain loop prints its own
-  "gate PASSED" (`sb3_training.ipynb:1629`) and the reports are written to the
-  stage directory, so nothing is lost, only unseen. Cell 24's seed
+  "gate PASSED" (`sb3_training.ipynb:1690`) and the reports are written to the
+  stage directory, so nothing is lost, only unseen. Cell 26's seed
   (`DEFAULT_EVAL_SEED` = 2000, `evaluation.py:48`) differs from the bundle's
   evaluation seed (`EVALUATION_SEED`, 3000 above `SEED`) on purpose, for
   paired command-line runs; the gait symmetry, stride frequency and cost of
   transport the cell once advertised were deleted with LocomotionMetrics' gait
   block. Fix: install a notebook logging handler at INFO for `environments.*`
-  in the setup cell; have `evaluate()` return its aggregate and cell 24 print
+  in the setup cell; have `evaluate()` return its aggregate and cell 26 print
   it as a table, saved as an artifact the bundle declares (an undeclared file
-  stops cell 30's bundle check, as cell 26's comment says) or built from the
+  stops cell 32's bundle check, as cell 28's comment says) or built from the
   node's `evaluation_selected.csv`. On the walk, the deliverable on every
   model, lead the table with the command-tracking report's statistics: the
   printout's "Consistency" line inherits the `velocity_consistency` blow-up at
@@ -3780,14 +3802,14 @@ note 15 and the stance-hack audit's §11). What it leaves open:
 - **LOW** — **a day-long node shows no progress, ETA or notification in the
   SB3 notebook (read from the code 2026-11-26).** `VERBOSE` (cell 6, "0=quiet,
   1=progress bar, 2=debug", `notebooks/sb3_training.ipynb:226`) is passed as
-  SB3's own verbosity (`train_base.py:566`) as well as the progress bar's
-  switch (`progress_bar=verbose >= 1`, :2064), so `VERBOSE = 1` also prints
+  SB3's own verbosity (`train_base.py:563`) as well as the progress bar's
+  switch (`progress_bar=verbose >= 1`, :2021), so `VERBOSE = 1` also prints
   SB3's logger table every rollout, and the default 0 shows nothing for a node
   of up to about 21.5 h (an 11M T. rex stance, scaled from the 12M runs).
   `progress.json` already holds a `projected_finish`
   (`curriculum/progress_report.py:449-466`) that no cell reads; cell 15 prints
   that the diagnostics "will log to TensorBoard"
-  (`sb3_training.ipynb:975-977`), but no cell opens it; and nothing tells the
+  (`sb3_training.ipynb:1033-1035`), but no cell opens it; and nothing tells the
   user when an unattended node finishes, fails its gate or crashes: status is
   pull-only, by opening `progress.json` on Drive. No doc says what a ~24 h run
   needs of the Colab tab and runtime tier. Fix: drive the progress bar from
@@ -3802,9 +3824,9 @@ note 15 and the stance-hack audit's §11). What it leaves open:
 - **LOW** — **the SB3 notebook trains on whatever device torch finds, and
   neither chooses, prints nor records it (read from the code 2026-11-26).**
   The notebook's metadata opens Colab on an L4 GPU (`"accelerator": "GPU"`,
-  `"gpuType": "L4"`, `notebooks/sb3_training.ipynb:1946-1948`), and
+  `"gpuType": "L4"`, `notebooks/sb3_training.ipynb:2282-2284`), and
   `train_base` builds PPO and SAC at SB3's default `device="auto"`
-  (`train_base.py:1061`, `:1064`), so a Colab run trains its small MLP policy
+  (`train_base.py:1058`, `:1061`), so a Colab run trains its small MLP policy
   on CUDA, with no stated reason. No knob chooses the device and the notebook
   never prints it (`VERBOSE = 0`, `sb3_training.ipynb:226`, hides SB3's
   "Using cuda device"); only SB3's GPU warning below names it, for a plain PPO
@@ -3835,7 +3857,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   model eval: ... (at N steps)", `reporting/stage_artifacts.py:1970`),
   "Selected checkpoint: robust_best_model" (:2022) and, in the chain loop
   (cell 20), "gate PASSED (...); handoff robust_best_model.zip"
-  (`sb3_training.ipynb:1629`). A stance the hop watch stopped is judged as
+  (`sb3_training.ipynb:1690`). A stance the hop watch stopped is judged as
   usual, by design (`curriculum/hop_watch.py:20-23`), and the chain loop reads
   no `hop_watch.json`, so a stopped seed that certifies warm-starts the next
   node without a word. Fix: print the handoff's step and whether the hop watch
@@ -3890,30 +3912,30 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   older figures, but never shows the gate, command or history figures (read
   from the code 2026-11-26).** `notebook_runtime.display_stage_videos`
   (:60-73) base64-embeds every mp4 of a stage with `autoplay loop`. The chain
-  loop calls it after each node (cell 20, `sb3_training.ipynb:1615`), and the
+  loop calls it after each node (cell 20, `sb3_training.ipynb:1676`), and the
   replay cell embeds every certified node again, reused ancestors included
-  (cell 28, :1860-1869). A stance or recovery node records three camera views
+  (cell 30, :2196-2205). A stance or recovery node records three camera views
   of the final and the selected checkpoint
   (`reporting/stage_artifacts.py:2451-2452`), six clips; the review's executed
   Allosaurus notebook held about 4.5 MB of video for episodes of about 155
   steps, which scales to about 27 MB of base64 per 1000-step stance or
-  recovery node (2026-11-22). Cell 26 (:1833-1838) re-plots
+  recovery node (2026-11-22). Cell 28 (:2169-2174) re-plots
   `plot_training_curves` and `plot_diagnostics_graphs`, already drawn by the
-  chain loop (:1616-1617), while the saved `gate_progress.png`,
+  chain loop (:1677-1678), while the saved `gate_progress.png`,
   `foot_contacts.png`, a walk's `command_tracking.png` and
   `command_gate_progress.png`, and `training_history.html` are never shown
   inline (the last by design,
-  `docs/TRAINING_ARTIFACT_PRESENTATION.md:1727-1728`). Fix: inline only the
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md:1733-1734`). Fix: inline only the
   selected checkpoint's default-view replay, behind a `SHOW_VIDEOS` knob, and
-  print the other paths; in cell 28 show only reused ancestors; display the
+  print the other paths; in cell 30 show only reused ancestors; display the
   saved gate and command figures and link `training_history.html` instead of
   re-plotting. (2026-11 notebook review: embedded-videos-bloat-notebook,
   inline-video-bloat, notebook-inline-figures)
 - **LOW** — **the SB3 notebook's report names no offline analysis tool, and
   nothing compares runs or draws a whole chain (read from the code
-  2026-11-26).** Section 8 (cells 23-30) points to no script; the notebook
+  2026-11-26).** Section 8 (cells 25-32) points to no script; the notebook
   names only `zero_action_baseline.py` (cell 12,
-  `notebooks/sb3_training.ipynb:662`) and `backfill_gate_verdict.py` (:1498).
+  `notebooks/sb3_training.ipynb:736`) and `backfill_gate_verdict.py` (:1559).
   `scripts/action_bound_report.py`, `scripts/observation_ablation_report.py`
   and `scripts/joint_excursion_report.py` are described only in plans,
   reviews and investigations (among them STAGE1_SPLIT_PLAN.md,
@@ -3923,7 +3945,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   documents `plot_training_history.py` (whose several-stage-directory mode
   overlays runs) and `episode_trace_report.py`, which nothing in the notebook
   mentions. Each node's step counter restarts at its warm start
-  (`reset_num_timesteps=not resuming`, `train_base.py:2070`) and no figure
+  (`reset_num_timesteps=not resuming`, `train_base.py:2027`) and no figure
   puts a chain on one axis or sets two runs or seeds side by side. PPO's and
   SAC's optimizer metrics reach `diagnostics.npz` (`diagnostics.py:467-506`),
   but `scripts/compare_run_diagnostics.py`, the one tool that compares them
@@ -3938,7 +3960,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   no-chain-or-optimizer-overview)
 - **LOW** — **the SB3 notebook's configuration cell offers choices it later
   refuses, and refuses several only after the run directory is written (read
-  from the code 2026-11-26).** Cell 6 sets 19 knobs, three of them Colab
+  from the code 2026-11-26).** Cell 6 sets 16 knobs, three of them Colab
   `@param` fields (`SPECIES`, `EMBODIMENT` and `BEHAVIOR`,
   `notebooks/sb3_training.ipynb:212-213`, :238); `ALGORITHM`, `QUICK_TEST`,
   `AUTO_DISCONNECT` and the rest are free text, some under one-line comments
@@ -3946,13 +3968,13 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   two dropdowns make 12 pairs, 7 of them models; the other five are refused in
   that cell, before anything is written. `BEHAVIOR` offers `"recover"` on
   every model, and three have it. Cells 12 and 13 still say "all six" models
-  (:660, :684). Three refusals come after the storage cell (cell 8) has
+  (:734, :758). Three refusals come after the storage cell (cell 8) has
   created the run directory and written `provenance.json` (`_run_dir.mkdir`,
-  :410; `initialize_result_bundle`, :424): a pinned `TRUNK_FROM` that is this
-  run, not a run or another model's (:480-505; only a trunk in a screen or
-  quick-test tree is refused first, :395); an unknown `BEHAVIOR`
-  (`MANIFEST.resolve_behavior`, cell 9, :528); and a `RETRAIN_FROM` that is no
-  node or off the chain (:538-544). A corrected Run all in the same runtime
+  :484; `initialize_result_bundle`, :498): a pinned `TRUNK_FROM` that is this
+  run, not a run or another model's (:554-579; only a trunk in a screen or
+  quick-test tree is refused first, :444); an unknown `BEHAVIOR`
+  (`MANIFEST.resolve_behavior`, cell 9, :602); and a `RETRAIN_FROM` that is no
+  node or off the chain (:612-618). A corrected Run all in the same runtime
   re-enters that run id, so only a restarted runtime leaves the empty run
   behind. `CRITIC_PHASE = True` is refused later still, when the first node
   builds its training env, after the zero-action preflight (cell 13) has
