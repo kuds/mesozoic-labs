@@ -67,7 +67,19 @@ runs keep what the hunt nodes wrote, such as ``03_behavior/`` or
 ``04_behavior/`` and their ``task_success/v1`` evidence
 (``evaluation_selected.csv``): a stage directory of a reserved id the
 model's manifest no longer declares still reads as its stage, after the
-declared ones, and its page says no chain walks or reuses it.
+declared ones, and its page says no chain walks or reuses it.  A run that is
+not stranded but whose ``provenance.json`` records another plant identity
+than the one a new run records (:func:`reentry_drift`: a change to the
+plant's appearance or source files alone) keeps checkpoints that load, and
+no notebook session re-enters it (``result_bundle.initialize_result_bundle``
+compares the whole identity), so its page names no step that does either.
+Such a run, or a stranded one, whose manifest cannot be read gets one step:
+restoring the manifest, which re-enters nothing.  A judged run without a
+bundle that also holds a node trained and not judged gets that node's step
+(the chain loop's, or the RESUME cell's), not the publish cell, which
+refuses it until the node is judged.  Where the plant contract cannot be
+imported (MuJoCo is not installed), the current plant is unknown: the page
+says so and claims nothing either way.
 
 A node a run holds as an ``ancestors/<stage_id>/`` record is reused, whatever
 else the run holds: when the run also holds its own stage directory for the
@@ -181,14 +193,15 @@ _OLDER_LAYOUTS = (LAYOUT_STAGE_N, LAYOUT_BARE)
 _NN_DIRNAME = re.compile(r"[0-9]{2}_[a-z][a-z0-9_]*")
 _STAGE_N_DIRNAME = re.compile(r"stage[0-9]+")
 #: The prefix of every ``judged_by`` the command-line curriculum records (train_base's
-#: CURRICULUM_MANAGER_JUDGED_BY, STANCE_V2_POST_TRAINING_JUDGED_BY and STANCE_HEADING_POST_TRAINING_JUDGED_BY);
-#: it rolls no stance probe.
+#: CURRICULUM_MANAGER_JUDGED_BY, STANCE_V2_POST_TRAINING_JUDGED_BY, STANCE_HEADING_POST_TRAINING_JUDGED_BY and
+#: COMMAND_TRACKING_POST_TRAINING_JUDGED_BY); it rolls no stance probe.
 _COMMAND_LINE_JUDGED_BY = "train_base.train_curriculum/"
 #: What finishes a run in each unfinished state, for a run of a notebook tree (``{run_id}`` is its directory name).
 NEXT_STEPS = {
     JUDGED_NO_BUNDLE: "Next: the SB3 notebook's publish cell (section 6, `PUBLISH_RUN = True`, with "
-    '`RUN_ID = "{run_id}"`) writes the training summary and the bundle from the verdicts the run holds; a chain loop '
-    "that trains or judges a further node of this run writes them too",
+    '`RUN_ID = "{run_id}"`) writes the training summary and the bundle from the verdicts the run holds, once every '
+    "node of `BEHAVIOR`'s chain down to its first failed verdict is judged here or reused (it refuses the run "
+    "otherwise); a chain loop that trains or judges a further node of this run writes them too",
     POST_TRAINING_CUT: 'Next: re-enter the run (`RUN_ID = "{run_id}"`) and run the chain loop: it judges a node that '
     "was trained but never gated (an intact final pair and no verdict), then saves the bundle",
     TRAINING_CUT: 'Next: re-enter the run (`RUN_ID = "{run_id}"`): the chain loop judges a node whose final pair is '
@@ -197,6 +210,17 @@ NEXT_STEPS = {
     "and every cell that writes into a run, refuse a manifest they cannot read (`result_bundle.read_bundle_status`). "
     "Restore `artifact_manifest.json` (Drive keeps a file's earlier versions), then rebuild this page",
 }
+#: The one step a page names for a run no notebook session re-enters (stranded, or its re-entry refused) whose
+#: manifest cannot be read: restoring the record, which re-enters nothing.
+RECORD_STEP = (
+    "Next: restore `artifact_manifest.json` (Drive keeps a file's earlier versions) so the run's record reads again, "
+    "then rebuild this page; no cell writes into this run again either way (below)"
+)
+#: Where a judged run without a bundle also holds a node trained and not judged: what the step adds.
+UNJUDGED_NOTE = (
+    "The run holds {nodes} trained and not judged, and the publish cell refuses a run while a node of its chain is not "
+    "judged"
+)
 #: The ``stance_gate_report.py`` options that roll each probe again, by its label (the values are the stage's own).
 _PROBE_OPTIONS = {
     "filtered action": "--filter-actions {values}",
@@ -609,6 +633,28 @@ def _state(run_dir: Path, stage_dirs: Sequence[tuple[str, Path]], warnings: list
     return EMPTY, None
 
 
+def _unjudged(nodes: Sequence[Mapping[str, Any]], own: Mapping[str, Path]) -> list[dict[str, str]]:
+    """The run's own nodes trained and not judged: ``{"id", "dir", "state"}``, the state their directory reads as.
+
+    A node of the model's manifest that the run holds as a stage directory
+    of its own (no ``ancestors/`` record stands for it) without a
+    ``gate_verdict.json``, holding an evaluation CSV
+    (:data:`POST_TRAINING_CUT`) or a checkpoint (:data:`TRAINING_CUT`).  The
+    publish cell refuses a run while a node of its chain is not judged, so
+    the step that judges such a node comes first.
+    """
+    found = []
+    for node in nodes:
+        directory = own.get(node["id"])
+        if directory is None or node["dir"] is None or node["retired"] or node["verdict"] != "not judged":
+            continue
+        if any((directory / name).is_file() for name in _EVALUATION_CSVS):
+            found.append({"id": node["id"], "dir": directory.name, "state": POST_TRAINING_CUT})
+        elif _holds_checkpoint(directory):
+            found.append({"id": node["id"], "dir": directory.name, "state": TRAINING_CUT})
+    return found
+
+
 def run_state(run_dir: "str | Path") -> str:
     """The state of the run at *run_dir*: one of :data:`RUN_STATES` (the module docstring has the rules)."""
     run = Path(run_dir).resolve()
@@ -644,20 +690,40 @@ def _started(provenance: "Mapping[str, Any] | None", run_dir: Path) -> "str | No
     return f"{day[:4]}-{day[4:6]}-{day[6:]}T{time[:2]}:{time[2:4]}:{time[4:]}"
 
 
-#: The fields of a recorded plant identity a checkpoint must share with the current plant to load
-#: (``plant_contract.PlantIdentity.compatibility_errors``), each with where the committed generated plant manifest
-#: holds the current value: ``(field, layer, key)``.
-_PLANT_FIELDS = (
+#: Every field of a recorded plant identity (``plant_contract.PlantIdentity.to_dict``) but its schema and model, each
+#: with where the committed generated plant manifest holds the current value: ``(field, layer, key)``, ``layer``
+#: ``None`` for the model's entry itself.
+_IDENTITY_FIELDS = (
+    ("model_path", None, "model_path"),
     ("physics_revision", "physics", "revision"),
+    ("policy_interface_revision", "policy_interface", "revision"),
+    ("visual_revision", "visual", "revision"),
+    ("source_closure_sha256", "source", "closure_sha256"),
+    ("policy_interface_sha256", "policy_interface", "sha256"),
     ("physics_sha256", "physics", "sha256"),
+    ("visual_sha256", "visual", "sha256"),
     ("nq", "physics", "nq"),
     ("nv", "physics", "nv"),
     ("nu", "physics", "nu"),
-    ("policy_interface_revision", "policy_interface", "revision"),
-    ("policy_interface_sha256", "policy_interface", "sha256"),
     ("observation_dim", "policy_interface", "observation_dim"),
     ("action_dim", "policy_interface", "action_dim"),
 )
+#: The fields besides the model a checkpoint must share with the current plant to load
+#: (``plant_contract.PlantIdentity.compatibility_errors``): no change to the plant's appearance or source files alone
+#: moves one.
+_COMPATIBILITY_FIELDS = (
+    "physics_revision",
+    "physics_sha256",
+    "nq",
+    "nv",
+    "nu",
+    "policy_interface_revision",
+    "policy_interface_sha256",
+    "observation_dim",
+    "action_dim",
+)
+#: A key a recorded identity lacks, told apart from one it records as ``None`` (the storage cell compares dicts).
+_ABSENT = object()
 
 
 @lru_cache(maxsize=16)
@@ -703,42 +769,93 @@ def _run_plant(
     return None
 
 
+def current_plant_record(model_id: "ModelId | None") -> "dict[str, Any] | None":
+    """The plant identity a new run of *model_id* records, as a mapping; ``None`` when the current plant is unknown.
+
+    What the storage cell writes into a new run's ``provenance.json``
+    (``plant_contract.current_plant_identity(model_id).to_dict()``), read
+    from the committed generated plant manifest (:func:`_committed_plant`)
+    without building an environment.  ``None`` too where the plant contract
+    cannot be imported (its dependencies, MuJoCo among them, are not
+    installed), so a report then claims nothing about the plant.
+    """
+    committed = _committed_plant(model_id)
+    if committed is None or model_id is None:
+        return None
+    try:
+        from ..plant_contract.constants import PLANT_IDENTITY_SCHEMA
+    except ImportError:  # the plant contract's package imports MuJoCo
+        return None
+    record: dict[str, Any] = {"schema": PLANT_IDENTITY_SCHEMA, **model_id.record()}
+    for field, layer, key in _IDENTITY_FIELDS:
+        block = committed if layer is None else committed.get(layer)
+        record[field] = block.get(key) if isinstance(block, Mapping) else None
+    return record
+
+
 def plant_drift(recorded: "Mapping[str, Any] | None", model_id: "ModelId | None") -> "str | None":
     """Why checkpoints trained on the plant *recorded* names load on no current plant of *model_id*; ``None`` if they do.
 
     ``None`` too when the current plant cannot be read (the generated plant
-    manifest), so nothing is claimed either way.  The fields are the ones
+    manifest, or the plant contract itself: :func:`current_plant_record`),
+    so nothing is claimed either way.  The fields are the ones
     ``plant_contract.PlantIdentity.compatibility_errors`` compares, read from
     the committed manifest: every checkpoint written before decision D-D59
     differs (``configs/plant_versions.toml``, note 24: all seven plants moved
     and every checkpoint of every model is stranded once).
     """
-    from ..plant_contract.constants import PLANT_IDENTITY_SCHEMA
-
-    committed = _committed_plant(model_id)
-    if committed is None or model_id is None:
+    current = current_plant_record(model_id)
+    if current is None or model_id is None:
         return None
     if not isinstance(recorded, Mapping):
         return (
             "no record of the run names the plant it trained on, and a checkpoint without a plant identity loads "
             "nowhere that certifies"
         )
-    if recorded.get("schema") != PLANT_IDENTITY_SCHEMA:
-        return f"its plant identity is of schema {recorded.get('schema')!r}, not {PLANT_IDENTITY_SCHEMA!r}"
+    if recorded.get("schema") != current["schema"]:
+        return f"its plant identity is of schema {recorded.get('schema')!r}, not {current['schema']!r}"
     named = (recorded.get("species"), recorded.get("embodiment"))
     if named != (model_id.species, model_id.embodiment):
         return f"its plant identity names the model {named[0]}/{named[1]}"
-    differences = []
-    for field, layer, key in _PLANT_FIELDS:
-        block = committed.get(layer)
-        current = block.get(key) if isinstance(block, Mapping) else None
-        if recorded.get(field) != current:
-            differences.append(
-                f"{field} differs" if field.endswith("sha256") else f"{field} {recorded.get(field)} (now {current})"
-            )
+    differences = [
+        f"{field} differs" if field.endswith("sha256") else f"{field} {recorded.get(field)} (now {current[field]})"
+        for field in _COMPATIBILITY_FIELDS
+        if recorded.get(field) != current[field]
+    ]
     if not differences:
         return None
     return "it was trained on another plant of the model: " + ", ".join(differences)
+
+
+def reentry_drift(recorded: "Mapping[str, Any] | None", model_id: "ModelId | None") -> "str | None":
+    """Why a notebook session refuses to re-enter a run whose ``provenance.json`` records the plant *recorded*, though
+    its checkpoints still load on the current plant of *model_id*; ``None`` when nothing refuses it so.
+
+    The storage cell records the current plant's whole identity
+    (:func:`current_plant_record`), and
+    ``result_bundle.initialize_result_bundle`` refuses an existing run whose
+    ``provenance.json`` records any other.  A change to the plant's
+    appearance or source files alone (its visual revision and digest, its
+    source-closure digest, its model path) moves none of the fields a
+    checkpoint depends on (:func:`plant_drift`), and still refuses the run.
+    ``None`` for a stranded run (:func:`plant_drift` says why), for a run
+    whose ``provenance.json`` records no plant, and when the current plant
+    cannot be read.
+    """
+    current = current_plant_record(model_id)
+    if current is None or not isinstance(recorded, Mapping) or plant_drift(recorded, model_id) is not None:
+        return None
+    differing = [
+        field
+        for field in dict.fromkeys([*current, *recorded])
+        if recorded.get(field, _ABSENT) != current.get(field, _ABSENT)
+    ]
+    if not differing:
+        return None
+    return (
+        f"its `{DEFAULT_PROVENANCE_NAME}` records the plant with another {_listed(differing)} than the current plant "
+        "of the model"
+    )
 
 
 def _key_id(key: Any, manifest: "StageManifest | None") -> str:
@@ -1273,7 +1390,9 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
     run_plant = _run_plant(run_dir, provenance, stage_dirs)
     holds = bool(stage_dirs) or (run_dir / ANCESTORS_DIRNAME).is_dir()
     stranded = plant_drift(run_plant, model_id) if run_plant is not None or holds else None
-    if detail and model_id is not None and _committed_plant(model_id) is None:
+    provenance_plant = provenance.get("plant_identity") if provenance is not None else None
+    reentry = reentry_drift(provenance_plant, model_id) if isinstance(provenance_plant, Mapping) else None
+    if detail and model_id is not None and current_plant_record(model_id) is None:
         warnings.append(
             f"the current plant of {model_id} cannot be read (configs/plant_manifest.generated.json), so this page "
             "does not say whether the run's checkpoints still load"
@@ -1288,6 +1407,7 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
         cache=cache,
         stranded=stranded is not None,
     )
+    unjudged = _unjudged(nodes, dict(stage_dirs)) if detail and state == JUDGED_NO_BUNDLE else []
     deliverables = _deliverables(provenance, manifest)
     sealed = status is not None
     primary_key = provenance.get("primary_deliverable") if provenance is not None else None
@@ -1320,7 +1440,9 @@ def _run_summary(run_dir: Path, model_dir: Path, *, detail: bool = True) -> dict
         "model": model_id.record() if model_id is not None else None,
         "state": state,
         "stranded": stranded,
-        "provenance_plant": isinstance(provenance.get("plant_identity"), Mapping) if provenance is not None else False,
+        "reentry_refused": reentry,
+        "provenance_plant": isinstance(provenance_plant, Mapping),
+        "unjudged": unjudged,
         "manifest_status": status,
         "started": _started(provenance, run_dir),
         "target": _key_id(target_key, manifest) if target_key is not None else None,
@@ -1456,6 +1578,22 @@ def _relative(target: Path, start: "Path | None") -> str:
     return Path(os.path.relpath(target, start)).as_posix()
 
 
+def _next_step(summary: Mapping[str, Any]) -> str:
+    """The step that finishes an unfinished run of a notebook tree that a notebook session can re-enter.
+
+    A judged run without a bundle that also holds a node trained and not
+    judged (``summary["unjudged"]``) gets that node's step, the chain loop's
+    or the RESUME cell's, since the publish cell refuses it until the node is
+    judged; any other gets its state's :data:`NEXT_STEPS` entry.
+    """
+    unjudged = summary["unjudged"]
+    if summary["state"] != JUDGED_NO_BUNDLE or not unjudged:
+        return NEXT_STEPS[summary["state"]].format(run_id=summary["run_id"])
+    step = TRAINING_CUT if any(item["state"] == TRAINING_CUT for item in unjudged) else POST_TRAINING_CUT
+    nodes = _listed([f"`{item['id']}` (`{item['dir']}/`)" for item in unjudged])
+    return NEXT_STEPS[step].format(run_id=summary["run_id"]) + ". " + UNJUDGED_NOTE.format(nodes=nodes)
+
+
 def render_run_report(
     run_dir: "str | Path",
     *,
@@ -1499,15 +1637,17 @@ def render_run_report(
         "",
         f"**State: {summary['state']}.** {_sentence(STATE_DESCRIPTIONS[summary['state']])}.",
     ]
+    # No notebook session re-enters a stranded run, nor one whose provenance.json records another plant identity.
+    closed = summary["stranded"] is not None or summary["reentry_refused"] is not None
     if summary["state"] in (TRAINING_CUT, POST_TRAINING_CUT) and summary["layout"] in _OLDER_LAYOUTS:
         lines.append(
             f"Its stage directories (`{summary['layout']}`) are of a layout older than `{GATE_VERDICT_FILENAME}`: "
             "the state says which files the run holds, not that its training was cut off."
         )
-    elif summary["state"] in NEXT_STEPS and (
-        summary["state"] == BUNDLE_UNREADABLE or (summary["kind"] is not None and summary["stranded"] is None)
-    ):
-        lines.append(NEXT_STEPS[summary["state"]].format(run_id=summary["run_id"]) + ".")
+    elif summary["state"] == BUNDLE_UNREADABLE:
+        lines.append((RECORD_STEP if closed else NEXT_STEPS[BUNDLE_UNREADABLE]) + ".")
+    elif summary["state"] in NEXT_STEPS and summary["kind"] is not None and not closed:
+        lines.append(_next_step(summary) + ".")
     if summary["stranded"]:
         lines.append(
             f"**Stranded:** {summary['stranded']}. None of its checkpoints loads on the current plant "
@@ -1520,6 +1660,15 @@ def render_run_report(
             )
             + ". Every checkpoint written before decision D-D59 is stranded (`configs/plant_versions.toml`, note 24). "
             "The run stays as a record; a new run trains the model again."
+        )
+    if summary["reentry_refused"]:
+        lines.append(
+            f"**Re-entry refused:** {summary['reentry_refused']}. A checkpoint depends on none of these fields "
+            "(`plant_contract.PlantIdentity.compatibility_errors`), so the run's checkpoints still load on the current "
+            "plant and a later run can still reuse its passed nodes (`TRUNK_FROM`, under the reuse rule). But the "
+            "storage cell records the current plant's whole identity and refuses a run whose `provenance.json` records "
+            "another (`result_bundle.initialize_result_bundle`), so no notebook session re-enters, resumes or "
+            "publishes this run: a new run that trunks from it finishes what it left unfinished."
         )
     if summary["excluded"]:
         lines.append(

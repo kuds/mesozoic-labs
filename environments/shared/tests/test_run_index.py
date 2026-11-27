@@ -160,6 +160,9 @@ RUN_FILES = (
 def _committed_entry(identity: "dict[str, Any]") -> dict[str, Any]:
     """*identity* (a recorded plant identity) as the generated plant manifest's entry of the plant it names."""
     return {
+        "model_path": identity["model_path"],
+        "source": {"closure_sha256": identity["source_closure_sha256"]},
+        "visual": {"revision": identity["visual_revision"], "sha256": identity["visual_sha256"]},
         "physics": {
             "revision": identity["physics_revision"],
             "sha256": identity["physics_sha256"],
@@ -1099,6 +1102,107 @@ def test_the_current_plant_is_the_committed_generated_manifest(monkeypatch):
     from environments.shared.plant_contract import current_plant_identity
 
     assert run_index.plant_drift(current_plant_identity(TYRANNOSAURUS_REX).to_dict(), TYRANNOSAURUS_REX) is None
+    # The whole identity, as the storage cell records it and initialize_result_bundle compares it on re-entry.
+    assert run_index.current_plant_record(TYRANNOSAURUS_REX) == current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    assert run_index.reentry_drift(current_plant_identity(TYRANNOSAURUS_REX).to_dict(), TYRANNOSAURUS_REX) is None
+
+
+def _reappear(run_dir: Path) -> None:
+    """Make *run_dir*'s recorded plant (its provenance's) the current one before a change to its appearance and source
+    files alone: another visual revision and digest and another source-closure digest, every field a checkpoint
+    depends on unchanged."""
+    path = run_dir / "provenance.json"
+    provenance = json.loads(path.read_text(encoding="utf-8"))
+    identity = provenance["plant_identity"]
+    provenance["plant_identity"] = {
+        **identity,
+        "visual_revision": identity["visual_revision"] - 1,
+        "visual_sha256": "sha256:" + "1" * 64,
+        "source_closure_sha256": "sha256:" + "2" * 64,
+    }
+    path.write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def test_a_run_recorded_on_another_appearance_names_no_step_the_storage_cell_refuses(tmp_path):
+    """A change to the plant's appearance or source files alone strands no checkpoint, but the storage cell records
+    the whole identity and refuses a run whose provenance.json records another: the page says so, keeps the run's
+    checkpoints usable, and names no step that re-enters it."""
+    run_dir, _ = _state_run("judged_no_bundle", tmp_path / "logs")
+    assert "Next: the SB3 notebook's publish cell" in run_index.render_run_report(run_dir)
+    _reappear(run_dir)
+    summary = run_index.build_run_index(run_dir)["summary"]
+    assert summary["stranded"] is None, "every field a checkpoint depends on is the current plant's"
+    assert summary["reentry_refused"] == (
+        "its `provenance.json` records the plant with another visual_revision, source_closure_sha256 and "
+        "visual_sha256 than the current plant of the model"
+    )
+    page = run_index.render_run_report(run_dir)
+    assert "Next: " not in page and "Stranded" not in page
+    assert (
+        f"**Re-entry refused:** {summary['reentry_refused']}. A checkpoint depends on none of these fields "
+        "(`plant_contract.PlantIdentity.compatibility_errors`), so the run's checkpoints still load on the current plant"
+    ) in page
+    assert "no notebook session re-enters, resumes or publishes this run" in page
+    # The storage cell's own call refuses the run, as the page says.
+    with pytest.raises(result_bundle.ResultBundleError, match="run directory already belongs to a different run"):
+        _provenance(run_dir, BRACHIOSAURUS_ALTITHORAX)
+    # A stranded run is named stranded alone.
+    _strand(run_dir, BRACHIOSAURUS_ALTITHORAX)
+    summary = run_index.build_run_index(run_dir)["summary"]
+    assert summary["stranded"] is not None and summary["reentry_refused"] is None
+
+
+@pytest.mark.parametrize("closed", ("stranded", "re-entry refused"))
+def test_a_run_no_session_re_enters_is_named_only_the_record_step_when_its_manifest_cannot_be_read(tmp_path, closed):
+    """Restoring an unreadable artifact_manifest.json re-enters nothing, so it is the one step such a page names: not
+    the step that lets the cells write into the run again, which none does."""
+    run_dir, _ = _state_run("bundle_unreadable", tmp_path / "logs")
+    (_strand if closed == "stranded" else lambda run, _: _reappear(run))(run_dir, BRACHIOSAURUS_ALTITHORAX)
+    page = run_index.render_run_report(run_dir)
+    assert f"{run_index.RECORD_STEP}." in page and page.count("Next: ") == 1
+    assert "nothing writes into this run while its bundle's status is unknown" not in page
+    assert ("**Stranded:** " if closed == "stranded" else "**Re-entry refused:** ") in page
+
+
+def test_without_mujoco_the_plant_is_unknown_and_every_report_is_written(tmp_path):
+    """Where the plant contract cannot be imported (its package imports MuJoCo), the current plant is unknown: no run
+    reads as stranded or refused, each page says the plant cannot be read, and the script writes every report."""
+    import subprocess
+
+    logs = tmp_path / "logs"
+    run_dir, _ = _state_run("post_training_cut", logs)
+    model_dir = BRACHIOSAURUS_ALTITHORAX.path(logs)
+    code = (
+        "import json, sys\n"
+        "class _Block:\n"
+        "    def find_spec(self, name, path=None, target=None):\n"
+        "        if name == 'mujoco' or name.startswith('mujoco.'):\n"
+        "            raise ImportError(f'blocked {name}')\n"
+        "        return None\n"
+        "sys.meta_path.insert(0, _Block())\n"
+        "from environments.shared.model_id import ModelId\n"
+        "from environments.shared.reporting import run_index\n"
+        "from environments.shared.scripts import run_report\n"
+        "model = ModelId('brachiosaurus_altithorax', 'anatomical')\n"
+        "older = {'schema': 'mesozoic.plant-identity/v0', **model.record()}\n"
+        "print(json.dumps([run_index.plant_drift(older, model), run_index.reentry_drift(older, model)]))\n"
+        f"code = run_report.main(['--model-dir', {str(model_dir)!r}])\n"
+        "assert 'mujoco' not in sys.modules\n"
+        "sys.exit(code)\n"
+    )
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, (str(REPO_ROOT), os.environ.get("PYTHONPATH"))))}
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300, cwd=REPO_ROOT, env=env
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout.splitlines()[0]) == [None, None]
+    page = (model_dir / "reports" / "ppo" / run_dir.name / "report.md").read_text(encoding="utf-8")
+    assert (
+        "cannot be read (configs/plant_manifest.generated.json), so this page does not say whether the run's "
+        "checkpoints still load"
+    ) in page
+    assert "Stranded" not in page and "Re-entry refused" not in page
+    assert f'Next: re-enter the run (`RUN_ID = "{run_dir.name}"`) and run the chain loop' in page
 
 
 def test_the_certificate_and_probe_lines_come_from_the_text_reports(tmp_path, monkeypatch):
