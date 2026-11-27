@@ -25,7 +25,8 @@ branch. A pass is claimed only where a tool's output showed it.
 
 ## 2. Owner decisions
 
-Rows of the build's decision log (build commit 8198001c, `hardware/triceratops_build/DECISION_LOG.md`), 27 Nov 2026.
+Rows of the build's decision log (build commit ea3a6668, `hardware/triceratops_build/DECISION_LOG.md`), 27 Nov 2026.
+D41-D44 were decided after commits 1-3 were written; commits 1-3 are unchanged by them.
 
 | Row | Decision (as recorded) | How this design meets it |
 |---|---|---|
@@ -36,6 +37,10 @@ Rows of the build's decision log (build commit 8198001c, `hardware/triceratops_b
 | D38 | Whole-robot mass factor (x0.9-1.1) and payload (0-1 kg): two more opt-in shared keys, off by default; on for the 60 cm robot in training rollouts; evaluation leaves them out | §6: `randomize_total_mass_scale` and `randomize_payload_kg` in the robot's stages and recipes, applied only while `training_rollouts` is true |
 | D39 | Arrival bonus: on arrival the robot is paid the standing reward its remaining steps would have earned, so arriving is never worse than stalling; a change to the robot model only | §8.5: `reward_arrival = (max_episode_steps - steps taken) x 1.8` in locomotion, its own info key. The 1.8 counts alive, posture, height and heading, the four terms on at every step (§8.5). The guarantee covers the four always-on terms; the forward term is outside it (§8.5, §8.10) |
 | D40 | Starting gates: stance reward 900 over at least 950 of 1000 steps; walking reward 2000, 550 steps, 0.15 m/s; course 4 m, 0.3 m arrival radius; provisional, revised with the owner after the first main-pipeline run | §8.6 uses them; the stage TOML comments, the species README and this record say "provisional (D40)"; a robot test pins them |
+| D41 | The 60 cm design is adopted for building, and main's hardware page names it as the chosen design: option C of D2 (10 X4 and 2 X6 drives on 12S), the capsule sole (D19) and the 128 mm upper foreleg (D25), the model `trike60_C_closed_capsule_fore128.xml` at build commit f6deec9f. Adopting it orders nothing: the 21 Nov 2026 not-ready-to-order finding stands, the one-foreleg bench test comes before any order, and compute (D3) and the rest of the chassis (D5) stay open | §8.11: commit 5 updates `docs/hardware/README.md` to say so (owner point 1) |
+| D42 | The robot ships all 11 behaviour recipes | §8.7 as written (owner point 6) |
+| D43 | Tanh now, ELU later: the robot's PPO uses SB3's default Tanh, a declared deviation from the build, and the first main-pipeline run is not a like-for-like comparison with the build's runs | §8.6 as written; the activation setting stays a follow-up (§11) |
+| D44 | Randomise in stance too, friction as the build's absolute 0.6-1.0, and a clean reset observation, as planned | §6 and §7 as written (owner points 4 and 5) |
 
 ## 3. Landing order
 
@@ -790,9 +795,13 @@ Neither file imports SB3 or calls `make_env`, so both run in the species matrix 
 - `docs/SPECIES_NAMING.md` row; root `README.md` prose under the generated table; the module docstring of
   `environments/shared/scripts/warm_start_noise_scan.py` (`:13`, `:89`: "seven models" becomes eight); `docs/ROADMAP.md`
   Phase 6 (`:515-528`, M9); `CHANGELOG.md`. `docs/hardware/README.md` (`:5-10`) says only an adopted design becomes a
-  species' robot model (the maintainer's decision of 2026-11-26); D32 and D36 make the 60 cm design that model in
-  simulation, so the page says so, citing them, and its `60 cm Triceratops build` row (`:71`) adds the model, derived
-  from build commit f6deec9f (§11).
+  species' robot model (the maintainer's decision of 2026-11-26). D41 adopts the 60 cm design for building, and D32
+  and D36 make it that model, so the page says so, citing them: the header names `triceratops_horridus/robot` beside
+  the Compsognathus revision B; "Where things stand" says the design was adopted on 27 Nov 2026 and that adopting it
+  orders nothing (the 21 Nov 2026 not-ready-to-order finding stands, the one-foreleg bench test comes first, compute
+  and the rest of the chassis are open); the concepts table's `Triceratops, 60 cm` row (`:32`) becomes "adopted
+  design; robot model in simulation", 27 Nov 2026; and the records table's `60 cm Triceratops build` row (`:71`) adds
+  the model, derived from build commit f6deec9f.
 
 ## 9. Verification gates
 
@@ -937,13 +946,14 @@ description. Install with the canonical MuJoCo and tensorboard (the `train` extr
   costs (D32); a smaller reset qvel noise; the arrival bonus under `VecNormalize`'s reward clip of 50
   (`constants.py:22`), checked in the first run.
 - A supported way to name the PPO activation in a stage TOML, so the robot can train with the build's ELU (§8.6); until
-  then it trains with SB3's default Tanh, a declared deviation from the build.
+  then it trains with SB3's default Tanh, a declared deviation from the build (D43).
 
-**Points for the owner to confirm:**
+**Points for the owner** (points 1, 4, 5 and 6 decided on 27 Nov 2026 as D41, D44 and D42; point 2 is D40; point 3
+stays open until commit 5 measures it):
 
 1. `docs/hardware/README.md` says only an adopted design becomes a species' robot model (2026-11-26). This PR makes
-   the 60 cm design `triceratops_horridus/robot` in simulation (D32, D36) and updates the page. Confirm the intent, and
-   that it does not by itself adopt the design for building.
+   the 60 cm design `triceratops_horridus/robot` in simulation (D32, D36) and updates the page. **Decided (D41):** the
+   design is adopted for building too, ordering nothing (§2, §8.11).
 2. The gates and course values are provisional (D40), revised after the first main-pipeline run.
 3. The arrival bonus counts the heading term (1.8 per step, not 1.5; §8.5), so in the four always-on
    terms arriving is never worth less than stalling facing the course. The forward term is outside that bound: a
@@ -952,10 +962,12 @@ description. Install with the canonical MuJoCo and tensorboard (the `train` extr
    arrives depends on how the forward reference turns as it passes the target; estimated from the weights at up to
    about 3300 against 3000, not measured. Commit 5 measures it on the robot env; D39 does not cover that case.
 4. The robot randomises in stance too, as the build does (R12); friction is absolute, not ROADMAP's scale.
-5. The reset observation is noise-free, unlike the build (one observation per episode).
+   **Decided (D44):** both as planned.
+5. The reset observation is noise-free, unlike the build (one observation per episode). **Decided (D44):** as
+   planned.
 6. Taken as the model design recommended: head and tail folded into springs (nu 12); the new schema name; all 11
    recipes on a flat-ground robot (D28); a stance the statue passes, kept as a warm start; one animal page on the site.
    On the recipes, a D32 scope question: all 11 are main's own command tasks, and `follow_direction` and
    `follow_direction_speed` train heading, speed and yaw-rate commands, while D32 keeps steering in the build stack.
    They ship only because `test_behavior_recipes.py` and CI require the full set, and they are inert unless run
-   (§8.7). Confirm that shipping them fits D32, or say whether the robot should be exempted from the full-set rule.
+   (§8.7). **Decided (D42):** all 11 ship.
