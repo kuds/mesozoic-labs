@@ -14,8 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<model>/reports/<tree>/<run_id>/report.md` and `index.json`, then rebuilds
   `<model>/reports/INDEX.md` and `index.json`, beside the run trees and
   outside every run (the maintainer's decision of 2026-11-26). A run's page
-  gives its state, with the next step for an unfinished run; a row per node
-  (verdict, gate kind, handoff, or the trunk run it was reused from, linked
+  gives its state, with the next step for an unfinished run (a judged run
+  without a bundle that also holds a node trained and not judged gets that
+  node's chain-loop or RESUME step, since the publish cell refuses it); a
+  row per node (verdict, gate kind, handoff, or the trunk run it was reused
+  from, linked
   once that run's report exists, an `ancestors/` record standing for its node
   even beside the run's own stage directory, which the page names as not
   published); the certificate and probe lines from the `.txt` reports (the
@@ -30,10 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a role of their own. A run whose recorded plant is not the model's current
   one, as the committed generated plant manifest gives it, is stranded
   (`run_index.plant_drift`), as is every run written before decision D-D59:
-  its page names no next step and no command that re-judges or re-rolls it,
-  its certified deliverables read as a record, and its index row says
-  `stranded`. The hunt stage directories such runs hold (`03_behavior/`,
-  `04_behavior/`, `stage3/`) still read as the `behavior` stage, which the
+  its page names no next step (but restoring an unreadable
+  `artifact_manifest.json`, which re-enters nothing) and no command that
+  re-judges or re-rolls it, its certified deliverables read as a record, and
+  its index row says `stranded`. A run whose `provenance.json` records
+  another plant identity only in fields no checkpoint depends on (a change to
+  the plant's appearance or source files) keeps checkpoints that load, but
+  the storage cell refuses to re-enter it, so its page says so and names no
+  such step either (`run_index.reentry_drift`). Where the plant contract
+  cannot be imported (no MuJoCo), each page says the current plant cannot be
+  read and claims nothing. The hunt stage directories such runs hold
+  (`03_behavior/`, `04_behavior/`, `stage3/`) still read as the `behavior`
+  stage, which the
   page says no chain walks or reuses. The index lists every run grouped by
   state, newest first, with an `unreadable` group, showing the error, for a
   run whose records cannot be read. A run without a sealed bundle certifies
@@ -63,8 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   names its writers and readers by code path. It also covers the three layout
   generations, the quick-test, screen, pilot and scratch trees, the storage
   cell's `RUN_ID` rules and where each came from, the placement rule and
-  retention. No retention policy is set, and inside a run checkpoint pruning
-  in `models/` is the only deletion. `docs/README.md` lists it, and the root
+  retention. No retention policy is set, and inside a run only checkpoint
+  pruning in `models/` and a re-judged walk's removal of the trace and command
+  figures an earlier judgement left delete a file a writer did not just
+  write. `docs/README.md` lists it, and the root
   README, `results/README.md`, `RESULT_BUNDLES.md`, the behavior recipes page
   and both notebooks link it.
 - **A test that keeps the Drive map in step with the code.**

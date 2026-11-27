@@ -569,12 +569,12 @@ bundle from its verdict, as the loop's reuse does (the walk's from its
 `command_tracking/v1` verdict), and a missing report-only file, such as a
 probe the cut-off skipped, does not block it.
 
-**Walk on a stance trunk.** An earlier run `20260901_120000` certified
+**Walk on a stance trunk.** An earlier run `20261127_150000` certified
 stance for the Velociraptor under PPO. In a fresh session:
 
 ```python
 BEHAVIOR = "walk"
-TRUNK_FROM = "20260901_120000"
+TRUNK_FROM = "20261127_150000"
 ```
 
 The chain is `stance -> locomotion`. The loop reuses the trunk's stance if
@@ -779,15 +779,15 @@ After a notebook walk run that reused a trunk's stance, a T-Rex run directory
 (under `<LOG_BASE>/tyrannosaurus_rex/anatomical/ppo/`) looks like this:
 
 ```
-20260912_120000/
+20261128_120000/
 ├── provenance.json             deliverables {locomotion}, with certified;
-│                               ancestors {stance} — reused, still published by run 20260901_120000
+│                               ancestors {stance} — reused, still published by run 20261127_150000
 ├── plant_identity.json, trunk_run.json, zero_action_baseline.json,
 │   collected_results.csv, training_summary.txt
 ├── summary.json                written whenever anything certified; status complete | partial
 ├── artifact_manifest.json      the bundle's status and every file's hash; written last
 ├── ancestors/
-│   └── stance/                 reused from run 20260901_120000: ancestor.json + copies of its
+│   └── stance/                 reused from run 20261127_150000: ancestor.json + copies of its
 │       ├── ancestor.json         gate_verdict, stage_config, task_fingerprint, plant_identity
 │       └── ...                   (never the checkpoint)
 └── 03_locomotion/              NN is the node's manifest position; 02 is recovery, off this chain

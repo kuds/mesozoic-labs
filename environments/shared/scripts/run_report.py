@@ -42,7 +42,13 @@ A run whose recorded plant is not the model's current one is *stranded*
 (``run_index.plant_drift``): its page and its index row say so, and its page
 names no step that re-enters or re-rolls it.  Every run written before
 decision D-D59 is (``configs/plant_versions.toml``, note 24), and keeps the
-stage directory of the hunt it trained, which still reads as its stage.
+stage directory of the hunt it trained, which still reads as its stage.  A
+run whose ``provenance.json`` records another plant identity only in fields
+no checkpoint depends on (``run_index.reentry_drift``) is not stranded, but
+the storage cell refuses to re-enter it, so its page names no such step
+either.  Where the plant contract cannot be imported (MuJoCo is not
+installed), every page is still written and says the current plant cannot
+be read.
 
 What it writes: only under ``<model_dir>/reports/``, and only what changed.
 The tool owns ``report.md`` and ``index.json`` in each run's report folder
