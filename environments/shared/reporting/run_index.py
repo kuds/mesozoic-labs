@@ -670,11 +670,13 @@ def _committed_plant(model_id: "ModelId | None") -> "Mapping[str, Any] | None":
     """
     if model_id is None:
         return None
-    from ..plant_contract.errors import PlantContractError
+    try:
+        from ..plant_contract.errors import PlantContractError
 
-    # The reader the plant contract checks the file with (no public form exists).
-    from ..plant_contract.versions import _generated_plants, _load_generated_manifest
-
+        # The reader the plant contract checks the file with (no public form exists).
+        from ..plant_contract.versions import _generated_plants, _load_generated_manifest
+    except ImportError:  # the plant contract's dependencies (MuJoCo) are not installed: the plant is unknown
+        return None
     try:
         return _generated_plants(_load_generated_manifest()).get(model_id)
     except PlantContractError:

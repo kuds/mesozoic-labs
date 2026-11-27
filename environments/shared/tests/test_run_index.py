@@ -1094,6 +1094,11 @@ def test_the_current_plant_is_the_committed_generated_manifest(monkeypatch):
             "it was trained on another plant of the model: policy_interface_revision"
         )
     assert COMMITTED_PLANT(TYRANNOSAURUS_REX)["policy_interface"]["observation_dim"] == 59
+    # The identity the storage cell records for a new run (plant_contract.current_plant_identity, which builds the
+    # environment) drifts nowhere: the fields are read from the manifest where the contract puts them.
+    from environments.shared.plant_contract import current_plant_identity
+
+    assert run_index.plant_drift(current_plant_identity(TYRANNOSAURUS_REX).to_dict(), TYRANNOSAURUS_REX) is None
 
 
 def test_the_certificate_and_probe_lines_come_from_the_text_reports(tmp_path, monkeypatch):
