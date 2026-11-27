@@ -99,25 +99,40 @@ layout, the generation of its stage directories: `NN_<stage_id>` (from
   here, whatever its `provenance.json` records: its row reads `none
   published`, with the nodes whose verdict passed. A run of `<algo>/` that
   `run_exclusions.excluded_run_reason` names (the nine r10 stance screens,
-  and runs built on them) reads `never counts`. A row reads less than a page
-  and carries no warning count.
+  and runs built on them) reads `never counts`, and a stranded run (below)
+  reads `stranded`. A row reads less than a page and carries no warning
+  count.
 - **`report.md`** has a state line, and for an unfinished run of a notebook
-  tree the step that finishes it (the publish cell, the chain loop, the
-  RESUME cell, or restoring the manifest); a table per node with its id,
-  verdict, gate kind and handoff, or `reused from <trunk run>/<stage dir>`,
-  linked to the trunk run's report once that report exists; the certificate
-  and probe one-liners, read from the small `.txt` reports
-  (`stance_heading_report.txt`, `stance_gate_report.txt`), never from the
-  large JSON; the paths of its figures, training history and replays; and
-  warnings. A warning names a file no role covers; the declared probes a
-  stance stage lacks, expected only on a stage whose verdict
-  `generate_stage_artifacts` wrote (its `judged_by`), one warning per stage
-  with a command per probe (a stage the command-line curriculum judged gets a
-  note instead: its judge rolls no probe; any other stage expects none); the
-  handoff checkpoint and normalization that a verdict or an ancestor record
-  names and that no longer exist (an ancestor's are also looked for in the
-  trunk run beside the run, as the reuse rule looks); and a record that
-  cannot be read, with the step that repairs it.
+  tree that is not stranded the step that finishes it (the publish cell, the
+  chain loop, the RESUME cell, or restoring the manifest); a table per node
+  with its id, verdict, gate kind and handoff, or `reused from <trunk
+  run>/<stage dir>`, linked to the trunk run's report once that report
+  exists; the certificate and probe one-liners, read from the small `.txt`
+  reports (`stance_heading_report.txt`, `stance_gate_report.txt`, and the
+  walk's `command_tracking_report.txt` with each family's success count),
+  never from the large JSON; the paths of its figures, training history and
+  replays; and warnings. A warning names a file no role covers; the declared
+  probes a stance stage lacks (`stage_artifacts.declared_stance_probes`),
+  expected only on a stage whose verdict `generate_stage_artifacts` wrote (its
+  `judged_by`), one warning per stage with a command per probe (a stage the
+  command-line curriculum judged gets a note instead: its judge rolls no
+  probe; any other stage expects none); the handoff checkpoint and
+  normalization that a verdict or an ancestor record names and that no longer
+  exist (an ancestor's are also looked for in the trunk run beside the run,
+  as the reuse rule looks); and a record that cannot be read, with the step
+  that repairs it.
+- **A stranded run** is one whose recorded plant (its `provenance.json`'s,
+  else a `plant_identity.json`) is not the model's current plant, as the
+  committed `configs/plant_manifest.generated.json` gives it
+  (`run_index.plant_drift`, comparing the fields
+  `plant_contract.validate_recorded_identity` compares). None of its
+  checkpoints loads on this checkout, and a notebook session refuses to
+  re-enter it. Its page says which fields differ and names no next step,
+  its warnings name no command that re-judges a stage or rolls a probe
+  again, its certified deliverables read as a record of what passed then,
+  and its row says `stranded`. Every run written before decision D-D59 is
+  stranded: all seven plants moved and every checkpoint of every model was
+  stranded once (`configs/plant_versions.toml`, note 24).
 - **The run's `index.json`** lists every file with its path, stage, role and
   size. Its `sha256` is copied from `artifact_manifest.json`, with
   `hash_source` `"manifest"`, and never computed again; for a run without a
@@ -203,8 +218,8 @@ trained in the run and as reused (`reporting/bundles.py`, `result_schema.py`).
 
 | Item | Writer | Readers |
 |---|---|---|
-| `provenance.json` | The storage cell when the run opens (`result_bundle.initialize_result_bundle`); a later session is checked against it and recorded in its `sessions` record; the bundle writer adds the finalization fields (`reporting.bundles.save_result_bundle`, `result_bundle.update_provenance`) | The storage cell (a pinned `TRUNK_FROM` must name the same model, algorithm and backend); trunk selection; the publish cell (the recorded `target_deliverable`); the audit (`result_bundle/audit.py`); the Drive summary; the run index (`reports/`); the report tools, which take the nearest directory holding it as the run and refuse an output there (`result_bundle.run_directory` and `refuse_output_inside_run`, or `plot_gate_progress.run_directory`) |
-| `plant_identity.json` | The bundle writer, at every save | The audit (it must match `provenance.json`); the reuse rule, for a stage directory without its own (`ancestors.py`) |
+| `provenance.json` | The storage cell when the run opens (`result_bundle.initialize_result_bundle`); a later session is checked against it and recorded in its `sessions` record; the bundle writer adds the finalization fields (`reporting.bundles.save_result_bundle`, `result_bundle.update_provenance`) | The storage cell (a pinned `TRUNK_FROM` must name the same model, algorithm and backend); trunk selection; the publish cell (the recorded `target_deliverable`); the audit (`result_bundle/audit.py`); the Drive summary; the run index (`reports/`), which also compares its `plant_identity` with the current plant; the report tools, which take the nearest directory holding it as the run and refuse an output there (`result_bundle.run_directory` and `refuse_output_inside_run`, or `plot_gate_progress.run_directory`) |
+| `plant_identity.json` | The bundle writer, at every save | The audit (it must match `provenance.json`); the reuse rule, for a stage directory without its own (`ancestors.py`); the run index, for a run whose `provenance.json` records no plant |
 | `trunk_run.json` | The resolve cell (`result_bundle.trunk_record.record_trunk_run`): the `TRUNK_FROM` value that reproduces the trunk; never written into a `complete` run, and fixed once the run holds an `ancestors/` record | The resolve cell (it warns of another trunk); the RESUME cell (`result_bundle.reentry.refuse_trunk_other_than_recorded`); the run index (`reports/`) |
 | `zero_action_baseline.json` | The zero-action cell: a copy of the trained model's record, rewritten only when the baseline changed apart from its time, and never written into a `complete` run | `curriculum/baseline_watch.py` (the training-time warning), `progress.json`'s `zero_action_reward` (`curriculum/progress_report.py`) and the statue line of `figures/gate_progress.png` (`visualization.plot_gate_progress`) |
 | `summary.json` | The bundle writer, whenever at least one deliverable is certified | The audit; the Drive summary; a promoted copy under `results/`, which the species catalog reads |
@@ -219,27 +234,52 @@ certified so far (`result_schema.bundle_status_for`). The publish cell
 (`PUBLISH_RUN = True`) writes `training_summary.txt` and the bundle for a run
 that has none yet, such as one cut off during a stance node's probes.
 
-Two Tyrannosaurus rex hunt runs, one that reused stance from its trunk and
+Two Tyrannosaurus rex walk runs, one that reused stance from its trunk and
 one that trained it:
 
 ```text
 <run_id>/                        <run_id>/
 ├── ancestors/stance/            ├── 01_stance/
-├── 03_locomotion/               ├── 03_locomotion/
-└── 04_behavior/                 └── 04_behavior/
+└── 03_locomotion/               └── 03_locomotion/
 ```
+
+A run written before decision D-D59 removed the hunt nodes may end at a hunt
+instead: `03_behavior/` or `04_behavior/` beside these (`stage3/` before
+2026-08-20). The stage level below describes those directories.
 
 ## The stage level
 
 A stage directory is `NN_<stage_id>/`, where `NN` is the node's position in
 the model's stage manifest (`configs/<species>/<embodiment>/stages.toml`,
-`stage_manifest.stage_dirname`), not its place in the chain. A three-node
-model (Velociraptor, Brachiosaurus, Dibothrosuchus) writes `01_stance/`,
-`02_locomotion/` and `03_behavior/`; the four-node models (T. rex and both
-Compsognathus models) put `02_recovery/` second, so their walk and hunt
-chains write `01_stance/`, `03_locomotion/` and `04_behavior/`; Allosaurus
-writes `01_stance/` and `02_locomotion/`. Readers find a stage under any
+`stage_manifest.stage_dirname`), not its place in the chain. Every model's
+chain ends at the walk (decision D-D59 removed the hunt nodes). The
+two-node models (Velociraptor, Brachiosaurus, Dibothrosuchus, Allosaurus)
+write `01_stance/` and `02_locomotion/`. The three-node models (T. rex and
+both Compsognathus models) put `02_recovery/` second, which only the
+`recover` chain walks, so their walk chain writes `01_stance/` and
+`03_locomotion/`. On all seven the walk follows a live command (decision
+D-D62): each episode draws one heading-and-speed command at reset
+(`command_mode = "heading_and_speed"`, the stage's `[commands]` table), a
+forward cruise or, on about 15% of episodes, an exactly zero command to
+stand still. It is judged once, after training, by `command_tracking/v1`
+with the `walk` profile (decision D-D61) on the handoff its gated statistic
+chose, whose files the table below names. Readers find a stage under any
 name it was ever written under (`stage_manifest.stage_dir_candidates`).
+
+A run written before decision D-D59 can also hold a hunt stage, the
+`behavior` node (legacy stage 3) that followed locomotion: `03_behavior/` on
+the Velociraptor, Brachiosaurus and Dibothrosuchus, `04_behavior/` on the
+T. rex and both Compsognathus models (`stage3/` before 2026-08-20). Its
+walk was judged by `reward_and_length/v1`, without a command, and its hunt
+by `reward_and_length/v1` with a `min_success_rate` floor or, on the T. rex,
+by the `task_success/v1` gate (a lower confidence bound on the success
+rate), whose evidence is the hunt's `evaluation_selected.csv`. Decision
+D-D59 retired that gate kind and the floor with the nodes. No manifest
+declares the node now: the run index still reads the directory as the
+`behavior` stage, after the declared ones, and says no chain walks or
+reuses it, and `backfill_gate_verdict.py` refuses a recorded block that
+names a retired gate kind or key. Such a run is stranded (above) in any
+case.
 
 `<label>` below is the stage's file label (`stage_manifest.stage_label`):
 `stage<N>` for a numbered stage, its id (`recovery`) otherwise. The groups
@@ -251,9 +291,11 @@ and `hop_watch.json`, a sidecar here, as `ledger`, since training writes it.
 | Group | Files | Writer | Readers |
 |---|---|---|---|
 | Verdict | `gate_verdict.json` | `generate_stage_artifacts` (`reporting/stage_artifacts.py`); the CLI `curriculum`'s in-training manager; `scripts/backfill_gate_verdict.py` | The reuse rule (`ancestors.find_certified_ancestor`); seed replication; the chain loop and the publish cell, whose bundle takes the node's result from it; the audit; the run index (`reports/`) |
-| Evidence | `evaluation_selected.csv`, `evaluation_final.csv` | `reporting.csv_output.save_evaluation_episodes`, from `stage_artifacts.evaluate_stage_checkpoints` (the notebook's evaluation of the selected and final checkpoints). On a `task_success/v1` stage two more write `evaluation_selected.csv`: `train_base`'s post-training panel (`run_success_panel`), when it evaluated the handoff pair, and `generate_stage_artifacts` before the verdict (`_write_task_success_evidence`), which rolls `min_eval_episodes` episodes from the handoff pair when the file is absent, not bound to that pair or shorter than `min_eval_episodes` | The bundle writer and the audit, by fixed path (`result_bundle/evidence.py`); the `task_success/v1` judge (`reporting/gates.py`) |
+| Evidence | `evaluation_selected.csv`, `evaluation_final.csv` | `reporting.csv_output.save_evaluation_episodes`, from `stage_artifacts.evaluate_stage_checkpoints` (the notebook's evaluation of the selected and final checkpoints). Until decision D-D59 a hunt's `task_success/v1` stage also had `evaluation_selected.csv` written by `train_base`'s post-training panel and by `generate_stage_artifacts` before the verdict, both removed with the gate; the runs that trained a hunt keep the file | The bundle writer and the audit, by fixed path (`result_bundle/evidence.py`) |
 | Evidence (recovery) | `gate_resolution.json`, `recovery_episodes_<controller>.csv`, `recovery_shoves_<controller>.csv` | `harnesses/freeze_recovery_gate.py` before training; `recovery_evaluation.write_recovery_evidence` after | `gate_resolution.json`: the recovery gate (`curriculum/gate_resolver.py`) and the audit (`result_bundle/evidence.py`); the CSVs are read by people |
 | Certificate | `stance_gate_report.json`, `stance_gate_report.txt`, `stance_panel_selected.csv` (stance gates v1 and v2); `stance_heading_report.json`, `stance_heading_report.txt`, `stance_heading_panel_selected.csv` (`stance_quality_heading/v1`) | `generate_stage_artifacts`, before the verdict (`reporting/stance_report.py`, `curriculum/stance_heading_gate.py`) | The gate judge (`reporting.gates.evaluate_stage_gate`); `backfill_gate_verdict.py`; the audit, which re-derives a v2 or heading PASS from the panel CSV; the `.txt` files are read by people and by `reports/` |
+| Certificate (walk) | `command_tracking_report.json`, `command_tracking_report.txt`, `command_tracking_panel_selected.csv` (`command_tracking/v1`, decision D-D61): the cruise and stand panel rolled on the chosen handoff | `generate_stage_artifacts`, before the verdict, and the CLI `curriculum`'s post-training judge (`stage_artifacts._write_command_tracking_report`, `reporting/command_tracking_report.py`) | The gate judge (`reporting.gates.evaluate_stage_gate`), which admits the report; `backfill_gate_verdict.py`; the bundle writer and the audit, which re-derive a PASS from the panel CSV (`result_bundle/evidence.py`); the `.txt` file is read by people and by `reports/` |
+| Handoff choice | `models/handoff_choice.json` (`mesozoic.handoff-choice/v1`): the pair the gated statistic chose on a selection panel from seed 2042, among `robust_best_model`, `best_model` and the final pair | `stage_artifacts.ensure_command_handoff_choice` (`command_tracking_report.choose_command_handoff`, `checkpoints.write_handoff_choice`): at the end of training (`train_base.py`), and in `stage_artifacts.evaluate_stage_checkpoints` when the stage holds no valid choice under its current gate | `curriculum.checkpoints.select_handoff_checkpoint`, so every reader of the handoff (the replays, the judge, the next node, reuse, the publish cell, `widen_checkpoint.py`) follows the one choice; the command-tracking judge, which refuses a handoff that is not the choice |
 | Configs | `stage_config.json` | `config.save_stage_config` when training starts (a same-stage resume saves it again, keeping the first session's record); `widen_checkpoint.py` for a widened root | The bundle writer (the config hash) and the audit; the reuse rule; seed replication; the RESUME cell; the Drive summary's older-run reader; the training history; the run index (`reports/`) |
 | Fingerprints | `task_fingerprint.json`, `plant_identity.json` | `config.save_stage_config` | The reuse rule, and the ancestor record that copies them; the training history (the plant check) |
 | Ledgers | `evaluations.npz` (SB3's `EvalCallback`), `diagnostics.npz` (`diagnostics.py`; a resume copies the earlier file aside first as `diagnostics.prior_<UTC>.npz`, never deleted), `gate_progress.npz` and `eval_episodes.csv` (`eval_diagnostics.py`), `train_episodes.csv` (`rollout_ledger.py`), `policy_probe.npz` (`policy_probe.py`, PPO), `metrics.json` (`train_base.py`, the post-training panels) | Training | Checkpoint selection (`curriculum/checkpoints.py`); the figures; the training history; `stage_artifacts.build_stage_results_from_eval_data`; the Drive summary's older-run reader (`evaluations.npz`) |
@@ -261,20 +303,23 @@ and `hop_watch.json`, a sidecar here, as `ledger`, since training writes it.
 | Summary | `stage_summary.txt` | `reporting.text_summaries.write_stage_summary`, after the verdict | The Drive summary's older-run reader |
 | Probes | `stance_gate_probe_filtered`, `_constant`, `_release`, `_impulse` and `stance_heading_probe`, each `.txt` and `.json`, for each `stance_probe_*` key the stage declares | `generate_stage_artifacts`, last of all (`_run_stance_probes`) | Report only: the heading-probe handoff warning reads `stance_heading_probe.json`, and the run's report warns of a declared probe that is missing on a stage whose verdict `generate_stage_artifacts` wrote (the command-line curriculum's judge rolls none) |
 | Sidecars | `handoff_in_training.json`; `hop_watch.json` (only when the hop watch trips); `widen_report.json` (a widened root) | `generate_stage_artifacts`; `curriculum/hop_watch.py`, during training; `widen_checkpoint.py` | Read by people |
-| Retired | `k3_panel.csv`, `k3_panel.json` and the `k3_panel.prior_<stamp>.*` copies a resume set aside (the in-run K3 noise panel, decision D-D48, retired by the maintainer's decision of 2026-11-26); `stage_result.json` (the JAX stage writer, until decision D-D17) | No writer now; the runs that ran them keep them, such as the three `stance6_r10LTSB` screens | Nothing reads them |
-| `models/` | `<label>_<steps>_steps.zip` and `<label>_vecnormalize_<steps>_steps.pkl` (periodic), `best_model`, `robust_best_model` and `<label>_final`, each `.zip` with its `_vecnorm.pkl` | Training (`train_base.py`; retention below) | The handoff selection (`curriculum.checkpoints.select_handoff_checkpoint`); the next node; the RESUME cell; the bundle (the selected pair); the training history |
+| Trace | `command_tracking_trace.csv`: the step rows of the walk's chart episodes, rolled again after the verdict | `stage_artifacts.write_command_tracking_figures` (`reporting/command_tracking_trace.py`), which first removes the trace and figures an earlier judgement left | `visualization.plot_command_tracking`; report only: nothing judges, binds or publishes it |
+| Retired | `k3_panel.csv`, `k3_panel.json` and the `k3_panel.prior_<stamp>.*` copies a resume set aside (the in-run K3 noise panel, decision D-D48, retired by the maintainer's decision of 2026-11-26); `stage_result.json` (the JAX stage writer, until decision D-D17); a hunt's whole stage directory (decision D-D59, above) | No writer now; the runs that ran them keep them, such as the three `stance6_r10LTSB` screens | Nothing reads them but the run index |
+| `models/` | `<label>_<steps>_steps.zip` and `<label>_vecnormalize_<steps>_steps.pkl` (periodic), `best_model`, `robust_best_model` and `<label>_final`, each `.zip` with its `_vecnorm.pkl`; on the walk also `handoff_choice.json` (above) | Training (`train_base.py`; retention below) | The handoff selection (`curriculum.checkpoints.select_handoff_checkpoint`: the walk's recorded choice, else `robust_best_model`, then `best_model`); the next node; the RESUME cell; the bundle (the selected pair); the training history |
 | `tensorboard/` | TensorBoard event files | `tb_sync.py`, copied from local scratch during training | TensorBoard |
-| `figures/` | `training_curves.png`, `locomotion_health.png`, `behavioral_metrics.png`, `foot_contacts.png`, `stance_diagnostics.png`, `gate_progress.png` | `generate_stage_artifacts` (`visualization.py`) | Report only |
+| `figures/` | `training_curves.png`, `locomotion_health.png`, `behavioral_metrics.png`, `foot_contacts.png`, `stance_diagnostics.png`, `gate_progress.png`; on the walk also `command_tracking.png` and `command_gate_progress.png` | `generate_stage_artifacts` (`visualization.py`; the walk's two through `stage_artifacts.write_command_tracking_figures`, after the verdict) | Report only |
 | `figures/training_history/` | `01_outcomes.png` to `20_gait_ledger.png`, `training_history.html`, `training_history.json` | `generate_stage_artifacts` (`reporting/training_history.py`) | Report only |
 | `replays/` | `<species>_<embodiment>_<algo>_<label>_selected.mp4` and `_final.mp4`; on a stance or recovery stage also a `_<view>.mp4` per camera view and a `_stance.csv` | `generate_stage_artifacts` (`evaluation.record_stage_video`) | `reporting.stage_layout.iter_replay_files` (the notebook's replay cell) |
 
-`generate_stage_artifacts` writes in this order: the certificate, the
-task-success evidence (a `task_success/v1` stage only), the verdict,
-`stage_summary.txt`, the figures and training history, the replays, then the
-probes. The notebook writes `training_summary.txt` and the bundle
-after it returns, so a runtime lost during the probes leaves a stage with a
-verdict that no bundle records yet (a run with no earlier bundle is then in
-the state `judged_no_bundle`).
+`generate_stage_artifacts` writes in this order: the certificate (on the
+walk, the command-tracking report, rolled on the pair the handoff choice
+names), the verdict, `stage_summary.txt`, the figures (on the walk, the
+trace and its two figures among them) and training history, the replays,
+then the probes. Until decision D-D59 a hunt's `task_success/v1` evidence
+came between the certificate and the verdict. The notebook writes
+`training_summary.txt` and the bundle after it returns, so a runtime lost
+during the probes leaves a stage with a verdict that no bundle records yet (a
+run with no earlier bundle is then in the state `judged_no_bundle`).
 
 ## Generations
 
@@ -293,6 +338,12 @@ checkpoints. To read or rerun a pre-rename run, check out `f40c11d3`
 (CHANGELOG, decision D-D33). The Drive summary's readers of the flat and
 sweep layouts remain, and read such a folder only if it is placed under a
 model directory.
+
+The current trees are read, but every run in them written before decision
+D-D59 is stranded: the plant contract refuses its checkpoints, the reuse
+rule refuses its nodes, and its report and index row say so (the reports
+tree, above). Its stage directories may include a hunt's `03_behavior/` or
+`04_behavior/` (the stage level, above).
 
 Screens and pilots trained before 2026-11-24 sit in `<algo>/`:
 `environments/shared/run_exclusions.py` keeps the nine r10 stance screens

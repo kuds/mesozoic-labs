@@ -2,8 +2,10 @@
 
 The page is a living reference: it names, for every file under ``LOG_BASE``,
 the code that writes it and the code that reads it, by path and by dotted
-name.  These tests fail when a cited module or name no longer exists, when a
-model's stage directory is missing from the stage-level section, when the
+name.  These tests fail when a cited module, name or private function no
+longer exists, when a model's stage directory or its walk's gate and command
+is missing from the stage-level section, when the page names the hunt nodes
+that decision D-D59 removed as anything but what older runs hold, when the
 run-state table drifts from ``reporting.run_index.RUN_STATES`` (or the index's
 ``unreadable`` group goes unnamed), when the role table drifts from
 ``run_index.ROLES``, or when a link to or from the page no longer resolves.
@@ -16,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.config import load_stage_config
 from environments.shared.reporting import run_index
 from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import load_stage_manifest, stage_dirname
@@ -89,6 +92,41 @@ def test_every_dotted_name_the_page_cites_is_defined() -> None:
         if module is None or not _defines(module, parts[-1]):
             unresolved.append(name)
     assert not unresolved, f"DRIVE_LAYOUT.md cites names no module defines: {unresolved}"
+
+
+def test_every_private_function_the_page_cites_is_defined() -> None:
+    """``_run_stance_probes`` and the like: a cited private name of two words or more names a definition somewhere
+    under ``environments/shared`` (a writer removed with its gate, such as the hunt's task-success roll, fails)."""
+    cited = sorted(set(re.findall(r"`(_[a-z][a-z0-9]*(?:_[a-z0-9]+)+)`", _text())))
+    assert cited
+    sources = [path.read_text(encoding="utf-8") for path in SHARED.rglob("*.py") if "tests" not in path.parts]
+    pattern = r"^\s*(?:async\s+)?(?:def|class)\s+{name}\b|^\s*{name}\s*[:=]"
+    undefined = [
+        name for name in cited if not any(re.search(pattern.format(name=name), text, re.M) for text in sources)
+    ]
+    assert not undefined, f"DRIVE_LAYOUT.md cites private names no module defines: {undefined}"
+
+
+def test_the_hunt_is_named_only_as_what_older_runs_hold() -> None:
+    """No committed manifest declares the hunt's ``behavior`` node (decision D-D59), so every paragraph or table that
+    names a hunt directory or its gate says so: what runs written before the decision hold."""
+    for model_id in model_ids():
+        assert "behavior" not in [entry.id for entry in load_stage_manifest(model_id).stages], model_id
+    blocks = re.split(r"\n\s*\n", _text())
+    named = [block for block in blocks if re.search(r"_behavior/|task_success/v1|`stage3/`", block)]
+    assert named, "the page describes the hunt directories older runs hold"
+    assert not [block for block in named if "D-D59" not in block], "a hunt directory named without decision D-D59"
+
+
+@pytest.mark.parametrize("model_id", model_ids(), ids=str)
+def test_the_stage_level_names_the_walks_command_and_gate(model_id) -> None:
+    """Every model's walk follows a live command (decision D-D62) and is judged by its gate kind and profile
+    (decision D-D61); the stage level names both as the stage config declares them."""
+    walk = load_stage_config(model_id, "locomotion")
+    curriculum, env = walk["curriculum_kwargs"], walk["env_kwargs"]
+    section = " ".join(_section("The stage level").split())
+    assert f"`{curriculum['gate_kind']}` with the `{curriculum['profile']}` profile" in section, model_id
+    assert f'`command_mode = "{env["command_mode"]}"`' in section, model_id
 
 
 @pytest.mark.parametrize("model_id", model_ids(), ids=str)
