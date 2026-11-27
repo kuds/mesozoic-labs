@@ -489,7 +489,10 @@ run's own records with the loop's two calls, checks the bundle and prints its
 status and what it certified. Set `RUN_ID` to the run and every other knob as
 its session had them (`ALGORITHM`, `SEED` and `N_ENVS` too, and `BEHAVIOR`
 above all: it sets the chain and the target). Then run every cell above
-section 5 and then the publish cell. Skip the loop: it raises on a failed
+section 5, the publish cell, and last the auto-disconnect cell (section 9),
+which in Colab flushes Drive's buffered writes before it releases the
+runtime (with `AUTO_DISCONNECT = False`, `drive.flush_and_unmount()` does
+the flush by hand). Skip the loop: it raises on a failed
 node, which most `partial` runs hold, and trains any node the run lacks. Run
 all works too when every node of the chain passed. The cell trains, judges and
 probes nothing and changes no stage file. It walks the chain as the loop does,
@@ -497,7 +500,9 @@ an ancestor's `ancestors/` record standing for it, and stops after the first
 failed verdict, where the loop halted. Before it writes anything it refuses a
 `complete` run (already published and immutable), a `BEHAVIOR` whose target is
 not the one the run's `provenance.json` records (publishing would retarget the
-run), a node of the walk that is neither judged in the run (a
+run), a run that holds no node of the model (usually `RUN_ID = ""` in a fresh
+runtime, where the storage cell opens a new run), a node of the walk that is
+neither judged in the run (a
 `gate_verdict.json` in its stage directory) nor recorded under `ancestors/`
 (the loop judges or trains it first), and a node judged in the run that the
 bundle would leave out. A judged node's results re-enter the bundle from its
@@ -788,7 +793,8 @@ schema-2 summaries still read):
   (`PUBLISH_RUN = True`, [In the notebook](#in-the-notebook)); it refuses a
   `complete` run, whose record a hand-typed
   `save_run_bundle(chain_results(), model_id=MODEL_ID)` call regenerates
-  once the chain loop has re-entered the run.
+  once the chain loop has re-entered the run, in a session run up to the
+  loop rather than Run all, which ends in the notebook's auto-disconnect.
 - `target_deliverable` names the node the run aimed at and
   `primary_deliverable` the published model — the target when certified,
   else the deepest certified deliverable; `selected_model_path` is the

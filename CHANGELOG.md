@@ -44,12 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replicate into a `partial` bundle (decision D-B10), with no hand-typed
   `save_run_bundle` call. Before anything is written it refuses a `complete`
   run, a `BEHAVIOR` whose target differs from the one the run's
-  `provenance.json` records, an unjudged node, and a judged node the bundle
-  would leave out. It trains, judges and probes nothing and changes no stage
-  file. It also seals a run copied off its root (checkpoints found from each
-  verdict's hash-bound pair) and gives a Compsognathus summary its 0.02 s sim
-  time. Run it after the cells above section 5, without the chain loop, which
-  raises on a failed node.
+  `provenance.json` records, a run that holds no node of the model (as
+  `RUN_ID = ""` opens one in a fresh runtime), an unjudged node, and a judged
+  node the bundle would leave out. It trains, judges and probes nothing and
+  changes no stage file. It also seals a run copied off its root (checkpoints
+  found from each verdict's hash-bound pair) and gives a Compsognathus summary
+  its 0.02 s sim time. Run it after the cells above section 5, without the
+  chain loop, which raises on a failed node, and then section 9's cell, which
+  flushes Drive's buffered writes before it releases the runtime.
 - **The SB3 notebook refuses a RUN_ID that names only another model's run.**
   Before anything is written, the storage cell refuses an explicit `RUN_ID`
   that names no run of the selected model in its trees for `ALGORITHM` but a

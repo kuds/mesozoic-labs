@@ -316,6 +316,11 @@ class TestTheCell:
             "ancestors/<id>/ancestor.json",
             "`provenance.json` records another target deliverable",
             "Skip the RESUME cell and the chain loop",
+            # The publish path ends in section 9, whose disconnect flushes Drive's buffered writes of the bundle.
+            "this cell, and last section 9's cell",
+            "drive.flush_and_unmount()",
+            # A complete run's late replicate is typed after the chain loop, before the auto-disconnect.
+            "in a session run up to the chain loop rather than Run all",
             "`ALGORITHM`",
             "`N_ENVS`",
         ):
@@ -375,6 +380,7 @@ class TestRefusals:
         # Nothing to publish: never the generic advice to train the target again in a fresh run.
         assert "has nothing to write and has written nothing. Set PUBLISH_RUN = False." in message
         assert "save_run_bundle(chain_results(), model_id=MODEL_ID) once the chain loop" in message
+        assert "in a session run up to the chain loop rather than Run all" in message
         assert "fresh run" not in message and "Nothing has been trained" not in message
         assert _files(run_dir) == before and namespace["bundle_calls"] == [] and namespace["NODE_RESULTS"] == {}
 
@@ -458,6 +464,26 @@ class TestRefusals:
         assert "BEHAVIOR='walk' resolves to 'locomotion'" in message
         assert "re-run sections 2-3 and the helpers cell" in message
         assert "the target is never reused from another run (D-A18)" in message
+        assert _files(run_dir) == before and namespace["bundle_calls"] == [] and namespace["NODE_RESULTS"] == {}
+
+    def test_a_run_that_holds_no_node_is_refused_as_a_run_id_mistake(self, tmp_path):
+        """RUN_ID = "" in a fresh runtime lets the storage cell open a new run, which holds only its provenance and the
+        preflight records. Publishing it is a RUN_ID mistake, never a reason to run the chain loop, which would train
+        the whole chain into that run."""
+        run_dir = _run_dir(tmp_path, TYRANNOSAURUS_REX, run_id="20261127_003139")
+        for name in ("provenance.json", "trunk_run.json", "zero_action_baseline.json"):
+            (run_dir / name).write_text("{}", encoding="utf-8")
+        before = _files(run_dir)
+        namespace = _namespace(run_dir, TYRANNOSAURUS_REX, "stance", {})
+        with pytest.raises(
+            RuntimeError, match=r"run '20261127_003139' \(.*\) holds no node of tyrannosaurus_rex"
+        ) as refused:
+            _publish(namespace)
+        message = str(refused.value)
+        assert "neither a stage directory nor an ancestors/ record" in message
+        assert "Set RUN_ID to the run to publish" in message and "the chain loop is not needed" in message
+        assert 'RUN_ID = "" keeps the run this runtime opened last and, in a fresh runtime, opens a new one' in message
+        assert "Run the chain loop" not in message
         assert _files(run_dir) == before and namespace["bundle_calls"] == [] and namespace["NODE_RESULTS"] == {}
 
     def test_an_ancestor_neither_judged_nor_recorded_is_refused(self, tmp_path):
