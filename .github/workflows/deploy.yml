@@ -57,9 +57,10 @@ jobs:
         run: npx tsc --noEmit
 
       # The website's unit tests (node:test, no extra deps): the cookie-consent
-      # and analytics code, and the animal pages' labels against the generated
-      # catalog (a regenerated catalog can fail them on purpose, e.g. when the
-      # Compsognathus robot's stance gate changes).
+      # and analytics code, and the animal pages' labels and images against the
+      # generated catalog (a regenerated catalog can fail them on purpose, e.g.
+      # when the Compsognathus robot's stance gate changes, or when a new model
+      # has no still image or rotating view yet).
       - name: Test website
         run: npm test
 

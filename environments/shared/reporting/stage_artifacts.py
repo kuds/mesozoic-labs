@@ -1,7 +1,14 @@
 """Post-training stage artifact generation.
 
-The shared entry-points that the training notebook and the gate backfill tool
-call, so that every stage they judge records the same artifacts."""
+:func:`generate_stage_artifacts` is the SB3 training notebook's post-training
+step for every node it trains or judges (the chain loop and the manual node
+cell), so every such stage records the same artifacts: its certificate,
+verdict, summary, figures, replays and probes.  Two other callers use parts of
+this module: the gate backfill tool (``scripts/backfill_gate_verdict.py``)
+re-derives a verdict through :func:`build_stage_results_from_eval_data` and the
+stance stage-result helpers and writes ``gate_verdict.json`` alone, and the
+command-line curriculum (``train_base``) rolls a floor-truth stance certificate
+through ``_write_stance_gate_report``."""
 
 from __future__ import annotations
 
@@ -2158,8 +2165,12 @@ def generate_stage_artifacts(
     # handoff warning reads one, and warns that heading robustness is
     # unmeasured when a declared probe is missing; a six-heading certificate
     # stage rolls no heading probe, its gate above judged every heading), so a runtime lost
-    # mid-probe costs the probes alone -- never the recorded verdict, summary,
-    # graphs or replays above. Ordering is pinned by the wiring tests.
+    # mid-probe keeps the recorded verdict, summary, graphs and replays above.
+    # It also costs what the caller writes after this returns: the notebook's
+    # training summary and result bundle. A re-entered run takes the node's
+    # result from its verdict, and the next node's bundle save, or the publish
+    # cell (PUBLISH_RUN) when no node follows, writes them. Ordering is pinned
+    # by the wiring tests.
     _run_stance_probes(
         model_id=model_id,
         stage=stage,

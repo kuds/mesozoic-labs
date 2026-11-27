@@ -385,7 +385,7 @@ def main(species_cfg):
         metavar="KEY=VALUE",
         help="Override config values, e.g. ppo.learning_rate=1e-4",
     )
-    train_parser.add_argument("--output-dir", type=str, default=None, help="Base output directory")
+    train_parser.add_argument("--output-dir", type=str, default=None, help="Stage directory (overrides --log-dir)")
     train_parser.add_argument(
         "--label",
         type=str,

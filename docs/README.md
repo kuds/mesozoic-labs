@@ -27,6 +27,10 @@ past a couple of files get their own subdirectory (`investigations/`,
   artifacts, per-deliverable publication (result schema v5: bundle status,
   `gate_verdict.json`, `ancestors/` records), provenance capture, and
   promotion validation.
+- [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md) — the tree the notebooks write under
+  `MyDrive/mesozoic-labs/logs/`: the model, run and stage levels with each
+  file's writer and readers, the derived `reports/` tree, the older layouts,
+  the `RUN_ID` rules, the placement rule and retention.
 - [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) — operator
   guide for the #540/#541 pilot pipeline (2026-09-15), command line only since
   the notebook-only PR-12 slice (D-D13); pilot outputs are evaluation-only

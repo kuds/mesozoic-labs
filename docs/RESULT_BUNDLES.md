@@ -61,33 +61,60 @@ rule. Schema-2 summaries keep their own rules.
 ## Canonical layout
 
 Human-facing labels and the shared stance/recovery replay layout are
-specified in [Training artifact names and stance replays](TRAINING_ARTIFACT_PRESENTATION.md).
+specified in [Training artifact names and stance replays](TRAINING_ARTIFACT_PRESENTATION.md),
+and [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md) maps every file of a run with its
+writer and its readers.
+
+A node trained or judged in the run has its stage directory, and a node
+reused from another run has an `ancestors/<stage_id>/` record. The bundle
+writer refuses a bundle that records one node both ways
+(`reporting/bundles.py`, `result_schema.py`). A Tyrannosaurus rex hunt run
+that trained its stance:
 
 ```text
 <run-id>/
 ├── provenance.json
 ├── plant_identity.json
+├── trunk_run.json               # the trunk the notebook session resolved (mesozoic.trunk-run/v1)
+├── zero_action_baseline.json    # the zero-action cell's copy of this model's statue baseline
 ├── collected_results.csv
 ├── summary.json                 # written whenever >= 1 deliverable is certified
-├── artifact_manifest.json       # status marker (complete / partial / failed); written last
 ├── training_summary.txt
-├── trunk_run.json               # the trunk the notebook session resolved (mesozoic.trunk-run/v1)
-├── 01_stance/                   # stage{N} historically, NN_<id> from 2026-08-20 on
+├── artifact_manifest.json       # status marker (complete / partial / failed); written last
+├── 01_stance/                   # NN_<id>: NN is the node's manifest position (stage{N} before 2026-08-20)
 │   ├── stage_config.json
 │   ├── gate_verdict.json        # per-node verdict, hash-bound to the handoff pair
 │   ├── evaluation_final.csv
 │   ├── evaluation_selected.csv
 │   └── models/
-├── 03_locomotion/
-├── 04_behavior/
-└── ancestors/                   # nodes reused from another run — records, never checkpoints
-    └── stance/
-        ├── ancestor.json        # mesozoic.ancestor-record/v1
-        ├── gate_verdict.json    # verbatim copies of the ancestor stage's files
-        ├── stage_config.json
-        ├── task_fingerprint.json
-        └── plant_identity.json
+├── 03_locomotion/               # 02 is the recovery node, which this chain does not walk
+└── 04_behavior/
 ```
+
+The same hunt with its stance reused from the trunk run holds the same run
+files and an `ancestors/stance/` record:
+
+```text
+<run-id>/
+├── ...
+├── ancestors/                   # nodes reused from another run — records, never checkpoints
+│   └── stance/
+│       ├── ancestor.json        # mesozoic.ancestor-record/v1
+│       ├── gate_verdict.json    # verbatim copies of the ancestor stage's files
+│       ├── stage_config.json
+│       ├── task_fingerprint.json
+│       └── plant_identity.json
+├── 03_locomotion/
+└── 04_behavior/
+```
+
+A run can also hold both for one node. When the run's own verdict of a node
+below the target failed or no longer passes the reuse rule, the chain loop
+reuses the trunk's certified node and records it beside the run's own stage
+directory. The record then stands for the node: the bundle records the node
+as reused, and the stage directory stays, hashed by the manifest but not
+published (`tests/test_publish_cell.py`,
+`test_an_ancestor_record_stands_for_the_node_beside_a_verdict_of_the_runs_own`).
 
 `gate_verdict.json` (`mesozoic.gate-verdict/v2`) lives in the stage
 directory root beside `stage_config.json` and records the node's verdict with
@@ -512,7 +539,11 @@ run (`source` `training`, with the stage's gate verdict in `stage_passed`) and
 per trial of each legacy sweep (`sweep` or `sweep-analysis`), and its section 9
 saves the table on Drive as `logs/runs_summary.csv`, each model's rows as
 `logs/<species>/<embodiment>/runs_summary.csv` and each model's legacy sweep
-rows as `logs/<species>/<embodiment>/sweeps/sweeps_summary.csv`.
+rows as `logs/<species>/<embodiment>/sweeps/sweeps_summary.csv`. It reads
+only the model directories the species manifest lists. The March 2026 sweeps
+and every run written before decision D-D33 sit under the retired species ids
+(`logs/<old id>/`), which it skips, so those sweeps give the table no rows and
+no `sweeps_summary.csv` ([DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#generations)).
 
 Before saving, it adds the rows of the repository's offline-judgement ledger,
 `results/offline_judgements.csv`, as `source` `offline`: gate certificates and
@@ -545,7 +576,9 @@ earlier file. Without the ledger file it saves the table with no offline rows.
 
 The table is a view, rebuilt from the run folders and the ledger each time
 the notebook saves it, and nothing reads it back. It is not a promotion record:
-a run is promoted only through its bundle, as above.
+a run is promoted only through its bundle, as above. Each model's `reports/`
+tree beside it is the other derived view, one row per run and a page per run
+([DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#the-reports-tree)).
 
 ## Public result paths
 

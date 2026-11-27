@@ -1567,7 +1567,8 @@ column, a line per run.
 
 When a stage ends, `generate_stage_artifacts` draws the same report for
 that stage into `figures/training_history/`
-(`stage_layout.training_history_dir`): the nineteen pages as PNGs,
+(`stage_layout.training_history_dir`): the twenty pages as PNGs
+(`training_history.page_names()`, `01_outcomes` to `20_gait_ledger`),
 `training_history.html` and `training_history.json`, as
 `plot_training_history.py STAGE_DIR` draws them with its defaults (one run,
 no `--mark-steps`; the alarms, `robust_best`, `best` and the kept

@@ -103,6 +103,8 @@ python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment
 The easiest route is the training notebook, which installs its own dependencies:
 [open `notebooks/sb3_training.ipynb` in Colab](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb).
 Pick a species, its embodiment and a behavior, and set `QUICK_TEST = True` first for a short pipeline check.
+In Colab it writes each run to Google Drive by default, under `MyDrive/mesozoic-labs/logs/`;
+[docs/DRIVE_LAYOUT.md](docs/DRIVE_LAYOUT.md) maps that tree and what writes and reads each file.
 
 <!-- BEGIN GENERATED: NOTEBOOKS -->
 | Notebook | Description |
@@ -135,7 +137,7 @@ stage, the recovery stage and the notebook's settings.
 | [`results/`](results) | Published run summaries, metrics and GIFs, including historical, unverified ones |
 | [`docs/`](docs) | The generated species catalog, plans, design records, investigations, reviews and hardware notes |
 | [`website/`](website) | Source of [mesozoiclabs.com](https://mesozoiclabs.com) (Docusaurus) |
-| [`examples/`](examples) | The standalone Stegosaurus reference |
+| [`examples/`](examples) | Standalone models outside the catalog: the Stegosaurus reference and the adult Triceratops study, with their shared helpers |
 
 ## Documentation
 
