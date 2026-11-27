@@ -4,9 +4,9 @@ The page is a living reference: it names, for every file under ``LOG_BASE``,
 the code that writes it and the code that reads it, by path and by dotted
 name.  These tests fail when a cited module or name no longer exists, when a
 model's stage directory is missing from the stage-level section, when the
-run-state table drifts from ``reporting.run_index.RUN_STATES``, or when a link
-to or from the page no longer resolves.  The run index ships with the reports
-change; until that module exists, the checks that need it skip.
+run-state table drifts from ``reporting.run_index.RUN_STATES`` (or the index's
+``unreadable`` group goes unnamed), when the role table drifts from
+``run_index.ROLES``, or when a link to or from the page no longer resolves.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.reporting import run_index
 from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import load_stage_manifest, stage_dirname
 
@@ -31,9 +32,6 @@ SEARCH_ROOTS = (
     SHARED / "curriculum",
     SHARED / "harnesses",
 )
-#: The modules the reports change adds; the page cites them before they land on this branch.
-RUN_INDEX = SHARED / "reporting" / "run_index.py"
-REPORTS_MODULES = {"run_index", "run_report"}
 #: The GitHub link the notebooks and the website use, which renders outside the repository.
 GITHUB_PAGE = "https://github.com/kuds/mesozoic-labs/blob/main/docs/DRIVE_LAYOUT.md"
 
@@ -69,19 +67,10 @@ def _defines(module: Path, name: str) -> bool:
     return re.search(pattern, source, re.M) is not None
 
 
-def _reports_pending(name: str) -> bool:
-    """A name of the reports change, cited before its module exists on this branch."""
-    return not RUN_INDEX.is_file() and any(module in name for module in REPORTS_MODULES)
-
-
 def test_every_python_file_the_page_cites_exists() -> None:
     cited = sorted(set(re.findall(r"`([\w./-]+\.py)`", _text())))
     assert cited
-    missing = [
-        path
-        for path in cited
-        if not _reports_pending(path) and not any((root / path).is_file() for root in SEARCH_ROOTS)
-    ]
+    missing = [path for path in cited if not any((root / path).is_file() for root in SEARCH_ROOTS)]
     assert not missing, f"DRIVE_LAYOUT.md cites files that do not exist: {missing}"
 
 
@@ -94,7 +83,7 @@ def test_every_dotted_name_the_page_cites_is_defined() -> None:
         parts = name.split(".")
         if parts[-1] in {"py", "md", "json", "csv", "txt", "npz", "pkl", "zip", "toml", "png", "mp4", "html"}:
             continue
-        if _reports_pending(name) or _module_file(parts) is not None:
+        if _module_file(parts) is not None:
             continue
         module = _module_file(parts[:-1])
         if module is None or not _defines(module, parts[-1]):
@@ -111,14 +100,25 @@ def test_the_stage_level_names_every_stage_directory_of_the_model(model_id) -> N
 
 
 def test_the_run_states_table_follows_the_run_index() -> None:
-    run_index = pytest.importorskip("environments.shared.reporting.run_index")
     section = _section("The reports tree")
     table = section.split("| State | The run holds |", 1)[1].split("\n\n", 1)[0]
     states = re.findall(r"^\| `([a-z_]+)` \|", table, re.M)
     assert states == list(run_index.RUN_STATES), "the state table must list run_index.RUN_STATES, in order"
+    # INDEX.md's groups are the states and then the one group that is no state.
+    [extra] = [group for group in run_index.INDEX_STATES if group not in run_index.RUN_STATES]
+    assert f"adds `{extra}` (`run_index.INDEX_STATES`)" in section
     for schema in (run_index.MODEL_INDEX_SCHEMA, run_index.RUN_INDEX_SCHEMA):
         assert f'"{schema}"' in section
     assert f"{run_index.REPORTS_DIRNAME}/" in section
+
+
+def test_the_role_table_follows_the_run_index() -> None:
+    """Every role ``run_index.ARTIFACT_ROLES`` assigns, and ``unclassified``, has a row, and no row names another."""
+    section = _section("The reports tree")
+    table = section.split("| Role | Files |", 1)[1].split("\n\n", 1)[0]
+    roles = [role for cell in re.findall(r"^\| ([^|]+) \|", table, re.M) for role in re.findall(r"`([a-z_]+)`", cell)]
+    assert sorted(roles) == sorted([*run_index.ROLES, run_index.UNCLASSIFIED])
+    assert {role for _, _, role in run_index.ARTIFACT_ROLES} == set(run_index.ROLES)
 
 
 def _markdown_anchors(path: Path) -> "set[str]":

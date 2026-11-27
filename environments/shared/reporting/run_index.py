@@ -574,7 +574,7 @@ def run_state(run_dir: "str | Path") -> str:
 def _layout(stage_dirs: Sequence[tuple[str, Path]]) -> str:
     """The generation of the run's stage directories: one of the ``LAYOUT_*`` names, :data:`LAYOUT_NONE` without one.
 
-    ``NN_<stage_id>`` from 2026-08-21 (``stage_manifest.stage_dirname``),
+    ``NN_<stage_id>`` from 2026-08-20 (``stage_manifest.stage_dirname``),
     ``stage<N>`` before, and a bare reserved id (``stance/``) for the
     generation ``stage_manifest.stage_ref_from_dirname`` also reads.  Where
     the run sits (a tree, or the model directory) is its ``tree``.

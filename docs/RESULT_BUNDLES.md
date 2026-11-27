@@ -115,6 +115,8 @@ directory. The record then stands for the node: the bundle records the node
 as reused, and the stage directory stays, hashed by the manifest but not
 published (`tests/test_publish_cell.py`,
 `test_an_ancestor_record_stands_for_the_node_beside_a_verdict_of_the_runs_own`).
+The run's report shows the node as reused and names the stage directory as
+not published ([DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#the-reports-tree)).
 
 `gate_verdict.json` (`mesozoic.gate-verdict/v2`) lives in the stage
 directory root beside `stage_config.json` and records the node's verdict with
@@ -569,10 +571,12 @@ table, never half of one. Each time the table has rows, the notebook rewrites
 the combined file and the files of the models in the table whole, and keeps no
 dated copies; a model with offline rows but no folder on Drive gets its
 `logs/<species>/<embodiment>/` folder, to hold its `runs_summary.csv`. It
-writes nothing when the logs directory does not exist (Drive not mounted; it
+writes no table when the logs directory does not exist (Drive not mounted; it
 never creates that directory) or when the table has no rows, and then leaves
-any earlier file as it was; a model no longer in the table also keeps its
+any earlier table as it was; a model no longer in the table also keeps its
 earlier file. Without the ledger file it saves the table with no offline rows.
+Whenever the logs directory exists, rows or none, the same cell also rebuilds
+each model's `reports/` tree (below).
 
 The table is a view, rebuilt from the run folders and the ledger each time
 the notebook saves it, and nothing reads it back. It is not a promotion record:

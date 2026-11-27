@@ -741,8 +741,8 @@ After a notebook hunt run that reused a trunk's stance, a T-Rex run directory
 A run that trained its stance holds `01_stance/` instead of
 `ancestors/stance/`. A run can hold both when its own stance verdict failed or
 no longer passes the reuse rule and the chain loop then reused the trunk's
-certified stance: the record stands for the node, and the bundle publishes
-stance as reused, never as trained in this run.
+certified stance: the record stands for the node, and the bundle records
+stance as reused (published by the trunk run), never as trained in this run.
 [docs/DRIVE_LAYOUT.md](https://github.com/kuds/mesozoic-labs/blob/main/docs/DRIVE_LAYOUT.md)
 maps the whole tree under `<LOG_BASE>`, from the model directory down to each
 stage directory's files, with what writes and what reads each one.

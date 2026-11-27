@@ -41,7 +41,7 @@ deletes with the runtime. The Drive summary notebook
 | `<species>/<embodiment>/sweeps/sweeps_summary.csv` | The same cell, only when the model has legacy sweep rows. The March 2026 sweeps sit under the retired ids (below), so they give it none | Read by people |
 | `zero_action_baselines/<stamp>.json` | The SB3 notebook's zero-action cell (`environments/shared/scripts/zero_action_baseline.py`, `preflight`): one record per model scored (`BASELINE_MODELS`), written only when the baseline changed apart from its time; `<stamp>` is `YYYYmmdd_HHMMSS` | The same cell, which compares the newest record before it writes; people. Training reads the run's copy (run level) |
 | `zero_action_baselines/<stamp>.txt` | The same cell: the table of every model scored, beside the trained model's records, written only when it changed | The same cell (the newest table); people |
-| `reports/` | `environments/shared/scripts/run_report.py`, through `environments/shared/reporting/run_index.py` (next section). The SB3 notebook rewrites a run's folder and the model's index after every `save_run_bundle` and in the verify cell (`write_run_report_quietly`, best-effort), and the Drive summary notebook's section 9 rebuilds the tree of every model (`write_model_reports`) | People; the SB3 storage cell prints the first lines of `INDEX.md`. The Drive summary's walker skips it |
+| `reports/` | `environments/shared/scripts/run_report.py`, through `environments/shared/reporting/run_index.py` (next section). The SB3 notebook rebuilds a run's folder and the model's index after every `save_run_bundle` and in the verify cell (`write_run_report_quietly`, best-effort), and the Drive summary notebook's section 9 rebuilds the tree of every model (`write_model_reports`); a file whose text is unchanged is not rewritten | People; the SB3 storage cell prints the first lines of `INDEX.md`. The Drive summary's walker skips it |
 | `<algo>/`, `<algo>_screen/`, `<algo>_quick_test/` | The storage cell creates the run directory in the tree `RUN_KIND` and `QUICK_TEST` select (`run_tree.run_tree_name`) | `TRUNK_FROM = "auto"` scans `<algo>/` only (`ancestors.select_trunk`); seed-replicate discovery scans a run's own siblings (`replication.discover_replicates`); the Drive summary walks the model directory and reads each run's tree into `run_kind` (`run_tree.run_kind_of`) |
 
 The three run trees are the only record of a run's kind: nothing in
@@ -52,42 +52,97 @@ The three run trees are the only record of a run's kind: nothing in
 `<LOG_BASE>/<species>/<embodiment>/reports/` sits beside the model's run
 trees ("reports and index", the maintainer's decision of 2026-11-26). It is
 derived from them, never written inside a run and never hashed or declared by
-a manifest, so removing it loses nothing. `run_report.py` replaces a run's
-folder whole (built beside it, then renamed over it, so a build that fails
-keeps the old folder) and each index file atomically, and refuses an output
-inside a run (`result_bundle.refuse_output_inside_run`). A report folder whose
-run is gone is left as it is and no longer indexed.
+a manifest, so removing it loses nothing. `run_report.py` refuses an output
+inside a run (`result_bundle.refuse_output_inside_run`) and writes only what
+changed:
+
+- It owns `report.md` and `index.json` in each run's report folder, and
+  `INDEX.md` and `index.json` in `reports/`. A file whose new text equals the
+  old is never rewritten, so an unchanged run costs Drive no write.
+- A run's folder whose text changed is rebuilt whole: built in a hidden
+  folder beside it, then renamed over it, so a build that fails keeps the old
+  folder. Anything else the folder holds is copied into every rebuild, and
+  the tool prints its name. Each index file is replaced atomically.
+- Report-only output of your own, such as a probe rolled again, belongs in a
+  folder of `reports/` that is no run's report folder, which the tool never
+  touches: `reports/<tree>/<run_id>.probes/`, where a missing-probe warning's
+  commands write.
+- A report folder whose run is gone is left as it is and no longer indexed.
 
 ```text
 reports/
 ├── INDEX.md                          one row per run of the model, grouped by state, newest first
 ├── index.json                        the same rows (schema "mesozoic.model-index/v1")
-└── <algo>[_screen|_quick_test]/<run_id>/
-    ├── report.md                     the one page for a run
-    └── index.json                    every file of the run (schema "mesozoic.run-index/v1")
+├── <algo>[_screen|_quick_test]/<run_id>/
+│   ├── report.md                     the one page for a run
+│   └── index.json                    every file of the run (schema "mesozoic.run-index/v1")
+├── <algo>[_screen|_quick_test]/<run_id>.probes/   your own report-only output; never touched
+└── <run name>/                       the folder of a run directly in the model directory
 ```
 
 A run's folder mirrors the run's path under the model directory
-(`run_index.report_dir_for`), so a flat run from before 2026-03-31 placed
-directly in the model directory has its folder at
-`reports/<algo>_<YYYYMMDD_HHMMSS>/`.
+(`run_index.report_dir_for`). A run directly in the model directory, a flat
+`<algo>_<YYYYMMDD_HHMMSS>/` run from before 2026-03-31 or a command-line
+`curriculum_<timestamp>/` run, has its folder at `reports/<run name>/` and no
+tree: `INDEX.md` lists it under the tree `(model directory)`. The index finds
+the runs of each tree and those directly in the model directory
+(`run_index.discover_runs`); it skips `reports/`, `sweeps/`,
+`zero_action_baselines/` and hidden directories. Each page names the run's
+layout, the generation of its stage directories: `NN_<stage_id>` (from
+2026-08-20), `stage<N>`, `bare <stage_id>` (a bare reserved id such as
+`stance/`) or `none` (no stage directory).
 
 - **`INDEX.md`** lists each run's id, tree, state, certified deliverables,
   whether they are provisional, replication count and handoff, with a link
-  to its `report.md`.
-- **`report.md`** has a state line; a table per node with its id, verdict,
-  gate kind and handoff, or `reused from <trunk run>/<stage dir>`; the
-  certificate and probe one-liners, read from the small `.txt` reports
+  to its `report.md`. A run without a sealed bundle (no
+  `artifact_manifest.json`, or one that cannot be read) certifies nothing
+  here, whatever its `provenance.json` records: its row reads `none
+  published`, with the nodes whose verdict passed. A run of `<algo>/` that
+  `run_exclusions.excluded_run_reason` names (the nine r10 stance screens,
+  and runs built on them) reads `never counts`. A row reads less than a page
+  and carries no warning count.
+- **`report.md`** has a state line, and for an unfinished run of a notebook
+  tree the step that finishes it (the publish cell, the chain loop, the
+  RESUME cell, or restoring the manifest); a table per node with its id,
+  verdict, gate kind and handoff, or `reused from <trunk run>/<stage dir>`,
+  linked to the trunk run's report once that report exists; the certificate
+  and probe one-liners, read from the small `.txt` reports
   (`stance_heading_report.txt`, `stance_gate_report.txt`), never from the
-  large JSON; the paths of its figures, training history and replays; its
-  ancestors, linked to the trunk run's report; and warnings: files no role
-  covers, probes the stage declares but lacks, and evidence paths that no
-  longer exist.
+  large JSON; the paths of its figures, training history and replays; and
+  warnings. A warning names a file no role covers; the declared probes a
+  stance stage lacks, expected only on a stage whose verdict
+  `generate_stage_artifacts` wrote (its `judged_by`), one warning per stage
+  with a command per probe (a stage the command-line curriculum judged gets a
+  note instead: its judge rolls no probe; any other stage expects none); the
+  handoff checkpoint and normalization that a verdict or an ancestor record
+  names and that no longer exist (an ancestor's are also looked for in the
+  trunk run beside the run, as the reuse rule looks); and a record that
+  cannot be read, with the step that repairs it.
 - **The run's `index.json`** lists every file with its path, stage, role and
   size. Its `sha256` is copied from `artifact_manifest.json`, with
   `hash_source` `"manifest"`, and never computed again; for a run without a
   manifest the size comes from the listing and `sha256` is `null`, with
-  `hash_source` `"none"`.
+  `hash_source` `"none"`. The roles (`run_index.ROLES`, assigned by
+  `run_index.ARTIFACT_ROLES`):
+
+| Role | Files |
+|---|---|
+| `bundle` | `collected_results.csv`, `summary.json`, `artifact_manifest.json` |
+| `provenance` | `provenance.json`, `trunk_run.json` |
+| `fingerprint` | `plant_identity.json` (run and stage), `task_fingerprint.json` |
+| `config` | `stage_config.json`, and `gate_resolution.json`, frozen before the node trains |
+| `verdict` | `gate_verdict.json` |
+| `certificate` | `stance_gate_report.*` and `stance_heading_report.*` |
+| `evidence` | `evaluation_selected.csv`, `evaluation_final.csv`, the stance panel CSVs and `recovery_*.csv` |
+| `ledger` | what training writes as it goes (the stage table's ledgers, `progress.json`, `hop_watch.json`), and `curriculum_results.csv` |
+| `baseline` | `zero_action_baseline.json` |
+| `checkpoint`, `normalization` | `models/`: the policies, and their `_vecnorm.pkl` and `_vecnormalize_<steps>_steps.pkl` statistics |
+| `tensorboard`, `figure`, `training_history`, `replay` | `tensorboard/`, `figures/`, `figures/training_history/`, `replays/`, and the figures and replays of a stage root written before `replays/` existed |
+| `probe` | the stance probes |
+| `summary_text` | `training_summary.txt`, `stage_summary.txt` |
+| `ancestor_record` | everything under `ancestors/<stage_id>/` |
+| `report_only` | sidecars no reader names: `handoff_in_training.json`, `widen_report.json`, and the retired `stage_result.json` and `k3_panel.*` files |
+| `unclassified` | a name no writer writes, which the page names in a warning |
 
 A run's state comes from its files. `run_index.py` defines each one, and
 `INDEX.md` groups the runs in this order (`run_index.RUN_STATES`):
@@ -95,19 +150,23 @@ A run's state comes from its files. `run_index.py` defines each one, and
 | State | The run holds |
 |---|---|
 | `complete` | An `artifact_manifest.json` recording `complete`: the target and every deliverable it records are certified |
-| `partial` | A manifest recording `partial`: it publishes every certified deliverable, and the target is not certified |
+| `partial` | A manifest recording `partial`: at least one deliverable it records is certified, and its target or another deliverable it records is not |
 | `failed` | A manifest recording `failed`: no deliverable it records is certified, and the run has no `summary.json` |
 | `judged_no_bundle` | No manifest, and a stage directory holding `gate_verdict.json` |
-| `post_training_cut` | No manifest, and a stage directory holding evaluation CSVs (`evaluation_selected.csv` or `evaluation_final.csv`) but no verdict: cut off after training |
-| `training_cut` | No manifest, and a stage directory holding a checkpoint in `models/` but no evaluation: cut off during training |
+| `post_training_cut` | No manifest, a stage directory holding evaluation CSVs (`evaluation_selected.csv` or `evaluation_final.csv`), and no stage holding a verdict |
+| `training_cut` | No manifest, a stage directory holding a checkpoint in `models/`, and no stage holding an evaluation CSV or a verdict |
 | `bundle_unreadable` | An `artifact_manifest.json` that cannot be read or records another status, so the bundle's status is unknown |
 | `empty` | Nothing trained: no stage directory holds a checkpoint. At most the records written before training, or the `ancestors/` records of reused nodes |
+
+After these groups `INDEX.md` adds `unreadable` (`run_index.INDEX_STATES`),
+which is no run state: a run whose records raised something unforeseen while
+the index read them, its row showing the error.
 
 The first three and `bundle_unreadable` come from
 `result_bundle.read_bundle_status`; the others, for a run without a manifest,
 from its most advanced stage directory. The states describe files, not
 history: a run trained before verdicts existed (`stage<N>/` directories)
-reads as `training_cut` or `post_training_cut`.
+reads as `training_cut` or `post_training_cut`, and its page says so.
 
 ## The run level
 
@@ -121,7 +180,9 @@ the node. The bundle records the node as reused, and the stage directory
 stays, hashed by the manifest but not published
 (`tests/test_publish_cell.py`,
 `test_an_ancestor_record_stands_for_the_node_beside_a_verdict_of_the_runs_own`).
-What the bundle writer refuses is a bundle that records one node both as
+The run's report shows the node as reused, linked to the trunk run's report,
+and names the stage directory as not published; it reads nothing else from
+it. What the bundle writer refuses is a bundle that records one node both as
 trained in the run and as reused (`reporting/bundles.py`, `result_schema.py`).
 
 ```text
@@ -179,7 +240,11 @@ writes `01_stance/` and `02_locomotion/`. Readers find a stage under any
 name it was ever written under (`stage_manifest.stage_dir_candidates`).
 
 `<label>` below is the stage's file label (`stage_manifest.stage_label`):
-`stage<N>` for a numbered stage, its id (`recovery`) otherwise.
+`stage<N>` for a numbered stage, its id (`recovery`) otherwise. The groups
+say what a file is for and are not the run index's roles (the role table
+above): the index files `gate_resolution.json`, grouped here with the
+recovery evidence, as `config`, since it is frozen before the node trains,
+and `hop_watch.json`, a sidecar here, as `ledger`, since training writes it.
 
 | Group | Files | Writer | Readers |
 |---|---|---|---|
@@ -192,8 +257,9 @@ name it was ever written under (`stage_manifest.stage_dir_candidates`).
 | Ledgers | `evaluations.npz` (SB3's `EvalCallback`), `diagnostics.npz` (`diagnostics.py`; a resume copies the earlier file aside first as `diagnostics.prior_<UTC>.npz`, never deleted), `gate_progress.npz` and `eval_episodes.csv` (`eval_diagnostics.py`), `train_episodes.csv` (`rollout_ledger.py`), `policy_probe.npz` (`policy_probe.py`, PPO), `metrics.json` (`train_base.py`, the post-training panels) | Training | Checkpoint selection (`curriculum/checkpoints.py`); the figures; the training history; `stage_artifacts.build_stage_results_from_eval_data`; the Drive summary's older-run reader (`evaluations.npz`) |
 | Progress | `progress.json` | `curriculum/progress_report.py`, during training | The training history (its checkpoint record and last step); people, mid-run |
 | Summary | `stage_summary.txt` | `reporting.text_summaries.write_stage_summary`, after the verdict | The Drive summary's older-run reader |
-| Probes | `stance_gate_probe_filtered`, `_constant`, `_release`, `_impulse` and `stance_heading_probe`, each `.txt` and `.json`, for each `stance_probe_*` key the stage declares | `generate_stage_artifacts`, last of all (`_run_stance_probes`) | Report only: the heading-probe handoff warning reads `stance_heading_probe.json`, and `reports/` warns of a declared probe that is missing |
+| Probes | `stance_gate_probe_filtered`, `_constant`, `_release`, `_impulse` and `stance_heading_probe`, each `.txt` and `.json`, for each `stance_probe_*` key the stage declares | `generate_stage_artifacts`, last of all (`_run_stance_probes`) | Report only: the heading-probe handoff warning reads `stance_heading_probe.json`, and the run's report warns of a declared probe that is missing on a stage whose verdict `generate_stage_artifacts` wrote (the command-line curriculum's judge rolls none) |
 | Sidecars | `handoff_in_training.json`; `hop_watch.json` (only when the hop watch trips); `widen_report.json` (a widened root) | `generate_stage_artifacts`; `curriculum/hop_watch.py`, during training; `widen_checkpoint.py` | Read by people |
+| Retired | `k3_panel.csv`, `k3_panel.json` and the `k3_panel.prior_<stamp>.*` copies a resume set aside (the in-run K3 noise panel, decision D-D48, retired by the maintainer's decision of 2026-11-26); `stage_result.json` (the JAX stage writer, until decision D-D17) | No writer now; the runs that ran them keep them, such as the three `stance6_r10LTSB` screens | Nothing reads them |
 | `models/` | `<label>_<steps>_steps.zip` and `<label>_vecnormalize_<steps>_steps.pkl` (periodic), `best_model`, `robust_best_model` and `<label>_final`, each `.zip` with its `_vecnorm.pkl` | Training (`train_base.py`; retention below) | The handoff selection (`curriculum.checkpoints.select_handoff_checkpoint`); the next node; the RESUME cell; the bundle (the selected pair); the training history |
 | `tensorboard/` | TensorBoard event files | `tb_sync.py`, copied from local scratch during training | TensorBoard |
 | `figures/` | `training_curves.png`, `locomotion_health.png`, `behavioral_metrics.png`, `foot_contacts.png`, `stance_diagnostics.png`, `gate_progress.png` | `generate_stage_artifacts` (`visualization.py`) | Report only |
@@ -299,8 +365,10 @@ A run directory named on the command line (`--output-dir`,
 
 The maintainer's decision of 2026-11-26. A stage directory's root holds only
 files that some reader names by a fixed path, and the ledgers. Report-only
-output goes in `figures/`, `replays/` or the `reports/` tree outside the run.
-A new file at a stage root needs a reader that names it by a fixed path. The
+output goes in `figures/` or `replays/`, or outside the run in a folder of
+the `reports/` tree that is no run's report folder
+(`reports/<tree>/<run_id>.probes/`). A new file at a stage root needs a
+reader that names it by a fixed path. The
 rule moves nothing: files already at a stage root stay there, and no manifest
 rule changes.
 
@@ -308,9 +376,11 @@ rule changes.
 
 No retention policy is set. Nothing deletes a run tree, on Drive or locally,
 and the Drive summary notebook never moves or deletes a run's folder; outside
-the runs, `run_report.py` replaces only the report folders it writes under
-`reports/`. Inside a run, the only deletion is checkpoint pruning in a stage's
-`models/`:
+the runs, `run_report.py` replaces only what it builds under `reports/`: a
+run's report folder whose text changed, with everything else the old folder
+held copied into the new one, and the two index files. It also removes the
+hidden temporaries a build lost with its runtime left there. Inside a run,
+the only deletion is checkpoint pruning in a stage's `models/`:
 `CheckpointRetentionCallback` keeps the newest `max_checkpoints` periodic
 checkpoints (5 by default) and, with `checkpoint_archive_every_timesteps`,
 one per interval (`curriculum/checkpoints.py`,

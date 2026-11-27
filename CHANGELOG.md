@@ -14,27 +14,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<model>/reports/<tree>/<run_id>/report.md` and `index.json`, then rebuilds
   `<model>/reports/INDEX.md` and `index.json`, beside the run trees and
   outside every run (the maintainer's decision of 2026-11-26). A run's page
-  gives its state, a row per node (verdict, gate kind, handoff, or the trunk
-  run it was reused from, linked once that run's report exists), the
-  certificate and probe lines from the `.txt` reports, links to its figures,
-  training history and replays, and warnings with a next step: files no writer
-  names, declared probes a stage that `generate_stage_artifacts` judged lacks,
-  and evidence paths that no longer exist. The index lists every run grouped
-  by state, newest first, with an `unreadable` group, showing the error, for a
-  run whose records cannot be read. The tool only reads runs and copies sizes
-  and digests from `artifact_manifest.json` without hashing anything. It
-  rewrites nothing whose text is unchanged, and replaces a run's report folder
-  whole, keeping the old one if a build fails and copying in what another tool
-  left there. It refuses a model directory that is not a
+  gives its state, with the next step for an unfinished run; a row per node
+  (verdict, gate kind, handoff, or the trunk run it was reused from, linked
+  once that run's report exists, an `ancestors/` record standing for its node
+  even beside the run's own stage directory, which the page names as not
+  published); the certificate and probe lines from the `.txt` reports; links
+  to its figures, training history and replays; and warnings: files no writer
+  names, the declared probes a stage that `generate_stage_artifacts` judged
+  lacks (one warning per stage, with a command per probe that writes under
+  `reports/<tree>/<run_id>.probes/`), the handoff checkpoint and normalization
+  a verdict or an ancestor record names that no longer exist, and records that
+  cannot be read. The index lists every run grouped by state, newest first,
+  with an `unreadable` group, showing the error, for a run whose records
+  cannot be read. A run without a sealed bundle certifies nothing there, and a
+  run `run_exclusions.py` names reads `never counts`. The tool only reads runs
+  and copies sizes and digests from `artifact_manifest.json` without hashing
+  anything. It rewrites nothing whose text is unchanged, and replaces a run's
+  report folder whole, keeping the old one if a build fails and copying in
+  what another tool left there. It refuses a model directory that is not a
   `<species>/<embodiment>` directory, a run tree, and any output inside a run
-  (`environments/shared/reporting/run_index.py`).
+  (`environments/shared/scripts/run_report.py`).
 - **The notebooks write the reports.** The SB3 notebook rewrites the run's
   report and the model index after every `save_run_bundle` and in the verify
   cell, best-effort: a failure prints one warning line with the command that
   rebuilds it. The storage cell prints the first lines of the model's
-  `reports/INDEX.md`. The Drive summary notebook's last cell rebuilds every
-  model's reports and names each run that fails; this is also the backfill for
-  runs already on Drive.
+  `reports/INDEX.md`, and an index it cannot read costs that print alone. The
+  Drive summary notebook's last cell rebuilds every model's reports and names
+  each run that fails; this is also the backfill for runs already on Drive.
 - **A map of the Drive tree, `docs/DRIVE_LAYOUT.md`.** It is a living
   reference (the maintainer's decision of 2026-11-26) to everything under
   `LOG_BASE`. It covers the model level (the run trees,
@@ -50,9 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A test that keeps the Drive map in step with the code.**
   `environments/shared/tests/test_drive_layout.py` fails when the page cites a
   file or a `module.name` that no longer exists, misses a stage directory of
-  any of the seven models, or has a broken link to or from it. Once the run
-  index is present, it also fails when the run-state table no longer lists
-  `run_index.RUN_STATES` in order.
+  any of the seven models, or has a broken link to or from it. It also fails
+  when the run-state table no longer lists `run_index.RUN_STATES` in order,
+  the index's `unreadable` group goes unnamed, or the role table drifts from
+  `run_index.ROLES`.
 - **A website test for each model's images.**
   `website/tests/animal_images.test.mjs` fails when a model of the generated
   catalog has no still image
@@ -5584,11 +5591,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bundle is saved after every node, and `summary.json` is written whenever a
   deliverable is certified. The recipes page's run tree gains the run-level
   files. The stage-end training history has twenty pages, not nineteen. The
-  SB3 notebook's zero-action markdown no longer counts six models. The
-  `stage_layout.py` and `stage_artifacts.py` docstrings no longer count about
-  35 runs or say the backfill tool records every artifact. The probe comment
-  now says a runtime lost during the probes also loses the training summary
-  and bundle, which the notebook writes after the probes.
+  SB3 notebook's zero-action markdown and preflight cell no longer count six
+  models. The `stage_layout.py` and `stage_artifacts.py` docstrings no longer
+  count about 35 runs or say the backfill tool records every artifact. The
+  probe comment now says a runtime lost during the probes also loses the
+  training summary and bundle, which the notebook writes after the probes.
 - **The Compsognathus robot page describes the robot.** It showed the
   anatomical model's "the foot pads and toes share the load", and a header
   saying the robot walks. The animal page now prefers a robot's own study
