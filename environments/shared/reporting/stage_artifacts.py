@@ -832,11 +832,7 @@ def _run_stance_probes(
             ),
         ),
     )
-    # The one rule for which probes roll, which run_index reads too: each writer's own switch agrees with it.
-    declared = declared_stance_probes(curriculum)
     for label, run_probe in probe_calls:
-        if label not in declared:
-            continue
         try:
             run_probe()
         except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
@@ -929,13 +925,16 @@ def declared_stance_probes(curriculum: Mapping[str, Any]) -> tuple[str, ...]:
     ``stance_probe_spawn_yaw_deg``, never under the six-heading certificate, whose
     gate judged every heading).  Empty for a stage whose gate is no stance kind
     (``gate_schema.STANCE_GATE_KINDS``): it rolls no certification report, so
-    nothing is probed.  :func:`_run_stance_probes` rolls exactly these, each
-    writer's own switch agreeing, and only from :func:`generate_stage_artifacts`,
-    last, after the verdict, the summary, the figures and the replays: a runtime
-    lost before the end of the stage leaves them out, and the command-line
-    curriculum's judge (``train_base._post_training_stance_verdict``) writes the
-    certification report and rolls no probe.  Reads *curriculum* only and logs
-    nothing (``run_index`` names a declared probe a stage lacks).
+    nothing is probed.  :func:`_run_stance_probes` calls every writer and each
+    writer's own switch decides (a value that is not a number is logged there);
+    these are the probes those switches let through
+    (``tests/test_run_index.py`` pins that they agree), rolled only from
+    :func:`generate_stage_artifacts`, last, after the verdict, the summary, the
+    figures and the replays: a runtime lost before the end of the stage leaves
+    them out, and the command-line curriculum's judge
+    (``train_base._post_training_stance_verdict``) writes the certification
+    report and rolls no probe.  Reads *curriculum* only and logs nothing
+    (``run_index`` names a declared probe a stage lacks).
     """
     from ..curriculum.gate_schema import STANCE_GATE_KINDS
     from .stance_report import declares_heading_probe

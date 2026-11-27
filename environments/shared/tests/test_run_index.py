@@ -805,10 +805,10 @@ def test_the_declared_probes_are_the_ones_the_stage_rolls(tmp_path, monkeypatch)
     assert stage_artifacts.declared_stance_probes({"gate_kind": "reward_and_length/v1", **switches}) == ()
 
 
-@pytest.mark.parametrize("label", (None, *stage_artifacts.STANCE_PROBE_LABELS))
-def test_the_runner_calls_only_the_writers_of_the_declared_probes(tmp_path, monkeypatch, label):
-    """``_run_stance_probes`` decides by ``declared_stance_probes``, the rule the report reads: a stage declaring no
-    probe calls no writer, and one declaring a probe calls that probe's writer alone."""
+def test_the_runner_calls_every_writer_and_each_writers_switch_decides(tmp_path, monkeypatch):
+    """``_run_stance_probes`` is training's code and stays as it was: it calls every writer, whatever the stage
+    declares, and each writer's own switch decides (``declared_stance_probes`` only reads that rule back, and
+    ``test_the_declared_probes_are_the_ones_the_stage_rolls`` pins that the two agree)."""
     from .test_stance_gate_report import _minimal_stance_report
 
     called: list[str] = []
@@ -817,11 +817,8 @@ def test_the_runner_calls_only_the_writers_of_the_declared_probes(tmp_path, monk
     (tmp_path / "models").mkdir()
     for name in ("robust_best_model.zip", "robust_best_model_vecnorm.pkl"):
         (tmp_path / "models" / name).write_bytes(b"pair")
-    switch = {
-        label_: {key: value}
-        for label_, (key, value) in zip(stage_artifacts.STANCE_PROBE_LABELS, _EVERY_PROBE.items(), strict=True)
-    }
-    curriculum = {"gate_kind": "stance_quality/v1", "min_eval_episodes": 40, **(switch[label] if label else {})}
+    curriculum = {"gate_kind": "stance_quality/v1", "min_eval_episodes": 40}
+    assert stage_artifacts.declared_stance_probes(curriculum) == ()
     stage_artifacts._run_stance_probes(
         model_id=TYRANNOSAURUS_REX,
         stage=1,
@@ -830,7 +827,40 @@ def test_the_runner_calls_only_the_writers_of_the_declared_probes(tmp_path, monk
         model_dir=tmp_path / "models",
         report=_minimal_stance_report(),
     )
-    assert called == ([label] if label else [])
+    assert called == list(stage_artifacts.STANCE_PROBE_LABELS)
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    (
+        ("stance_probe_filter_hz", ["5 Hz"]),
+        ("stance_probe_impulse_speeds", ["1 m/s"]),
+        ("stance_probe_spawn_yaw_deg", ["ninety"]),
+    ),
+)
+def test_a_probe_value_that_is_no_number_declares_nothing_and_is_logged_at_stage_end(
+    tmp_path, caplog, key, value
+):
+    """A mistyped probe value (a unit inside the string) declares no probe, so the report expects none, and the
+    probe's writer still logs it when the stage ends, as it did before the report read the rule."""
+    from .test_stance_gate_report import _minimal_stance_report
+
+    (tmp_path / "models").mkdir()
+    for name in ("robust_best_model.zip", "robust_best_model_vecnorm.pkl"):
+        (tmp_path / "models" / name).write_bytes(b"pair")
+    curriculum = {"gate_kind": "stance_quality/v1", "min_eval_episodes": 40, key: value}
+    assert stage_artifacts.declared_stance_probes(curriculum) == ()
+    with caplog.at_level(logging.WARNING):
+        stage_artifacts._run_stance_probes(
+            model_id=TYRANNOSAURUS_REX,
+            stage=1,
+            stage_config={"curriculum_kwargs": curriculum, "env_kwargs": {}},
+            stage_dir=tmp_path,
+            model_dir=tmp_path / "models",
+            report=_minimal_stance_report(),
+        )
+    assert f"{key} entry is not a number: {value[0]!r}; ignoring it" in caplog.text
+    assert not list(tmp_path.glob("stance_*probe*")), "nothing is probed"
 
 
 def test_the_probe_labels_are_the_runners_and_name_the_writers_files(tmp_path, monkeypatch, caplog):

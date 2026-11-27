@@ -2791,12 +2791,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The Drive summary notebook never walks `reports/`.** Its run walker skips
   the reports tree at the top of each model directory.
-- **One rule for which stance probes a stage rolls.**
-  `stage_artifacts._run_stance_probes` now rolls exactly the probes
-  `declared_stance_probes` names from a stage's `[curriculum]` block, the rule
-  the run report reads; the heading probe's entry is
-  `stance_report.declares_heading_probe`. Each writer's own switch agrees, so
-  what training writes is unchanged.
+- **The run report reads which stance probes a stage rolls.**
+  `stage_artifacts.declared_stance_probes` names the probes a stage's
+  `[curriculum]` block switches on, by each writer's own switch (the heading
+  probe's is `stance_report.declares_heading_probe`), and a test pins that
+  they agree. `_run_stance_probes` still calls every writer, so what training
+  writes and logs is unchanged, the warning for a probe value that is not a
+  number included.
 - **The embodiment checklist covers images and statue numbers.** The 'Adding
   an embodiment' checklist in `CONTRIBUTING.md` no longer quotes model counts.
   It names the lines that state them: the Key Features line of `intro.md` and
