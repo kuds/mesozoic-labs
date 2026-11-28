@@ -43,9 +43,8 @@ alive_bonus = 1.75                                # Setting 4 sweep: all best en
 # committed stance), its lateral lean and settled leg target (off on main) and the screens' stagger and CoP band
 # are step-gated or settle-referenced, and the T-Rex's tail habit was traced in part to that hidden clock: the
 # critic reads the step from the tail angle (the 2026-10-30 why-probe and the critic-phase screen, on the
-# never-merged branches claude/handoff-day-2026-10-30 and claude/records-phase-screen). None is ported. Since
-# decision D-D79 (3) [ppo] critic_phase trains here too, reading the phase of critic_phase.DEFAULT_SETTLE_STEPS
-# (200): this env has no stance_width_settle_steps, so it is a plain episode clock no term here is gated on. No
+# never-merged branches claude/handoff-day-2026-10-30 and claude/records-phase-screen). None is ported; [ppo] critic_phase
+# reads a plain 200-step clock here (no stance_width_settle_steps; critic_phase.DEFAULT_SETTLE_STEPS, D-D79). No
 # clock does not rule a tail habit out: the r2 audit stance parked tail_1_pitch at its stop with none.
 # Physics r5 (the life-size plant, plant_versions note 22; the maintainer's decision of 2026-11-08) re-measured
 # every constant below on its statue (zero action, this [env], reset noise 0.05, seeds 3042-3081, and out of
