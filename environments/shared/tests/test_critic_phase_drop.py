@@ -685,10 +685,6 @@ def test_an_archive_the_screen_branch_wrote_drops_across_an_edge_and_resumes_und
 
 
 # ---------------------------------------------------------------------------------------------------- the re-phase
-def _rng_states() -> tuple:
-    return (torch.random.get_rng_state(), np.random.get_state()[1].copy(), random.getstate())
-
-
 def test_the_zero_column_start_keeps_the_actor_and_the_stock_critic_s_values(phase_zip, tmp_path):  # R1
     """critic_phase_ppo.add_critic_phase on a loaded stock model: the actor is bitwise the stock one, the critic keeps
     its observation columns and gains three exactly-zero phase columns (their Adam moments too), so it values every
@@ -699,10 +695,12 @@ def test_the_zero_column_start_keeps_the_actor_and_the_stock_critic_s_values(pha
     probe = _probe()
     with torch.no_grad():
         stock_value = model.policy.predict_values(probe).clone()
-    rng = _rng_states()
+    torch_state, numpy_state, python_state = torch.random.get_rng_state(), np.random.get_state(), random.getstate()
     CPP.add_critic_phase(model, SPEC)
-    assert torch.equal(rng[0], torch.random.get_rng_state()) and np.array_equal(rng[1], np.random.get_state()[1])
-    assert rng[2] == random.getstate()
+    assert torch.equal(torch.random.get_rng_state(), torch_state)
+    after = np.random.get_state()
+    assert after[0] == numpy_state[0] and np.array_equal(after[1], numpy_state[1]) and after[2:] == numpy_state[2:]
+    assert random.getstate() == python_state
     assert type(model.policy) is CPP.CriticPhaseActorCriticPolicy and model.policy.critic_phase == SPEC
     assert (
         type(model.rollout_buffer) is CPP.CriticPhaseRolloutBuffer
