@@ -60,8 +60,8 @@
 
 ## Smaller fixes
 
-5. **The owner's "Sioux connection"** is most likely SUE, the Field Museum's T. rex specimen, misheard by speech-to-text. This is my inference. Section 5.1's wording is right in substance, but naming SUE would help the pitch; confirm with the owner.
-6. **Museums.** The owner named "the Field Museum or the Natural History Museum". The prompt and plan list only the Field Museum and Griffin MSI.
+5. **The owner's phrase for the T. rex tie-in** is most likely a specimen's name, misheard by speech-to-text. This is my inference. Section 5.1's wording is right in substance, but naming the specimen would help the pitch; confirm with the owner.
+6. **Demo hosts.** The owner named two hosts. The prompt and plan list only the first of them and a third candidate.
 7. **Stale PR list in the prompt.** WHAT NOT TO DO omits #655 (T. rex stance pop) and #646.
 8. **Reading #669's files.** `git fetch origin pull/669/head` only sets FETCH_HEAD, so the prompt's `git show origin/<branch>:<path>` won't work for it. Use `git fetch origin pull/669/head:pr-669`, then `git show pr-669:<path>`.
 9. **The 0.40 m/s line.** "75-77 rpm against an 83 rpm cap" reads as if it fits. Add "91-93 % of the cap, no margin under load".

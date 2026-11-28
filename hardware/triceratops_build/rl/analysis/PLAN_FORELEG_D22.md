@@ -76,4 +76,4 @@ settings; four seeds per length (D24: two seeds cannot resolve a 15 % foot-load 
 ## What this does not settle
 
 - Whether the real X6 mount, pushrod and guards fit: the bench article measures that.
-- The museum renders due 8 Dec show the 188 mm foreleg; whether to redo them depends on the timing of this decision.
+- The simulation renders due 8 Dec show the 188 mm foreleg; whether to redo them depends on the timing of this decision.

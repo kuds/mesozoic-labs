@@ -95,7 +95,7 @@ mutated the PR's model. Verdict: **sound after fixes**. Its fourteen findings an
 |---|---|---|
 | 1 | "Bay drawn 160 mm" was wrong: the PDF gives no dimension; p.6's to-scale battery box is about 198 mm long and above the frame | Fixed (erratum 2, PDF row 2b, finding 2, verdict) after checking a render of p.6 |
 | 2 | Link counts wrong (23 file links, 15 PR links) | Fixed |
-| 3 | X6-80 saving is 0.52 kg per front leg, 1.0 kg for the pair | Fixed in the outreach draft |
+| 3 | X6-80 saving is 0.52 kg per front leg, 1.0 kg for the pair | Fixed in the vendor-questions draft |
 | 4 | Erratum 8 corrected a 1 kHz claim the PDF never makes | Restated around the 500 Hz load and 2.2 ms exchange |
 | 5 | "6S starves the X6" overstated for the PR's own 1:1 design | Restated (erratum 7) |
 | 6 | "Replaces" implied the parts list was adopted; P1 marked 75 cm adopted | "Proposes"; P1 corrected |

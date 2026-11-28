@@ -516,7 +516,7 @@ def chart_steadiness(R, P, out: Path) -> str:
             "The body itself is steady to about a degree.\n\nRanges: 1st-99th percentile. Bob and sway: after removing\n"
             "a 1 s moving average (the walk's own progress).", transform=tx.transAxes, fontsize=8.1, color=cs.INK2,
             va="top", linespacing=1.4)
-    cs.frame(fig, "Body and head steadiness: how the walk looks to a visitor",
+    cs.frame(fig, "Body and head steadiness: how the walk looks to an onlooker",
              f"{_run_label(R)}. Time series: nominal model, observation noise off, 0.25 m/s. Head: centre of mass of the "
              "head (yaw) body.",
              _footer(R, "Head acceleration = derivative of the head's velocity"))

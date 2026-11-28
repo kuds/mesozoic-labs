@@ -1,5 +1,5 @@
 """The frozen model-based trot (../walk/walk60.py) on one robot model over seeds 101-110, without rendering: the
-conditions of the museum clip (0.25 m/s, 10 ms servo delay, sensor noise on, no randomisation). Simulation only.
+conditions of the render clip (0.25 m/s, 10 ms servo delay, sensor noise on, no randomisation). Simulation only.
 
 Usage: python trot_seed_check.py MODEL_FILE_NAME OUT.json   (MODEL_FILE_NAME in ../sim/generated/)
 """

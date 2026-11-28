@@ -28,8 +28,8 @@ All 13 critic fixes and the PLEM and RESUME pointers are applied and committed o
    - Where: prompt OWNER'S PREFERENCES and KEY FACTS (now with the T. rex-way totals); plan "In short" step 3 (cost and price-flag bullets) and decision 1.
    - Figures: class $17k-$32k, from the T. rex 75 cm ($17.2k self-built, $20.0k turnkey) to the 100 cm flagship ($29-32k). T20 is $31.8k the T. rex way (top of the class) and $37.3k landed (above it). T15 is $28.3k / $32.8k. The first spend is the bench set, $7.1k of parts / $8.9k landed.
    - The reviewer's flag is included: third-party US drive prices run about 2x MyActuator's store.
-5. **SUE.** Prompt GOAL and plan 5.1: "the direct tie-in with SUE, the Field Museum's T. rex specimen (the owner wrote "Sioux connection")".
-6. **Museums.** Both prompt and plan 5.1 quote the owner: "the Field Museum or the Natural History Museum". No repo file sources Griffin MSI, so I kept it only as "a further candidate the owner did not name".
+5. **T. rex tie-in.** Prompt GOAL and plan 5.1 name the specimen behind the direct tie-in and quote the owner's phrase.
+6. **Demo hosts.** Both prompt and plan 5.1 quote the two hosts the owner named. No repo file sources the third candidate, so I kept it only as "a further candidate the owner did not name".
 7. **PR list.** Prompt WHAT NOT TO DO now names #585, #596, #623, #635, #648, #649, #651, #655, #662, #663, #664 and #646, plus #669 and the study PR.
 8. **Fetching #669.** Prompt WHERE THINGS ARE: `git fetch origin pull/669/head:pr-669`, then `git show pr-669:<path>`. The same command is in plan section 2.
 9. **0.40 m/s.** Prompt KEY FACTS and plan decision 1: "91-93 % of the cap, with no margin under load".

@@ -42,7 +42,7 @@ the drives' limits), and the centre of pressure across each sole.
 
 ## What this does not show
 
-A crawl is not the 0.30 m/s museum walk. It shows that the body can be shifted inside the support triangle and one foot
+A crawl is not the 0.30 m/s demo walk. It shows that the body can be shifted inside the support triangle and one foot
 lifted at a time with a positive static margin, in simulation, without delay, noise or sensor models (task 5 adds them).
 
 ## Amendment 1 (18 Nov 2026, after 48 development runs, before any judged run)

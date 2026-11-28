@@ -20,11 +20,11 @@ contingency at the planning duty of 25 %.
 **Update, same day: the handheld stop (D15).** The owner judged the certified Cattron wireless stop overkill. The
 build now plans a fail-safe radio stop (about $250, an estimate) into the existing watchdog and Pilz relay: a press or
 a lost signal makes the robot sit, then cut power. It is not certified; a certified wireless stop is bought only if a
-host museum's risk assessment asks for one (+$2.45k of hardware net). **The chosen build is then $16.8k-$17.5k of
+host's risk assessment asks for one (+$2.45k of hardware net). **The chosen build is then $16.8k-$17.5k of
 hardware; $20.1k-$20.9k landed from Fremont stock; about $17.9k-$18.8k landed with half the bench gear counted against
 the T. rex and the spares bought later** (`size_budget_out.txt`, "Chosen build"). The figures below this paragraph
 keep the certified stop, as the options were compared. The first demos are controlled, with no direct contact and a
-safe distance kept from people (P8); barriers are assumed to be the museum's (about $300 if the team brings its own,
+safe distance kept from people (P8); barriers are assumed to be the host's (about $300 if the team brings its own,
 an estimate; A6).
 
 **Update, same day (the owner's duty information and the store pages):**
@@ -36,20 +36,20 @@ educational / research discount on the drives, if the project qualifies, would t
 ## Answer
 
 **The sweet spot is a 60 cm robot (to the top of the frill, 1.2 m long, about 12 kg) with the same drive types as the
-T. rex (10 × X4 + 2 × X6 on a 48 V bus). Ready for museum visitors (moving head, jaw and tail, an industrial wired stop
+T. rex (10 × X4 + 2 × X6 on a 48 V bus). Ready for public demos (moving head, jaw and tail, an industrial wired stop
 plus a handler-held wireless stop, cooling, test gear) it is about $19.0k-$19.7k of hardware: $20.4k-$21.1k counted
 the T. rex way, $23.9k-$24.7k landed with contingency; about $0.2k more for the full expression package.** It fits a $20k budget on the T. rex basis, or landed only if
-some prices come in lower (see "Getting a museum-ready 60 cm robot to $20k" below).
+some prices come in lower (see "Getting a demo-ready 60 cm robot to $20k" below).
 
-- **$10k** does not buy a museum robot with industrial safety, painted shells and an expressive head; it buys the
+- **$10k** does not buy a demo robot with industrial safety, painted shells and an expressive head; it buys the
   repository's $10k research-quadruped plan (owner-built frame, foam skin, passive tail; main's
   `docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md`, section 4).
-- **No size is museum-ready under about $17.6k counted the T. rex way** (50 cm), because drives, computer, safety
+- **No size is demo-ready under about $17.6k counted the T. rex way** (50 cm), because drives, computer, safety
   chain, power, cooling, bench gear and tools hardly shrink with size: about $9k-$10k of hardware with the wired stop,
-  $12k-$12.5k museum-ready.
+  $12k-$12.5k demo-ready.
 - **50 cm** saves about $1.0k-$1.4k over the budget 60 cm option and $2.2k-$2.6k over the recommended one, but walks slower
   (0.17-0.23 m/s) and is a smaller animal.
-- **75 cm**, even lean and with mid-range choices, is about $22.9k of hardware museum-ready ($24.5k the T. rex way,
+- **75 cm**, even lean and with mid-range choices, is about $22.9k of hardware demo-ready ($24.5k the T. rex way,
   $28.6k landed): over the budget. About $1.0k of its gap to 60 cm is the larger servos the parts list chose for the 75 cm head and tail.
 
 ## The options
@@ -64,7 +64,7 @@ some prices come in lower (see "Getting a museum-ready 60 cm robot to $20k" belo
 | Short trot (Froude-similar to 0.60 m/s) | passes | elbow heat 0.91 | passes (knee heat 0.86) | roll heat 1.01: short bouts only |
 | Run time per battery set | 28-39 min | 25-34 min | 43-60 min | 33-47 min |
 | Tightest walking axis | pitch speed 1.08 at the Froude-similar walk | elbow heat 0.99 in a held "paw" pose; 1.02 if the frame is heavier | hind knee heat 0.93 in a held pose (0.96 if heavier) | roll peak 0.70, heat 0.87 |
-| **Museum-ready, hardware** | $16.4k-$17.5k | $17.8k-$18.5k | **$19.0k-$19.7k** | $22.9k |
+| **Demo-ready, hardware** | $16.4k-$17.5k | $17.8k-$18.5k | **$19.0k-$19.7k** | $22.9k |
 | Same, T. rex way | $17.6k-$18.7k | $19.1k-$19.8k | **$20.4k-$21.1k** | $24.5k |
 | Same, landed with contingency | $20.6k-$21.9k | $22.3k-$23.1k | **$23.9k-$24.7k** | $28.6k |
 | Without the wireless stop (wired stop only), landed | $17.4k-$18.6k | $19.0k-$19.9k | $20.7k-$21.5k | $25.4k |
@@ -80,7 +80,7 @@ some prices come in lower (see "Getting a museum-ready 60 cm robot to $20k" belo
   thermal-equilibrium torque (open-air figures; inside a shell they are lower, hence the cooling in every option),
   speed ≤ 0.70 of no-load (or the X4's 83 rpm cap on 12S).
 
-**What "museum-ready" holds:** the leg drives and a spare of each type; pushrod linkages; Jetson computer with a
+**What "demo-ready" holds:** the leg drives and a spare of each type; pushrod linkages; Jetson computer with a
 real-time CAN board; IMU, depth camera and ranging sensors; an industrial wired stop chain (Pilz relay, two-channel
 e-stops, contactor, watchdog) **plus** a PL d wireless stop with its receiver (+$2.7k: $1,900 found for the kit plus an
 estimated $800 receiver; needs a quote); battery sets, tether, charger; drive-bay cooling; harness; outsourced CNC
@@ -89,7 +89,7 @@ frame; MJF shells painted by the team; bench supply, torque rig, CAN adapter, th
 (+$254), a premium IMU (+$392), a dim-hall camera (+$260), a professional painter (+$1,050), a road case (+$800),
 labour, and PLEM.
 
-## Getting a museum-ready 60 cm robot to $20k
+## Getting a demo-ready 60 cm robot to $20k
 
 From option C's $23.9k-$24.7k landed:
 - **Duty:** items in stock at MyActuator's US store (Fremont, California) have already cleared customs, so they carry
@@ -136,10 +136,10 @@ $100-197 (typically $120-138), XL430-W250 about $45-70.
 
 | Package | What moves | Servos | At 50-60 cm | At 75 cm |
 |---|---|---|---|---|
-| **Core** | Neck nod (spring-assisted), neck turn to look at visitors, jaw/beak open and close, tail sway; eye LEDs; speaker, amplifier and microphone | 3 × XC430-W240 + 1 × XL430-W250 (75 cm: XM540 + 3 × XM430) | about $750 | about $1,800 |
+| **Core** | Neck nod (spring-assisted), neck turn to look at onlookers, jaw/beak open and close, tail sway; eye LEDs; speaker, amplifier and microphone | 3 × XC430-W240 + 1 × XL430-W250 (75 cm: XM540 + 3 × XM430) | about $750 | about $1,800 |
 | **Full** | Core plus blinking eyelids, tail lift, frill blush lighting | + 2 × XL330 + 1 × XL430 (75 cm: + XM430) | about $980 | about $2,300 |
 
-- **Most character per dollar:** the neck turning to follow a visitor (the camera and computer are already there), the
+- **Most character per dollar:** the neck turning to follow an onlooker (the camera and computer are already there), the
   jaw opening with a sound, and blinking.
 - **Free expression:** the legs can act too: lowering the head, shifting weight, a paw scrape, sitting down. That costs
   software time, not parts.
@@ -151,9 +151,9 @@ $100-197 (typically $120-138), XL430-W250 about $45-70.
 - **New model and simulation:** the current models are 75 cm. A 60 cm model needs PR #669's 60 cm geometry (its PDF
   and OpenSCAD file), the new parts' masses and positions, then the standing check and the crawl again: a few days of
   session work. Simulation then confirms or corrects this document's scaled loads.
-- **Renders:** the December stills show the 75 cm robot; they would be redone at 60 cm before 8 Dec 2026.
+- **Renders:** the simulation stills show the 75 cm robot; they would be redone at 60 cm before 8 Dec 2026.
 - **The parts list:** a new checked parts list for the chosen option replaces the T20 / T15 lists.
-- **The museum walk speed:** the decision log's 0.30 m/s (P1, P6) becomes about 0.25-0.27 m/s. At 0.30 m/s option
+- **The demo walk speed:** the decision log's 0.30 m/s (P1, P6) becomes about 0.25-0.27 m/s. At 0.30 m/s option
   C's pitch drive would use 0.90 of the X4's 83 rpm cap with a smooth swing and 1.04 with PR #669's swing profile.
 - **The foot finding stays:** a sole rigid in roll tips onto its edges in a statically stable crawl, at any size.
 - **The T. rex:** option C uses the same drive types and counts as the T. rex's set (10 × X4 + 2 × X6), so the foreleg

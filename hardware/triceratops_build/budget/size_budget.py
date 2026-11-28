@@ -148,7 +148,7 @@ def neck_check(s, level):
     return head_kg, out
 
 
-ADDONS = [("Certified wireless safety stop, PL d, handler-held, with receiver (only if a museum requires it; D15)",
+ADDONS = [("Certified wireless safety stop, PL d, handler-held, with receiver (only if a host requires it; D15)",
            1900 + 800 - 250, "PL: Cattron $1,900 (WS); receiver EST $0-1,500; quote; net of the radio stop it replaces"),
           ("Foot load cells x 4 + per-leg links (21-23 week lead)", 174.28 + 80, "PL"),
           ("Xsens MTi-3 IMU instead of BNO085", 417.06 - 24.95, "PL"),
@@ -210,7 +210,7 @@ def main():
             duty = sum(l[2] for l in lines if l[3])
             for lvl in ("core", "full"):
                 _, e, _ = expression(lvl, s)
-                for wl, extra in (("wired stop", 0), ("museum-ready (+ wireless stop)", 2700)):
+                for wl, extra in (("wired stop", 0), ("demo-ready (+ wireless stop)", 2700)):
                     hw = hw0 + e + extra
                     trex, landed = overheads(hw, duty)
                     print(f"   [{tag}] {lvl:4s} expr ${e:,.0f}, {wl:31s}: hardware ${hw:,.0f}; T. rex way ${trex:,.0f}; "
@@ -219,7 +219,7 @@ def main():
         for cat, item, usd, _ in bom(cfg, 0.5):
             cats[cat] = cats.get(cat, 0) + usd
         print("   hardware by category (half frame fixed, before expression):", {k: round(x) for k, x in cats.items()})
-    print("\n== Duty scenarios, option C (60 cm), full expression, museum-ready ==")
+    print("\n== Duty scenarios, option C (60 cm), full expression, demo-ready ==")
     cfg = CONFIGS[2]
     for ff, tag in ((0.0, "frame cost by area"), (0.5, "half the frame cost fixed")):
         lines = bom(cfg, ff)

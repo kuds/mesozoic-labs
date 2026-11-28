@@ -48,7 +48,7 @@ F10. BMS
 - The Orion Jr 2 at $440 is confirmed, but its current sensor is a separate option that Orion strongly recommends. Added it at $100 (estimate).
 - Its charge and discharge outputs are logic signals, not contactor drivers. Route discharge-enable into the watchdog so a BMS trip runs the same sit-then-cut sequence.
 
-F11. Missing for a museum build
+F11. Missing for a demo build
 - Cooling (fans, ducts, filters): $90.
 - Tools: $350.
 - Padded road case for travel: $800.

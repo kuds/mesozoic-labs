@@ -45,7 +45,7 @@ links within this folder are relative.
 6. **Delete nothing that holds the T. rex**: not the two data branches, not the working branch, not the walking-pilot
    branches. Only you delete branches: six merged branches can go now, a few more once their PRs are settled (section 3).
 7. **Start the Triceratops session** with [NEW_SESSION_PROMPT.md](NEW_SESSION_PROMPT.md): simulation first, renders
-   for the mid-December museum contact, then a one-foreleg bench plan.
+   due 8 Dec 2026, then a one-foreleg bench plan.
 8. **Send WIM and MyActuator the PLEM questions in section 6** (the session drafts them; [PLEM_FIT.md](PLEM_FIT.md),
    section 5.4) before anything is bought or built around PLEM. A PLEM bench pilot runs only if their answers clear
    the blockers (brakeless drives unsupported, AGX Orin only, at most 8 axes per bus); its go or no-go is yours by
@@ -65,7 +65,7 @@ commits on main since the branch's merge base.
 | #668 | Jetson Orin + Partial PLEM study | Closed unmerged on 16 Nov | Nothing to do: its branch is inside the working branch's history and reaches main with the P48 PR | none |
 | #664 | "T. rex body shape posture study": in fact the whole #635 to #663 stack against main, 421 files, +272,945 | Conflicts in 4 files; same commit as #663 | **Close, superseded** by #667 and the study PR; keep the branch | Optional: the `CONTRIBUTING.md` section on shared code layout for robot concepts |
 | #663 | Intermediate T. rex sizes and trained R3 results (results files only) | Stacked on #662; main's `REPRODUCTION.md` found nothing regenerates | **Close, superseded** by #667 and the study PR; keep the branch | `hardware/intermediate_rex_r2/FINDINGS.md` and the partner brief, labelled as reported, not reproducible |
-| #662 | Intermediate T. rex simulation platform (draft) | Stacked on #651; cited by main's `BASELINE.md` | **Keep parked** as the mechanics baseline for the T. rex restart | The person-follow lessons (one selected visitor, stop when identity is unclear, the lower camera, RGB-D tracking 443 of 450 frames): they matter for a museum demo |
+| #662 | Intermediate T. rex simulation platform (draft) | Stacked on #651; cited by main's `BASELINE.md` | **Keep parked** as the mechanics baseline for the T. rex restart | The person-follow lessons (one selected onlooker, stop when identity is unclear, the lower camera, RGB-D tracking 443 of 450 frames): they matter for a public demo |
 | #655 | Root cause of the T. rex stance pop (report only) | Conflicts in 5 index files | **Keep**: resolve the conflicts, recheck `SHA256SUMS`, merge as a dated record; or keep only its note | Its lessons (reset keyframe not in equilibrium, PD-target windup, exploration noise toppling the stance) apply to training the Triceratops to stand |
 | #651 | 60 cm T. rex skeleton (draft) | Stacked on #649 | **Close, superseded** (60 cm parked, P43); keep the branch, which #662 uses as its base | Optional: the check harness (full-size motor envelopes, mass ledger, an undersized-motor negative control) |
 | #649 | Mini T. rex M1 and milestone workflow (draft) | Stacked on #648 | **Close, superseded**; keep the branch | Optional: the M1/M2/M3 milestone and revision-freeze layout, as a template for Triceratops hardware milestones |
@@ -187,31 +187,29 @@ and [dibothrosuchus_elaphros](https://github.com/kuds/mesozoic-labs/tree/main/en
 **What does not carry over:** the T. rex bodies, walking styles and frozen arrays; the biped-specific panels; the
 anatomical-simulation T. rex work in #596 (`gait-r1`) and #623.
 
-## 5. The museum timeline, the Triceratops milestones, and when the T. rex resumes
+## 5. The demo timeline, the Triceratops milestones, and when the T. rex resumes
 
 ### 5.1 The fixed dates (the owner's)
 
-- **Mid-December 2026:** first contact with museums, with simulation renders. The owner named "the Field Museum or
-  the Natural History Museum" (P51 records "Field Museum, a natural history museum"). Griffin MSI (Chicago's Museum
-  of Science and Industry) is a further candidate the owner did not name.
-- **Q3 2027:** live Triceratops demos.
-- **End 2027 / early 2028:** the T. rex flagship, shown on the roadmap from the first contact on (P51). The owner
-  accepts that leading with a Triceratops loses the direct T. rex tie-in with SUE, the Field Museum's T. rex specimen
-  (the owner wrote "Sioux connection"), and still wants to build the T. rex; the owner updates the pitch deck.
+- **First:** the simulation renders (T1 below, due 8 Dec 2026).
+- **Q3 2027:** public Triceratops demos.
+- **End 2027 / early 2028:** the T. rex flagship, shown on the roadmap from the first renders on (P51). The owner
+  accepts that leading with a Triceratops loses the direct T. rex tie-in, and still wants to build the T. rex; the
+  owner updates the pitch deck.
 
 ### 5.2 Triceratops milestones (a proposal; the dates are planning estimates)
 
 | # | Milestone | Target | Latest | Slack | Depends on |
 |---|---|---|---|---|---|
 | T0 | Study PR and PR #669 merged; round 1's five decisions taken (section 7). Round 2 follows by about 15 Jan 2027 | 4 Dec 2026 | 15 Dec 2026 | 11 days | Owner's review |
-| T1 | **Museum renders:** MuJoCo stills and a short clip of the 75 cm robot standing with its real mass distribution and, if ready, crawling with a scripted gait; the anatomical adult; one roadmap line for the T. rex flagship. Every image labelled "simulation" | 8 Dec 2026 | 14 Dec 2026 | 6 days | Fallback: stance renders from PR #669's two models, which already stand |
+| T1 | **Simulation renders:** MuJoCo stills and a short clip of the 75 cm robot standing with its real mass distribution and, if ready, crawling with a scripted gait; the anatomical adult; one roadmap line for the T. rex flagship. Every image labelled "simulation" | 8 Dec 2026 | 14 Dec 2026 | 6 days | Fallback: stance renders from PR #669's two models, which already stand |
 | T2 | **Phase-1 order:** the single-foreleg bench set (about $7.1k of parts, $8.9k landed; parts list) plus long-lead items the bench will not change: foot load cells (21-23 weeks), main fuse (16-23 weeks), tether supply (about 12 weeks) | 8 Jan 2027 | 31 Jan 2027 | 3 weeks | T0; the owner's purchase approval |
 | T3 | **Simulation:** walk at 0.30 m/s with 0-10 ms servo delay and noise on grippy and slippery floors; actuator sizing confirmed in simulation; a short trot | 31 Jan 2027 | 28 Feb 2027 | 4 weeks | T0 |
 | T4 | **Foreleg bench:** torque and speed at 12S, heat over the show loop, command-to-torque delay, the stop chain's sit-then-cut; the PLEM pilot decision (PLEM_FIT suggests end of February) | 15 Mar 2027 | 15 Apr 2027 | 4 weeks | Drive delivery |
 | T5 | **Four-leg gate and full-build order:** the remaining drives, CNC frame, MJF shells | 1 Apr 2027 | 1 May 2027 | 4 weeks | T3, T4 |
 | T6 | Bare chassis walks at full mass under the overhead catch | 15 Jun 2027 | 15 Jul 2027 | 4 weeks | T5 deliveries |
-| T7 | Skin fitted; 30-minute show loop; the museum's acceptance pack (risk assessment, insurance, barrier layout, charging rules) | 31 Jul 2027 | 31 Aug 2027 | 4 weeks | T6 |
-| T8 | Live museum demo | Aug 2027 | 30 Sep 2027 | about 6 weeks from T7's target to the end of Q3 | T7 |
+| T7 | Skin fitted; 30-minute show loop; the host's acceptance pack (risk assessment, insurance, barrier layout, charging rules) | 31 Jul 2027 | 31 Aug 2027 | 4 weeks | T6 |
+| T8 | Live public demo | Aug 2027 | 30 Sep 2027 | about 6 weeks from T7's target to the end of Q3 | T7 |
 
 - **Slack does not add up.** A slip at one step uses the later steps' slack. The whole chain has about six weeks
   between the target demo readiness (mid-August) and the end of Q3.
@@ -236,7 +234,7 @@ dates if the milestone is simulation and renders only. This follows the parts ch
 
 - **What else the Triceratops de-risks:** the same compute and Teensy CAN firmware; the safety chain, power path,
   tether and charger; the bench rig, torque rig, catch gantry and thermal camera; the XM540 neck servo and the
-  battery; and the museum relationship and acceptance process.
+  battery; and the host relationship and acceptance process.
 - **What it does not de-risk:** balance on two legs under delay (in the model the 75 cm T. rex stayed up in every run only at
   6 ms of delay or less); the pushes and quick turn it failed; its tail servo's load; its ankle drives. The X4's 83 rpm cap on 12S
   also needs a T. rex re-check (parts list, F1).
@@ -254,7 +252,7 @@ The deck pitched PLEM (a real-time control layer on a Jetson: a 1 kHz torque loo
 protection, a ROS 2 hardware layer) and W-RC (a hardware safety stop) for the biped. The fit analysis
 [PLEM_FIT.md](https://github.com/kuds/mesozoic-labs/blob/claude/mesozoic-trex-stage2-refine-4jffre/hardware/triceratops_kickoff/PLEM_FIT.md)
 (working branch; checked, sound after fixes) read PLEM's open repository at release v0.11.0. What still applies to a
-slow museum quadruped:
+slow demo quadruped:
 
 | Pitched for the biped | On the Triceratops |
 |---|---|
@@ -277,7 +275,7 @@ its go or no-go is decision 7, by end of February 2027.
 
 **To WIM:**
 
-1. Would WIM reframe the pitch around a museum quadruped in Q3 2027, with the T. rex as the 2028 flagship case?
+1. Would WIM reframe the pitch around a demo quadruped in Q3 2027, with the T. rex as the 2028 flagship case?
 2. Has PLEM run brakeless drives such as MyActuator's "-E" series, and can its stop hold position or sit down damped
    instead of disabling?
 3. Will one bus carry more than 8 axes, or have two buses run on one AGX Orin? When will the Orin Nano Super and NX be
@@ -336,7 +334,7 @@ Asked with the question tool, at most four at a time, the recommended option fir
      4) already uses as precedent: hip and knee drives at the body, the knee driven through the upper leg, with a
      belt resonance near 30 Hz documented in its thesis. The Mini Cheetah weighs about 9 kg, and Pupper V3 (3 kg) is
      far too small, so scaling either to 15-20 kg and a 1.5 m body is new design in its own right.
-   - Why A: it already fits this body, these drives and the museum look. Take B's lessons into A (keep distal mass
+   - Why A: it already fits this body, these drives and the show look. Take B's lessons into A (keep distal mass
      low; test one leg for impact, bandwidth and heat before freezing the transmission).
 6. **What the T. rex milestone at end 2027 / early 2028 shows.** (a) A built T. rex walking under a catch (what the
    owner said; recommended, with section 5.3's Q1 2027 restart); (b) a legs-only rig plus a simulated walk; (c)
@@ -353,12 +351,12 @@ Asked with the question tool, at most four at a time, the recommended option fir
 - **Read on 18 Nov 2026:** the four surveys; the checked parts list; PLEM_FIT.md; RESUME.md and DECISION_LOG.md rows
   P29-P51 on the working branch; GitHub's open pull requests; `git ls-remote` and `git merge-tree` (the working branch
   at `ceadab71`, the archive branch at `f71cba4b`, the data branch at `ecf95a81`, main at `0748ac12`).
-- **Not done:** no CI, test or simulation was run; no PR diff was read beyond the surveys; no vendor, museum or WIM was
+- **Not done:** no CI, test or simulation was run; no PR diff was read beyond the surveys; no vendor, host or WIM was
   contacted; no lead time was confirmed with a vendor (the ones above are distributor figures found by web search on
   18 Nov 2026); no fork content was read. The milestone dates and the T. rex resume dates are planning estimates, not
   commitments.
 - **Revised after the first critic round** ([reviews/critic_round1_18nov.md](reviews/critic_round1_18nov.md)), 18 Nov
   2026: PR #669's fixes as an errata the owner applies; the T. rex resume line in the prompt and a pointer to section
-  5.3 in RESUME.md; the decision rounds dated; cost against the spend wish; SUE and both museums named; the prompt's
+  5.3 in RESUME.md; the decision rounds dated; cost against the spend wish; the prompt's
   pull-request list, PR fetch command, 0.40 m/s, belt and 18 mm figures, and render size limit corrected; the parts
   list's section 7 timing marked as replaced by section 5.3.

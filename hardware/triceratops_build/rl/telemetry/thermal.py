@@ -31,7 +31,7 @@ ESTIMATES, not measurements. Each drive is one thermal node, its winding, agains
   needs a lower ``R_th`` (a drive that cools better in a hotter room), so it is only an optimistic bound
   (``rl/analysis/thermal_ambient.py``).
 - Not modelled: the housing as a second node, the drive electronics' own losses, iron losses, airflow inside a
-  museum shell (worse than open air), and the controller's own thermal limits. Calibrate against a bench
+  closed shell (worse than open air), and the controller's own thermal limits. Calibrate against a bench
   temperature-rise test when one exists (the bench plan).
 
 The inputs are per-drive loss histories, a piecewise-constant mean squared torque per segment of a demo, which

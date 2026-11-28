@@ -1,4 +1,4 @@
-"""Heat, battery and loads over a museum demo, for the 60 cm build (decision D21). Simulation plus ESTIMATES.
+"""Heat, battery and loads over a public demo, for the 60 cm build (decision D21). Simulation plus ESTIMATES.
 
 1. **Segments, simulated.** One 20 s episode per activity (walking at 0.25 m/s, walking at 0.15 m/s, standing),
    nominal model, sensor noise on, servo delay 10 ms, flat floor, measured from 2 s. Each records, every 1 ms physics

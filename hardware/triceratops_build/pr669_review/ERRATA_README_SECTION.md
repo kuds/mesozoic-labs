@@ -46,7 +46,7 @@ measured; figures are estimates from the parts list unless marked as a simulatio
 6. **The 0.40 m/s stretch walk (PDF pp.1, 4 and 7) is not credible with X4 pitch drives.** It needs 75-77 rpm at the
    pitch joint. On the PR's 6S bus that is 77-79 % of the X4's no-load speed at 21 V (about 97 rpm), above the 70 % rule;
    on a 12S bus the X4 is capped at its 83 rpm rated speed above its 24 V rating (reseller text quoting MyActuator; to
-   be confirmed with the maker), which leaves no margin under load. The museum walk is **0.30 m/s (0.7 mph)**.
+   be confirmed with the maker), which leaves no margin under load. The demo walk is **0.30 m/s (0.7 mph)**.
 7. **6S and the X6 (PDF p.2; README "on the intended 6S supply").** The X6 is a 48 V drive; at 6S (21 V minimum) its
    no-load speed falls to about 77 rpm. The PR's own 1:1 swing (48.1 rpm) still fits at 62 % of that (59 % at the 22.2 V nominal), but 6S rules
    out the 1.3:1 linkage and the larger front drive that the heat fix in item 4 needs. The bus voltage is an open

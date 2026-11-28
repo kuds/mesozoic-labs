@@ -39,7 +39,7 @@ ground, not to the leg) and re-test under both contact settings.
   support triangle on the conservative ankle-pin basis. Planned margin 65 mm where the reach allows; the minimum
   planned was 61.6 mm (T20, a left-fore step with the body at its 100 mm sideways limit); the rule asked ≥ 30 mm. Open
   loop, joint targets from inverse kinematics, the model's position servos. 0.12 m stride, 6 s per cycle:
-  **0.02 m/s**, a demonstration of static stability, not the 0.30 m/s museum walk.
+  **0.02 m/s**, a demonstration of static stability, not the 0.30 m/s demo walk.
 - **Measured margin** stayed at least 59 mm in every judged and `impratio` run (58.1-58.5 mm in the independent
   check's `noslip` runs): the body shift works. What fails is the
   contact at the feet.

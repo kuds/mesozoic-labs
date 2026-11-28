@@ -1,6 +1,6 @@
 # Triceratops 60 cm: reinforcement-learning setup (simulation only)
 
-The training setup for a walking policy of the 60 cm, four-legged Triceratops museum robot, in MuJoCo, with
+The training setup for a walking policy of the 60 cm, four-legged Triceratops demo robot, in MuJoCo, with
 stable-baselines3 PPO. **Status: built and tested locally on short runs only. No policy has been trained to walk;
 nothing here shows that the robot walks.** The reward weights, action scales and filter are untuned starting
 points. Colab itself is untested; the first Colab run is a one-hour pipeline test (decision D16), not training.
@@ -18,7 +18,7 @@ points. Colab itself is untested; the first Colab run is a one-hour pipeline tes
 | `trike_checkpoints.py` | Checkpoint pairs: the check that tells a broken file from an I/O error, the scan (newest intact pair, re-reads on I/O errors), atomic saves (non-finite parameters set aside), setting broken files aside, atomic JSON. |
 | `gait_metrics.py` | The gait and drive measures of an evaluation episode (logged every physics step): RMS torque / continuous rating per drive, time at the force limit (nominal and episode limit), stance slip ratio, debounced touchdowns, power, drift and heading change; the definitions of `analysis/gait_pipe1.py`. |
 | `steer_eval.py` | Steering evaluation (decision D20): a checkpoint on its request schedule and on scripted courses, with the measures of `telemetry/steering.py` and a top view per course. |
-| `demo_course.py` | Heat, battery and loads over a museum demo (decision D21): walking and standing simulated in segments, then a 20 min demo loop run through the thermal and battery models; bearing loads and foot forces per segment. |
+| `demo_course.py` | Heat, battery and loads over a public demo (decision D21): walking and standing simulated in segments, then a 20 min demo loop run through the thermal and battery models; bearing loads and foot forces per segment. |
 | `telemetry/` | Generic training and hardware telemetry (decision D21; plan `PLAN_STEERING_AND_TELEMETRY.md`), robot-agnostic so a T. rex or larger Triceratops env can use it: `health.py` (training health, `train_health.jsonl`), `checks.py` (periodic checks at named points), `health_dashboard.py` (their charts), `steering.py` (direction-following measures from the shared contract's step fields), `thermal.py` (drive winding temperature, a first-order model calibrated to the maker's temperature-rise figure), `power.py` (battery runtime, pack currents, braking surplus), `loads.py` (joint bearing loads and foot forces from MuJoCo). Tests: `tests/test_telemetry.py`, on a toy env. |
 | `tests/test_trike_env.py`, `tests/conftest.py` | 56 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
 
@@ -504,7 +504,7 @@ judged result). From `demo_course.py`'s printout:
 - **Drive draw:** 45.0 W walking at 0.25 m/s, 46.1 W at 0.15 m/s, 10.1 W standing; 1 ms peaks of 407 W and 597 W.
 - **Heat:** over one pack (106 min), the hottest windings are the pitch drives, peaking at 50.6-51.6 °C over the
   4-15 min range. Running the loop without a break, their temperature cycles around about 50 °C, the peaks about
-  1 °C higher. That is far from 100 °C, but museum-shell airflow is not modelled.
+  1 °C higher. That is far from 100 °C, but closed-shell airflow is not modelled.
 - **Battery:** 106 min per pack at 66 W mean (115 min at a 25 W hotel load, 92 min at 40 W). Pack current at low
   charge: mean 1.6 A, RMS 2.1 A; peak 10.4 A on the default loop, and 14.9 A in the 0.15 m/s segment, which the
   default loop leaves out.

@@ -57,7 +57,7 @@ The form study lists #649, #651 and #662 by commit in its `BASELINE.md`, and its
   - 11 contract tests fail on a clean checkout.
   - No policy bundle is committed, so no learned result can be reproduced.
 - **Status:** not on main. The form study cites its mechanics as a baseline (`BASELINE.md` §4).
-- **Recommendation:** keep parked as a draft. It is the reproducible mechanics baseline for when T. rex work resumes (end 2027 / early 2028). Do not merge. Before parking, extract the person-follow lessons (single selected visitor, stop when identity is ambiguous, the lower camera mount and RGB-D tracking result of 443 of 450 frames), because they matter for a museum Triceratops demo.
+- **Recommendation:** keep parked as a draft. It is the reproducible mechanics baseline for when T. rex work resumes (end 2027 / early 2028). Do not merge. Before parking, extract the person-follow lessons (single selected onlooker, stop when identity is ambiguous, the lower camera mount and RGB-D tracking result of 443 of 450 frames), because they matter for a public Triceratops demo.
 
 ### #663 Compare intermediate T. rex sizes and report trained R3 walking and navigation results
 - **Basics:** by kuds. Ready for review (not a draft). `codex/trex-r3-simulation-findings` → `codex/intermediate-rex-platform` (#662). Created and updated 7 Nov. 1 commit, 9 files, +2,711. Mergeable against its stacked base.

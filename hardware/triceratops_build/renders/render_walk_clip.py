@@ -1,9 +1,9 @@
-"""Museum-contact clip (task 9) at 60 cm: the model-based trot in simulation, labelled on every frame.
+"""Render clip (task 9) at 60 cm: the model-based trot in simulation, labelled on every frame.
 
 Runs the frozen model-based trot (../walk/walk60.py, the controller judged in ../walk/REPORT_WALK60.md) on its
 plant: the training env's roll-ankle model by default, or the model ``--model`` names (the capsule foot chosen on
 22 Nov 2026 is ../sim/generated/trike60_C_closed_capsule.xml). 10 ms servo delay and sensor noise on, no
-randomisation, the 0.25 m/s museum command. ``--shadow-clip 6`` keeps the ground shadow over the whole 20 s walk:
+randomisation, the 0.25 m/s demo command. ``--shadow-clip 6`` keeps the ground shadow over the whole 20 s walk:
 the model's directional light casts shadows only within its shadowclip x extent of the origin (about 0.9 m).
 It renders frames at 30 per second of simulated time (so the clip plays in real time unless --speed says otherwise)
 with a "SIMULATION" badge and a caption, and writes an H.264 MP4. Rendering only reads the simulation; the episode

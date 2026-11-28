@@ -1,4 +1,4 @@
-# Renders for the December museum contact (task 9)
+# Simulation renders, due 8 Dec 2026 (task 9)
 
 18 Nov 2026. **Every image is a simulation render**, labelled "SIMULATION" on the image. Nothing has been built; no
 image shows hardware. Made ahead of the 8 Dec 2026 target, so they can be redone if the build decisions change.
@@ -160,7 +160,7 @@ H.264, 6.7 MB (data-branch commit 408d5c59; it replaces the first render, a7efa5
 - **How to show it:** as a trot developed and tested in simulation, not as a demonstration of the robot.
   - It has only walked straight ahead, on a flat floor: no turns yet. On the roll-ankle variant its weak side was
     ramps; the robustness sweep has not been run on the capsule feet.
-  - Holding a line across a museum floor needs an outside reference on the robot (vision or floor markers). In
+  - Holding a line across a demo floor needs an outside reference on the robot (vision or floor markers). In
     simulation its heading drifts with the simulated gyro.
   - The learned walking policy (run 3) trains on this foot: the owner reported starting it on 22 Nov 2026. The clip
     shows the model-based trot, not that policy.
@@ -203,7 +203,7 @@ top left and another bottom right, so a crop around the robot keeps one. The flo
 - **What the model shows:** `render_stills.py` checks the caption's size against the model (the frill's top
   stands at 60.0 cm after the 2 s settle).
 - **What is not modelled:** the body and legs are shown as frame, drives and ribs; the head, frill and tail are
-  shown as shells. The painted body and limb shells of the museum finish are not modelled, though the 12.7 kg
+  shown as shells. The painted body and limb shells of the show finish are not modelled, though the 12.7 kg
   includes their mass.
 - **The adult reconstruction stills** in `stills_2026-11-18/` are still valid; the animal does not depend on the
   robot's size.
@@ -227,14 +227,14 @@ top left and another bottom right, so a crop around the robot keeps one. The flo
   render of 22 Nov). Fetch it with `git fetch origin claude/triceratops-build-clips`, then
   `git show FETCH_HEAD:walk60_trot_0.25_1x.mp4 > clip.mp4`.
 - **How to show it:** as a trot developed and tested in simulation, not as a demonstration of the robot. What the
-  museum conversation will reach:
+  conversation with a host will reach:
   - It has only walked straight ahead, on a flat floor: no turns yet. Its weak side is ramps
     (`../walk/REPORT_WALK60.md`, robustness sweep).
   - It has only been run on the design variant with passive roll ankles, which is not adopted: the foot was then
     an open decision (D5; since decided: the capsule, D19). This clip shows the roll-ankle variant only; the trot has
     since also passed the foot study's walking rules on the as-designed foot and on the capsule
     (`../sim/REPORT_FEET60.md`).
-  - Holding a line across a museum floor needs an outside reference on the robot (vision or floor markers). In
+  - Holding a line across a demo floor needs an outside reference on the robot (vision or floor markers). In
     simulation its heading drifts with the simulated gyro.
 
 **Reproduce** (mujoco 3.10.0, numpy 2.5.5, gymnasium 1.4.0, Pillow 13.0.0, imageio 2.38.2, ffmpeg 6.1.1;
@@ -271,7 +271,7 @@ reconstruction stills here are still valid.
   `../sim/CRAWL_REPORT.md`; not adopted).
 - **Adult model:** PR #669's `models/anatomical.xml` (not on main until PR #669 merges).
 - The robot's body and legs are shown as frame, drives and ribs; its head, frill and tail are shown as shells. The
-  painted body and limb shells of the museum finish are not modelled.
+  painted body and limb shells of the show finish are not modelled.
 - The crawl variant's pass in simulation is thin (it fails under a stiffer friction model; `../sim/CRAWL_REPORT.md`):
   show the crawl as "a gait being developed in simulation", not as a finished capability.
 

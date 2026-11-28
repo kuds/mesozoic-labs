@@ -18,23 +18,20 @@ none of the earlier conversations: everything you need is below or in the files 
 their unique endings where that is enough; `git ls-remote origin` lists the full names.
 
 GOAL
-- A four-legged Triceratops robot for museum demos: 75 cm to the top of the frill, 1.5 m long, 15 or 20 kg, walking
+- A four-legged Triceratops robot for public demos: 75 cm to the top of the frill, 1.5 m long, 15 or 20 kg, walking
   slowly (0.30 m/s, about 0.7 mph). Simulation first: MuJoCo models, then a walking controller in simulation, then a
   one-leg bench plan. Hardware is bought only when the owner approves it.
-- Museum dates (the owner's):
-  - mid-December 2026: first contact with museums, showing simulation renders. The owner named "the Field Museum or
-    the Natural History Museum". Griffin MSI (Chicago's Museum of Science and Industry) is a further candidate the
-    owner did not name;
-  - Q3 2027 (July to September): live Triceratops demos.
+- Demo dates (the owner's):
+  - first, simulation renders (task 9 below: ready by 8 Dec 2026);
+  - Q3 2027 (July to September): public Triceratops demos.
 - The T. rex. The project's earlier robot, a 75 cm two-legged T. rex, was paused and preserved on 18 Nov 2026 (its
   decision log, rows P47 to P51): a biped must balance at every moment and needs many hardware rounds, and in
   simulation its controllers mostly fell when servo delay was added. It stays on the roadmap as the flagship, a
-  milestone for end 2027 / early 2028, and the museum outreach shows it as coming. Leading with a Triceratops loses
-  the direct tie-in with SUE, the Field Museum's T. rex specimen (the owner wrote "Sioux connection"); the owner
-  accepts that and updates the pitch deck. The T. rex is outside this session's scope, except for hardware choices
-  the two robots share: the leg drive family (MyActuator X4 and X6), the compute and CAN firmware, the bench rig, the
-  safety stop, the battery and the neck servo. When a choice you propose affects the T. rex, say so. Never change
-  T. rex files or branches.
+  milestone for end 2027 / early 2028, and the demo material shows it as coming. Leading with a Triceratops loses
+  the direct T. rex tie-in; the owner accepts that and updates the pitch deck. The T. rex is outside this session's
+  scope, except for hardware choices the two robots share: the leg drive family (MyActuator X4 and X6), the compute
+  and CAN firmware, the bench rig, the safety stop, the battery and the neck servo. When a choice you propose affects
+  the T. rex, say so. Never change T. rex files or branches.
 - When the T. rex resumes. If the owner picks a built T. rex for that milestone (round 2 of task 2), T. rex
   simulation resumes by 1 Mar 2027 in a separate session started from its RESUME.md, and its drives (10 x X4 + 2 x
   X6) are ordered in Q2 2027 once your foreleg bench (by 15 Apr 2027) confirms the shared drives. Your foreleg bench
@@ -177,7 +174,7 @@ FIRST TASKS, in this order (task 9 has a fixed date: start it by 1 Dec 2026 what
    sheet's delay rows, because the drives are the same. If the owner approves a PLEM pilot after WIM's and
    MyActuator's answers, add its two-drive and one-foreleg steps (PLEM_FIT.md, section 5.3) beside the CAN path. No
    purchase without the owner.
-9. Renders for the December museum contact, ready by 8 Dec 2026: stills and a short clip of the robot standing (and
+9. Simulation renders, ready by 8 Dec 2026: stills and a short clip of the robot standing (and
    crawling or walking if ready) and of the anatomical adult, each labelled "simulation", plus one line saying the
    T. rex is the flagship for end 2027 / early 2028. If the crawl is not ready by 5 Dec, render the standing robot.
    Commit the stills, each under the 500 KB limit. A video clip will likely exceed it: ask the owner where clips go
@@ -202,7 +199,7 @@ WORKING RULES
   weekly usage limit.
 
 WHAT NOT TO DO
-- Do not buy, order or request quotes, and do not contact vendors, museums, MyActuator or WIM Robotics; draft
+- Do not buy, order or request quotes, and do not contact vendors, hosts, MyActuator or WIM Robotics; draft
   messages for the owner instead.
 - Do not touch the T. rex: not its files, not its working branch, not its two data branches (endings
   `mesozoic-trex-stage2-bundle-s2-b1`, which must stay at ecf95a81, and `mesozoic-trex-stage2-archive-a1`, at
@@ -214,7 +211,7 @@ WHAT NOT TO DO
   #664, and the MicroDuck design notes #646; so is the T. rex study pull request once it is opened.
 - Do not adopt PLEM, change the compute or the bus voltage, or put a PLEM pilot on the critical path, without the
   owner; and run no PLEM pilot before WIM's and MyActuator's answers.
-- Do not treat 0.40 m/s as a walking target; the museum walk is 0.30 m/s.
+- Do not treat 0.40 m/s as a walking target; the demo walk is 0.30 m/s.
 - Do not commit files over 500 KB without need (a pre-commit limit), and check new outputs with `git check-ignore -v`
   (the root rules ignore logs/, models/, *.zip, *.pkl and *.npz at any depth: PR #669's models/ files are tracked,
   but a new file in a folder named models/ is silently left out unless force-added, so prefer another folder name).

@@ -6,7 +6,7 @@ physics step, 12 position-servo leg drives plus four small head and tail servos.
 not subclass ``environments.shared.base_env.BaseDinoEnv``); the README says why.
 
 Task, per episode: walk forward along the heading the robot had at reset (+x of the robot frame), at a commanded
-speed drawn from ``[0, 0.27]`` m/s (the museum target is about 0.25 m/s), and hold that heading.
+speed drawn from ``[0, 0.27]`` m/s (the demo target is about 0.25 m/s), and hold that heading.
 
 Control: 50 Hz (``frame_skip`` 20 physics steps of 1 ms). The policy outputs 12 numbers in [-1, 1], one per leg
 drive (order: ``LEG_ACTUATORS``). They pass a first-order low-pass filter (``action_filter_hz``; part of the policy
@@ -47,7 +47,7 @@ MODELS = {"trike60_C_closed": DEFAULT_MODEL, "trike60_C_closed_ankleroll": ANKLE
 CORNERS = ("left_fore", "right_fore", "left_hind", "right_hind")
 AXES = ("roll", "pitch", "flexion")
 LEG_ACTUATORS = tuple(f"{c}_{a}" for c in CORNERS for a in AXES)
-MUSEUM_TARGET_SPEED_MPS = 0.25
+DEMO_TARGET_SPEED_MPS = 0.25
 
 REWARD_TERMS = ("r_track", "r_track_linear", "r_alive", "r_upright", "r_height", "r_lateral", "r_yaw_rate",
                 "r_heading", "r_energy", "r_action_rate", "r_slip", "r_diagonal", "r_heat", "r_saturation",
@@ -263,7 +263,7 @@ class TrikeEnvConfig:
     # Extension (this env only, the shared contract stops turning at zero speed): with cmd_turn_in_place, a stop
     # request whose heading differs from the estimate by more than cmd_turn_in_place_deadband turns on the spot, until
     # it is within half of it (hysteresis, so an overshoot does not chatter).
-    # The 60 cm values: 0.25 m/s cruise (the museum target), turns up to 0.4 rad/s (23 deg/s; a 0.6 m radius at
+    # The 60 cm values: 0.25 m/s cruise (the demo target), turns up to 0.4 rad/s (23 deg/s; a 0.6 m radius at
     # cruise), heading steps up to 60 deg every 3-5 s; set before any steering run, to revisit with its results.
     command_mode: str = "none"
     cmd_cruise_speed: float = 0.25  # "heading": the requested speed (or a stop)

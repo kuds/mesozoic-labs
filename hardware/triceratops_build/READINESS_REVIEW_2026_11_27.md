@@ -415,7 +415,7 @@ The ranking is a judgement.
     `design/parts60.py`);
   - it leaves out foot cells (+$254, parts-list estimate, 18 Nov 2026) and a certified stop (+$2,450, above).
 - **Schedule.** The 75 cm kickoff's milestones have no line for firmware
-  (`hardware/triceratops_kickoff/CONSOLIDATION_PLAN.md:204-214`).
+  (`hardware/triceratops_kickoff/CONSOLIDATION_PLAN.md:202-212`).
 - **Cheapest test.** A frame quote and a check of drive stock (both the owner's), and a schedule that includes
   firmware.
 

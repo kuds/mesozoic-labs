@@ -45,7 +45,7 @@ Per model, PASS if C1-C6 hold on both judged seeds, as in `PREREG_CRAWL.md`.
 
 ## What this does not show
 
-As at 75 cm: a crawl at about 0.02 m/s is not the museum walk; there is no delay, noise or sensor model.
+As at 75 cm: a crawl at about 0.02 m/s is not the demo walk; there is no delay, noise or sensor model.
 
 ## Amendment 1 (18 Nov 2026, after the judged runs and the independent check)
 

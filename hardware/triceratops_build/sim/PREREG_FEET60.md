@@ -83,7 +83,7 @@ These rules are therefore not blind to which feet tend to pass; the judged seeds
   - all of this under both contact settings.
 - Otherwise the report names the tests, rules and settings it fails.
 - The study recommends; the owner decides D5. Among feet that pass, the report also compares what each means for
-  hardware: extra joints, parts, how it looks under a museum shell, and wear. Those comparisons are judgements,
+  hardware: extra joints, parts, how it looks under a painted shell, and wear. Those comparisons are judgements,
   not simulation results.
 - **Stop rules:**
   - One judged pass, with no reruns to improve a result.

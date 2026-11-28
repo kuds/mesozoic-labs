@@ -1,4 +1,4 @@
-"""Museum-contact stills (task 9): the standing robot and the anatomical adult, each labelled as simulation.
+"""Render stills (task 9): the standing robot and the anatomical adult, each labelled as simulation.
 
 Renders MuJoCo scenes offscreen (MUJOCO_GL=osmesa on a headless machine), adds a caption band that says
 "SIMULATION", and writes JPEGs under the repository's 500 KB limit.

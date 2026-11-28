@@ -102,7 +102,7 @@ friction 0.4. J1 and J2 use the model's contact, J3 and J4 impratio 10.
 | Joints per foot | 1 (pitch) | 2 (pitch + roll) | 1 (pitch) | 1 (pitch) |
 | Extra parts | - | a bearing pair, a centring spring and end stops per foot | a moulded rubber half-capsule rocker in place of the flat sole | a rubber hemisphere |
 | Contact | flat 88 × 64 mm plate, rests on its edges | flat plate that follows the floor in roll | a 40 mm line along the foot with rounded ends, rocking across it | a point |
-| Under a museum shell | a broad flat foot | a broad flat foot | a narrower (48 mm) rounded pad, elephant-like | a round knob |
+| Under a painted shell | a broad flat foot | a broad flat foot | a narrower (48 mm) rounded pad, elephant-like | a round knob |
 | Wear | edges | edges and the hinge | along the centre line; replaceable pad | one spot; replaceable |
 | What the result rests on | (fails C4) | the spring and the contact model | holds from impratio 0.5 to 10 here | (fails C5c narrowly; contact-model dependent) |
 
@@ -115,13 +115,13 @@ friction 0.4. J1 and J2 use the model's contact, J3 and J4 impratio 10.
 - **Not modelled:** the capsule's width (48 mm against the plate's 64 mm), and its rubber beyond a rigid shape.
 - **The `<corner>_toe` site** stays at the box's toe. No tool uses it.
 
-A bench test of one moulded rocker belongs in the bench plan: its rolling, its wear and its grip on a museum floor.
+A bench test of one moulded rocker belongs in the bench plan: its rolling, its wear and its grip on a demo floor.
 
 ## Consequences if D5 is the capsule
 
 *Since done (22 Nov 2026, after the owner chose the capsule, D19): run 3 moved onto the capsule model with the
 slip cost taken at the contacts and the tools made sole-shape aware (`../rl/analysis/PREREG_RUN3.md`, reviewed);
-new step sheets at commit efd1e1c7; the owner reported starting run 3 the same day. The museum renders were redone
+new step sheets at commit efd1e1c7; the owner reported starting run 3 the same day. The simulation renders were redone
 on the capsule (`../renders/README.md`). The text below is as written before the decision.*
 
 - **Run 3** (step sheets ready, not yet started) trains on the roll-ankle model. It needs the capsule model added to

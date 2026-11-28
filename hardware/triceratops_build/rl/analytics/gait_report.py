@@ -8,7 +8,7 @@ per case), ``gait_report.md`` (the summary) and the charts (PNG, each labelled S
 
 Episodes (as ``rl/analysis/gait_pipe1.py``, whose definitions this extends): deterministic actions, servo delay
 10 ms, seeds 100000-100004, randomisation and observation noise on, 20 s, measured over t >= 2 s:
-  * 0.25 m/s (the museum target) and 0.15 m/s;
+  * 0.25 m/s (the demo target) and 0.15 m/s;
   * 0.25 m/s on the nominal model (no randomisation, no observation noise): the time-series charts use its seed
     100000 (t = 6-9 s), because a clean episode reads more easily;
   * 0.25 m/s on the roll-ankle model ``trike60_C_closed_ankleroll.xml`` (for the roll-ankle angle range);
@@ -1355,7 +1355,7 @@ def markdown(R: dict) -> str:
           "The electrical figures are estimates from a simple loss model (unmodelled gearbox, iron and driver losses would "
           "raise them; the per-drive figure ignores bus-level reuse of braking energy, which would lower it), and the "
           "hotel load is assumed. Head "
-          "acceleration is the head body's, not a camera's or a visitor's view of it. Charts: " +
+          "acceleration is the head body's, not a camera's or an onlooker's view of it. Charts: " +
           ", ".join(f"`{c}`" for c in R.get("charts", [])) + ".", ""]
     return "\n".join(L)
 

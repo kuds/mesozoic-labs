@@ -207,7 +207,7 @@ The script is at `/tmp/claude-0/-home-user-mesozoic-labs/2dca1c00-13f3-5853-acf6
    - About 1.8 points of it come from the 1.84 kg reserve block placed at x = +118 mm. Without that block the split is about 53.4 % (my parse).
    - Moving the battery barely trims it: about 0.7 points per 100 mm of travel at 15 kg.
    - A heavier, more faithful frill pushes the front load up further. Designing to 50 % would cut the front X6 peak from 24.2 to 22.0 N·m.
-6. **No continuous or thermal sizing.** A held paw pose or long museum standing sessions are the real duty, especially at 20 kg.
+6. **No continuous or thermal sizing.** A held paw pose or long standing sessions at public demos are the real duty, especially at 20 kg.
 7. **Battery and pack bay.**
    - The repo's 6S 5000 mAh pack (Gens Ace G-Tech) is 0.755 kg and 165 × 45 × 47 mm.
    - The PR budgets 0.70 kg and a 160 × 90 × 65 mm bay, which is 5 mm short in length.

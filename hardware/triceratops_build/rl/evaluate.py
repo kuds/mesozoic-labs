@@ -14,7 +14,7 @@ Two kinds of blocks, all at a FIXED servo delay:
     training, or fixed with --command (on a steering run, D20: a straight request at a speed drawn per episode as
     the straight task draws it, so these stay straight-line evaluations; steer_eval.py evaluates the steering);
   * --sweep [SPEEDS]: at 10 ms, --sweep-episodes episodes at each fixed command (default 0, 0.1, 0.2, 0.25, 0.27 m/s).
-    The museum target, 0.25 m/s, is reported on its own line and under "target" in the JSON.
+    The demo target, 0.25 m/s, is reported on its own line and under "target" in the JSON.
 Episode seeds are ``--seed + i`` in every block, so blocks differ only in delay or command.
 
 The model is the run's (run_record.json beside the checkpoints) unless --model names one; with neither, it refuses.
@@ -46,7 +46,7 @@ for p in (str(HERE), str(REPO_ROOT)):
 
 import gait_metrics  # noqa: E402
 import numpy as np  # noqa: E402
-from trike_env import MODEL_DIR, MODELS, MUSEUM_TARGET_SPEED_MPS, TrikeEnv, TrikeEnvConfig, flat_floor  # noqa: E402
+from trike_env import MODEL_DIR, MODELS, DEMO_TARGET_SPEED_MPS, TrikeEnv, TrikeEnvConfig, flat_floor  # noqa: E402
 
 NAME_PREFIX = "trike60"
 SWEEP_DEFAULT = (0.0, 0.1, 0.2, 0.25, 0.27)
@@ -233,17 +233,17 @@ def main(argv=None) -> int:
             sweep[f"{c:.2f}"] = summarize(eps)
             print(line(f"sweep, delay 10 ms, command {c:.2f} m/s", sweep[f"{c:.2f}"]), flush=True)
         results["sweep_delay_10ms"] = sweep
-        key = f"{MUSEUM_TARGET_SPEED_MPS:.2f}"
+        key = f"{DEMO_TARGET_SPEED_MPS:.2f}"
         if key in sweep:
             target = {k: v for k, v in sweep[key].items() if k != "per_episode"}
-            print(line(f"TARGET {MUSEUM_TARGET_SPEED_MPS:.2f} m/s at 10 ms", sweep[key]), flush=True)
-            print(f"TARGET {MUSEUM_TARGET_SPEED_MPS:.2f} m/s at 10 ms, gait: {gait_metrics.one_line(sweep[key]['gait'])}",
+            print(line(f"TARGET {DEMO_TARGET_SPEED_MPS:.2f} m/s at 10 ms", sweep[key]), flush=True)
+            print(f"TARGET {DEMO_TARGET_SPEED_MPS:.2f} m/s at 10 ms, gait: {gait_metrics.one_line(sweep[key]['gait'])}",
                   flush=True)
     report = {"checkpoint": str(zip_path) if zip_path else f"baseline:{args.policy}",
               "vecnormalize": str(vn_path) if vn_path else None, "steps": steps, "episodes": args.episodes,
               "seed": args.seed, "command": args.command, "deterministic": not args.stochastic,
               "model": Path(cfg.model_path).name, "env_config": cfg.to_dict(),
-              "target": {"speed_mps": MUSEUM_TARGET_SPEED_MPS, "delay_ms": 10, "summary": target},
+              "target": {"speed_mps": DEMO_TARGET_SPEED_MPS, "delay_ms": 10, "summary": target},
               "results": results}
     out = args.out
     if out is None and args.run_dir:

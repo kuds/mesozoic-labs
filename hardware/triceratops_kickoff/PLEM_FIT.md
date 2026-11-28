@@ -358,13 +358,13 @@ Fitting an AGX Orin into the 15 kg body:
 
 ---
 
-## 3. What PLEM would buy a slow museum quadruped
+## 3. What PLEM would buy a slow demo quadruped
 
 | What PLEM gives | Evidence | For this quadruped (0.30 m/s, 75 % duty) | For the biped's latency cliff |
 |---|---|---|---|
 | Deterministic 1 kHz bus loop | µs-level jitter, 0 overruns in 3 × 5 min [benchmark] | **Probably low value** (inference). The gait is 1.5 strides/s with a 167 ms swing and 75 % stance, and a lateral body shift is planned before toe-off (PDF p.3). Loop delay of a few milliseconds is probably not what limits it. **[Review: PR #669's own step 2 sweeps 0–10 ms of delay, so treat this as a hypothesis that its gate will test. Static stability is planned, not shown.]** | **Potentially high,** but the gait-to-torque delay is unmeasured, and the bus loop is only one term of it (section 1.2) |
 | Per-cycle telemetry, live plots, timing reports | [README.md:106-109; docs/getting-started.md:571-620] | **High** for bring-up, tuning and the planned foreleg instrumentation | High |
-| One checked YAML file per bus: limits, units, zero, direction, identity-bound approval | [README.md:91-97] | **High** for a museum robot maintained over years: a drive swap forces a re-bench | High |
+| One checked YAML file per bus: limits, units, zero, direction, identity-bound approval | [README.md:91-97] | **High** for a demo robot maintained over years: a drive swap forces a re-bench | High |
 | Protective stops on lost commands, limit trips and lost frames | Ran on hardware [docs/hardware-evidence.md:204-215, 290-291] | **Mixed.** Detection is good, but on brakeless legs the stop ends limp (2.4). A ROS controller manager running 50 ms late also triggers one [docs/getting-started.md:629] | Same, and worse: a fall |
 | A tested real-time stack instead of writing one | ~1,400 automated tests; one proven drive model | Real, but the CAN baseline's Teensy firmware is simpler than an EtherCAT master, and its failure mode matches the design's crouch | Same |
 | ROS 2 integration (ros2_control, FollowJointTrajectory, joint_states) | [docs/getting-started.md:262-289] | Useful only if the software stack moves to ROS 2 | Same |
@@ -436,7 +436,7 @@ Runtime, from PR #669's 111 Wh pack at 80 % usable and 150–210 W (arithmetic):
 - **On a Linux crash under B:** the EtherCAT master stops, and each drive's own watchdog and fault reaction decide what happens (in PLEM's words, "a premise, not measured").
   - With brakeless QDDs, plan on torque-off and a collapse, unless the bench shows a hold.
   - Under A, the Teensy keeps the loop and can crouch, once its firmware exists.
-- **On a PLEM protective stop:** the drives are disabled and the legs go limp. That is a collapse from about 400 mm hip height for a 15 kg body, near visitors.
+- **On a PLEM protective stop:** the drives are disabled and the legs go limp. That is a collapse from about 400 mm hip height for a 15 kg body, near onlookers.
 - **A hardware safety stop like W-RC is still needed in every option.** PLEM has nothing safety-rated, and the pitch deck's W-RC does not appear in the repository. PR #669's "independent stop circuit" should stay.
   - A safety stop that only cuts power also collapses the robot. A controlled sit after a Linux failure needs something other than Linux that can still command the drives.
   - The "-E" drives have a CAN port beside EtherCAT. Whether a Teensy could use CAN as a fallback channel while EtherCAT is configured is a question for the vendor, and I would not assume it.

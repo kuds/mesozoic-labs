@@ -43,7 +43,7 @@ angles: largest difference 2e-16), so the current file is used and the cross-che
 
 As `gait_pipe1.py`: deterministic actions (the policy mean), servo delay fixed at 10 ms, seeds 100000-100004,
 domain randomisation and observation noise on (friction, masses, gains, force limits, sensor noise, heading drift),
-20 s episodes, **measured over t >= 2 s** (18 s). Cases: 0.25 m/s (the museum target) and 0.15 m/s; 0.25 m/s on the
+20 s episodes, **measured over t >= 2 s** (18 s). Cases: 0.25 m/s (the demo target) and 0.15 m/s; 0.25 m/s on the
 nominal model with observation noise off (no randomisation, no sensor noise; the robustness sweep's
 nominal point keeps the noise on), whose seed 100000 at t = 6-9 s gives the time-series charts; 0.25 m/s on
 the other foot (`ankleroll_0.25`, the roll-ankle model, for a run on PR #669's foot; `otherfoot_0.25`, PR #669's foot
@@ -227,6 +227,6 @@ it also draws `training_compare.png`. Each point is one episode: the curves are 
   would raise them; bus-level reuse of braking energy would lower the per-drive one), and the hotel load is assumed.
 - A thermal result: RMS torque over 18 s stands in for steady walking.
 - A verdict on a policy or a design: one checkpoint of one training seed.
-- What visitors would see from a camera: the head figures are the head body's motion; the stills in
+- What onlookers would see from a camera: the head figures are the head body's motion; the stills in
   `../analysis/results/` show the robot itself.
 - Robustness beyond the listed cases (pushes, slopes, other floors, other delays): not run here.

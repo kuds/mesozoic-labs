@@ -31,8 +31,8 @@ Verdict: merge; tip: ba9498d94dcfa6c5f4083e8d1e8612df1d2e48a3
    - $17.2k self-built and $20.0k turnkey match BUILD_BUDGET_75_JETSON.md ($17,216 / $20,030).
    - The about-2x RobotShop flag matches PLEM_FIT's review note.
    - $29-32k for the 100 cm flagship is in no committed file. It comes from the lead's brief and the critic, as the task gave it.
-5. **SUE.** Named as the Field Museum's T. rex specimen, with "Sioux connection" quoted, in both the prompt and the plan.
-6. **Museums.** Both the prompt and plan 5.1 quote "the Field Museum or the Natural History Museum". Griffin MSI is kept, marked as a candidate the owner did not name.
+5. **T. rex tie-in.** The specimen behind it is named, with the owner's phrase quoted, in both the prompt and the plan.
+6. **Demo hosts.** Both the prompt and plan 5.1 quote the two hosts the owner named. The third candidate is kept, marked as a candidate the owner did not name.
 7. **PR list.** It is complete. GitHub's REST API lists 13 open PRs, and all are named.
 8. **Fetching #669.** `git fetch origin pull/669/head:pr-669` and `git show pr-669:<path>` are in the prompt and in plan section 2.
 9. **0.40 m/s.** "91-93 % of the cap, with no margin under load" matches the parts list's [F1] (0.91-0.93).

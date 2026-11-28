@@ -1,7 +1,7 @@
 # Draft messages: questions for WIM Robotics and MyActuator
 
 18 Nov 2026. **Drafts for the owner to send; this session contacts no vendor.** Sources: `PLEM_FIT.md` section 5.4
-(the full PLEM questions), `CONSOLIDATION_PLAN.md` section 6 (the abridged list, with the museum-quadruped reframe),
+(the full PLEM questions), `CONSOLIDATION_PLAN.md` section 6 (the abridged list, with the demo-quadruped reframe),
 and `PARTS_PREMIUM.md` section 8 (the bench questions only the maker can answer).
 
 **Why now.** A PLEM bench pilot runs only if WIM's and MyActuator's answers clear three blockers (PLEM_FIT.md,
@@ -26,17 +26,17 @@ critical path. The MyActuator questions also feed the foreleg bench plan and the
 ## To WIM Robotics (one message)
 
 ```
-Subject: PLEM on a slow museum quadruped: seven questions before a bench pilot
+Subject: PLEM on a slow demo quadruped: seven questions before a bench pilot
 
 Hello,
 
 Thank you for the PLEM and W-RC pitch. Our plans have changed since then: the near-term robot is now a
-four-legged Triceratops for live museum demos in Q3 2027 (75 cm to the frill, 15 to 20 kg, a slow 0.30 m/s walk,
+four-legged Triceratops for live public demos in Q3 2027 (75 cm to the frill, 15 to 20 kg, a slow 0.30 m/s walk,
 three MyActuator drives per leg, twelve in all). The two-legged T. rex stays on our roadmap as a flagship for end
 2027 / early 2028. We would like to know whether a PLEM bench pilot makes sense for the quadruped. We read the open
 repository at v0.11.0; these are the questions it left open for us.
 
-1. Would you reframe the case around a museum quadruped in 2027, with the T. rex as the 2028 flagship case?
+1. Would you reframe the case around a demo quadruped in 2027, with the T. rex as the 2028 flagship case?
 
 2. Brakeless drives. Have you run MyActuator RMD-X V4 / V4.1 "-E" drives, or any other drive without a holding
    brake, under PLEM? Our leg drives have no brakes, so a stop that disables the drives drops the robot about

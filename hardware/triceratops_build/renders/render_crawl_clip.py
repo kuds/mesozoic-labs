@@ -1,4 +1,4 @@
-"""Short museum-contact clip (task 9): the scripted crawl in simulation, labelled on every frame.
+"""Short render clip (task 9): the scripted crawl in simulation, labelled on every frame.
 
 Runs the frozen crawl (../sim/crawl.py) on a model and renders frames with a "SIMULATION" badge and a caption,
 then writes an H.264 MP4. Simulation only; a design variant is named as such in the caption.

@@ -46,9 +46,9 @@ and the judged run reproduced bit for bit.
       what the drive can give.
   - **Straightness.** Heading change is up to 5.9° and sideways drift up to 0.25 m over 18 s. Both follow the
     simulated drift of the gyro-integrated heading estimate, which the controller cannot see.
-- **What it means.** In simulation, a 60 cm Triceratops with this build's drives can trot at the museum's 0.25 m/s
+- **What it means.** In simulation, a 60 cm Triceratops with this build's drives can trot at the demo's 0.25 m/s
   under 10 ms delay and sensor noise without a learned policy. It needs no velocity sensor beyond leg odometry and
-  runs under every drive's continuous rating. The walk is a candidate for the museum renders and a baseline for the
+  runs under every drive's continuous rating. The walk is a candidate for the simulation renders and a baseline for the
   learned policies.
 
 ## Judged conditions (10 episodes each, seeds 101-110)
@@ -182,7 +182,7 @@ is its one surviving episode. The trot's 3 cm step break sits just past the 20 %
 - The 100 Hz control rate is an assumption about the robot's controller.
 - Leg odometry cannot see foot slip. It is unbiased but noisy (in one instrumented episode the review found an RMS
   error of 0.058 m/s), so the Raibert speed term mostly reacts to noise, moving touchdowns by about ±5 mm.
-- Heading and drift follow the simulated gyro drift. Holding a line over a museum floor needs an outside reference
+- Heading and drift follow the simulated gyro drift. Holding a line over a demo floor needs an outside reference
   (vision or markers) on the robot.
 
 ## Next (proposals)
@@ -191,7 +191,7 @@ is its one surviving episode. The trot's 3 cm step break sits just past the 20 %
    measured pitch on a ramp, or adjust the timing) to lift the ramp edge, judged against the same sweep.
 2. Soften the front feet on grippy floors: the landing (the time at the front pitch drives' limit, and the
    re-touches just after landing, which are worse at 0.15 m/s) and the extra touchdowns late in stance.
-3. Use this walk for the museum render clips: it is deterministic and robust in these conditions.
+3. Use this walk for the simulation render clips: it is deterministic and robust in these conditions.
 
 ## Revised after the independent review (19 Nov 2026; the verdict and every judged number unchanged)
 

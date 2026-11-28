@@ -25,7 +25,7 @@ reason given below.
   - Servo delay: 10 ms (D9).
   - Observation noise and the heading estimate's drift: on.
   - Domain randomisation: on (mass, inertia, kp, force limits), with the floor friction fixed per condition.
-- **Command:** 0.25 m/s (the museum target at 60 cm). Episodes last 20 s and are measured from 2 s with
+- **Command:** 0.25 m/s (the demo target at 60 cm). Episodes last 20 s and are measured from 2 s with
   `rl/gait_metrics.py`.
 - **Judged conditions** (10 episodes each, seeds 101-110):
 

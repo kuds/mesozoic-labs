@@ -27,7 +27,7 @@ The head carries three ROBOTIS DYNAMIXEL servos (neck pitch, neck yaw, beak) plu
 - **No hobby servos:** the Feetech STS3215 is gone. The head and tail use ROBOTIS DYNAMIXEL X-series servos in their RS-485 versions; the two small eyelid servos are 5 V TTL XL330s on their own rail. **[F6]**
 - **Safety and power:** industrial parts throughout. A PL d wireless stop, a Pilz safety relay, 2-NC mushroom e-stops **[F4]**, a bidirectional DC contactor, and an Orion BMS. The chain as a whole is only as strong as its weakest part, and the custom watchdog board is not a safety-rated part, so do not call the robot PL d until the chain is assessed. **[F3]**
 - **Sensors:** named, catalog parts, not "TBD". TE FX29 load cells, an Xsens MTi IMU, and a Luxonis active-IR stereo camera.
-- **Build quality:** a CNC-machined 6061-T6 frame, and MJF PA11 shells with a painted museum finish.
+- **Build quality:** a CNC-machined 6061-T6 frame, and MJF PA11 shells with a painted show finish.
 
 **Alternative: T15, a 15 kg robot.** It uses PR #669's own drive set (8 × X4 and 4 × X6) but adds a 1.3:1 linkage on the flexion joint and moves to 48 V.
 - **Cost:** $20.0k / $32.8k / $58.5k landed, or $19.4k / $28.3k / $46.3k the T. rex way. **[F12]**
@@ -52,7 +52,7 @@ An independent reviewer re-derived the sizing with a separate script (`parts_che
 | F8 | Jetson low case $249 and Orin NX high case $1,099.99 predate NVIDIA's July 2026 price rise (Orin Nano Super kit $249 -> $399; kits out of stock). | Low $399 (= nominal); high $1,364.29 (RobotShop reComputer J4012, "tariffs included"; listing undated, currency not confirmed; Seeed's Robotics J4012 is $1,439, sold out). |
 | F9 | Small price errors. | Pololu D42V110F12 $59.95 (not $69.95; rationed). PCAN-USB FD $379 at DigiKey (+$15 shipping), not $368. |
 | F10 | Orion BMS Jr 2: $440 MSRP confirmed, but its current sensor is a separate option that Orion calls strongly recommended, and its charge/discharge outputs are logic signals, not contactor drivers. | Current-sensor line added (+$100, estimate). Wire its discharge-enable into the stop chain's watchdog, not straight to the contactor coil. |
-| F11 | No cooling, tools or transport case for a museum robot that travels. | Cooling (fans, ducts, filters) $90, tools $350, padded road case $800 (all estimates). |
+| F11 | No cooling, tools or transport case for a demo robot that travels. | Cooling (fans, ducts, filters) $90, tools $350, padded road case $800 (all estimates). |
 | F12 | Totals and claims that the above change; "quasi-direct-drive" wording; the 73 % "duty" case is a reseller price. | T20 $22.9k / $37.3k / $66.4k landed ($22.3k / $31.8k / $51.2k T. rex way); T15 $20.0k / $32.8k / $58.5k ($19.4k / $28.3k / $46.3k). Bench set $7.1k parts / $8.9k landed. Drives described as geared planetary actuators. |
 | F13 | Section 7 buys T. rex hardware only after the Q3 2027 demo, which leaves one or two quarters before the end-2027 / early-2028 flagship milestone, with these drives already backordered at resellers. | If that milestone is a walking T. rex, order its long-lead drives in Q2 2027 and resume its simulation in Q1 2027. The lead's call. |
 
@@ -71,7 +71,7 @@ Checked and found sound: the leg-load arithmetic (the review reproduces every pe
 | Bus | 2 classic CAN × 6 drives | **4 classic CAN × 3 drives (one per leg)**, 500 Hz baseline; 1 kHz trial (67–81 % load); EtherCAT trial on the -E drives | The PR's 2 × 6 layout runs 67–81 % at 500 Hz and does not fit 1 kHz. One bus per leg also isolates faults. |
 | Compute | Pi 5 + AI HAT+ (Jetson as "studied alternative") | **Jetson Orin Nano Super 8 GB + NVMe** (Orin NX 16 GB in the high case) | Same platform as the T. rex and the PLEM pitch. Fixes the PDF's "Orin / MCU" label. Compute is not the bottleneck. |
 | Real-time MCU | Teensy 4.1, 2 CAN | **Teensy 4.1 + MCP2518FD (4th bus), 4 isolated transceivers**, 2 boards (1 spare) | Four buses; isolation against ground bounce from 12 drives. |
-| Camera | OAK-D Lite | **OAK-D Pro W** (active IR, wide FOV) | Dim museum halls and low-texture floors; the survey flagged the Lite as the low-tier choice. |
+| Camera | OAK-D Lite | **OAK-D Pro W** (active IR, wide FOV) | Dim indoor rooms and low-texture floors; the survey flagged the Lite as the low-tier choice. |
 | Chest ToF | 2 × VL53L5CX | **2 × VL53L8CX** | +$5 each; better range in ambient light (repo catalog: 2.8 m vs 1.7 m at 5,000 lux). |
 | IMU | unnamed | **Xsens MTi-3 (+ BNO085 backup)** | A calibrated AHRS with a datasheet. |
 | Foot load | "4 foot-load sensors", unnamed | **TE FX29K0-100A-0100-L** (I2C, 445 N) in sole cartridges with hard stops, each on a per-leg differential I2C link **[F5]** | Peak trot foot load is 212 N at 20 kg, including the 1.25 dynamic factor. |
@@ -80,8 +80,8 @@ Checked and found sound: the leg-load arithmetic (the review reproduces every pe
 | Stop circuit | "independent stop circuit" | **PL d wireless stop (with a DC machine-side receiver [F3]) + 2 latching 2-NC mushroom e-stops [F4] + watchdog MCU → Pilz PNOZ s5** (instant contacts command a damped sit; delayed contacts open the contactor 0.5–1.5 s later) | A Cat 1 stop: the robot sits down before power drops instead of collapsing. W-RC-style hardware independence. The chain is not PL d as a whole until assessed **[F3]**. |
 | Power path | fuse, disconnect | **100 A / 58 V main fuse, bidirectional contactor, precharge, 4 leg fuses, 2 × LTC4359 ideal-diode OR with tether priority, 52.5 V active clamp** | The deck's LTC4417 is a 2.5–36 V part, so it cannot run on 12S. The LTC4359 covers 4–80 V. |
 | Battery | 6S 5 Ah (0.70 kg budgeted; the repo's pack is 0.755 kg and 165 mm long) | **2 × Gens ace G-Tech 6S 3300 in series** (12S, 146.5 Wh, 1.012 kg); 2 sets | The T. rex's own pack SKU. Each pack is 73 Wh, under the 100 Wh airline spare-battery line. |
-| BMS | none | **T20: Orion BMS Jr 2** (cell V/T, current through a separate sensor **[F10]**, charge/discharge-enable logic outputs into the stop chain **[F10]**, CAN); T15: cell alarm + temperature + CAN power monitor | A museum robot needs automatic cut-off, not only an alarm. |
-| Tether | not in the PR (in the deck) | **Mean Well RSP-1000-48**, 5 m lead, pendant e-stop | Most museum hours run on the tether; the battery covers show segments. |
+| BMS | none | **T20: Orion BMS Jr 2** (cell V/T, current through a separate sensor **[F10]**, charge/discharge-enable logic outputs into the stop chain **[F10]**, CAN); T15: cell alarm + temperature + CAN power monitor | A demo robot needs automatic cut-off, not only an alarm. |
+| Tether | not in the PR (in the deck) | **Mean Well RSP-1000-48**, 5 m lead, pendant e-stop | Most demo hours run on the tether; the battery covers show segments. |
 | Mass reserve | 1.84 kg | **T20 1.17 kg; T15 0.39 kg** | The premium items spend most of the PR's reserve. |
 | Costing | drives only ($3,864) | **Full BOM** | |
 
@@ -107,7 +107,7 @@ Script: `sizing.py` (in the working session's scratchpad; not committed). Its fu
 - In static three-foot support, the lone forefoot carries the whole front-axle load.
 - The as-built estimate is 55.2 % for T20 and 53.6 % for T15, with the battery 200 mm aft of centre (see section 6).
 
-**Slow walk (the museum gait), from the PR:**
+**Slow walk (the demo gait), from the PR:**
 - Lateral-sequence walk, duty factor 0.75, 1.5 Hz, 0.30 m/s, 150 mm stance sweep, 32 mm lift.
 - The worst case is the lone forefoot at touchdown, foot 75 mm ahead (the PR's conservative case).
 - Fore-aft and lateral forces are 0.10 × Fz.
@@ -122,7 +122,7 @@ Script: `sizing.py` (in the working session's scratchpad; not committed). Its fu
 **Continuous load:** the largest of these three:
 - the walk RMS (front foot loaded at f·W/2 for two thirds of stance and f·W for the middle third);
 - the trot RMS;
-- a held three-leg pose with the lone forefoot under the shoulder (for example a "paw lift" for visitors).
+- a held three-leg pose with the lone forefoot under the shoulder (for example a "paw lift" for onlookers).
 
 **Pass rules:**
 - Design peak ≤ **70 % of the maker's peak torque** (the 10 rpm figure, not stall). That gives at least 2.1× over the static walking load.
@@ -198,7 +198,7 @@ Drive no-load speeds at the minimum pack voltage (scaled from the maker's 24 V o
 
 **[F1] (corrected)** The X4 row above is a no-load estimate only. On 12S the X4 is run above its 24 V rating, and resellers quoting MyActuator say it must then stay at or below its 83 rpm rated speed. Against that cap the pitch drive uses 0.72 at 0.30 m/s (0.83 with the PR's 69 rpm swing profile), 0.93 at 0.40 m/s and 0.55 in the 0.60 m/s trot. The review's independent swing model gives 58.1 / 75.4 / 43.3 rpm (pitch) and 46.4 / 54.5 / 43.3 rpm (flexion), so 0.70 / 0.91 / 0.52.
 
-- **The 0.40 m/s walk is not credible with X4 pitch drives on either bus.** The museum walk is 0.30 m/s; the later trot fits.
+- **The 0.40 m/s walk is not credible with X4 pitch drives on either bus.** The demo walk is 0.30 m/s; the later trot fits.
 - **12S is still required**, for the 48 V drives: at 6S the X6 hind flexion at 1.3:1 needs 76 rpm against about 77 rpm no-load, and the front X8 at 1:1 needs 58.5 rpm against about 69 rpm. On 12S they use 0.71 and 0.60 of their allowance.
 - If a 0.40 m/s walk is wanted later, the pitch axis needs a 48 V drive (X6-60, +0.46 kg and +$159 each), which T20's reserve covers for the front pair only.
 
@@ -288,7 +288,7 @@ All pass with margin, and the spring keeps the neck servo cool through long sess
 - **Feet:** one FX29 per foot in a sole cartridge, preloaded under a 60A urethane pad, with a hard stop above about 400 N so drop impacts do not overload the cell (confirm the overload rating from TE's datasheet; 2.5× rated was found only for the 25 lbf sibling). Drive current gives a second contact estimate.
   - **[F5]** The FX29K0 is an I2C part (2.7–5.5 V). Do not run four of them on one I2C bus down the legs: give each leg a differential I2C extender pair (PCA9615 class) into its own Teensy I2C port or a mux, or put a small CAN node at each foot. Confirm the I2C address in TE's datasheet. Distributor lead time is 21–23 weeks: order the cells with the phase-1 set.
 - **Camera:** OAK-D Pro W in the head behind the brow, on a screw-lock USB-C lead routed through the neck service loop.
-- **Chest:** 2 × VL53L8CX for floor and visitor distance.
+- **Chest:** 2 × VL53L8CX for floor and onlooker distance.
 
 **Safety stop (W-RC-style, independent of software):**
 - **Stop inputs:** a dual-channel chain opened by any of these:
@@ -333,11 +333,11 @@ All pass with margin, and the spring keeps the neck servo cool through long sess
 - Feet are cast 60A urethane with load-cell cartridges.
 
 **Shells:**
-- HP MJF PA11, 1.0–1.2 mm, ribbed, dyed. Then prime, hand-paint, texture and matte-clear for a museum finish.
+- HP MJF PA11, 1.0–1.2 mm, ribbed, dyed. Then prime, hand-paint, texture and matte-clear for a show finish.
 - Soft TPU horn tips and beak edge, and gaiters over the joints.
 - Leave intake and exhaust paths over the drives, with blower fans and dust filters (a BOM line) **[F11]**.
 
-**Transport and tools [F11]:** a padded road case with custom foam for museum trips, a LiPo travel bag, and a tool kit (crimpers for Anderson, ferrules and JST/Molex, torque drivers, hex/Torx, a meter).
+**Transport and tools [F11]:** a padded road case with custom foam for demo trips, a LiPo travel bag, and a tool kit (crimpers for Anderson, ferrules and JST/Molex, torque drivers, hex/Torx, a meter).
 
 ## 4. Parts list: T20, 20 kg (recommended)
 
@@ -406,7 +406,7 @@ All prices are list prices unless the row says "quote". Rows marked "High only" 
 | Frame | Fasteners, heat-set inserts, shims, threadlocker | assorted | 1 | $150 | EST | $150 | $80 - $250 |
 | Frame | Belly skid + strike bumpers for the controlled sit | EVA / urethane | 1 | $80 | EST | $80 | $40 - $150 |
 | Shells | Shells: body, limbs, head, frill, tail | HP MJF PA11 (1.0-1.2 mm, ribbed), dyed | 1 | $1,950 | EST (TB line 11 analog) | $1,950 | $1,100 - $3,400 |
-| Shells | Museum paint finish (prime, hand paint, texture, matte clear) | prop / scenic painter | 1 | $1,200 | EST (quote) | $1,200 | $600 - $2,500 |
+| Shells | Show paint finish (prime, hand paint, texture, matte clear) | prop / scenic painter | 1 | $1,200 | EST (quote) | $1,200 | $600 - $2,500 |
 | Shells | Soft horn tips, beak edge, joint gaiters | TPU / silicone | 1 | $150 | EST | $150 | $80 - $300 |
 | Spares | Spare roll/pitch drive | MyActuator RMD-X4-P36-36-E-L | 1 | $269 | RC 7 Nov 2026 | $269 | $269 - $269 |
 | Spares | Spare roll / hind flexion drive | MyActuator RMD-X6-P20-60-E | 1 | $428 | RC 7 Nov 2026 | $428 | $428 - $428 |
@@ -423,7 +423,7 @@ All prices are list prices unless the row says "quote". Rows marked "High only" 
 | Bench (shared with T. rex) | Current-limited 60 V bench supply | programmable DC supply | 1 | $400 | EST | $400 | $0 - $900 |
 | Bench (shared with T. rex) | Thermal camera for drive heat checks | USB / handheld thermal imager | 1 | $250 | EST | $250 | $0 - $500 |
 | Tools and transport | Tools: crimpers (Anderson, ferrules, JST/Molex), torque drivers, hex/Torx set, DMM **[F11]** | assorted | 1 | $350 | EST | $350 | $150 - $800 |
-| Tools and transport | Transport: padded road case with custom foam for museum travel **[F11]** | road case (1.5 m robot) | 1 | $800 | EST | $800 | $400 - $1,500 |
+| Tools and transport | Transport: padded road case with custom foam for demo travel **[F11]** | road case (1.5 m robot) | 1 | $800 | EST | $800 | $400 - $1,500 |
 
 ## 5. Parts list: T15, 15 kg
 
@@ -478,7 +478,7 @@ All prices are list prices unless the row says "quote". Rows marked "High only" 
 | Frame | Fasteners, heat-set inserts, shims, threadlocker | assorted | 1 | $150 | EST | $150 | $80 - $250 |
 | Frame | Belly skid + strike bumpers for the controlled sit | EVA / urethane | 1 | $80 | EST | $80 | $40 - $150 |
 | Shells | Shells: body, limbs, head, frill, tail | HP MJF PA11 (1.0-1.2 mm, ribbed), dyed | 1 | $1,750 | EST (TB line 11 analog) | $1,750 | $1,000 - $3,100 |
-| Shells | Museum paint finish (prime, hand paint, texture, matte clear) | prop / scenic painter | 1 | $1,200 | EST (quote) | $1,200 | $600 - $2,500 |
+| Shells | Show paint finish (prime, hand paint, texture, matte clear) | prop / scenic painter | 1 | $1,200 | EST (quote) | $1,200 | $600 - $2,500 |
 | Shells | Soft horn tips, beak edge, joint gaiters | TPU / silicone | 1 | $150 | EST | $150 | $80 - $300 |
 | Spares | Spare roll/pitch drive | MyActuator RMD-X4-P36-36-E-L | 1 | $269 | RC 7 Nov 2026 | $269 | $269 - $269 |
 | Spares | Spare flexion drive | MyActuator RMD-X6-P20-60-E | 1 | $428 | RC 7 Nov 2026 | $428 | $428 - $428 |
@@ -493,7 +493,7 @@ All prices are list prices unless the row says "quote". Rows marked "High only" 
 | Bench (shared with T. rex) | Current-limited 60 V bench supply | programmable DC supply | 1 | $400 | EST | $400 | $0 - $900 |
 | Bench (shared with T. rex) | Thermal camera for drive heat checks | USB / handheld thermal imager | 1 | $250 | EST | $250 | $0 - $500 |
 | Tools and transport | Tools: crimpers (Anderson, ferrules, JST/Molex), torque drivers, hex/Torx set, DMM **[F11]** | assorted | 1 | $350 | EST | $350 | $150 - $800 |
-| Tools and transport | Transport: padded road case with custom foam for museum travel **[F11]** | road case (1.5 m robot) | 1 | $800 | EST | $800 | $400 - $1,500 |
+| Tools and transport | Transport: padded road case with custom foam for demo travel **[F11]** | road case (1.5 m robot) | 1 | $800 | EST | $800 | $400 - $1,500 |
 
 ## 6. Totals and mass budgets
 
@@ -597,7 +597,7 @@ The owner keeps the T. rex as the flagship for end 2027 / early 2028. This list 
 **Suggested timing, for the plan:**
 - **Q1 2027:** the single-foreleg bench (this list's phase-1 buy).
 - **Q2 2027:** the four-leg walk under the catch gantry.
-- **Q3 2027:** the museum demo.
+- **Q3 2027:** the public demo.
 - Restart T. rex simulation work once the Triceratops passes its four-leg walking gate (about Q2 2027). Buy T. rex hardware after the Q3 2027 demo, reusing the bench, power, safety and compute above.
 
 **[F13]** Buying T. rex hardware only after the Q3 2027 demo leaves one or two quarters before the end-2027 / early-2028 flagship milestone, and these drives were backordered at several resellers on 18 Nov 2026. If the milestone is a walking T. rex, resume its simulation in Q1 2027 and order its long-lead drives (10 × X4 + 2 × X6) in Q2 2027, once the Triceratops foreleg bench has confirmed the drive family. If it is a renders-and-roadmap milestone, the timing above is fine.
@@ -608,7 +608,7 @@ This is the lead's call. It is listed only because the shared purchases assume i
 
 1. **Which X6 ships for $428:** the V4 X6-60 (60 N·m, 0.82 kg) or the V4.1 X6-50-L (45 / 50 N·m, 0.78 kg)? Measure torque at 10 rpm and the stall torque at 42 V and 49 V. Both pass their roles here; the X6-50-L leaves less peak margin (T15 flexion use 0.73).
 2. **Heat in the real duty:**
-   - Run the X8 front flexion and the X6 hind flexion through the museum show loop (walk, held paw, stand) for 30 min, at 25 °C and at 35 °C, inside a closed shell.
+   - Run the X8 front flexion and the X6 hind flexion through the show loop (walk, held paw, stand) for 30 min, at 25 °C and at 35 °C, inside a closed shell.
    - Run the X4 roll and pitch in a 2-minute trot.
    - The 90-minute maker equilibria (X4 7.5, X6 12, X8 34 N·m) are open-air figures.
 3. **X6-80 (30:1):** get a price and its temperature-rise table. If it holds about 18 N·m continuous, it replaces the front X8 and saves about 1.0 kg.
@@ -634,7 +634,7 @@ This is the lead's call. It is listed only because the shared purchases assume i
 14. **X4 above 24 V [F1]:** ask MyActuator whether the rated-speed cap above rated voltage applies to the V4.1 X4-36-L, and measure its speed and heat at 42–50 V on the bench. If the cap holds, the 0.30 m/s walk is the X4 limit.
 15. **Wireless stop [F3]:** what the $1,900 Safe-D-Stop kit contains (DC receiver or not), the receiver's mass, mounting and supply, and whether one transmitter can pair with a second receiver for the T. rex.
 16. **Foot-sensor bus [F5]:** the FX29's I2C address and overload rating from TE's datasheet, and an I2C error-rate test on the leg harness with the drives running.
-17. **Museum acceptance:** what the host museum needs before a live demo (risk assessment, insurance, barrier layout, battery charging rules on site).
+17. **Host acceptance:** what the host needs before a live demo (risk assessment, insurance, barrier layout, battery charging rules on site).
 
 ## 9. Sources
 
