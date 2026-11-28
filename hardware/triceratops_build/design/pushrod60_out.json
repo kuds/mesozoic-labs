@@ -1,0 +1,1535 @@
+{
+ "evidence": "desk calculation on the simulation model's geometry; walking torques are simulation",
+ "safety_factors": {
+  "static": 2.0,
+  "fatigue": 1.5
+ },
+ "geometry": {
+  "fore": {
+   "crank_radius_m": 0.02800000000233631,
+   "pin_to_pin_m": 0.08149607467901682,
+   "flexion_range_deg": [
+    -47.0,
+    36.0
+   ],
+   "min_transmission_angle_deg": 43.00000000060549,
+   "at_flexion_deg": -47.0,
+   "transmission_angle_at_range_ends_deg": [
+    43.00000000060549,
+    53.99999999939451
+   ],
+   "transmission_angle_at_neutral_deg": 89.99999999939452
+  },
+  "hind": {
+   "crank_radius_m": 0.027999986445889583,
+   "pin_to_pin_m": 0.09800019700107752,
+   "flexion_range_deg": [
+    -47.0,
+    36.0
+   ],
+   "min_transmission_angle_deg": 42.9997716867481,
+   "at_flexion_deg": -47.0,
+   "transmission_angle_at_range_ends_deg": [
+    42.9997716867481,
+    54.00022831325194
+   ],
+   "transmission_angle_at_neutral_deg": 89.99977168674809
+  }
+ },
+ "sources": {
+  "1018": "AISI 1018 cold drawn: ultimate 440 MPa, yield 370 MPa, E 200 GPa (MatWeb datasheet, https://matweb.com/search/datasheettext.aspx?matid=6817, web search 27 Nov 2026)",
+  "8.8": "property class 8.8 (ISO 898-1): nominal tensile 800 MPa, proof stress 580 MPa (TR Fastenings, https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties, web search 27 Nov 2026); E 200 GPa taken as for 1018",
+  "6061": "6061-T6: ultimate 310 MPa, yield 276 MPa, fatigue 96.5 MPa at 5e8 cycles reversed (R.R. Moore), E 68.9 GPa, typical, 'not for design' (https://www.aerospacemetals.com/wp-content/uploads/2023/06/Aluminum-6061-T6-6061-T651.pdf, web search 27 Nov 2026)",
+  "7075": "7075-T6: ultimate 572 MPa, yield 503 MPa, fatigue 159 MPa at 5e8 cycles reversed, E 71.7 GPa, typical (https://quickparts.com/wp-content/uploads/2024/05/Aluminum-7075.pdf, web search 27 Nov 2026; Wikipedia's T6 range is lower: 510-540 / 430-480 MPa)",
+  "threads": "tensile stress areas M5 14.2, M6 20.1, M8 36.6 mm2; minor-diameter basis 0.7854((d2+d3)/2)^2 (ISO 898-1; https://www.engineeringtoolbox.com/metric-bolts-minimum-ultimate-tensile-proof-loads-d_2026.html, https://roymech.org/Useful_Tables/Screws/Thread_Calcs.html, web search 27 Nov 2026)",
+  "Kf": "thread fatigue factor: rolled 2.2 / cut 2.8 for class 5.8 and below, rolled 3.0 / cut 3.8 for 8.8 and above (https://danotes.mech.uwa.edu.au/threads/fatigue/fatigue.html, web search 27 Nov 2026); aluminium threads: the steel <= 5.8 cut value, an assumption",
+  "endurance": "steel endurance 0.5 x ultimate below 1400 MPa; axial load factor 0.70 (https://www.engineering.iastate.edu/~gkstarns/me325/lecture24.pdf, web search 27 Nov 2026)",
+  "rod_ends": "steel/steel plain rod ends, DIN ISO 12240-4: M6 C 3.6 kN, C0 8.2 kN (KIPP K0722 via https://www.marek.eu/data/katalogove-listy/kipp/K0722.pdf and Misumi https://uk.misumi-ec.com/vona2/detail/221303940723); M8 C 5.8 kN, C0 12.9 kN (norelem 27631-08, https://norelem.de/en/Product-overview/Systems-and-components-for-machine-and-plant-construction/27000/Rod-ends/Rod-ends-with-plain-bearing-external-thread-narrow-version-DIN-ISO-12240-4/Rod-End-with-plain-bearing-steel-galvanised/p/27631-08, figures from a web-search summary of 27 Nov 2026; a second search that day could not read them off the page, which was outside the session's network; the lowest M8 steel static rating a second search found, 7.9 kN, RS PRO https://uk.rs-online.com/web/p/rod-ends/1989083, bearing pairing not stated, is carried as ROD_END_LOW_C0_KN); M5: five listings disagree (dynamic 2.5-7.5 kN, static 3.4-6.2 kN; Halder, Fluro, LDK, RS PRO on https://uk.rs-online.com), the lowest taken. All web search 27 Nov 2026; ball-bearing and polymer rod ends excluded (static ratings near 1 kN; the kickoff list asks for steel, hardware/triceratops_kickoff/PARTS_PREMIUM.md:256)",
+  "marin": "Marin surface factor ka = a x Su^b, machined or cold drawn a 4.51 MPa, b -0.265; ground a 1.58, b -0.085 (https://engineersedge.com/calculators/marin_endurance_limit_15637.htm, https://fchartsoftware.com/ees/mechanical_design/endurance/hs101.htm, web search 27 Nov 2026)"
+ },
+ "cases": {
+  "fore": {
+   "drive": "X6-60",
+   "static_basis": "sim/data/drives.json leg_drives['X6-60'] peak_nm 60 N m (no stall_nm in drives.json)",
+   "torques_nm": {
+    "static": 60,
+    "peak": 60,
+    "stall": null,
+    "limit": 42.0,
+    "joint_limit": 37.800000000000004
+   },
+   "walking_rms_joint_nm": 8.52308,
+   "walking_rms_from": "fore128-s2 left_fore_flexion",
+   "forces_n": {
+    "static": 3142.026826072848,
+    "peak": 3142.026826072848,
+    "limit": 2199.4187782509935,
+    "joint_limit": 1979.4769004258944,
+    "peak_at_90deg": 2142.8571426783437,
+    "limit_at_90deg": 1499.9999998748406,
+    "walk_amp": 701.3385183553421
+   }
+  },
+  "hind": {
+   "drive": "X4-36-L",
+   "static_basis": "sim/data/drives.json leg_drives['X4-36-L'] stall_nm 36 N m (above peak_nm 30)",
+   "torques_nm": {
+    "static": 36,
+    "peak": 30,
+    "stall": 36,
+    "limit": 21.0,
+    "joint_limit": 18.900000000000002
+   },
+   "walking_rms_joint_nm": 6.38079,
+   "walking_rms_from": "fore128-s3 right_hind_flexion",
+   "forces_n": {
+    "static": 1885.2250643571042,
+    "peak": 1571.0208869642534,
+    "limit": 1099.7146208749773,
+    "joint_limit": 989.7431587874797,
+    "peak_at_90deg": 1071.4290900810067,
+    "limit_at_90deg": 750.0003630567047,
+    "walk_amp": 525.05844064768
+   }
+  }
+ },
+ "candidates": [
+  {
+   "kind": "fore",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M5",
+   "body_mm": 5.0,
+   "tension_capacity_n": 5254.0,
+   "sf_tension_static": 1.6721690459170464,
+   "buckling": {
+    "euler_n": 9118.14039460294,
+    "johnson_n": 5817.838281130479,
+    "slenderness": 65.19685974321345,
+    "transition": 103.29493015522243,
+    "governing_n": 5817.838281130479,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 1.6721690459170464,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.35509381283952723,
+    "F2 0 to limit": 0.6312778894924929,
+    "F3 walking, reversed": 1.1135849230575074
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.082104064735051,
+   "rod_end_limit_over_c": 0.8797675113003974,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M6",
+   "body_mm": 6.0,
+   "tension_capacity_n": 7437.000000000001,
+   "sf_tension_static": 2.366943508657228,
+   "buckling": {
+    "euler_n": 18907.375922248655,
+    "johnson_n": 9014.408806158093,
+    "slenderness": 54.330716452677876,
+    "transition": 103.29493015522243,
+    "governing_n": 9014.408806158093,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 2.366943508657228,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.5026327914136971,
+    "F2 0 to limit": 0.8935694069576836,
+    "F3 walking, reversed": 1.5762716164405566
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 2.6097803914198288,
+   "rod_end_limit_over_c": 0.610949660625276,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M8",
+   "body_mm": 8.0,
+   "tension_capacity_n": 13542.0,
+   "sf_tension_static": 4.309956836659429,
+   "buckling": {
+    "euler_n": 59756.64489006982,
+    "johnson_n": 17151.133778955656,
+    "slenderness": 40.74803733950841,
+    "transition": 103.29493015522243,
+    "governing_n": 17151.133778955656,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 4.309956836659429,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.9152417992906126,
+    "F2 0 to limit": 1.6270965320722002,
+    "F3 walking, reversed": 2.870225928443998
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 4.10563012796534,
+   "rod_end_limit_over_c": 0.37921013418120575,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "fore",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M8",
+   "body_mm": 10.0,
+   "tension_capacity_n": 13542.0,
+   "sf_tension_static": 4.309956836659429,
+   "buckling": {
+    "euler_n": 145890.24631364705,
+    "johnson_n": 27612.63731540967,
+    "slenderness": 32.598429871606726,
+    "transition": 103.29493015522243,
+    "governing_n": 27612.63731540967,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 4.309956836659429,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.9152417992906126,
+    "F2 0 to limit": 1.6270965320722002,
+    "F3 walking, reversed": 2.870225928443998
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 4.10563012796534,
+   "rod_end_limit_over_c": 0.37921013418120575,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "fore",
+   "material": "class 8.8 steel stud, rolled threads",
+   "thread": "M5",
+   "body_mm": 4.25,
+   "tension_capacity_n": 8236.0,
+   "sf_tension_static": 2.6212379638699645,
+   "buckling": {
+    "euler_n": 4768.9545511569795,
+    "johnson_n": 4680.100312114339,
+    "slenderness": 76.66505488694335,
+    "transition": 82.50226496823716,
+    "governing_n": 4680.100312114339,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 1.4895163444431492,
+   "endurance_at_thread_mpa": 93.33333333333333,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.6025834399701069,
+    "F2 0 to limit": 1.0792539223345197,
+    "F3 walking, reversed": 1.8897198694309216
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.082104064735051,
+   "rod_end_limit_over_c": 0.8797675113003974,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "class 8.8 steel stud, rolled threads",
+   "thread": "M6",
+   "body_mm": 5.06,
+   "tension_capacity_n": 11658.0,
+   "sf_tension_static": 3.7103438784356544,
+   "buckling": {
+    "euler_n": 9555.174212521983,
+    "johnson_n": 8102.100312114342,
+    "slenderness": 64.43822878027537,
+    "transition": 82.50226496823716,
+    "governing_n": 8102.100312114342,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 2.57862225900884,
+   "endurance_at_thread_mpa": 93.33333333333333,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.8529526157323345,
+    "F2 0 to limit": 1.5276763266847782,
+    "F3 walking, reversed": 2.6748851672930654
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 2.6097803914198288,
+   "rod_end_limit_over_c": 0.610949660625276,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "fore",
+   "material": "class 8.8 steel stud, rolled threads",
+   "thread": "M8",
+   "body_mm": 6.83,
+   "tension_capacity_n": 21228.0,
+   "sf_tension_static": 6.75614855476343,
+   "buckling": {
+    "euler_n": 31681.713740070645,
+    "johnson_n": 17672.10031211434,
+    "slenderness": 47.753046164850026,
+    "transition": 82.50226496823716,
+    "governing_n": 17672.10031211434,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 5.624426935336615,
+   "endurance_at_thread_mpa": 93.33333333333333,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.5531375987961908,
+    "F2 0 to limit": 2.7817389829185504,
+    "F3 walking, reversed": 4.870686424026179
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 4.10563012796534,
+   "rod_end_limit_over_c": 0.37921013418120575,
+   "passes": true,
+   "passes_fatigue_bound": true,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "fore",
+   "material": "6061-T6, cut threads",
+   "thread": "M5",
+   "body_mm": 5.0,
+   "tension_capacity_n": 3919.2,
+   "sf_tension_static": 1.2473477207381212,
+   "buckling": {
+    "euler_n": 3141.1993659407126,
+    "johnson_n": 3081.9043117121223,
+    "slenderness": 65.19685974321345,
+    "transition": 70.19722439881447,
+    "governing_n": 3081.9043117121223,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 0.9808650537729904,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.15575705881370172,
+    "F2 0 to limit": 0.2890217028492183,
+    "F3 walking, reversed": 0.48845884125022493
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.082104064735051,
+   "rod_end_limit_over_c": 0.8797675113003974,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "6061-T6, cut threads",
+   "thread": "M6",
+   "body_mm": 6.0,
+   "tension_capacity_n": 5547.6,
+   "sf_tension_static": 1.7656119145659321,
+   "buckling": {
+    "euler_n": 6513.591005214662,
+    "johnson_n": 5466.3731357867755,
+    "slenderness": 54.330716452677876,
+    "transition": 70.19722439881447,
+    "governing_n": 5466.3731357867755,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 1.7397601734098107,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.22047301987009896,
+    "F2 0 to limit": 0.409108185018964,
+    "F3 walking, reversed": 0.6914100499386987
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 2.6097803914198288,
+   "rod_end_limit_over_c": 0.610949660625276,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "6061-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 8.0,
+   "tension_capacity_n": 10101.6,
+   "sf_tension_static": 3.214994829508115,
+   "buckling": {
+    "euler_n": 20586.16416462905,
+    "johnson_n": 11535.930142522255,
+    "slenderness": 40.74803733950841,
+    "transition": 70.19722439881447,
+    "governing_n": 11535.930142522255,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 3.214994829508115,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.4014583346888369,
+    "F2 0 to limit": 0.7449432622733374,
+    "F3 walking, reversed": 1.2589854640674811
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 4.10563012796534,
+   "rod_end_limit_over_c": 0.37921013418120575,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "6061-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 10.0,
+   "tension_capacity_n": 10101.6,
+   "sf_tension_static": 3.214994829508115,
+   "buckling": {
+    "euler_n": 50259.1898550514,
+    "johnson_n": 19339.646294039303,
+    "slenderness": 32.598429871606726,
+    "transition": 70.19722439881447,
+    "governing_n": 19339.646294039303,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 3.214994829508115,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.4014583346888369,
+    "F2 0 to limit": 0.7449432622733374,
+    "F3 walking, reversed": 1.2589854640674811
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 4.10563012796534,
+   "rod_end_limit_over_c": 0.37921013418120575,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "7075-T6, cut threads",
+   "thread": "M5",
+   "body_mm": 5.0,
+   "tension_capacity_n": 7142.599999999999,
+   "sf_tension_static": 2.273246027287228,
+   "buckling": {
+    "euler_n": 3268.8533314651536,
+    "johnson_n": 2416.356198689028,
+    "slenderness": 65.19685974321345,
+    "transition": 53.044511694490936,
+    "governing_n": 3268.8533314651536,
+    "governs": "Euler"
+   },
+   "sf_compression_static": 1.0403645520591633,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.25663598291584017,
+    "F2 0 to limit": 0.47992082461090496,
+    "F3 walking, reversed": 0.8048181943915622
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.082104064735051,
+   "rod_end_limit_over_c": 0.8797675113003974,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "7075-T6, cut threads",
+   "thread": "M6",
+   "body_mm": 6.0,
+   "tension_capacity_n": 10110.300000000001,
+   "sf_tension_static": 3.2177637428502317,
+   "buckling": {
+    "euler_n": 6778.294268126143,
+    "johnson_n": 6761.964236767111,
+    "slenderness": 54.330716452677876,
+    "transition": 53.044511694490936,
+    "governing_n": 6778.294268126143,
+    "governs": "Euler"
+   },
+   "sf_compression_static": 2.1572999351498816,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.3632664265217174,
+    "F2 0 to limit": 0.6793245475126191,
+    "F3 walking, reversed": 1.1392144864274931
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 2.6097803914198288,
+   "rod_end_limit_over_c": 0.610949660625276,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "7075-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 8.0,
+   "tension_capacity_n": 18409.8,
+   "sf_tension_static": 5.85921159145863,
+   "buckling": {
+    "euler_n": 21422.75719309003,
+    "johnson_n": 17823.51197005677,
+    "slenderness": 40.74803733950841,
+    "transition": 53.044511694490936,
+    "governing_n": 17823.51197005677,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 5.67261610313302,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.6614702094873064,
+    "F2 0 to limit": 1.2369790268140228,
+    "F3 walking, reversed": 2.0743905573754353
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 4.10563012796534,
+   "rod_end_limit_over_c": 0.37921013418120575,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "fore",
+   "material": "7075-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 10.0,
+   "tension_capacity_n": 18409.8,
+   "sf_tension_static": 5.85921159145863,
+   "buckling": {
+    "euler_n": 52301.65330344246,
+    "johnson_n": 32045.501912857766,
+    "slenderness": 32.598429871606726,
+    "transition": 53.044511694490936,
+    "governing_n": 32045.501912857766,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 5.85921159145863,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.6614702094873064,
+    "F2 0 to limit": 1.2369790268140228,
+    "F3 walking, reversed": 2.0743905573754353
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 4.10563012796534,
+   "rod_end_limit_over_c": 0.37921013418120575,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M5",
+   "body_mm": 5.0,
+   "tension_capacity_n": 5254.0,
+   "sf_tension_static": 2.786935151316646,
+   "buckling": {
+    "euler_n": 6305.5904485814,
+    "johnson_n": 5172.375141909712,
+    "slenderness": 78.40015760086202,
+    "transition": 103.29493015522243,
+    "governing_n": 5172.375141909712,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 2.743638008904568,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.7101842470536628,
+    "F2 0 to limit": 1.2625497725398451,
+    "F3 walking, reversed": 1.4874534709633582
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.8034981946091733,
+   "rod_end_limit_over_c": 0.4398858483499909,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M6",
+   "body_mm": 6.0,
+   "tension_capacity_n": 7437.000000000001,
+   "sf_tension_static": 3.9448870803848304,
+   "buckling": {
+    "euler_n": 13075.272354178389,
+    "johnson_n": 8368.945666937325,
+    "slenderness": 65.33346466738502,
+    "transition": 103.29493015522243,
+    "governing_n": 8368.945666937325,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 3.9448870803848304,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.0052608004069452,
+    "F2 0 to limit": 1.7871303118345694,
+    "F3 walking, reversed": 2.1054799131241904
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 4.349613292880948,
+   "rod_end_limit_over_c": 0.30547628357638257,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "hind",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M8",
+   "body_mm": 8.0,
+   "tension_capacity_n": 13542.0,
+   "sf_tension_static": 7.1832272209992425,
+   "buckling": {
+    "euler_n": 41324.31756382305,
+    "johnson_n": 16505.67063973489,
+    "slenderness": 49.00009850053876,
+    "transition": 103.29493015522243,
+    "governing_n": 16505.67063973489,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 7.1832272209992425,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.8304748902932437,
+    "F2 0 to limit": 3.2541775827435444,
+    "F3 walking, reversed": 3.833858946285839
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 6.842684326605393,
+   "rod_end_limit_over_c": 0.1896059691163754,
+   "passes": true,
+   "passes_fatigue_bound": true,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "hind",
+   "material": "1018 CD steel, cut threads",
+   "thread": "M8",
+   "body_mm": 10.0,
+   "tension_capacity_n": 13542.0,
+   "sf_tension_static": 7.1832272209992425,
+   "buckling": {
+    "euler_n": 100889.4471773024,
+    "johnson_n": 26967.174176188902,
+    "slenderness": 39.20007880043101,
+    "transition": 103.29493015522243,
+    "governing_n": 26967.174176188902,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 7.1832272209992425,
+   "endurance_at_thread_mpa": 55.0,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.8304748902932437,
+    "F2 0 to limit": 3.2541775827435444,
+    "F3 walking, reversed": 3.833858946285839
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 6.842684326605393,
+   "rod_end_limit_over_c": 0.1896059691163754,
+   "passes": true,
+   "passes_fatigue_bound": true,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "hind",
+   "material": "class 8.8 steel stud, rolled threads",
+   "thread": "M5",
+   "body_mm": 4.25,
+   "tension_capacity_n": 8236.0,
+   "sf_tension_static": 4.368709156117986,
+   "buckling": {
+    "euler_n": 3297.939378658111,
+    "johnson_n": 3094.0243440072086,
+    "slenderness": 92.19082651048623,
+    "transition": 82.50226496823716,
+    "governing_n": 3297.939378658111,
+    "governs": "Euler"
+   },
+   "sf_compression_static": 1.749361092747177,
+   "endurance_at_thread_mpa": 93.33333333333333,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.2051611465153065,
+    "F2 0 to limit": 2.15849757584831,
+    "F3 walking, reversed": 2.524163465877214
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.8034981946091733,
+   "rod_end_limit_over_c": 0.4398858483499909,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "hind",
+   "material": "class 8.8 steel stud, rolled threads",
+   "thread": "M6",
+   "body_mm": 5.06,
+   "tension_capacity_n": 11658.0,
+   "sf_tension_static": 6.183877044927572,
+   "buckling": {
+    "euler_n": 6607.8183315396955,
+    "johnson_n": 6516.024344007211,
+    "slenderness": 77.48789300269738,
+    "transition": 82.50226496823716,
+    "governing_n": 6516.024344007211,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 3.4563641589548317,
+   "endurance_at_thread_mpa": 93.33333333333333,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.7058971158420888,
+    "F2 0 to limit": 3.0553381179261287,
+    "F3 walking, reversed": 3.5729356101501413
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 4.349613292880948,
+   "rod_end_limit_over_c": 0.30547628357638257,
+   "passes": true,
+   "passes_fatigue_bound": true,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "hind",
+   "material": "class 8.8 steel stud, rolled threads",
+   "thread": "M8",
+   "body_mm": 6.83,
+   "tension_capacity_n": 21228.0,
+   "sf_tension_static": 11.260194022106921,
+   "buckling": {
+    "euler_n": 21909.2822558781,
+    "johnson_n": 16086.02434400721,
+    "slenderness": 57.423721939846814,
+    "transition": 82.50226496823716,
+    "governing_n": 16086.02434400721,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 8.532681136134181,
+   "endurance_at_thread_mpa": 93.33333333333333,
+   "fatigue_n": {
+    "F1 reversed +-limit": 3.1062604198915644,
+    "F2 0 to limit": 5.56345149831325,
+    "F3 walking, reversed": 6.505942454303241
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 6.842684326605393,
+   "rod_end_limit_over_c": 0.1896059691163754,
+   "passes": true,
+   "passes_fatigue_bound": true,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "hind",
+   "material": "6061-T6, cut threads",
+   "thread": "M5",
+   "body_mm": 5.0,
+   "tension_capacity_n": 3919.2,
+   "sf_tension_static": 2.0789029777389034,
+   "buckling": {
+    "euler_n": 2172.275909536292,
+    "johnson_n": 2039.3542085405852,
+    "slenderness": 78.40015760086202,
+    "transition": 70.19722439881447,
+    "governing_n": 2172.275909536292,
+    "governs": "Euler"
+   },
+   "sf_compression_static": 1.1522634356005008,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.31151263563944753,
+    "F2 0 to limit": 0.5780406557320089,
+    "F3 walking, reversed": 0.6524511815816548
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.8034981946091733,
+   "rod_end_limit_over_c": 0.4398858483499909,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "6061-T6, cut threads",
+   "thread": "M6",
+   "body_mm": 6.0,
+   "tension_capacity_n": 5547.6,
+   "sf_tension_static": 2.942672524827603,
+   "buckling": {
+    "euler_n": 4504.4313260144545,
+    "johnson_n": 4423.823032615239,
+    "slenderness": 65.33346466738502,
+    "transition": 70.19722439881447,
+    "governing_n": 4423.823032615239,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 2.346575544880018,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.44094394199668274,
+    "F2 0 to limit": 0.8182124774798154,
+    "F3 walking, reversed": 0.9235400528022016
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 4.349613292880948,
+   "rod_end_limit_over_c": 0.30547628357638257,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "6061-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 8.0,
+   "tension_capacity_n": 10101.6,
+   "sf_tension_static": 5.358299224312948,
+   "buckling": {
+    "euler_n": 14236.227400737042,
+    "johnson_n": 10493.380039350719,
+    "slenderness": 49.00009850053876,
+    "transition": 70.19722439881447,
+    "governing_n": 10493.380039350719,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 5.358299224312948,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.8029128496059,
+    "F2 0 to limit": 1.4898794366050372,
+    "F3 walking, reversed": 1.6816699468935614
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 6.842684326605393,
+   "rod_end_limit_over_c": 0.1896059691163754,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "6061-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 10.0,
+   "tension_capacity_n": 10101.6,
+   "sf_tension_static": 5.358299224312948,
+   "buckling": {
+    "euler_n": 34756.414552580674,
+    "johnson_n": 18297.096190867764,
+    "slenderness": 39.20007880043101,
+    "transition": 70.19722439881447,
+    "governing_n": 18297.096190867764,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 5.358299224312948,
+   "endurance_at_thread_mpa": 24.125,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.8029128496059,
+    "F2 0 to limit": 1.4898794366050372,
+    "F3 walking, reversed": 1.6816699468935614
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 6.842684326605393,
+   "rod_end_limit_over_c": 0.1896059691163754,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "7075-T6, cut threads",
+   "thread": "M5",
+   "body_mm": 5.0,
+   "tension_capacity_n": 7142.599999999999,
+   "sf_tension_static": 3.7887253543574944,
+   "buckling": {
+    "euler_n": 2260.5541758164313,
+    "johnson_n": -911.118851890137,
+    "slenderness": 78.40015760086202,
+    "transition": 53.044511694490936,
+    "governing_n": 2260.5541758164313,
+    "governs": "Euler"
+   },
+   "sf_compression_static": 1.1990898161474004,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.5132695240069653,
+    "F2 0 to limit": 0.9598370828998257,
+    "F3 walking, reversed": 1.0750231903780634
+   },
+   "rod_end_c0_kn": 3.4,
+   "sf_rod_end_c0_static": 1.8034981946091733,
+   "rod_end_limit_over_c": 0.4398858483499909,
+   "passes": false,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "7075-T6, cut threads",
+   "thread": "M6",
+   "body_mm": 6.0,
+   "tension_capacity_n": 10110.300000000001,
+   "sf_tension_static": 5.362914057928567,
+   "buckling": {
+    "euler_n": 4687.485138972952,
+    "johnson_n": 3434.489186187945,
+    "slenderness": 65.33346466738502,
+    "transition": 53.044511694490936,
+    "governing_n": 4687.485138972952,
+    "governs": "Euler"
+   },
+   "sf_compression_static": 2.4864326427632495,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 0.7265293966577467,
+    "F2 0 to limit": 1.3586426314286266,
+    "F3 walking, reversed": 1.5216877553943011
+   },
+   "rod_end_c0_kn": 8.2,
+   "sf_rod_end_c0_static": 4.349613292880948,
+   "rod_end_limit_over_c": 0.30547628357638257,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": false
+  },
+  {
+   "kind": "hind",
+   "material": "7075-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 8.0,
+   "tension_capacity_n": 18409.8,
+   "sf_tension_static": 9.765306195034105,
+   "buckling": {
+    "euler_n": 14814.767846630564,
+    "johnson_n": 14496.036919477607,
+    "slenderness": 49.00009850053876,
+    "transition": 53.044511694490936,
+    "governing_n": 14496.036919477607,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 7.68928718037229,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.3229341252573898,
+    "F2 0 to limit": 2.473946284093917,
+    "F3 walking, reversed": 2.77083442027022
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 6.842684326605393,
+   "rod_end_limit_over_c": 0.1896059691163754,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": true
+  },
+  {
+   "kind": "hind",
+   "material": "7075-T6, cut threads",
+   "thread": "M8",
+   "body_mm": 10.0,
+   "tension_capacity_n": 18409.8,
+   "sf_tension_static": 9.765306195034105,
+   "buckling": {
+    "euler_n": 36168.8668130629,
+    "johnson_n": 28718.0268622786,
+    "slenderness": 39.20007880043101,
+    "transition": 53.044511694490936,
+    "governing_n": 28718.0268622786,
+    "governs": "Johnson"
+   },
+   "sf_compression_static": 9.765306195034105,
+   "endurance_at_thread_mpa": 39.75,
+   "fatigue_n": {
+    "F1 reversed +-limit": 1.3229341252573898,
+    "F2 0 to limit": 2.473946284093917,
+    "F3 walking, reversed": 2.77083442027022
+   },
+   "rod_end_c0_kn": 12.9,
+   "sf_rod_end_c0_static": 6.842684326605393,
+   "rod_end_limit_over_c": 0.1896059691163754,
+   "passes": true,
+   "passes_fatigue_bound": false,
+   "passes_fatigue_walking": true
+  }
+ ],
+ "crank_pins": {
+  "fore": [
+   {
+    "pin_mm": 6.0,
+    "lever_mm": 6.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 889.011734572147,
+    "cantilever_sf_proof": 0.6524098360514167,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 0.4930740573654524,
+     "F2 0 to limit": 0.7127639179942833
+    },
+    "double_shear_mpa": 55.56323341075919,
+    "double_shear_sf_proof_x0.577": 6.023047606426678,
+    "clevis": [
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 5.498546945627484,
+      "bending_mpa": 259.29508925020957,
+      "shear_mpa": 55.56323341075919,
+      "combined_von_mises_mpa": 276.5786724070561,
+      "sf_proof_combined": 2.0970525129514757,
+      "plate_bearing_pressure_mpa": 65.458892209851,
+      "fatigue_n": {
+       "F1 reversed +-limit": 1.6905396252529794,
+       "F2 0 to limit": 2.4437620045518282
+      }
+     },
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 7.069560358663908,
+      "bending_mpa": 333.37940046455515,
+      "shear_mpa": 55.56323341075919,
+      "combined_von_mises_mpa": 346.99228143473414,
+      "sf_proof_combined": 1.671506921139087,
+      "plate_bearing_pressure_mpa": 65.458892209851,
+      "fatigue_n": {
+       "F1 reversed +-limit": 1.31486415297454,
+       "F2 0 to limit": 1.9007037813180891
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 6.0,
+    "lever_mm": 10.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 1481.6862242869117,
+    "cantilever_sf_proof": 0.39144590163085,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 0.2958444344192714,
+     "F2 0 to limit": 0.4276583507965699
+    },
+    "double_shear_mpa": 55.56323341075919,
+    "double_shear_sf_proof_x0.577": 6.023047606426678,
+    "clevis": [
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 5.498546945627484,
+      "bending_mpa": 259.29508925020957,
+      "shear_mpa": 55.56323341075919,
+      "combined_von_mises_mpa": 276.5786724070561,
+      "sf_proof_combined": 2.0970525129514757,
+      "plate_bearing_pressure_mpa": 65.458892209851,
+      "fatigue_n": {
+       "F1 reversed +-limit": 1.6905396252529794,
+       "F2 0 to limit": 2.4437620045518282
+      }
+     },
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 7.069560358663908,
+      "bending_mpa": 333.37940046455515,
+      "shear_mpa": 55.56323341075919,
+      "combined_von_mises_mpa": 346.99228143473414,
+      "sf_proof_combined": 1.671506921139087,
+      "plate_bearing_pressure_mpa": 65.458892209851,
+      "fatigue_n": {
+       "F1 reversed +-limit": 1.31486415297454,
+       "F2 0 to limit": 1.9007037813180891
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 8.0,
+    "lever_mm": 6.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 375.0518255226245,
+    "cantilever_sf_proof": 1.5464529447144693,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 1.1687681359773687,
+     "F2 0 to limit": 1.6895144722827458
+    },
+    "double_shear_mpa": 31.25431879355204,
+    "double_shear_sf_proof_x0.577": 10.707640189202984,
+    "clevis": [
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 6.284053652145696,
+      "bending_mpa": 125.01727517420817,
+      "shear_mpa": 31.25431879355204,
+      "combined_von_mises_mpa": 136.2344171702974,
+      "sf_proof_combined": 4.257367646495536,
+      "plate_bearing_pressure_mpa": 49.09416915738825,
+      "fatigue_n": {
+       "F1 reversed +-limit": 3.506304407932107,
+       "F2 0 to limit": 5.068543416848238
+      }
+     },
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 7.85506706518212,
+      "bending_mpa": 156.27159396776023,
+      "shear_mpa": 31.25431879355204,
+      "combined_von_mises_mpa": 165.382309848942,
+      "sf_proof_combined": 3.5070256336954317,
+      "plate_bearing_pressure_mpa": 49.09416915738825,
+      "fatigue_n": {
+       "F1 reversed +-limit": 2.8050435263456848,
+       "F2 0 to limit": 4.0548347334785895
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 8.0,
+    "lever_mm": 10.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 625.0863758710409,
+    "cantilever_sf_proof": 0.9278717668286814,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 0.7012608815864212,
+     "F2 0 to limit": 1.0137086833696474
+    },
+    "double_shear_mpa": 31.25431879355204,
+    "double_shear_sf_proof_x0.577": 10.707640189202984,
+    "clevis": [
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 6.284053652145696,
+      "bending_mpa": 125.01727517420817,
+      "shear_mpa": 31.25431879355204,
+      "combined_von_mises_mpa": 136.2344171702974,
+      "sf_proof_combined": 4.257367646495536,
+      "plate_bearing_pressure_mpa": 49.09416915738825,
+      "fatigue_n": {
+       "F1 reversed +-limit": 3.506304407932107,
+       "F2 0 to limit": 5.068543416848238
+      }
+     },
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 7.85506706518212,
+      "bending_mpa": 156.27159396776023,
+      "shear_mpa": 31.25431879355204,
+      "combined_von_mises_mpa": 165.382309848942,
+      "sf_proof_combined": 3.5070256336954317,
+      "plate_bearing_pressure_mpa": 49.09416915738825,
+      "fatigue_n": {
+       "F1 reversed +-limit": 2.8050435263456848,
+       "F2 0 to limit": 4.0548347334785895
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 10.0,
+    "lever_mm": 6.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 192.02653466758375,
+    "cantilever_sf_proof": 3.0204159076454475,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 2.2827502655807983,
+     "F2 0 to limit": 3.2998329536772375
+    },
+    "double_shear_mpa": 20.002764027873305,
+    "double_shear_sf_proof_x0.577": 16.730687795629663,
+    "clevis": [
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 7.069560358663908,
+      "bending_mpa": 72.0099505003439,
+      "shear_mpa": 20.002764027873305,
+      "combined_von_mises_mpa": 79.91097970445817,
+      "sf_proof_combined": 7.258076451384593,
+      "plate_bearing_pressure_mpa": 39.2753353259106,
+      "fatigue_n": {
+       "F1 reversed +-limit": 6.087334041548795,
+       "F2 0 to limit": 8.799554543139301
+      }
+     },
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 8.640573771700332,
+      "bending_mpa": 88.01216172264256,
+      "shear_mpa": 20.002764027873305,
+      "combined_von_mises_mpa": 94.58579342246347,
+      "sf_proof_combined": 6.131999098526926,
+      "plate_bearing_pressure_mpa": 39.2753353259106,
+      "fatigue_n": {
+       "F1 reversed +-limit": 4.980546033994468,
+       "F2 0 to limit": 7.199635535295791
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 10.0,
+    "lever_mm": 10.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 320.04422444597293,
+    "cantilever_sf_proof": 1.8122495445872686,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 1.369650159348479,
+     "F2 0 to limit": 1.9798997722063423
+    },
+    "double_shear_mpa": 20.002764027873305,
+    "double_shear_sf_proof_x0.577": 16.730687795629663,
+    "clevis": [
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 7.069560358663908,
+      "bending_mpa": 72.0099505003439,
+      "shear_mpa": 20.002764027873305,
+      "combined_von_mises_mpa": 79.91097970445817,
+      "sf_proof_combined": 7.258076451384593,
+      "plate_bearing_pressure_mpa": 39.2753353259106,
+      "fatigue_n": {
+       "F1 reversed +-limit": 6.087334041548795,
+       "F2 0 to limit": 8.799554543139301
+      }
+     },
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 8.640573771700332,
+      "bending_mpa": 88.01216172264256,
+      "shear_mpa": 20.002764027873305,
+      "combined_von_mises_mpa": 94.58579342246347,
+      "sf_proof_combined": 6.131999098526926,
+      "plate_bearing_pressure_mpa": 39.2753353259106,
+      "fatigue_n": {
+       "F1 reversed +-limit": 4.980546033994468,
+       "F2 0 to limit": 7.199635535295791
+      }
+     }
+    ]
+   }
+  ],
+  "hind": [
+   {
+    "pin_mm": 6.0,
+    "lever_mm": 6.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 533.4095783700794,
+    "cantilever_sf_proof": 1.0873445538272584,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 0.9861434232593276,
+     "F2 0 to limit": 1.4255210542250312
+    },
+    "double_shear_mpa": 33.338098648129964,
+    "double_shear_sf_proof_x0.577": 10.038364920933248,
+    "clevis": [
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 3.2991438626249323,
+      "bending_mpa": 155.57779369127317,
+      "shear_mpa": 33.338098648129964,
+      "combined_von_mises_mpa": 165.9479929202571,
+      "sf_proof_combined": 3.495070894160842,
+      "plate_bearing_pressure_mpa": 39.275522174106335,
+      "fatigue_n": {
+       "F1 reversed +-limit": 3.381063165460551,
+       "F2 0 to limit": 4.887500757342964
+      }
+     },
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 4.241756394803484,
+      "bending_mpa": 200.02859188877974,
+      "shear_mpa": 33.338098648129964,
+      "combined_von_mises_mpa": 208.1963593279799,
+      "sf_proof_combined": 2.785831615270002,
+      "plate_bearing_pressure_mpa": 39.275522174106335,
+      "fatigue_n": {
+       "F1 reversed +-limit": 2.6297157953582073,
+       "F2 0 to limit": 3.8013894779334176
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 6.0,
+    "lever_mm": 10.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 889.0159639501323,
+    "cantilever_sf_proof": 0.652406732296355,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 0.5916860539555965,
+     "F2 0 to limit": 0.8553126325350187
+    },
+    "double_shear_mpa": 33.338098648129964,
+    "double_shear_sf_proof_x0.577": 10.038364920933248,
+    "clevis": [
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 3.2991438626249323,
+      "bending_mpa": 155.57779369127317,
+      "shear_mpa": 33.338098648129964,
+      "combined_von_mises_mpa": 165.9479929202571,
+      "sf_proof_combined": 3.495070894160842,
+      "plate_bearing_pressure_mpa": 39.275522174106335,
+      "fatigue_n": {
+       "F1 reversed +-limit": 3.381063165460551,
+       "F2 0 to limit": 4.887500757342964
+      }
+     },
+     {
+      "ball_width_mm": 6.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 4.241756394803484,
+      "bending_mpa": 200.02859188877974,
+      "shear_mpa": 33.338098648129964,
+      "combined_von_mises_mpa": 208.1963593279799,
+      "sf_proof_combined": 2.785831615270002,
+      "plate_bearing_pressure_mpa": 39.275522174106335,
+      "fatigue_n": {
+       "F1 reversed +-limit": 2.6297157953582073,
+       "F2 0 to limit": 3.8013894779334176
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 8.0,
+    "lever_mm": 6.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 225.03216587487725,
+    "cantilever_sf_proof": 2.5774093127757234,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 2.3375251514295177,
+     "F2 0 to limit": 3.3790128692741486
+    },
+    "double_shear_mpa": 18.752680489573102,
+    "double_shear_sf_proof_x0.577": 17.84598208165911,
+    "clevis": [
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 3.7704501287142085,
+      "bending_mpa": 75.01072195829241,
+      "shear_mpa": 18.752680489573102,
+      "combined_von_mises_mpa": 81.741039174556,
+      "sf_proof_combined": 7.095578987703155,
+      "plate_bearing_pressure_mpa": 29.456641630579753,
+      "fatigue_n": {
+       "F1 reversed +-limit": 7.012575454288552,
+       "F2 0 to limit": 10.137038607822445
+      }
+     },
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 4.713062660892761,
+      "bending_mpa": 93.76340244786552,
+      "shear_mpa": 18.752680489573102,
+      "combined_von_mises_mpa": 99.22985798252681,
+      "sf_proof_combined": 5.845014915794105,
+      "plate_bearing_pressure_mpa": 29.456641630579753,
+      "fatigue_n": {
+       "F1 reversed +-limit": 5.610060363430842,
+       "F2 0 to limit": 8.109630886257955
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 8.0,
+    "lever_mm": 10.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 375.05360979146207,
+    "cantilever_sf_proof": 1.5464455876654342,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 1.4025150908577104,
+     "F2 0 to limit": 2.027407721564489
+    },
+    "double_shear_mpa": 18.752680489573102,
+    "double_shear_sf_proof_x0.577": 17.84598208165911,
+    "clevis": [
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 3.7704501287142085,
+      "bending_mpa": 75.01072195829241,
+      "shear_mpa": 18.752680489573102,
+      "combined_von_mises_mpa": 81.741039174556,
+      "sf_proof_combined": 7.095578987703155,
+      "plate_bearing_pressure_mpa": 29.456641630579753,
+      "fatigue_n": {
+       "F1 reversed +-limit": 7.012575454288552,
+       "F2 0 to limit": 10.137038607822445
+      }
+     },
+     {
+      "ball_width_mm": 8.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 4.713062660892761,
+      "bending_mpa": 93.76340244786552,
+      "shear_mpa": 18.752680489573102,
+      "combined_von_mises_mpa": 99.22985798252681,
+      "sf_proof_combined": 5.845014915794105,
+      "plate_bearing_pressure_mpa": 29.456641630579753,
+      "fatigue_n": {
+       "F1 reversed +-limit": 5.610060363430842,
+       "F2 0 to limit": 8.109630886257955
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 10.0,
+    "lever_mm": 6.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 115.21646892793716,
+    "cantilever_sf_proof": 5.0340025640150845,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 4.565478811385776,
+     "F2 0 to limit": 6.59963451030107
+    },
+    "double_shear_mpa": 12.001715513326786,
+    "double_shear_sf_proof_x0.577": 27.884347002592357,
+    "clevis": [
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 4.241756394803484,
+      "bending_mpa": 43.206175847976425,
+      "shear_mpa": 12.001715513326786,
+      "combined_von_mises_mpa": 47.946815923424445,
+      "sf_proof_combined": 12.096736536714227,
+      "plate_bearing_pressure_mpa": 23.565313304463803,
+      "fatigue_n": {
+       "F1 reversed +-limit": 12.174610163695403,
+       "F2 0 to limit": 17.599025360802855
+      }
+     },
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 5.184368926982037,
+      "bending_mpa": 52.807548258637866,
+      "shear_mpa": 12.001715513326786,
+      "combined_von_mises_mpa": 56.75174604253911,
+      "sf_proof_combined": 10.21994987722937,
+      "plate_bearing_pressure_mpa": 23.565313304463803,
+      "fatigue_n": {
+       "F1 reversed +-limit": 9.961044679387147,
+       "F2 0 to limit": 14.399202567929606
+      }
+     }
+    ]
+   },
+   {
+    "pin_mm": 10.0,
+    "lever_mm": 10.0,
+    "endurance_mpa": 306.844036107691,
+    "cantilever_bending_mpa": 192.02744821322858,
+    "cantilever_sf_proof": 3.0204015384090512,
+    "cantilever_fatigue_n": {
+     "F1 reversed +-limit": 2.7392872868314653,
+     "F2 0 to limit": 3.959780706180642
+    },
+    "double_shear_mpa": 12.001715513326786,
+    "double_shear_sf_proof_x0.577": 27.884347002592357,
+    "clevis": [
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 0.0,
+      "moment_nm": 4.241756394803484,
+      "bending_mpa": 43.206175847976425,
+      "shear_mpa": 12.001715513326786,
+      "combined_von_mises_mpa": 47.946815923424445,
+      "sf_proof_combined": 12.096736536714227,
+      "plate_bearing_pressure_mpa": 23.565313304463803,
+      "fatigue_n": {
+       "F1 reversed +-limit": 12.174610163695403,
+       "F2 0 to limit": 17.599025360802855
+      }
+     },
+     {
+      "ball_width_mm": 10.0,
+      "plate_mm": 4.0,
+      "gap_each_side_mm": 1.0,
+      "moment_nm": 5.184368926982037,
+      "bending_mpa": 52.807548258637866,
+      "shear_mpa": 12.001715513326786,
+      "combined_von_mises_mpa": 56.75174604253911,
+      "sf_proof_combined": 10.21994987722937,
+      "plate_bearing_pressure_mpa": 23.565313304463803,
+      "fatigue_n": {
+       "F1 reversed +-limit": 9.961044679387147,
+       "F2 0 to limit": 14.399202567929606
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "rod_end_sensitivity": {
+  "M8 at C0 7.9 kN, front static case": 2.5143006210020302
+ },
+ "x6_stall_sensitivity": {
+  "assumed_static_nm": 72.0,
+  "basis": "1.2 x peak_nm, the X4-36-L's stall_nm / peak_nm (36 / 30) in drives.json: an assumption, the X6-60 has none",
+  "force_n": 3770.4321912874175,
+  "class 8.8 M8 rod": {
+   "sf_tension_static": 5.630123795636192,
+   "sf_compression_static": 4.687022446113846,
+   "sf_rod_end_c0_static": 3.4213584399711174,
+   "passes": true
+  },
+  "rod_end_low_c0_sf": {
+   "M8": 2.095250517501692
+  },
+  "clevis_pin_8mm_sf_proof_combined": [
+   3.547806372079613,
+   2.9225213614128602
+  ]
+ }
+}
