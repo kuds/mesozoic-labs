@@ -548,8 +548,8 @@ class Integument(SkinBuilder):
             digit,
             spokes=12,
         )
-        # A recurved blade with a 55 mm end-to-end chord. Tip follows the existing
-        # site exactly; the independently moving prey collider runs along that chord.
+        # A recurved blade with a 55 mm end-to-end chord. Tip follows the end of the
+        # claw's mass capsule ({label}_toe_d2_ungual) exactly, which runs along that chord.
         blade = [
             (-1, 0, -2, 4.7, 7),
             (0, 0, 2, 5.5, 9),

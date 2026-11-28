@@ -26,7 +26,7 @@
     </default>
 
     <!-- Neck joints: long slender sphenosuchian neck.  Low stiffness keeps it
-         mobile for the snout-strike task while still resisting sag. -->
+         mobile while still resisting sag. -->
     <default class="neck_joint">
       <joint damping="0.5" armature="0.004" stiffness="1.5"/>
     </default>
@@ -3378,16 +3378,6 @@
     <geom name="floor" type="plane" size="50 50 0.1" material="grid_mat"
           conaffinity="1" contype="1"/>
 
-    <!-- Prey target (mocap body).  Small: this animal ate insects and small
-         vertebrates, not the sauropodlet-sized prey the theropods chase.  It
-         sits at 0.15m so the sphere's underside (0.09m) stays well clear of
-         the 0.04m snout-prop termination gate: a successful snap must never be
-         reported as the animal propping itself on its own snout. -->
-    <body name="prey" mocap="true" pos="3 0 0.15">
-      <geom name="prey_geom" type="sphere" size="0.06" rgba="0.8 0.35 0.2 0.8"
-            contype="2" conaffinity="2"/>
-    </body>
-
     <!-- ==================== DIBOTHROSUCHUS BODY ==================== -->
     <!--
     Coordinate system:
@@ -3489,14 +3479,9 @@
           <geom name="pupil_l" class="skin" type="ellipsoid" pos=".046 .0297 .013" size=".0033 .0011 .0043" material="dark_mat"/>
           <geom name="naris_l" class="skin" type="ellipsoid" pos=".148 .0091 -.001" size=".0044 .0013 .0023" material="dark_mat"/>
 
-          <!-- Snout tip site for proximity-based snap detection -->
+          <!-- Snout tip site: the snout-prop termination's height probe (the
+               env terminates when it drops within 0.04m of the floor). -->
           <site name="snout_tip" group="4" pos="0.16 0 -0.006" size="0.008"/>
-
-          <!-- Snap contact geom at the snout tip.  contype/conaffinity 2 puts
-               it on the prey's collision channel and off the floor's, so it
-               only ever registers prey contact. -->
-          <geom name="snout_snap" type="box" pos="0.147 0 -0.006" size="0.013 0.011 0.010"
-                mass="0.02" rgba="0 0 0 0" contype="2" conaffinity="2"/>
         </body>
       </body>
 
@@ -3738,7 +3723,7 @@
     <touch name="rr_foot_touch" site="rr_foot_contact"/>
     <touch name="rl_foot_touch" site="rl_foot_contact"/>
 
-    <!-- Snout tip position (for the snap task) -->
+    <!-- Snout tip position (diagnostic; the snout-prop termination reads the site) -->
     <framepos name="snout_tip_pos" objtype="site" objname="snout_tip"/>
 
     <!-- Tail tip for stability monitoring -->

@@ -1,9 +1,11 @@
-"""The command frame helpers and the command-slice reseed plumbing (BEHAVIOR_RECIPES_PLAN §4.6, WS-C0).
+"""The command frame helpers and the command-slice identity rule (BEHAVIOR_RECIPES_PLAN §4.6, WS-C0, D-D60).
 
 Invariant 8: normalised command values are O(1) from the first step after a
-command-mode load.  The plumbing under test is the Phase D hook — every
-committed stage runs ``command_mode = "none"`` — pinned so the reseed
-cannot be forgotten when a stage goes live.
+command-mode load.  Since decision D-D60 the slice's statistics are held at
+identity (mean 0, variance 1) in every stage, and a load applies one rule:
+statistics at identity load as they are; a slice off identity is refused
+where a live command would read it and re-imposed where the stage is
+``"none"``.
 """
 
 from __future__ import annotations
@@ -26,9 +28,12 @@ from environments.shared.command_frame import (
     COMMAND_SEGMENT_NAME,
     COMMAND_WIDTH,
     RETIRED_COMMAND_ENV_KEYS,
+    CommandNormalizationError,
+    command_identity_gap,
     command_slice,
+    hold_command_identity,
     pad_running_stats,
-    reseed_command_slice,
+    require_command_identity,
     validate_command_mode,
     zero_command,
 )
@@ -114,7 +119,7 @@ def test_command_slice_is_the_trailing_width():
         command_slice(2)
 
 
-def test_reseed_command_slice_sets_mean_zero_var_one_and_keeps_count():
+def test_hold_command_identity_sets_mean_zero_var_one_and_keeps_count():
     sb3_rms = pytest.importorskip("stable_baselines3.common.running_mean_std")
     rms = sb3_rms.RunningMeanStd(shape=(OBS_DIM,))
     rms.mean[:] = np.linspace(-1.0, 1.0, OBS_DIM)
@@ -124,24 +129,70 @@ def test_reseed_command_slice_sets_mean_zero_var_one_and_keeps_count():
     other_mean = rms.mean[:-COMMAND_WIDTH].copy()
     other_var = rms.var[:-COMMAND_WIDTH].copy()
 
-    assert reseed_command_slice(rms) is None
+    assert command_identity_gap(rms) == 1.0
+    assert hold_command_identity(rms) is True
     np.testing.assert_array_equal(rms.mean[-COMMAND_WIDTH:], 0.0)
     np.testing.assert_array_equal(rms.var[-COMMAND_WIDTH:], 1.0)
     assert rms.count == 8e6
     np.testing.assert_array_equal(rms.mean[:-COMMAND_WIDTH], other_mean)
     np.testing.assert_array_equal(rms.var[:-COMMAND_WIDTH], other_var)
+    # At identity: the gap is exactly 0, holding again changes nothing, and the check passes.
+    assert command_identity_gap(rms) == 0.0
+    assert hold_command_identity(rms) is False
+    require_command_identity(rms, artifact="held", command_mode="heading")
 
 
-def test_reseed_command_slice_refuses_a_dict_and_a_short_mean():
-    with pytest.raises(ValueError, match="not a dict"):
-        reseed_command_slice({"mean": np.zeros(5), "var": np.ones(5), "count": 1.0})
-    with pytest.raises(ValueError, match="fewer than"):
-        reseed_command_slice(SimpleNamespace(mean=np.zeros(2), var=np.ones(2), count=1.0))
-    with pytest.raises(ValueError, match="ndarray mean and var"):
-        reseed_command_slice(SimpleNamespace(mean=[0.0] * 5, var=[1.0] * 5, count=1.0))
+def test_the_identity_gap_and_the_requirement_name_what_is_off():
+    stats = SimpleNamespace(mean=np.zeros(OBS_DIM), var=np.ones(OBS_DIM), count=1.0)
+    stats.mean[-2] = -0.25
+    assert command_identity_gap(stats) == 0.25
+    with pytest.raises(CommandNormalizationError, match=r"parent\.pkl: .*not at identity.*'heading_and_speed'"):
+        require_command_identity(stats, artifact="parent.pkl", command_mode="heading_and_speed")
+    stats.mean[:] = 0.0
+    stats.var[-1] = 1.0 + 1e-12  # exact: no tolerance
+    assert command_identity_gap(stats) > 0.0
+    with pytest.raises(CommandNormalizationError):
+        require_command_identity(stats, artifact="parent.pkl", command_mode="heading")
+    stats.var[-1] = np.nan
+    assert np.isnan(command_identity_gap(stats))
+    with pytest.raises(CommandNormalizationError):
+        require_command_identity(stats, artifact="parent.pkl", command_mode="heading")
+    # A dim outside the slice is never read.
+    stats.var[-1] = 1.0
+    stats.mean[0] = 5.0
+    assert command_identity_gap(stats) == 0.0
 
 
-def test_pad_running_stats_appends_a_reseeded_slice_and_carries_count():
+def test_an_identity_slice_normalises_a_command_to_itself_in_float32():
+    """VecNormalize divides by sqrt(var + 1e-8): at var 1 that is a relative change of 5e-9, below float32's
+    half spacing everywhere, so the normalised command is the raw command bit for bit."""
+    sb3 = pytest.importorskip("stable_baselines3.common.vec_env")
+    normalizer = sb3.VecNormalize(sb3.DummyVecEnv([_dummy_env_class()]))
+    try:
+        normalizer.obs_rms.mean[:] = 0.3
+        normalizer.obs_rms.var[:] = 4.0
+        hold_command_identity(normalizer.obs_rms)
+        rng = np.random.default_rng(3042)
+        raw = rng.uniform(-1.0, 1.0, size=(20_000, OBS_DIM)).astype(np.float32)
+        raw[:4, -COMMAND_WIDTH:] = [[1.0, -1.0, 0.0], [1e-7, -1e-30, 0.5], [0.25, -0.5, 0.75], [-0.0, 1e-3, -1e-3]]
+        normalised = normalizer.normalize_obs(raw)
+        assert normalised.dtype == np.float32
+        np.testing.assert_array_equal(normalised[:, -COMMAND_WIDTH:], raw[:, -COMMAND_WIDTH:])
+    finally:
+        normalizer.close()
+
+
+def test_the_identity_helpers_refuse_a_dict_and_a_short_mean():
+    for helper in (hold_command_identity, command_identity_gap):
+        with pytest.raises(ValueError, match="not a dict"):
+            helper({"mean": np.zeros(5), "var": np.ones(5), "count": 1.0})
+        with pytest.raises(ValueError, match="fewer than"):
+            helper(SimpleNamespace(mean=np.zeros(2), var=np.ones(2), count=1.0))
+        with pytest.raises(ValueError, match="ndarray mean and var"):
+            helper(SimpleNamespace(mean=[0.0] * 5, var=[1.0] * 5, count=1.0))
+
+
+def test_pad_running_stats_appends_an_identity_slice_and_carries_count():
     sb3_rms = pytest.importorskip("stable_baselines3.common.running_mean_std")
     parent = sb3_rms.RunningMeanStd(shape=(OBS_DIM,))
     parent.mean[:] = np.linspace(-1.0, 1.0, OBS_DIM)
@@ -163,9 +214,10 @@ def test_pad_running_stats_appends_a_reseeded_slice_and_carries_count():
     # The parent is untouched: the widen tool must be able to keep it for lineage.
     np.testing.assert_array_equal(parent.mean, parent_mean)
     assert parent.mean.shape == (OBS_DIM,)
-    # Already reseeded: reseeding the padded slice again changes nothing.
+    # Born at identity: holding the padded slice changes nothing.
     before = (padded.mean.copy(), padded.var.copy())
-    reseed_command_slice(padded)
+    assert command_identity_gap(padded) == 0.0
+    assert hold_command_identity(padded) is False
     np.testing.assert_array_equal(padded.mean, before[0])
     np.testing.assert_array_equal(padded.var, before[1])
 
@@ -189,7 +241,54 @@ def test_validate_command_mode_refuses_an_unknown_backend(backend):
     assert not hasattr(command_frame, "MJX_COMMAND_REFUSAL")
 
 
-def test_load_vecnorm_stats_reseeds_command_slice_on_train_and_eval_envs(tmp_path):
+def _saved_vecnorm_at_identity(path):
+    """Save a VecNormalize as training saves it since D-D60: the command slice at identity, the rest learned."""
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    env_class = _dummy_env_class()
+    saved = VecNormalize(DummyVecEnv([env_class]))
+    saved.obs_rms.mean[:] = np.linspace(-0.5, 0.5, OBS_DIM)
+    saved.obs_rms.var[:] = 2.0
+    hold_command_identity(saved.obs_rms)
+    saved.obs_rms.count = 8e6
+    saved.save(str(path))
+    return env_class
+
+
+@pytest.mark.parametrize("command_mode", COMMAND_MODES)
+def test_load_vecnorm_stats_loads_identity_statistics_unchanged_for_every_mode(tmp_path, command_mode):
+    pytest.importorskip("stable_baselines3")
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.curriculum.checkpoints import load_vecnorm_stats
+
+    path = tmp_path / "parent_vecnorm.pkl"
+    env_class = _saved_vecnorm_at_identity(path)
+    train_env = VecNormalize(DummyVecEnv([env_class]))
+    eval_env = VecNormalize(DummyVecEnv([env_class]))
+    try:
+        assert load_vecnorm_stats(
+            str(path), train_env, eval_env, unsafe_skip_plant_validation=True, command_mode=command_mode
+        )
+        for destination in (train_env, eval_env):
+            assert destination.obs_rms.count == 8e6
+            np.testing.assert_array_equal(
+                destination.obs_rms.mean[:-COMMAND_WIDTH], np.linspace(-0.5, 0.5, OBS_DIM)[:-3]
+            )
+            np.testing.assert_array_equal(destination.obs_rms.var[:-COMMAND_WIDTH], 2.0)
+            assert command_identity_gap(destination.obs_rms) == 0.0
+            # A live command of 1.0 enters the policy as 1.0.
+            np.testing.assert_array_equal(_live_command_normalised(destination), 1.0)
+        assert eval_env.training is False and eval_env.norm_reward is False
+        assert train_env.obs_rms is not eval_env.obs_rms
+    finally:
+        train_env.close()
+        eval_env.close()
+
+
+def test_load_vecnorm_stats_reimposes_identity_for_a_none_stage_and_says_so(tmp_path, caplog):
+    """A sidecar saved before D-D60 (the dead slice of a command-free stage): a "none" stage re-imposes identity
+    on BOTH destinations, count and every other statistic kept, and logs the file and the deviation."""
     pytest.importorskip("stable_baselines3")
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
@@ -197,54 +296,72 @@ def test_load_vecnorm_stats_reseeds_command_slice_on_train_and_eval_envs(tmp_pat
 
     path = tmp_path / "parent_vecnorm.pkl"
     env_class = _saved_vecnorm_with_dead_command_slice(path)
-
-    for reseed in (False, True):
-        train_env = VecNormalize(DummyVecEnv([env_class]))
-        eval_env = VecNormalize(DummyVecEnv([env_class]))
-        assert load_vecnorm_stats(
-            str(path),
-            train_env,
-            eval_env,
-            unsafe_skip_plant_validation=True,
-            reseed_command_slice=reseed,
-        )
+    train_env = VecNormalize(DummyVecEnv([env_class]))
+    eval_env = VecNormalize(DummyVecEnv([env_class]))
+    try:
+        with caplog.at_level("WARNING"):
+            assert load_vecnorm_stats(
+                str(path), train_env, eval_env, unsafe_skip_plant_validation=True, command_mode="none"
+            )
+        assert f"{path}: the command slice of its observation statistics was off identity" in caplog.text
+        assert "identity re-imposed for this command-free stage" in caplog.text
         for destination in (train_env, eval_env):
             assert destination.obs_rms.count == 8e6
             np.testing.assert_array_equal(destination.obs_rms.var[:-COMMAND_WIDTH], 2.0)
-            normalised = _live_command_normalised(destination)
-            if reseed:
-                # Invariant 8: a live command of 1.0 stays O(1) on both destinations.
-                np.testing.assert_array_equal(destination.obs_rms.mean[-COMMAND_WIDTH:], 0.0)
-                np.testing.assert_array_equal(destination.obs_rms.var[-COMMAND_WIDTH:], 1.0)
-                assert np.all(np.abs(normalised) <= 1.5)
-            else:
-                # The default leaves the parent's dead slice in place and clips at clip_obs.
-                np.testing.assert_array_equal(destination.obs_rms.var[-COMMAND_WIDTH:], 1e-11)
-                assert np.all(np.abs(normalised) >= train_env.clip_obs)
-        assert eval_env.training is False and eval_env.norm_reward is False
-        # The two destinations hold independent statistics (copy semantics
-        # kept): the eval copy is taken before the train reseed, so each
-        # destination is reseeded on its own line — dropping either one
-        # leaves that destination at var 1e-11 and fails above.
+            assert command_identity_gap(destination.obs_rms) == 0.0
+            # The zero command a "none" stage emits normalises to zero under either statistics.
+            assert not np.any(destination.normalize_obs(np.zeros(OBS_DIM, dtype=np.float32))[-COMMAND_WIDTH:])
         assert train_env.obs_rms is not eval_env.obs_rms
+    finally:
+        train_env.close()
+        eval_env.close()
 
 
-@pytest.mark.parametrize(
-    "task_load_mode,command_mode,expect_reseed",
-    [
-        ("initialize_next_stage", "none", False),
-        ("initialize_next_stage", "heading", True),
-        ("initialize_next_stage", "heading_and_speed", True),
-        # A same-stage resume continues the SAME task: the parent's sidecar
-        # already holds the command-slice statistics the policy trained under
-        # (the carry_ret_rms reasoning), so a live mode must NOT reseed it.
-        ("resume_same_stage", "heading", False),
-        ("resume_same_stage", "none", False),
-    ],
-)
-def test_load_vecnorm_into_envs_derives_reseed_from_command_mode(
-    monkeypatch, task_load_mode, command_mode, expect_reseed
-):
+@pytest.mark.parametrize("command_mode", ["heading", "heading_and_speed"])
+@pytest.mark.parametrize("carry_ret_rms", [False, True])
+def test_load_vecnorm_stats_refuses_a_slice_off_identity_for_a_live_stage(tmp_path, command_mode, carry_ret_rms):
+    """Fail closed before either destination changes, on a warm start and a same-stage resume alike."""
+    pytest.importorskip("stable_baselines3")
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.curriculum.checkpoints import load_vecnorm_stats
+
+    path = tmp_path / "parent_vecnorm.pkl"
+    env_class = _saved_vecnorm_with_dead_command_slice(path)
+    train_env = VecNormalize(DummyVecEnv([env_class]))
+    eval_env = VecNormalize(DummyVecEnv([env_class]))
+    try:
+        before = (train_env.obs_rms, eval_env.obs_rms, train_env.ret_rms)
+        with pytest.raises(CommandNormalizationError, match=rf"parent_vecnorm\.pkl.*not at identity.*{command_mode!r}"):
+            load_vecnorm_stats(
+                str(path),
+                train_env,
+                eval_env,
+                unsafe_skip_plant_validation=True,
+                carry_ret_rms=carry_ret_rms,
+                command_mode=command_mode,
+            )
+        assert (train_env.obs_rms, eval_env.obs_rms, train_env.ret_rms) == before
+        assert eval_env.training is True, "nothing changed"
+    finally:
+        train_env.close()
+        eval_env.close()
+
+
+def test_load_vecnorm_stats_needs_a_known_command_mode(tmp_path):
+    from environments.shared.curriculum.checkpoints import load_vecnorm_stats
+
+    with pytest.raises(TypeError, match="command_mode"):
+        load_vecnorm_stats(str(tmp_path / "x.pkl"), object(), unsafe_skip_plant_validation=True)  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="command_mode='walk'"):
+        load_vecnorm_stats(str(tmp_path / "x.pkl"), object(), unsafe_skip_plant_validation=True, command_mode="walk")
+
+
+@pytest.mark.parametrize("task_load_mode", ["initialize_next_stage", "resume_same_stage"])
+@pytest.mark.parametrize("command_mode", COMMAND_MODES)
+def test_load_vecnorm_into_envs_passes_the_stage_command_mode_on_every_load(monkeypatch, task_load_mode, command_mode):
+    """The identity rule (D-D60) lives in load_vecnorm_stats; train_base passes it the stage's mode on every load
+    mode, a same-stage resume included (its own saves were held at identity)."""
     # train_base imports load_vecnorm_stats from the curriculum package INSIDE
     # the function body, so the package attribute is the one to patch (A7).
     import environments.shared.curriculum as curriculum
@@ -272,28 +389,35 @@ def test_load_vecnorm_into_envs_derives_reseed_from_command_mode(
         assert captured["kwargs"]["carry_ret_rms"] is True
     else:
         assert "carry_ret_rms" not in captured["kwargs"]
-    if expect_reseed:
-        assert captured["kwargs"]["reseed_command_slice"] is True
-    else:
-        assert "reseed_command_slice" not in captured["kwargs"]
+    assert captured["kwargs"]["command_mode"] == command_mode
+    assert "reseed_command_slice" not in captured["kwargs"]
 
 
-def test_load_vecnorm_into_envs_defaults_to_no_reseed(monkeypatch):
+def test_the_train_base_loaders_require_the_stage_command_mode(monkeypatch):
+    """No default: a caller that left it out would load a live stage's statistics under the "none" branch, which
+    re-imposes an off-identity slice instead of refusing it (the same rule as load_vecnorm_stats)."""
+    import inspect
+
     import environments.shared.curriculum as curriculum
     from environments.shared import train_base
+
+    for helper in (train_base._load_vecnorm_into_envs, train_base._post_training_eval_panels):
+        parameter = inspect.signature(helper).parameters["command_mode"]
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY, helper.__name__
+        assert parameter.default is inspect.Parameter.empty, helper.__name__
 
     captured: dict = {}
     monkeypatch.setattr(
         curriculum, "load_vecnorm_stats", lambda path, train_env, eval_env, **kwargs: captured.update(kwargs) or True
     )
-    train_base._load_vecnorm_into_envs(
-        "runs/parent/models/best_model", object(), SimpleNamespace(), task_load_mode="resume_same_stage"
-    )
-    assert captured.get("carry_ret_rms") is True
-    assert "reseed_command_slice" not in captured
+    with pytest.raises(TypeError, match="command_mode"):
+        train_base._load_vecnorm_into_envs(  # type: ignore[call-arg]
+            "runs/parent/models/best_model", object(), SimpleNamespace(), task_load_mode="resume_same_stage"
+        )
+    assert not captured, "nothing loads without the mode"
 
 
-def test_load_sb3_checkpoint_reseed_flag(tmp_path):
+def test_load_sb3_checkpoint_hold_command_identity_flag(tmp_path):
     sb3 = pytest.importorskip("stable_baselines3")
     from stable_baselines3.common.vec_env import DummyVecEnv
 
@@ -319,17 +443,17 @@ def test_load_sb3_checkpoint_reseed_flag(tmp_path):
     np.testing.assert_array_equal(normalizer.obs_rms.var[-COMMAND_WIDTH:], 1e-11)
     assert np.all(np.abs(_live_command_normalised(normalizer)) >= normalizer.clip_obs)
 
-    _, reseeded, _ = load_sb3_checkpoint(str(model_path), str(vecnorm_path), env_class, reseed_command_slice=True)
-    np.testing.assert_array_equal(reseeded.obs_rms.mean[-COMMAND_WIDTH:], 0.0)
-    np.testing.assert_array_equal(reseeded.obs_rms.var[-COMMAND_WIDTH:], 1.0)
-    np.testing.assert_array_equal(reseeded.obs_rms.var[:-COMMAND_WIDTH], 2.0)
-    assert reseeded.obs_rms.count == 8e6
-    assert reseeded.training is False and reseeded.norm_reward is False
-    assert np.all(np.abs(_live_command_normalised(reseeded)) <= 1.5)
+    _, held, _ = load_sb3_checkpoint(str(model_path), str(vecnorm_path), env_class, hold_command_identity=True)
+    np.testing.assert_array_equal(held.obs_rms.mean[-COMMAND_WIDTH:], 0.0)
+    np.testing.assert_array_equal(held.obs_rms.var[-COMMAND_WIDTH:], 1.0)
+    np.testing.assert_array_equal(held.obs_rms.var[:-COMMAND_WIDTH], 2.0)
+    assert held.obs_rms.count == 8e6
+    assert held.training is False and held.norm_reward is False
+    assert np.all(np.abs(_live_command_normalised(held)) <= 1.5)
 
 
 def test_module_imports_without_stable_baselines3(monkeypatch):
-    """A3: numpy-only at module level, and reseed works on any mean/var-bearing object."""
+    """A3: numpy-only at module level, and the identity hold works on any mean/var-bearing object."""
     monkeypatch.setitem(sys.modules, "stable_baselines3", None)
     monkeypatch.setitem(sys.modules, "torch", None)
     monkeypatch.setitem(sys.modules, "jax", None)
@@ -338,7 +462,7 @@ def test_module_imports_without_stable_baselines3(monkeypatch):
         fresh = importlib.import_module("environments.shared.command_frame")
         assert fresh is not command_frame
         stats = SimpleNamespace(mean=np.linspace(-1.0, 1.0, 8), var=np.full(8, 1e-11), count=8e6)
-        fresh.reseed_command_slice(stats)
+        assert fresh.hold_command_identity(stats) is True
         np.testing.assert_array_equal(stats.mean[-3:], 0.0)
         np.testing.assert_array_equal(stats.var[-3:], 1.0)
         np.testing.assert_array_equal(stats.var[:-3], 1e-11)

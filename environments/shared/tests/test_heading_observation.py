@@ -1,12 +1,14 @@
-"""The heading-free frame helpers (``bipedal-target-heading-free/v1``; docs/HEADING_INVARIANCE_DESIGN_2026_10.md).
+"""The heading-free frame helpers (``bipedal-heading-free/v1`` and ``quadrupedal-heading-free/v1``;
+docs/HEADING_INVARIANCE_DESIGN_2026_10.md).
 
 Pure frame algebra, no environment: the helpers build ``R`` from the free
 root's quaternion, and these tests pin that ``R`` is MuJoCo's, that a global
-yaw leaves all three outputs unchanged to the design's float32 budget
-(2e-6), including across the yaw wrap, for ``q`` and ``-q`` and at the
-vertical-pelvis fallback, that an invalid quaternion is a state error, and
-that tilt and target bearing stay visible.  Part of the module is ported
-from the design study's ``docs/investigations/heading_2026_10/test_prototype.py``.
+yaw leaves both outputs unchanged to the design's float32 budget (2e-6),
+including across the yaw wrap, for ``q`` and ``-q`` and at the vertical-root
+fallback, that an invalid quaternion is a state error, and that tilt stays
+visible.  (The target bearing the helpers also returned left with every
+scene's target.)  Part of the module is ported from the design study's
+``docs/investigations/heading_2026_10/test_prototype.py``.
 """
 
 from __future__ import annotations
@@ -54,13 +56,12 @@ def _euler(roll: float, pitch: float, yaw: float) -> np.ndarray:
     return quaternion
 
 
-def _turned(qpos: np.ndarray, velocity: np.ndarray, direction: np.ndarray, yaw_rad: float):
+def _turned(qpos: np.ndarray, velocity: np.ndarray, yaw_rad: float):
     """The same state with the whole scene turned by *yaw_rad* about world vertical."""
     turn = _yaw_quaternion(yaw_rad)
     turned_qpos = qpos.copy()
     mujoco.mju_mulQuat(turned_qpos[3:7], turn, qpos[3:7])
-    world = body_to_world(turn)
-    return turned_qpos, world @ velocity, world @ direction
+    return turned_qpos, body_to_world(turn) @ velocity
 
 
 def _as_float32(segments) -> np.ndarray:
@@ -82,19 +83,16 @@ def test_body_to_world_matches_mujoco():
 def test_root_quaternion_normalizes_and_ignores_sign():
     rng = np.random.default_rng(3042)
     velocity = np.array([0.3, -0.7, 0.2])
-    direction = np.array([0.6, 0.0, -0.8])
     for _ in range(50):
         quaternion = rng.normal(size=4)
         unit = quaternion / np.linalg.norm(quaternion)
         np.testing.assert_allclose(root_quaternion(_qpos(3.7 * quaternion)), unit, atol=1e-15)
-        reference = _as_float32(heading_free_root_segments(_qpos(unit), velocity, direction))
+        reference = _as_float32(heading_free_root_segments(_qpos(unit), velocity))
         for scaled in (3.7 * quaternion, -unit, -0.02 * quaternion):
             np.testing.assert_allclose(
-                _as_float32(heading_free_root_segments(_qpos(scaled), velocity, direction)), reference, atol=1e-7
+                _as_float32(heading_free_root_segments(_qpos(scaled), velocity)), reference, atol=1e-7
             )
-        np.testing.assert_array_equal(
-            _as_float32(heading_free_root_segments(_qpos(-unit), velocity, direction)), reference
-        )
+        np.testing.assert_array_equal(_as_float32(heading_free_root_segments(_qpos(-unit), velocity)), reference)
 
 
 @pytest.mark.parametrize(
@@ -113,7 +111,7 @@ def test_invalid_root_quaternion_is_a_state_error(qpos):
     with pytest.raises(ObservationStateError, match=r"qpos\[3:7\]"):
         root_quaternion(qpos)
     with pytest.raises(ObservationStateError):
-        heading_free_root_segments(qpos, np.zeros(3), np.array([1.0, 0.0, 0.0]))
+        heading_free_root_segments(qpos, np.zeros(3))
     assert issubclass(ObservationStateError, ValueError)
 
 
@@ -155,10 +153,8 @@ def test_global_yaw_leaves_segments_invariant(yaw_deg):
             quaternion = -quaternion
         qpos = _qpos(quaternion)
         velocity = rng.normal(scale=0.7, size=3)
-        direction = rng.normal(size=3)
-        direction /= np.linalg.norm(direction)
-        before = _as_float32(heading_free_root_segments(qpos, velocity, direction))
-        after = _as_float32(heading_free_root_segments(*_turned(qpos, velocity, direction, math.radians(yaw_deg))))
+        before = _as_float32(heading_free_root_segments(qpos, velocity))
+        after = _as_float32(heading_free_root_segments(*_turned(qpos, velocity, math.radians(yaw_deg))))
         worst = max(worst, float(np.max(np.abs(after - before))))
     assert worst <= FLOAT32_BUDGET
 
@@ -169,9 +165,8 @@ def test_vertical_pelvis_x_fallback_is_finite_and_scene_covariant(pitch, yaw):
     # Pelvis X vertical (or within 1e-7 rad of it): the heading forward axis falls back to pelvis Y.
     qpos = _qpos(_euler(0.0, pitch, 0.2))
     velocity = np.array([0.2, -0.4, 0.3])
-    direction = np.array([0.6, 0.8, 0.0])
-    before = heading_free_root_segments(qpos, velocity, direction)
-    after = heading_free_root_segments(*_turned(qpos, velocity, direction, yaw))
+    before = heading_free_root_segments(qpos, velocity)
+    after = heading_free_root_segments(*_turned(qpos, velocity, yaw))
     assert all(np.all(np.isfinite(segment)) for segment in (*before, *after))
     heading = world_to_heading(body_to_world(root_quaternion(qpos)))
     np.testing.assert_allclose(heading @ heading.T, np.eye(3), atol=1e-12)
@@ -185,24 +180,23 @@ def test_vertical_fallback_uses_pelvis_y_turned_clockwise():
     np.testing.assert_allclose(world_to_heading(rotation)[0], [0.0, 1.0, 0.0], atol=1e-15)
 
 
-def test_tilt_and_bearing_changes_stay_distinguishable():
+def test_tilt_changes_stay_distinguishable():
     velocity = np.array([0.1, 0.0, 0.0])
-    direction = np.array([1.0, 0.0, 0.0])
-    upright = _as_float32(heading_free_root_segments(_qpos(_euler(0.0, 0.0, 0.0)), velocity, direction))
-    pitched = _as_float32(heading_free_root_segments(_qpos(_euler(0.0, 0.2, 0.0)), velocity, direction))
-    rolled = _as_float32(heading_free_root_segments(_qpos(_euler(0.2, 0.0, 0.0)), velocity, direction))
+    upright = _as_float32(heading_free_root_segments(_qpos(_euler(0.0, 0.0, 0.0)), velocity))
+    pitched = _as_float32(heading_free_root_segments(_qpos(_euler(0.0, 0.2, 0.0)), velocity))
+    rolled = _as_float32(heading_free_root_segments(_qpos(_euler(0.2, 0.0, 0.0)), velocity))
     assert np.max(np.abs(pitched[0:3] - upright[0:3])) > 0.15
     assert np.max(np.abs(rolled[0:3] - upright[0:3])) > 0.15
     assert np.max(np.abs(rolled[0:3] - pitched[0:3])) > 0.15
-    # The animal turned alone, the target left behind: gravity and heading velocity's magnitude stay, the
-    # target's bearing in the pelvis frame turns by the same angle the other way.
+    # The animal turned alone, its velocity turned with it: gravity and the heading velocity stay.  Nothing in
+    # the two segments sees the world heading.
     turned = _as_float32(
         heading_free_root_segments(
-            _qpos(_yaw_quaternion(math.pi / 2)), body_to_world(_yaw_quaternion(math.pi / 2)) @ velocity, direction
+            _qpos(_yaw_quaternion(math.pi / 2)), body_to_world(_yaw_quaternion(math.pi / 2)) @ velocity
         )
     )
-    np.testing.assert_allclose(turned[0:6], upright[0:6], atol=1e-7)
-    np.testing.assert_allclose(turned[6:9], [0.0, -1.0, 0.0], atol=1e-7)
+    assert turned.shape == (6,)
+    np.testing.assert_allclose(turned, upright, atol=1e-7)
 
 
 def test_every_module_function_is_fingerprinted_and_reads_no_module_constant():

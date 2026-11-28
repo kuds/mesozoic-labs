@@ -1,5 +1,8 @@
 """Tests for the training visualization utilities."""
 
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -140,11 +143,12 @@ class TestPlotDiagnosticsGraphs:
         )
 
         assert (tmp_path / "behavioral_metrics.png").exists()
-        # No hunting data → distance traveled across the top row, heading and drift below (3 axes)
+        # Distance traveled across the top row, heading and drift below (3 axes)
         assert fig2.axes[0] is not None
         assert len(fig2.axes) == 3
 
-    def test_adds_hunting_row_with_hunting_data(self, tmp_path):
+    def test_adds_no_row_with_prey_data(self, tmp_path):
+        """The hunt's third row (prey distance, strike / bite success) left with the hunt (decision D-D59)."""
         matplotlib.use("Agg")
 
         from environments.shared.visualization import plot_diagnostics_graphs
@@ -161,10 +165,10 @@ class TestPlotDiagnosticsGraphs:
             strike_success=np.array([0.0, 0.1]),
         )
 
-        stage_configs = {3: {"name": "Hunting"}}
+        stage_configs = {2: {"name": "Locomotion"}}
 
         fig1, fig2 = plot_diagnostics_graphs(
-            [(3, tmp_path)],
+            [(2, tmp_path)],
             stage_configs,
             model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
@@ -173,13 +177,135 @@ class TestPlotDiagnosticsGraphs:
         )
 
         assert (tmp_path / "behavioral_metrics.png").exists()
-        # Hunting data present → a third row for prey distance and success rate (5 axes)
-        assert len(fig2.axes) == 5
+        # The hunt's prey-distance and strike-success row left with the hunt (decision D-D59)
+        assert len(fig2.axes) == 3
+
+    def test_the_reward_decomposition_shows_a_live_stages_stand_block_terms(self, tmp_path):
+        """A term the walk's ``[env]`` leaves at 0 is paid on its stand episodes when the stand block names its
+        weight (decision D-D62), so the decomposition draws it; a term neither pays stays hidden."""
+        matplotlib.use("Agg")
+
+        from environments.shared.direction_commands import DirectionCommandConfig
+        from environments.shared.visualization import plot_diagnostics_graphs
+
+        np.savez(
+            str(tmp_path / "diagnostics.npz"),
+            timesteps=np.array([50000, 100000]),
+            reward_energy=np.array([-0.1, -0.2]),
+            reward_tail_home_pose=np.array([0.02, 0.03]),
+            reward_neck_home_pose=np.array([0.01, 0.01]),
+        )
+        command = DirectionCommandConfig(stop_probability=0.15, stand_weights={"tail_home_pose_weight": 0.25})
+        env_kwargs = {"energy_penalty_weight": 0.03, "tail_home_pose_weight": 0.0, "neck_home_pose_weight": 0.0}
+
+        def drawn(**extra: Any) -> set[str]:
+            stage_configs: dict[int | str, dict[str, Any]] = {
+                2: {"name": "Locomotion", "env_kwargs": {**env_kwargs, **extra}}
+            }
+            fig1, _ = plot_diagnostics_graphs(
+                [(2, tmp_path)],
+                stage_configs,
+                model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+                algorithm="ppo",
+                save_dir=tmp_path,
+                show=False,
+            )
+            return {line.get_label() for line in _panels(fig1)["Reward Decomposition"].get_lines()}
+
+        live = drawn(command_mode="heading_and_speed", command_config=command)
+        assert {"S2 energy", "S2 tail_home_pose"} <= live and "S2 neck_home_pose" not in live
+        assert "S2 tail_home_pose" not in drawn(), "without a stand block a zero-weight term stays hidden"
+
+    def test_the_reward_decomposition_draws_a_live_stages_tracking_term(self, tmp_path):
+        """The walk's dominant term, ``reward_tracking`` (a ``COMMAND_TRACKING_KEYS`` series of diagnostics.npz), is
+        drawn on a live stage whose command config pays it (``tracking_weight`` above 0); a command-free stage draws
+        exactly the lines, in exactly the colours, it drew before."""
+        matplotlib.use("Agg")
+
+        from environments.shared.direction_commands import DirectionCommandConfig
+        from environments.shared.visualization import plot_diagnostics_graphs
+
+        def drawn(directory: Path, **env: Any) -> dict[str, Any]:
+            stage_configs: dict[int | str, dict[str, Any]] = {
+                2: {"name": "Locomotion", "env_kwargs": {"energy_penalty_weight": 0.03, **env}}
+            }
+            fig1, _ = plot_diagnostics_graphs(
+                [(2, directory)],
+                stage_configs,
+                model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+                algorithm="ppo",
+                save_dir=directory,
+                show=False,
+            )
+            return {line.get_label(): line.get_color() for line in _panels(fig1)["Reward Decomposition"].get_lines()}
+
+        series = {"timesteps": np.array([50000, 100000]), "reward_energy": np.array([-0.1, -0.2])}
+        free = tmp_path / "free"
+        free.mkdir()
+        np.savez(str(free / "diagnostics.npz"), **series)
+        live = tmp_path / "live"
+        live.mkdir()
+        np.savez(str(live / "diagnostics.npz"), **series, reward_tracking=np.array([1.2, 1.8]))
+        command = DirectionCommandConfig(stop_probability=0.15, tracking_weight=2.5)
+        walk = drawn(live, command_mode="heading_and_speed", command_config=command)
+        assert set(walk) == {"S2 energy", "S2 tracking"}
+        # A recorded command config (stage_config.json's record) counts the same way.
+        recorded = drawn(live, command_mode="heading_and_speed", command_config=command.field_record())
+        assert recorded == walk
+        stance = drawn(free)
+        assert stance == {"S2 energy": walk["S2 energy"]}, "a command-free stage draws what it drew, in its colour"
+        # A tracking series beside a command-free config is never drawn as a decomposition term.
+        assert "S2 tracking" not in drawn(live)
+
+    def test_the_tracking_term_shares_no_colour_with_the_terms_its_tab10_index_wraps_onto(self, tmp_path):
+        """``reward_tracking`` sits at a tab10 index that wraps onto ``reward_tail``, ``reward_height`` and
+        ``reward_stance_width``; at one stage's line style it would be told from them by the legend order alone.  It
+        is drawn in its own colour (no tab10 colour) and a heavier line; the other terms keep theirs."""
+        matplotlib.use("Agg")
+        from matplotlib.colors import to_rgba
+
+        from environments.shared.direction_commands import DirectionCommandConfig
+        from environments.shared.visualization import plot_diagnostics_graphs
+
+        sharing = {
+            "reward_tail": "tail_stability_weight",
+            "reward_height": "height_weight",
+            "reward_stance_width": "stance_width_weight",
+        }
+        series = {"timesteps": np.array([50000, 100000]), "reward_tracking": np.array([1.2, 1.8])}
+        series.update({key: np.array([0.1, 0.2]) for key in sharing})
+        np.savez(str(tmp_path / "diagnostics.npz"), **series)
+        env = {weight: 0.5 for weight in sharing.values()}
+        command = DirectionCommandConfig(stop_probability=0.15, tracking_weight=2.5)
+        stage_configs: dict[int | str, dict[str, Any]] = {
+            2: {
+                "name": "Locomotion",
+                "env_kwargs": {**env, "command_mode": "heading_and_speed", "command_config": command},
+            }
+        }
+        fig1, _ = plot_diagnostics_graphs(
+            [(2, tmp_path)],
+            stage_configs,
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            algorithm="ppo",
+            save_dir=tmp_path,
+            show=False,
+        )
+        lines = {line.get_label(): line for line in _panels(fig1)["Reward Decomposition"].get_lines()}
+        assert set(lines) == {"S2 tracking", "S2 tail", "S2 height", "S2 stance_width"}
+        tracking = lines.pop("S2 tracking")
+        assert to_rgba(tracking.get_color()) == to_rgba("black")
+        others = {label: to_rgba(line.get_color()) for label, line in lines.items()}
+        assert len(set(others.values())) == 1, "the three wrapped terms keep their one shared tab10 colour"
+        assert to_rgba("black") not in others.values()
+        assert all(tracking.get_linestyle() == line.get_linestyle() for line in lines.values())
+        assert all(tracking.get_linewidth() > line.get_linewidth() for line in lines.values())
 
     def test_every_panel_is_drawn_and_none_measures_transport_cost_or_gait(self, tmp_path):
         """Every panel draws from a full diagnostics.npz and a row's lone panel spans it.
 
-        No panel claims a cost of transport or a gait symmetry. The two deleted panels drew
+        A file that still holds a finite prey distance and strike success adds no row: the hunt's
+        row left with the hunt (decision D-D59). No panel claims a cost of transport or a gait symmetry. The two deleted panels drew
         rollout means that measure neither: |reward_energy| (an action penalty) over forward
         speed floored at 0.01 m/s, and the left/right contact-force balance with its mean
         labelled a stride frequency (an in-phase hop scored 1.0).
@@ -224,8 +350,6 @@ class TestPlotDiagnosticsGraphs:
             "Heading Alignment",
             "Distance Traveled (path length)",
             "Drift Distance (displacement from spawn)",
-            "Prey Distance",
-            "Strike Success Rate",
         }
         for title, ax in {**health, **behavior}.items():
             assert _drawn(ax), f"{title} panel is empty"
@@ -239,17 +363,17 @@ class TestPlotDiagnosticsGraphs:
     @pytest.mark.parametrize(
         ("recorded", "blank", "n_axes"),
         [
-            # Allosaurus: no heading alignment and no prey, so no hunting row.
+            # Allosaurus: no heading alignment.
             ({}, "Heading Alignment", 3),
-            # Dibothrosuchus locomotion: a prey distance but no strike.
-            ({"heading_alignment": [0.98, 0.99, 0.97], "prey_distance": [7.2, 7.7, 7.3]}, "Strike Success Rate", 5),
+            # A pre-D-D59 file with a finite prey distance: no hunting row (it left with the hunt), nothing blank.
+            ({"heading_alignment": [0.98, 0.99, 0.97], "prey_distance": [7.2, 7.7, 7.3]}, None, 3),
         ],
     )
     def test_all_nan_series_add_no_row_and_say_no_data(self, tmp_path, recorded, blank, n_axes):
         """A real diagnostics.npz holds every info key, all-NaN where the env never emits it.
 
-        Key presence must not add the hunting row, the full-width top row is the distance every
-        species records, and a panel no stage recorded says so instead of drawing blank.
+        Key presence adds no row, the full-width top row is the distance every species records, and
+        a panel no stage recorded says so instead of drawing blank.
         """
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt

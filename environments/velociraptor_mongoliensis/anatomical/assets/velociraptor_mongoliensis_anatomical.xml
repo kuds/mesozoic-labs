@@ -6,6 +6,11 @@
        records the derivation, and the screens behind the [design] values cited to it here.  This file is the
        source of truth for physics: edit the numbers here and re-measure every constant listed at the
        keyframe.
+       Physics r6 (decision D-D59) removed the prey sphere (a mocap body) and what only the strike used: the
+       sickle claws' collision on channel 2/2, their claw-claw exclude and their tip sites and sensors.  Each
+       claw keeps its mass and shape as a visual primitive, so the animal's dynamics are unchanged (measured:
+       qpos and qvel bit-identical to physics r5 over 81 seeded rollouts, zero action and action noise 0.3
+       and 1.0).
        Every body frame is world-aligned at the home pose and every joint's ref IS its home angle, so the
        geometry below is authored in the standing pose itself (qpos0 = the stance, unlike the T. rex's
        columnar qpos0) and each joint reads an anatomical angle:
@@ -116,13 +121,6 @@
            diffuse=".34 .38 .41" specular="0 0 0" castshadow="false"/>
     <geom name="floor" type="plane" size="50 50 0.1" material="grid_mat" conaffinity="1" contype="1"/>
 
-    <!-- Prey target (mocap body), as on the r4 raptor: the life-size animal is about the r4 plant's size, so the
-         0.15 m sphere at 0.3 m stays the strike task scale.  contype/conaffinity 2: it meets only the
-         claws. -->
-    <body name="prey" mocap="true" pos="5 0 0.3">
-      <geom name="prey_geom" type="sphere" size="0.15" rgba="0.8 0.2 0.2 0.8" contype="2" conaffinity="2"/>
-    </body>
-
     <!-- ==================== VELOCIRAPTOR (IGM 100/986, life size) ====================
          +X forward, +Y left, +Z up.  The pelvis origin is the midpoint of the two acetabula, so root z is hip
          height and "CoM ahead of the hip" is the CoM x in this frame.  The frame is authored LEVEL (sacrum
@@ -135,7 +133,7 @@
          0.056 m below, against their 0.086-0.109 / 0.065-0.078 m scaled to 15 kg by mass^(1/3)
          (CC_CoM 34.8-44.2 and DV_CoM -26.5 to -31.8 mm/kg^0.33, Fig. 2a and Suppl. Figs 4, 15).  Head tip
          0.176 m above hip height; snout to tail tip 1.736 m; animal mass 15 kg
-         (body_subtreemass of pelvis; mj_getTotalmass also counts the 14.14 kg prey sphere).
+         (body_subtreemass of pelvis, = mj_getTotalmass: nothing else in the scene has mass).
          Body mass 15 kg (Dececchi et al. 2020 Table 1, IGM 100/986).  Trunk 7.1 kg (Macaulay et al. 2023
          iterations 1-4 torso 40-58 %, Suppl. Fig. 14), placed low (a belly capsule, as the T. rex's): the dorsal torso (column, lungs, air sacs;
          3.2 kg, 872 kg/m3 against Macaulay's torso 850) ends at the
@@ -271,15 +269,16 @@
               <geom name="r_toe_d2_p1" group="3" type="capsule" fromto="0 0 0  0.018351 0.000575 -0.019248" size="0.0065" mass="0.005" material="body_mat" contype="0" conaffinity="0"/>
               <geom name="r_toe_d2_p2" group="3" type="capsule" fromto="0.018351 0.000575 -0.019248  0.042487 0.004079 -0.005494" size="0.0055" mass="0.004" material="body_mat" contype="0" conaffinity="0"/>
               <!-- Sickle claw: ungual II, 70 mm along the curve (55 mm chord; IGM 100/982 66.3, IGM 100/985 64.8 mm, scaled
-                               by the 23.4 mm proximal height of IGM 100/986, N&M 1999 Table 3), on IP2.  contype/conaffinity 2/2 (prey
-                               only, as on r4).  Range -38 to +40 deg: Bishop 2019's IP2 extension limit, and a
+                               by the 23.4 mm proximal height of IGM 100/986, N&M 1999 Table 3), on IP2.  Its capsule carries the
+                               ungual's 11 g and is visual (contype/conaffinity 0, as digit II's phalanges): on physics
+                               r5 it collided on channel 2/2 with the prey sphere alone, and both left in physics r6
+                               (decision D-D59).  Range -38 to +40 deg: Bishop 2019's IP2 extension limit, and a
                                flexion limit that keeps the tip 10 mm above the floor with digit II at rest; 19.6 mm clear
                                at home.  Only IP2 is actuated (MTP-II passive, IP1 fused into the digit II body), so the strike is an
                                ungual flick of 61 deg from rest against ~70 deg of anatomical IP2 flexion (Bishop 2019). -->
               <body name="r_toe_claw" pos="0.042487 0.004079 -0.005494">
                 <joint name="r_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-38 40" ref="-21"/>
-                <geom name="r_claw_geom" group="3" type="capsule" fromto="0 0 0  0.034483 0.006601 0.042336" size="0.0065" mass="0.011" material="claw_mat" contype="2" conaffinity="2"/>
-                <site name="r_claw_tip" group="4" type="sphere" pos="0.034483 0.006601 0.042336" size="0.008"/>
+                <geom name="r_toe_d2_ungual" group="3" type="capsule" fromto="0 0 0  0.034483 0.006601 0.042336" size="0.0065" mass="0.011" material="claw_mat" contype="0" conaffinity="0"/>
               </body>
             </body>
             <!-- Digit III (III-1 44.0, III-2 27.4 mm, N&M 1999 Table 3; III-3 ~23.6 and ungual ~35.5 mm estimated from
@@ -329,8 +328,7 @@
               <geom name="l_toe_d2_p2" group="3" type="capsule" fromto="0.018351 -0.000575 -0.019248  0.042487 -0.004079 -0.005494" size="0.0055" mass="0.004" material="body_mat" contype="0" conaffinity="0"/>
               <body name="l_toe_claw" pos="0.042487 -0.004079 -0.005494">
                 <joint name="l_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-38 40" ref="-21"/>
-                <geom name="l_claw_geom" group="3" type="capsule" fromto="0 0 0  0.034483 -0.006601 0.042336" size="0.0065" mass="0.011" material="claw_mat" contype="2" conaffinity="2"/>
-                <site name="l_claw_tip" group="4" type="sphere" pos="0.034483 -0.006601 0.042336" size="0.008"/>
+                <geom name="l_toe_d2_ungual" group="3" type="capsule" fromto="0 0 0  0.034483 -0.006601 0.042336" size="0.0065" mass="0.011" material="claw_mat" contype="0" conaffinity="0"/>
               </body>
             </body>
             <body name="l_toe_d3" pos="0.014648 0.006837 -0.097773">
@@ -417,12 +415,12 @@
              keep it first.  Touch sensors: one per LOAD-BEARING BODY (a touch sensor only sums contacts on
              geoms of its site's own body: notes 3 and 14d): r/l_foot = the MTP pad (metatarsus body) at 10/11,
              digits III and IV at 24-27.  Their sum equals the floor force on the six supports: digit II's
-             phalanges are visual and its claw 2/2, so they never touch, and the MT shaft stays clear at and near
-             the stance (exact on every live step at action noise 0.3, stance config, 100 seeds).  Only in a
+             phalanges and its claw are visual (contype 0), so they never touch, and the MT shaft stays clear at
+             and near the stance (exact on every live step at action noise 0.3, stance config, 100 seeds).  Only in a
              collapse does the shaft load the floor (at action noise 1.0, 2 of 18216 live steps of 300 seeds, at
              most 33 N), and the pad's channel then reads what of it falls inside the pad's touch site.
-             head_tip 12-14 and tail tip 15-23 as the T. rex; claw tips 28-33: kept as the r4 raptor's
-             claw telemetry (the env's claw reward reads site_xpos, so nothing consumes them).
+             head_tip 12-14 and tail tip 15-23 as the T. rex (physics r6 removed the claw-tip framepos sensors at
+             28-33, the r4 raptor's strike telemetry, which nothing read).
              VelociraptorMongoliensisEnv._cache_ids resolves every sensor it reads BY NAME and fails closed on a
              missing one, so a reorder moves no observation channel; a rename or a new touch sensor needs its
              foot groups updated, and the plant contract fingerprints the foot channels by sensor name. -->
@@ -439,8 +437,6 @@
     <touch name="r_toe_d4_touch" site="r_toe_d4_site"/>
     <touch name="l_toe_d3_touch" site="l_toe_d3_site"/>
     <touch name="l_toe_d4_touch" site="l_toe_d4_site"/>
-    <framepos name="r_claw_pos" objtype="site" objname="r_claw_tip"/>
-    <framepos name="l_claw_pos" objtype="site" objname="l_claw_tip"/>
   </sensor>
 
   <contact>
@@ -467,7 +463,6 @@
     <exclude body1="l_toe_d3" body2="l_toe_d4"/>  <!-- sibling digits (note 6) -->
     <exclude body1="l_toe_d2" body2="l_toe_d3"/>
     <exclude body1="l_toe_d2" body2="l_toe_d4"/>
-    <exclude body1="r_toe_claw" body2="l_toe_claw"/>  <!-- claws are 2/2 (prey-only) but would meet each other -->
     <exclude body1="l_tibia" body2="pelvis"/>  <!-- overlaps: sweep hip -100 knee 5 roll -3 phase -->
     <exclude body1="pelvis" body2="r_tibia"/>  <!-- overlaps: sweep hip -100 knee 5 roll -3 phase -->
   </contact>

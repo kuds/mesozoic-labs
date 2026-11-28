@@ -227,7 +227,8 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
         exec(compile(sources[index], f"google_drive_summary code cell {index}", "exec"), namespace)
 
     out = capsys.readouterr().out
-    assert "Found 13 stage results across 5 runs/sweeps." in out
+    # Two-stage velociraptor runs and a stance/recovery/locomotion T-Rex run (the hunt stages left with D-D59).
+    assert "Found 10 stage results across 5 runs/sweeps." in out
     assert "Skipped top-level directories (not a species of the manifest; not read): pre_rename_tree" in out
     assert namespace["SKIPPED_DIRS"] == ["pre_rename_tree"]
     assert set(zip(namespace["df"]["species"], namespace["df"]["embodiment"])) == {
@@ -240,7 +241,7 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     expected = [
         *(
             ("velociraptor_mongoliensis", valid, str(s), f"Stage {s}", "True", "training", sb3, "canonical-valid")
-            for s in (1, 2, 3)
+            for s in (1, 2)
         ),
         *(
             (
@@ -253,11 +254,11 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
                 sb3,
                 "canonical-partial",
             )
-            for s in (1, "recovery", 2, 3)
+            for s in (1, "recovery", 2)
         ),
         *(
             ("velociraptor_mongoliensis", failed, str(s), f"Stage {s}", "False", "training", sb3, "failed")
-            for s in (1, 2, 3)
+            for s in (1, 2)
         ),
         ("velociraptor_mongoliensis", legacy, "1", "Stance", "True", "training", sb3, "legacy-unverified"),
         ("velociraptor_mongoliensis", sweep, "1", "Stance", "True", "sweep", sb3, "sweep"),
@@ -272,6 +273,12 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
         (partial, "tyrannosaurus_rex-anatomical-stable-baselines3-ppo-test"),
         (failed, "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-failed"),
     }
+    # library_version is the mesozoic-labs version on every row: a bundle's from provenance.json (the fixture's
+    # 0.3.3.dev0), a legacy run's from its stage_config.json; the training backend's version has its own column.
+    assert set(bundled["library_version"]) == {"0.3.3.dev0"}
+    assert set(df.loc[df["bundle_status"] == "legacy-unverified", "library_version"]) == {"0.3.0"}
+    assert set(df.loc[df["bundle_status"] == "failed", "backend_version"]) == {"test-backend-1.0"}
+    assert bundled["backend_version"].astype(bool).all()
     assert df["best_mean_reward"].notna().all() and df.loc[df["source"] == "training", "timesteps"].notna().all()
     # Cell 9 reads these from summary.json with .get(), so a renamed key would give None, not an error.
     summary_metrics = [

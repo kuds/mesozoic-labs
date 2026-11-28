@@ -14,9 +14,21 @@ Design contract:
   unchanged and ``obs[-COMMAND_WIDTH:]`` is the command on every plant.
 * **Pre-scaled to [-1, 1].**  The environment emits each component already
   divided by the task's declared scale (``DirectionCommandConfig.speed_scale``,
-  ``lateral_speed_scale``, ``yaw_rate_scale``), so a live command
-  normalises to O(1) from the first step after a reseeded load (plan §4.6
-  "Normalization of the command slice", invariant 8).
+  ``lateral_speed_scale``, ``yaw_rate_scale``).
+* **Identity normalization (decision D-D60).**  Every stage's training
+  (``train_base``: the CLI ``train`` and ``curriculum`` and the notebook)
+  holds the slice's ``VecNormalize`` statistics at mean 0 / variance 1
+  (:func:`hold_command_identity`, applied by
+  ``curriculum.command_identity.CommandIdentityCallback`` and before every
+  sidecar save), so a normalised command equals the raw one in float32 and
+  means the same in every stage: zero under ``"none"``, the controller's
+  request under a live mode.  A load refuses statistics whose slice is not at
+  identity where a live command would read them
+  (:func:`require_command_identity`) and re-imposes identity where the stage
+  is ``"none"``, whose zero command normalises to zero under either.  The
+  recipe pipeline (``train_behaviors``) keeps decision D-D3's rule: its
+  preparation sets the slice to identity and its statistics keep updating;
+  decision D-D9 keeps its artifacts out of every stage.
 * **``"none"`` is byte-inert.**  Under ``command_mode = "none"`` the
   segment is constant zero, no RNG is drawn, and every trajectory is
   identical to the pre-Phase-C environment (the seeded draw stream is
@@ -60,6 +72,11 @@ RETIRED_COMMAND_ENV_KEYS = (
     "command_switch_interval",
     "command_switch_jitter",
 )
+#: The domain-separation word of every command stream's ``SeedSequence``:
+#: ``BaseDinoEnv._command_rng`` (reset seed, episode index) and the behavior
+#: env's (run seed, episode seed, episode index).  A live command never draws
+#: from the reset stream, so it moves no joint, velocity or push draw.
+COMMAND_STREAM_DOMAIN = 0xC044
 #: Injected into the plant-contract observation probe so it exercises the
 #: appended slot on a non-zero command (decision D-C4).
 COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)
@@ -110,26 +127,69 @@ def _running_stats(obs_rms: Any) -> tuple[np.ndarray, np.ndarray]:
     return mean, var
 
 
-def reseed_command_slice(obs_rms: Any) -> None:
-    """Reset the trailing command slice of *obs_rms* to mean 0 / var 1, in place.
+class CommandNormalizationError(ValueError):
+    """``VecNormalize`` statistics whose command slice is not at identity, where a live command would read them."""
 
-    Invariant 8: a slice that was constant zero during the parent run has
-    var ≈ 1e-11 after millions of samples, and a live command of 1.0 would
-    normalise to ≈ 1e4 and clip at ``clip_obs``.  The scalar ``count`` is
-    left untouched so the carried statistics keep their weight; commands
-    are emitted pre-scaled, so unit variance is the right prior.
+
+def command_identity_gap(obs_rms: Any) -> float:
+    """``max(|mean|, |var - 1|)`` over the trailing command slice of *obs_rms*: ``0.0`` exactly at identity.
+
+    ``nan`` when a statistic is not finite, which no comparison treats as identity.
     """
     mean, var = _running_stats(obs_rms)
+    deviations = np.concatenate([np.abs(mean[-COMMAND_WIDTH:]), np.abs(var[-COMMAND_WIDTH:] - 1.0)])
+    if not np.all(np.isfinite(deviations)):
+        return float("nan")
+    return float(np.max(deviations))
+
+
+def hold_command_identity(obs_rms: Any) -> bool:
+    """Set the trailing command slice of *obs_rms* to mean 0 / var 1, in place; return whether a value changed.
+
+    Decision D-D60: the slice is held at identity in every stage, so a
+    normalised command is the raw, pre-scaled command (``x / sqrt(1 + eps)``
+    rounds back to ``x`` in float32) and means the same to the stance, the
+    walk and every follow node.  The scalar ``count`` is shared by every dim
+    and left untouched, so the other dims' statistics are exactly as they
+    were.  Under ``"none"`` the command is constant zero and normalises to
+    zero under any statistics with mean 0, so holding the slice changes no
+    output of a command-free stage.
+    """
+    mean, var = _running_stats(obs_rms)
+    changed = bool(np.any(mean[-COMMAND_WIDTH:] != 0.0) or np.any(var[-COMMAND_WIDTH:] != 1.0))
     mean[-COMMAND_WIDTH:] = 0.0
     var[-COMMAND_WIDTH:] = 1.0
+    return changed
+
+
+def require_command_identity(obs_rms: Any, *, artifact: str, command_mode: str) -> None:
+    """Refuse (:class:`CommandNormalizationError`) statistics whose command slice is not at identity.
+
+    *artifact* names the statistics and *command_mode* the live mode that
+    would read commands through them; both go into the message.  Statistics
+    saved by training since decision D-D60 are at identity; others were saved
+    before it (a ``"none"`` stage's slice then decayed toward variance 0 as
+    ``1e-4 / count``, a recipe's followed its commands) or were edited.
+    """
+    gap = command_identity_gap(obs_rms)
+    if gap == 0.0:
+        return
+    mean, var = _running_stats(obs_rms)
+    raise CommandNormalizationError(
+        f"{artifact}: the command slice of these observation statistics is not at identity (mean "
+        f"{mean[-COMMAND_WIDTH:].tolist()}, variance {var[-COMMAND_WIDTH:].tolist()}), and a {command_mode!r} stage "
+        "would read live commands through them. Training holds the slice at mean 0 / variance 1 since decision "
+        "D-D60, so these statistics were saved before it, or edited; their commands would not mean what they mean "
+        "to every other stage's policy. Use a checkpoint saved under the identity rule."
+    )
 
 
 def pad_running_stats(obs_rms: Any, width: int = COMMAND_WIDTH) -> "RunningMeanStd":
-    """A NEW running-statistics object with *width* reseeded dims appended.
+    """A NEW running-statistics object with *width* identity dims appended.
 
     The widen tool's primitive: ``mean`` gains zeros, ``var`` gains ones,
-    ``count`` is carried — the appended slice is born reseeded, exactly as
-    :func:`reseed_command_slice` would leave it.  The padded object is built
+    ``count`` is carried — the appended slice is born at identity, exactly as
+    :func:`hold_command_identity` leaves it.  The padded object is built
     from the input's own class (``type(obs_rms)(shape=...)``) so this module
     never imports stable_baselines3 at module level.
     """

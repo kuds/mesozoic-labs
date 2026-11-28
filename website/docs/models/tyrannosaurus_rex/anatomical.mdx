@@ -12,17 +12,19 @@ export const MODEL = requireModel('tyrannosaurus_rex', 'anatomical');
 
 # T-Rex Model
 
-This 85.7 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stands 0.877 m above the floor at home. The tibia measures 91% of femur length. A broad posterior skull, two-fingered forelimbs and tapering tail follow the simulated skeleton. Each foot rests on a plantar pad and three independently hinged toes. The smaller first digit sits above the floor. The hunting task detects contact at the snout with a fixed jaw.
+This 85.5 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stands 0.877 m above the floor at home. The tibia measures 91% of femur length. A broad posterior skull, two-fingered forelimbs and tapering tail follow the simulated skeleton. Each foot rests on a plantar pad and three independently hinged toes. The smaller first digit sits above the floor.
 
-Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the prey's direction relative to its body, so turning the whole scene changes nothing it observes. T-Rex trains on Stable-Baselines3 only.
+Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame and its velocity relative to the way it faces, so turning the whole scene changes nothing it observes. Since policy interface r17 (decision D-D59) it reads no prey either, as the prey has left the scene. T-Rex trains on Stable-Baselines3 only.
+
+**The walk.** Since decision D-D62 the `locomotion` node follows a live command, the first stage that does; the stance and recovery run no command. Each walk episode draws one request at reset and holds it for its whole 10 s: a forward cruise at 0.525-1.05 m/s along a heading up to 15° (0.26 rad) off the spawn heading, or, in about 15% of episodes, an exactly zero command that asks the animal to stand still. A Gaussian tracking term on the commanded velocity and yaw rate (weight 2.5) replaces the forward, heading and sideways terms; on a zero command a stand block (26 weights, the standing lean, foot stagger and center-of-pressure terms among them) pays the stance's reward weights, so zero means stand still rather than march in place; and the commanded speeds ramp from a quarter of their end values to the full range over the first 2M training steps. The walk is judged after training on its `command_tracking/v1` panel (the cruise family's survival and success bounds, the stand family's hold, and the biped gait clause with its flight cap), on the checkpoint the gate's own statistic chose on a separate selection panel. Its bars are provisional, and no controller has yet passed the committed panel (decision D-D62 (16)). Because a walk sways within its stride, a moving command is scored on the trailing mean of the last 1.12 s, about one stride (decision D-D64): at a command it matches (0.633 m/s) the reference walk reads tracking quality 0.84 (0.13 a step on its own), clears the in-tolerance fraction and the speed ratio, and fails the heading settle on every episode, on its scripted start: the gate's trailing window first reads in tolerance at about 2.5 s, after the 2.12 s allowance. The later follow nodes will widen this distribution as the walk's exact continuation.
 
 <SpeciesCatalog species={MODEL} />
 
 ## Curriculum
 
 The T-Rex manifest (`configs/tyrannosaurus_rex/anatomical/stages.toml`, schema
-`mesozoic.stage-manifest/v2`) declares four nodes and four recipes — stance,
-recover, walk and hunt — every one of them a published deliverable:
+`mesozoic.stage-manifest/v2`) declares three nodes and three recipes — stance,
+recover and walk — every one of them a published deliverable:
 
 1. **`stance`** (recipe `stance`; root, historical stage 1) — settle from a
    randomized spawn and hold a stable upright pose; gated on physical stance
@@ -45,7 +47,7 @@ recover, walk and hunt — every one of them a published deliverable:
    ([mirror symmetry](/docs/training/mirror-symmetry)).
 2. **`recovery`** (recipe `recover`; `warm_start_from = "stance"`; no legacy
    number, addressed by id) — the same task plus scheduled external pushes
-   (165.5 N for 0.20 s on the current plant, derived from the plant's own
+   (159.7 N for 0.20 s on the current plant, derived from the plant's own
    mass and stance geometry), warm-started from the certified stance
    checkpoint. Only a disturbance can certify *active* balance control; the
    `recovery_quality/v1` gate judges per-shove recovery against frozen null
@@ -57,8 +59,14 @@ recover, walk and hunt — every one of them a published deliverable:
    the plan is to re-declare it as `recovery` by a manifest edit once a
    recovery run passes the frozen gate (plan assumption A2) — nothing
    re-parents it on its own.
-4. **`behavior`** (recipe `hunt`; `warm_start_from = "locomotion"`,
-   historical stage 3) — the head-contact "bite" proxy task.
+
+The head-contact "bite" hunt that followed locomotion (`behavior`, recipe
+`hunt`, historical stage 3) was removed by decision D-D59, so the chain ends
+at walk and `BEHAVIOR = "hunt"` is refused naming `"walk"`. Its reward,
+termination and constructor arguments are gone from the environment, and since
+physics r12 and policy interface r17 (the same decision) so are the prey
+sphere, its observation channels and the 0.2 kg head-contact box the bite
+read.
 
 Each recipe label names one node: the notebook's `BEHAVIOR = "stance"` trains
 the stance node alone, and `BEHAVIOR = "recover"` trains stance and then
@@ -74,13 +82,13 @@ parent, and the video cards below are keyed by stage id. See
 
 ## Anatomy
 
-The 2.88 m surface follows the broad ribcage, neck and five tail bodies as the animal moves. The three proximal tail bodies articulate, while the distal pair moves together. The pelvis settles about one degree nose-down. The head and neck servos control carriage and the short arms carry two visible fingers apiece.
+The 2.88 m surface follows the broad ribcage, neck and five tail bodies as the animal moves. The three proximal tail bodies articulate, while the distal pair moves together. The pelvis settles about 0.7 degrees nose-down. The head and neck servos control carriage and the short arms carry two visible fingers apiece.
 
 The femur and tibia measure 0.368 m and 0.335 m. At home the knee has a 135° interior angle and the ankle stands about 0.228 m above the floor. Digit III projects farthest, digit IV turns slightly farther outward than digit II turns inward, and the small medial hallux sits above the weight-bearing toes. Each foot's load signal combines the plantar pad and three digital touch sensors.
 
 ![Previous and revised T. rex at the same scale, with closer views of the three weight-bearing toes](../../../../docs/reviews/trex_2026_11/anatomy.png)
 
-## Diagnostic Metrics (behavior node, hunt)
+## Diagnostic Metrics
 
 After each training stage the `eval` command reports:
 
@@ -88,10 +96,7 @@ After each training stage the `eval` command reports:
 |--------|-------------|
 | `mean_forward_velocity` | Average forward speed (m/s) |
 | `mean_pelvis_height` | Upright stability (m) |
-| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
-| `success_rate` | Fraction of episodes where the fixed head-contact proxy touches the prey target |
-| `success_lcb` | One-sided 95% lower bound on that fraction over the selected checkpoint's 30-episode panel — the `task_success/v1` hunt gate statistic (bar 0.5, provisional), published as `selected_model_success_lcb` |
-| `min_prey_distance` | Closest approach to prey (m) |
+| `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command |
 
 ## Reference walk
 
@@ -125,10 +130,10 @@ python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode walk --seco
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage 1
 
-# The advancing stages (stance, locomotion, behavior) in manifest order
+# The advancing stages (stance, locomotion) in manifest order
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo
 
-# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+# Reuse an earlier run's certified stance; train walk in a fresh directory
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 

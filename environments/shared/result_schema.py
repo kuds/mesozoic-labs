@@ -10,10 +10,9 @@ resolved through the species' stage manifest — the decimal string of a legacy
 number (``"1"``/``"2"``/``"3"``, their historical meaning) or a semantic
 stage id (``"recovery"``), so the recovery stage joins result bundles.  The
 v2 completeness rule "exactly stages 1, 2, and 3" meant "a complete
-curriculum recorded every advancing stage"; v3 preserves that meaning
-exactly — every advancing stage is still required — while non-advancing
-semantic stages are optional.  v2 summaries are a strict subset of v3, so
-every committed historical artifact validates unchanged.
+curriculum recorded every advancing stage"; v3 preserved that meaning
+exactly — every advancing stage was still required — while non-advancing
+semantic stages were optional.
 
 Schema v4 (2026-09-06, BEHAVIOR_RECIPES_PLAN §4.3, Phase A): publication is
 per DELIVERABLE, not per advancing trio.  ``provenance.deliverables`` maps
@@ -32,27 +31,28 @@ target and every present deliverable are certified, ``partial`` when at
 least one is, ``failed`` when none is — and a summary exists whenever at
 least one is.
 
-The rules are VERSION-GATED: every rule for a schema below 4 runs verbatim
-(the four committed ``results/**/summary.json`` are the bit-identity pins),
-and a provenance block without a ``deliverables`` key is read under the v3
-rules when no version is given.  Under a v1 stage manifest the loader
-derives exactly one deliverable (the last advancing node) with edges to the
-previous advancing node, so the v4 rules collapse to the v3 "every advancing
-stage present and passed / terminal = last advancing" rule.
+Under a v1 stage manifest the loader derives exactly one deliverable (the
+last advancing node) with edges to the previous advancing node, so the
+deliverable rules collapse to the v3 "every advancing stage present and
+passed / terminal = last advancing" rule.
 
 Schema v5 (decision D-D33, 2026-10-11): a summary names its model by two
 fields, ``species`` (the binomial ID) and ``embodiment``, and lives at
 ``results/<species>/<embodiment>/<algorithm>/summary.json``.  The v4 rules
 carry over to v5 unchanged; the canonical runtime provenance gains
-``embodiment`` (:data:`CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5`).  The reader
-accepts exactly {2, 5} (:data:`SUPPORTED_RESULT_SCHEMA_VERSIONS`): every v3
-or v4 summary names a species ID D-D33 retired and no writer emits either,
-so they are refused.  Schema 2 is the curated historical form of the four
-committed summaries under ``results/``, their identity amended in place by
-D-D33: ``species`` is the binomial and ``embodiment`` is required, and every
-other byte is as curated.  Both identity fields are required on every
-accepted version, and a record is never matched on its species alone.
-Writers emit :data:`RESULT_SCHEMA_VERSION`.
+``embodiment`` (:data:`CANONICAL_RUNTIME_PROVENANCE_FIELDS`).
+
+The reader accepts schema 5 alone (:data:`SUPPORTED_RESULT_SCHEMA_VERSIONS`,
+decision D-D63 (5)), and every rule here is a schema-5 rule.  A v3 or v4
+summary names a species ID D-D33 retired and no writer emits either, so it
+is refused.  Schema 2, the integer-stage form of the four summaries
+committed under ``results/`` until decision D-D59 deleted them (``git show
+6c9982d81c8a:results/<path>``), is refused too, by name: the tree at that
+commit reads it.  No release is named, because no release tag exists and a
+later tree that still declares 0.4.0.dev2 (after D-D59 removed the stage 3
+those summaries record) refuses them.  Both identity fields (``species`` and
+``embodiment``) are required, and a record is never matched on its species
+alone.  Writers emit :data:`RESULT_SCHEMA_VERSION`.
 
 Decision D-A21 (2026-09-13, Phase A WS5) adds two OPTIONAL fields to each
 ``provenance.deliverables`` record — :data:`OPTIONAL_DELIVERABLE_RECORD_FIELDS`:
@@ -76,7 +76,6 @@ declared, default 1) and ``provisional`` (a boolean that must equal
 
 from __future__ import annotations
 
-import math
 import re
 from datetime import date, datetime
 from functools import partial
@@ -87,12 +86,26 @@ from . import record_fields
 from .model_id import ModelId
 
 RESULT_SCHEMA_VERSION = 5
-#: Versions this reader accepts (module docstring).  v2 is the integer-stage
-#: schema every committed summary under results/ carries, its identity
-#: amended in place by decision D-D33; v5 is what writers emit.  v3 and v4
-#: summaries name retired species IDs and are refused.
-SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({2, RESULT_SCHEMA_VERSION})
+#: Versions this reader accepts (module docstring): the version writers emit,
+#: alone (decision D-D63 (5) retired schema 2).
+SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({RESULT_SCHEMA_VERSION})
+#: Why each retired version is refused, quoted in the refusal.
+RETIRED_RESULT_SCHEMA_VERSIONS: Mapping[int, str] = {
+    2: (
+        "schema 2 is the integer-stage form of the result summaries committed under results/ until decision D-D59 "
+        "(git show 6c9982d81c8a:results/<path>), retired by decision D-D63; read it with the tree at commit "
+        "6c9982d81c8a (version 0.4.0.dev2, before decision D-D59 removed the stage 3 those summaries record)"
+    ),
+    3: "schema 3 and 4 summaries name species IDs decision D-D33 retired",
+    4: "schema 3 and 4 summaries name species IDs decision D-D33 retired",
+}
 ALLOWED_BUNDLE_STATUSES = frozenset({"complete", "partial", "failed"})
+#: The stage-row success rates a canonical summary must carry but may leave
+#: null: a model that declares no success keys (the hunt's were removed by
+#: decision D-D59) records no success flag, so its rate is null rather than a
+#: zero.  Publication cross-checks the null against the evaluation evidence,
+#: which then has no ``task_success`` column.
+NULLABLE_SUCCESS_RATE_METRICS = frozenset({"mean_success_rate", "selected_model_success_rate"})
 #: Exactly the fields of one ``provenance.deliverables`` record (schema v4).
 #: ``replication`` is ``{count, runs: [{run_id, training_seed}]}``: this run
 #: first, then its replicates (decisions D-B10/D-B16; ``shared.replication``).
@@ -138,10 +151,14 @@ REQUIRED_PROVENANCE_FIELDS = (
     "evaluation_episodes",
     *PROVENANCE_IDENTIFIERS,
 )
+#: The canonical runtime provenance fields (schema 5): schema 3's, then the
+#: deliverable keys schema 4 added, with ``embodiment`` after ``species``
+#: (decision D-D33).
 CANONICAL_RUNTIME_PROVENANCE_FIELDS = (
     "run_id",
     "captured_at",
     "species",
+    "embodiment",
     "algorithm",
     "backend",
     "backend_version",
@@ -159,24 +176,9 @@ CANONICAL_RUNTIME_PROVENANCE_FIELDS = (
     "plant_identity",
     "selected_checkpoints",
     "selected_model_path",
-)
-#: The v4 canonical runtime fields.  Deliberately a NEW tuple rather than an
-#: extension of the v3 one: the v3 tuple is what a schema-2 summary is
-#: validated against, and it must not grow (schema 2's identity amendment,
-#: decision D-D33, is checked by the identity rule, not by this tuple).
-CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4 = CANONICAL_RUNTIME_PROVENANCE_FIELDS + (
     "deliverables",
     "primary_deliverable",
     "target_deliverable",
-)
-#: The v5 canonical runtime fields (decision D-D33): the v4 tuple with
-#: ``embodiment`` after ``species``.  Again a NEW tuple, so neither earlier
-#: one grows.
-_AFTER_SPECIES = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4.index("species") + 1
-CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5 = (
-    CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[:_AFTER_SPECIES]
-    + ("embodiment",)
-    + CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[_AFTER_SPECIES:]
 )
 
 _GIT_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
@@ -193,36 +195,6 @@ _optional_nonempty_string = partial(record_fields.optional_nonempty_string, erro
 _require_positive_int = partial(record_fields.require_positive_int, error=ResultSchemaError)
 _optional_number = partial(record_fields.optional_number, error=ResultSchemaError)
 _require_sha256 = partial(record_fields.require_sha256, error=ResultSchemaError)
-
-
-def _validate_task_success_stage_keys(raw_stage: Mapping[str, Any], *, prefix: str) -> None:
-    """Validate the optional ``selected_model_success_{lcb,count}`` / ``_n_episodes`` trio."""
-    lcb = _optional_number(
-        raw_stage.get("selected_model_success_lcb"), field=f"selected_model_success_lcb for {prefix}"
-    )
-    if lcb is not None and not 0.0 <= lcb <= 1.0:
-        raise ResultSchemaError(f"selected_model_success_lcb for {prefix} must be between 0 and 1")
-    counts: dict[str, int | None] = {}
-    for key in ("selected_model_success_count", "selected_model_n_episodes"):
-        value = raw_stage.get(key)
-        if value is None:
-            counts[key] = None
-            continue
-        if (
-            isinstance(value, bool)
-            or not isinstance(value, (int, float))
-            or not math.isfinite(float(value))
-            or float(value) != int(value)
-            or value < 0
-        ):
-            raise ResultSchemaError(f"{key} for {prefix} must be a non-negative integer or null")
-        counts[key] = int(value)
-    count = counts["selected_model_success_count"]
-    n_episodes = counts["selected_model_n_episodes"]
-    if count is not None and n_episodes is not None and count > n_episodes:
-        raise ResultSchemaError(
-            f"selected_model_success_count for {prefix} ({count}) exceeds selected_model_n_episodes ({n_episodes})"
-        )
 
 
 def _canonical_plant_identity(value: Any, *, model_id: ModelId, field: str) -> dict[str, Any]:
@@ -332,14 +304,6 @@ def ordered_stage_entries(stage_keys: Any, *, model_id: ModelId, field: str) -> 
         entries.append((stage_key, entry))
     entries.sort(key=lambda pair: pair[1].position)
     return entries
-
-
-def _missing_advancing_stages(present_entries: "list[tuple[str, Any]]", *, model_id: ModelId) -> "list[Any]":
-    """Advancing stages the model's stage manifest declares that *present_entries* omit."""
-    from .stage_manifest import load_stage_manifest
-
-    present_ids = {entry.id for _, entry in present_entries}
-    return [entry for entry in load_stage_manifest(model_id).advancing_stages if entry.id not in present_ids]
 
 
 def _load_manifest_for(model_id: ModelId, *, field: str) -> Any:
@@ -735,24 +699,18 @@ def validate_provenance(
     *,
     result_path: str = "result summary",
     canonical: bool = False,
-    schema_version: int | None = None,
 ) -> dict[str, Any]:
-    """Validate result-summary provenance (schema v2/v5).
+    """Validate result-summary provenance (schema 5).
 
     Historical summaries may retain unknown identifiers as ``null``.  Canonical
     mode is for newly exported bundles and requires complete, well-formed
-    identity fields regardless of the result's current/historical label.
-
-    *schema_version* selects the rule set: below 4 the advancing-trio /
-    terminal-key rules run verbatim; from 4 on the deliverable rules
-    (module docstring) replace them.  ``None`` infers it from the block —
-    the deliverable rules iff it carries a ``deliverables`` key — so a
-    reader of the summary's provenance alone (the species catalog) needs no
-    version in hand and every schema-2 artifact keeps its rules.
+    identity fields regardless of the result's current/historical label, and
+    the deliverable rules (module docstring) decide which checkpoint is
+    published.  A reader of the summary's provenance alone (the species
+    catalog) needs no version in hand: schema 5 is the only one.
     """
 
     provenance = _require_mapping(provenance, field=f"provenance in {result_path}")
-    v4 = schema_version >= 4 if schema_version is not None else "deliverables" in provenance
     missing_fields = [field for field in REQUIRED_PROVENANCE_FIELDS if field not in provenance]
     if missing_fields:
         raise ResultSchemaError(f"provenance in {result_path} is missing fields: {missing_fields}")
@@ -818,8 +776,7 @@ def validate_provenance(
             if not record_fields.is_sha256_digest(value):
                 raise ResultSchemaError(f"provenance.{key} in {result_path} must be sha256:<64 lowercase hex>")
 
-        runtime_fields = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5 if v4 else CANONICAL_RUNTIME_PROVENANCE_FIELDS
-        missing_runtime_fields = [field for field in runtime_fields if field not in provenance]
+        missing_runtime_fields = [field for field in CANONICAL_RUNTIME_PROVENANCE_FIELDS if field not in provenance]
         if missing_runtime_fields:
             raise ResultSchemaError(
                 f"canonical provenance in {result_path} is missing fields: {missing_runtime_fields}"
@@ -971,23 +928,6 @@ def validate_provenance(
             model_id=model_id,
             field=f"provenance.selected_checkpoints in {result_path}",
         )
-        if not v4:
-            # v2 required exactly {"1", "2", "3"}, which enforced "a complete
-            # curriculum recorded a handoff per advancing stage".  Preserved
-            # exactly for schema < 4: every advancing stage is still
-            # required; non-advancing semantic stages (recovery) may add a
-            # checkpoint but never replace one, and any key outside the
-            # model's vocabulary fails closed.
-            missing_advancing = _missing_advancing_stages(checkpoint_entries, model_id=model_id)
-            if missing_advancing:
-                raise ResultSchemaError(
-                    f"provenance.selected_checkpoints in {result_path} must record a checkpoint for every "
-                    f"advancing stage; missing {[entry.key for entry in missing_advancing]}"
-                )
-            if not any(entry.legacy_number is not None for _, entry in checkpoint_entries):
-                raise ResultSchemaError(
-                    f"provenance.selected_checkpoints in {result_path} records no advancing-stage checkpoint"
-                )
         selected_checkpoints: dict[str, dict[str, Any]] = {}
         for stage_key, _checkpoint_entry in checkpoint_entries:
             checkpoint = _require_mapping(
@@ -1043,118 +983,99 @@ def validate_provenance(
                 "normalization_path": normalization_path,
                 "normalization_hash": normalization_hash,
             }
-        deliverable_runtime: dict[str, Any] = {}
-        if not v4:
-            # The published model is the terminal ADVANCING stage's checkpoint
-            # — "3" (behavior) for every current species.  Recovery, at an
-            # earlier manifest position and non-advancing, can never be
-            # terminal here.
-            terminal_key = next(key for key, entry in reversed(checkpoint_entries) if entry.legacy_number is not None)
-            if selected_checkpoints[terminal_key]["model_path"] != selected_model_path:
-                raise ResultSchemaError(
-                    f"provenance.selected_model_path in {result_path} must match the terminal advancing "
-                    f"stage {terminal_key} selected checkpoint"
-                )
-            if selected_checkpoints[terminal_key]["model_hash"] != identifiers["model_hash"]:
-                raise ResultSchemaError(
-                    f"provenance.model_hash in {result_path} must match the terminal advancing "
-                    f"stage {terminal_key} selected checkpoint"
-                )
-        else:
-            # v4: the published model is the PRIMARY deliverable's checkpoint
-            # — the target when certified, else the deepest certified one —
-            # and every recorded deliverable carries the checkpoint it names.
-            deliverable_entries, deliverables = _validate_deliverable_records(
-                provenance["deliverables"],
+        # The published model is the PRIMARY deliverable's checkpoint — the
+        # target when certified, else the deepest certified one — and every
+        # recorded deliverable carries the checkpoint it names.
+        deliverable_entries, deliverables = _validate_deliverable_records(
+            provenance["deliverables"],
+            model_id=model_id,
+            backend=backend,
+            result_path=result_path,
+        )
+        checkpoint_id_to_key = {entry.id: key for key, entry in checkpoint_entries}
+        ancestor_entries: list[tuple[str, Any]] = []
+        ancestors: dict[str, dict[str, Any]] = {}
+        if provenance.get("ancestors") is not None:
+            ancestor_entries, ancestors = _validate_ancestor_records(
+                provenance["ancestors"],
                 model_id=model_id,
-                backend=backend,
                 result_path=result_path,
             )
-            checkpoint_id_to_key = {entry.id: key for key, entry in checkpoint_entries}
-            ancestor_entries: list[tuple[str, Any]] = []
-            ancestors: dict[str, dict[str, Any]] = {}
-            if provenance.get("ancestors") is not None:
-                ancestor_entries, ancestors = _validate_ancestor_records(
-                    provenance["ancestors"],
-                    model_id=model_id,
-                    result_path=result_path,
+            reused_and_trained = [key for key, entry in ancestor_entries if entry.id in checkpoint_id_to_key]
+            if reused_and_trained:
+                raise ResultSchemaError(
+                    f"provenance.ancestors in {result_path} names stages that also carry a selected "
+                    f"checkpoint (a stage cannot be both trained here and reused): {reused_and_trained}"
                 )
-                reused_and_trained = [key for key, entry in ancestor_entries if entry.id in checkpoint_id_to_key]
-                if reused_and_trained:
+        manifest = _load_manifest_for(model_id, field=f"provenance.deliverables in {result_path}")
+        ancestor_ids = {entry.id for _, entry in ancestor_entries}
+        for key, entry in deliverable_entries:
+            checkpoint_key = checkpoint_id_to_key.get(entry.id)
+            if checkpoint_key is None:
+                raise ResultSchemaError(
+                    f"provenance.deliverables in {result_path}: deliverable {key} has no selected checkpoint"
+                )
+            checkpoint = selected_checkpoints[checkpoint_key]
+            for hash_field in ("model_path", "model_hash", "normalization_hash"):
+                if deliverables[key][hash_field] != checkpoint[hash_field]:
                     raise ResultSchemaError(
-                        f"provenance.ancestors in {result_path} names stages that also carry a selected "
-                        f"checkpoint (a stage cannot be both trained here and reused): {reused_and_trained}"
+                        f"provenance.deliverables.{key}.{hash_field} in {result_path} does not match "
+                        f"provenance.selected_checkpoints.{checkpoint_key}.{hash_field}"
                     )
-            manifest = _load_manifest_for(model_id, field=f"provenance.deliverables in {result_path}")
-            ancestor_ids = {entry.id for _, entry in ancestor_entries}
-            for key, entry in deliverable_entries:
-                checkpoint_key = checkpoint_id_to_key.get(entry.id)
-                if checkpoint_key is None:
+            if deliverables[key]["certified"]:
+                missing_chain = [
+                    ancestor.key
+                    for ancestor in deliverable_chain(entry, manifest)
+                    if ancestor.id not in checkpoint_id_to_key and ancestor.id not in ancestor_ids
+                ]
+                if missing_chain:
                     raise ResultSchemaError(
-                        f"provenance.deliverables in {result_path}: deliverable {key} has no selected checkpoint"
+                        f"provenance.deliverables in {result_path}: certified deliverable {key} has no "
+                        f"selected checkpoint or ancestor record for its chain ancestors {missing_chain}"
                     )
-                checkpoint = selected_checkpoints[checkpoint_key]
-                for hash_field in ("model_path", "model_hash", "normalization_hash"):
-                    if deliverables[key][hash_field] != checkpoint[hash_field]:
-                        raise ResultSchemaError(
-                            f"provenance.deliverables.{key}.{hash_field} in {result_path} does not match "
-                            f"provenance.selected_checkpoints.{checkpoint_key}.{hash_field}"
-                        )
-                if deliverables[key]["certified"]:
-                    missing_chain = [
-                        ancestor.key
-                        for ancestor in deliverable_chain(entry, manifest)
-                        if ancestor.id not in checkpoint_id_to_key and ancestor.id not in ancestor_ids
-                    ]
-                    if missing_chain:
-                        raise ResultSchemaError(
-                            f"provenance.deliverables in {result_path}: certified deliverable {key} has no "
-                            f"selected checkpoint or ancestor record for its chain ancestors {missing_chain}"
-                        )
-            target_deliverable = _optional_stage_key(
-                provenance["target_deliverable"],
-                model_id=model_id,
-                field=f"provenance.target_deliverable in {result_path}",
+        target_deliverable = _optional_stage_key(
+            provenance["target_deliverable"],
+            model_id=model_id,
+            field=f"provenance.target_deliverable in {result_path}",
+        )
+        primary_deliverable = _optional_stage_key(
+            provenance["primary_deliverable"],
+            model_id=model_id,
+            field=f"provenance.primary_deliverable in {result_path}",
+        )
+        if not any(record["certified"] for record in deliverables.values()):
+            raise ResultSchemaError(
+                f"canonical provenance in {result_path} records no certified deliverable; a publishable "
+                "result certifies at least one"
             )
-            primary_deliverable = _optional_stage_key(
-                provenance["primary_deliverable"],
-                model_id=model_id,
-                field=f"provenance.primary_deliverable in {result_path}",
+        expected_primary = primary_deliverable_key(deliverables, model_id=model_id, target=target_deliverable)
+        if primary_deliverable != expected_primary:
+            raise ResultSchemaError(
+                f"provenance.primary_deliverable in {result_path} must be {expected_primary!r} (the target "
+                f"deliverable when certified, else the deepest certified deliverable); found "
+                f"{primary_deliverable!r}"
             )
-            if not any(record["certified"] for record in deliverables.values()):
-                raise ResultSchemaError(
-                    f"canonical provenance in {result_path} records no certified deliverable; a publishable "
-                    "result certifies at least one"
-                )
-            expected_primary = primary_deliverable_key(deliverables, model_id=model_id, target=target_deliverable)
-            if primary_deliverable != expected_primary:
-                raise ResultSchemaError(
-                    f"provenance.primary_deliverable in {result_path} must be {expected_primary!r} (the target "
-                    f"deliverable when certified, else the deepest certified deliverable); found "
-                    f"{primary_deliverable!r}"
-                )
-            assert primary_deliverable is not None
-            if not deliverables[primary_deliverable]["certified"]:
-                raise ResultSchemaError(
-                    f"provenance.primary_deliverable in {result_path} names {primary_deliverable!r}, "
-                    "which is not certified"
-                )
-            if deliverables[primary_deliverable]["model_path"] != selected_model_path:
-                raise ResultSchemaError(
-                    f"provenance.selected_model_path in {result_path} must match the primary deliverable "
-                    f"{primary_deliverable} checkpoint"
-                )
-            if deliverables[primary_deliverable]["model_hash"] != identifiers["model_hash"]:
-                raise ResultSchemaError(
-                    f"provenance.model_hash in {result_path} must match the primary deliverable "
-                    f"{primary_deliverable} checkpoint"
-                )
-            deliverable_runtime = {
-                "deliverables": deliverables,
-                "ancestors": ancestors,
-                "primary_deliverable": primary_deliverable,
-                "target_deliverable": target_deliverable,
-            }
+        assert primary_deliverable is not None
+        if not deliverables[primary_deliverable]["certified"]:
+            raise ResultSchemaError(
+                f"provenance.primary_deliverable in {result_path} names {primary_deliverable!r}, which is not certified"
+            )
+        if deliverables[primary_deliverable]["model_path"] != selected_model_path:
+            raise ResultSchemaError(
+                f"provenance.selected_model_path in {result_path} must match the primary deliverable "
+                f"{primary_deliverable} checkpoint"
+            )
+        if deliverables[primary_deliverable]["model_hash"] != identifiers["model_hash"]:
+            raise ResultSchemaError(
+                f"provenance.model_hash in {result_path} must match the primary deliverable "
+                f"{primary_deliverable} checkpoint"
+            )
+        deliverable_runtime: dict[str, Any] = {
+            "deliverables": deliverables,
+            "ancestors": ancestors,
+            "primary_deliverable": primary_deliverable,
+            "target_deliverable": target_deliverable,
+        }
 
         python_version = _require_nonempty_string(
             provenance["python_version"], field=f"provenance.python_version in {result_path}"
@@ -1199,8 +1120,8 @@ def validate_provenance(
             "selected_model_path": selected_model_path,
             **deliverable_runtime,
         }
-    elif v4:
-        # A non-canonical v4 block (a partial or failed run's captured
+    else:
+        # A non-canonical block (a partial or failed run's captured
         # provenance, a compat-wrapper summary) is not cross-checked against
         # selected checkpoints, but what it does record must be well-formed.
         noncanonical_backend = provenance.get("backend")
@@ -1254,12 +1175,13 @@ def validate_captured_provenance(
     ``deliverables`` map with a certified entry (a finalized v4 partial run)
     keeps its real deliverables, checkpoints and primary; otherwise ONE
     placeholder deliverable is synthesized, keyed on the model's last
-    manifest deliverable (``"3"`` for every current model), and stripped
+    manifest deliverable (``"2"`` for every current model since decision
+    D-D59; ``"3"`` before), and stripped
     from the return again.
     """
     provenance = _require_mapping(provenance, field=f"provenance in {result_path}")
     validate_provenance(provenance, result_path=result_path, canonical=False)
-    captured_fields = set(CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5) - {
+    captured_fields = set(CANONICAL_RUNTIME_PROVENANCE_FIELDS) - {
         "backend_version",
         "selected_checkpoints",
         "selected_model_path",
@@ -1309,8 +1231,9 @@ def validate_captured_provenance(
             candidate["selected_model_path"] = "pending/model.bin"
         normalization_required = candidate.get("backend") == "stable-baselines3"
         # The placeholder's chain ancestors get pending checkpoints too —
-        # for every current species exactly the historical {"1","2","3"}
-        # trio — except those the block already carries as reused ancestors.
+        # for every current species exactly {"1","2"} (the historical
+        # {"1","2","3"} trio before decision D-D59) — except those the block
+        # already carries as reused ancestors.
         recorded_ancestors = candidate.get("ancestors")
         reused_ids = set()
         if isinstance(recorded_ancestors, Mapping):
@@ -1348,12 +1271,7 @@ def validate_captured_provenance(
         candidate["primary_deliverable"] = placeholder_key
         candidate["target_deliverable"] = placeholder_key
         synthesized_fields = {"deliverables", "primary_deliverable", "target_deliverable"}
-    validated = validate_provenance(
-        candidate,
-        result_path=result_path,
-        canonical=True,
-        schema_version=RESULT_SCHEMA_VERSION,
-    )
+    validated = validate_provenance(candidate, result_path=result_path, canonical=True)
     return {
         key: value
         for key, value in validated.items()
@@ -1393,12 +1311,7 @@ def validate_result_summary(
     canonical_provenance: bool = False,
     require_canonical_provenance: bool | None = None,
 ) -> dict[str, Any]:
-    """Validate a schema v2/v5 result summary.
-
-    Below schema 4, complete public summaries contain every advancing stage
-    the model declares (1, 2, and 3 — non-advancing semantic stages such
-    as recovery are optional), and ``require_publishable`` is a synonym of
-    ``require_complete``.  From schema 4 on (decision D-A2):
+    """Validate a schema-5 result summary (decision D-A2's deliverable rules):
 
     * ``require_publishable`` — ``provenance.deliverables`` is present, at
       least one deliverable is certified, every certified deliverable's
@@ -1422,22 +1335,14 @@ def validate_result_summary(
     label = str(label_source) if label_source is not None else "result summary"
     summary = _require_mapping(summary, field=f"result summary {label}")
     schema_version = summary.get("schema_version")
-    if schema_version not in SUPPORTED_RESULT_SCHEMA_VERSIONS:
-        # Refused by name: a v3 or v4 summary predates the model identity (decision D-D33).
-        retired = (
-            "; schema 3 and 4 summaries name species IDs decision D-D33 retired"
-            if type(schema_version) is int and schema_version in (3, 4)
-            else ""
-        )
+    if type(schema_version) is not int or schema_version not in SUPPORTED_RESULT_SCHEMA_VERSIONS:
+        # A retired version is refused by name (RETIRED_RESULT_SCHEMA_VERSIONS): schema 2 by decision D-D63,
+        # schema 3 and 4 because they predate the model identity (decision D-D33).
+        retired = RETIRED_RESULT_SCHEMA_VERSIONS.get(schema_version) if type(schema_version) is int else None
         raise ResultSchemaError(
             f"result summary schema_version must be one of {sorted(SUPPORTED_RESULT_SCHEMA_VERSIONS)}, not "
-            f"{schema_version!r}{retired}: {label}"
+            f"{schema_version!r}{f'; {retired}' if retired else ''}: {label}"
         )
-    v4 = int(schema_version) >= 4
-    if not v4:
-        # The v3 flags are synonyms: "publishable" meant "every advancing
-        # stage present and passed", which is also what "complete" meant.
-        require_complete = require_complete or require_publishable
 
     model_id = _record_model_id(summary, field=label)
     if expected_model_id is not None and model_id != expected_model_id:
@@ -1478,13 +1383,6 @@ def validate_result_summary(
     stage_entries = ordered_stage_entries(raw_stages, model_id=model_id, field=f"stages in {label}")
     if not stage_entries:
         raise ResultSchemaError(f"stages in {label} must record at least one stage")
-    if require_complete and not v4:
-        missing_advancing = _missing_advancing_stages(stage_entries, model_id=model_id)
-        if missing_advancing:
-            raise ResultSchemaError(
-                f"stages in {label} must contain every advancing stage; "
-                f"missing {[entry.key for entry in missing_advancing]}"
-            )
 
     # A widened root (``scripts/widen_checkpoint.py``; RESULT_BUNDLES.md) never
     # trained in this run: its training curve, and so the best EvalCallback
@@ -1535,7 +1433,7 @@ def validate_result_summary(
                     raise ResultSchemaError(f"{metric_key} is required for canonical {prefix}")
                 continue
             metric_value = _optional_number(raw_stage[metric_key], field=f"{metric_key} for {prefix}")
-            if canonical_provenance and metric_value is None:
+            if canonical_provenance and metric_value is None and metric_key not in NULLABLE_SUCCESS_RATE_METRICS:
                 raise ResultSchemaError(f"{metric_key} must be a finite number for canonical {prefix}")
         for metric_key in (
             "final_eval_std",
@@ -1549,7 +1447,7 @@ def validate_result_summary(
                     raise ResultSchemaError(f"{metric_key} is required for canonical {prefix}")
                 continue
             metric_value = _optional_number(raw_stage[metric_key], field=f"{metric_key} for {prefix}")
-            if canonical_provenance and metric_value is None:
+            if canonical_provenance and metric_value is None and metric_key not in NULLABLE_SUCCESS_RATE_METRICS:
                 raise ResultSchemaError(f"{metric_key} must be a finite number for canonical {prefix}")
         for metric_key in ("best_eval_std", "best_eval_step", "training_time_seconds"):
             if metric_key in raw_stage:
@@ -1563,11 +1461,6 @@ def validate_result_summary(
         )
         if selected_success_rate is not None and not 0.0 <= selected_success_rate <= 1.0:
             raise ResultSchemaError(f"selected_model_success_rate for {prefix} must be between 0 and 1")
-        # task_success/v1's judged numbers (plan §4.4): OPTIONAL keys — a
-        # canonical summary of any other kind never carries them — but when
-        # present they must be the shape the gate certifies: a bound in
-        # [0, 1], and a non-negative integer count no larger than its panel.
-        _validate_task_success_stage_keys(raw_stage, prefix=prefix)
         _optional_nonempty_string(raw_stage.get("training_time"), field=f"training_time for {prefix}")
         if not isinstance(raw_stage.get("stage_passed"), bool):
             raise ResultSchemaError(f"stage_passed for {prefix} must be a boolean")
@@ -1575,20 +1468,8 @@ def validate_result_summary(
             raise ResultSchemaError(f"publication_gate_passed for canonical {prefix} must be a boolean")
         if canonical_provenance and raw_stage.get("publication_gate_passed") != raw_stage.get("stage_passed"):
             raise ResultSchemaError(f"publication_gate_passed for canonical {prefix} must match stage_passed")
-        # Below schema 4 only ADVANCING stages must have passed for a
-        # canonical bundle: that is what publication certified.  A
-        # non-advancing pilot (recovery) records its verdict honestly —
-        # necessarily False under gate_kind none/v1 — without blocking the
-        # curriculum's publication or being laundered into a pass.  From
-        # schema 4 on every stage records its verdict honestly and the
-        # per-deliverable certification below decides what is published.
-        if (
-            canonical_provenance
-            and not v4
-            and stage_entry.legacy_number is not None
-            and raw_stage["stage_passed"] is not True
-        ):
-            raise ResultSchemaError(f"stage_passed for canonical {prefix} must be true")
+        # Every stage records its verdict honestly, and the per-deliverable
+        # certification below decides what is published.
 
     total_timesteps = _require_positive_int(summary.get("total_timesteps"), field=f"total_timesteps in {label}")
     if total_timesteps != stage_timesteps:
@@ -1602,94 +1483,86 @@ def validate_result_summary(
     _optional_nonempty_string(summary.get("total_training_time"), field=f"total_training_time in {label}")
     _optional_number(summary.get("final_avg_reward"), field=f"final_avg_reward in {label}")
 
-    provenance = validate_provenance(
-        summary.get("provenance"),
-        result_path=label,
-        canonical=canonical_provenance,
-        schema_version=int(schema_version),
-    )
+    provenance = validate_provenance(summary.get("provenance"), result_path=label, canonical=canonical_provenance)
     stage_key_by_id = {entry.id: key for key, entry in stage_entries}
     primary_stage_key: str | None = None
-    if v4:
-        bundle_status = summary.get("bundle_status")
-        if bundle_status is not None and bundle_status not in ALLOWED_BUNDLE_STATUSES:
-            raise ResultSchemaError(f"bundle_status in {label} must be one of {sorted(ALLOWED_BUNDLE_STATUSES)}")
-        if require_publishable or require_complete or canonical_provenance:
-            deliverables = provenance.get("deliverables")
-            if deliverables is None:
-                raise ResultSchemaError(
-                    f"{label} is a schema-{schema_version} result without provenance.deliverables, so it "
-                    "certifies nothing and is not publishable"
-                )
-            ancestors = provenance.get("ancestors") or {}
-            recomputed = certified_deliverables(stage_entries, raw_stages, ancestors, model_id=model_id)
-            deliverable_entries = ordered_stage_entries(
-                deliverables,
-                model_id=model_id,
-                field=f"provenance.deliverables in {label}",
+    bundle_status = summary.get("bundle_status")
+    if bundle_status is not None and bundle_status not in ALLOWED_BUNDLE_STATUSES:
+        raise ResultSchemaError(f"bundle_status in {label} must be one of {sorted(ALLOWED_BUNDLE_STATUSES)}")
+    if require_publishable or require_complete or canonical_provenance:
+        deliverables = provenance.get("deliverables")
+        if deliverables is None:
+            raise ResultSchemaError(
+                f"{label} is a schema-{schema_version} result without provenance.deliverables, so it "
+                "certifies nothing and is not publishable"
             )
-            recorded_ids = {entry.id for _, entry in deliverable_entries}
-            missing_deliverables = [
-                key for key, entry in stage_entries if entry.deliverable and entry.id not in recorded_ids
-            ]
-            if missing_deliverables:
+        ancestors = provenance.get("ancestors") or {}
+        recomputed = certified_deliverables(stage_entries, raw_stages, ancestors, model_id=model_id)
+        deliverable_entries = ordered_stage_entries(
+            deliverables,
+            model_id=model_id,
+            field=f"provenance.deliverables in {label}",
+        )
+        recorded_ids = {entry.id for _, entry in deliverable_entries}
+        missing_deliverables = [
+            key for key, entry in stage_entries if entry.deliverable and entry.id not in recorded_ids
+        ]
+        if missing_deliverables:
+            raise ResultSchemaError(
+                f"provenance.deliverables in {label} must record every deliverable stage the summary "
+                f"records; missing {missing_deliverables}"
+            )
+        for key, entry in deliverable_entries:
+            if entry.id not in stage_key_by_id:
                 raise ResultSchemaError(
-                    f"provenance.deliverables in {label} must record every deliverable stage the summary "
-                    f"records; missing {missing_deliverables}"
+                    f"provenance.deliverables in {label} names stage {key!r}, which the summary does not record"
                 )
-            for key, entry in deliverable_entries:
-                if entry.id not in stage_key_by_id:
-                    raise ResultSchemaError(
-                        f"provenance.deliverables in {label} names stage {key!r}, which the summary does not record"
-                    )
-                claimed = _recorded_verdict(deliverables[key], key=key, field=f"provenance.deliverables in {label}")
-                actual = recomputed[stage_key_by_id[entry.id]]
-                if claimed and not actual:
-                    reasons = uncertified_chain_members(
-                        stage_key_by_id[entry.id], stage_entries, raw_stages, ancestors, model_id=model_id
-                    )
-                    raise ResultSchemaError(
-                        f"provenance.deliverables.{key} in {label} is recorded as certified, but its recorded "
-                        f"verdicts do not certify it: {'; '.join(reasons)}"
-                    )
-                if actual and not claimed:
-                    raise ResultSchemaError(
-                        f"provenance.deliverables.{key} in {label} is recorded as uncertified although its "
-                        "gate and every chain ancestor's gate passed"
-                    )
-            if not any(recomputed.values()):
-                raise ResultSchemaError(f"{label} records no certified deliverable, so it is not publishable")
-            target = provenance.get("target_deliverable")
-            expected_status = bundle_status_for(deliverables, model_id=model_id, target=target, stages=raw_stages)
-            if bundle_status != expected_status:
+            claimed = _recorded_verdict(deliverables[key], key=key, field=f"provenance.deliverables in {label}")
+            actual = recomputed[stage_key_by_id[entry.id]]
+            if claimed and not actual:
+                reasons = uncertified_chain_members(
+                    stage_key_by_id[entry.id], stage_entries, raw_stages, ancestors, model_id=model_id
+                )
                 raise ResultSchemaError(
-                    f"bundle_status in {label} must be {expected_status!r} for its deliverables and target "
-                    f"{target!r}; found {bundle_status!r}"
+                    f"provenance.deliverables.{key} in {label} is recorded as certified, but its recorded "
+                    f"verdicts do not certify it: {'; '.join(reasons)}"
                 )
-            if require_complete and bundle_status != "complete":
+            if actual and not claimed:
                 raise ResultSchemaError(
-                    f"{label} has bundle_status {bundle_status!r}; a complete result certifies its target "
-                    f"deliverable {target!r} and every deliverable it records"
+                    f"provenance.deliverables.{key} in {label} is recorded as uncertified although its "
+                    "gate and every chain ancestor's gate passed"
                 )
-            primary = provenance.get("primary_deliverable")
-            if primary is None:
-                primary = primary_deliverable_key(deliverables, model_id=model_id, target=target)
-            if primary is not None:
-                # The primary is a KEY of provenance.deliverables, spelled as
-                # that map spells it (the catalog compares it to those keys
-                # too); a primary that resolves to a stage but matches no key
-                # — "locomotion" over a map keyed "1", "2" — is a schema
-                # error, not a bare StopIteration.
-                primary_entry = next((entry for key, entry in deliverable_entries if key == primary), None)
-                if primary_entry is None:
-                    raise ResultSchemaError(
-                        f"provenance.primary_deliverable in {label} is {primary!r}, which is not a key of "
-                        f"provenance.deliverables {sorted(deliverables)}"
-                    )
-                primary_stage_key = stage_key_by_id[primary_entry.id]
+        if not any(recomputed.values()):
+            raise ResultSchemaError(f"{label} records no certified deliverable, so it is not publishable")
+        target = provenance.get("target_deliverable")
+        expected_status = bundle_status_for(deliverables, model_id=model_id, target=target, stages=raw_stages)
+        if bundle_status != expected_status:
+            raise ResultSchemaError(
+                f"bundle_status in {label} must be {expected_status!r} for its deliverables and target "
+                f"{target!r}; found {bundle_status!r}"
+            )
+        if require_complete and bundle_status != "complete":
+            raise ResultSchemaError(
+                f"{label} has bundle_status {bundle_status!r}; a complete result certifies its target "
+                f"deliverable {target!r} and every deliverable it records"
+            )
+        primary = provenance.get("primary_deliverable")
+        if primary is None:
+            primary = primary_deliverable_key(deliverables, model_id=model_id, target=target)
+        if primary is not None:
+            # The primary is a KEY of provenance.deliverables, spelled as
+            # that map spells it (the catalog compares it to those keys
+            # too); a primary that resolves to a stage but matches no key
+            # — "locomotion" over a map keyed "1", "2" — is a schema
+            # error, not a bare StopIteration.
+            primary_entry = next((entry for key, entry in deliverable_entries if key == primary), None)
+            if primary_entry is None:
+                raise ResultSchemaError(
+                    f"provenance.primary_deliverable in {label} is {primary!r}, which is not a key of "
+                    f"provenance.deliverables {sorted(deliverables)}"
+                )
+            primary_stage_key = stage_key_by_id[primary_entry.id]
     if canonical_provenance:
-        if not v4 and summary.get("bundle_status") != "complete":
-            raise ResultSchemaError(f"canonical result {label} must have bundle_status='complete'")
         run_id = _require_nonempty_string(summary.get("run_id"), field=f"run_id in {label}")
         if provenance["run_id"] != run_id:
             raise ResultSchemaError(
@@ -1736,20 +1609,12 @@ def validate_result_summary(
         )
         if summary_plant != provenance["plant_identity"]:
             raise ResultSchemaError(f"plant_identity in {label} does not match provenance.plant_identity")
-        # The run's headline reward: below schema 4 the terminal ADVANCING
-        # stage's ("3", behavior, for every current species) — a trailing
-        # non-advancing stage must not redefine it; from schema 4 on the
-        # PRIMARY deliverable's, the same checkpoint selected_model_path
-        # names (a failed leaf never headlines the run).
-        if v4:
-            final_stage_key = primary_stage_key
-        else:
-            final_stage_key = next(
-                (key for key, entry in reversed(stage_entries) if entry.legacy_number is not None),
-                None,
-            )
+        # The run's headline reward: the PRIMARY deliverable's, the same
+        # checkpoint selected_model_path names (a failed leaf never headlines
+        # the run).
+        final_stage_key = primary_stage_key
         if final_stage_key is None:
-            raise ResultSchemaError(f"canonical result {label} records no advancing stage")
+            raise ResultSchemaError(f"canonical result {label} records no primary deliverable")
         final_stage_reward = raw_stages[final_stage_key].get("final_eval_reward")
         if summary.get("final_avg_reward") != final_stage_reward:
             raise ResultSchemaError(

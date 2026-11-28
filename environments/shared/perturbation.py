@@ -178,7 +178,7 @@ def derive_push_parameters(
     yields very different newtons on different plants).
 
     Masses use the root body's kinematic subtree — never ``mj_getTotalmass``,
-    which also counts scene bodies such as the prey (plan §W1).
+    which also counts any scene body outside the animal (plan §W1).
 
     ``xfrc_applied`` acts at the selected body's inertial centre.  A massless
     root is a coordinate frame, whose compiler-assigned inertial position

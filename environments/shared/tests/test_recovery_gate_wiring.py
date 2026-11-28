@@ -707,4 +707,4 @@ class TestInTrainingManagerRefusesRecovery:
             mean_unsupported_duty=0.01,
             unsupported_duty_ucb=0.02,
         )
-        assert manager.should_advance([3000.0] * 10, [1000.0] * 10, None, None, panel)
+        assert manager.should_advance([3000.0] * 10, [1000.0] * 10, None, panel)

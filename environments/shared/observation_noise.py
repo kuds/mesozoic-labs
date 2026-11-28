@@ -25,7 +25,7 @@ reset.  The policy probe's state bank forces the eval flag off
 (``policy_probe.bank_env_kwargs``).
 
 **Where.** ``BaseDinoEnv.step`` adds the noise to the observation it returns,
-after the command recompute (and the behaviour env's ``set_direction`` to the
+after the command recompute (and ``BaseDinoEnv.set_direction`` to the
 observation it returns).  Never inside the species' ``_get_obs`` (hashed by
 the plant contract, and run by its observation probe on synthetic state) and
 never in ``reset`` (hashed as ``home_reset``): the reset observation of every
@@ -38,8 +38,9 @@ built.  Noise is added inside the env, before ``VecNormalize``, so its
 whole observation width, in observation order and in float64, so switching
 one segment on or off never changes another's realisation.  Each unit
 segment (``*_orientation_quaternion``, ``*_projected_gravity``,
-``*_direction``, ``*_direction_body``) with a positive std is renormalised to
-unit length (``v / max(|v|, 1e-9)``); the result is float32.  The draws come
+``*_direction``, ``*_direction_body``; on every current, heading-free schema
+the root's projected gravity is the one such segment) with a positive std is
+renormalised to unit length (``v / max(|v|, 1e-9)``); the result is float32.  The draws come
 from the noise's own stream (``episode_start.feature_stream`` with
 ``OBSERVATION_NOISE_STREAM_KEY``), never from ``np_random``, so every reset
 draw and every physics step is the same with the noise on or off.  The draws
@@ -153,25 +154,19 @@ def observation_schema(env: Any) -> str:
 def observation_layout(env: Any, schema: str | None = None) -> tuple[tuple[str, int], ...]:
     """Each observation segment of *env*'s observation, ``(name, width)``, in observation order.
 
-    The names are the plant contract's (``policy_layer.observation_segments``,
-    for *schema*, the model's own by default), and so are the widths, except
-    ``foot_contact``'s, which is the number of the env's foot channels
-    (``_foot_observation_groups`` where it declares them, else
-    ``_foot_sensor_groups``): the legacy tables list every touch sensor there
-    (the Brachiosaurus' eight touch sensors feed four channels).
+    The names and the widths are the plant contract's
+    (``policy_layer.observation_segments``, for *schema*, the model's own by
+    default).  Every schema is a heading-free one, whose ``foot_contact``
+    segment carries its width, the number of the env's foot channels (touch
+    sensor groups, or floor-contact geom groups where the env declares them).
     """
     from .plant_contract.policy_layer import _segment_width, observation_segments
 
     if schema is None:
         schema = observation_schema(env)
-    declared = getattr(env, "_foot_observation_groups", None)
-    channels = declared if declared is not None else getattr(env, "_foot_sensor_groups", ())
-    layout = []
-    for segment in observation_segments(env.model, env, schema):
-        name = str(segment["name"])
-        width = len(channels) if name == "foot_contact" else _segment_width(segment)
-        layout.append((name, int(width)))
-    return tuple(layout)
+    return tuple(
+        (str(segment["name"]), int(_segment_width(segment))) for segment in observation_segments(env.model, env, schema)
+    )
 
 
 def resolve_observation_noise(

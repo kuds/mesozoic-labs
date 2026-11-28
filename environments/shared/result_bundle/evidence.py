@@ -15,11 +15,12 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..constants import PUBLICATION_SEED_START
-from ..curriculum.recovery_gate import binomial_lcb
+from ..curriculum.command_tracking_evidence import COMMAND_TRACKING_NUMERIC_SUMMARY_KEYS, COMMAND_TRACKING_PANEL_CSV
+from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND
+from ..curriculum.gate_schema import retired_gate_declarations
 from ..curriculum.stance_gate import STANCE_GATE_KIND
 from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND, STANCE_HEADING_PANEL_CSV
-from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from ..model_id import ModelId
 from ..record_fields import is_sha256_digest
 from ..stage_manifest import find_stage_dir
@@ -121,6 +122,24 @@ def compare_summary_to_csv(
                 continue
             if expected is None or actual is None or abs(float(expected) - actual) > tolerance:
                 problems.append(f"stage {stage} {summary_key}/{csv_key} differs: summary={expected!r} csv={actual!r}")
+        # command_tracking/v1 (D-D61): each statistic the summary row carries
+        # (only a command-tracking stage's does) under the same CSV column.
+        for summary_key in COMMAND_TRACKING_NUMERIC_SUMMARY_KEYS:
+            if summary_key not in stage_summary_value:
+                continue
+            expected = stage_summary_value.get(summary_key)
+            actual = _optional_csv_number(row.get(summary_key))
+            if expected is None and actual is None:
+                continue
+            if expected is None or actual is None or abs(float(expected) - actual) > tolerance:
+                problems.append(f"stage {stage} {summary_key} differs: summary={expected!r} csv={actual!r}")
+        if "command_profile" in stage_summary_value and (stage_summary_value.get("command_profile") or "") != (
+            row.get("command_profile") or ""
+        ):
+            problems.append(
+                f"stage {stage} command_profile differs: summary={stage_summary_value.get('command_profile')!r} "
+                f"csv={row.get('command_profile')!r}"
+            )
         expected_passed = stage_summary_value.get("stage_passed")
         actual_passed = _optional_csv_bool(row.get("stage_passed"))
         if expected_passed != actual_passed:
@@ -180,7 +199,10 @@ def _evaluation_evidence_aggregates(
     Every value is a float except the :data:`_EVIDENCE_HASH_COLUMNS`: the
     digest of the checkpoint the episodes were rolled out from and of the
     VecNormalize statistics they ran under, each ``None`` for evidence written
-    without that column (before it existed, or by the retired sidecar-less JAX path).
+    without that column (before it existed, or by the retired sidecar-less JAX path),
+    and ``success_rate``, ``None`` for evidence with no ``task_success``
+    column: a model that declares no success keys records no success flag
+    (``reporting.save_evaluation_episodes``), never a column of False.
     """
     required_columns = {
         "episode",
@@ -201,10 +223,9 @@ def _evaluation_evidence_aggregates(
     # 2026-08-15 (the bare name was misread as the stage-gate verdict in
     # stance-gated stages). Accept the legacy header so bundles written
     # before the rename still audit; both names carry the same quantity.
+    # Neither is present for a model without success keys.
     success_column = next((name for name in ("task_success", "success") if name in fieldnames), None)
     missing_columns = sorted(required_columns - fieldnames)
-    if success_column is None:
-        missing_columns = sorted([*missing_columns, "task_success"])
     if missing_columns:
         raise ResultBundleError(
             f"{checkpoint_label} evaluation evidence for stage {stage} is missing columns: {missing_columns}"
@@ -262,14 +283,17 @@ def _evaluation_evidence_aggregates(
         reward = _optional_csv_number(row.get("reward"))
         forward_velocity = _optional_csv_number(row.get("mean_forward_velocity"))
         distance = _optional_csv_number(row.get("distance_traveled"))
-        success = _optional_csv_bool(row.get(success_column))
-        if reward is None or forward_velocity is None or distance is None or success is None:
+        success = _optional_csv_bool(row.get(success_column)) if success_column is not None else None
+        if reward is None or forward_velocity is None or distance is None:
+            raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} contains blank values")
+        if success_column is not None and success is None:
             raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} contains blank values")
         rewards.append(reward)
         lengths.append(float(length))
         forward_velocities.append(forward_velocity)
         distances.append(distance)
-        successes.append(float(success))
+        if success is not None:
+            successes.append(float(success))
 
     def _mean(values: Sequence[float]) -> float:
         return math.fsum(values) / len(values)
@@ -289,12 +313,7 @@ def _evaluation_evidence_aggregates(
         "forward_vel": _mean(forward_velocities),
         "forward_vel_std": _population_std(forward_velocities),
         "distance": _mean(distances),
-        "success_rate": _mean(successes),
-        # task_success/v1's re-derived statistic: the exact one-sided 95%
-        # binomial lower bound on the same per-episode successes, so a
-        # summary's selected_model_success_lcb is checked like every other
-        # published aggregate.  Only compared when the summary records it.
-        "success_lcb": binomial_lcb(sum(1 for s in successes if s), len(successes)),
+        "success_rate": _mean(successes) if success_column is not None else None,
     }
 
 
@@ -375,7 +394,7 @@ def _check_stage_training_record(
 
 def _compare_evaluation_aggregates(
     stage_summary: Mapping[str, Any],
-    aggregates: Mapping[str, float],
+    aggregates: Mapping[str, Any],
     *,
     stage: "int | str",
     label: str,
@@ -383,13 +402,23 @@ def _compare_evaluation_aggregates(
 ) -> None:
     for summary_metric, (aggregate_metric, tolerance) in metric_map.items():
         expected = stage_summary.get(summary_metric)
+        actual = aggregates[aggregate_metric]
+        if actual is None:
+            # Only success_rate can be absent: the evidence of a model with no
+            # success keys has no task_success column, and its summary then
+            # records no rate either (None, never a zero).
+            if expected is not None:
+                raise ResultBundleError(
+                    f"summary records {label} evaluation aggregate {summary_metric}={expected!r} for stage "
+                    f"{stage}, but its {label} evaluation evidence has no task_success column to derive it from"
+                )
+            continue
         if expected is None:
             raise ResultBundleError(
                 f"summary is missing {label} evaluation aggregate {summary_metric} for stage {stage}"
             )
         if not isinstance(expected, (int, float)) or isinstance(expected, bool):
             raise ResultBundleError(f"summary {summary_metric} for stage {stage} must be numeric")
-        actual = aggregates[aggregate_metric]
         if not math.isfinite(float(expected)) or abs(float(expected) - actual) > tolerance:
             raise ResultBundleError(
                 f"{label} evaluation aggregate for stage {stage} {summary_metric} differs: "
@@ -551,9 +580,9 @@ def _validate_stance_v2_panel_evidence(
     """Re-derive a ``stance_quality/v2`` pass from the panel's per-episode floor-truth rows.
 
     The v2 twin of :func:`_validate_stance_panel_evidence`, and stricter on
-    the binding the way the task_success arm is: the published claim must be
-    reproducible from ``stance_panel_selected.csv`` alone, and those rows
-    must be shown to describe the published policy.  Refused:
+    the binding: the published claim must be reproducible from
+    ``stance_panel_selected.csv`` alone, and those rows must be shown to
+    describe the published policy.  Refused:
 
     * an absent file, a v1 panel file (it lacks the v2 columns), or any row
       ``read_stance_v2_panel`` cannot read;
@@ -928,6 +957,175 @@ def _validate_stance_heading_panel_evidence(
         )
 
 
+def _validate_command_tracking_panel_evidence(
+    panel_path: Path,
+    curriculum: Mapping[str, Any],
+    *,
+    env_kwargs: Mapping[str, Any],
+    stage: "int | str",
+    panel_seed_start: int,
+    certified_hash: "str | None",
+    certified_normalization: "str | None",
+    task_sha256: "str | None",
+    parent_checkpoint_sha256: "str | None",
+) -> None:
+    """Re-derive a ``command_tracking/v1`` pass from ``command_tracking_panel_selected.csv`` alone (D-D61).
+
+    The command twin of :func:`_validate_stance_v2_panel_evidence`: the
+    published claim must be reproducible from the panel CSV -- never the
+    report's recorded ``passed`` -- and its rows must describe the published
+    policy on the stage's own panel.  Refused:
+
+    * an absent file, or any row ``read_command_tracking_panel`` cannot read;
+    * another profile than the stage declares, a panel that does not start
+      at the ``certification_panel`` seed (D-B17), or a policy not rolled
+      deterministically;
+    * rows for another checkpoint or VecNormalize sidecar than the certified
+      pair, another task than the stage records, or another gate
+      (``gate_sha256`` against the digest of the block the stage records);
+    * a stage that records no live command config, and rows rolled at
+      another horizon or control step than the stage ran;
+    * seeds or families that are not the panel the stage's thresholds and
+      command plan from the certification seed, and reference rows that are
+      not the parent checkpoint the stage entered on, on the same seeds;
+    * a recorded ``success`` flag the re-derivation contradicts;
+    * and a re-derived verdict that fails --
+      :func:`~environments.shared.curriculum.command_tracking_gate.evaluate_command_tracking_gate`
+      under the stage's own command config, which also refuses records
+      reduced under another measurement (tolerances, ``yaw_rate_max``, the
+      protocol or the gait metrics' definition).
+
+    Without this arm a recorded pass would take the legacy loop below and
+    publish on whichever reward threshold the block happened to set.
+    """
+    from ..command_tracking_panel import plan_command_panel
+    from ..curriculum.command_tracking_evidence import read_command_tracking_panel
+    from ..curriculum.command_tracking_gate import (
+        command_config_from,
+        evaluate_command_tracking_gate,
+        thresholds_from_curriculum,
+    )
+    from ..curriculum.gate_schema import gate_config_sha256, gate_config_view
+
+    kind = COMMAND_TRACKING_GATE_KIND
+    if not panel_path.is_file():
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {kind!r} but {panel_path.name} is missing, so no command episode can "
+            "be re-derived; the reward return cannot stand in for the panel"
+        )
+    try:
+        evidence = read_command_tracking_panel(panel_path)
+    except (OSError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} {kind} panel evidence cannot be read: {exc}") from exc
+    try:
+        thresholds = thresholds_from_curriculum(curriculum)
+    except ValueError as exc:
+        raise ResultBundleError(f"stage {stage} declares {kind} without a scorable gate: {exc}") from exc
+    if evidence.profile != thresholds.profile:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was scored under profile {evidence.profile!r}, not the stage's "
+            f"{thresholds.profile!r}"
+        )
+    if evidence.seed_start != panel_seed_start:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence starts its panel at seed {evidence.seed_start}, not the "
+            f"certification_panel seed {panel_seed_start}"
+        )
+    if not evidence.policy_deterministic:
+        raise ResultBundleError(f"stage {stage} {kind} panel evidence records a policy not rolled deterministically")
+    if evidence.checkpoint_sha256 is None or certified_hash is None or evidence.checkpoint_sha256 != certified_hash:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was rolled on checkpoint {evidence.checkpoint_sha256!r}, not the "
+            f"certified selected checkpoint {certified_hash!r}"
+        )
+    if certified_normalization is not None and evidence.normalization_sha256 != certified_normalization:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence ran under VecNormalize statistics {evidence.normalization_sha256}, "
+            f"not the certified selected statistics {certified_normalization}"
+        )
+    if not task_sha256 or evidence.task_sha256 != task_sha256:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was rolled under task {evidence.task_sha256}, not the task the "
+            f"stage records it ran ({task_sha256})"
+        )
+    current_gate = gate_config_sha256(gate_config_view(curriculum))
+    if evidence.gate_sha256 != current_gate:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was scored under gate {evidence.gate_sha256}, not the gate the "
+            f"stage records ({current_gate})"
+        )
+    try:
+        command_config = command_config_from(env_kwargs.get("command_config"))
+    except (TypeError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} records an unreadable command_config: {exc}") from exc
+    if command_config is None:
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {kind!r} but its config records no live command_config, so there is "
+            "no command its panel could have tracked"
+        )
+    horizon_value = env_kwargs.get("max_episode_steps")
+    if horizon_value is None or isinstance(horizon_value, bool) or not isinstance(horizon_value, (int, float)):
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {kind!r} but its config records no integer max_episode_steps "
+            f"({horizon_value!r})"
+        )
+    try:
+        control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
+    except (TypeError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} records an unreadable timestep or frame_skip: {exc}") from exc
+    rows = [*evidence.policy, *evidence.reference]
+    if (
+        evidence.horizon != int(horizon_value)
+        or abs(evidence.control_dt - control_dt) > 1e-9
+        or any(row.horizon != int(horizon_value) or abs(row.dt - control_dt) > 1e-9 for row in rows)
+    ):
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was rolled at horizon {evidence.horizon} and control step "
+            f"{evidence.control_dt:g} s, but the stage ran {int(horizon_value)} steps at {control_dt:g} s"
+        )
+    plan = plan_command_panel(thresholds, command_config, seed_start=panel_seed_start)
+    if [row.seed for row in evidence.policy] != list(plan.seeds) or [row.family for row in evidence.policy] != list(
+        plan.families
+    ):
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence's policy rows are not the panel the stage's thresholds and command "
+            f"plan from seed {panel_seed_start} (seeds {list(plan.seeds)[:6]}...)"
+        )
+    reference = None
+    if evidence.reference:
+        if evidence.reference_checkpoint_sha256 is None or evidence.reference_checkpoint_sha256 != (
+            parent_checkpoint_sha256
+        ):
+            raise ResultBundleError(
+                f"stage {stage} {kind} panel evidence's reference rows were rolled on checkpoint "
+                f"{evidence.reference_checkpoint_sha256!r}, not the parent checkpoint the stage entered on "
+                f"({parent_checkpoint_sha256!r})"
+            )
+        if [row.seed for row in evidence.reference] != list(plan.seeds) or [
+            row.family for row in evidence.reference
+        ] != list(plan.families):
+            raise ResultBundleError(
+                f"stage {stage} {kind} panel evidence's reference rows are not the planned panel "
+                "(other seeds or families)"
+            )
+        reference = list(evidence.reference)
+    result = evaluate_command_tracking_gate(
+        evidence.policy, thresholds, command_config=command_config, reference=reference
+    )
+    rederived = [not reasons for reasons in result.episode_reasons]
+    if rederived != list(evidence.policy_success):
+        index = next(i for i, (a, b) in enumerate(zip(rederived, evidence.policy_success)) if a != b)
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel episode {index} (seed {evidence.policy[index].seed}) records "
+            f"success={evidence.policy_success[index]} but re-derives success={rederived[index]} under the declared gate"
+        )
+    if not result.passed:
+        raise ResultBundleError(
+            f"stage {stage} publication gate fails {kind}, re-derived from {panel_path.name}: "
+            + "; ".join(result.failures)
+        )
+
+
 def _check_resolution_panel_seed(resolution_path: Path, *, stage: "int | str", panel_seed_start: int | None) -> None:
     """A frozen ``gate_resolution.json`` must register the declared certification panel (decision D-B17).
 
@@ -954,93 +1152,6 @@ def _check_resolution_panel_seed(resolution_path: Path, *, stage: "int | str", p
             f"stage {stage} gate_resolution.json registers panel_seed_start {recorded!r}, not the "
             f"certification_panel seed {panel_seed_start}"
         )
-
-
-def _validate_task_success_evidence(
-    evidence_path: Path,
-    curriculum: Mapping[str, Any],
-    *,
-    selected_aggregates: Mapping[str, Any],
-    certified_hash: "str | None",
-    stage: "int | str",
-    stage_summary: Mapping[str, Any] | None = None,
-) -> None:
-    """Re-derive a ``task_success/v1`` pass from the selected checkpoint's episodes.
-
-    Deliberately recomputes rather than trusting the recorded verdict or the
-    summary's bound: the published claim must be reproducible from the rows
-    behind it.  The rows must be hash-bound to the certified checkpoint —
-    evidence that records no ``checkpoint_sha256`` cannot be shown to
-    describe the published policy, and a stage with no certified checkpoint
-    recorded has nothing to bind to, so both are refusals here where the
-    legacy kinds only warn — and the statistic is
-    :func:`~environments.shared.curriculum.task_success_gate.evaluate_task_success_gate`,
-    the one implementation the post-stage judge and the recorded-history
-    reading (``reporting.gates.evaluate_recorded_gate``) share.  The
-    published ``selected_model_success_count`` / ``selected_model_n_episodes``
-    (when *stage_summary* records them) must equal the rows' ``k`` / ``n``
-    exactly: the bound alone is checked at a tolerance, and a count claim
-    the evidence contradicts is a laundered headline.
-    """
-    from ..curriculum.task_success_gate import (
-        TaskSuccessGateThresholds,
-        evaluate_task_success_gate,
-        read_task_successes,
-    )
-
-    try:
-        evidence = read_task_successes(evidence_path)
-    except (OSError, ValueError) as exc:
-        raise ResultBundleError(
-            f"stage {stage} selected evidence cannot be read as task_success evidence: {exc}"
-        ) from exc
-    if evidence.checkpoint_sha256 is None:
-        raise ResultBundleError(
-            f"stage {stage} selected evidence records no checkpoint_sha256, so a task_success/v1 pass "
-            "cannot be bound to the published checkpoint"
-        )
-    if certified_hash is None:
-        raise ResultBundleError(
-            f"stage {stage} records no certified selected checkpoint in provenance, so a "
-            f"{TASK_SUCCESS_GATE_KIND} pass cannot be bound to the published checkpoint"
-        )
-    if evidence.checkpoint_sha256 != certified_hash:
-        raise ResultBundleError(
-            f"stage {stage} selected evidence was produced by checkpoint {evidence.checkpoint_sha256}, "
-            f"not the certified selected checkpoint {certified_hash}"
-        )
-    try:
-        thresholds = TaskSuccessGateThresholds.from_curriculum(curriculum)
-    except ValueError as exc:
-        raise ResultBundleError(f"publication gate threshold for stage {stage} must be numeric: {exc}") from exc
-    result = evaluate_task_success_gate(evidence.successes, thresholds)
-    if not result.passed:
-        raise ResultBundleError(
-            f"stage {stage} publication gate fails {TASK_SUCCESS_GATE_KIND}: " + "; ".join(result.failures)
-        )
-    for key, judged in (
-        ("selected_model_success_count", result.success_count),
-        ("selected_model_n_episodes", result.n_episodes),
-    ):
-        recorded = None if stage_summary is None else stage_summary.get(key)
-        if recorded is None:
-            continue
-        if _integral(recorded) != judged:
-            raise ResultBundleError(
-                f"stage {stage} {key} records {recorded!r}, but the selected evidence holds "
-                f"{result.success_count}/{result.n_episodes} successes"
-            )
-    for threshold_name, aggregate_name, threshold in (
-        ("min_avg_reward", "reward", thresholds.min_avg_reward),
-        ("min_avg_episode_length", "episode_length", thresholds.min_avg_episode_length),
-    ):
-        if threshold is None:
-            continue
-        actual = float(selected_aggregates[aggregate_name])
-        if actual < threshold:
-            raise ResultBundleError(
-                f"stage {stage} publication gate fails {threshold_name}: evidence={actual:.6g} threshold={threshold:.6g}"
-            )
 
 
 def validate_evaluation_evidence(
@@ -1200,16 +1311,6 @@ def validate_evaluation_evidence(
             label="selected",
             metric_map=selected_metric_map,
         )
-        if stage_summary.get("selected_model_success_lcb") is not None:
-            # Recorded only by a task_success/v1 stage; when present it must
-            # reproduce from the evidence like every other aggregate.
-            _compare_evaluation_aggregates(
-                stage_summary,
-                selected_aggregates,
-                stage=stage,
-                label="selected",
-                metric_map={"selected_model_success_lcb": ("success_lcb", 0.00005)},
-            )
         config_path = find_stage_dir(run_path, stage) / "stage_config.json"
         try:
             config_value = json.loads(config_path.read_text(encoding="utf-8"))
@@ -1248,6 +1349,13 @@ def validate_evaluation_evidence(
         # collected_results.csv and artifact_manifest.json stop at stage 2
         # while stage 3's own artifacts were written in full.
         gate_kind = curriculum.get("gate_kind")
+        # A retired gate kind or key (decision D-D59: task_success/v1,
+        # min_success_rate and the rest) is refused whatever the recorded
+        # verdict: no arm below re-derives it, and the legacy loop would
+        # certify a hunt stage on the thresholds it has left.
+        retired = retired_gate_declarations(curriculum)
+        if retired:
+            raise ResultBundleError(f"stage {stage} publication gate config: " + "; ".join(retired))
         # A none/v1 stage (the recovery pilot) has no criteria to re-derive,
         # but its verdict is still bound: the placeholder gate REFUSES to
         # pass, so a summary claiming stage_passed=True beside it is a
@@ -1358,27 +1466,35 @@ def validate_evaluation_evidence(
                 model_id=summary_model_id,
                 task_sha256=_recorded_task_sha256(config_value.get("task_fingerprint")),
             )
-        elif recorded_pass and gate_kind == TASK_SUCCESS_GATE_KIND:
-            # The hunting gate (plan §4.4) is re-derived from the SAME
-            # per-episode file, bound to the certified checkpoint: the
-            # exact binomial bound over the task_success column, then the
-            # rail and the optional length floor over the aggregates.  It
-            # REPLACES the legacy loop below, which would certify the
-            # stage on min_avg_reward — a collapse rail the statue clears.
-            _validate_task_success_evidence(
-                find_stage_dir(run_path, stage) / "evaluation_selected.csv",
+        elif recorded_pass and gate_kind == COMMAND_TRACKING_GATE_KIND:
+            # command_tracking/v1 (D-D61) is re-derived from its panel CSV --
+            # every episode record, bound to the certified pair, the task,
+            # the gate, the stage's command and its panel plan -- and REPLACES
+            # the legacy loop below like the stance arms.
+            if certification_panel_seed is None:
+                raise ResultBundleError(
+                    f"provenance seed_roles must declare certification_panel for a {COMMAND_TRACKING_GATE_KIND} pass "
+                    f"(stage {stage}): the command panel's rows are bound to that seed block"
+                )
+            run_block = config_value.get("run")
+            _validate_command_tracking_panel_evidence(
+                find_stage_dir(run_path, stage) / COMMAND_TRACKING_PANEL_CSV,
                 curriculum,
-                selected_aggregates=selected_aggregates,
-                certified_hash=certified_hash,
+                env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
                 stage=stage,
-                stage_summary=stage_summary,
+                panel_seed_start=certification_panel_seed,
+                certified_hash=certified_hash,
+                certified_normalization=certified_normalization,
+                task_sha256=_recorded_task_sha256(config_value.get("task_fingerprint")),
+                parent_checkpoint_sha256=(
+                    run_block.get("parent_checkpoint_sha256") if isinstance(run_block, Mapping) else None
+                ),
             )
         elif recorded_pass:
             publication_thresholds = {
                 "min_avg_reward": "reward",
                 "min_avg_episode_length": "episode_length",
                 "min_avg_forward_vel": "forward_vel",
-                "min_success_rate": "success_rate",
             }
             for threshold_name, aggregate_name in publication_thresholds.items():
                 threshold_value = curriculum.get(threshold_name)

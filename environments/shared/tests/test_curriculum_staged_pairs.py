@@ -115,7 +115,8 @@ def _vec_env(training: bool = True):
     from gymnasium.wrappers import TimeLimit
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-    tiny = tiny_env_class()
+    # Four dims: every observation ends with the 3-wide command slice, which the saves hold at identity (D-D60).
+    tiny = tiny_env_class(obs_dim=4)
     env = VecNormalize(DummyVecEnv([lambda: TimeLimit(tiny(), max_episode_steps=5)]))
     env.training = training
     return env
@@ -401,7 +402,7 @@ class TestFinalPair:
             from environments.shared import train_base
             from environments.shared.tests.tiny_env_helpers import tiny_env_class
             train_base._REMOTE_MOUNT_ROOTS = ({str(root)!r},)
-            env = VecNormalize(DummyVecEnv([tiny_env_class()]))
+            env = VecNormalize(DummyVecEnv([tiny_env_class(obs_dim=4)]))
             model = sb3.PPO("MlpPolicy", env, n_steps=8, batch_size=8, n_epochs=1, verbose=0, device="cpu")
             if {killed_in!r} == "local save":
                 real = sb3.PPO.save

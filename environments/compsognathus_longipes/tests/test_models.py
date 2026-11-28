@@ -22,6 +22,11 @@ def test_model_contract(embodiment, nq, nv, nu, mass):
     model, data = load_model(embodiment)
     assert (model.nq, model.nv, model.nu) == (nq, nv, nu)
     assert model.body_mass[pelvis_subtree_body_ids(model)].sum() == pytest.approx(mass)
+    # The scene is the animal and the floor: no mocap body (the prey left with decision D-D59), so the
+    # animal is the whole of the model's mass.
+    assert model.nmocap == 0
+    assert pelvis_subtree_body_ids(model) == list(range(1, model.nbody))
+    assert mujoco.mj_getTotalmass(model) == pytest.approx(mass)
     assert model.joint("root").type == mujoco.mjtJoint.mjJNT_FREE
     assert model.camera("head_camera").id >= 0
     assert model.site("tail_tip").id >= 0
@@ -104,13 +109,15 @@ def test_settled_statue_keeps_the_metatarsus_four_millimetres_off_the_floor(seed
             assert mujoco.mj_geomDistance(env.model, env.data, geom, floor, 0.05, None) >= 0.004
 
 
-def test_robot_plant_did_not_move_with_the_anatomical_revision():
-    """D-D26 confines physics r2 to build_anatomical and policy r3 to CompsognathusLongipesAnatomicalEnv: the robot keeps
-    physics 1 / visual 1, its policy interface moved only by the rename's qualnames (r3, plant_versions note 19), and
-    the digests the committed manifest records for them."""
+def test_robot_plant_identity_is_the_committed_manifest_entry():
+    """The robot's revisions and the digests the committed manifest records for them.  D-D26 confined physics r2 to
+    build_anatomical and policy r3 to CompsognathusLongipesAnatomicalEnv, so the robot kept physics 1 / visual 1 and
+    moved its policy interface only by the rename's qualnames (r3, plant_versions note 19).  The target's removal
+    (decision D-D59) moved both plants together: the robot's scene lost the prey body (physics 2, visual 2) and its
+    observation became heading-free, with floor-contact foot channels (policy interface 4)."""
     committed = json.loads(GENERATED_MANIFEST_PATH.read_text())["plants"]["compsognathus_longipes"]["robot"]
     identity = current_plant_identity(ModelId("compsognathus_longipes", "robot"), verify_generated=False)
-    assert (identity.physics_revision, identity.policy_interface_revision, identity.visual_revision) == (1, 3, 1)
+    assert (identity.physics_revision, identity.policy_interface_revision, identity.visual_revision) == (2, 4, 2)
     assert identity.physics_sha256 == committed["physics"]["sha256"]
     assert identity.policy_interface_sha256 == committed["policy_interface"]["sha256"]
     assert identity.visual_sha256 == committed["visual"]["sha256"]

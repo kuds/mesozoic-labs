@@ -62,6 +62,11 @@ parent on `main` once it lands (§17, its second note of 2026-10-25).*
 *Updated 2026-10-27: the maintainer retired the second pilot (D-D45; never launched), a new pilot to be designed once
 physics r10 has a stance parent, and the first r10 T-Rex stance round was set up, approved and launched (D-D49 to D-D51;
 §17, its note of 2026-10-27).*
+*Updated 2026-11-24: decisions D-D59 to D-D62 removed the hunt nodes, the prey and food and the hunt reward code, so
+the hunt sessions, rows and exclusions below (GQ-3, the two hunt rows of the KNOWN_ISSUES table, the out-of-scope
+list) record the plan before 2026-11-23; their KNOWN_ISSUES items are closed as removed. Every committed walk now
+follows a live command under `command_tracking/v1`, whose gait clause draws on GQ-8 (a), GQ-9 (a) and GQ-18
+(decision D-D61), at provisional bars (D-D62 (16)).*
 
 ## How to use this document
 
@@ -408,7 +413,8 @@ panels confirm it.
    and the harness's `stage_config_view_sha256` lines are unchanged at defaults.
 3. **Hashed code untouched**: `_get_obs`, `_scale_action`, `reset`, and `_cache_ids` on the compsognathus pair
    (`plant_contract/policy_layer.py:360-361,397,399-404`). Kit state resets in `_reset_gait_state`
-   (`base_env.py:700`), which every species' `_spawn_target` already calls; the substep loop (:1178-1185) is not
+   (`base_env.py:700`), which every species' `_spawn_target` already calls (`_spawn_target` exists at `e3cccca` and
+   earlier; since D-D59 the per-episode reset hook is `_reset_episode_state`); the substep loop (:1178-1185) is not
    hashed. No MJCF or frozen-core edit; the `foot_contact_*` knobs stay.
 4. **Byte-hashed files**: the kit's calls in the species env modules move each touched species' `behavior` identity
    until PR-9 deletes it (GQ-16). At defaults CU-11's golden and the digest-snapshot harness are otherwise unchanged.
@@ -445,7 +451,12 @@ TOMLs set its weight to 0 (cleanup §2 row 15, :106), and its KNOWN_ISSUES entry
 
 About 60 h of sessions if every first attempt succeeds; budget 120 h. The robot's touch observation still sees
 sole-on-sole force; it waits for the robot's next policy-interface revision (the one carrying `SIM_TO_REAL_PLAN.md` §6
-item 6), whose checklist must add a touch reading that excludes foot-on-foot force.
+item 6), whose checklist must add a touch reading that excludes foot-on-foot force. *Updated 2026-11-23: done by that
+revision (decision D-D59, `configs/plant_versions.toml` note 24; robot policy interface r4, which also made its
+observation heading-free): the robot's two foot channels read each sole's normal force against the floor, so a sole
+on the other foot reads 0 N, and on the zero-action statue they equal the touch readings to 0.0 N. The soles still
+collide with each other and the reward's support flag still reads touch on both Compsognathus models; the floor
+support in the table above is still this plan's (PR-G7).*
 
 ### 5.5 Validation ladder
 
@@ -1093,3 +1104,27 @@ was set up under its own criteria, approved on 2026-10-27 before any training st
 D-D51); as a screen it certifies nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance.
 Its record is §26 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+## 18. Amendment (2026-11-27): the remaining stance gates move to the six-heading certificate
+
+*Appended 2026-11-27; §1–§17 above are unchanged.* The maintainer decided on 2026-11-26 that each model's stance gate
+is upgraded before that model's next stance run, to the gate the T. rex, the velociraptor and the anatomical
+compsognathus stances declare, `stance_quality_heading/v1` (D-D32: `stance_quality/v2`'s floor-truth episode
+classification at six whole-scene headings): decision D-D74 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+§6.2 and the consolidation plan's table, numbered on 2026-11-27). It covers the four stances not yet on it, each as a
+gate revision with bars measured on that model's own statue panel: the allosaurus (added on 2026-11-21, after this
+plan) and the Compsognathus robot from `stance_quality/v1`, and the brachiosaurus and the dibothrosuchus from
+`reward_and_length/v1`. No config changes with it.
+
+- **GQ-10 and PR-G8, for those four.** Both name `stance_quality/v2`, which predates the six-heading certificate. For
+  these four the target is `stance_quality_heading/v1`, and the revision comes before the model's next stance run,
+  which retrains its chain, as GQ-10 (a) asks. GQ-10 (a)'s other clauses, locomotion gates first and recovery
+  separately, are not part of D-D74.
+- **The observation.** The T. rex, the velociraptor and the anatomical compsognathus adopted the certificate with a
+  heading-free observation (D-D31, D-D67), and the allosaurus's observation was heading-free too. When D-D74 was
+  taken the robot and the two quadrupeds still observed the world heading (`bipedal-target/v1`,
+  `quadrupedal-target/v1`). Since the revision of all seven plants (decision D-D59, `configs/plant_versions.toml`
+  note 24, #703) every model's observation is heading-free (`bipedal-heading-free/v1`,
+  `quadrupedal-heading-free/v1`), so each of the four upgrades certifies a heading-free observation at six headings,
+  and keeping v2 at one heading is no longer a choice to make for them. #703 kept each of the four on its gate kind,
+  and re-measured the dibothrosuchus's rail (1560 → 1500).

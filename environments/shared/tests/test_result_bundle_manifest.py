@@ -90,7 +90,7 @@ def test_canonical_bundle_rejects_unlisted_artifact(
 ) -> None:
     run_dir = tmp_path / "run"
     _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
-    extra_checkpoint = run_dir / "stage3" / "models" / "unlisted_checkpoint.pkl"
+    extra_checkpoint = run_dir / "stage2" / "models" / "unlisted_checkpoint.pkl"
     extra_checkpoint.write_bytes(b"not declared by the completion manifest")
 
     report = audit_result_bundle(run_dir)
@@ -263,7 +263,7 @@ def test_manifest_and_provenance_run_ids_must_match(
 @pytest.mark.parametrize(
     ("artifact_path", "replacement"),
     [
-        ("stage3/models/best_model.pkl", b"replacement checkpoint"),
+        ("stage2/models/best_model.pkl", b"replacement checkpoint"),
         ("stage1/stage_config.json", b'{"changed": true}\n'),
     ],
 )

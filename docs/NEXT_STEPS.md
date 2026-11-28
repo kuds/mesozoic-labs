@@ -33,6 +33,15 @@ Stable-Baselines3 is the only training backend (D-D17); the deferred cleanup
 ([section 4](#4-consolidation-the-remaining-prs)) and before the gait plan's
 code PRs; the training sessions are [section 3](#3-recommended-training-sessions).
 
+*2026-11-27, after #703 (its landing is recorded where the first paragraph
+of this section says): #703's revision of all seven plants
+(`configs/plant_versions.toml` note 24, decision D-D59; the notes of
+2026-11-23 below) strands every checkpoint of every model, so section 2
+lists no run on any model's current plant. Section 3's note of this date
+gives each model's next sessions (decision D-D78), and the open choices
+that the maintainer's decisions of 2026-11-26 left head
+[section 7](#7-open-questions-and-risks).*
+
 The gait audit of 2026-09-28
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md))
 replayed every certified node on Drive: three of the five certified walkers
@@ -42,7 +51,9 @@ compsognathus_robot `20260924_031815`), and only compsognathus
 zero-action statue passes every stance gate; the robot's touch sensors count
 sole-on-sole contact as floor support; and the in-progress dibothrosuchus
 re-run `20260928_012318` is, at 4.3M, a three-legged skid its gate would pass.
-No locomotion gate reads a foot contact.
+No locomotion gate read a foot contact then; since D-D61 and D-D62 (2026-11-23
+and 2026-11-24) every walk's `command_tracking/v1` gate judges each cruise
+episode's floor-truth footfalls through its gait clause, at provisional bars.
 [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) proposes the fix
 (floor-truth gait measurement, per-episode gait gates, per-species reward
 revisions) and puts all of its code after the 0.3.9 cut and, by the
@@ -111,7 +122,8 @@ species are named by their binomial (`velociraptor_mongoliensis`,
 `compsognathus_longipes` ([SPECIES_NAMING.md](SPECIES_NAMING.md)); the
 notebook selects `SPECIES` and `EMBODIMENT`, and new runs write
 `logs/<species>/<embodiment>/`. Its policy-interface revision +1 on all six
-plants (names only, `configs/plant_versions.toml` note 19) strands every
+plants of that date (names only, `configs/plant_versions.toml` note 19; the
+Allosaurus, the seventh model, came later, with #681) strands every
 checkpoint, and runs recorded under the old IDs stop resolving, so the next
 session of every model is a fresh stance; sections 2 and 3 keep each run's
 Drive directory as recorded.* *2026-10-25: the maintainer took D-D44: T-Rex
@@ -122,7 +134,7 @@ the stance screens' runs and walking pilot 2's parent included; the next T-Rex
 session is a fresh stance on physics r10, under criteria the maintainer
 approves first (section 3).* *2026-11-06: the maintainer decided to apply the T. rex's stance
 lessons to the velociraptor (no decision id yet: the next records change numbers
-it). Its observation is heading-free (policy
+it, as D-D67 on 2026-11-27). Its observation is heading-free (policy
 interface r12 → r13, `configs/plant_versions.toml` note 21), its stance
 certifies under the six-heading certificate with the T. rex's D-D27 rails and
 `certification_seeds = 2`, it starts at action std 0.07 (its r4 statue's noise
@@ -151,41 +163,47 @@ on its hop-or-fall rail. Before the first velociraptor walk, scan the trained
 stance parent's noise tolerance in the locomotion env, as the T. rex's walking
 pilot 3 did before choosing its log_std reset of −2.0 (a uniform `log_std` on a
 grid around the parent's, seeds 3042–3081 with three noise streams, the
-largest value at which 120/120 episodes stand): the walk inherits the
-stance's learned std, at most about 0.07, and the T. rex's walking pilot 1
-read STILL on 3/3 seeds from a std-0.095 parent. Whether to set
-`[curriculum] warm_start_log_std` from that scan is the maintainer's; never
-the T. rex's −2.0 here, where the r4 statue stands 0/40 at std 0.135.*
+largest value at which 120/120 episodes stand; since 2026-11-26, D-D72,
+`environments/shared/scripts/warm_start_noise_scan.py` runs this scan on a
+two-pass default grid, on the walk's live command since D-D62, as a CPU
+session of its own once the stance is certified and published, section 3's
+note of 2026-11-27): the walk inherits
+the stance's learned std, at most about 0.07 (on physics r4; about 0.10 on r5,
+the 2026-11-09 note), and the T. rex's walking pilot 1 read STILL on 3/3 seeds
+from a std-0.095 parent. Whether to set `[curriculum] warm_start_log_std` from
+that scan is the maintainer's; never the T. rex's −2.0 here, where the r4
+statue stands 0/40 at std 0.135.*
 *2026-11-08: two new seeds certified the committed T-Rex stance (the
-maintainer's stance-landing decision of 2026-11-06) on `main`:
+maintainer's stance-landing decision of 2026-11-06, D-D68) on `main`:
 `trex_stance_r10_ltsb_s44` and `trex_stance_r10_ltsb_s43` both pass its
 six-heading certificate and the fresh-seed audit, and the second's bundle
 counts both (section 2). The sessions on that stance (`recover`, `walk`,
 `hunt`) follow with `CRITIC_PHASE = False`; which comes first, and its trunk,
 are the maintainer's (section 3).* *2026-11-09: the maintainer decided on
-2026-11-08 to rebuild the velociraptor life size, of equivalent nature to
-the T. rex (no decision id yet: the next records change numbers it):
-physics r4 → r5, policy interface r13 → r14 (69 → 71 wide, 22 → 17
-actions) and visual r4 → r5 (`configs/plant_versions.toml` note 22), IGM
-100/986's proportions on the T. rex's topology with a level trunk, a
+2026-11-08 to rebuild the velociraptor life size, of equivalent nature to the
+T. rex (no decision id yet: the next records change numbers it, as D-D69 on
+2026-11-27): physics r4 → r5, policy interface r13 → r14 (69 → 71 wide,
+22 → 17 actions) and visual r4 → r5 (`configs/plant_versions.toml` note 22),
+IGM 100/986's proportions on the T. rex's topology with a level trunk, a
 separate neck and skull, welded passive arms, passive sprung toes and one
 observation channel per foot touch site. Every velociraptor checkpoint is
-refused and none can be widened, any r4 run of the 2026-11-06 recipe
-included, and none had certified, so the velociraptor stance must be
-retrained on physics r5. Its stance keeps today's terms with every
-statue-derived constant re-measured on the r5 statue: it starts at action
-std 0.10 (`log_std_init` −2.30, the r5 statue's noise cliff: 40/40 to σ
-0.09, 38/40 at 0.10, 19/40 at 0.135), the new neck home-pose term is on,
-floor impacts are priced from 3.0 body weights, the statue reference is
-3341.0 and `min_avg_reward` 2000, and the walk gate is 2.1 m/s. The
-2026-11-06 note's procedure stands: two seeds, each judged on its
-certificate and re-judged on 7042–7081, final and archived checkpoints
-judged too, offline tail traces, and the noise scan of the trained stance
-in the locomotion env before the first walk (the walk inherits a learned
-std of at most about 0.10 now; the T. rex's −2.0 reset, std 0.135, is one
-the r5 statue survives on 19/40). The next step after the body is the port
-of the T. rex's LTSB stance recipe, which this change leaves out. The
-velociraptor port plan of 2026-11-08 (scratch work, measured on the r4
+refused and none can be widened, any r4 run of the 2026-11-06 recipe included,
+and none had certified, so the velociraptor stance must be retrained on
+physics r5. Its stance keeps today's terms with every statue-derived constant
+re-measured on the r5 statue: it starts at action std 0.10 (`log_std_init`
+−2.30, the r5 statue's noise cliff: 40/40 to σ 0.09, 38/40 at 0.10, 19/40 at
+0.135), the new neck home-pose term is on, floor impacts are priced from 3.0
+body weights, the statue reference is 3341.0 and `min_avg_reward` 2000, and
+the walk gate is 2.1 m/s. The 2026-11-06 note's procedure stands: two seeds,
+each judged on its certificate and re-judged on 7042–7081, final and archived
+checkpoints judged too, offline tail traces, and the noise scan of the trained
+stance in the locomotion env before the first walk (since 2026-11-26, D-D72,
+the tool `warm_start_noise_scan.py`, run as a CPU session of its own once the
+stance is certified and published, outside every training session; the walk
+inherits a learned std of at most about 0.10 now; the T. rex's −2.0 reset, std
+0.135, is one the r5 statue survives on 19/40). The next step after the body
+is the port of the T. rex's LTSB stance recipe, which this change leaves out.
+The velociraptor port plan of 2026-11-08 (scratch work, measured on the r4
 handoffs, not committed) ranks its candidates: first, a per-site load
 floor, the gate's own support statistic read as reward with load guards,
 as the T. rex's centre-of-pressure band reads its gate's (on the r4
@@ -199,10 +217,74 @@ the mirror-symmetrised policies of two handoffs were clean on 4 and 6 more
 seeds of 40, and on a third checkpoint on 3 fewer, and the plan judges that
 it would not remove an offset both feet share). None of those figures is an
 r5 one: each candidate is re-measured on the r5 statue first, and the order
-is the maintainer's.* Section 2 labels each
-audited node except the in-training dibothrosuchus re-run, which section 3's
-session-4 row describes, and the plan's §10 holds a prompt for continuing the
-gait work in a fresh session.
+is the maintainer's.* *2026-11-23: the maintainer took D-D59: the hunt is
+removed. No manifest declares a `behavior` node now, so every chain ends at
+walk, `BEHAVIOR = "hunt"` and `--target hunt` are refused naming `walk`, and
+the sessions below that name a hunt (or `hunt` among a stance's sessions)
+record the plan before that day; the four historical ladder summaries under
+`results/` (three from March 2026 and the Brachiosaurus run of 2026-07-18),
+whose last stage was a hunt, are deleted (`results/README.md` names the last commit
+that holds them). Walk becomes command-driven and follow-direction is the
+path after it, in later changes.* *2026-11-23, later (the same decision,
+`configs/plant_versions.toml` note 24): the prey, food and course target left
+every scene and every model's observation became heading-free in one
+revision of all seven plants (physics, policy interface and visual), so every
+checkpoint named below, certified or not, fails the plant check, cannot be
+widened and cannot seed a warm start or a trunk reuse; every session below
+starts from a fresh stance on the new revisions, whose statue-derived rails
+were re-measured (the velociraptor stance rail 2000 → 1950, the
+dibothrosuchus 1560 → 1500).* *2026-11-24 (decision D-D62): the walk is now
+command-driven on all seven models: it follows a forward cruise command with
+a small initial heading offset and holds a stop on about 15% of its episodes,
+under the `command_tracking/v1` walk gate, whose bars are provisional and not
+yet shown attainable: D-D62 (16) leaves its open risks, per-step tracking
+under a gait's sway first among them, to the maintainer (KNOWN_ISSUES). A
+walk session needs a stance retrained on the current interface first (its
+warm start begins command-blind). The follow-direction nodes that widen the
+walk are next and not built; until one exists, or a command-free walk config
+is added, the terrain recipes have no parent a user can produce. The
+development version is `0.4.0.dev3` from this day.* *2026-11-25 (decision
+D-D63): the maintainer answered the series' open questions. For the
+per-step tracking (D-D62 (16)(a)) the answer is a stride-averaged tracking
+measure, in both the reward and the gate, on live-command stages only, with
+a `COMMAND_PANEL_PROTOCOL` bump. It is implemented by the next decision
+row, so until then the walk's bars stay provisional and the other open
+risks stay open. The in-training evaluation keeps the declared end-state commands
+during the cruise ramp, so candidates are ranked on the task that is
+certified. The library version a run records is read from the checkout's
+`pyproject.toml` first. Result-summary schema 2 is retired. The T. rex
+policy probe keeps 9 of its 10 bank rows. The SB3 notebook review
+([reviews/SB3_NOTEBOOK_REVIEW_2026_11.md](reviews/SB3_NOTEBOOK_REVIEW_2026_11.md)) is committed with
+its status of this day; triaging its 110 open findings into KNOWN_ISSUES is pending, after the
+stride-averaged tracking lands.* *2026-11-26 (decision D-D64): the stride-averaged tracking has
+landed. Each walk declares `[commands] tracking_window_s`, about one stride (0.70-1.50 s), and at
+a moving command the tracking term and the gate's in-tolerance test read a trailing boxcar mean
+over it, under the panel protocol `command_panel/v2`, which refuses v1 reports and records. Under
+a command it matches, every reference walk now clears the in-tolerance fraction and the speed
+ratio: the brachiosaurus and dibothrosuchus references pass the whole walk gate, and the T. rex and
+Allosaurus fail heading_settle on their scripted starts; the statue still fails every walk. The bars
+stay provisional and no controller has passed a committed walk panel (KNOWN_ISSUES). Every walk's
+task digest moved, so a walk session trains a walk afresh; the T. rex walk's collapse floor is
+2.16 x 1248.7 (D-D62 (15), as D-D64 reads it). The review triage the previous note deferred is
+no longer waiting on it.* *2026-11-26 (decision D-D65): the maintainer answered D-D64's open
+questions. The collapse floor's walker is now measured on the matched basis on every model, so the
+brachiosaurus and dibothrosuchus walks' floors are raised from the absolute 100 to 1.20 x 2359.7 =
+2831.6 and 1.31 x 2286.0 = 2994.7; on those walks a standing plateau no longer arms the backstop.
+`longest_stop_s` stays report-only until the pilot, D-D64's window design is accepted as recorded,
+and the notebook review's 110 open findings are folded into KNOWN_ISSUES next.* *2026-11-26
+(decision D-D65 (4), done): the SB3 notebook review is folded into KNOWN_ISSUES. Re-checked on
+this day's tree, no finding changed status (11 addressed, 20 moot, 110 open), and the 110 open
+ones are carried by 52 new entries and 8 amendments, each naming its ids; the review's addendum
+"Folded on 2026-11-26" records the counts and the amendments. The triage the 2026-11-25 note left
+pending is done.* *2026-11-26 (decision D-D66): the maintainer answered D-D65's four open
+questions; no code changes. The dibothrosuchus walk keeps its floor fraction 1.31, not 1.32; a
+walk that tracks no committed command is accepted as within D-D65's trade;
+`collapse_drop_fraction` stays 0.5 and D-D64 (11)'s start overshoot uncharged, both to be decided
+after the pilot. At 0.5 a return to standing after a matched reference walk stops the run on 27.4%
+of seeds on the T. rex, 84.7% on the velociraptor and 15.1% on the dibothrosuchus (17.2% with each
+run's own episodes fixed), never on the brachiosaurus.* Section 2 labels each audited node except
+the in-training dibothrosuchus re-run, which section 3's session-4 row describes, and the plan's
+§10 holds a prompt for continuing the gait work in a fresh session.
 
 The notebook ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb)) is the one SB3 training
 notebook; the consolidation plan's §4 maps its cells. Its sizes from consolidation PR-3 on are in the
@@ -210,8 +292,10 @@ consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; th
 after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
 Configuration-cell defaults:
-`BEHAVIOR = "hunt"` (dropdown: `stance`, `recover`, `walk`, `hunt`, stage ids by
-free input; the eleven direction/terrain values leave with the PR-12 slice;
+`BEHAVIOR = "auto"`, the model's last deliverable, walk on every model since
+decision D-D59 (dropdown: `auto`, `stance`, `recover`, `walk`, stage ids by
+free input; `hunt` is refused naming `walk` since D-D59; the eleven
+direction/terrain values leave with the PR-12 slice;
 `recover`, stance then push recovery on the T-Rex and both Compsognathus
 models, since decision D-D35, before which `stand` meant that chain there;
 `stance`, the stance stage alone on every model, labelled `stand` until
@@ -284,9 +368,14 @@ of it.
 
 ## 2. Certified checkpoints on Drive
 
-Drive layout `mesozoic-labs/logs/<species>/<algo>/<run>/` before decision D-D33
-(`logs/<species>/<embodiment>/<algo>/<run>/` since), surveyed 2026-09-17 and
-updated with the section 3 session runs since.
+Drive layout `mesozoic-labs/logs/<old id>/<algo>/<run>/` before decision
+D-D33, where `<old id>` is a species id that decision retired (`trex`, as in
+the first column below), and `logs/<species>/<embodiment>/<algo>/<run>/`
+since, with screens and pilots under `<algo>_screen/` (from 2026-11-24),
+quick tests under `<algo>_quick_test/`, and each model's derived run reports
+and `reports/INDEX.md` beside the run trees (#705);
+[DRIVE_LAYOUT.md](DRIVE_LAYOUT.md) maps the whole tree. Surveyed 2026-09-17
+and updated with the section 3 session runs since.
 Plant identities at `22c1fc8` (revisions from `configs/plant_versions.toml`,
 dimensions from the generated plant manifest; policy interface / physics /
 obs): T-Rex r13 / 7 / 64, compsognathus r2 / 1 / 56, velociraptor r10 / 2 / 70,
@@ -298,7 +387,8 @@ run-level summaries. A cell ending "gait audit 2026-09-28: …" gives, in plain
 words, what the 2026-09-28 replays show that node doing
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md)
 §4); the label changes no certification fact, and a verdict still certifies
-only what its gate checks (no locomotion gate reads a foot contact).
+only what its gate checks (no locomotion gate read a foot contact then; since
+D-D61 and D-D62 the walk gate's gait clause does).
 *2026-10-06: T-Rex is physics r8 since D-D24, so the plant contract refuses every
 T-Rex run below (physics r7) and none is reused; each T-Rex row ends with a dated
 "stranded by physics r8" note, and its facts are as they were.*
@@ -329,6 +419,18 @@ strand the T-Rex runs below again; they were stranded already.*
 *2026-11-09: and since the maintainer's decision of 2026-11-08 the
 velociraptor is physics r5 (note 22), which would strand the velociraptor
 runs below again; they were stranded already.*
+*2026-11-21: and since T. rex physics r11 (#680;
+`configs/plant_versions.toml`, the T. rex hindlimb note above
+`[plants.tyrannosaurus_rex.anatomical]`) the plant contract refuses the
+T. rex runs below again, the two certified r10 runs
+`trex_stance_r10_ltsb_s44` and `trex_stance_r10_ltsb_s43` included, so
+neither is a trunk now. The other anatomical models' plants were revised
+in November too (section 3's note of 2026-11-27). The first r11 T. rex
+stances, of 2026-11-21, are in that note, not in this table.*
+*2026-11-23: and since the revision of all seven plants (decision D-D59,
+`configs/plant_versions.toml` note 24, #703) the plant contract refuses
+every run below and every earlier run of every model, the r11 T. rex
+stances of 2026-11-21 included.*
 
 | Drive species directory | Run id | Seed | Interface | Stance | Locomotion | What it needs next |
 |---|---|---|---|---|---|---|
@@ -389,7 +491,7 @@ where no T-Rex stance has trained; the stance screens of 2026-10-18 to
 2026-10-24 trained on r9 and certified nothing.* *2026-11-06: the clause "where no
 T-Rex stance has trained" no longer holds: the r10 screen runs (`stance6_r10LTSB_*`,
 `stance7_r10LTSBoff_*` and `stance7_r10LTSBpc_*`) trained on r10 and passed on branch commits,
-and they never count (the stance-landing decision of 2026-11-06); the recipe of the phase-critic
+and they never count (the stance-landing decision of 2026-11-06, D-D68); the recipe of the phase-critic
 three is the committed stance since that decision, and the two-seed count on `main` starts from
 none.* *2026-11-08: on `main` the count is two. `trex_stance_r10_ltsb_s44`
 (seed 44) and `trex_stance_r10_ltsb_s43` (seed 43) both certified the
@@ -413,11 +515,20 @@ artifacts when its replication record is the only change
 could be regenerated at replication 2 (inferred from
 `environments/shared/reporting/bundles.py`, not run). No committed notebook
 cell re-publishes a finished run, though (a session that reuses every node
-writes no bundle), so that would take a hand-typed `save_run_bundle(...)`
-call. The seed-42 run's bundle stays as recorded above: `03_locomotion/`
-appeared in it after its publication, so the writer refuses to rewrite it
-(section 3).* Nothing relies on a `mesozoic-labs/certified` library
-directory.
+writes no bundle), so that would take a hand-typed `save_run_bundle(...)` call
+(still so since 2026-11-26: the notebook's publish cell, `PUBLISH_RUN = True`,
+D-D73, writes a run cut off before its bundle or a `partial` one, and refuses
+a `complete` one such as this). The seed-42 run's bundle stays as recorded
+above: `03_locomotion/` appeared in it after its publication, so the writer
+refuses to rewrite it (section 3).* *2026-11-21: on T. rex physics r11 (#680)
+the count starts again from none.* *2026-11-26: the r11 stance of run
+`20261121_175147` passed (as read on Drive on 2026-11-26) and was never
+published.* *2026-11-27: on T. rex physics r12 (note 24, #703) the count
+starts again from none. That r11 run, sealed or not, counts toward no r12
+stance, and sealed with the publish cell (D-D73) it would stay one run of
+two seeds, `provisional`: a record only (section 3's note of 2026-11-27).*
+Nothing relies on a
+`mesozoic-labs/certified` library directory.
 
 ---
 
@@ -427,15 +538,315 @@ All on `main`, `notebooks/sb3_training.ipynb`, notebook defaults unless stated
 (`N_ENVS = 4`, `TRUNK_FROM = "auto"`). Times are
 the measured Colab wall clock of the section 2 runs or scaled from them.
 
-*2026-11-26: the maintainer's decision (no decision id yet): every stance
-trains 11M steps. `[curriculum] timesteps = 11000000` in every `stance.toml`;
-it was 12M for the T-Rex and the velociraptor, 6M for the brachiosaurus and
-the dibothrosuchus and 3M for the allosaurus, and both Compsognathus models
+*2026-11-27: the next sessions, model by model (decision D-D78, which
+numbers the decisions this note cites;
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). Each model's
+steps are in order; the order across models is the maintainer's (the gait
+plan's GQ-17, the retrain order, is open). This note follows #703
+(decisions D-D59 to D-D66), which comes before #705 and this change; its
+landing is recorded where section 1 says. Its one revision of all seven
+plants (physics, policy interface and visual;
+`configs/plant_versions.toml` note 24) strands every checkpoint of every
+model once and makes every model's observation heading-free, and its walk
+follows a live command on all seven models under the `command_tracking/v1`
+walk gate, whose bars are provisional (D-D62; section 1's notes of
+2026-11-23 to 2026-11-26). The anatomical models' plants had been revised
+earlier in November too: the Velociraptor's physics r5 (#666), the
+Brachiosaurus's r6 (#674), the anatomical Compsognathus's r3 (#675), the
+Dibothrosuchus's r3 (#676) and the T. rex's r11 (#680), and the Allosaurus
+came at r1 (#681). So the sessions and runs below ran on plants the plant
+contract now refuses, the T. rex physics-r11 stances of 2026-11-21
+included, section 2 lists no run on a current plant, and every model's next
+session is a fresh stance on its current plant, 11M steps (D-D70), under
+the gate its `stance.toml` declares then: the T. rex, the Velociraptor and
+the anatomical Compsognathus can train now, and the Compsognathus robot, the
+Brachiosaurus, the Dibothrosuchus and the Allosaurus have no stance session
+until their D-D74 gate revisions are on `main` (items 3 and 4). The
+revisions named below are those of `configs/plant_versions.toml` on `main`
+after #703. Each model's `reports/INDEX.md` lists its runs on Drive by
+state (#705, [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#the-reports-tree)), a run on
+a plant before note 24 as `stranded`. No session before #705 wrote one, so
+run the Drive summary notebook (`notebooks/google_drive_summary.ipynb`)
+once through its last cell, which builds every model's index for the runs
+already on Drive, and read the model's index before its next session.*
+
+1. **T. rex** (physics r12, policy interface r17; `stance_quality_heading/v1`,
+   `certification_seeds = 2`; stance task `2624c86a`, gate `d26c34e6`, recipe
+   `c64211e8` with `CRITIC_PHASE = True`).
+   1. The stance certification on physics r12: two fresh runs in the
+      certification tree, one Colab L4 session each, for 11M steps (D-D70;
+      about 21h11m–21h31m on an L4). The first session's settings:
+
+      ```python
+      SPECIES = "tyrannosaurus_rex"
+      EMBODIMENT = "anatomical"
+      ALGORITHM = "ppo"
+      N_ENVS = 4
+      BEHAVIOR = "stance"
+      SEED = 44
+      RUN_ID = "trex_stance_r12_ltsb_s44"
+      RUN_KIND = "certify"
+      TRUNK_FROM = ""
+      RETRAIN_FROM = ""
+      CRITIC_PHASE = True
+      QUICK_TEST = False
+      ```
+
+      The second session is the same with `SEED = 43` and
+      `RUN_ID = "trex_stance_r12_ltsb_s43"`. The seeds are the r10 pair's,
+      which no run on r12 has used; any two seeds serve, one per run. Each
+      `RUN_ID` is new and explicit: `""` re-enters the run this runtime
+      resolved last, and the r10 ids name stranded runs, which the storage
+      cell refuses to re-enter. `REPO_REF` is one full SHA of `main` for both
+      runs and every resume, the one at the first launch, as the r10 pair
+      both ran on `820dbda`, so that no digest can move between the two runs.
+      `CRITIC_PHASE = True` on the launch and on every resume: a resume with
+      it off is refused, but a fresh launch with it off would train the
+      switch-off recipe `054ab483` without a warning. (The 2026-11-06 note's
+      block below is the r10 certification's record; the test that checked
+      it against the notebook is retired, the note of 2026-11-23 after it.)
+      Before training the resolve cell's `Critic phase on:` line names
+      `stance`; at the first checkpoint `01_stance/stage_config.json`
+      records `run.hyperparameters_sha256` `sha256:c64211e8…` and
+      `task_fingerprint.json` `2624c86a…`, else the run is stopped and
+      relaunched under a new `RUN_ID`. A seed the hop watch stops is
+      restarted on a new seed, not resumed. Each run is judged on its
+      six-heading certificate; then, as for the r10 pair: the fresh-seed
+      audit of each handoff pair on CPU at the same SHA, from the checkout
+      (`/content/mesozoic-labs` on Colab, Drive mounted in a cell of its
+      own), with `M` the model directory
+      `/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical`
+      (`python environments/shared/scripts/stance_gate_report.py --species
+      tyrannosaurus_rex --embodiment anatomical --model
+      M/ppo/<run_id>/01_stance/models/robust_best_model.zip --vecnorm
+      M/ppo/<run_id>/01_stance/models/robust_best_model_vecnorm.pkl --seed
+      7042 --out-dir M/reports/ppo/<run_id>.probes/fresh_seed_7042`, in the
+      run's own folder of report-only output, which the run index never
+      touches: [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#the-reports-tree)), a look
+      at the handoff's step in `01_stance/handoff_in_training.json` (the
+      robust-best rule can hand off a shallow early checkpoint) and for a
+      `01_stance/hop_watch.json` (written only when the hop watch trips), and
+      a records change with the outcome. The second run's bundle counts the
+      first as a replicate when their task, plant, gate and hyperparameter
+      digests are equal (decision D-B16; the 11M budget moves none of them,
+      D-D70) and the first's verdict is on Drive when the second publishes;
+      the first run's own bundle keeps replication 1, as
+      `trex_stance_r10_ltsb_s44`'s did (section 2; section 7's second
+      question). No r11 run counts toward it, run `20261121_175147` included
+      (step 4): its plant digests are physics r11's. No second r11 seed is
+      trained either: on `main` it would be refused like the first.
+   2. The warm-start noise scan (D-D72) of the stance handoff the first walk
+      will start from, once that stance is certified and published, as a CPU
+      session of its own, never inside a training session: for example a
+      Colab CPU runtime with the checkout of the SB3 notebook's section 1 and
+      Drive mounted in a cell of its own (the storage cell would open a
+      run), then, from the checkout (`cd /content/mesozoic-labs`), with `M`
+      the model directory of step 1, `python -m
+      environments.shared.scripts.warm_start_noise_scan --species
+      tyrannosaurus_rex --embodiment anatomical --stage-dir
+      M/ppo/<run_id>/01_stance --jobs <the runtime's CPU count> --out-dir
+      M/reports/ppo/<run_id>.probes/noise_scan`, on Drive in the run's folder
+      of report-only output, so a recycled runtime loses no finished scan
+      (an out-dir on the runtime's own disk would go with it). The walk
+      follows a live command (D-D62), and the
+      tool rolls it as the walk's training starts: the walk's `[commands]` at
+      the cruise ramp's start (its `cruise_speed` and `speed_range` at
+      `cruise_ramp_start_fraction`, 0.25), each episode's command the one the
+      walk's own command stream draws for its reset seed (a stand on seeds
+      3052, 3060 and 3074 of the default 3042–3081), and the parent prepared
+      as the walk's warm start prepares it (its critic-phase inputs dropped,
+      since the walk declares no `[ppo] critic_phase`, and its command
+      columns zeroed and proven blind); it counts the stands per command
+      family. The default grid has two passes (7 values in steps of 0.25,
+      from 0.5 below the parent's largest learned `log_std`, rounded to
+      0.125, to 1.0 above it, then one value 0.125 above the largest that
+      stood every episode), each value on seeds 3042–3081 in three noise
+      streams to the walk's 1000-step episode; the tool's docstring gives its
+      cost, about 26 minutes of one CPU where it was measured, and a Colab
+      CPU's rate is not measured. Walking pilot 3's −2.0 was measured on a
+      command-free walk from an r10 parent and does not carry to r12. Whether
+      to declare `[curriculum] warm_start_log_std` from the scan is then the
+      maintainer's; no walk stage declares one.
+   3. Recovery and the walk, on the certified r12 stance. Before a recovery
+      node trains, a pull request re-measures the recovery safe set on that
+      stance, on the current plant, by the first-runs record's §4 protocol
+      ([investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md)),
+      and is on `main` before the recovery session. The safe set is code:
+      `CALIBRATED_POSTURE_ONLY` and its 0.9267 m reference
+      `CALIBRATED_HEIGHT_REFERENCE_M` in
+      `environments/shared/recovery_evaluation.py`, measured on the r7
+      certified stance and stale since physics r8, as that module's note and
+      `configs/tyrannosaurus_rex/anatomical/recovery.toml`'s say. The
+      notebook freezes a recovery node's gate
+      resolution from those values (`freeze_recovery_gate`) as it does
+      now, so a session on `main` without that change freezes the stale r7
+      set. The pushed plant has changed with every revision since r7. On
+      r12 the derived push is 159.7 N (165.5 N on r7 to r11 in
+      `recovery.toml`, 165.6 N on r8 to r11 in note 24), and the pushed
+      zero-action statue recovered from 51 of 80 shoves under
+      `recovery_offdist_panel --controller statue`, against 51 of 70 on r10
+      by the same command (both in the same `recovery.toml`); on r11 it
+      recovered from 22 of 69 under the roughly 166 N schedule in the T. rex
+      review
+      ([reviews/TREX_ANATOMICAL_REVIEW_2026_11.md](reviews/TREX_ANATOMICAL_REVIEW_2026_11.md)).
+      The shoves differ, so these are not one rate measured three times:
+      r12's reset no longer draws the prey placement or the height jitter,
+      so every seeded push schedule moved (note 24), and r11's count is the
+      review's own method. Whether recovery or the walk comes first is the
+      maintainer's. Each session sets `BEHAVIOR = "recover"` or `"walk"`, a
+      new explicit `RUN_ID`, `TRUNK_FROM` pinned to one certified r12 stance
+      run (for the walk the run whose handoff was scanned: with both seeds
+      certified, `"auto"` picks the greater directory name on the tie, the
+      2026-11-08 note's inference) and `CRITIC_PHASE = False`: the switch
+      would write `critic_phase = true` into every chain node, and the warm
+      start drops the parent's phase inputs only for a node without the
+      option (the 2026-11-06 note below). The walk's tree and its place as
+      the walk pilot are section 7's fourteenth question.
+   4. Run `20261121_175147` (physics r11): D-D73 (2) seals it, and since
+      #703 the seal is possible only as a record; whether that record is
+      still wanted is section 7's first question. Its r11 stance passed, and
+      its runtime ended during the stance probes, which run last: the run
+      holds the verdict, the evaluation CSVs, the figures and the replays,
+      and no probes and no bundle (as read on Drive on 2026-11-26). On
+      `main` the storage cell refuses to re-enter it, since its
+      `provenance.json` records the physics-r11 plant identity
+      (`result_bundle.initialize_result_bundle`), and the plant contract
+      refuses its checkpoints. A seal therefore needs `REPO_REF` pinned to a
+      commit that has the publish cell and comes before #703:
+      `2c1039f4ca6aafa6d4616b964e22a064322cf6c3` (`2c1039f4c`, `main` after
+      #704). Its notebook has the publish cell, its storage cell runs (it
+      needs `environments/shared/run_tree.py`, which that commit has), and
+      its T. rex plant identity is physics r11's as `main` first had it (the
+      generated plant manifest's T. rex `bundle_sha256` `063afa4e…` is the
+      same at every `main` commit from `108dbddf9`, the first with physics
+      r11, to `2c1039f4c`). Read two of the run's files first.
+      `01_stance/stage_config.json` records `run.hyperparameters_sha256`:
+      `sha256:c64211e8…` is the committed recipe, and `sha256:054ab483…` the
+      recipe with `CRITIC_PHASE` off, which the seal would then record
+      (section 7's first question). Its `provenance.json` gives the `SEED`
+      and `N_ENVS` to set: the storage cell refuses to re-enter the run under
+      others. In a fresh runtime open the notebook as it is at `2c1039f4c`
+      (a notebook's cells must match the library its setup cell installs),
+      not the README's link to `main`'s copy:
+      `https://colab.research.google.com/github/kuds/mesozoic-labs/blob/2c1039f4ca6aafa6d4616b964e22a064322cf6c3/notebooks/sb3_training.ipynb`.
+      Set `REPO_REF` to that full SHA, `RUN_ID = "20261121_175147"`,
+      `SPECIES = "tyrannosaurus_rex"`, `EMBODIMENT = "anatomical"`,
+      `PUBLISH_RUN = True`, `BEHAVIOR = "stance"`, and the other knobs the
+      cell's text lists as that run's session had them. Run every cell above
+      section 5, then the publish cell, then section 9's cell, which with
+      `AUTO_DISCONNECT = True` flushes Drive's writes before it releases the
+      runtime; skip the RESUME cell and the chain loop. The `BEHAVIOR`
+      caveat: a run that never wrote a bundle records no target, so the cell
+      trusts `BEHAVIOR`. Under `BEHAVIOR = "stance"` it seals the run
+      `complete` as a stance run, whatever chain its session trained under,
+      and a complete bundle is never rewritten; under a longer chain (at
+      that commit `"auto"` resolves to the T. rex's hunt) it refuses the run
+      until the chain loop has trained the next node into it, on the r11
+      plant. The sealed bundle is a record only: its checkpoint cannot be a
+      parent or a trunk on the current plants, no r12 seed counts it as a
+      replicate, and its stance stays `provisional`, one run of two seeds
+      (D-B11). That session writes no run report (#705 is not in that
+      commit); the Drive summary notebook's last cell on `main` builds it,
+      and the run's row reads `stranded`. A fresh-seed audit of its handoff
+      pair, if the record should have one, runs at the same commit.
+   5. The other two r11 stances of 2026-11-21, `20261121_175142` and
+      `20261121_175427`, stay as they are (D-D73): both were cut during the
+      six-heading certificate, with their evaluation CSVs and no certificate
+      or verdict (the run index reads such a run as `post_training_cut`, and
+      both as `stranded`).
+2. **Velociraptor** (physics r6, policy interface r15;
+   `stance_quality_heading/v1`, `certification_seeds = 2`; the stance rail
+   1950 on its r6 statue's 3241.7, note 24).
+   1. The stance certification on r6, by the procedure of section 1's notes
+      of 2026-11-06 and 2026-11-09 (two seeds, each judged on its
+      six-heading certificate and re-judged on 7042–7081, its final and
+      archived checkpoints judged as well as the handoff, offline tail
+      traces), for 11M steps (D-D70). Note 24 measured r6's dynamics
+      bit-identical to r5's, so the 2026-11-09 note's noise-cliff figures
+      should carry (inferred, not re-rolled); every r5 checkpoint is
+      stranded all the same. Whether the port of the T. rex's LTSB stance
+      recipe comes first is the maintainer's (the 2026-11-09 note). Section 2
+      lists no r5 or r6 run; the model's `reports/INDEX.md`, once built
+      (above), lists any on Drive, with its state.
+   2. The noise scan of the certified r6 stance before its first walk, as
+      the T. rex's (`--species velociraptor_mongoliensis`), on the default
+      grid; never the T. rex's −2.0 here, where the r5 statue stands 19/40
+      at std 0.135 (the 2026-11-09 note).
+   3. The walk carries a known stop risk: its collapse backstop keeps
+      `collapse_drop_fraction` 0.5 until after the walk pilot (D-D66 (3)),
+      and from the matched reference walker's level a return to standing
+      after walking stops the velociraptor walk on 84.7% of evaluation
+      seeds, the default seed 42 included (the D-D66 update of the
+      `collapse_peak_floor` entry in [KNOWN_ISSUES.md](KNOWN_ISSUES.md)), and
+      the run records name no such stop (its entry there of 2026-09-23).
+3. **Compsognathus, anatomical** (physics r4, policy interface r7;
+   `stance_quality_heading/v1`) **and robot** (physics r2, policy interface
+   r4; `stance_quality/v1`). The anatomical model can train now, on the gate
+   it declares. The robot has no stance session until its D-D74 gate
+   revision, `stance_quality_heading/v1` with bars measured on its own
+   statue panel, is on `main` (no config has changed for it yet; its
+   website page already says its check is due to be replaced). Since #703
+   its observation is heading-free, as the anatomical model's is, and its
+   two foot channels read each sole's floor contact, not its touch sensors
+   (note 24). Each embodiment's chain is then as before: a fresh `stance`
+   (the anatomical model's on at least two seeds, each with the lift-off and
+   root-height checks of the 2026-10-07 compsognathus status below), then
+   `recover` and `walk`, both from the certified stance (both recovery
+   calibrations were re-measured on the new plants, note 24); and the noise
+   scan before each embodiment's first walk, on that embodiment's own
+   parent, since a value measured on one plant does not carry to the other
+   (section 7's eighth question).
+4. **Brachiosaurus** (physics r7, policy interface r12;
+   `reward_and_length/v1`), **Dibothrosuchus** (physics r4, policy interface
+   r11; `reward_and_length/v1`) and **Allosaurus** (physics r2, policy
+   interface r2; `stance_quality/v1`). None of the three has a stance
+   session until its D-D74 gate revision, `stance_quality_heading/v1` with
+   bars measured on its own statue panel, is on `main`: no config has
+   changed for D-D74 yet, and #703 kept each on its gate kind (it
+   re-measured the Dibothrosuchus's rail, 1560 → 1500). Since #703 none of
+   these models observes the world heading. Then a fresh stance of 11M
+   steps and the walk, with the noise scan before each first walk. The
+   Allosaurus walk is 3000 steps, so its default scan costs about three
+   times the T. rex's (section 7's ninth question). The gait plan's
+   advice to hold the Brachiosaurus until its task revision `gait-r1`
+   (session 5's row, GQ-3, open) stands.
+5. **Every model.**
+   - The in-run K3 noise panel is retired (D-D71): no session sets it, and
+     the 2026-10-27 note below names it as history.
+   - Every stance trains 11M steps (D-D70, the next note).
+   - Every walk follows a live command under the `command_tracking/v1` walk
+     gate, whose bars are provisional and not yet shown attainable (D-D62
+     (16); section 1's notes of 2026-11-24 to 2026-11-26), and starts from
+     the model's stance certified on its current plant. Five of #703's
+     choices wait on "the pilot", a learned walk no record names yet (the
+     walk bars among them); section 7's fourteenth question lists them and
+     asks which walk is the pilot, on which model and in which tree. A pilot
+     trains with `RUN_KIND = "screen"` (the 2026-11-24 note below).
+   - After every bundle the SB3 notebook rebuilds the run's report and the
+     model's `reports/INDEX.md`, best-effort (#705); for runs already on
+     Drive the Drive summary notebook's last cell rebuilds them.
+   - [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md) maps the Drive tree, with its run-ID
+     and placement rules (D-D75, D-D76). Nothing on Drive is moved or
+     deleted (D-D76), the stray, retired-id and stranded runs included.
+   - Only the adopted design becomes a species' robot model; designs
+     studied beside it stay in `examples/` or on hardware branches (D-D75).
+   - Promotion into `results/` waits for certified stances (D-D77), and then
+     follows the strict validation of [RESULT_BUNDLES.md](RESULT_BUNDLES.md).
+     D-D77 named the r11 T. rex and the r5 Velociraptor stances, whose
+     plants note 24 retired, so which certifications promotion now waits
+     for is section 7's thirteenth question.
+
+*2026-11-26: the maintainer's decision (no decision id yet; D-D70 since
+2026-11-27): every stance trains 11M steps.
+`[curriculum] timesteps = 11000000` in every `stance.toml`; it was 12M for
+the T-Rex and the velociraptor, 6M for the brachiosaurus and the
+dibothrosuchus and 3M for the allosaurus, and both Compsognathus models
 were already at 11M. The budget is a schedule key in no task, gate or recipe
-digest, so the T-Rex stance stays task `433d4add`, gate `d26c34e6` and recipe
-`c64211e8` with `CRITIC_PHASE = True`. The 12M of the procedures below (the
-2026-11-06 note's "The stage trains 12M steps") and the 6M stance of rows 4
-and 5 read 11M from here. Scaled from the two r10 certification runs (12M in
+digest, so the T-Rex stance stays task `2624c86a`, gate `d26c34e6` and recipe
+`c64211e8` with `CRITIC_PHASE = True`. A new stance session trains 11M: the
+6M stance of rows 4 and 5 reads 11M from here, and the 2026-11-06 note's "The
+stage trains 12M steps" stays the record of its finished certification (the
+2026-11-23 note below). Scaled from the two r10 certification runs (12M in
 23h06m55s and 23h28m58s), an 11M T-Rex stance trains in about 21h11m–21h31m
 on an L4, with about 0.8 h more for the certificate and the bundle inside the
 ~24 h runtime cap; the other species have no stance run at the current
@@ -463,7 +874,11 @@ its own code, apply the change that added the knob
 (`environments/shared/run_tree.py` and the storage cell). Then check that the
 storage cell's `Run directory:` line shows `<algo>_screen/` before training. A fresh
 runtime resets the knob, so set it again to resume a screen (the storage
-cell refuses a `RUN_ID` that names a run only in another tree). Nothing
+cell refuses a `RUN_ID` that names a run only in another tree; since
+2026-11-26, D-D75, also one that names only another model's run in the
+trees for the same `ALGORITHM` and a new id with characters other than
+letters, digits, `_` and `-`, and it prints a banner naming every run of
+an explicit id: [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#run-ids)). Nothing
 refuses a certification run that loads, resumes or widens a screen's
 checkpoint, so a certification run never trains from one.*
 
@@ -481,13 +896,15 @@ trash on 2026-09-23 and the three trees match their manifests again). The fix
 landed with the notebook-only PR-12 slice (#552), so a `main` at `03d3a54` or
 later releases the runtime at the end of a completed "Run all". Session 6 started
 first, on 2026-09-24 at 03:18 UTC, as `20260924_031815` on `main` = `03d3a54`; its stance passed at 22:57 UTC after 19h31m, not the ~13 h estimated, so locomotion ran into Colab's ~24 h session cap; the maintainer resumed it on 2026-09-28 and locomotion passed (the table's row 6, section 2), and the same day started the session 4 re-run. Housekeeping: delete the four stray T-Rex directories `20260918_230155`,
-`20260918_230335`, `20260919_170528` and `20260919_190251` (first note below). The earlier second step, re-entering the
-seed-42 walker `20260914_123816` in place so its bundle cell rebuilds the
-run-level records, is dropped: with every node reused the chain loop writes no
-bundle, and the run's `complete` stance-target bundle (not `partial`) refuses a
-rebuild because `03_locomotion/` appeared after its publication (a complete
-bundle is immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md)). Reuse reads the per-node files, so nothing depends
-on those records.
+`20260918_230335`, `20260919_170528` and `20260919_190251` (first note below;
+since 2026-11-26 nothing on Drive is moved or deleted, D-D76). The earlier
+second step, re-entering the seed-42 walker `20260914_123816` in place so its
+bundle cell rebuilds the run-level records, is dropped: with every node reused
+the chain loop writes no bundle, and the run's `complete` stance-target bundle
+(not `partial`) refuses a rebuild because `03_locomotion/` appeared after its
+publication (a complete bundle is immutable,
+[RESULT_BUNDLES.md](RESULT_BUNDLES.md)). Reuse reads the per-node files, so
+nothing depends on those records.
 
 | # | Species | Settings | What happens | Rough time |
 |---|---|---|---|---|
@@ -768,14 +1185,14 @@ maintainer retired the second pilot (never launched; a new pilot is designed
 once r10 has a stance parent) and had report-only telemetry built for the
 first r10 stance round: head posture, hip roll and the judge's K3 read over
 training, per-actuator commands, body posture, energy, drift and slip, and an
-in-run K3 noise panel, with no new MuJoCo sensor. That round is a screen:
-arm LTSB of the stance5 screens ported to r10, seeds 60, 42 and 80 from
-scratch, 12M steps each on Colab L4s, from the never-merged branch
-`claude/screen-trex-r10-armltsb`, its runs read all or nothing by criteria
-the maintainer approved on 2026-10-27 before any training step. Its three
-runs were launched that day and are training: results pending. As a screen
-it certifies nothing, so the next T-Rex session above is still a fresh
-stance on physics r10. The decisions' full text is in
+in-run K3 noise panel (retired on 2026-11-26, D-D71), with no new MuJoCo
+sensor. That round is a screen: arm LTSB of the stance5 screens ported to r10,
+seeds 60, 42 and 80 from scratch, 12M steps each on Colab L4s, from the
+never-merged branch `claude/screen-trex-r10-armltsb`, its runs read all or
+nothing by criteria the maintainer approved on 2026-10-27 before any training
+step. Its three runs were launched that day and are training: results pending.
+As a screen it certifies nothing, so the next T-Rex session above is still a
+fresh stance on physics r10. The decisions' full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
 §26 of the same record.*
 *2026-10-28: the first r10 stance round was judged by its approved criteria,
@@ -830,16 +1247,19 @@ is §9 of
 and §29 of the stance record.*
 
 *2026-11-06: the maintainer's stance-landing decision (no decision id yet:
-the next records change numbers it). The T-Rex stance recipe whose three r10
-phase-critic screen runs passed the six-heading certificate ("LTSB": the
-lateral lean, the settled leg reference with `leg_home_pose` 1.0 / 0.05, the
-stance stagger penalty, the per-foot centre-of-pressure band and mirror-KL
-PPO; task `1e5964b6`) is the committed stance, and the screens never count.
+the next records change numbers it, as D-D68 on 2026-11-27). The T-Rex
+stance recipe whose three r10 phase-critic screen runs passed the
+six-heading certificate ("LTSB": the lateral lean, the settled leg reference
+with `leg_home_pose` 1.0 / 0.05, the stance stagger penalty, the per-foot
+centre-of-pressure band and mirror-KL PPO; task `1e5964b6`) is the
+committed stance, and the screens never count.
 The next T-Rex session is its certification: two fresh seeds on Colab L4,
 one session each, the SB3 notebook with `REPO_REF` set to the full SHA of
 the commit that put the recipe on `main`, and these LTSB certification
 settings for the first session (`environments/shared/tests/test_ltsb_stance_recipe.py`
-checks them against the notebook):*
+checks them against the notebook; since 2026-11-23 it is retired and
+nothing checks them, the note of that date below, and section 3's note of
+2026-11-27 gives the r12 sessions' own settings):*
 
 ```python
 SPECIES = "tyrannosaurus_rex"
@@ -869,15 +1289,16 @@ training, the resolve cell's line starting `Critic phase on:` must name
 `run.hyperparameters_sha256` `sha256:c64211e8…` and `task_fingerprint.json`
 `1e5964b6…`, else the run is stopped and relaunched under a new `RUN_ID`.
 Neither run starts from a screen run's weights: a run whose stage record
-loads, resumes or widens a screen's checkpoint, or names a screen's run
-folder or run id, never counts (the stance-landing decision of 2026-11-06,
+loads, resumes or widens a screen's checkpoint, or names a screen's run folder
+or run id, never counts (the stance-landing decision of 2026-11-06, D-D68,
 `environments/shared/run_exclusions.py`).
-A seed the hop watch stops is restarted on a new seed, not resumed. The
-stage trains 12M steps, rolls the six-heading certificate on its
-robust-best handoff and writes `gate_verdict.json` and the bundle; both
-runs stay in `logs/tyrannosaurus_rex/anatomical/ppo/`, the second run's
-bundle counts the first, and re-running the first run's publication cell
-counts the second in its own record. Then the fresh-seed audit of each
+A seed the hop watch stops is restarted on a new seed, not resumed. The stage
+trains 12M steps, rolls the six-heading certificate on its robust-best handoff
+and writes `gate_verdict.json` and the bundle; both runs stay in
+`logs/tyrannosaurus_rex/anatomical/ppo/`, the second run's bundle counts the
+first, and re-running the first run's publication cell counts the second in
+its own record (it does not: the status of 2026-11-08 below; the publish cell
+of 2026-11-26 refuses a `complete` run). Then the fresh-seed audit of each
 handoff pair (`stance_gate_report.py --species tyrannosaurus_rex
 --embodiment anatomical --model … --vecnorm … --seed 7042 --out-dir
 <scratch>`, never the stage directory, which the tool refuses, as any
@@ -902,11 +1323,12 @@ certificate, most likely at Colab's ~24 h cap, and was resumed in place with
 bundle (04:36 UTC) counts both runs (replication 2, not provisional); the
 first's (03:19 UTC) reads replication 1, as section 2 explains. The
 2026-11-06 note's "re-running the first run's publication cell counts the
-second in its own record" does not hold: the notebook has no such cell, so
-the first run's own record keeps the count it was published with (section
-2's note of 2026-11-08). Neither hop
-watch tripped (unsupported duty 0.0 at every evaluation); the handoffs are
-the robust-best checkpoints at 10,850,000 and 11,350,000 of 12,001,280 steps
+second in its own record" does not hold: the notebook has no such cell (it had
+none then; the publish cell of 2026-11-26, D-D73, refuses a `complete` run, so
+this still holds), so the first run's own record keeps the count it was
+published with (section 2's note of 2026-11-08). Neither hop watch tripped
+(unsupported duty 0.0 at every evaluation); the handoffs are the robust-best
+checkpoints at 10,850,000 and 11,350,000 of 12,001,280 steps
 (`01_stance/handoff_in_training.json`), not shallow early ones; and the
 fresh-seed audit of each handoff pair (seeds 7042–7081, on CPU at
 `820dbda`, each run twice with byte-identical reports) passes 40/40 seeds at
@@ -918,7 +1340,15 @@ its trunk, are the maintainer's: both runs cover the stance, so
 directory name on the tie (inferred from `select_trunk`, not run), so the
 next session pins `TRUNK_FROM` to the run the maintainer chooses. This
 records change keeps the stance-landing decision's date citation; its number
-is still to be assigned. The record is §31 of the stance record.*
+is still to be assigned (D-D68 since 2026-11-27). The record is §31 of the
+stance record.*
+
+*Note 2026-11-23 (decision D-D59's amendment): the hunt reward code left the
+T. rex environment, which moved its stance task again, so
+`environments/shared/tests/test_ltsb_stance_recipe.py`, which checked the
+settings above against the notebook and the committed stance against the
+screen's recorded task, is retired; the settings stay as the record of the
+finished certification.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was
@@ -948,7 +1378,8 @@ Notes:
   the same stray. The four stray run directories are still on Drive
   (2026-09-23; each holds only
   `provenance.json` and four unverified model files under `01_stance/models/`)
-  and should be deleted: `select_trunk` lists them as refused, which is
+  and should be deleted (no longer: nothing on Drive is moved or deleted
+  since 2026-11-26, D-D76): `select_trunk` lists them as refused, which is
   harmless but noisy (session 1 re-ran beside them without harm). What the
   2026-09-20 run printed, in order: the preflight line `SB3 archive load preflight: loading
   the WIDEN_FROM parent's root handoff .../20260815_205206/stage1/models/robust_best_model.zip
@@ -1043,7 +1474,9 @@ Not recommended yet: direction/terrain pilots (evaluation only, D-D9; command
 line only from the notebook-only PR-12 slice on, with `--checkpoint` /
 `--vecnormalize` naming the pair, [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md);
 one T-Rex `follow_direction` pilot pointed at the September walker's locomotion
-checkpoint pair is harmless but disposable) and T-Rex hunting (off the direction path). Never
+checkpoint pair is harmless but disposable; since decision D-D62 no committed
+path produces a walker a pilot can start from, section 1's note of
+2026-11-24). T-Rex hunting is removed (decision D-D59). Never
 re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 
 ---
@@ -1080,7 +1513,7 @@ and PR-14a .. PR-14c (landed by `0.3.9`), whose sections the plan's §3 keeps as
 | PR-8 | One behavior env, part 2: one terrain selector (`terrain_sampler` kwarg, `terrain_contact` family), command constants imported from `command_frame`, delete `BehaviorVecNormalize` | M (about −170) | PR-7; D-D3 |
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
-| PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
+| PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `locomotion` (planned after the hunt node `behavior`, which decision D-D59 removed), trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
 | PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
 | PR-15 | Docs fold (a residual pass for PR-8 .. PR-13), pin budget; the CHANGELOG half and the notebook-cell helper are done (the plan's PR-15 section) | M (about −290) | PR-14c |
@@ -1156,6 +1589,140 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
 
 ## 7. Open questions and risks
 
+### Open choices of 2026-11-26
+
+*2026-11-27 (D-D78): the choices that the maintainer's decisions of
+2026-11-26 recorded as D-D70 to D-D78 and their changes (#704, #705) left
+open, as they stand after #703, and (question 14) the walk pilot that #703's
+choices wait on (D-D62, and its decisions of that day, D-D64 to D-D66). Each
+names the models it affects and where the behaviour is today; the older
+questions follow. One choice was settled by the order of events before this
+list was recorded: whether to seal run `20261121_175147` and train a second
+r11 T. rex seed before #703, or to retrain the T. rex stance afresh after
+it. #703 comes first, so every T. rex stance trains afresh on physics r12,
+and the seal D-D73 (2) decided now needs the pinned `REPO_REF` of section
+3's note of this date and gives a record only.*
+
+1. **Sealing run `20261121_175147` (the T. rex; the target of any run that
+   never wrote a bundle, all models).** (a) Is the seal still wanted? D-D73
+   (2) seals it with the publish cell, the option that read "Sealing 175147
+   then takes a short Colab session with no training", while
+   `20261121_175142` and `20261121_175427` stay as they are. Since #703 a
+   seal needs `REPO_REF` pinned to `2c1039f4c`, and the sealed bundle is a
+   record only, which no r12 seed counts and no later node can start from
+   (section 3's note of 2026-11-27, the T. rex's step 4). The run records no
+   target, so the publish cell trusts `BEHAVIOR`, and only
+   `BEHAVIOR = "stance"` seals it; a longer chain could continue in it only
+   at that pin, on r11. (b) If its `stage_config.json` records the switch-off recipe
+   `054ab483`, not `c64211e8`, seal it all the same? (c) Should the storage
+   or the resolve cell record the session's target at first write, a library
+   change, so the cell can check every run?
+2. **Late replicates into a complete bundle (the T. rex and Velociraptor
+   stances, the two that declare `certification_seeds = 2`).** The publish
+   cell refuses every `complete` run, and only the hand-typed
+   `save_run_bundle(chain_results(), model_id=MODEL_ID)` its message gives
+   counts a late replicate into one. Should `PUBLISH_RUN = True` do so when
+   the replication record is the only change, as the writer allows? On
+   `main` it would not reopen the 2026-11-08 choice to leave
+   `trex_stance_r10_ltsb_s44` at replication 1: that run is stranded.
+3. **How the publish cell ends (all models).** Left `True` in a session
+   that trains, it refuses the run the chain loop completed and stops Run
+   all before the auto-disconnect, so the GPU stays allocated. (a) Keep the
+   raise (today), (b) call `halt()` and then raise, or (c) print that the
+   run is published and skip? (d) Should it flush Drive itself on success
+   (`drive.flush_and_unmount()`), which its pinned rule that it releases
+   nothing forbids today?
+4. **`sim_dt` in verdicts (both Compsognathus models).** The chain loop's
+   same-run REUSE branch re-enters a verdict without the control step, so a
+   summary it writes for a reused Compsognathus node shows half the sim time
+   (the publish cell takes the step from the task's env). Add `sim_dt` to
+   `gate_verdict._PERSISTED_STAGE_RESULT_KEYS`? It moves no digest, but
+   every new `gate_verdict.json` changes.
+5. **Three publish-cell rules to confirm (all models).** (a) It publishes
+   any verdict judged in the run, even one whose task or gate digest no
+   longer matches the checkout (the chain loop raises on such a node).
+   (b) It refuses a run holding a judged node the bundle would leave out
+   (off the chain, or below the failed node), which then needs a hand-typed
+   call. (c) It is a subsection of section 6, so sections 7–9 keep the
+   numbers that docs, tests and records cite.
+6. **Run ids (all seven models; the storage cell,
+   [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#run-ids)).** (a) Refuse an id that
+   another model holds only under the other algorithm, which the banner only
+   names today? (b) Refuse re-entering a run when another model's run has
+   the same id (the stray Velociraptor run `stance6_r10LTSB_s60` stays,
+   D-D76)? (c) Keep a new id to ASCII letters (`café_s42` is refused)?
+   (d) Make a new id start with a letter or digit (`-s42` is allowed)?
+   (e) Search the trees under the ids D-D33 retired, which the rules skip,
+   and give `widen_checkpoint --to-stage-dir` and the command line's
+   `--output-dir`, which check no id, the same check?
+7. **Each species' robot design (D-D75).** Only the Compsognathus has a
+   robot model, revision B; the T. rex's 75 cm and 60 cm bodies are paused
+   studies, the Velociraptor's and the Dibothrosuchus's concepts are on
+   paper, and the Brachiosaurus and the Allosaurus have none
+   ([hardware/README.md](hardware/README.md)). Which design, if any, does
+   each adopt?
+8. **The Compsognathus scans (both embodiments, scanned apart).** (a) Keep
+   the repository's 20 ms debounce, which is one control step at their
+   0.02 s and so no debounce at all, or floor it at two steps (40 ms), the
+   count it has on the other five models? (b) Both stances start at
+   `log_std_init` −2.0, which D-D26 puts at the anatomical plant's noise
+   cliff: should the default grid reach further than 0.5 below the learned
+   value for them?
+9. **The Allosaurus scan's horizon.** Keep the walk's full 3000 steps,
+   about three times the T. rex's cost, or default to a shorter
+   `--horizon`? On the live walk a course completion no longer ends the
+   episode, so it costs no stand.
+10. **How a scan is read (all models).** (a) The answer: the largest value
+    at which every episode stood (the headline today), or the largest below
+    the first failure (recorded beside it)? (b) The bar: 120/120 (today), a
+    per-stream bar or a confidence bound? (c) Add a fresh-seed panel at the
+    answer (for example seeds 7042–7081; pilot 3's check found 1 fall in 160
+    fresh-seed episodes at its −2.0)? (d) Lift-offs from the touch sensors
+    (today) or from the costlier floor-truth recorder pilot 3's probe used?
+    (e) Centre the grid on the largest learned `log_std` (today) or on the
+    mean?
+11. **A stance probe's warning (the six models whose stance declares no
+    filter probe: every model but the T. rex).** Every stance stage that
+    does not declare `stance_probe_filter_hz` logs "stance_probe_filter_hz
+    entry is not a number: None; ignoring it" at its end
+    (`environments/shared/reporting/stage_artifacts.py`). Removing it
+    changes training's log output: may a later change do so?
+12. **The run index's reads (all models).** An index row of a
+    certification-tree run reads each stage's `stage_config.json` once, so
+    its `never counts` marker covers every `run_exclusions` rule, at one
+    small Drive read per stage per run on every rebuild (after every
+    bundle). Keep it, or mark in the index only what `provenance.json` and
+    the verdicts show, and every rule on the page?
+13. **What promotion waits for (D-D77; the T. rex and Velociraptor stances,
+    and any other model's).** D-D77 has promotion into `results/` wait
+    until the T. rex physics-r11 and the Velociraptor physics-r5 stances
+    certify, and note 24 retired both plants, so neither stance can certify
+    on `main` now. Does promotion wait for the same two models' stances on
+    their current plants (T. rex physics r12, Velociraptor r6), for another
+    set, or for none? And does one seed, `provisional` under
+    `certification_seeds = 2`, meet "certify", or must two seeds?
+14. **The walk pilot (all seven models; #703's D-D62 and D-D64 to D-D66,
+    outside the decisions above).** Five of #703's choices wait on "the
+    pilot", a learned walk that no record names: the walk bars, provisional
+    (D-D62 (16)) and "to be frozen from a pilot"; a quadruped pair's
+    touchdown phase as a gait measure, which no module computes and which is
+    "the pilot's to promote" (D-D62 (16)); whether `longest_stop_s` becomes
+    a bar, per panel or per episode (D-D65 (2)); the collapse drop fraction,
+    0.5 on the T. rex, Velociraptor, Brachiosaurus and Dibothrosuchus
+    walks, where from a reference walker's level a return to standing stops
+    the Velociraptor walk on 84.7% of evaluation seeds, seed 42 included
+    (D-D66 (3)); and whether a
+    quadruped's start overshoot is charged (D-D66 (4)). Which walk is the
+    pilot: the first learned walk of any model, or a chosen model's? Does
+    it train in the screen tree (`RUN_KIND = "screen"`, as the 2026-11-24
+    note in section 3 puts a pilot, so it never certifies or becomes a
+    trunk) or in the certification tree, judged at the provisional bars?
+    And which model pilots first? The figures are in
+    [KNOWN_ISSUES.md](KNOWN_ISSUES.md) (the walk gate's entry, and the D-D66
+    update of the `collapse_peak_floor` entry).
+
+### Earlier questions and risks
+
 - Does a widened stance reproduce its panel under the new interface? Answered
   yes, to every printed digit: T-Rex seed 44 (r11 → r13, session 1, 2026-09-20:
   3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069 / UCB 0.0117 on both sides)
@@ -1203,7 +1770,13 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   both, left with cleanup PR-B).
 - The plan's per-event `command_tracking/v1` statistic and the
   worst-of-heading-bins floor have no implementation anywhere (D-D6's second
-  kind is new work).
+  kind is new work). *2026-11-27: D-D61 (#703) implemented
+  `command_tracking/v1`
+  (`environments/shared/curriculum/command_tracking_gate.py`: walk and
+  follow profiles, per-event settle and dwell, and the follow profile's
+  paired reference comparison), and every committed walk declares it
+  (D-D62); only the worst-of-heading-bins floor, if it is still wanted, has
+  no implementation.*
 - Totals uncertainty: PR-12's −5,300 depends on D-D5 and on how much of
   `test_behavior_species_training` survives; band 9,000–12,000 lines.
 - Velociraptor: [investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md)
@@ -1259,6 +1832,10 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).
+   Each model's `reports/INDEX.md` lists its runs by state (#705,
+   [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md#the-reports-tree)), once the Drive
+   summary notebook's last cell has built it (section 3's note of
+   2026-11-27).
 4. Before any cleanup PR, read [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the decisions,
    with the outcome of each one taken, §3 for the PR order and §3.5 for the KNOWN_ISSUES entries each PR
    closes, §4 for the retirement's acceptance checks (its frozen MJX interface core is deleted: see §4.1's last amendment), and §7 for the
@@ -1350,6 +1927,8 @@ the seed-42 columns stay empty with a pointer to `20260914_123816`.
 | Digest snapshot (every plant, policy, stage, recovery and behavior digest and the 21 stages' reward, info and termination captures, one value per line; `--exact` for a same-machine A/B) | `environments/shared/harnesses/digest_snapshot.py`; its committed golden, which CI checks, `configs/digest_snapshot.generated.txt` |
 | Drive state as surveyed 2026-09-17 | [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md) |
 | Bundle layout, `gate_verdict.json`, `ancestors/` records | [RESULT_BUNDLES.md](RESULT_BUNDLES.md) |
+| The Drive tree, each model's run reports and run index, the run-ID and placement rules | [DRIVE_LAYOUT.md](DRIVE_LAYOUT.md); `environments/shared/scripts/run_report.py`, `environments/shared/reporting/run_index.py` |
+| The walk warm-start noise scan (D-D72) | `environments/shared/scripts/warm_start_noise_scan.py` |
 | Plant identities and the widen contract | [PLANT_CONTRACT.md](PLANT_CONTRACT.md), `configs/plant_versions.toml` |
 | Reuse rules 1–7, trunk selection, widen and backfill tools | `environments/shared/ancestors.py` (`find_certified_ancestor`, `select_trunk`); `environments/shared/scripts/widen_checkpoint.py`, `environments/shared/scripts/backfill_gate_verdict.py` |
 | Gate digests and task fingerprints | `environments/shared/curriculum/gate_schema.py` (`gate_config_view`, `gate_config_sha256`), `environments/shared/task_fingerprint.py` (`stage_task_fingerprint`, the stage-level helper every derivation site calls, and `FINGERPRINT_BACKEND`; `derive_stage_task_fingerprint` beneath it) |

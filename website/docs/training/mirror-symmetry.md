@@ -47,11 +47,11 @@ python -m environments.shared.symmetry --write --species tyrannosaurus_rex --emb
 python -m environments.shared.symmetry --check
 ```
 
-Today the anatomical T. rex has a committed map. The anatomical
-Compsognathus, which shares its observation layout, derives one too. The
-other anatomical models pass the model checks, but their older observation
-layouts have no mirror rule yet. The Compsognathus robot fails the checks,
-because its model is not mirror-symmetric as built.
+Today the anatomical T. rex has a committed map. Every other anatomical
+model derives one too: since decision D-D59 every observation follows the
+same heading-free layout, the bipeds' rooted at the pelvis and the
+quadrupeds' at the torso, and the mirror rules cover both. The Compsognathus
+robot fails the checks, because its model is not mirror-symmetric as built.
 
 ## What mirror-symmetric training does
 
@@ -137,9 +137,13 @@ leg_home_pose_reference = "settled"   # default "keyframe"
 - **The standing lean term** (`lateral_lean_weight`) rewards keeping the
   body's centre of mass over the middle of the feet, left to right. It is a
   bonus of up to `lateral_lean_weight` per step, which falls to about 37% of
-  that at an offset of `lateral_lean_tolerance_m`. It is paid only after the
-  stance settle (`stance_width_settle_steps`), only while the command is
-  zero and only while both feet carry load (`foot_terms_min_support_force`).
+  that at an offset of `lateral_lean_tolerance_m`. It is paid after the
+  stance settle (`stance_width_settle_steps`) while both feet carry load
+  (`foot_terms_min_support_force`). On a stance, which runs no command
+  (`command_mode = "none"`), every step's command is zero. The walk, which
+  follows a live command, leaves it at 0 in its `[env]` and pays it at a
+  zero command through its `[commands.stand_weights]` stand block
+  (decision D-D62 (2)).
   It raises every standing episode's return by about
   `lateral_lean_weight` × 800, so enabling it is a reward change (see the
   comment in `environments/tyrannosaurus_rex/base_env.py`).

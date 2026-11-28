@@ -50,7 +50,8 @@ alive_bonus = 1.75                                # Setting 4 sweep: all best en
 # every constant below on its statue (zero action, this [env], reset noise 0.05, seeds 3042-3081, and out of
 # sample 3082-3121 and 7042-7081) and its noise start (clip(N(0, sigma)) commands, seeds 3042+i, stream
 # default_rng(123456 + 17 i)); the r2 audit numbers stay as measured (its checkpoints load only on r2).
-#   * The statue stays the reward optimum: 3341.03 +/- 2.72 (40/40) of a 3350 ceiling, with support 0.995
+#   * The statue stays the reward optimum: 3341.03 +/- 2.72 (40/40) of a 3350 ceiling (3241.68 +/- 2.76 of
+#     3250 since physics r6, plant_versions note 24, which set heading_weight to 0), with support 0.995
 #     (1.000 after step 100; the reset pop's first steps sit under the saturation), leg pose 0.9991, tail pose
 #     0.9983, neck pose 0.9978 (the new neck term, below), no saturation, no jerk, no impact charge; it pays -2.0
 #     of nosedive charge and -0.10 of airborne substeps per episode (the spawn's first one or two substeps,
@@ -195,13 +196,14 @@ posture_weight = 1.5
 nosedive_weight = 1.5
 gait_symmetry_weight = 0.0
 smoothness_weight = 0.05
-heading_weight = 0.1                             # Small heading reward to prevent spin-to-balance exploits
+heading_weight = 0.0                             # 0 since policy interface r15 (decision D-D59; 0.1 before). The term priced facing the
+                                                 # prey's bearing; with the prey gone it would price the spawn heading, which this
+                                                 # heading-free observation cannot see and no command (command_mode "none") states, so
+                                                 # it would pay for an error the policy cannot observe. Wandering stays priced by the
+                                                 # spin, drift and speed penalties and the stance gate's yaw-change rail.
 spin_penalty_weight = 0.1                        # Penalize pelvis angular velocity to directly discourage spinning
 speed_penalty_weight = 0.3                       # Penalize absolute 2D speed above threshold — complements drift penalty with instantaneous signal
 speed_penalty_threshold = 0.10                   # m/s — any speed above this incurs penalty
-strike_bonus = 0.0
-strike_approach_weight = 0.0
-prey_distance_range = [10.0, 15.0]
 max_episode_steps = 1000                  # Match stage 2/3 for consistent episode horizon across curriculum
 reset_noise_scale = 0.05                  # Increased from 0.01 default to improve robustness and reduce eval variance
 
@@ -525,7 +527,7 @@ max_hop_or_fall_episodes = 1             # Panel rail (the T-Rex's D-D27, 2026-1
                                          # (9065 lands on its body at step 162, above), so 0 would refuse the statue
                                          # on some panels. r5: 0 at every heading of 3042-3081, 3082-3121 and
                                          # 7042-7081.
-min_avg_reward = 2000.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): the statue is the
+min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): the statue is the
                                         # reward optimum, so this sits at 0.60 x its standing reward at noise 0.05
                                         # (collapse_peak_floor_reference below: 0.60 x 2842.8 = 1705.7 -> 1710
                                         # nearest-10) and only rejects a policy that discarded most of the
@@ -548,6 +550,11 @@ min_avg_reward = 2000.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # 2.72, 40/40 full horizon (the neck term's +249.5 on r4's terms; the statue
                                         # scores 0.995 support, 0.9991 leg, 0.9983 tail and 0.9978 neck quality), so
                                         # the rail moves to 0.60 x 3341.0 = 2004.6, rounded to 2000.
+                                        # Re-measured on physics r6 (plant_versions note 24: the prey and the claw
+                                        # collision geoms removed, dynamics bit-identical; heading_weight 0.1 -> 0),
+                                        # same command: 3241.68 +/- 2.76, 40/40 full horizon, -99.35 (the 0.1 per
+                                        # step the heading term paid the statue), so the rail moves to 0.60 x
+                                        # 3241.7 = 1945.0, rounded to 1950.
 min_avg_reward_statue_ratio = 0.60      # The same 0.60 rail against the statue panel each report rolls for itself
                                         # (zero action, this [env], the same seeds and recorder), so it re-derives
                                         # itself when a reward weight or the plant moves and min_avg_reward above
@@ -555,7 +562,7 @@ min_avg_reward_statue_ratio = 0.60      # The same 0.60 rail against the statue 
                                         # 1.006 (robust_best) and 1.015 (final) of its own r2 statue: the rails
                                         # catch a collapse, the bars above catch the hacks.
 collapse_peak_floor_fraction = 0.45    # RELATIVE floor, the T-Rex's (2026-11-06): the backstop arms once a peak clears
-                                        # 0.45 x collapse_peak_floor_reference below, 1503.5 (1391.1 on r4), and so re-anchors with
+                                        # 0.45 x collapse_peak_floor_reference below, 1458.8 (1503.5 on r5, 1391.1 on r4), and so re-anchors with
                                         # the statue whenever the reward moves, where the absolute 2130 (0.75 x the
                                         # statue) had to be re-derived by hand. Either floor is below the statue-like
                                         # first evaluations (evaluation is deterministic, and the untrained network
@@ -575,7 +582,7 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # must not arm the floor. 1.0M was measured on the T-Rex's 20260803_012355
                                          # series (its initialisation advantage gone by 200k); it leaves 91% of
                                          # this 11M budget protected. Untested on a full run at this start.
-collapse_peak_floor_reference = 3341.0  # The zero-action statue's standing reward at noise 0.05: 2842.76 +/- 2.62,
+collapse_peak_floor_reference = 3241.7  # The zero-action statue's standing reward at noise 0.05: 2842.76 +/- 2.62,
                                         # 40 episodes, seeds 3042-3081, on physics r3 with the stance-quality terms
                                         # above, measured with `zero_action_baseline.py --model-id velociraptor_mongoliensis
                                         # anatomical --episodes 40 --seed 3042`; the v2 report's own statue panel agrees (2842.76, 40/40;
@@ -590,11 +597,15 @@ collapse_peak_floor_reference = 3341.0  # The zero-action statue's standing rewa
                                         # `zero_action_baseline.py --model-id velociraptor_mongoliensis anatomical
                                         # --episodes 40 --seed 3042`: 3341.03 +/- 2.72, 40/40; the v2 report's
                                         # statue panel agrees (the certificate's six headings below), so it moves
-                                        # to 3341.0 and the floor is 0.45 x 3341.0 = 1503.5.
-statue_constants_physics_revision = 5   # The velociraptor physics revision the statue-derived constants above
+                                        # to 3341.0 and the floor is 0.45 x 3341.0 = 1503.5. Re-measured on physics
+                                        # r6 (plant_versions note 24) with heading_weight 0, same command, 2026-11-23:
+                                        # 3241.68 +/- 2.76, 40/40, so it moves to 3241.7 and the floor is 0.45 x
+                                        # 3241.7 = 1458.8.
+statue_constants_physics_revision = 6   # The velociraptor physics revision the statue-derived constants above
                                         # (min_avg_reward and collapse_peak_floor_reference) were measured on
                                         # (r3, re-measured on r4 above, and with the 2026-11-06 [env] on r4; on the
-                                        # life-size r5 with its [env], 2026-11-09).
+                                        # life-size r5 with its [env], 2026-11-09; on r6 with heading_weight 0,
+                                        # 2026-11-23).
                                         # test_statue_constant_freshness.py cross-checks this against the plant
                                         # manifest, so a plant revision bump that forgets to re-measure the statue
                                         # fails CI. Update it WITH the re-measurement, never alone.

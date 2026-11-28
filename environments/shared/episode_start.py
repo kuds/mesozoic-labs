@@ -15,13 +15,13 @@ with every feature off none of them reads a generator or writes anything:
   unchanged (the policy layer hashes it as ``home_reset``), and nothing
   hashes class bases, so no digest moves.
 * **The streams.** Each feature draws from its own PCG64 stream,
-  :func:`feature_stream`, never from ``np_random``, so the reset draws (joint,
-  velocity and height noise, the target, the push schedule, the command) are
-  bit-identical with any feature on or off.  A feature rebuilds its stream on
-  every seeded reset and on its first, and continues it across unseeded
-  resets (SB3's auto-reset), as ``np_random`` is continued.  The stream keys
-  are spawn keys of the episode's seed, so no stream coincides with
-  gymnasium's ``SeedSequence(seed)``.
+  :func:`feature_stream`, never from ``np_random``, so the reset draws (the
+  joint and velocity jitter and the push schedule; a live command draws from
+  its own stream) are bit-identical with any feature on or off.  A feature
+  rebuilds its stream on every seeded reset and on its first, and continues
+  it across unseeded resets (SB3's auto-reset), as ``np_random`` is
+  continued.  The stream keys are spawn keys of the episode's seed, so no
+  stream coincides with gymnasium's ``SeedSequence(seed)``.
 * **The role.** ``BaseDinoEnv.training_rollouts`` is ``False`` unless the
   trainer marks the env with :func:`mark_training_rollouts`: every env is an
   evaluation env unless a trainer says otherwise.  The trainers' rollout envs

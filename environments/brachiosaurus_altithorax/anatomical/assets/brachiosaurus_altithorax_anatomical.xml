@@ -702,12 +702,6 @@
     <geom name="floor" type="plane" size="100 100 0.1" material="grid_mat"
           conaffinity="1" contype="1"/>
 
-    <!-- Food target (mocap body - can be repositioned) -->
-    <body name="food" mocap="true" pos="5 0 3.0">
-      <geom name="food_geom" type="sphere" size="0.2" rgba="0.2 0.7 0.2 0.8"
-            contype="2" conaffinity="2"/>
-    </body>
-
     <!-- ==================== BRACHIOSAURUS BODY ==================== -->
     <!--
     Coordinate system:
@@ -1052,7 +1046,7 @@
   <sensor>
     <!-- WARNING: the Python envs index sensordata by POSITION (gyro 0-2,
          accel 3-5, quat 6-9, touch 10-13, ...).  Do not reorder or insert
-         sensors without updating mjx_config.py / obs_functions.py. -->
+         sensors without updating the addresses in base_env.py. -->
     <!-- IMU-like sensors on torso -->
     <gyro name="torso_gyro" site="imu"/>
     <accelerometer name="torso_accel" site="imu"/>
@@ -1064,7 +1058,8 @@
     <touch name="rr_foot_touch" site="rr_foot_contact"/>
     <touch name="rl_foot_touch" site="rl_foot_contact"/>
 
-    <!-- Head tip position (for food reaching) -->
+    <!-- Head tip position (the head's browsing height; the posture
+         telemetry reads the head_tip site) -->
     <framepos name="head_tip_pos" objtype="site" objname="head_tip"/>
 
     <!-- Tail tip for stability monitoring -->

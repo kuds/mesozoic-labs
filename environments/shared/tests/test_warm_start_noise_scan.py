@@ -3,12 +3,15 @@
 The grid, the stand counts, the answer and the refusals before anything loads
 are pure and run everywhere.  The rollouts use tiny real PPO stance parents
 (:func:`tiny_parent`), saved as a run's stance stage directory holds its
-handoff pair and stamped with the model's current plant identity, so the
-selector, the loader's plant checks and the walk env run as on a real parent.
-The smoke runs cover a T. rex, the Compsognathus robot (a 0.01 s and a 0.02 s
-control step, two different plants) and a critic-phase, mirror-KL T. rex
-parent (the kind of the T. rex's certified stance) on two seeds, one noise
-stream and a short horizon.
+handoff pair, stamped with the model's current plant identity and with the
+command slice of their statistics at identity, as training saves a stance
+(decision D-D60), so the selector, the loader's plant checks, the warm
+start's policy preparation and the live walk env run as on a real parent.
+Every committed walk is a live command walk (decision D-D62), and the scan
+rolls it at the cruise ramp's start.  The smoke runs cover a T. rex, the
+Compsognathus robot (a 0.01 s and a 0.02 s control step, two different
+plants) and a critic-phase, mirror-KL T. rex parent (the kind of the T. rex's
+certified stance) on two seeds, one noise stream and a short horizon.
 """
 
 from __future__ import annotations
@@ -30,6 +33,15 @@ from environments.shared.stage_manifest import StageManifest, load_stage_manifes
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+ALL_MODELS = (
+    TYRANNOSAURUS_REX,
+    ModelId("velociraptor_mongoliensis", "anatomical"),
+    ModelId("compsognathus_longipes", "anatomical"),
+    COMPSOGNATHUS_LONGIPES_ROBOT,
+    ModelId("brachiosaurus_altithorax", "anatomical"),
+    ModelId("dibothrosuchus_elaphros", "anatomical"),
+    ModelId("allosaurus_fragilis", "anatomical"),
+)
 #: Walking pilot 3's parent: its largest learned log_std (tail_1_yaw) and its smallest (a knee).
 PILOT3_PARENT_LOG_STD = (-2.2006, -4.96, -4.37, -2.96)
 SMOKE_SEEDS = "3042,3043"
@@ -310,19 +322,7 @@ deliverable = true
 )
 
 
-@pytest.mark.parametrize(
-    "model_id",
-    [
-        TYRANNOSAURUS_REX,
-        ModelId("velociraptor_mongoliensis", "anatomical"),
-        ModelId("compsognathus_longipes", "anatomical"),
-        COMPSOGNATHUS_LONGIPES_ROBOT,
-        ModelId("brachiosaurus_altithorax", "anatomical"),
-        ModelId("dibothrosuchus_elaphros", "anatomical"),
-        ModelId("allosaurus_fragilis", "anatomical"),
-    ],
-    ids=str,
-)
+@pytest.mark.parametrize("model_id", ALL_MODELS, ids=str)
 def test_every_model_walks_from_its_stance_into_locomotion(model_id):
     manifest = load_stage_manifest(model_id)
     assert scan.resolve_walk_stage(manifest, "stance").id == "locomotion"
@@ -342,13 +342,14 @@ def test_two_walk_children_are_refused_and_an_unlabelled_locomotion_child_is_the
     assert scan.resolve_walk_stage(_manifest(tmp_path / "bare", _UNLABELLED_LOCOMOTION), "stance").id == "locomotion"
 
 
-def test_a_named_stage_off_the_parents_edge_is_refused_with_the_way_to_scan_it():
-    manifest = load_stage_manifest(TYRANNOSAURUS_REX)
-    assert scan.resolve_walk_stage(manifest, "stance", "recovery").id == "recovery"
-    with pytest.raises(scan.NoiseScanError, match="warm-starts from 'locomotion', not from 'stance'") as refused:
-        scan.resolve_walk_stage(manifest, "stance", "behavior")
-    assert "point --stage-dir at a 'locomotion' stage directory" in str(refused.value)
-    assert "'locomotion'" in str(refused.value).split("they are")[1]
+def test_a_named_stage_off_the_parents_edge_is_refused_with_the_way_to_scan_it(tmp_path):
+    # Every committed node warm-starts from the stance, so the edge case is a manifest whose walk follows recovery.
+    assert scan.resolve_walk_stage(load_stage_manifest(TYRANNOSAURUS_REX), "stance", "recovery").id == "recovery"
+    manifest = _manifest(tmp_path / "from_recovery", _WALK_FROM_RECOVERY)
+    with pytest.raises(scan.NoiseScanError, match="warm-starts from 'recovery', not from 'stance'") as refused:
+        scan.resolve_walk_stage(manifest, "stance", "locomotion")
+    assert "point --stage-dir at a 'recovery' stage directory" in str(refused.value)
+    assert str(refused.value).split("they are")[1].strip(" )") == "['recovery']"
 
 
 def test_a_model_pair_takes_its_parent_from_the_walk_stages_declared_edge(tmp_path):
@@ -464,19 +465,42 @@ def test_a_horizon_beyond_the_walks_episode_is_refused(tmp_path):
         scan.main([*TYRANNOSAURUS_REX_ARGS, *pair, "--horizon", "1001", "--out-dir", str(tmp_path / "out")])
 
 
-def test_a_walk_stage_with_a_live_command_is_refused(tmp_path, monkeypatch):
-    from environments.shared import config as config_module
+@pytest.mark.parametrize("model_id", ALL_MODELS, ids=str)
+def test_every_committed_walk_starts_at_its_cruise_ramps_start_with_no_reward_ramp(model_id):
+    """Training's step 0 of a fresh walk: the workers draw from the cruise ramp's start, and no reward weight ramps
+    (a live stage builds no forward-velocity ramp; its [curriculum] refuses ramp_start_value)."""
+    pytest.importorskip("stable_baselines3")
+    from environments.shared.config import load_stage_config
 
-    real = config_module.load_stage_config
+    config = load_stage_config(model_id, "locomotion")
+    declared = config["env_kwargs"]["command_config"]
+    command, record = scan.warm_start_command(config, load_path=None)
+    assert command == declared.ramped(declared.cruise_ramp_start_fraction)
+    assert record is not None and record["mode"] == config["env_kwargs"]["command_mode"] == "heading_and_speed"
+    assert record["cruise_ramp"] == {
+        "start_fraction": 0.25,
+        "timesteps": 2_000_000,
+        "ramp_step": 0,
+        "fraction": 0.25,
+    }
+    assert record["cruise_speed_mps"] == pytest.approx(0.25 * declared.cruise_speed)
+    assert record["speed_range_mps"] == pytest.approx([0.25 * speed for speed in declared.speed_range])
+    assert record["declared_cruise_speed_mps"] == declared.cruise_speed
+    assert record["stop_probability"] == declared.stop_probability
+    assert scan.warm_start_reward_weights(config, parent_id="stance", load_path="parent.zip") == {}
 
-    def live_command(model_id: Any, stage: Any, **kwargs: Any) -> dict[str, Any]:
-        loaded = real(model_id, stage, **kwargs)
-        return {**loaded, "env_kwargs": {**loaded["env_kwargs"], "command_mode": "heading"}}
 
-    monkeypatch.setattr(config_module, "load_stage_config", live_command)
-    pair = ["--model", str(tmp_path / "missing.zip"), "--vecnorm", str(tmp_path / "missing.pkl")]
-    with pytest.raises(SystemExit, match="trains under command_mode 'heading'"):
-        scan.main([*TYRANNOSAURUS_REX_ARGS, *pair, "--out-dir", str(tmp_path / "out")])
+def test_a_command_free_stage_draws_no_command_and_keeps_its_reward_ramps():
+    """A stage without [commands] (one --walk-stage could name) runs command_mode "none", with each reward ramp's
+    start weight, as training sets it."""
+    pytest.importorskip("stable_baselines3")
+    from environments.shared.config import load_stage_config
+
+    recovery = load_stage_config(TYRANNOSAURUS_REX, "recovery")
+    assert scan.warm_start_command(recovery, load_path=None) == (None, None)
+    walking = {**recovery, "env_kwargs": {**recovery["env_kwargs"], "forward_vel_weight": 2.0}}
+    weights = scan.warm_start_reward_weights(walking, parent_id="stance", load_path="parent.zip")
+    assert weights == {"forward_vel_weight": 0.1}
 
 
 @pytest.mark.parametrize(
@@ -527,13 +551,23 @@ class TinyParent(NamedTuple):
     log_std: np.ndarray
 
 
-def tiny_parent(run_dir: Path, model_id: ModelId, *, critic_phase_mirror_kl: bool = False, stamp: bool = True):
+def tiny_parent(
+    run_dir: Path,
+    model_id: ModelId,
+    *,
+    critic_phase_mirror_kl: bool = False,
+    stamp: bool = True,
+    command_identity: bool = True,
+):
     """A tiny real PPO stance parent, its handoff pair in ``<run_dir>/01_stance/models``, plant-stamped.
 
     Its ``log_std`` differs per actuator (from -3.0 to -2.2), so the parent's own row and the grid's reference
-    are not the uniform values the grid writes.  *critic_phase_mirror_kl* builds it as the T. rex's certified
-    stance was trained: a critic-phase policy and statistics (``CRITIC_PHASE = True``) under mirror-KL PPO, with
-    mirror-symmetric ``log_std`` pairs.  ``stamp=False`` leaves out the plant identity (a pre-contract parent).
+    are not the uniform values the grid writes.  Its statistics hold the command slice at identity, as training
+    saves a stance's (decision D-D60); ``command_identity=False`` leaves the slice where 20 command-free steps
+    moved it (variance below 1: statistics saved before the rule).  *critic_phase_mirror_kl* builds it as the
+    T. rex's certified stance was trained: a critic-phase policy and statistics (``CRITIC_PHASE = True``, with
+    the checkpoint's phase record) under mirror-KL PPO, with mirror-symmetric ``log_std`` pairs.
+    ``stamp=False`` leaves out the plant identity (a pre-contract parent).
     """
     pytest.importorskip("mujoco")
     pytest.importorskip("stable_baselines3")
@@ -541,6 +575,7 @@ def tiny_parent(run_dir: Path, model_id: ModelId, *, critic_phase_mirror_kl: boo
     from stable_baselines3 import PPO
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
+    from environments.shared.command_frame import hold_command_identity
     from environments.shared.config import load_all_stages, load_stage_config
     from environments.shared.plant_contract import attach_plant_identity, current_plant_identity
     from environments.shared.species_registry import env_class, get_species_config
@@ -551,6 +586,7 @@ def tiny_parent(run_dir: Path, model_id: ModelId, *, critic_phase_mirror_kl: boo
         from environments.shared import critic_phase_ppo as CPP
         from environments.shared import mirror_kl_ppo as MK
         from environments.shared import symmetry as SY
+        from environments.shared.critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
         from environments.shared.train_base import create_vec_env
 
         species, configs = get_species_config(model_id), load_all_stages(model_id)
@@ -559,6 +595,8 @@ def tiny_parent(run_dir: Path, model_id: ModelId, *, critic_phase_mirror_kl: boo
         )
         mirror_map = SY.MirrorMap.load(model_id, identity)
         model = PPO(env=normalizer, **CPP.new_model_kwargs(normalizer.critic_phase, {"net_arch": [16, 16]}), **kwargs)
+        # As train_base records the phase on a model it builds with one.
+        setattr(model, CRITIC_PHASE_ATTRIBUTE, normalizer.critic_phase.record())
         model = MK.enable_mirror_kl(model, SY.SymmetryConfig(), mirror_map)
     else:
         env_kwargs = load_stage_config(model_id, "stance")["env_kwargs"]
@@ -578,6 +616,8 @@ def tiny_parent(run_dir: Path, model_id: ModelId, *, critic_phase_mirror_kl: boo
             log_std = (log_std + log_std[perm]) / 2.0
         with torch.no_grad():
             model.policy.log_std.copy_(torch.as_tensor(log_std, dtype=torch.float32))
+        if command_identity:
+            hold_command_identity(normalizer.obs_rms)
         if stamp:
             for artifact in (model, normalizer):
                 attach_plant_identity(artifact, identity)
@@ -607,19 +647,23 @@ def tyrannosaurus_rex_critic_phase_parent(tmp_path_factory):
     return tiny_parent(run, TYRANNOSAURUS_REX, critic_phase_mirror_kl=True)
 
 
-def _spec(parent: TinyParent, model_id: ModelId, *, horizon: int, seeds=(3042,)) -> Any:
+def _spec(parent: TinyParent, model_id: ModelId, *, horizon: int, seeds=(3042,), **overrides: Any) -> Any:
+    """The scan's spec for *parent* into the model's walk, as ``_scan`` builds it; *overrides* replace fields."""
     from environments.shared.config import load_stage_config
 
     config = load_stage_config(model_id, "locomotion")
-    return scan.ScanSpec(
-        model_id=model_id,
-        model_path=str(parent.model),
-        vecnorm_path=str(parent.vecnorm),
-        walk_stage="locomotion",
-        reward_weights=scan.warm_start_reward_weights(config, parent_id="stance", load_path=str(parent.model)),
-        horizon=horizon,
-        seeds=tuple(seeds),
-    )
+    command_config, _record = scan.warm_start_command(config, load_path=str(parent.model))
+    fields = {
+        "model_id": model_id,
+        "model_path": str(parent.model),
+        "vecnorm_path": str(parent.vecnorm),
+        "walk_stage": "locomotion",
+        "reward_weights": scan.warm_start_reward_weights(config, parent_id="stance", load_path=str(parent.model)),
+        "horizon": horizon,
+        "seeds": tuple(seeds),
+        "command_config": command_config,
+    }
+    return scan.ScanSpec(**{**fields, **overrides})
 
 
 # ---------------------------------------------------------------------------------------------------- the sampling
@@ -712,6 +756,142 @@ def test_a_different_stream_draws_different_noise_and_the_same_stream_repeats():
     assert not np.array_equal(first, scan.noise_rng(3043, 0).standard_normal(4))
 
 
+# ---------------------------------------------------------------------------------------------------- the warm start
+
+
+def _first_seed_of(family: str, command_config: Any) -> int:
+    from environments.shared.curriculum.command_evaluation import episode_command_family
+
+    return next(seed for seed in range(3042, 3242) if episode_command_family(command_config, seed, 0) == family)
+
+
+def test_the_warm_start_policy_is_the_parents_on_zero_commands_and_blind_to_the_walks_commands(
+    tyrannosaurus_rex_parent,
+):
+    """As train_base prepares a never-live parent for a live child: the command columns of both first layers are
+    zeroed and proven, so the walk's commands, which the unprepared stance would read through untrained weights,
+    move no action; on a zero command the actions are the parent's own."""
+    from environments.shared.command_frame import command_slice
+    from environments.shared.config import build_env
+    from environments.shared.plant_contract import current_plant_identity
+    from environments.shared.reporting.episode_trace import load_trace_policy
+
+    parent = load_trace_policy(
+        str(tyrannosaurus_rex_parent.model),
+        str(tyrannosaurus_rex_parent.vecnorm),
+        lambda: build_env(TYRANNOSAURUS_REX, "locomotion"),
+        plant_identity=current_plant_identity(TYRANNOSAURUS_REX),
+    )
+    context = scan.open_context(_spec(tyrannosaurus_rex_parent, TYRANNOSAURUS_REX, horizon=4))
+    try:
+        preparation = context.preparation
+        zeroed = ["mlp_extractor.policy_net.0.weight", "mlp_extractor.value_net.0.weight"]
+        assert preparation["dropped_critic_phase"] is None and preparation["zeroed_command_parameters"] == zeroed
+        assert preparation["command_blind_probe"]["max_action_delta"] <= 1e-6
+        model = context.policy.model
+        columns = command_slice(int(model.observation_space.shape[0]))
+        parameters = dict(model.policy.named_parameters())
+        assert all(not parameters[name][:, columns].abs().sum() for name in zeroed)
+        assert dict(context.parent_policy) == {"algorithm": "PPO", "policy_class": "ActorCriticPolicy"}
+        obs, _ = context.env.reset(seed=3042)
+        live = context.policy.observation(obs)
+        assert np.any(live[columns] != 0.0), "seed 3042 draws a cruise command"
+        zero = live.copy()
+        zero[columns] = 0.0
+        prepared_live = scan.action_mean_and_std(model, live)[0]
+        assert np.allclose(prepared_live, scan.action_mean_and_std(model, zero)[0], atol=1e-6)
+        assert np.allclose(prepared_live, scan.action_mean_and_std(parent.model, zero)[0], atol=1e-6)
+        # Unprepared, the stance acts on the command: the scan would measure a policy the walk never starts from.
+        assert not np.allclose(scan.action_mean_and_std(parent.model, live)[0], prepared_live, atol=1e-6)
+    finally:
+        context.close()
+
+
+def test_the_walk_env_draws_each_seeds_command_at_the_cruise_ramps_start(tyrannosaurus_rex_parent):
+    from environments.shared.config import load_stage_config
+    from environments.shared.curriculum.command_tracking_gate import CRUISE_FAMILY, STAND_FAMILY
+
+    declared = load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"]["command_config"]
+    ramped = declared.ramped(declared.cruise_ramp_start_fraction)
+    stand, cruise = _first_seed_of(STAND_FAMILY, ramped), _first_seed_of(CRUISE_FAMILY, ramped)
+    context = scan.open_context(_spec(tyrannosaurus_rex_parent, TYRANNOSAURUS_REX, horizon=3, seeds=(cruise, stand)))
+    try:
+        base = context.env.unwrapped
+        assert base.command_mode == "heading_and_speed" and base.command_config == ramped
+        # The fingerprinted task is still the declared walk: only the training draw is ramped.
+        assert (
+            base.command_manifest()
+            == type(base)(**load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"]).command_manifest()
+        )
+        first, second = scan.roll_setting(context, scan.MEAN, stream=0)
+    finally:
+        context.close()
+    assert (first["seed"], first["command_family"]) == (cruise, CRUISE_FAMILY)
+    low, high = ramped.speed_range
+    assert low <= first["commanded_speed_mps"] <= high and high == pytest.approx(0.25 * declared.speed_range[1])
+    assert (second["seed"], second["command_family"], second["commanded_speed_mps"]) == (stand, STAND_FAMILY, 0.0)
+    row = scan.summarize_setting(scan.MEAN, [[first, second]])
+    assert row["stood_by_command_family"] == {
+        CRUISE_FAMILY: {"stood": int(first["stood"]), "episodes": 1},
+        STAND_FAMILY: {"stood": int(second["stood"]), "episodes": 1},
+    }
+
+
+def test_a_critic_phase_parent_loses_its_critics_phase_and_keeps_its_actor(tyrannosaurus_rex_critic_phase_parent):
+    """The walk declares no [ppo] critic_phase, so the warm start drops the critic's phase inputs before the command
+    columns are zeroed, as train_base does; the actor reads the same columns as before."""
+    context = scan.open_context(_spec(tyrannosaurus_rex_critic_phase_parent, TYRANNOSAURUS_REX, horizon=2))
+    try:
+        dropped = context.preparation["dropped_critic_phase"]
+        assert dropped is not None and dropped["schema"] == "mesozoic.critic-phase-drop/v1"
+        assert context.parent_policy["policy_class"] == "CriticPhaseActorCriticPolicy"
+        assert type(context.policy.model.policy).__name__ == "ActorCriticPolicy"
+        assert context.preparation["zeroed_command_parameters"] == [
+            "mlp_extractor.policy_net.0.weight",
+            "mlp_extractor.value_net.0.weight",
+        ]
+    finally:
+        context.close()
+
+
+def test_a_critic_phase_parent_into_a_walk_that_kept_the_phase_is_refused_as_training_refuses_it(
+    tyrannosaurus_rex_critic_phase_parent,
+):
+    with pytest.raises(scan.NoiseScanError, match="the critic reads .* inputs"):
+        scan.open_context(
+            _spec(tyrannosaurus_rex_critic_phase_parent, TYRANNOSAURUS_REX, horizon=2, walk_critic_phase=True)
+        )
+
+
+def test_a_spec_without_the_walks_command_config_is_refused(tyrannosaurus_rex_parent):
+    with pytest.raises(scan.NoiseScanError, match="builds command_mode 'heading_and_speed', but the scan was given no"):
+        scan.open_context(_spec(tyrannosaurus_rex_parent, TYRANNOSAURUS_REX, horizon=2, command_config=None))
+
+
+def test_statistics_whose_command_slice_is_off_identity_are_refused_as_training_refuses_them(tmp_path):
+    parent = tiny_parent(tmp_path / "pre-rule-run", TYRANNOSAURUS_REX, command_identity=False)
+    argv = [*TYRANNOSAURUS_REX_ARGS, "--stage-dir", str(parent.stage_dir), *SHORT, "--out-dir", str(tmp_path / "out")]
+    with pytest.raises(SystemExit, match="the command slice of these observation statistics is not at identity"):
+        scan.main(argv)
+    assert not (tmp_path / "out").exists()
+
+
+def test_a_parent_that_already_tracked_a_command_is_refused_before_anything_loads(
+    tyrannosaurus_rex_parent, tmp_path, monkeypatch
+):
+    """Training refuses a cruise ramp on a stage whose parent tracked a command (its warm start continues the full
+    cruise exactly), and so does the scan, before it loads the pair."""
+    from environments.shared import task_fingerprint
+
+    recorded = {**TYRANNOSAURUS_REX.record(), "stage": 1, "command": {"mode": "heading_and_speed"}}
+    monkeypatch.setattr(task_fingerprint, "read_checkpoint_task_fingerprint", lambda path: recorded)
+    monkeypatch.setattr(scan, "open_context", lambda spec: pytest.fail("the pair loaded"))
+    argv = [*TYRANNOSAURUS_REX_ARGS, "--stage-dir", str(tyrannosaurus_rex_parent.stage_dir), *SHORT]
+    with pytest.raises(SystemExit, match="already tracked a command"):
+        scan.main([*argv, "--out-dir", str(tmp_path / "out")])
+    assert not (tmp_path / "out").exists()
+
+
 # ---------------------------------------------------------------------------------------------------- smoke runs
 
 
@@ -741,6 +921,9 @@ def _smoke(parent: TinyParent, model_id: ModelId, out_dir: Path, *extra: str) ->
 def test_a_smoke_scan_writes_the_table_and_the_json(
     fixture, model_id, debounce_steps, policy_class, request, tmp_path, capsys
 ):
+    from environments.shared.config import load_stage_config
+    from environments.shared.curriculum.command_evaluation import episode_command_family
+
     parent = request.getfixturevalue(fixture)
     report = _smoke(parent, model_id, tmp_path / "out")
     printed = capsys.readouterr().out
@@ -760,14 +943,34 @@ def test_a_smoke_scan_writes_the_table_and_the_json(
     assert report["lift_off_debounce_steps"] == debounce_steps
     assert f"{debounce_steps} control step" in report["definitions"]["lift_offs"]
     assert report["parent"]["log_std"] == pytest.approx(parent.log_std.tolist())
-    assert "forward_vel_weight" in report["reward_weights"]
+    # A live walk ramps no reward weight: its commanded speeds start at the cruise ramp's 0.25.
+    assert report["reward_weights"] == {}
+    declared = load_stage_config(model_id, "locomotion")["env_kwargs"]["command_config"]
+    command = report["command"]
+    assert (command["mode"], command["cruise_ramp"]["ramp_step"], command["cruise_ramp"]["fraction"]) == (
+        "heading_and_speed",
+        0,
+        0.25,
+    )
+    assert command["cruise_speed_mps"] == pytest.approx(0.25 * declared.cruise_speed)
+    ramped = declared.ramped(0.25)
+    families = {seed: episode_command_family(ramped, seed, 0) for seed in (3042, 3043)}
+    assert command["stand_seeds"] == [seed for seed, family in families.items() if family == "stand"]
+    preparation = report["warm_start_policy"]
+    assert preparation["zeroed_command_parameters"] == [
+        "mlp_extractor.policy_net.0.weight",
+        "mlp_extractor.value_net.0.weight",
+    ]
+    assert (preparation["dropped_critic_phase"] is not None) == (policy_class == "CriticPhaseActorCriticPolicy")
     assert report["definitions"]["stands"] == scan.STANDS_DEFINITION
     assert [row["label"] for row in report["settings"]] == ["mean", "own", "-2", "-1"]
     assert [row["kind"] for row in report["settings"]] == ["mean", "own", "grid", "grid"]
     for row in report["settings"]:
         records = row["episode_records"]
         assert [record["seed"] for record in records] == [3042, 3043]
+        assert [record["command_family"] for record in records] == [families[3042], families[3043]]
         assert row["stood"] == sum(record["stood"] for record in records) == row["stood_per_stream"][0]
+        assert sum(entry["episodes"] for entry in row["stood_by_command_family"].values()) == len(records)
         for record in records:
             assert record["stood"] == (record["length"] == SMOKE_HORIZON and record["termination_reason"] is None)
     assert report["largest_all_standing"] == scan.largest_standing(report["settings"][2:])
@@ -776,6 +979,10 @@ def test_a_smoke_scan_writes_the_table_and_the_json(
     assert "maintainer's decision" in report["recommendation"]
     assert "a shortened panel: 2 seeds x 1 stream to 12 of the walk's 1000 steps" in report["recommendation"]
     assert "mean action, without noise, stood" in report["recommendation"]
+    assert (
+        "commands: heading_and_speed at the cruise ramp's start (ramp step 0, 0.25 of the end state's speeds)" in text
+    )
+    assert "warm-start policy: " in text and "zeroed, proven unchanged on zero commands" in text
 
 
 def test_a_model_pair_given_as_a_stem_with_its_walk_stage_scans_from_the_declared_parent(

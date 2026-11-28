@@ -17,7 +17,7 @@
 # Schema 2 (decision D-A8, 2026-09-12; BEHAVIOR_RECIPES_PLAN §4.3) added the
 # deliverable tables.  [[species.<species>.embodiments.<embodiment>.deliverable_metrics]]
 # states the success semantics of every behavior a model publishes.
-# `deliverable` is a recipe label ("stance", "recover", "walk", "hunt") or a
+# `deliverable` is a recipe label ("stance", "recover", "walk") or a
 # deliverable stage id, resolved exactly as the notebook's BEHAVIOR knob is: a
 # label means its DEEPEST deliverable in manifest order.  Every model names
 # its deliverables by label: "stance" is the stance node on every model, and
@@ -25,11 +25,15 @@
 # D-D35; before it the T-Rex and both Compsognathus models addressed stance
 # and recovery by id, because "stand" resolved to recovery).  The stance
 # label was "stand" until decision D-D38; "stand" is now refused naming
-# "stance", here as in the notebook.  Every manifest
+# "stance", here as in the notebook, and "hunt", removed with every hunt
+# node by decision D-D59, is refused naming "walk".  Every manifest
 # deliverable needs a stable-baselines3 entry (the evidence backend, plan
 # §4.9); an unknown deliverable, a backend the model does not train, or two
 # entries for one (stage, backend) fail the generator.  The per-backend
-# [[...success_metrics]] are unchanged.
+# [[...success_metrics]] are unchanged in form; since decision D-D62 every
+# model states its walk's command-tracking gate there, word for word its walk
+# deliverable's (from decision D-D59 the six models that had a hunt stated the
+# walk's gated forward velocity there, and the Allosaurus its walking course).
 #
 # [[...stage_videos]] are keyed by STAGE ID (`stage = "stance"`), the
 # spelling that survives renumbering; a legacy integer (`stage = 1`) stays an
@@ -78,21 +82,18 @@ display_name = "Velociraptor mongoliensis"
 [species.velociraptor_mongoliensis.embodiments.anatomical]
 tagline = "Swift Bipedal Predator"
 gait = "Bipedal"
-specialty = "Sickle-claw contact attack"
+specialty = "Fast bipedal running"
 env_entrypoint = "environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv"
 model_path = "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"
 training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
-result_summary_paths = [
-    "results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
-    "results/velociraptor_mongoliensis/anatomical/sac/summary.json",
-]
+result_summary_paths = []
 
 [[species.velociraptor_mongoliensis.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
-key = "strike_success"
-label = "Sickle-claw contact success"
-definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause (no flight cap: its cruise reaches Froude 0.82); on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.velociraptor_mongoliensis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"
@@ -104,16 +105,9 @@ definition = "The stance checkpoint clears the stance_quality_heading/v1 gate (t
 [[species.velociraptor_mongoliensis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-
-[[species.velociraptor_mongoliensis.embodiments.anatomical.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["stable-baselines3"]
-key = "strike_success"
-label = "Sickle-claw contact success"
-definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause (no flight cap: its cruise reaches Froude 0.82); on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.velociraptor_mongoliensis.embodiments.anatomical.stage_videos]]
 stage = "stance"
@@ -131,14 +125,6 @@ backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species.velociraptor_mongoliensis.embodiments.anatomical.stage_videos]]
-stage = "behavior"
-path = "website/static/videos/velociraptor_mongoliensis_anatomical_ppo_stage3_best.mp4"
-algorithm = "PPO"
-backend = "stable-baselines3"
-model_revision_status = "historical"
-verification_status = "unverified"
-
 [species.tyrannosaurus_rex]
 display_order = 2
 display_name = "Tyrannosaurus rex"
@@ -146,18 +132,18 @@ display_name = "Tyrannosaurus rex"
 [species.tyrannosaurus_rex.embodiments.anatomical]
 tagline = "Apex Predator"
 gait = "Bipedal"
-specialty = "Head-contact attack"
+specialty = "Heavy-bodied bipedal balance and walking"
 env_entrypoint = "environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv"
 model_path = "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
 training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
-result_summary_paths = ["results/tyrannosaurus_rex/anatomical/ppo/summary.json"]
+result_summary_paths = []
 
 [[species.tyrannosaurus_rex.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
-key = "bite_success"
-label = "Head-contact bite proxy"
-definition = "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"
@@ -176,16 +162,9 @@ definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judge
 [[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-
-[[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["stable-baselines3"]
-key = "bite_success"
-label = "Head-contact bite success (task_success/v1)"
-definition = "The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.tyrannosaurus_rex.embodiments.anatomical.stage_videos]]
 stage = "stance"
@@ -203,14 +182,6 @@ backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species.tyrannosaurus_rex.embodiments.anatomical.stage_videos]]
-stage = "behavior"
-path = "website/static/videos/tyrannosaurus_rex_anatomical_ppo_stage3_best.mp4"
-algorithm = "PPO"
-backend = "stable-baselines3"
-model_revision_status = "historical"
-verification_status = "unverified"
-
 [species.brachiosaurus_altithorax]
 display_order = 3
 display_name = "Brachiosaurus altithorax"
@@ -218,18 +189,18 @@ display_name = "Brachiosaurus altithorax"
 [species.brachiosaurus_altithorax.embodiments.anatomical]
 tagline = "Gentle Giant Herbivore"
 gait = "Quadrupedal"
-specialty = "Head-to-food reach"
+specialty = "Long-necked quadrupedal walking"
 env_entrypoint = "environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv"
 model_path = "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml"
 training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
-result_summary_paths = ["results/brachiosaurus_altithorax/anatomical/ppo/summary.json"]
+result_summary_paths = []
 
 [[species.brachiosaurus_altithorax.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
-key = "food_reached"
-label = "Head-tip distance-threshold success"
-definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.brachiosaurus_altithorax.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"
@@ -241,16 +212,9 @@ definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean e
 [[species.brachiosaurus_altithorax.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-
-[[species.brachiosaurus_altithorax.embodiments.anatomical.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["stable-baselines3"]
-key = "food_reached"
-label = "Head-tip distance-threshold success"
-definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.brachiosaurus_altithorax.embodiments.anatomical.stage_videos]]
 stage = "stance"
@@ -277,7 +241,7 @@ display_name = "Dibothrosuchus elaphros"
 [species.dibothrosuchus_elaphros.embodiments.anatomical]
 tagline = "Gracile Erect-Limbed Crocodylomorph"
 gait = "Quadrupedal"
-specialty = "Snout-contact snap"
+specialty = "Erect-limbed quadrupedal walking"
 env_entrypoint = "environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv"
 model_path = "environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml"
 training_backends = ["stable-baselines3"]
@@ -286,9 +250,9 @@ result_summary_paths = []
 
 [[species.dibothrosuchus_elaphros.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
-key = "snap_success"
-label = "Snout-contact snap proxy"
-definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"
@@ -300,16 +264,9 @@ definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean e
 [[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-
-[[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["stable-baselines3"]
-key = "snap_success"
-label = "Snout-contact snap proxy"
-definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the quadruped gait clause (pair alternation, limb duty and the flight cap) and the lead-swap bar; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [species.compsognathus_longipes]
 display_order = 5
@@ -318,7 +275,7 @@ display_name = "Compsognathus longipes"
 [species.compsognathus_longipes.embodiments.anatomical]
 tagline = "Small Bipedal Theropod"
 gait = "Bipedal"
-specialty = "Non-contact target reach"
+specialty = "Small-bodied bipedal walking"
 env_entrypoint = "environments.compsognathus_longipes.anatomical.env:CompsognathusLongipesAnatomicalEnv"
 model_path = "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml"
 training_backends = ["stable-baselines3"]
@@ -327,9 +284,9 @@ result_summary_paths = []
 
 [[species.compsognathus_longipes.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
-key = "target_success"
-label = "Pelvis target-reaching success"
-definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"
@@ -348,21 +305,14 @@ definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judge
 [[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-
-[[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["stable-baselines3"]
-key = "target_success"
-label = "Pelvis target-reaching success"
-definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [species.compsognathus_longipes.embodiments.robot]
 tagline = "Twelve-Servo Biped Prototype"
 gait = "Bipedal"
-specialty = "Non-contact target reach with fixed head and tail"
+specialty = "Servo-driven bipedal walking with fixed head and tail"
 env_entrypoint = "environments.compsognathus_longipes.robot.env:CompsognathusLongipesRobotEnv"
 model_path = "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml"
 training_backends = ["stable-baselines3"]
@@ -371,9 +321,9 @@ result_summary_paths = []
 
 [[species.compsognathus_longipes.embodiments.robot.success_metrics]]
 backends = ["stable-baselines3"]
-key = "target_success"
-label = "Pelvis target-reaching success"
-definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
 deliverable = "stance"
@@ -392,16 +342,9 @@ definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judge
 [[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
-
-[[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["stable-baselines3"]
-key = "target_success"
-label = "Pelvis target-reaching success"
-definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed."
 
 [species.allosaurus_fragilis]
 display_order = 6
@@ -410,7 +353,7 @@ display_name = "Allosaurus fragilis"
 [species.allosaurus_fragilis.embodiments.anatomical]
 tagline = "Jurassic Tridactyl Theropod"
 gait = "Bipedal"
-specialty = "Level-ground walk to a target"
+specialty = "Level-ground walk along a commanded heading, over an eight-metre course"
 env_entrypoint = "environments.allosaurus_fragilis.anatomical.env:AllosaurusFragilisAnatomicalEnv"
 model_path = "environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml"
 training_backends = ["stable-baselines3"]
@@ -419,9 +362,9 @@ result_summary_paths = []
 
 [[species.allosaurus_fragilis.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
-key = "course_complete"
-label = "Walking course completion"
-definition = "During the forward walking task, the pelvis reaches within 0.35 m of a target eight metres ahead while supported by at least one foot."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed. Its course_complete event, the pelvis 7.65 m along the reset's commanded heading (the eight-metre course less 0.35 m) with a foot loaded, is recorded as a cruise episode's success key and is no gate criterion; a stand episode has no course."
 
 [[species.allosaurus_fragilis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"
@@ -433,6 +376,6 @@ definition = "At least 95% of standing trials last ten seconds. After a two-seco
 [[species.allosaurus_fragilis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity"
-definition = "The walking policy meets the configured forward-speed, reward and episode-length minima in successive evaluations."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The walk checkpoint clears the command_tracking/v1 gate (walk profile, decision D-D61), judged post-stage on the handoff its gated statistic chose on a separate selection panel. The walk follows a forward cruise command, a speed in [0.5, 1] x the model's cruise speed at a heading within 0.26 rad of the spawn's, drawn at reset and held for the whole episode, and about 15% of its episodes are stand episodes, an exactly zero command for the whole episode (decision D-D62). On the cruise family the one-sided 95% lower bounds on survival and on success meet the configured bounds: a cruise episode succeeds when it reaches the horizon, settles its initial heading, stays in tolerance on the configured share of its steps after the settle, makes the configured fraction of the commanded speed along the heading and passes the biped gait clause with its flight cap; on the stand family the configured share holds the stop and no episode falls. The families' counts and bounds are exported to summary.json from the admitted command_tracking_report.json (decision D-D61), and the catalog headlines the cruise success bound and the stand success fraction once a result summary is listed. Its course_complete event, the pelvis 7.65 m along the reset's commanded heading (the eight-metre course less 0.35 m) with a foot loaded, is recorded as a cruise episode's success key and is no gate criterion; a stand episode has no course."

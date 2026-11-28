@@ -1,11 +1,12 @@
-"""The life-size raptor is mirror-exact, and its policy interface mirrors with it (physics r5 / policy interface r14).
+"""The life-size velociraptor is mirror-exact, and its policy interface mirrors with it (physics r6 / policy
+interface r15).
 
 ``environments/shared/symmetry.py`` derives a plant's mirror maps from the compiled model
 and its observation layout; the T-Rex's map is committed and its paired rollouts are pinned
 in ``environments/shared/tests/test_symmetry.py``.  The raptor commits no map (it trains
 with stock PPO), but the plant was rebuilt as the T-Rex's equivalent, the maintainer's
 decision of 2026-11-08, so a later mirror-KL recipe (the T-Rex's LTSB, a follow-up) can
-derive one: these pin that the derivation holds on the r5 plant (exact r <-> l geometry,
+derive one: these pin that the derivation holds on the plant (exact r <-> l geometry,
 the six per-site foot channels swapping pad for pad, digit for digit) and that the
 simulator is mirror-equivariant on the stance config, its reward and info included.
 """
@@ -31,7 +32,7 @@ def stance_kwargs():
 def env_mirror():
     env = VelociraptorMongoliensisAnatomicalEnv()
     try:
-        yield SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+        yield SY.build_env_mirror(env, SY.BIPEDAL_HEADING_FREE_SCHEMA)
     finally:
         env.close()
 
@@ -59,7 +60,7 @@ def test_the_home_pose_is_mirror_exact(env_mirror):
 
 def test_the_policy_maps_swap_the_legs_and_the_per_site_feet(env_mirror):
     obs, action = env_mirror.obs, env_mirror.action
-    assert (obs.dim, action.dim) == (71, 17)
+    assert (obs.dim, action.dim) == (67, 17)
     for sp in (obs, action):
         assert np.array_equal(sp.perm[sp.perm], np.arange(sp.dim)), "not an involution"
     # Actuators: neck 0-2, right leg 3-7 (hip pitch, hip roll, knee, ankle, claw), left leg 8-12, tail 13-16.  The
@@ -74,11 +75,10 @@ def test_the_policy_maps_swap_the_legs_and_the_per_site_feet(env_mirror):
     ]
     assert [int(obs.perm[i]) for i in foot] == foot[3:] + foot[:3]
     assert all(obs.sign[i] == 1.0 for i in foot)
-    flipped = {obs.names[i] for i in range(71) if obs.sign[i] < 0}
+    flipped = {obs.names[i] for i in range(obs.dim) if obs.sign[i] < 0}
     assert {
         "projected_gravity.y",
         "heading_linear_velocity.left",
-        "target_direction.y",
         "pelvis_gyro.x",
         "pelvis_gyro.z",
         "pelvis_accel.y",

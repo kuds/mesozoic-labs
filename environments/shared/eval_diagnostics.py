@@ -18,9 +18,13 @@ from typing import Any, NamedTuple
 
 import numpy as np
 
+from .curriculum.command_evaluation import (
+    EVALUATION_COMMAND_FAMILIES_KEY,
+    CommandEvaluationPlan,
+    info_command_family,
+)
 from .curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from .curriculum.stance_gate import required_duty_episodes
-from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
 from .model_id import ModelId
 from .stance_diagnostics import derive_stance_info
@@ -311,31 +315,17 @@ except ImportError:
     _SB3_AVAILABLE = False
 
 
-def success_metric_applicable(stage_config: dict[str, Any]) -> bool:
-    """Return whether task success is an active gate for *stage_config*.
-
-    Stage number alone is deliberately not used: the TOML curriculum config
-    is the authority, and a genuine zero remains meaningful whenever a
-    positive success-rate threshold is configured — or whenever the stage
-    declares ``task_success/v1``, whose bar is ``min_success_lcb`` (plan
-    §4.4) and which consumes no ``min_success_rate`` key at all.
-    """
-
-    curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND:
-        return True
-    return float(curriculum.get("min_success_rate", 0.0)) > 0.0
-
-
 class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
-    """SB3 ``EvalCallback`` with stage-aware success and velocity capture.
+    """SB3 ``EvalCallback`` with stage-aware velocity and duty capture.
 
     Stable-Baselines3 prints a success rate whenever an environment emits
-    terminal ``info["is_success"]``.  The dinosaur environments intentionally
-    keep emitting that standard field, but success is only an evaluation
-    metric in stages whose config has a positive success-rate gate.  This
-    callback suppresses collection in other stages and prints an explicit
-    ``N/A`` instead of a misleading ``0.00%``.
+    terminal ``info["is_success"]``.  The dinosaur environments keep emitting
+    that standard field, but this callback never collects it: no gate kind
+    reads an in-training success sample since decision D-D59 removed
+    ``min_success_rate`` and ``task_success/v1`` with the hunt nodes, so the
+    evaluation prints no success rate rather than a misleading ``0.00%``.  A
+    model's success event (its ``SUCCESS_KEYS``) is measured by the
+    post-training panels instead.
 
     Mean forward velocity is also captured for every evaluation episode so
     the plateau diagnostic can follow the Stage 2 locomotion gate without
@@ -423,6 +413,23 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     Each group is reduced in its own guard, after the pad capture's: a
     failure costs that group's values (NaN), never the pad and rail fields,
     another group, or the run.
+
+    On a **live-command stage** (*command_evaluation*, a
+    :class:`~environments.shared.curriculum.command_evaluation.CommandEvaluationPlan`;
+    decision D-D62) the evaluation env is reseeded with the plan's seed before
+    every evaluation, so every evaluation rolls the same episodes: the seeded
+    reset restarts the command stream, and the families (cruise or stand) of
+    the evaluation's episodes are the plan's at every evaluation, where an
+    env seeded once would draw a new stand count each time and SB3's
+    ``best_model`` would rank the draw.  Each episode's family, read from its
+    first step's command (``desired_speed`` exactly zero: stand), is kept in
+    :attr:`evaluations_command_families`, aligned with ``evaluations_results``,
+    for the family-aware ``robust_best_model`` score, and added to the
+    ``evaluations.npz`` SB3 has just written (its ``command_families`` key,
+    :meth:`_persist_command_families`), so a reader of the record scores each
+    evaluation as the tracker did; an evaluation whose families differ from
+    the plan's is logged.  Under command_mode "none" (*command_evaluation*
+    ``None``) nothing of this runs.
     """
 
     #: Declared at class scope so an instance built without ``__init__`` (the
@@ -472,19 +479,21 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     #: rewrites it after every evaluation, as before.
     ledger_flush_every_calls: int | None = None
     _balance_disabled = False
+    #: A live-command stage's evaluation plan (``None``: a command-free stage, nothing reseeded or recorded).
+    command_evaluation: "CommandEvaluationPlan | None" = None
 
     def __init__(
         self,
         eval_env: Any,
         *,
         stage: "int | str",
-        success_applicable: bool,
         settle_steps: int = 0,
         model_id: "ModelId | None" = None,
         horizon: int = 1000,
         control_dt: float = 0.01,
         screen_thresholds: Any = None,
         ledger_dir: "str | Path | None" = None,
+        command_evaluation: "CommandEvaluationPlan | None" = None,
         ledger_flush_every_calls: int | None = None,
         **kwargs: Any,
     ) -> None:
@@ -497,7 +506,17 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         super().__init__(eval_env, **kwargs)
         self.ledger_flush_every_calls = None if ledger_flush_every_calls is None else int(ledger_flush_every_calls)
         self.stage = stage
-        self.success_applicable = success_applicable
+        self.command_evaluation = command_evaluation
+        if command_evaluation is not None and len(command_evaluation.families) != self.n_eval_episodes:
+            raise ValueError(
+                f"the command evaluation plan holds {len(command_evaluation.families)} episodes but the evaluation "
+                f"rolls {self.n_eval_episodes}"
+            )
+        # Per evaluation of a live stage, each episode's command family, aligned with `evaluations_results`
+        # (empty on a command-free stage), and during an evaluation each sub-env's current episode's family.
+        self.evaluations_command_families: list[list[str]] = []
+        self._current_eval_command_families: list[str] = []
+        self._episode_command_families: dict[int, str] = {}
         self.settle_steps = int(settle_steps)
         self.model_id = model_id
         self.horizon = int(horizon)
@@ -1313,7 +1332,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         return str(reason) if reason else "terminated"
 
     def _log_success_callback(self, locals_: dict[str, Any], globals_: dict[str, Any]) -> None:
-        """Capture evaluation velocity and duty, conditionally delegate success."""
+        """Capture evaluation velocity and duty; never delegate SB3's success collection."""
 
         info = locals_["info"]
         env_index = int(locals_.get("i", 0))
@@ -1341,6 +1360,9 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # it -- and settling is the capability stage 1a exists to certify.
         step_index = self._episode_steps.get(env_index, 0)
         self._episode_steps[env_index] = step_index + 1
+        if self.command_evaluation is not None and step_index == 0:
+            # The first step's command is the reset's draw, which fixes a walk episode's family.
+            self._episode_command_families[env_index] = info_command_family(info)
         self._capture_action(locals_, env_index, after_settle=step_index >= self.settle_steps)
         if step_index >= self.settle_steps:
             stance = derive_stance_info(info)
@@ -1368,15 +1390,14 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._current_eval_unsupported_duties.append(unsupported / measured if measured else float("nan"))
             self._current_eval_bilateral_duties.append(bilateral / measured if measured else float("nan"))
             self.__dict__.setdefault("_current_eval_termination_causes", []).append(self.termination_cause(info))
+            if self.command_evaluation is not None:
+                self._current_eval_command_families.append(self._episode_command_families.pop(env_index))
             self._reward_term_episodes += 1
             self._prev_action.pop(env_index, None)
             self._prev_prev_action.pop(env_index, None)
 
         if self.report_extensions:
             self._capture_term_split(terms, env_index, bool(locals_["done"]))
-
-        if self.success_applicable:
-            super()._log_success_callback(locals_, globals_)
 
     def _capture_term_split(self, terms: Mapping[str, float], env_index: int, done: bool) -> None:
         """Sum each episode's reward terms apart, and at its end add them to the full-horizon or the fallen sums.
@@ -1441,6 +1462,40 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.__dict__.setdefault("evaluations_screen_v2", []).append(None)
             self.__dict__.setdefault("evaluations_actuator_force_frac", []).append([])
             self.__dict__.setdefault("evaluations_reward_terms_split", []).append({})
+            if self.command_evaluation is not None:
+                # The plan's families, which a resume that keeps the run's seed rolled, so the series stays one
+                # label per return (evaluations.npz carries it, _persist_command_families);
+                # curriculum.seed_resume_eval_state then puts the record's own families in their place when the
+                # record carries them.
+                self.evaluations_command_families.append(list(self.command_evaluation.families))
+
+    def _persist_command_families(self) -> None:
+        """Add each evaluation's command families to the ``evaluations.npz`` SB3 has just written (a live stage).
+
+        Under :data:`~environments.shared.curriculum.command_evaluation.EVALUATION_COMMAND_FAMILIES_KEY`,
+        aligned with ``results``, beside every key SB3 wrote, so a reader of
+        the record (the handoff sidecar, a same-stage resume) scores each
+        evaluation as ``RobustBestModelCallback`` did.  Run in the same step
+        as SB3's write, before ``PublishEvalArtifactsCallback`` copies the
+        file to the stage directory.  A failure is logged and costs the key,
+        never the run; under command_mode "none" this is never called.
+        """
+        log_path = getattr(self, "log_path", None)
+        if log_path is None:
+            return
+        path = Path(f"{log_path}.npz")  # SB3's log_path is the "<dir>/evaluations" prefix np.savez extends
+        try:
+            with np.load(path) as record:
+                arrays = {key: record[key] for key in record.files}
+            families = np.asarray(self.evaluations_command_families, dtype=str)
+            if families.shape != np.shape(arrays["results"]):
+                raise ValueError(
+                    f"the command families {families.shape} do not align with the results {np.shape(arrays['results'])}"
+                )
+            arrays[EVALUATION_COMMAND_FAMILIES_KEY] = families
+            np.savez(path, **arrays)
+        except Exception:  # noqa: BLE001 - a record's extra key must not sink a run
+            logger.warning("Could not record the evaluations' command families in %s", path, exc_info=True)
 
     def seed_prior_record(self, directory: "str | Path", *, max_timesteps: int | None = None) -> int:
         """Keep the prior session's ``eval_episodes.csv`` rows at or before *max_timesteps* (a same-stage resume).
@@ -1492,8 +1547,15 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
 
     def _on_step(self) -> bool:
         evaluation_due = self.eval_freq > 0 and self.n_calls % self.eval_freq == 0
+        plan = self.command_evaluation
         if evaluation_due:
             self._reset_forward_velocity_capture()
+            if plan is not None:
+                # The next reset (evaluate_policy's first) is seeded: the command stream restarts at episode 0, so
+                # this evaluation rolls the plan's episodes, as every other evaluation of the run does.
+                self.eval_env.seed(plan.seed)
+                self._episode_command_families.clear()
+                self._current_eval_command_families = []
             self._begin_pad_capture()
 
         try:
@@ -1511,6 +1573,18 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.__dict__.setdefault("evaluations_termination_causes", []).append(
                 list(self.__dict__.get("_current_eval_termination_causes", []))
             )
+            if plan is not None:
+                families = list(self._current_eval_command_families)
+                self.evaluations_command_families.append(families)
+                if families != list(plan.families):
+                    logger.warning(
+                        "Evaluation at step %d rolled command families %s, not the plan's %s (seed %d)",
+                        self.num_timesteps,
+                        dict(Counter(families)),
+                        plan.family_counts(),
+                        plan.seed,
+                    )
+                self._persist_command_families()
             self._publish_action_statistics()
             self._publish_pad_telemetry()
             self._publish_leg_dc()
@@ -1521,8 +1595,6 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 self._publish_reward_terms_split()
                 self._publish_screen()
                 self._publish_ledger()
-            if not self.success_applicable and self.verbose >= 1:
-                print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
         # After this call's evaluation, so a checkpoint saved on this call has its evaluation's rows on disk.
         flush_every = self.ledger_flush_every_calls
@@ -1807,8 +1879,8 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
 
     A plateau is a small range over the latest ``plateau_window`` deterministic
     evaluations, normalized by that metric's configured gate.  The callback
-    follows the most behaviorally specific failing gate: task success, forward
-    velocity, episode length, then reward.  It disarms after meaningful
+    follows the most behaviorally specific failing gate: forward velocity,
+    the stance criteria, episode length, then reward.  It disarms after meaningful
     movement or a gate pass and can warn again only after a later plateau.
 
     This callback is diagnostic only.  It never stops training and is separate
@@ -1821,7 +1893,6 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     # reward-tuning guidance for a stage whose blocking criterion is foot
     # contact, which is worse than silence.
     _METRIC_PRIORITY = (
-        "mean_success_rate",
         "mean_forward_vel",
         "mean_unsupported_duty",
         "full_horizon_fraction",
@@ -1830,9 +1901,6 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     )
 
     _GUIDANCE = {
-        "mean_success_rate": (
-            "Inspect target reachability, contact/proximity signals, and the Stage 3 reward ramp before tuning the optimizer."
-        ),
         "mean_forward_vel": (
             "Inspect gait stability, actuator saturation, and locomotion reward balance before tuning the optimizer."
         ),
@@ -2173,13 +2241,11 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         rewards = self.eval_callback.evaluations_results
         lengths = self.eval_callback.evaluations_length
         velocities = self.eval_callback.evaluations_forward_velocities
-        successes = self.eval_callback.evaluations_successes
 
         samples: dict[str, Any | None] = {
             "mean_reward": rewards[index] if index < len(rewards) else None,
             "mean_episode_length": lengths[index] if index < len(lengths) else None,
             "mean_forward_vel": velocities[index] if index < len(velocities) else None,
-            "mean_success_rate": successes[index] if index < len(successes) else None,
         }
         values = {key: self._finite_mean(sample) if sample is not None else None for key, sample in samples.items()}
         counts = {key: self._finite_count(sample) if sample is not None else 0 for key, sample in samples.items()}
@@ -2204,24 +2270,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         else:
             horizon_fraction, horizon_count = None, 0
 
-        # task_success/v1 gates on a binomial LOWER BOUND, not the raw rate;
-        # the plateau follows the raw success rate against the LCB bar (the
-        # bound is monotone in the rate at fixed n, so the metric that has
-        # to move is the same one) and the label says which bar it is.
-        task_success = self.curriculum_kwargs.get("gate_kind") == TASK_SUCCESS_GATE_KIND
         configured = (
-            _GateMetric(
-                "mean_success_rate",
-                "success rate (LCB95 bar)" if task_success else "success rate",
-                float(
-                    self.curriculum_kwargs.get("min_success_lcb", self.curriculum_kwargs.get("min_success_rate", 0.0))
-                )
-                if task_success
-                else float(self.curriculum_kwargs.get("min_success_rate", 0.0)),
-                values["mean_success_rate"],
-                counts["mean_success_rate"],
-                percent=True,
-            ),
             _GateMetric(
                 "mean_forward_vel",
                 "forward velocity",
@@ -2795,7 +2844,6 @@ def build_stage_evaluation_callbacks(
     eval_callback = StageAwareEvalCallback(
         eval_env,
         stage=stage,
-        success_applicable=success_metric_applicable(stage_config),
         # Taken from the stage's own gate declaration so the duty this
         # callback measures uses the same settling window the gate compares
         # it against. Absent (any non-stance gate) it is 0, which measures the

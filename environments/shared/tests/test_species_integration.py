@@ -6,9 +6,9 @@ determinism, observation validity, basic functionality, and common reward
 invariants.
 
 Per-species test files should only contain tests for species-unique behavior
-(e.g. tail termination for raptor, head termination for T-Rex, food-reach for
-brachiosaurus, snout snap for dibothrosuchus).  All shared behavior is tested
-here via parametrization.
+(e.g. tail termination for the velociraptor, head termination for the
+Tyrannosaurus rex, the snout-prop termination for the dibothrosuchus).  All
+shared behavior is tested here via parametrization.
 """
 
 import numpy as np
@@ -29,9 +29,9 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 
-#: Models these tables leave out on purpose (review M4): the two Compsognathus models reach a target, not prey, on
-#: their own reward, and their shared behaviour (the Gymnasium contract, every stage resetting and stepping, the
-#: registered horizon) is tested for both in environments/compsognathus_longipes/tests/test_training_env.py.
+#: Models these tables leave out on purpose (review M4): the two Compsognathus models share one reward of their own
+#: (one class for both embodiments), and their shared behaviour (the Gymnasium contract, every stage resetting and
+#: stepping, the registered horizon) is tested for both in environments/compsognathus_longipes/tests/test_training_env.py.
 EXEMPT = {ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot")}
 
 # Parametrize the anatomical environments covered by the shared reward checks.
@@ -52,13 +52,16 @@ MODEL_ENVS = [
 # heading-free observation (plant_versions note 18) then took it to 63, and the
 # velociraptor's (note 21, 2026-11-06) to 69; the velociraptor's life-size plant
 # (note 22, 2026-11-08) to 71 (six per-site foot channels for two per-foot sums,
-# 23 joints for 24) and its action to 17.
+# 23 joints for 24) and its action to 17.  The target-free revision then dropped
+# the 4 target channels (direction 3, distance 1) from every model and made the
+# two quadrupeds heading-free (quaternion 4 -> projected gravity 3, world
+# velocity -> heading-frame velocity): 45/71/63/86/80 -> 41/67/59/81/75.
 SPECIES_DIMS = {
-    ALLOSAURUS_FRAGILIS: {"obs": 45, "act": 10},
-    VELOCIRAPTOR_MONGOLIENSIS: {"obs": 71, "act": 17},
-    TYRANNOSAURUS_REX: {"obs": 63, "act": 15},
-    BRACHIOSAURUS_ALTITHORAX: {"obs": 86, "act": 30},
-    DIBOTHROSUCHUS_ELAPHROS: {"obs": 80, "act": 27},
+    ALLOSAURUS_FRAGILIS: {"obs": 41, "act": 10},
+    VELOCIRAPTOR_MONGOLIENSIS: {"obs": 67, "act": 17},
+    TYRANNOSAURUS_REX: {"obs": 59, "act": 15},
+    BRACHIOSAURUS_ALTITHORAX: {"obs": 81, "act": 30},
+    DIBOTHROSUCHUS_ELAPHROS: {"obs": 75, "act": 27},
 }
 
 # Expected reward component keys per species
@@ -76,8 +79,6 @@ SPECIES_REWARD_KEYS = {
         "reward_alive",
         "reward_energy",
         "reward_tail",
-        "reward_strike",
-        "reward_approach",
         "reward_posture",
         "reward_gait",
         "reward_smoothness",
@@ -89,8 +90,6 @@ SPECIES_REWARD_KEYS = {
         "reward_alive",
         "reward_energy",
         "reward_tail",
-        "reward_bite",
-        "reward_approach",
         "reward_posture",
         "reward_nosedive",
         "reward_height",
@@ -106,8 +105,6 @@ SPECIES_REWARD_KEYS = {
         "reward_alive",
         "reward_energy",
         "reward_gait",
-        "reward_food",
-        "reward_approach",
         "reward_idle",
         "reward_total",
     ],
@@ -118,8 +115,6 @@ SPECIES_REWARD_KEYS = {
         "reward_gait",
         "reward_gait_symmetry",
         "reward_tail",
-        "reward_snap",
-        "reward_approach",
         "reward_posture",
         "reward_nosedive",
         "reward_height",
@@ -393,15 +388,15 @@ class TestRewardConsistency:
         assert info["reward_energy"] < 0
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", [p for p in MODEL_ENVS if p.values[1] != ALLOSAURUS_FRAGILIS])
-    def test_approach_reward_zero_on_first_step(self, env_class, model_id):
-        """Approach reward should be zero on the first step (no prior distance)."""
+    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    def test_no_hunt_reward_or_success_key(self, env_class, model_id):
+        """The hunt's approach shaping and success keys left with it (decision D-D59)."""
         env = env_class()
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        assert info["reward_approach"] == 0.0
-        assert info["approach_delta"] == 0.0
+        assert not {"reward_approach", "approach_delta", "prey_distance"} & set(info)
+        assert env_class.SUCCESS_KEYS == (() if model_id != ALLOSAURUS_FRAGILIS else ("course_complete",))
         env.close()
 
     @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)

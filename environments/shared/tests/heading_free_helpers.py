@@ -79,7 +79,11 @@ from typing import Any, Callable
 
 import numpy as np
 
+from environments.allosaurus_fragilis.anatomical.env import AllosaurusFragilisAnatomicalEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
+from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.stance_heading_gate import HEADING_GRID_DEG
 from environments.shared.model_id import ModelId
@@ -87,11 +91,17 @@ from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_y
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
-#: The heading-free models and their environments (the velociraptor since policy interface r13, 2026-11-06).
+#: The heading-free models and their environments: the T-Rex, the anatomical Compsognathus and the velociraptor
+#: first (plant_versions notes 18 and 21; the velociraptor since policy interface r13, 2026-11-06), every other
+#: model since the target-free revision (note 24, decision D-D59).
 HEADING_FREE_ENVS = {
     ModelId("tyrannosaurus_rex", "anatomical"): TyrannosaurusRexAnatomicalEnv,
     ModelId("compsognathus_longipes", "anatomical"): CompsognathusLongipesAnatomicalEnv,
     ModelId("velociraptor_mongoliensis", "anatomical"): VelociraptorMongoliensisAnatomicalEnv,
+    ModelId("allosaurus_fragilis", "anatomical"): AllosaurusFragilisAnatomicalEnv,
+    ModelId("compsognathus_longipes", "robot"): CompsognathusLongipesRobotEnv,
+    ModelId("brachiosaurus_altithorax", "anatomical"): BrachiosaurusAltithoraxAnatomicalEnv,
+    ModelId("dibothrosuchus_elaphros", "anatomical"): DibothrosuchusElaphrosAnatomicalEnv,
 }
 #: The certificate's heading grid, in degrees (``whole_scene_yaw/v1``, D-D32).
 HEADINGS_DEG = HEADING_GRID_DEG
@@ -124,10 +134,17 @@ def zero_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.nda
 
 #: The linear policy's weight scale per environment class, small enough to stand the whole horizon.  0.003
 #: unless listed: the velociraptor's statue falls past an action noise of about 0.10 (physics r5, the life-size
-#: plant; about 0.07 on r4, the 2026-11-06 cliff panel), and on r5 (observation 71) at 0.003 its seed-3042 actions
-#: reach 0.20 and it nosedives at step 132 (0.002: 0.136, step 202); at 0.001 they stay under 0.073 and seeds
-#: 3042-3043 stand all 1000 steps (r4: under 0.045).
-LINEAR_POLICY_GAINS: dict[type, float] = {VelociraptorMongoliensisAnatomicalEnv: 0.001}
+#: plant; about 0.07 on r4, the 2026-11-06 cliff panel).  On physics r6 (observation 67, no target channels) at
+#: 0.003 its seed-3042 / 3043 actions reach 0.177 / 0.175 and it nosedives at step 94 / 103 (0.002: 0.118 / 0.115,
+#: steps 115 / 124); at 0.001 they stay under 0.060 and seeds 3042-3043 stand all 1000 steps (r5, observation 71:
+#: 0.003 reached 0.20 and nosedived at step 132, 0.001 stayed under 0.073; r4: under 0.045).  The T-Rex's
+#: since physics r12 (observation 59, the bite box gone): at 0.003 its seed-3042 / 3043 actions reach 0.091 / 0.098
+#: and it nosedives at step 221 / 170, at 0.002 seed 3043 nosedives at step 245 (0.065); at 0.001 they stay under
+#: 0.032 and both seeds stand all 1000 steps (0.0015 stands them too, under 0.049).
+LINEAR_POLICY_GAINS: dict[type, float] = {
+    VelociraptorMongoliensisAnatomicalEnv: 0.001,
+    TyrannosaurusRexAnatomicalEnv: 0.001,
+}
 
 
 def linear_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.ndarray]:

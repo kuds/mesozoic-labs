@@ -4,7 +4,7 @@ Why.  On the T. rex stance (``TyrannosaurusRexAnatomicalEnv``) one reward term o
 after the settle: ``reward_stance_width`` under ``stance_width_reference = "settled"``, while
 ``_step_count > stance_width_settle_steps`` (200).  The lateral-lean term has the same gate in code but weight 0 in
 the committed stance; the never-merged r10 run branch on which this option was screened also paid stagger and
-CoP-band terms on that gate (four in all).  The 63-value observation carries no clock.  The working explanation of
+CoP-band terms on that gate (four in all).  The observation carries no clock.  The working explanation of
 the tail habit on that branch, inferred and not established, is that the critic read a slowly creeping input (the
 tail_3 pitch angle, observation 6) as one, and that the policy gradient paid the actor for raising the tail.  A CPU
 screen of 2026-10-31 gave the critic alone the episode phase and the tail climb stopped in that screen.  A
@@ -27,10 +27,11 @@ weight in ``V(o_k)`` is ``gamma ** (S - k)`` -- ``discount``.  A reset observati
 
 How (the SB3 classes are in :mod:`environments.shared.critic_phase_ppo`).  The phase is a side input of the
 critic, separate from the actor's observation: the policy interface -- the model's ``observation_space``, the
-VecNormalize sidecar, every evaluation, probe, judge and deploy path -- stays the env's 63-wide
-observation, and nothing reuses the three command slots (60-62), which the walking stages need live.  Only the
-TRAINING ``VecNormalize`` returns ``[normalized observation, phase]`` (66 values) to PPO; PPO's rollout buffer is
-3 columns wider; the actor's first layer reads columns 0-62 alone and the critic's first layer all 66.  The phase
+VecNormalize sidecar, every evaluation, probe, judge and deploy path -- stays the env's observation (59 wide on
+the T. rex), and nothing reuses its three trailing command slots (``command_frame.command_slice``: 56-58 there),
+which the walking stages need live.  Only the TRAINING ``VecNormalize`` returns ``[normalized observation, phase]``
+(62 values on the T. rex) to PPO; PPO's rollout buffer is 3 columns wider; the actor's first layer reads the
+observation's columns alone (0-58 there) and the critic's first layer all 62.  The phase
 is appended after normalisation and never normalised: it is bounded in [0, 1] by construction, and running
 statistics would first see ``settled`` constant 0 (variance ~1e-8 until an episode passes step 200, which would
 then normalise to the clip) and would keep moving the critic's input.  The screen froze those slots at mean

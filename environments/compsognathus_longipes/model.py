@@ -18,7 +18,7 @@ PARAMETERS = json.loads((Path(__file__).parent / "data/model_parameters.json").r
 
 
 def pelvis_subtree_body_ids(model: mujoco.MjModel) -> list[int]:
-    """The pelvis and its descendants, on either embodiment: never the world or the mocap target."""
+    """The pelvis and its descendants, on either embodiment: the animal, never the world body."""
     root = model.body("pelvis").id
     included = {root}
     for body in range(root + 1, model.nbody):
@@ -54,7 +54,7 @@ def set_motors_enabled(model: mujoco.MjModel, enabled: bool):
 
 
 def model_bounds(model: mujoco.MjModel, data: mujoco.MjData):
-    """World-space visual AABB of the animal/robot, excluding floor and target."""
+    """World-space visual AABB of the animal/robot, excluding the floor."""
     low, high = np.full(3, np.inf), np.full(3, -np.inf)
     bodies = set(pelvis_subtree_body_ids(model))
     for geom in range(model.ngeom):

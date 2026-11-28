@@ -29,6 +29,9 @@ from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.plant_contract import current_plant_identity  # noqa: E402
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+#: The T. rex observation width, the committed mirror map's (59 since policy interface r17, when the target direction
+#: and distance left; 63 before).
+OBS_DIM = 59
 
 
 @pytest.fixture(scope="module")
@@ -44,17 +47,17 @@ def mirror_map(plant):
 # ---------------------------------------------------------------------------------------------------- statistics
 def test_symmetric_statistics_are_bitwise_symmetric_and_pickle_as_stock(mirror_map):
     rng = np.random.default_rng(0)
-    rms = MK.SymmetricRunningMeanStd(mirror_map.obs, shape=(63,))
-    reference = RunningMeanStd(shape=(63,))
+    rms = MK.SymmetricRunningMeanStd(mirror_map.obs, shape=(OBS_DIM,))
+    reference = RunningMeanStd(shape=(OBS_DIM,))
     for _ in range(300):
-        x = rng.normal(0.5, 2.0, size=(4, 63)) * np.linspace(0.1, 5, 63)
+        x = rng.normal(0.5, 2.0, size=(4, OBS_DIM)) * np.linspace(0.1, 5, OBS_DIM)
         rms.update(x)
         reference.update(np.concatenate([x, mirror_map.obs.apply(x)]))
         assert rms.residual() == (0.0, 0.0)
     # The moments of [x; M_o x], as stock statistics would compute them on the doubled batch.
     assert np.max(np.abs(rms.mean - reference.mean)) < 1e-12
     assert np.max(np.abs(rms.var - reference.var) / reference.var) < 1e-10
-    o = rng.normal(0, 40, size=(2000, 63))
+    o = rng.normal(0, 40, size=(2000, OBS_DIM))
 
     def normalize(v):
         return np.clip((v - rms.mean) / np.sqrt(rms.var + 1e-8), -10, 10)
@@ -65,8 +68,8 @@ def test_symmetric_statistics_are_bitwise_symmetric_and_pickle_as_stock(mirror_m
         assert np.array_equal(clone.mean, rms.mean) and np.array_equal(clone.var, rms.var)
         assert clone.count == rms.count
     assert b"SymmetricRunningMeanStd" not in pickle.dumps(rms)
-    lopsided = RunningMeanStd(shape=(63,))
-    lopsided.mean[int(np.flatnonzero(mirror_map.obs.perm != np.arange(63))[0])] = 1.0
+    lopsided = RunningMeanStd(shape=(OBS_DIM,))
+    lopsided.mean[int(np.flatnonzero(mirror_map.obs.perm != np.arange(OBS_DIM))[0])] = 1.0
     with pytest.raises(SY.SymmetryError, match="not mirror-symmetric"):
         MK.SymmetricRunningMeanStd.from_stock(lopsided, mirror_map.obs)
 
@@ -77,7 +80,7 @@ def _policy():
 
     torch.manual_seed(0)
     return ActorCriticPolicy(
-        gym.spaces.Box(-np.inf, np.inf, (63,), np.float32),
+        gym.spaces.Box(-np.inf, np.inf, (OBS_DIM,), np.float32),
         gym.spaces.Box(-1, 1, (15,), np.float32),
         lr_schedule=lambda _: 1e-3,
         net_arch=[64, 32],
@@ -128,7 +131,7 @@ def test_the_mirror_loss_is_the_kl_with_sigma_detached_and_floored(mirror_map):
 def test_an_equivariant_policy_pays_no_mirror_loss(mirror_map):
     """``(f(s) + M_a f(M_o s)) / 2`` is exactly equivariant; a common-mode hip roll is not."""
     policy = _policy()
-    obs = torch.tensor(np.random.default_rng(2).normal(size=(256, 63)), dtype=torch.float32)
+    obs = torch.tensor(np.random.default_rng(2).normal(size=(256, OBS_DIM)), dtype=torch.float32)
     obs_perm, obs_sign = torch.as_tensor(mirror_map.obs.perm), torch.as_tensor(mirror_map.obs.sign, dtype=torch.float32)
     act_perm, act_sign = (
         torch.as_tensor(mirror_map.action.perm),
@@ -191,9 +194,9 @@ def test_the_sb3_guard_reads_the_pinned_sources_not_the_release_number(monkeypat
 
 # ---------------------------------------------------------------------------------------------------- training
 class ToyEnv(gym.Env):
-    """The T. rex interface's shapes (63 observations, 15 actions), random dynamics, 50-step episodes."""
+    """The T. rex interface's shapes (OBS_DIM = 59 observations, 15 actions), random dynamics, 50-step episodes."""
 
-    observation_space = gym.spaces.Box(-np.inf, np.inf, (63,), np.float32)
+    observation_space = gym.spaces.Box(-np.inf, np.inf, (OBS_DIM,), np.float32)
     action_space = gym.spaces.Box(-1.0, 1.0, (15,), np.float32)
 
     def __init__(self):
@@ -202,11 +205,11 @@ class ToyEnv(gym.Env):
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         self.t = 0
-        return self.np_random.normal(0.3, 1.5, 63).astype(np.float32), {}
+        return self.np_random.normal(0.3, 1.5, OBS_DIM).astype(np.float32), {}
 
     def step(self, action):
         self.t += 1
-        obs = self.np_random.normal(0.3, 1.5, 63).astype(np.float32)
+        obs = self.np_random.normal(0.3, 1.5, OBS_DIM).astype(np.float32)
         reward = float(-np.sum(np.square(action)) + obs[3] * action[4] - 0.1 * obs[7])
         return obs, reward, False, self.t >= 50, {}
 
@@ -286,7 +289,7 @@ def test_mirror_kl_ppo_trains_symmetrically_and_saves_a_stock_checkpoint(mirror_
         assert type(pickle.load(handle).obs_rms) is RunningMeanStd
     loaded = PPO.load(tmp_path / "mirror.zip", device="cpu")
     assert type(loaded) is PPO
-    obs = np.random.default_rng(5).normal(size=(8, 63)).astype(np.float32)
+    obs = np.random.default_rng(5).normal(size=(8, OBS_DIM)).astype(np.float32)
     np.testing.assert_array_equal(loaded.predict(obs, deterministic=True)[0], model.predict(obs, deterministic=True)[0])
 
 
@@ -298,7 +301,7 @@ def test_enable_refuses_what_it_cannot_mirror(mirror_map):
     with pytest.raises(SY.SymmetryError, match="Gaussian"):
         MK.enable_mirror_kl(PPO("MlpPolicy", _venv(0), use_sde=True, device="cpu"), SY.SymmetryConfig(), mirror_map)
     lopsided = _make()
-    lopsided.get_vec_normalize_env().obs_rms.update(np.random.default_rng(0).normal(size=(8, 63)))
+    lopsided.get_vec_normalize_env().obs_rms.update(np.random.default_rng(0).normal(size=(8, OBS_DIM)))
     with pytest.raises(SY.SymmetryError, match="not mirror-symmetric"):
         MK.enable_mirror_kl(lopsided, SY.SymmetryConfig(), mirror_map)
     untied = _make()

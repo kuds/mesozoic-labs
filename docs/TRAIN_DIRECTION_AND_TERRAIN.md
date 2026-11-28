@@ -6,7 +6,8 @@ outputs.** The behaviors below train through a separate runner
 loop; their bundles are not certified deliverables and are not reused as
 training parents (decision D-D9). The SB3 training notebook has no
 direction/terrain path since the consolidation's notebook-only PR-12 slice
-(decision D-D13): its `BEHAVIOR` takes `stance`, `recover`, `walk`, `hunt` or a stage id, and
+(decision D-D13): its `BEHAVIOR` takes `stance`, `recover`, `walk` or a stage id (`hunt`, removed
+by decision D-D59, is refused naming `walk`), and
 its `BEHAVIOR_*` knobs are gone. The final goal (every model
 follows a direction on difficult terrain) is reached by re-homing
 `follow_direction` and `follow_direction_difficult_terrain` as manifest nodes
@@ -139,7 +140,7 @@ one training run.
 Each filename ends in `.toml`; for example,
 [`configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml).
 None of these names is a notebook `BEHAVIOR` value: the notebook's `stance`,
-`recover`, `walk`, `hunt` and stage-ID selections are the canonical curriculum only, until
+`recover`, `walk` and stage-ID selections are the canonical curriculum only, until
 PR-11 adds the direction and terrain nodes to the models' stage manifests.
 
 ## Model-specific recipe settings
@@ -237,7 +238,24 @@ Preparation zeros only newly activated command columns and their optimizer
 moments, preserving other weights and statistics and checking initial
 policy-action/value equivalence. The three command inputs' statistics restart
 at mean 0 / variance 1, so commands enter the policy at their own scale from
-the first step, and then update like every other input (decision D-D3). The
+the first step, and then update like every other input (decision D-D3; the
+manifest stages hold them at identity instead, decision D-D60). Preparation
+refuses a walker that trained on live commands, one whose task fingerprint has
+a `command` section, before it reads the walker's files: zeroing its command
+columns would erase what it learned, and a command-trained walker continues as
+a manifest node instead (decision D-D60). Since decision D-D62 every committed
+walk trains on a live command, so a recipe starts only from a command-free
+walker on the current plant interface, and no committed path produces one:
+that interface is this unreleased series' own (`configs/plant_versions.toml`
+note 24), every committed walk declares `[commands]`, and
+`--override commands.*` is refused. Until a follow or terrain node with a
+command exists, or a command-free walk config is added (a `locomotion.toml`
+without `[commands]`, under a gate the in-training manager runs), the terrain
+recipes have no parent a user can produce. The refusal is right: a
+command-trained walker under a command-free recipe sees a zero command, on
+which its walk was trained to stand still. The `follow_direction` pilots are
+superseded by the follow nodes planned to continue the walk
+([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) section 4.6). The
 normalization file is a plain SB3 `VecNormalize`. A bundle trained before
 consolidation PR-8 neither resumes nor adapts: `--resume` and `--adapt`
 refuse it, and its normalization file, which names

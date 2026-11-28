@@ -187,7 +187,7 @@ def add_head(skin):
         )
         skin.ellipsoid("naris", "mouth", "skull", (448, 60.0 * sign, 22), (13.2, 3.5, 5.7), 0.28)
         # Place the lip along the lateral wall of the deep maxilla. Both jaws
-        # are bound to the skull because the existing bite sensor has no jaw DOF.
+        # are bound to the skull because the skull has no jaw DOF.
         seam = [
             (141, 113, -29),
             (175, 109, -34),

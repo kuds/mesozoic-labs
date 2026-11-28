@@ -3,10 +3,10 @@
 Nothing here is keyed by hand (decision D-D33).  :func:`env_class` imports
 the model's ``env_entrypoint`` from ``configs/species_manifest.toml``, and
 :func:`get_species_config` builds the :class:`SpeciesConfig` from that
-class, the model's stage manifest and three class attributes every species
-base class carries: ``HEIGHT_LABEL``, ``BEHAVIOR_SECTION_LABEL`` and
-``SUCCESS_KEYS``.  A new embodiment therefore needs no edit here.  These
-three are presentation and success bookkeeping only; the policy layer reads
+class, the model's stage manifest and two class attributes every species
+base class carries: ``HEIGHT_LABEL`` and ``SUCCESS_KEYS`` (empty for a model
+with no success event).  A new embodiment therefore needs no edit here.  These
+two are presentation and success bookkeeping only; the policy layer reads
 other class attributes (``supported_training_backends``, ``action_mapping``,
 ``action_filter_cutoff_hz``, ``residual_linear_slope``,
 ``_shaped_residual_mask`` and ``_foot_sensor_groups``), not these.
@@ -42,7 +42,7 @@ def get_species_config(model_id: ModelId) -> SpeciesConfig:
     """The model's training config, derived from the manifest, its stage manifest and its env class.
 
     ``stage_descriptions`` lists each legacy-numbered stage as
-    ``<legacy number>=<[stage] name>`` (``"1=stance, 2=locomotion, 3=bite"``
+    ``<legacy number>=<[stage] name>`` (``"1=stance, 2=locomotion"``
     on the T-Rex), the integers ``--stage`` accepts.
     """
     cls = env_class(model_id)
@@ -55,6 +55,5 @@ def get_species_config(model_id: ModelId) -> SpeciesConfig:
         env_class=cls,
         stage_descriptions=descriptions,
         height_label=str(getattr(cls, "HEIGHT_LABEL")),
-        behavior_section_label=str(getattr(cls, "BEHAVIOR_SECTION_LABEL")),
         success_keys=list(getattr(cls, "SUCCESS_KEYS")),
     )

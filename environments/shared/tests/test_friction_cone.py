@@ -54,7 +54,12 @@ AMPLITUDE = 0.15  # of each actuator's half range, about the home ctrl
 
 
 def _joint_trajectory(model: mujoco.MjModel, yaw_deg: float) -> np.ndarray:
-    """Joint qpos per step from the home keyframe, the root and every mocap body turned *yaw_deg* about world z."""
+    """Joint qpos per step from the home keyframe, the root turned *yaw_deg* about world z.
+
+    The root is the whole scene's only moving part: no scene carries a mocap body since the target-free revision,
+    and the floor is a plane, so turning the root turns everything a contact can see.
+    """
+    assert model.nmocap == 0
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, model.key("home").id)
     half = np.radians(yaw_deg) / 2
@@ -62,14 +67,6 @@ def _joint_trajectory(model: mujoco.MjModel, yaw_deg: float) -> np.ndarray:
     root = np.zeros(4)
     mujoco.mju_mulQuat(root, turn, data.qpos[3:7].copy())
     data.qpos[3:7] = root
-    pivot = data.qpos[:2].copy()
-    cos, sin = np.cos(2 * half), np.sin(2 * half)
-    for body in range(model.nmocap):
-        offset = data.mocap_pos[body, :2] - pivot
-        data.mocap_pos[body, :2] = pivot + [cos * offset[0] - sin * offset[1], sin * offset[0] + cos * offset[1]]
-        mocap = np.zeros(4)
-        mujoco.mju_mulQuat(mocap, turn, data.mocap_quat[body].copy())
-        data.mocap_quat[body] = mocap
     mujoco.mj_forward(model, data)
     rng = np.random.default_rng(0)
     low, high = model.actuator_ctrlrange[:, 0], model.actuator_ctrlrange[:, 1]

@@ -412,7 +412,8 @@ Ordered by confidence, all currently unimplemented:
 
 1. **Give `foot_load_balance_min_support_force` a real value.** As shipped it is a no-op (§11.1).
    It must be consistent with the duty metrics' 0.1 N/foot threshold, or better, a fraction of
-   body weight (~40 N ≈ 5% for the T-Rex subtree excluding the 65.45 kg prey body). And the
+   body weight (~40 N ≈ 5% for the T-Rex subtree excluding the 65.45 kg prey body, which decision
+   D-D59 removed from every scene on 2026-11-23). And the
    ordering must be **monotone** — airborne strictly worse than single support, not equal to it,
    which is a flat region with no gradient out of the air.
 2. **Add a frequency-aware cost.** Penalise contact-state switching rate directly, or put

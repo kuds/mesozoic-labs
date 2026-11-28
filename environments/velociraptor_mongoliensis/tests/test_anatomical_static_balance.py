@@ -264,7 +264,7 @@ class TestHomeKeyframeStance:
                 distance = _geom_floor_distance(env, geom_name)
                 assert -0.0006 <= distance <= 0.0, f"{geom_name} at {1000 * distance:.3f} mm"
             assert _geom_floor_distance(env, f"{side}_metatarsus_geom") > 0.010
-            for geom_name in (f"{side}_toe_d2_p1", f"{side}_toe_d2_p2", f"{side}_claw_geom"):
+            for geom_name in (f"{side}_toe_d2_p1", f"{side}_toe_d2_p2", f"{side}_toe_d2_ungual"):
                 assert _geom_floor_distance(env, geom_name) > 0.003, geom_name
         assert set(_floor_force_by_geom(env.model, env.data)) == set(FOOT_GEOM_NAMES)
 
@@ -373,15 +373,16 @@ class TestHomeKeyframeStance:
 
 
 class TestSickleClawClearsTheFloor:
-    """The sickle claw never meets the floor, nor stands in for a foot at reset (physics r5).
+    """The sickle claw clears the floor and never stands in for a foot at reset.
 
-    The claw is contype / conaffinity 2/2 against the floor's 1/1, so it meets only the prey,
-    but the shared reset settles the root on the lowest geom with a non-zero contype
-    (``_root_subtree_geoms``), and a claw lower than the feet would settle them off the floor.
-    Digit II hinges passively on its spring and the claw is a bounded 4 N.m servo, so their
-    whole joint ranges are swept here (measured: the claw 3.30 mm clear at worst), and the
-    stance's noisy reset (0.05, uniform on every non-root joint, the passive digits included)
-    keeps it 16.9 mm clear on seeds 3042-3241 and never the lowest geom.
+    Since physics r6 the claw is visual (contype / conaffinity 0, as digit II's phalanges: its 2/2
+    collision met only the prey, which left with the hunt, decision D-D59), so it makes no contact
+    and the shared reset's ground settle (``_root_subtree_geoms``, the colliding geoms) never
+    reads it.  Its geometry still has to clear the floor, or the rendered claw would sink into it:
+    digit II hinges passively on its spring and the claw is a bounded 4 N.m servo, so their whole
+    joint ranges are swept here (measured: the claw 3.30 mm clear at worst), and the stance's noisy
+    reset (0.05, uniform on every non-root joint, the passive digits included) keeps it 16.9 mm
+    clear on seeds 3042-3241.
     """
 
     def test_the_claw_clears_the_floor_over_the_whole_digit_ii_and_claw_range(self, env):
@@ -397,32 +398,25 @@ class TestSickleClawClearsTheFloor:
                     data.qpos[model.jnt_qposadr[digit]] = digit_angle
                     data.qpos[model.jnt_qposadr[claw]] = claw_angle
                     mujoco.mj_kinematics(model, data)
-                    worst = min(worst, _geom_floor_distance(env, f"{side}_claw_geom"))
+                    worst = min(worst, _geom_floor_distance(env, f"{side}_toe_d2_ungual"))
         assert worst > 0.003, f"the claw comes {1000 * worst:.2f} mm from the floor"
 
-    def test_the_stance_reset_keeps_the_claw_clear_and_never_lowest(self):
+    def test_the_stance_reset_keeps_the_claw_clear_and_out_of_the_settle(self):
         from environments.shared.config import load_stage_config
         from environments.shared.model_id import ModelId
 
         kwargs = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")["env_kwargs"]
         env = VelociraptorMongoliensisAnatomicalEnv(**kwargs)
         try:
-            claws = {env.r_claw_geom_id, env.l_claw_geom_id}
-            colliding = [
-                geom
-                for geom in range(env.model.ngeom)
-                if env.model.geom_contype[geom]
-                and geom != env.floor_geom_id
-                and env.model.geom_bodyid[geom] != env.prey_mocap_id
-            ]
+            claws = {int(env.model.geom(f"{side}_toe_d2_ungual").id) for side in ("r", "l")}
+            assert not claws & {int(geom) for geom in env._root_subtree_geoms()}
             for seed in range(3042, 3082):
                 env.reset(seed=seed)
-                distance = {
-                    geom: float(mujoco.mj_geomDistance(env.model, env.data, geom, env.floor_geom_id, 1.0, None))
-                    for geom in colliding
-                }
-                assert min(distance, key=distance.get) not in claws, f"seed {seed}: the claw is the lowest geom"
-                assert min(distance[geom] for geom in claws) > 0.010, f"seed {seed}"
+                clearance = min(
+                    float(mujoco.mj_geomDistance(env.model, env.data, geom, env.floor_geom_id, 1.0, None))
+                    for geom in claws
+                )
+                assert clearance > 0.010, f"seed {seed}: the claw {1000 * clearance:.2f} mm from the floor"
         finally:
             env.close()
 

@@ -3,7 +3,7 @@
 Both physics-r8 trex stances fell when spawned 90 degrees off where the
 statue stands; the stance stage always spawns facing +x, so no gate input
 can see it.  The probe turns the spawn after ``reset`` -- the animal alone,
-or with the prey and the episode's reference direction -- and these tests
+or with the episode's reference heading (the whole scene) -- and these tests
 pin that the turn is exactly a rotation about vertical through the root and
 that it changes nothing else.
 """
@@ -49,29 +49,9 @@ _CERTIFIED = {
 
 @pytest.fixture
 def env():
-    e = TyrannosaurusRexAnatomicalEnv(prey_distance_range=(10.0, 15.0), reset_noise_scale=0.05)
+    e = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.05)
     yield e
     e.close()
-
-
-def _obs_slices(env) -> dict[str, slice]:
-    """Where TyrannosaurusRexAnatomicalEnv._get_obs (bipedal-target-heading-free/v1, policy interface r14) puts its root and prey channels.
-
-    After the joint positions and velocities: projected gravity, the gyro, the heading-frame velocity, the
-    accelerometer, the two feet, then the pelvis-frame prey direction.
-    """
-    start = (env.model.nq - 7) + (env.model.nv - 6)
-    return {
-        "pelvis_gravity": slice(start, start + 3),
-        "pelvis_heading_velocity": slice(start + 6, start + 9),
-        "prey_direction_body": slice(start + 14, start + 17),
-    }
-
-
-def _turned_xy(yaw_deg: float, vector: np.ndarray) -> np.ndarray:
-    theta = math.radians(yaw_deg)
-    x, y, z = (float(value) for value in vector)
-    return np.array([math.cos(theta) * x - math.sin(theta) * y, math.sin(theta) * x + math.cos(theta) * y, z])
 
 
 class TestTurn:
@@ -81,49 +61,45 @@ class TestTurn:
         joints = env.data.qpos[7:].copy()
         root = env.data.qpos[0:3].copy()
         heights = env.data.xpos[:, 2].copy()
-        prey = env.data.mocap_pos[0].copy()
+        reference = env._reference_heading_2d.copy()
+        anchor = env._initial_pos_2d.copy()
         yaw_before = _root_yaw(env)
-        slices = _obs_slices(env)
         obs_before = env._get_obs()
-        pelvis_before = env.data.xmat[env.pelvis_id].reshape(3, 3).copy()
-        prey_offset = env.data.mocap_pos[0] - env.data.xpos[env.pelvis_id]
-        prey_direction_before = prey_offset / (np.linalg.norm(prey_offset) + 1e-8)
         obs = _apply_spawn_yaw(env, SpawnYaw(yaw_deg))
         assert math.degrees(math.remainder(_root_yaw(env) - yaw_before, 2 * math.pi)) == pytest.approx(yaw_deg)
         np.testing.assert_array_equal(env.data.qpos[7:], joints)
         np.testing.assert_array_equal(env.data.qpos[0:3], root)
         # A rotation about vertical moves no height: the spawn stays on the floor exactly as it was.
         np.testing.assert_allclose(env.data.xpos[:, 2], heights, atol=1e-12)
-        np.testing.assert_array_equal(env.data.mocap_pos[0], prey)
+        # The animal alone turns: the episode's reference heading and drift anchor stay where the reset put them.
+        np.testing.assert_array_equal(env._reference_heading_2d, reference)
+        np.testing.assert_array_equal(env._initial_pos_2d, anchor)
         np.testing.assert_array_equal(obs, env._get_obs())
-        # The observation reads the TURNED state (the derived sensors recomputed, not the reset's).  It
-        # carries no world heading since policy interface r14, so the turn alone moves nothing in it but the
-        # prey's bearing: the prey, left behind, now lies where the reset's prey direction turned by -yaw
-        # about vertical lies, seen from the reset's pelvis frame.
-        prey_bearing = slices["prey_direction_body"]
-        others = np.ones(obs.shape, dtype=bool)
-        others[prey_bearing] = False
-        np.testing.assert_allclose(obs[others], obs_before[others], atol=1e-6)
-        expected_bearing = pelvis_before.T @ _turned_xy(-yaw_deg, prey_direction_before)
-        np.testing.assert_allclose(obs[prey_bearing], expected_bearing, atol=1e-6)
-        assert np.max(np.abs(obs[prey_bearing] - obs_before[prey_bearing])) > 0.5
+        # The observation reads the TURNED state (the derived sensors recomputed, not the reset's).  It carries no
+        # world heading (bipedal-heading-free/v1) and, since the target-free revision, no target bearing either, so
+        # the turn moves nothing in it.
+        np.testing.assert_allclose(obs, obs_before, atol=1e-6)
         # The turned state was posed out of band, so the step-tagged substep aggregates are dropped.
         assert env._substep_contact_step == -1
 
-    def test_the_whole_scene_turns_the_prey_and_the_reference_direction_with_it(self, env):
+    def test_the_whole_scene_turns_the_reference_heading_with_it(self, env):
         env.reset(seed=3042)
-        root_xy = env.data.qpos[0:2].copy()
-        prey_rel = env.data.mocap_pos[0, :2] - root_xy
-        reference = env._initial_prey_dir_2d.copy()
+        reference = env._reference_heading_2d.copy()
+        anchor = env._initial_pos_2d.copy()
         obs_before = env._get_obs()
         obs = _apply_spawn_yaw(env, SpawnYaw(90.0, whole_scene=True))
-        np.testing.assert_allclose(env.data.mocap_pos[0, :2] - root_xy, [-prey_rel[1], prey_rel[0]], atol=1e-12)
-        np.testing.assert_allclose(env._initial_prey_dir_2d, [-reference[1], reference[0]], atol=1e-12)
-        # Since policy interface r14 the observation carries no world heading: the turned scene reads the same.
+        np.testing.assert_allclose(env._reference_heading_2d, [-reference[1], reference[0]], atol=1e-12)
+        # The turned reference is the turned root's own forward, as a reset facing that way would record it.
+        np.testing.assert_allclose(
+            env._reference_heading_2d, env._quat_to_forward_2d(env.data.qpos[3:7]), rtol=0, atol=1e-12
+        )
+        # The turn is about the root, so the drift anchor stays.
+        np.testing.assert_array_equal(env._initial_pos_2d, anchor)
+        # The observation carries no world heading: the turned scene reads the same.
         np.testing.assert_allclose(obs, obs_before, atol=1e-6)
 
     def test_the_statue_scores_the_same_episode_from_a_turned_scene(self):
-        """Physics and reward are rotation-invariant for a constant command when the prey turns too."""
+        """Physics and reward are rotation-invariant for a constant command when the reference heading turns too."""
         stage_config = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")
 
         def roll(spawn_yaw):

@@ -385,7 +385,7 @@ def main(species_cfg):
         metavar="KEY=VALUE",
         help="Override config values, e.g. ppo.learning_rate=1e-4",
     )
-    train_parser.add_argument("--output-dir", type=str, default=None, help="Base output directory")
+    train_parser.add_argument("--output-dir", type=str, default=None, help="Stage directory (overrides --log-dir)")
     train_parser.add_argument(
         "--label",
         type=str,
@@ -418,12 +418,13 @@ def main(species_cfg):
         default=None,
         metavar="BEHAVIOR",
         help=(
-            "The behavior this run certifies: a recipe label ('stance', 'recover', 'walk', 'hunt') or a "
+            "The behavior this run certifies: a recipe label ('stance', 'recover', 'walk') or a "
             "deliverable's stage id ('locomotion'), resolved as the notebook's BEHAVIOR knob resolves them, or a "
             "legacy number (2), resolved as --stage resolves it. The run walks the target's chain of advancing "
             "stages and stops there, so `--target walk` certifies a walk-only run and `--target stance` a "
-            "stance-only one ('stand', the stance label until decision D-D38, is refused naming 'stance'). "
-            "Default: the last advancing stage (the whole ladder). A chain through a "
+            "stance-only one ('stand', the stance label until decision D-D38, is refused naming 'stance'; "
+            "'hunt', removed with the hunt nodes by decision D-D59, is refused naming 'walk'). "
+            "Default: the last advancing stage (the whole ladder, which ends at walk). A chain through a "
             "non-advancing stage ('recover' on tyrannosaurus_rex/anatomical runs through recovery) or one that "
             "skips a ladder stage is refused here; train it through the notebook"
         ),

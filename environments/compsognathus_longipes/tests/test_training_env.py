@@ -9,7 +9,7 @@ from gymnasium.utils.env_checker import check_env
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.compsognathus_longipes.base_env import CompsognathusLongipesEnv
 from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
-from environments.shared.config import load_all_stages
+from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.metrics import LocomotionMetrics
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract.manifest import _load_environment
@@ -54,7 +54,9 @@ def test_registered_horizon_is_configurable(gym_id):
             _, _, terminated, truncated, info = instance.step(np.zeros(instance.action_space.shape))
             assert not terminated
             assert truncated == (step == 6)
-        assert not info["is_success"]
+        # No success event (SUCCESS_KEYS is empty); the wrapper's horizon, not the env's, ended this episode, and
+        # the env reports is_success at its own episode end only (BaseDinoEnv.step).
+        assert not info.get("is_success", False)
 
 
 @pytest.mark.parametrize(
@@ -161,37 +163,136 @@ def test_invalid_actions_are_rejected_before_physics(env):
         assert env.data.time == before
 
 
-def test_target_success_requires_slow_upright_arrival(env):
-    env.target_reach_bonus = 25
+REMOVED_TARGET_KWARGS = (
+    "target_approach_weight",
+    "target_reach_bonus",
+    "target_radius",
+    "target_max_speed",
+    "prey_distance_range",
+    "prey_lateral_range",
+    "reset_height_noise_scale",
+)
+
+
+@pytest.mark.parametrize("env_class", [CompsognathusLongipesAnatomicalEnv, CompsognathusLongipesRobotEnv])
+def test_the_species_declares_no_success_key_and_refuses_the_target_kwargs(env_class):
+    """Target reaching, the species' only success event, left with the prey (decision D-D59): no success key, and
+    the target's kwargs and ranges (and the height-jitter knob, whose draw left the reset in the same revision) are
+    refused rather than silently ignored."""
+    assert env_class.SUCCESS_KEYS == ()
+    for kwarg in REMOVED_TARGET_KWARGS:
+        with pytest.raises(TypeError, match=kwarg):
+            env_class(**{kwarg: 0.0})
+
+
+def test_the_scene_has_no_target_and_the_task_reports_none(env):
+    model = env.model
+    assert model.nmocap == 0
+    for kind, name in ((mujoco.mjtObj.mjOBJ_BODY, "prey"), (mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")):
+        assert mujoco.mj_name2id(model, kind, name) == -1
+    for attribute in ("prey_id", "_target_mocap_id", "_initial_prey_dir_2d", "_prev_prey_distance"):
+        assert not hasattr(env, attribute), attribute
     env.reset(seed=5)
-    env.data.mocap_pos[env._target_mocap_id, :2] = env.data.qpos[:2]
-    mujoco.mj_forward(env.model, env.data)
-    _, _, terminated, truncated, info = env.step(np.zeros(env.action_space.shape))
-    assert terminated and not truncated
-    assert info["is_success"] and info["target_success"] == 1
-    assert info["reward_target"] == 25
-
+    _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape))
+    assert not terminated
+    for key in ("reward_approach", "reward_target", "prey_distance", "target_success", "is_success"):
+        assert key not in info, key
+    # A posed state at the spawn spot, at rest and upright, no longer ends the episode as a success.
     env.reset(seed=5)
-    env.data.mocap_pos[env._target_mocap_id, :2] = env.data.qpos[:2]
-    env.data.qvel[0] = 2 * env.target_max_speed
-    mujoco.mj_forward(env.model, env.data)
-    assert not env._is_terminated()[0]
-
-    # Falling onto the goal cannot turn a failure into a successful episode.
-    env.data.qpos[2] = 0.05
-    env.data.qvel[:] = 0
-    mujoco.mj_forward(env.model, env.data)
-    terminated, info = env._is_terminated()
-    assert terminated and not info["success"]
-    _, reward_info = env._get_reward_info(np.zeros(env.action_space.shape))
-    assert reward_info["target_success"] == 0
-    assert reward_info["reward_target"] == 0
+    assert env._is_terminated() == (False, {"success": False})
 
 
-def test_target_event_reaches_locomotion_metrics():
-    metrics = LocomotionMetrics()
+def test_the_forward_reference_is_the_spawn_heading(env):
+    """Forward, lateral and heading read _reference_heading_2d, the spawn's own forward (BaseDinoEnv.reset)."""
+    env.reset(seed=3042)
+    np.testing.assert_array_equal(env._reference_heading_2d, env._quat_to_forward_2d(env.data.qpos[3:7]))
+    np.testing.assert_allclose(env._reference_heading_2d, [1.0, 0.0], atol=1e-12)
+    env.forward_vel_weight = 1.0
+    env.lateral_penalty_weight = 1.0
+    env.heading_weight = 1.0
+    env._reference_heading_2d = np.array([0.0, 1.0])
+    zero = np.zeros(env.action_space.shape)
+    env.data.qvel[0:2] = (0.0, 0.1)
+    _, along = env._get_reward_info(zero)
+    env.data.qvel[0:2] = (0.1, 0.0)
+    _, across = env._get_reward_info(zero)
+    assert along["forward_vel"] == pytest.approx(0.1) and along["reward_lateral"] == pytest.approx(0.0, abs=1e-12)
+    assert across["forward_vel"] == pytest.approx(0.0, abs=1e-12) and across["reward_lateral"] == pytest.approx(-0.01)
+    # The spawn faces +x, a quarter turn from the reference: no heading credit.
+    assert along["heading_alignment"] == pytest.approx(0.0, abs=1e-3)
+
+
+def test_the_robot_foot_channels_read_the_floor_not_a_sole_resting_on_the_other_foot():
+    """The robot's two foot channels are each sole's normal force against the floor (FOOT_OBSERVATION_FLOOR_GEOMS,
+    policy interface r4).  Posed with its right sole on the left sole, the right channel reads nothing and the left
+    only the left sole's floor load, where the touch sensors count the sole-on-sole force on both feet.  The touch
+    sensors still feed the reward's support flag (_aggregated_foot_contact_forces)."""
+    with CompsognathusLongipesRobotEnv(reset_noise_scale=0.0) as env:
+        env.reset(seed=0)
+        model, data = env.model, env.data
+        assert env._foot_observation_floor_geoms == ((model.geom("right_sole").id,), (model.geom("left_sole").id,))
+        # The right leg rolled inward, hip and ankle roll together so the sole stays level, and lifted onto the left
+        # sole; every joint stays inside its range.
+        for joint, delta in (
+            ("right_hip_roll", -0.25),
+            ("right_ankle_roll", -0.25),
+            ("right_knee", -0.275),
+            ("right_hip_pitch", 0.1375),
+            ("right_ankle", 0.1375),
+        ):
+            data.qpos[model.jnt_qposadr[model.joint(joint).id]] += delta
+        mujoco.mj_forward(model, data)
+        pairs = {
+            tuple(sorted((model.geom(int(contact.geom1)).name, model.geom(int(contact.geom2)).name)))
+            for contact in data.contact[: data.ncon]
+        }
+        assert pairs == {("floor", "left_sole"), ("left_sole", "right_sole")}
+        touch = np.array(env._foot_contact_forces())
+        channels = env._get_obs()[-5:-3]
+        np.testing.assert_array_equal(channels, np.array(env._foot_floor_contact_forces(), dtype=np.float32))
+        assert channels[0] == 0.0 and touch[0] > 1.0
+        assert 1.0 < channels[1] < touch[1]
+        assert touch[1] == pytest.approx(channels[1] + touch[0], rel=1e-5)
+
+
+def test_on_the_statue_the_robot_floor_channels_are_its_touch_readings():
+    """Where neither sole rests on the other foot the floor reading is the touch reading, so the r4 switch moved
+    the standing robot's observation nowhere: over the whole 1000-step zero-action stance episode of seeds 3042 and
+    3043 every step's foot channels are the soles' floor force and equal the touch sums (measured 0.0 apart,
+    float64)."""
+    with CompsognathusLongipesRobotEnv(
+        **load_stage_config(COMPSOGNATHUS_LONGIPES_ROBOT, "stance")["env_kwargs"]
+    ) as env:
+        zero = np.zeros(env.action_space.shape, dtype=np.float32)
+        for seed in (3042, 3043):
+            env.reset(seed=seed)
+            truncated = False
+            steps = 0
+            while not truncated:
+                obs, _, terminated, truncated, _ = env.step(zero)
+                steps += 1
+                assert not terminated, (seed, steps)
+                floor = np.array(env._foot_floor_contact_forces())
+                np.testing.assert_array_equal(obs[-5:-3], floor.astype(np.float32))
+                np.testing.assert_allclose(floor, env._foot_contact_forces(), rtol=1e-12, atol=0.0)
+                assert np.all(floor > 1.0)
+            assert steps == env.max_episode_steps == 1000
+
+
+def test_the_anatomical_foot_channels_are_its_touch_sensors():
+    with CompsognathusLongipesAnatomicalEnv() as env:
+        assert env._foot_observation_floor_geoms is None
+        env.reset(seed=3042)
+        for _ in range(20):
+            obs, *_ = env.step(np.zeros(env.action_space.shape))
+        np.testing.assert_array_equal(obs[-5:-3], np.array(env._foot_contact_forces(), dtype=np.float32))
+
+
+def test_no_success_event_reaches_locomotion_metrics():
+    """The model's success keys drive LocomotionMetrics (decision D-D59's amendment): none, so no success rate."""
+    metrics = LocomotionMetrics(success_keys=tuple(CompsognathusLongipesRobotEnv.SUCCESS_KEYS))
     metrics.record_step({"target_success": 1, "forward_vel": 0.0})
-    assert metrics.compute()["success_rate"] == 1
+    assert "success_rate" not in metrics.compute()
 
 
 def test_robot_training_does_not_add_head_or_tail_motors():

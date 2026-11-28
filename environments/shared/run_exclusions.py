@@ -402,6 +402,28 @@ def excluded_stage_reason(stage_dir: "str | Path") -> str | None:
     return None
 
 
+def excluded_stage_records_reason(name: str, stage_config: Any, verdict: Any) -> str | None:
+    """Rules (b), (c) and (d) on one stage directory's records, already read: :func:`excluded_stage_reason`'s answer.
+
+    *name* is the stage directory's name; *stage_config* and *verdict* are its
+    parsed ``stage_config.json`` and ``gate_verdict.json`` (``None`` for one
+    that is missing or unreadable).  For a reader that holds them already and
+    opens each record once (``reporting.run_index``).
+    """
+    config = stage_config if isinstance(stage_config, Mapping) else None
+    reason = _excluded_recorded_commit_reason(config) if config is not None else None
+    if reason is not None:
+        return f"{name}/stage_config.json: {reason}"
+    if isinstance(verdict, Mapping):
+        reason = excluded_handoff_reason(verdict.get("checkpoint_sha256"))
+        if reason is not None:
+            return f"{name}/gate_verdict.json: {reason}"
+    reason = _excluded_recorded_lineage_reason(config) if config is not None else None
+    if reason is not None:
+        return f"{name}/stage_config.json {reason}"
+    return None
+
+
 def excluded_run_reason(run_dir: "str | Path", stage_dir: "str | Path | None" = None) -> str | None:
     """Why the run at *run_dir* never counts, or None.
 

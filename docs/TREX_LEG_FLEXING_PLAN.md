@@ -158,7 +158,7 @@ clamped.
 Ruled out by direct measurement:
 
 - **Center of mass.** Excluding the prey mocap body (65.4 kg, not part of the
-  animal), the T-Rex masses 85.7 kg with its CoM at x = +0.0887, sitting 60.9%
+  animal; decision D-D59 removed it on 2026-11-23), the T-Rex masses 85.7 kg with its CoM at x = +0.0887, sitting 60.9%
   of the way from heel to toe within a 0.336 m support polygon — 0.131 m of
   margin to the toe edge, 0.205 m to the heel. Correct for a biped.
 - **Mass distribution.** Pelvis 35 kg (41% of the animal), skull 8.7 kg, thighs

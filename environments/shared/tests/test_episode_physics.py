@@ -386,8 +386,9 @@ def _reset_view(env) -> list[bytes]:
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=str)
 def test_a_randomised_reset_keeps_every_reset_draw_and_changes_the_plant(model_id):
-    """Every applicable key on, in a training env: each reset's qpos, qvel, mocap targets, push schedule and np_random
-    state equal the off env's, seeded and unseeded, while the managed fields differ."""
+    """Every applicable key on, in a training env: each reset's qpos, qvel, push schedule and np_random state (and its
+    mocap arrays, empty on every current plant) equal the off env's, seeded and unseeded, while the managed fields
+    differ."""
     env_kwargs = _first_stage_kwargs(model_id)
     on = _randomized(model_id, env_kwargs, **_all_ranges(model_id))
     off = species_registry.env_class(model_id)(**env_kwargs)
@@ -584,9 +585,10 @@ def test_per_body_mass_scales_each_animal_body_and_its_inertia_together(model_id
             np.repeat((live["body_mass"][massive] / nominal["body_mass"][massive])[:, None], 3, axis=1),
             rtol=1e-12,
         )
-        # The world, the mocap target and every other body outside the animal keep their mass and inertia.
+        # The world and every other body outside the animal keep their mass and inertia (no plant carries a mocap
+        # target since main's target-free revision).
         outside = np.setdiff1d(np.arange(env.model.nbody), bodies)
-        assert 0 in outside and np.flatnonzero(env.model.body_mocapid >= 0)[0] in outside
+        assert 0 in outside and env.model.nmocap == 0
         for name in ("body_mass", "body_inertia"):
             assert np.array_equal(live[name][outside], nominal[name][outside])
         # setConst ran on the new masses; the geometric statistics are nominal.
@@ -971,7 +973,7 @@ def test_each_episode_draws_3_plus_nbody_plus_2_nu_uniforms_from_its_own_stream(
         try:
             randomizer = env._episode_physics
             count = randomizer.draw_count
-            assert count == 3 + env.model.nbody + 2 * env.model.nu == 3 + 20 + 24
+            assert count == 3 + env.model.nbody + 2 * env.model.nu == 3 + 19 + 24
             env.reset(seed=31)
             for _ in range(4):
                 env.reset()
@@ -1412,7 +1414,7 @@ def test_a_pool_model_of_another_nbody_or_nu_is_refused_at_its_first_episode():
         assert larger.nbody == env.model.nbody + 1 and larger.nu == env.model.nu
         _swap_model(env, larger)
         before = _model_arrays(env.model)
-        with pytest.raises(ValueError, match=r"a pool model changed nbody or nu \(21, 12 against the constructor"):
+        with pytest.raises(ValueError, match=r"a pool model changed nbody or nu \(20, 12 against the constructor"):
             env.reset(seed=1)
         assert _changed(before, _model_arrays(env.model)) == set() and not env._episode_physics._records
     finally:
@@ -1628,7 +1630,7 @@ def test_an_existing_species_opting_in_keeps_every_committed_robot_stage_digest(
     golden = (REPOSITORY_ROOT / "configs" / "digest_snapshot.generated.txt").read_text(encoding="utf-8").splitlines()
     prefix = f"stage\t{ROBOT.species}\t{ROBOT.embodiment}\t"
     committed = [line for line in golden if line.startswith(prefix)]
-    assert out.errors == 0 and len(committed) == 28
+    assert out.errors == 0 and len(committed) == 21  # stance, recovery and locomotion, 7 lines each
     assert out.kept == committed
 
 

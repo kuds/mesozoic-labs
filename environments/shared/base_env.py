@@ -7,15 +7,18 @@ across all dinosaur species. Subclasses override species-specific methods:
   - _get_obs()
   - _get_reward_info()
   - _is_terminated()
-  - _spawn_target()
+  - _reset_episode_state()
 """
 
 from __future__ import annotations
 
 import contextlib
+import inspect
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import Callable, Collection, Mapping
+from collections.abc import Callable, Collection, Iterator, Mapping
+from contextlib import contextmanager
+from dataclasses import replace
 from typing import Any
 
 import gymnasium as gym
@@ -27,11 +30,23 @@ from .action_filter import low_pass_alpha as _low_pass_alpha
 from .actuation_delay import ActuationDelay as _ActuationDelay
 from .actuation_delay import primed_fifo as _primed_fifo
 from .actuation_delay import validate_actuation_delay as _validate_actuation_delay
-from .command_frame import COMMAND_MODE_NONE
+from .command_frame import COMMAND_MODE_NONE, COMMAND_STREAM_DOMAIN
 from .command_frame import validate_command_mode as _validate_command_mode
 from .command_frame import zero_command as _zero_command
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
-from .direction_commands import DirectionCommandConfig, DirectionCommandController, DirectionCommandState
+from .direction_commands import (
+    DirectionCommandConfig,
+    DirectionCommandController,
+    DirectionCommandState,
+    TrackingWindow,
+    gaussian_tracking_reward,
+    tracking_metrics,
+    tracking_window_sample,
+    tracking_window_steps,
+    validate_command_task,
+    windowed_tracking_metrics,
+    wrap_angle,
+)
 from .episode_physics import EpisodePhysicsRandomizer as _EpisodePhysicsRandomizer
 from .episode_physics import validate_episode_physics as _validate_episode_physics
 from .episode_start import ACTUATION_DELAY_STREAM_KEY as _ACTUATION_DELAY_STREAM_KEY
@@ -48,7 +63,6 @@ from .reward_functions import reward_action_jerk as _reward_action_jerk_pure
 from .reward_functions import reward_action_smoothness as _reward_action_smoothness_pure
 from .reward_functions import reward_alive as _reward_alive_pure
 from .reward_functions import reward_angular_velocity_penalty as _reward_angular_velocity_penalty_pure
-from .reward_functions import reward_approach_shaping as _reward_approach_shaping_pure
 from .reward_functions import reward_backward_penalty as _reward_backward_penalty_pure
 from .reward_functions import reward_drift_penalty as _reward_drift_penalty_pure
 from .reward_functions import reward_energy as _reward_energy_pure
@@ -60,13 +74,6 @@ from .reward_functions import reward_lean_aware_posture as _reward_lean_aware_po
 from .reward_functions import reward_nosedive as _reward_nosedive_pure
 from .reward_functions import reward_posture as _reward_posture_pure
 from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
-
-# Clearance in METRES kept between a reset spawn and the nearer end of
-# healthy_z_range.  Reset must never generate an already-terminal state: an
-# episode that ends on step 1 regardless of the action is not a policy failure,
-# and counting it as one puts an unreachable ceiling on any reliability gate.
-# See BaseDinoEnv._bounded_reset_height_delta.
-_RESET_HEIGHT_TERMINATION_MARGIN = 0.02
 
 # Fallback settle target in METRES, used only when a species has no keyframe to
 # read an authored contact depth from.  Reset normally settles to the home
@@ -148,6 +155,17 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     # foot_contact segment and the symmetry module's observation layout; the
     # rewards, the info keys and the substep aggregation above stay per foot.
     _foot_observation_groups: "tuple[tuple[int, ...], ...] | None" = None
+    # The observation's foot-contact channels as FLOOR-contact readings, for a
+    # species whose touch sensors also count force between its own geoms: per
+    # channel, the geom ids whose contacts with ``floor_geom_id`` it sums the
+    # normal force of (:meth:`_foot_floor_contact_forces`).  None means the
+    # channels are touch sensors (the two attributes above).  Only the
+    # Compsognathus robot declares them: its soles collide with each other,
+    # and its touch sensors count sole-on-sole force as support
+    # (docs/KNOWN_ISSUES.md).  Read by the plant contract's foot_contact
+    # segment and the symmetry module's observation layout; the rewards, the
+    # info keys and the substep aggregation stay on the touch sensors.
+    _foot_observation_floor_geoms: "tuple[tuple[int, ...], ...] | None" = None
 
     # Substep aggregation state, populated by step()'s frame-skip loop.
     # Tagged with the _step_count it was measured at rather than cleared in
@@ -202,10 +220,22 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     # episode through ``_draw_episode_command()``, called after the push
     # block and before _get_obs, and step() advances it last through
     # ``_update_command()``.  Under command_mode "none" the hook returns
-    # zeros and draws no RNG, so the seeded reset draw stream is unchanged
-    # (pinned by tests/fixtures/phase_c_reset_golden.json), and step() never
-    # updates.  Phase D replaced the HOOK BODY and never reset() itself, whose
-    # source is fingerprinted as the home_reset policy interface.
+    # zeros and draws no RNG, so the command adds nothing to the seeded reset
+    # draw stream, and step() never updates.  Phase D replaced the HOOK BODY
+    # and never reset() itself, whose source is fingerprinted as the
+    # home_reset policy interface.  A live mode seeds each episode's schedule
+    # from its own stream (``_command_rng``), never from np_random, and step()
+    # adds the command-tracking reward, metrics and dwell
+    # (``_reward_with_command_tracking``).  Under a live mode the reward
+    # terms read their forward reference and drift anchor from the command
+    # (``_forward_reference_2d``, ``_drift_anchor_2d``), the idle penalty
+    # is not paid at an exactly zero command, and a step taken under an
+    # exactly zero command runs with the command config's stand weights
+    # (``_stand_block``; decision D-D62).  A live config with a tracking
+    # window scores a moving command on the window's trailing means
+    # (``_tracking_window``; decision D-D64).  Under "none" all of these are
+    # the spawn's anchors and the constructor's weights, and no window
+    # exists, exactly as before.
     _command: "np.ndarray"
 
     # Optional zero-argument callable invoked after EVERY physics substep in
@@ -253,8 +283,8 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     # whether the episode is noised (a trainer's rollout env, or any env while
     # observation_noise_eval is true; None before the first reset) and
     # continuing or rebuilding its stream; step() adds it to the observation
-    # it returns, after the command recompute (and the behaviour env's
-    # set_direction to the one it returns).  The reset observation is never
+    # it returns, after the command recompute (and set_direction to the one
+    # it returns).  The reset observation is never
     # noised.  Off, step() pays one `is not None` check and returns the very
     # object _get_obs built.
     _observation_noise: "_ObservationNoise | None" = None
@@ -285,7 +315,6 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         healthy_z_range: tuple[float, float] = (0.25, 1.0),
         max_tilt_angle: float = 1.047,
         reset_noise_scale: float = 0.01,
-        reset_height_noise_scale: float | None = None,
         perturbation_capture_velocity_multiple: float = 0.0,
         perturbation_interval: float = 2.0,
         perturbation_jitter: float = 0.5,
@@ -335,6 +364,15 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         self._prev_pos_2d: np.ndarray = np.zeros(2)
         self._distance_traveled: float = 0.0
 
+        # The episode anchors the reward terms read: the drift anchor (the
+        # root's spawn position in the plane) and the reference heading (the
+        # unit horizontal forward of the spawn's root quaternion).  reset()
+        # re-takes both from every spawn, before _reset_episode_state; these
+        # defaults, from the model's qpos0, only keep a reward read before the
+        # first reset defined.
+        self._initial_pos_2d: np.ndarray = self.data.qpos[0:2].copy()
+        self._reference_heading_2d: np.ndarray = self._quat_to_forward_2d(self.data.qpos[3:7])
+
         # Common reward weights
         self.forward_vel_weight = forward_vel_weight
         self.alive_bonus = alive_bonus
@@ -345,14 +383,6 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         self.healthy_z_range = healthy_z_range
         self.max_tilt_angle = max_tilt_angle
         self.reset_noise_scale = reset_noise_scale
-        # Root-height jitter at reset, in METRES.  ``reset_noise_scale`` is a
-        # joint-angle scale in RADIANS, and reusing it for a length is only
-        # harmless while the species is roughly a metre tall: on a 0.31 m
-        # stance a 0.14 rad joint jitter becomes a 0.14 m height jitter, i.e.
-        # 45% of standing height, which spawns a quarter of episodes already
-        # outside healthy_z_range.  ``None`` keeps the historical coupled
-        # behaviour so existing species' reset distributions are unchanged.
-        self.reset_height_noise_scale = reset_height_noise_scale
 
         # Cache body/geom/site IDs (species-specific)
         self._cache_ids()
@@ -420,18 +450,52 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
                     f"command_mode={self.command_mode!r} needs a command_config (a DirectionCommandConfig)"
                 )
             self.direction_controller = DirectionCommandController(command_config)
-            if self.command_mode == "heading" and (
-                command_config.speed_range is not None or command_config.stop_probability > 0.0
-            ):
-                raise ValueError(
-                    "command_mode='heading' holds cruise_speed: speed_range and stops need 'heading_and_speed'"
-                )
+            validate_command_task(self.command_mode, command_config)
         elif command_config is not None:
             raise ValueError("command_config needs a live command_mode ('heading' or 'heading_and_speed'), not 'none'")
         self._command_state: DirectionCommandState | None = None
+        # Command tracking (live modes only; decision D-D60): the reward
+        # weight, the sigmas and the metric tolerances come from the command
+        # config, so they ride in the command manifest and no "none" stage's
+        # task fingerprint carries them.  The metrics and the dwell (seconds
+        # in tolerance since the event began) are per step and per episode.
+        # The tracking window (decision D-D64): with a positive
+        # tracking_window_s, the trailing means a moving command is scored on;
+        # None under "none" and for a per-step config (tracking_window_s 0).
+        self._command_metrics: dict[str, Any] = {}
+        self._tracking_dwell_s = 0.0
+        self._heading_before = 0.0
+        self._tracking_window: TrackingWindow | None = None
+        if command_config is not None:
+            tracking = command_config.tracking_parameters()
+            self.tracking_weight = float(tracking["weight"])
+            self.tracking_velocity_sigma = float(tracking["velocity_sigma"])
+            self.tracking_yaw_rate_sigma = float(tracking["yaw_rate_sigma"])
+            self.tracking_tolerances: dict[str, float] = dict(tracking["tolerances"])
+            window_steps = tracking_window_steps(command_config.tracking_window_s, self.dt)
+            if window_steps:
+                self._tracking_window = TrackingWindow(window_steps)
+        # The command stream's bookkeeping (_command_rng): the reset generator
+        # the episode index counts from, and that index.
+        self._command_stream_source: np.random.Generator | None = None
+        self._command_stream_episode = 0
         free_joints = np.flatnonzero(self.model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
         self._root_body_id = int(self.model.jnt_bodyid[free_joints[0]])
         self._command = _zero_command()
+        # Live modes only (decision D-D62).  The config the stage declares,
+        # which the task fingerprint records and command_manifest() reports
+        # whatever the cruise ramp has swapped in (set_command_config); the
+        # episode's first command state (the course a live Allosaurus walks);
+        # and the drift anchor of the current command event (the root's
+        # planar position when the event began) with that event's id.
+        self._declared_command_config = command_config
+        self._reset_command_state: DirectionCommandState | None = None
+        self._command_anchor_2d: np.ndarray = self._initial_pos_2d.copy()
+        self._command_anchor_event = -1
+        # The stand block: the command config's stand weights by attribute
+        # name, checked against this env's reward weights once its whole
+        # constructor has run (_check_stand_weights); empty under "none".
+        self._stand_weights: dict[str, float] = {}
 
         # The opt-in per-episode physics randomisation (the class attribute
         # above): off unless a stage sets a randomize_* range.  Checked here,
@@ -474,6 +538,132 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         self._viewer = None
         self._renderer = None
         self._camera = None
+
+        if command_config is not None and command_config.stand_weights:
+            self._stand_weights = self._check_stand_weights(command_config.stand_weight_map())
+
+    #: The stand block may name a constructor parameter that is a reward
+    #: weight: one named ``*_weight``, the alive bonus, or the alive bonus's
+    #: support-conditioned fraction (a stance term on three species).  Every
+    #: one is read inside step(), where the block holds; a parameter read at
+    #: construction or at reset (the reset noise, the push schedule, a
+    #: horizon) could not be swapped per step.
+    _STAND_WEIGHT_NAMES = frozenset({"alive_bonus", "support_conditioned_alive_fraction"})
+
+    def _check_stand_weights(self, weights: dict[str, float]) -> dict[str, float]:
+        """*weights* (the command config's stand block) checked against this env: each a reward weight it holds.
+
+        Refused, naming the weight: a name that is not a constructor
+        parameter of this env class with a numeric default and an attribute
+        of the same name; a name that is not a reward weight
+        (:data:`_STAND_WEIGHT_NAMES` or ``*_weight``); a fraction above 1;
+        and a non-zero ``idle_penalty_weight``, which the env never pays at a
+        zero command (:meth:`_speed_terms`).
+        """
+        parameters = inspect.signature(type(self)).parameters
+        owner = type(self).__name__
+        for name, value in weights.items():
+            parameter = parameters.get(name)
+            default = None if parameter is None else parameter.default
+            numeric = isinstance(default, (int, float)) and not isinstance(default, bool)
+            if not numeric or not hasattr(self, name):
+                raise ValueError(
+                    f"stand_weights names {name!r}, which is not a numeric reward kwarg of {owner} "
+                    "(a constructor parameter the env holds as an attribute of the same name)"
+                )
+            if not (name.endswith("_weight") or name in self._STAND_WEIGHT_NAMES):
+                raise ValueError(
+                    f"stand_weights names {name!r}: the stand block swaps reward weights (*_weight, "
+                    f"{', '.join(sorted(self._STAND_WEIGHT_NAMES))}), not other parameters"
+                )
+            if name.endswith("_fraction") and value > 1.0:
+                raise ValueError(f"stand_weights[{name!r}] must lie in [0, 1], got {value!r}")
+            if name == "idle_penalty_weight" and value != 0.0:
+                raise ValueError(
+                    "stand_weights['idle_penalty_weight'] must be 0: the idle penalty is never paid at a zero "
+                    "command, the stand the command asks for"
+                )
+        return dict(weights)
+
+    def _rewards_follow_command(self) -> bool:
+        """Whether the reward and termination rules follow the live command (decision D-D62): under a live mode.
+
+        The switch every command-following rule reads: the forward reference
+        and the drift anchor (:meth:`_forward_reference_2d`,
+        :meth:`_drift_anchor_2d`), the zero-command test the idle penalty and
+        the stand block key on (:meth:`_live_zero_command`) and the
+        Allosaurus' course.  False under command_mode "none"; the recipe env
+        (``behavior_env.SpeciesBehaviorMixin``), whose tasks predate these
+        rules, returns False under its live command too.
+        """
+        return self.direction_controller is not None
+
+    def _live_zero_command(self) -> bool:
+        """Whether a live command is exactly zero: the command the current action was chosen under is a stop.
+
+        Always False under command_mode "none", whose command is zero too:
+        nothing keyed on this changes a "none" stage.
+        """
+        return self._rewards_follow_command() and not np.any(self._command)
+
+    def _stand_block_weights(self) -> dict[str, float]:
+        """The weights this step runs under in place of the constructor's: the stand block at a live zero command."""
+        if not self._stand_weights or not self._live_zero_command():
+            return {}
+        return self._stand_weights
+
+    @contextmanager
+    def _stand_block(self) -> Iterator[dict[str, float]]:
+        """Hold the stand weights in place of the constructor's while the command is a live zero (decision D-D62).
+
+        Each stand weight is written over the attribute of its name and the
+        value it held before restored on exit, so every term computed inside
+        reads it: a term computed only while its weight is positive (a
+        stance-only term a walk's ``[env]`` leaves at 0) is computed, its
+        per-substep records included, since :meth:`step` holds the block
+        from before the physics substeps to the end of the step.  The weights
+        are chosen once, from the command the action was chosen under.
+        Yields the weights held (empty: nothing changes).
+        """
+        weights = self._stand_block_weights()
+        saved = {name: getattr(self, name) for name in weights}
+        try:
+            for name, value in weights.items():
+                setattr(self, name, value)
+            yield weights
+        finally:
+            for name, value in saved.items():
+                setattr(self, name, value)
+
+    def _forward_reference_2d(self) -> np.ndarray:
+        """The unit horizontal direction the forward, heading and lateral reward terms read as forward.
+
+        Under command_mode "none" (or before a live env's first reset) it is
+        the spawn heading, ``_reference_heading_2d`` itself.  Under a live
+        mode it is the unit vector of the desired world heading of the
+        command the action was chosen under, a stop's included (a stop keeps
+        its last requested heading): the walk's forward is the commanded
+        heading, which the initial heading offset turns away from the spawn.
+        """
+        state = self._command_state
+        if not self._rewards_follow_command() or state is None:
+            return self._reference_heading_2d
+        heading = state.desired_heading
+        return np.array([np.cos(heading), np.sin(heading)], dtype=np.float64)
+
+    def _drift_anchor_2d(self) -> np.ndarray:
+        """The planar point the drift terms measure displacement from.
+
+        Under command_mode "none" (or before a live env's first reset) it is
+        the spawn position, ``_initial_pos_2d`` itself.  Under a live mode it
+        is the root's planar position when the current command event began:
+        the spawn position for the episode's first event, so a whole-episode
+        stand holds the spawn as "none" does, and a later stop asks the animal
+        to stand where it stopped.
+        """
+        if not self._rewards_follow_command() or self._command_state is None:
+            return self._initial_pos_2d
+        return self._command_anchor_2d
 
     @staticmethod
     def _quat_to_tilt(quat: np.ndarray) -> float:
@@ -525,8 +715,20 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         """Check species-specific termination conditions."""
 
     @abstractmethod
-    def _spawn_target(self):
-        """Randomize the target (prey/food) position on reset."""
+    def _reset_episode_state(self) -> None:
+        """Clear the species' per-episode state; called once by every :meth:`reset`.
+
+        Runs after the joint jitter and after reset() has set
+        ``_initial_pos_2d`` and ``_reference_heading_2d`` from the spawn (both
+        readable here), before the ground settle, the push schedule and the
+        command draw.  It clears what an episode must not inherit from the
+        last one: the action history (``_prev_action``,
+        ``_prev_prev_action``), the gait state (:meth:`_reset_gait_state` or
+        :meth:`_reset_quadruped_gait_state`) and any species state such as a
+        stance-width target or a policy-action tag.  It draws no random
+        number: the reset draw stream is the joint and velocity jitter, then
+        the push-schedule seed, then the command.
+        """
 
     # ------------------------------------------------------------------
     # Common sensor layout (overridable by subclasses)
@@ -554,8 +756,9 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     action_jerk_weight: float = 0.0
     # Read by the reward-term helpers (_progress_terms, _nosedive_term,
     # _heading_terms, _speed_terms), _natural_forward_z also by _root_termination.
-    # Annotation only: the species that call them set these in ``__init__``
-    # (_initial_pos_2d when the target spawns on reset); compsognathus calls none.
+    # Annotation only: the species that call them set these in ``__init__``;
+    # compsognathus calls none.  The drift anchor _initial_pos_2d and the
+    # reference heading _reference_heading_2d are set by __init__ and reset().
     forward_vel_max: float
     backward_vel_penalty_weight: float
     drift_penalty_weight: float
@@ -568,6 +771,9 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     nosedive_weight: float
     _natural_forward_z: float
     _initial_pos_2d: np.ndarray
+    _reference_heading_2d: np.ndarray
+    # The floor geom, set by every species' _cache_ids; read by the floor-contact helpers.
+    floor_geom_id: int
 
     def _reward_energy(self, action: np.ndarray) -> float:
         """Compute normalised energy penalty. Identical across all species.
@@ -703,27 +909,6 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         reward = -weight * instability_norm
         return reward, instability
 
-    def _compute_approach_shaping(
-        self,
-        current_distance: float,
-        prev_distance: "float | None",
-        weight: float,
-        max_speed: float,
-    ) -> tuple[float, float]:
-        """Compute approach shaping reward (reward closing distance, penalise retreating).
-
-        Args:
-            current_distance: Current distance to target.
-            prev_distance: Previous step's distance (None on first step).
-            weight: Approach shaping weight.
-            max_speed: Maximum expected approach speed (m/s) for normalisation.
-
-        Returns:
-            (reward, approach_delta) tuple.
-        """
-        dt = self.frame_skip * self.model.opt.timestep
-        return _reward_approach_shaping_pure(current_distance, prev_distance, weight, max_speed, dt)
-
     # ------------------------------------------------------------------
     # Reward terms shared by T-Rex, velociraptor, brachiosaurus and
     # dibothrosuchus (compsognathus computes its own, with different
@@ -738,10 +923,13 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     def _progress_terms(
         self, info: dict[str, Any], vel_2d: np.ndarray, forward_ref_2d: np.ndarray, root_pos_2d: np.ndarray
     ) -> tuple[Any, Any, Any]:
-        """Forward velocity along *forward_ref_2d*, the backward penalty and the drift of *root_pos_2d* from spawn.
+        """Forward velocity along *forward_ref_2d*, the backward penalty and the drift of *root_pos_2d*.
 
-        Records ``forward_vel``, ``reward_forward``, ``backward_vel``, ``reward_backward``, ``drift_distance`` and
-        ``reward_drift`` in that order; returns ``(reward_forward, reward_backward, reward_drift)``.
+        The drift is measured from :meth:`_drift_anchor_2d` (the spawn under
+        command_mode "none").  Records ``forward_vel``, ``reward_forward``,
+        ``backward_vel``, ``reward_backward``, ``drift_distance`` and
+        ``reward_drift`` in that order; returns ``(reward_forward,
+        reward_backward, reward_drift)``.
         """
         reward_forward, forward_vel = _reward_forward_velocity_pure(
             vel_2d, forward_ref_2d, self.forward_vel_max, self.forward_vel_weight
@@ -754,7 +942,7 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         info["backward_vel"] = backward_vel
         info["reward_backward"] = reward_backward
         reward_drift, drift_dist = _reward_drift_penalty_pure(
-            root_pos_2d, self._initial_pos_2d, self.drift_penalty_weight
+            root_pos_2d, self._drift_anchor_2d(), self.drift_penalty_weight
         )
         info["drift_distance"] = drift_dist
         info["reward_drift"] = reward_drift
@@ -795,14 +983,18 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         """Speed penalty above ``speed_penalty_threshold`` and idle penalty below ``idle_velocity_threshold``.
 
         Records ``abs_speed``, ``reward_speed`` and ``reward_idle`` in that order (the idle speed is not
-        recorded); returns ``(reward_speed, reward_idle)``.
+        recorded); returns ``(reward_speed, reward_idle)``.  The idle penalty is 0.0 at a live zero command
+        (:meth:`_live_zero_command`, decision D-D62): standing still is what that command asks for.  Under
+        command_mode "none" it is paid as before.
         """
         reward_speed, abs_speed = _reward_speed_penalty_pure(
             vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
         )
         info["abs_speed"] = abs_speed
         info["reward_speed"] = reward_speed
-        reward_idle, _ = _reward_idle_penalty_pure(vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold)
+        reward_idle: Any = 0.0
+        if not self._live_zero_command():
+            reward_idle, _ = _reward_idle_penalty_pure(vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold)
         info["reward_idle"] = reward_idle
         return reward_speed, reward_idle
 
@@ -831,7 +1023,7 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     def _reset_gait_state(self) -> None:
         """Reset gait symmetry tracking for a new episode.
 
-        Call this from the subclass ``_spawn_target`` / reset path.
+        Call this from the subclass ``_reset_episode_state``.
         """
         self._prev_r_in_contact = False
         self._prev_l_in_contact = False
@@ -924,7 +1116,7 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     def _reset_quadruped_gait_state(self) -> None:
         """Reset quadrupedal gait symmetry tracking for a new episode.
 
-        Call this from the subclass ``_spawn_target`` / reset path.
+        Call this from the subclass ``_reset_episode_state``.
         """
         self._reset_gait_state()
         self._prev_diag_a_in_contact = False
@@ -1076,6 +1268,33 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
             for group in self._foot_sensor_groups
         )
 
+    def _foot_floor_contact_forces(self) -> "tuple[float, ...]":
+        """Per channel of ``_foot_observation_floor_geoms``: its geoms' summed floor-contact normal force, in N.
+
+        Reads the current ``data.contact``: each contact between one of a
+        channel's geoms and ``floor_geom_id`` adds ``mj_contactForce``'s
+        normal component, in contact order; a contact between two of the
+        animal's own geoms adds nothing.  All zeros where no contact exists
+        (before any forward pass).  The plant contract hashes this method's
+        tokens into the policy interface of a model that declares the groups.
+        """
+        groups = self._foot_observation_floor_geoms
+        if groups is None:
+            raise ValueError("_foot_floor_contact_forces needs _foot_observation_floor_geoms")
+        floor = int(self.floor_geom_id)
+        channel_of = {int(geom): channel for channel, group in enumerate(groups) for geom in group}
+        totals = [0.0] * len(groups)
+        wrench = np.zeros(6)
+        for index in range(self.data.ncon):
+            contact = self.data.contact[index]
+            first, second = int(contact.geom1), int(contact.geom2)
+            other = second if first == floor else first if second == floor else -1
+            channel = channel_of.get(other)
+            if channel is not None:
+                mujoco.mj_contactForce(self.model, self.data, index, wrench)
+                totals[channel] += float(wrench[0])
+        return tuple(totals)
+
     def _aggregated_foot_contact_forces(self) -> "tuple[float, ...]":
         """Per-foot MIN force across the current control step's substeps.
 
@@ -1202,55 +1421,6 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         return None
 
     # ------------------------------------------------------------------
-    # Consolidated target spawning helpers
-    # ------------------------------------------------------------------
-
-    def _spawn_target_2d(
-        self,
-        distance_range: "tuple[float, float]",
-        lateral_range: "tuple[float, float]",
-        target_z: float,
-    ) -> np.ndarray:
-        """Spawn target (prey/food) at a random 2D location with fixed height.
-
-        Sets ``self.data.mocap_pos[0]`` and returns the target position.
-
-        Args:
-            distance_range: (min, max) forward distance.
-            lateral_range: (min, max) lateral offset.
-            target_z: Fixed Z height for target.
-
-        Returns:
-            Target position as (3,) numpy array.
-        """
-        if self.np_random is not None:
-            distance = self.np_random.uniform(*distance_range)
-            lateral = self.np_random.uniform(*lateral_range)
-        else:
-            distance = float(np.mean(distance_range))
-            lateral = 0.0
-
-        target_pos = np.array([distance, lateral, target_z])
-        self.data.mocap_pos[0] = target_pos
-        return target_pos
-
-    @staticmethod
-    def _compute_initial_direction_2d(target_pos: np.ndarray) -> np.ndarray:
-        """Compute normalised initial 2D direction from origin to target.
-
-        Args:
-            target_pos: Target position (3D).
-
-        Returns:
-            Normalised 2D direction vector.
-        """
-        dir_2d = np.array(target_pos[:2], dtype=np.float64)
-        dir_len = float(np.linalg.norm(dir_2d))
-        if dir_len > 1e-6:
-            dir_2d /= dir_len
-        return dir_2d
-
-    # ------------------------------------------------------------------
     # Shared methods
     # ------------------------------------------------------------------
 
@@ -1283,29 +1453,71 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
     def _draw_episode_command(self) -> np.ndarray:
         """The per-episode body-relative command (BEHAVIOR_RECIPES_PLAN §4.6).
 
-        Under command_mode "none": zeros, no RNG draw, so the seeded reset draw
-        stream is byte-identical to the pre-Phase-C plant (pinned by
-        tests/fixtures/phase_c_reset_golden.json).  Under a live mode: the
-        controller's episode start, seeded from :meth:`_command_rng` AFTER every
-        existing draw, at the root's heading; the full state is kept for the
-        reward.  Phase D replaced THIS body -- never reset(), whose source is
-        fingerprinted as the home_reset policy interface
+        Under command_mode "none": zeros, no RNG draw, so the command adds
+        nothing to the seeded reset draw stream.  Under a live mode: the
+        controller's episode start, seeded from :meth:`_command_rng` (the
+        command stream, which draws nothing from ``np_random``), at the root's
+        heading; the full state is kept for the reward, and the tracking window
+        (decision D-D64) is emptied, so an episode's first step is scored on
+        its own sample.  Decision D-D60 replaced THIS body -- never reset(),
+        whose source is fingerprinted as the home_reset policy interface
         (plant_contract/policy_layer.py).
         """
         if self.direction_controller is None:
             command: np.ndarray = _zero_command()
             return command
+        self._tracking_dwell_s = 0.0
+        self._command_metrics = {}
+        if self._tracking_window is not None:
+            self._tracking_window.clear()
         self._command_state = self.direction_controller.reset(self._command_rng(), self._heading())
+        # The episode's first request, and the drift anchor of its event: the spawn (decision D-D62).
+        self._reset_command_state = self._command_state
+        self._command_anchor_2d = self._initial_pos_2d.copy()
+        self._command_anchor_event = self._command_state.event_id
         return self._command_state.normalized.copy()
 
     def _command_rng(self) -> np.random.Generator:
-        """The generator a live mode seeds each episode's schedule from: one draw on the reset stream."""
-        return self.np_random
+        """The generator a live mode seeds each episode's schedule from: the command stream.
+
+        Independent of the reset draw stream, so a live mode leaves every
+        joint, velocity and push-schedule draw -- this episode's and every
+        later one's -- exactly as "none" draws them (decision D-D60).  The
+        stream is a ``SeedSequence`` of the reset stream's seed (gymnasium's
+        ``np_random_seed``), the episode's index since that seed was applied,
+        and :data:`~environments.shared.command_frame.COMMAND_STREAM_DOMAIN`.
+        A seeded reset gives ``np_random`` a new generator, which restarts the
+        index at 0; each unseeded reset advances it.  Called once per reset,
+        from :meth:`_draw_episode_command`, so the bookkeeping lives here and
+        reset() stays untouched.  A generator assigned to ``np_random``
+        directly has no seed (``np_random_seed`` is -1) and is refused.
+        """
+        source = self.np_random
+        if source is self._command_stream_source:
+            self._command_stream_episode += 1
+        else:
+            self._command_stream_source, self._command_stream_episode = source, 0
+        seed = self.np_random_seed
+        if seed < 0:
+            raise RuntimeError(
+                "a live command stream derives from the reset seed, and np_random was assigned without one; "
+                "seed the environment through reset(seed=...)"
+            )
+        return np.random.default_rng(
+            np.random.SeedSequence([seed, self._command_stream_episode, COMMAND_STREAM_DOMAIN])
+        )
 
     def _update_command(self) -> np.ndarray:
-        """Advance a live mode's controller to this step's time and heading; return the new command."""
+        """Advance a live mode's controller to this step's time and heading; return the new command.
+
+        A new command event moves the drift anchor to the root's planar
+        position now, where the event begins (:meth:`_drift_anchor_2d`).
+        """
         assert self.direction_controller is not None
         self._command_state = self.direction_controller.update(self._step_count * self.dt, self._heading())
+        if self._command_state.event_id != self._command_anchor_event:
+            self._command_anchor_2d = self.data.qpos[0:2].copy()
+            self._command_anchor_event = self._command_state.event_id
         return self._command_state.normalized.copy()
 
     def _heading(self) -> float:
@@ -1313,15 +1525,142 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         rotation = self.data.xmat[self._root_body_id].reshape(3, 3)
         return float(np.arctan2(rotation[1, 0], rotation[0, 0]))
 
+    def set_direction(self, heading: float, speed: float) -> np.ndarray:
+        """Set a persistent world heading (radians) and speed (m/s) under a live command mode.
+
+        Overrides the schedule until reset and restarts the tracking dwell.
+        Returns the updated observation to use for the next policy action.  In
+        an episode the opt-in observation noise noises
+        (``observation_noise_active``) it carries one draw of the noise, as
+        ``step()``'s observation does, so the policy never acts on a clean
+        mid-episode observation; otherwise it is the array ``_get_obs`` built.
+        """
+        if self.direction_controller is None:
+            raise RuntimeError('set_direction needs a live command_mode, not "none"')
+        self.direction_controller.set_target(heading, speed, time_s=self._step_count * self.dt)
+        self._command = self._update_command()
+        self._tracking_dwell_s = 0.0
+        obs = self._get_obs()
+        if self._observation_noise is not None:
+            obs = self._noisy_observation(obs)
+        return obs
+
+    def _reward_with_command_tracking(self, action: np.ndarray) -> tuple[float, dict[str, Any]]:
+        """The species reward and, while a command is live, its tracking term, metrics and dwell.
+
+        Under command_mode "none" this is :meth:`_get_reward_info` unchanged.
+        Under a live mode the step adds ``tracking_weight`` times
+        :func:`~environments.shared.direction_commands.gaussian_tracking_reward`
+        of the velocity and yaw-rate errors (``reward_tracking``, also in
+        ``reward_total``), scored against the command the action was chosen
+        under and measured at the heading the step ends on; the yaw rate is the
+        heading change over the step.  The per-sample metrics
+        (:func:`~environments.shared.direction_commands.tracking_metrics`, the
+        command state's ``as_info`` and ``heading_error_rad``) are kept for the
+        step's info, and the dwell grows by ``dt`` while in tolerance.
+
+        With a tracking window (``tracking_window_s > 0``, decision D-D64)
+        every step's sample enters the window (a stop's too; it is emptied
+        only at reset), and at a moving command the velocity, yaw-rate and
+        requested-speed errors, both in-tolerance flags, the dwell and the
+        tracking term read the window's means
+        (:func:`~environments.shared.direction_commands.windowed_tracking_metrics`):
+        a walking gait's within-stride sway, which is not a tracking error,
+        cancels over a stride.  The heading error, the ``actual_*`` keys and
+        everything at a zero command stay per step, so a stand is judged as
+        before and stepping in place cannot average into one.
+
+        At a moving command the term is then a function of the last
+        ``tracking_window_s`` of the episode, which the observation does not
+        hold (the policy interface is unchanged).  That is acceptable here:
+        the window holds the policy's own trajectory and the command, which
+        it observes; it is about one stride (0.7-1.5 s), within the walks'
+        discount horizon and the dwell and settle scales; it is emptied every
+        episode; in steady state it holds the policy's own periodic gait,
+        which the observed phase and velocities largely determine, and the
+        transients it does not determine are what the gate's window-fill
+        allowance excuses; measured on the reference gaits, the part of the
+        term the current observation leaves unexplained is comparable to the
+        per-step term's: slightly larger by an MLP fit (an RMS quality
+        residual of 0.010-0.050 against 0.006-0.039, 0.005-0.013 more by
+        model, at most about 0.03 reward a step) and smaller by a ridge fit (a
+        residual standard deviation a step after 4 s of 0.053-0.137 against
+        0.056-0.285); and it replaces a
+        per-step pelvis sway the observation could not predict either (a
+        per-step quality of 0.13-0.34 on walks that match the command).
+        """
+        reward, info = self._get_reward_info(action)
+        state = self._command_state
+        if state is None:
+            return reward, info
+        heading = self._heading()
+        yaw_rate = float(wrap_angle(heading - self._heading_before) / self.dt)
+        metrics = tracking_metrics(
+            state, self.data.qvel[:2], yaw_rate, current_heading=heading, **self.tracking_tolerances
+        )
+        command_info = state.as_info()
+        if self._tracking_window is not None:
+            means = self._tracking_window.push(tracking_window_sample({**command_info, **metrics}))
+            metrics = windowed_tracking_metrics(metrics, means, **self.tracking_tolerances)
+        self._command_metrics = {**command_info, **metrics}
+        self._command_metrics["heading_error_rad"] = (
+            float(wrap_angle(state.desired_heading - heading)) if state.heading_active else 0.0
+        )
+        tracking = gaussian_tracking_reward(
+            metrics["tracking_error_v"],
+            metrics["tracking_error_yaw"],
+            velocity_sigma=self.tracking_velocity_sigma,
+            yaw_rate_sigma=self.tracking_yaw_rate_sigma,
+        )
+        reward += self.tracking_weight * tracking
+        info["reward_tracking"] = self.tracking_weight * tracking
+        self._tracking_dwell_s = self._tracking_dwell_s + self.dt if metrics["tracking_in_tolerance"] else 0.0
+        info["reward_total"] = reward
+        return reward, info
+
     def command_manifest(self) -> "dict[str, Any] | None":
         """The command controller's provenance; ``None`` while command_mode is "none".
 
         Mirrors :meth:`perturbation_manifest`: the task fingerprint carries it
         as its ``command`` section (``compute_task_fingerprint(command_manifest=...)``).
+        It describes the task the stage declares, the config the env was built
+        with (the cruise ramp's end state), whatever :meth:`set_command_config`
+        has swapped in since; ``command_config`` is the config drawn from now.
         """
         if self.direction_controller is None:
             return None
-        return self.direction_controller.manifest()
+        if self.direction_controller.config is self._declared_command_config:
+            return self.direction_controller.manifest()
+        assert self._declared_command_config is not None
+        return DirectionCommandController(self._declared_command_config).manifest()
+
+    def set_command_config(self, config: DirectionCommandConfig) -> None:
+        """Draw the live command from *config*, the declared one with other commanded speeds (the cruise ramp).
+
+        *config* may differ from the config the env was built with only in
+        ``cruise_speed`` and ``speed_range`` (``DirectionCommandConfig.ramped``
+        builds it): the stop probability, the heading offset, the scales, the
+        tracking parameters and the stand weights stay the stage's, so the
+        stand episodes, the observation scaling and the reward terms do not
+        move.  It takes effect at the controller's next draw (the next reset
+        for a whole-episode walk; :meth:`DirectionCommandController.replace_config`).
+        Called by ``curriculum.cruise_ramp.CruiseRampCallback`` through
+        ``env_method`` on every training worker; the evaluation envs keep the
+        declared config.
+        """
+        if self.direction_controller is None:
+            raise RuntimeError('set_command_config needs a live command_mode, not "none"')
+        declared = self._declared_command_config
+        assert declared is not None
+        if not isinstance(config, DirectionCommandConfig):
+            raise TypeError("config must be a DirectionCommandConfig")
+        if replace(config, cruise_speed=declared.cruise_speed, speed_range=declared.speed_range) != declared:
+            raise ValueError(
+                "set_command_config may change only cruise_speed and speed_range of the declared command config"
+            )
+        validate_command_task(self.command_mode, config)
+        self.command_config = config
+        self.direction_controller.replace_config(config)
 
     def set_training_rollouts(self, enabled: bool) -> None:
         """Set the env's role: a trainer's rollout env (*enabled*) or an evaluation env.
@@ -1562,7 +1901,26 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         return self._action_filter_state.copy()
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        """Execute one environment step."""
+        """Execute one environment step.
+
+        A step taken under an exactly zero live command whose config declares
+        stand weights runs, physics substeps to the end, with the stand block
+        in place of the constructor's weights (:meth:`_stand_block`, decision
+        D-D62); every other step, every step under command_mode "none"
+        included, runs with the constructor's.
+        """
+        if self._stand_weights and self._live_zero_command():
+            with self._stand_block():
+                return self._step_body(action)
+        return self._step_body(action)
+
+    def _step_body(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+        """One environment step, under the reward weights :meth:`step` holds."""
+        if self.direction_controller is not None:
+            if self._command_state is None:
+                raise RuntimeError("reset must be called before step")
+            # The heading the tracking yaw rate is measured from.
+            self._heading_before = self._heading()
         if self.action_filter_cutoff_hz > 0.0:
             # Both the dynamics and the action-derived reward terms below
             # consume the filtered command, on the reasoning that raw policy
@@ -1682,8 +2040,8 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         # Get observation
         obs = self._get_obs()
 
-        # Compute reward
-        reward, reward_info = self._get_reward_info(action)
+        # Compute reward (with the command-tracking term while a command is live)
+        reward, reward_info = self._reward_with_command_tracking(action)
 
         # Check termination
         terminated, term_info = self._is_terminated()
@@ -1705,16 +2063,26 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
             info["actuation_delay_steps"] = delay_steps
             info["actuation_delay_s"] = round(delay_steps * float(self.model.opt.timestep), 12)
 
-        # SB3 convention: report episode success at episode end so
-        # EvalCallback records per-episode success rates (evaluations.npz
-        # "successes" array). CurriculumCallback reads these for gating.
+        # SB3 convention: report episode success at episode end.  No
+        # in-training reader collects it since decision D-D59
+        # (StageAwareEvalCallback never delegates SB3's success collection,
+        # so evaluations.npz gains no "successes" array and no gate reads
+        # one); a model's success is measured by the post-training panels.
         if terminated or truncated:
             info["is_success"] = bool(term_info.get("success", False))
 
         if self.direction_controller is not None:
-            # The reward scored the command the action was chosen under; the
-            # returned observation carries the next one.
+            # The reward, the tracking metrics and the dwell scored the command
+            # the action was chosen under; the returned observation carries the
+            # next one, and a new event restarts the dwell after it is reported.
+            executed = self._command_state
+            assert executed is not None
+            info.update(self._command_metrics)
+            info["tracking_dwell_s"] = self._tracking_dwell_s
             self._command = self._update_command()
+            current = self._command_state
+            if current is not None and current.event_id != executed.event_id:
+                self._tracking_dwell_s = 0.0
             obs = self._get_obs()
 
         # The opt-in observation noise (observation_noise.py), on the returned
@@ -1751,47 +2119,12 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         """Check if episode should be truncated (time limit)."""
         return self._step_count >= self.max_episode_steps
 
-    def _bounded_reset_height_delta(self, base_z: float, delta: float) -> float:
-        """Bound a reset height perturbation so the spawn is never terminal.
-
-        SUPERSEDED by ``_settle_root_on_ground``, which overwrites the root
-        height as a pure function of the sampled joint pose, so the bounded
-        delta this returns no longer reaches the post-reset state (verified to
-        one ULP).  The draw and this bound are retained only to keep the reset
-        deterministic in its seed: removing the draw would shift every
-        subsequent RNG draw and re-anchor all seeded baselines.  Remove both at
-        the next policy-interface revision.
-
-        The historical rationale, for the record: the root-height jitter is
-        the only UNBOUNDED term in the reset — every
-        other one is a bounded uniform — and an unbounded Gaussian will
-        eventually place the root outside ``healthy_z_range``.  On T-Rex it did
-        so often enough to matter: home pelvis 0.926 m against a 0.70 m floor
-        is a 0.226 m margin, and at sigma 0.10 m that is only 2.26 sigma, so
-        1.19% of spawns landed below the floor.  Measured over seeds 3042-5041,
-        18/2000 spawned sub-floor and 16 of those terminated on the first step
-        whatever the policy did — capping any reliability measurement at ~99%
-        for reasons that have nothing to do with the policy.
-
-        The bound is the distance to the nearer end of ``healthy_z_range``, less
-        a small margin, and is applied symmetrically so the mean spawn height is
-        unchanged.  Clipping rather than resampling keeps the number of RNG
-        draws per reset fixed and the reset deterministic; the cost is a small
-        point mass at each bound (~2% per side on T-Rex).  Species with ample
-        headroom are effectively unaffected, since the bound then sits far out
-        in the tail.
-        """
-        low, high = self.healthy_z_range
-        headroom = min(base_z - low, high - base_z) - _RESET_HEIGHT_TERMINATION_MARGIN
-        bound = max(headroom, 0.0)
-        return float(np.clip(delta, -bound, bound))
-
     def _root_subtree_geoms(self) -> "np.ndarray":
         """Geom IDs belonging to the animal, i.e. the free-joint root's subtree.
 
         Everything the reset translates vertically moves together, and nothing
-        else does: prey, food and other spawned props hang off the world or
-        their own joints, so they must not take part in ground settling.
+        else does: a body off the root's subtree is scenery and must not take
+        part in ground settling.
 
         NON-COLLIDING geoms are excluded.  A geom with ``contype == 0`` and
         ``conaffinity == 0`` generates no contacts, so it can never rest on the
@@ -1954,35 +2287,24 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
         else:
             mujoco.mj_resetData(self.model, self.data)
 
-        # Add small random perturbation to initial pose
+        # Add small random perturbation to initial pose.  The root keeps the
+        # keyframe's planar pose and orientation; its height is the ground
+        # settle's below.
         if self.np_random is not None:
             noise_scale = self.reset_noise_scale
             self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
             self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
-            # STATE-INERT since _settle_root_on_ground below, which overwrites
-            # the root height as a pure function of the sampled joint pose
-            # (verified to one ULP across height scales).  The draw is kept so
-            # the reset stays deterministic in its seed: dropping it would
-            # shift every subsequent draw and re-anchor all seeded baselines.
-            # Remove the whole height channel — this draw, reset_height_noise_scale
-            # and _bounded_reset_height_delta — at the next policy-interface
-            # revision.
-            height_scale = 0.0
-            if noise_scale > 0.0:
-                height_scale = noise_scale if self.reset_height_noise_scale is None else self.reset_height_noise_scale
-            base_z = float(self.data.qpos[2])
-            height_delta = self.np_random.normal(0, height_scale)
-            self.data.qpos[2] = base_z + self._bounded_reset_height_delta(base_z, height_delta)
 
-        # Randomize target position (species-specific)
-        self._spawn_target()
+        # The episode's anchors: the drift anchor and the reference heading,
+        # the unit horizontal forward of the spawn's root quaternion.
+        self._initial_pos_2d = self.data.qpos[0:2].copy()
+        self._reference_heading_2d = self._quat_to_forward_2d(self.data.qpos[3:7])
+        # Per-episode species state (action history, gait state, ...).
+        self._reset_episode_state()
 
-        # Place the animal ON the ground.  This has to come after BOTH the joint
-        # jitter and the height jitter, since either one changes how far the
-        # lowest geom sits below the root.  _bounded_reset_height_delta above
-        # keeps the spawn inside healthy_z_range, but that is a termination
-        # predicate on the ROOT and says nothing about foot-to-floor geometry —
-        # a pelvis at 0.739 m is "healthy" with the toes 0.198 m underground.
+        # Place the animal ON the ground.  This has to come after the joint
+        # jitter, which changes how far the lowest geom sits below the root:
+        # the root height is a pure function of the sampled joint pose.
         self._settle_root_on_ground()
 
         # Forward pass to update derived quantities
@@ -1994,7 +2316,7 @@ class BaseDinoEnv(EpisodeStartHook, ABC):
 
         if self.perturbation_capture_velocity_multiple > 0.0:
             # New episode, new push schedule.  The seed draw is APPENDED to
-            # the reset's existing draw sequence, so the joint/height/target
+            # the reset's existing draw sequence, so the joint and velocity
             # draws above are bit-identical to a perturbation-free reset of
             # the same seed; and mj_resetData above already zeroed
             # xfrc_applied, so no pulse survives a reset — cleared again

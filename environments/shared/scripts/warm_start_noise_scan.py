@@ -23,7 +23,9 @@ Protocol:
   example ``RUN/01_stance``; its name says which stage it is), and the
   checkpoint pair is the stage's handoff, the pair
   ``curriculum.checkpoints.select_handoff_checkpoint`` picks in its
-  ``models/`` directory (``robust_best_model``, else ``best_model``).  Or
+  ``models/`` directory (a stance's ``robust_best_model``, else
+  ``best_model``; a stage whose gate records ``models/handoff_choice.json``
+  hands on the pair recorded there).  Or
   ``--model`` and ``--vecnorm`` name a pair directly (a checkpoint stem
   resolves to ``<stem>.zip``, as SB3 resolves it), and the parent is the
   stance, or the declared parent of ``--walk-stage``.  A missing file is
@@ -39,27 +41,64 @@ Protocol:
   ``log_std`` per actuator (no gSDE, no SAC), the policy a warm-start reset
   can apply to.  A critic-phase or mirror-KL parent is such a policy.
 * **Walk stage.**  By default this is the manifest node with recipe ``walk``
-  that warm-starts from the parent (``locomotion``).  ``--walk-stage``
-  names another child of the parent.  A model with no such node is refused,
-  and so is a walk stage with a live ``command_mode``: training reseeds that
-  stage's command statistics at the warm start, and this scan does not.
-* **Env.**  The env is built from the walk stage's committed ``[env]`` keys
-  through ``config.build_env``, the construction path the other report
-  tools share, and checked against the current plant as ``make_env`` checks
-  a training env (``validate_environment_plant``).  It is an evaluation
-  env, not a trainer's rollout env (``episode_start.mark_training_rollouts``
-  never marks it), so an opt-in per-episode feature holds its evaluation
-  value there: a walk stage that declares an actuation delay rolls at its
-  fixed ``actuation_delay_eval_s`` when it sets one, not the training draw
-  from ``actuation_delay_range_s``.  This is a deliberate evaluation-env
-  diagnostic.  The forward-velocity weight is set to the reward ramp's
-  start value (``train_base._stage_entry_shaping_callbacks``): that is the
-  weight at the warm start.  The reward weight changes the return only, never a
-  termination, except the allosaurus's course completion, which needs a
-  weight above 0, as it is all along the ramp.  The parent's VecNormalize
-  statistics are frozen: observations are normalized as
-  ``VecNormalize.normalize_obs`` does and cast to float32, and nothing
-  updates the statistics.
+  that warm-starts from the parent (``locomotion``, from the stance on every
+  committed model).  ``--walk-stage`` names another child of the parent.  A
+  model with no such node is refused.
+* **Env.**  The env is built from the walk stage's committed ``[env]`` and
+  ``[commands]`` keys through ``config.build_env``, the construction path
+  the other report tools share, and checked against the current plant as
+  ``make_env`` checks a training env (``validate_environment_plant``).  It
+  is an evaluation env, not a trainer's rollout env
+  (``episode_start.mark_training_rollouts`` never marks it), so an opt-in
+  per-episode feature holds its evaluation value there: a walk stage that
+  declares an actuation delay rolls at its fixed ``actuation_delay_eval_s``
+  when it sets one, not the training draw from ``actuation_delay_range_s``.
+  This is a deliberate evaluation-env diagnostic.  Its command is then set
+  as training sets its workers at step 0 of a fresh walk, a load across the
+  node's edge.  Every committed walk is a live command walk
+  (decision D-D62), whose training workers draw their first episodes from
+  the cruise ramp's start: ``train_base._cruise_ramp_callback`` builds the
+  ramp at ramp step 0, and the scan sets the config its ``prime`` sends
+  every worker (``curriculum.cruise_ramp.ramped_command_config``): the
+  walk's ``[commands]`` with ``cruise_speed`` and ``speed_range`` at
+  ``cruise_ramp_start_fraction`` (0.25 on every committed walk), and the
+  stop probability, heading offset, scales, tracking terms and stand block
+  the walk's own.  Each episode's command is the one the walk's own command
+  stream draws for its reset seed (a seeded reset is episode 0 of the
+  stream, ``BaseDinoEnv._command_rng``), so every setting and stream rolls
+  the same commands, each a stand with the walk's stop probability (0.15).
+  On the default seeds 3042-3081 three of them draw a stand on every
+  committed walk: 3052, 3060 and 3074.  A parent that already tracked a
+  command is refused, as training refuses a cruise ramp after one.  No
+  reward weight is ramped on a live walk:
+  ``train_base._stage_entry_shaping_callbacks`` builds no forward-velocity
+  ramp under a live command, and ``load_stage_config`` refuses
+  ``ramp_start_value`` and ``ramp_timesteps`` in a stage with
+  ``[commands]``.  A command-free stage named with ``--walk-stage`` runs
+  command_mode "none" and gets each reward ramp's start value, as training
+  sets it.  The parent's VecNormalize statistics are frozen: observations
+  are normalized as ``VecNormalize.normalize_obs`` does and cast to
+  float32, and nothing updates the statistics.  For a live walk their
+  command slice must be at identity (mean 0, variance 1), as training's
+  ``load_vecnorm_stats`` requires (``command_frame.require_command_identity``).
+* **Warm-start policy.**  The policy is prepared in memory as
+  ``train_base._create_or_load_model`` prepares it for the walk, in the
+  same order.  A parent whose critic reads the episode phase loses those
+  inputs when the walk declares no ``[ppo] critic_phase``
+  (``critic_phase_ppo.drop_critic_phase``; the actor is untouched).  A
+  parent whose recorded task has no ``command`` section, as every stance's
+  has none, has its command columns zeroed
+  (``policy_loading.neutralize_command_columns``), and the policy is proven
+  unchanged on zero commands and blind to live ones
+  (``policy_loading.assert_command_blind``).  The stance saw only zero
+  commands, so its untrained weights on the command inputs would otherwise
+  turn the walk's commands into noise of their own, and the scan would
+  measure a policy the walk never starts from.  Once prepared, the actions
+  do not depend on the command, nor do the walk's physics and terminations:
+  the stand block swaps reward weights only, and a live allosaurus's course
+  completes without ending its episode.  So the stand counts depend on the
+  noise and the reset seeds alone; the command moves the return and the
+  slide's reference direction.
 * **Noise settings.**  Two reference settings come first.  ``mean`` sends
   the policy's mean action with no noise (pilot 3's deterministic parent):
   it rolls the seeds once, since the noise streams do not apply.  ``own``
@@ -98,16 +137,21 @@ Protocol:
 * **Stands.**  An episode stands when it reaches the horizon and the env
   reported no termination on any step (``terminated`` from ``env.step``,
   with ``info["termination_reason"]`` naming the cause).  A success
-  termination, such as ``target_reached``, also ends an episode early and
-  counts as not standing; the table lists every cause.
+  termination would also end an episode early and count as not standing;
+  no committed walk ends one on success.  The table lists every cause.
 
 Readouts per setting, all cheap:
 
-* the stand count per stream and in total, the causes of the early ends,
-  the mean episode length and the mean return (over the episodes whose
-  return is finite: an episode ending in ``nonfinite_state``, which the
-  allosaurus and both Compsognathus envs report, records ``None`` for a
-  non-finite return or displacement, and the row counts it);
+* the stand count per stream and in total, and, for a live walk, per
+  command family (``cruise`` or ``stand``, read off each episode's first
+  step as the in-training evaluation reads it,
+  ``command_evaluation.info_command_family``); the causes of the early
+  ends, the mean episode length and the mean return (the walk's reward at
+  the warm start's commands, its tracking term and, on a stand episode, its
+  stand block; over the episodes whose return is finite: an episode ending
+  in ``nonfinite_state``, which the allosaurus and both Compsognathus envs
+  report, records ``None`` for a non-finite return or displacement, and the
+  row counts it);
 * lift-offs, over the standing episodes only.  A foot is down on a step
   when its touch force exceeds 0.1 N (``CONTACT_THRESHOLD_N``) on at least
   half of the step's substeps (the env's own per-substep touch block).  The
@@ -125,9 +169,11 @@ Readouts per setting, all cheap:
   so the counts compare only roughly;
 * the slide, over the standing episodes: the root's horizontal displacement
   from reset to the end, along the walk reward's own forward reference at
-  reset (the prey or food direction; the root's heading where an env keeps
-  none).  Pilot 3's parent slid backwards under noise, -0.226 m in 10 s at
-  -2.0;
+  reset (``BaseDinoEnv._forward_reference_2d``: the commanded heading under
+  a live command, which the walk's initial heading offset turns from the
+  spawn's, a stand's included; the spawn heading under command_mode
+  "none").  Pilot 3's parent slid backwards under noise, -0.226 m in 10 s
+  at -2.0;
 * the share of action entries the clip changed.
 
 The answer is the largest grid value at which every episode stood, the
@@ -142,18 +188,23 @@ Pilot 3's independent check found one fall in 160 fresh-seed episodes at its
 -2.0, so 120 of 120 on seeds 3042-3081 is a measurement on those seeds, not a
 guarantee.
 
-Limits: each setting is a fixed policy with fixed statistics.  In training,
-PPO moves the mean and ``log_std`` from the first update on, the warm-up's
-entropy coefficient acts on ``log_std``, and the statistics update.  The
-stand rates describe the warm start only.
+Limits: each setting is a fixed policy with fixed statistics and fixed
+commands.  In training, PPO moves the mean and ``log_std`` from the first
+update on, the warm-up's entropy coefficient acts on ``log_std``, the
+statistics update, the zeroed command columns learn, and the cruise ramp
+raises the commanded speeds every 10,000 steps.  The stand rates describe
+the warm start only.
 
 Output, in ``--out-dir`` (default ``warm_start_noise_scan_<species>_<embodiment>``
 in the current directory): ``warm_start_noise_scan.json``
 (``mesozoic.warm-start-noise-scan/v1``) and ``warm_start_noise_scan.txt``,
 the printed table.  The JSON holds the inputs and their sha256, the
-parent's per-actuator ``log_std``, the policy's classes, the grid, the
-definitions above, the summary per setting with every episode's record,
-and the answer.  An ``--out-dir`` that already holds a scan, finished,
+parent's per-actuator ``log_std``, the policy's classes, the warm start's
+commands (``command``: the mode, the ramp step and fraction, the commanded
+speeds, the stop probability and the seeds that draw a stand) and its
+policy preparation (``warm_start_policy``), the grid, the definitions
+above, the summary per setting with every episode's record, and the
+answer.  An ``--out-dir`` that already holds a scan, finished,
 running or interrupted, is refused, so a second parent's scan never
 replaces the first's; so is one inside a run directory (the nearest
 ancestor holding ``provenance.json``), or inside the stage directory of
@@ -172,14 +223,16 @@ the table are written, and when the pair changed on disk during the scan.
 The tool changes no config, gate, reward, task, checkpoint or plant, and
 writes nothing into any run.
 
-Cost: one process steps the T. rex at about 1.5 ms per control step with
-a [512, 256] policy (measured on a shared 4-CPU machine).  The default scan
-is 40 ``mean`` episodes and at most 9 noisy settings (``own``, 7 first-pass
-values and the refinement) x 120 episodes, at 1000 steps each: at most
-1.12M steps, fewer where episodes fall, about 28 minutes of one CPU at that
-rate.  A slower CPU, such as a Colab CPU runtime's, takes longer.  ``--jobs
-N`` splits each pass's (setting, stream) pairs across N processes.  Each
-process loads its own copy of the pair and gives torch one thread, and the
+Cost: one process steps the T. rex's live walk at about 1.4 ms per control
+step with a [512, 256] policy (measured on a 4-CPU machine, which steps the
+same env without a command in 1.2 ms: the command tracking adds about a
+fifth).  The default scan is 40 ``mean`` episodes and at most 9 noisy
+settings (``own``, 7 first-pass values and the refinement) x 120 episodes,
+at 1000 steps each: at most 1.12M steps, fewer where episodes fall, about
+26 minutes of one CPU at that rate.  A slower CPU, such as a Colab CPU
+runtime's, takes longer.  ``--jobs N`` splits each pass's (setting, stream)
+pairs across N processes.  Each process loads its own copy of the pair,
+prepares it as the walk's warm start and gives torch one thread, and the
 records are the same for any N.  The allosaurus's 3000-step episodes triple
 the cost; ``--horizon`` shortens them.  Run the scan as a session of its
 own, once the parent's run is certified and published: only a certified
@@ -213,9 +266,9 @@ import sys
 from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, cast
 
 import numpy as np
 
@@ -259,7 +312,7 @@ STANDS_DEFINITION = (
 )
 SLIDE_DEFINITION = (
     "standing episodes only: the root's horizontal displacement from reset to the end, along the walk reward's "
-    "forward reference at reset (the prey or food direction, else the root's heading)"
+    "forward reference at reset (the commanded heading under a live command, else the spawn heading)"
 )
 SAMPLING_DEFINITION = (
     "clip(mean + std * z, low, high) per step, mean and std from policy.get_distribution under the set log_std; "
@@ -468,7 +521,12 @@ def refuse_existing_scan(out_dir: Path) -> None:
 
 
 def warm_start_reward_weights(config: Mapping[str, Any], *, parent_id: str, load_path: str) -> dict[str, float]:
-    """The reward weights training sets at the warm start: each ramp's start value (stage-entry shaping)."""
+    """The reward weights training sets at the warm start: each ramp's start value (stage-entry shaping).
+
+    Empty on a live walk, every committed walk: training builds no
+    forward-velocity ramp under a live command, whose entry ramp is the
+    cruise ramp (:func:`warm_start_command`).
+    """
     from environments.shared.curriculum import RewardRampCallback
     from environments.shared.train_base import _stage_entry_shaping_callbacks
 
@@ -479,6 +537,55 @@ def warm_start_reward_weights(config: Mapping[str, Any], *, parent_id: str, load
         callback.attr_name: float(callback.start_value)
         for callback in shaping
         if isinstance(callback, RewardRampCallback)
+    }
+
+
+def warm_start_command(config: Mapping[str, Any], *, load_path: str | None) -> tuple[Any, dict[str, Any] | None]:
+    """``(command config, record)``: what a live walk's training workers draw their first episodes from.
+
+    Training's own construction for a load across the node's edge
+    (``train_base._cruise_ramp_callback``, which starts the ramp at step 0
+    and refuses a ramp on a stage whose parent at *load_path* already
+    tracked a command), then the config its ``prime`` sends every worker
+    before ``learn()``'s first reset
+    (``curriculum.cruise_ramp.ramped_command_config``): the declared config
+    with ``cruise_speed`` and ``speed_range`` at the ramp's start fraction.
+    A live stage without a ramp draws from its declared config.  ``(None,
+    None)`` for a command-free stage (command_mode "none").  The record is
+    the JSON's ``command`` block, without the stand seeds the scan adds.
+    """
+    declared = config["env_kwargs"].get("command_config")
+    if declared is None:
+        return None, None
+    from environments.shared.curriculum.cruise_ramp import CruiseRampError, cruise_ramp_fraction, ramped_command_config
+    from environments.shared.train_base import _cruise_ramp_callback
+
+    try:
+        ramp = _cruise_ramp_callback(dict(config), task_load_mode="initialize_next_stage", load_path=load_path)
+    except CruiseRampError as exc:
+        raise NoiseScanError(str(exc)) from exc
+    ramp_record: dict[str, Any] | None = None
+    command = declared
+    if ramp is not None:
+        command = ramped_command_config(ramp.command_config, ramp.start_ramp_steps)
+        ramp_record = {
+            "start_fraction": float(declared.cruise_ramp_start_fraction),
+            "timesteps": int(declared.cruise_ramp_timesteps),
+            "ramp_step": int(ramp.start_ramp_steps),
+            "fraction": float(cruise_ramp_fraction(declared, ramp.start_ramp_steps)),
+        }
+
+    def speeds(value: Any) -> list[float] | None:
+        return None if value is None else [float(speed) for speed in value]
+
+    return command, {
+        "mode": str(config["env_kwargs"]["command_mode"]),
+        "cruise_ramp": ramp_record,
+        "cruise_speed_mps": float(command.cruise_speed),
+        "speed_range_mps": speeds(command.speed_range),
+        "declared_cruise_speed_mps": float(declared.cruise_speed),
+        "declared_speed_range_mps": speeds(declared.speed_range),
+        "stop_probability": float(command.stop_probability),
     }
 
 
@@ -533,6 +640,90 @@ def action_mean_and_std(model: Any, observation: np.ndarray) -> tuple[np.ndarray
     )
 
 
+@dataclass(frozen=True)
+class FrozenStatistics:
+    """The parent's frozen statistics as ``policy_loading.assert_command_blind`` reads a ``VecNormalize``.
+
+    ``obs_rms`` (its ``mean`` and ``var``), ``epsilon`` and ``normalize_obs``,
+    which is the scan's own normalization (``TracePolicy.observation``,
+    ``VecNormalize.normalize_obs``'s formula, cast to float32).
+    """
+
+    policy: Any  # reporting.episode_trace.TracePolicy
+
+    @property
+    def obs_rms(self) -> Any:
+        from types import SimpleNamespace
+
+        return SimpleNamespace(mean=self.policy.mean, var=self.policy.var)
+
+    @property
+    def epsilon(self) -> float:
+        return float(self.policy.epsilon)
+
+    def normalize_obs(self, obs: np.ndarray) -> np.ndarray:
+        return cast(np.ndarray, self.policy.observation(np.asarray(obs, dtype=np.float64)))
+
+
+def prepare_warm_start_policy(
+    policy: Any, *, command_mode: str, walk_critic_phase: bool, vecnorm_path: str
+) -> dict[str, Any]:
+    """Make the loaded parent the policy the walk starts from, in memory, as ``train_base`` makes it; the record.
+
+    *policy* is the loaded ``TracePolicy``, *command_mode* the walk's,
+    *walk_critic_phase* its ``[ppo] critic_phase``.  In
+    ``train_base._create_or_load_model``'s order, for a load across the
+    node's edge: a parent whose critic reads the episode phase
+    (``critic_phase.CHECKPOINT_ATTRIBUTE``) into a walk without one loses
+    those inputs (``critic_phase_ppo.drop_critic_phase``; the actor is
+    untouched); then, for a live walk, the statistics' command slice must be
+    at identity (``command_frame.require_command_identity``, the refusal
+    ``load_vecnorm_stats`` makes), and a parent whose recorded task
+    (``task_fingerprint.MODEL_TASK_ATTRIBUTE``) has no ``command`` section,
+    or none at all, has its command columns zeroed and is proven unchanged
+    on zero commands and blind to live ones
+    (``policy_loading.assert_command_blind`` with
+    ``neutralize_command_columns`` as its preparation).  A refusal of any of
+    these is a :class:`NoiseScanError`.  The record holds the drop's report
+    (``dropped_critic_phase``), the zeroed parameters
+    (``zeroed_command_parameters``) and the probe's measurements
+    (``command_blind_probe``), each ``None`` when the step does not apply.
+    """
+    from environments.shared.command_frame import COMMAND_MODE_NONE, CommandNormalizationError, require_command_identity
+    from environments.shared.critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
+    from environments.shared.critic_phase import CriticPhaseError
+    from environments.shared.policy_loading import PolicyLoadError, assert_command_blind, neutralize_command_columns
+    from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+    model = policy.model
+    record: dict[str, Any] = {
+        "dropped_critic_phase": None,
+        "zeroed_command_parameters": None,
+        "command_blind_probe": None,
+    }
+    try:
+        if getattr(model, "__dict__", {}).get(CRITIC_PHASE_ATTRIBUTE) is not None and not walk_critic_phase:
+            from environments.shared.critic_phase_ppo import drop_critic_phase
+
+            record["dropped_critic_phase"] = drop_critic_phase(model)
+        if command_mode == COMMAND_MODE_NONE:
+            return record
+        statistics = FrozenStatistics(policy)
+        require_command_identity(statistics.obs_rms, artifact=vecnorm_path, command_mode=command_mode)
+        parent_task = getattr(model, MODEL_TASK_ATTRIBUTE, None)
+        if isinstance(parent_task, Mapping) and "command" in parent_task:
+            return record
+        observation_dim = int(model.observation_space.shape[0])
+        probe = assert_command_blind(
+            model, statistics, prepare=lambda: neutralize_command_columns(model, observation_dim=observation_dim)
+        )
+    except (CriticPhaseError, CommandNormalizationError, PolicyLoadError) as exc:
+        raise NoiseScanError(str(exc)) from exc
+    record["zeroed_command_parameters"] = list(probe.pop("prepared"))
+    record["command_blind_probe"] = probe
+    return record
+
+
 # ---------------------------------------------------------------------------------------------------- the rollouts
 
 
@@ -551,14 +742,12 @@ def setting_label(setting: Setting) -> str:
 
 
 def _forward_reference(base: Any) -> np.ndarray:
-    """The walk reward's forward direction at reset (prey or food), else the root's heading: a unit 2-vector."""
-    for name in ("_initial_prey_dir_2d", "_initial_food_dir_2d"):
-        reference = getattr(base, name, None)
-        if reference is not None:
-            break
-    else:
-        reference = base._quat_to_forward_2d(np.asarray(base.data.qpos[3:7], dtype=np.float64))
-    vector = np.asarray(reference, dtype=np.float64).reshape(2)
+    """The walk reward's forward direction at reset (``BaseDinoEnv._forward_reference_2d``): a unit 2-vector.
+
+    Under a live command, the desired heading of the episode's command (a
+    stand's included); under command_mode "none", the spawn heading.
+    """
+    vector = np.asarray(base._forward_reference_2d(), dtype=np.float64).reshape(2)
     norm = float(np.linalg.norm(vector))
     return vector / norm if norm > 0.0 else np.array([1.0, 0.0])
 
@@ -581,7 +770,11 @@ def _finite(value: float) -> float | None:
 
 @dataclass
 class ScanContext:
-    """One process's loaded pair and walk env."""
+    """One process's loaded pair, prepared as the walk's warm start, and walk env.
+
+    *parent_policy* names the classes the checkpoint loaded as, before the
+    preparation; *preparation* is :func:`prepare_warm_start_policy`'s record.
+    """
 
     policy: Any  # reporting.episode_trace.TracePolicy
     env: Any
@@ -590,6 +783,8 @@ class ScanContext:
     debounce_steps: int
     grace_steps: int
     control_dt: float
+    parent_policy: Mapping[str, str] = field(default_factory=dict)
+    preparation: Mapping[str, Any] = field(default_factory=dict)
 
     def close(self) -> None:
         self.env.close()
@@ -598,8 +793,11 @@ class ScanContext:
 def roll_episode(context: ScanContext, *, seed: int, stream: int, deterministic: bool = False) -> dict[str, Any]:
     """One episode from ``env.reset(seed=seed)`` under the policy's current ``log_std``: its record.
 
-    *deterministic* sends the mean action and draws no noise (the :data:`MEAN` setting).
+    *deterministic* sends the mean action and draws no noise (the :data:`MEAN` setting).  Under a live command
+    the record names the episode's command family and requested speed, read off its first step's ``info``
+    (``command_evaluation.info_command_family``); both are ``None`` under command_mode "none".
     """
+    from environments.shared.curriculum.command_evaluation import info_command_family
     from environments.shared.gait.constants import CONTACT_THRESHOLD_N, DOWN_SUBSTEP_FRACTION
 
     env, model = context.env, context.policy.model
@@ -613,6 +811,8 @@ def roll_episode(context: ScanContext, *, seed: int, stream: int, deterministic:
     total, clipped, length = 0.0, 0, 0
     terminated = False
     reason: str | None = None
+    family: str | None = None
+    commanded_speed: float | None = None
     down: list[np.ndarray] = []
     while length < context.horizon:
         mean, std = action_mean_and_std(model, context.policy.observation(obs))
@@ -622,6 +822,8 @@ def roll_episode(context: ScanContext, *, seed: int, stream: int, deterministic:
         obs, reward, terminated, truncated, info = env.step(action)
         total += float(reward)
         length += 1
+        if length == 1 and "desired_speed" in info:
+            family, commanded_speed = info_command_family(info), float(info["desired_speed"])
         block = getattr(base, "_substep_foot_forces", None)
         if block is not None:
             down.append(np.mean(np.asarray(block) > CONTACT_THRESHOLD_N, axis=0) >= DOWN_SUBSTEP_FRACTION)
@@ -644,6 +846,8 @@ def roll_episode(context: ScanContext, *, seed: int, stream: int, deterministic:
         "length": length,
         "stood": bool(stood),
         "termination_reason": reason,
+        "command_family": family,
+        "commanded_speed_mps": commanded_speed,
         "return": _finite(total),
         "lift_offs": lift_offs,
         "forward_displacement_m": _finite(displacement),
@@ -663,7 +867,12 @@ def roll_setting(context: ScanContext, setting: Setting, stream: int) -> list[di
 
 @dataclass(frozen=True)
 class ScanSpec:
-    """What every process needs to build the same :class:`ScanContext` (picklable, for ``--jobs``)."""
+    """What every process needs to build the same :class:`ScanContext` (picklable, for ``--jobs``).
+
+    *command_config* is the command config the walk's training workers draw
+    their first episodes from (:func:`warm_start_command`), ``None`` for a
+    command-free stage; *walk_critic_phase* the walk's ``[ppo] critic_phase``.
+    """
 
     model_id: ModelId
     model_path: str
@@ -673,10 +882,18 @@ class ScanSpec:
     horizon: int
     seeds: tuple[int, ...]
     allow_legacy_plant: bool = False
+    command_config: Any = None  # direction_commands.DirectionCommandConfig
+    walk_critic_phase: bool = False
 
 
 def open_context(spec: ScanSpec) -> ScanContext:
-    """Load the pair (plant-checked, statistics frozen) and build the walk env (plant-checked, warm-start weights)."""
+    """Load the pair (plant-checked, statistics frozen), prepare it as the walk's warm start, and build the walk env.
+
+    The env is plant-checked and set as training sets its workers at the
+    warm start: the reward ramps' start weights and, for a live walk, the
+    cruise ramp's first command config (*spec*'s ``command_config``).
+    """
+    from environments.shared.command_frame import COMMAND_MODE_NONE
     from environments.shared.config import build_env
     from environments.shared.gait.constants import DEBOUNCE_S, SPAWN_GRACE_S
     from environments.shared.gait.events import steps_for
@@ -700,15 +917,31 @@ def open_context(spec: ScanSpec) -> ScanContext:
             allow_legacy_plant=spec.allow_legacy_plant,
         )
         policy_log_std(policy.model)
+        parent_policy = {"algorithm": type(policy.model).__name__, "policy_class": type(policy.model.policy).__name__}
         env = walk_env()
     except (EpisodeTraceError, PlantCompatibilityError) as exc:
         raise NoiseScanError(str(exc)) from exc
     try:
         # As make_env checks a training env: the policy interface too, not only the compiled physics.
         validate_environment_plant(env, identity, artifact=f"{spec.model_id} warm-start noise scan environment")
-        for name, value in spec.reward_weights.items():
-            env.unwrapped.set_reward_weight(name, value)
         base = env.unwrapped
+        command_mode = str(getattr(base, "command_mode", COMMAND_MODE_NONE))
+        if (spec.command_config is None) != (command_mode == COMMAND_MODE_NONE):
+            raise NoiseScanError(
+                f"{spec.model_id} stage {spec.walk_stage!r} builds command_mode {command_mode!r}, but the scan was "
+                f"given {'no' if spec.command_config is None else 'a'} warm-start command config"
+            )
+        preparation = prepare_warm_start_policy(
+            policy,
+            command_mode=command_mode,
+            walk_critic_phase=spec.walk_critic_phase,
+            vecnorm_path=spec.vecnorm_path,
+        )
+        for name, value in spec.reward_weights.items():
+            base.set_reward_weight(name, value)
+        if spec.command_config is not None:
+            # The cruise ramp's prime: drawn from the next reset on (BaseDinoEnv.set_command_config).
+            base.set_command_config(spec.command_config)
         control_dt = float(base.model.opt.timestep) * int(base.frame_skip)
     except PlantCompatibilityError as exc:
         env.close()
@@ -724,6 +957,8 @@ def open_context(spec: ScanSpec) -> ScanContext:
         debounce_steps=steps_for(DEBOUNCE_S, control_dt),
         grace_steps=steps_for(SPAWN_GRACE_S, control_dt),
         control_dt=control_dt,
+        parent_policy=parent_policy,
+        preparation=preparation,
     )
 
 
@@ -832,9 +1067,12 @@ def summarize_setting(
     """One setting's readouts over its streams (the module docstring defines each).
 
     *parent_log_std* gives :data:`OWN`'s std range (its std differs per actuator).
+    ``stood_by_command_family`` is ``None`` when no episode records a
+    command family (command_mode "none").
     """
     episodes = [episode for stream in by_stream for episode in stream]
     standing = [episode for episode in episodes if episode["stood"]]
+    families = sorted({str(episode["command_family"]) for episode in episodes if episode.get("command_family")})
     lifts = [episode["lift_offs"] for episode in standing if episode["lift_offs"] is not None]
     slide = [episode["forward_displacement_m"] for episode in standing if episode["forward_displacement_m"] is not None]
     returns = [episode["return"] for episode in episodes if episode["return"] is not None]
@@ -866,6 +1104,17 @@ def summarize_setting(
         "stand_rate": len(standing) / len(episodes) if episodes else None,
         "stood_per_stream": [sum(1 for episode in stream if episode["stood"]) for stream in by_stream],
         "episodes_per_stream": [len(stream) for stream in by_stream],
+        "stood_by_command_family": (
+            {
+                family: {
+                    "stood": sum(1 for episode in standing if episode.get("command_family") == family),
+                    "episodes": sum(1 for episode in episodes if episode.get("command_family") == family),
+                }
+                for family in families
+            }
+            if families
+            else None
+        ),
         "ends": dict(sorted(ends.items(), key=lambda item: (-item[1], item[0]))),
         "mean_length": _mean([episode["length"] for episode in episodes]),
         "mean_return": _mean(returns),
@@ -1021,6 +1270,41 @@ def _std_text(row: Mapping[str, Any]) -> str:
     return "-"
 
 
+def command_text(command: Mapping[str, Any] | None, seeds: Sequence[int]) -> str:
+    """The warm start's commands in words: the JSON's ``command`` block, or command_mode "none"."""
+    if command is None:
+        return 'none (command_mode "none")'
+    ramp = command["cruise_ramp"]
+    where = (
+        "its declared speeds (no cruise ramp)"
+        if ramp is None
+        else f"the cruise ramp's start (ramp step {ramp['ramp_step']}, {ramp['fraction']:g} of the end state's speeds)"
+    )
+    speeds = command["speed_range_mps"]
+    stands = command["stand_seeds"]
+    return (
+        f"{command['mode']} at {where}: cruise {command['cruise_speed_mps']:.4g} m/s"
+        + ("" if speeds is None else f", speeds {speeds[0]:.4g}-{speeds[1]:.4g} m/s")
+        + f", stop probability {command['stop_probability']:g}; each reset seed's own draw, {len(stands)} of the "
+        f"{len(seeds)} seed{'s' if len(seeds) != 1 else ''} a stand" + (f" ({seeds_text(stands)})" if stands else "")
+    )
+
+
+def preparation_text(preparation: Mapping[str, Any]) -> str:
+    """The warm start's policy preparation in words (:func:`prepare_warm_start_policy`'s record)."""
+    parts = []
+    if preparation.get("dropped_critic_phase") is not None:
+        parts.append("the critic's episode-phase inputs dropped")
+    zeroed = preparation.get("zeroed_command_parameters")
+    if zeroed:
+        probe = preparation["command_blind_probe"]
+        parts.append(
+            f"the command columns of {', '.join(zeroed)} zeroed, proven unchanged on zero commands and blind to live "
+            f"ones (largest action change {probe['max_action_delta']:.1e})"
+        )
+    return "; ".join(parts) or "the parent's, unchanged"
+
+
 def render_scan(report: Mapping[str, Any]) -> str:
     """The printed report: the inputs, the definitions, one row per setting, the answer and the recommendation."""
     parent = report["parent"]
@@ -1038,6 +1322,7 @@ def render_scan(report: Mapping[str, Any]) -> str:
         f"  checkpoint: {report['checkpoint']}{handoff}{validated}",
         f"  statistics: {report['vecnorm']} (frozen)",
         f"  policy: {report['policy']['algorithm']} / {report['policy']['policy_class']}",
+        f"  warm-start policy: {preparation_text(report['warm_start_policy'])}",
         f"  parent log_std: largest {log_std[largest]:.3f} ({names[largest]}), mean {np.mean(log_std):.3f}, "
         f"smallest {min(log_std):.3f}; std mean {std.mean():.3f}, min {std.min():.3f}, max {std.max():.3f}",
         "  walk stage declares warm_start_log_std: "
@@ -1050,6 +1335,7 @@ def render_scan(report: Mapping[str, Any]) -> str:
         f"the walk's {report['episode_steps']} steps "
         f"({report['horizon'] * report['control_dt']:.1f} s); reward weights at the warm start: "
         f"{report['reward_weights'] or 'as configured'}",
+        f"  commands: {command_text(report['command'], seeds)}",
         f"  stands: {report['definitions']['stands']}",
         f"  lift-offs: {report['definitions']['lift_offs']}",
         f"  slide: {report['definitions']['slide']}",
@@ -1241,6 +1527,9 @@ def _scan(
 ) -> tuple[dict[str, Any], str]:
     """Resolve the inputs, refuse what the module docstring refuses, roll every setting and build the report."""
     from environments.shared.config import load_stage_config
+    from environments.shared.critic_phase import read_critic_phase
+    from environments.shared.curriculum.command_evaluation import episode_command_family
+    from environments.shared.curriculum.command_tracking_gate import STAND_FAMILY
     from environments.shared.curriculum.gate_schema import declared_warm_start_log_std
     from environments.shared.result_bundle import ResultBundleError, refuse_output_inside_run, sha256_file
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
@@ -1270,12 +1559,6 @@ def _scan(
     config = load_stage_config(model_id, walk.reference)
     walk_config = f"configs/{model_id.species}/{model_id.embodiment}/{walk.config_file}"
     env_kwargs = dict(config["env_kwargs"])
-    command_mode = str(env_kwargs.get("command_mode", "none"))
-    if command_mode != "none":
-        raise NoiseScanError(
-            f"{walk_config} trains under command_mode {command_mode!r}: a warm start into a live-command node "
-            "reseeds the parent's command statistics (train_base._load_vecnorm_into_envs), which this scan does not"
-        )
     episode_steps = int(env_kwargs.get("max_episode_steps", 1000))
     horizon = episode_steps if args.horizon is None else int(args.horizon)
     if horizon > episode_steps:
@@ -1295,6 +1578,13 @@ def _scan(
     except TaskFingerprintError as exc:
         raise NoiseScanError(str(exc)) from exc
 
+    # The walk env as training starts it (the module docstring's Env): the reward ramps' start weights, none on a
+    # live walk, and the cruise ramp's first command config, refused after a parent that tracked a command.
+    command_config, command = warm_start_command(config, load_path=str(model_path))
+    if command is not None:
+        command["stand_seeds"] = [
+            seed for seed in seeds if episode_command_family(command_config, seed, 0) == STAND_FAMILY
+        ]
     spec = ScanSpec(
         model_id=model_id,
         model_path=str(model_path),
@@ -1304,6 +1594,8 @@ def _scan(
         horizon=horizon,
         seeds=seeds,
         allow_legacy_plant=bool(args.allow_legacy_plant),
+        command_config=command_config,
+        walk_critic_phase=read_critic_phase(config["ppo_kwargs"]),
     )
     sha256 = {"checkpoint": sha256_file(model_path), "vecnorm": sha256_file(vecnorm_path)}
     protocol = _protocol_note(seeds=seeds, streams=int(args.streams), horizon=horizon, episode_steps=episode_steps)
@@ -1312,7 +1604,6 @@ def _scan(
     try:
         trained = context.policy.model
         parent_log_std = policy_log_std(trained).detach().cpu().double().numpy().copy()
-        policy_classes = {"algorithm": type(trained).__name__, "policy_class": type(trained.policy).__name__}
         model = context.env.unwrapped.model
         names = [str(model.actuator(index).name) for index in range(int(model.nu))]
         report: dict[str, Any] = {
@@ -1329,7 +1620,8 @@ def _scan(
             "sha256": sha256,
             "checkpoint_plant_validated": not args.allow_legacy_plant,
             "normalization": context.policy.normalization,
-            "policy": policy_classes,
+            "policy": dict(context.parent_policy),
+            "warm_start_policy": dict(context.preparation),
             "parent": {"actuator_names": names, "log_std": parent_log_std.tolist()},
             "grid_rule": None,
             "grid": [],
@@ -1342,6 +1634,7 @@ def _scan(
             "lift_off_debounce_steps": context.debounce_steps,
             "lift_off_grace_steps": context.grace_steps,
             "reward_weights": dict(spec.reward_weights),
+            "command": command,
             "definitions": {
                 "stands": STANDS_DEFINITION,
                 "sampling": SAMPLING_DEFINITION,

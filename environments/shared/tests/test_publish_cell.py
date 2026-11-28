@@ -16,14 +16,26 @@ refuses a BEHAVIOR whose target differs from the one the run's ``provenance.json
 bundle would leave out (a review of 2026-11-26 showed a shallower BEHAVIOR sealing a ``partial`` walk run
 ``complete`` under a stance target, dropping its failed locomotion).
 
+A judged node whose verdict passed re-enters only while its stage hands on the pair the verdict hashes, as the chain
+loop's reuse of a node of this run checks it (``find_certified_ancestor``, rule 5, through
+``select_handoff_checkpoint``). On the command-driven walk (decision D-D61) that pair is the one the stage's handoff
+choice (``models/handoff_choice.json``) names, and the walk's verdict is the ``command_tracking/v1`` judge's, from
+the panel report rolled on that pair after training.
+
 The cell runs here as the other notebook tests run theirs: its source, in a namespace holding the helpers cell's
 real ``chain_results``, ``write_training_summary`` and ``save_run_bundle``, over runs the result-bundle helpers build
 in the chain loop's stage layout (``stage_dirname``), for every model of the catalog and in the screen and quick-test
-trees. ``SPECIES_CFG`` is the model's real registry entry and ``STAGE_CONFIGS`` carries each stage's real
-``env_kwargs``, so the bare env the cell builds for a node's control step is the model's own. The one stand-in is the
-library writer's evaluation protocol: the helpers' evidence is three episodes on seed 101, not the notebook's thirty
-on its seed roles, so ``_lib_save_result_bundle`` forwards the notebook's call with the fixture's protocol
-(``save_run_bundle``'s own arguments are pinned in ``test_sb3_notebook_pins.py``).
+trees. Each node holds an SB3 pair layout (``<name>.zip`` beside ``<name>_vecnorm.pkl``). The walk node (locomotion)
+holds the records a command-driven walk leaves: its handoff choice, ``command_tracking_report.json`` and the panel CSV,
+and the ``gate_verdict.json`` the shared judge (``reporting.stage_artifacts._apply_stage_gate``) writes from them, so
+the bundle writer re-derives its pass from the panel. Its gate and command are the command-tracking wiring tests'
+design walk (a 4-cruise, 2-stand panel), at each model's own horizon and control step. Stance and recovery keep the
+helpers' stand-ins (a reward gate, and recovery's none/v1). ``SPECIES_CFG`` is the model's real registry entry and
+``STAGE_CONFIGS`` carries each stage's real ``env_kwargs``, so the bare env the cell builds for a node's control step
+is the model's own, the walk's with its live command. The one other stand-in is the library writer's evaluation
+protocol: the helpers' evidence is three episodes on seed 101, not the notebook's thirty on its seed roles, so
+``_lib_save_result_bundle`` forwards the notebook's call with the fixture's protocol (``save_run_bundle``'s own
+arguments are pinned in ``test_sb3_notebook_pins.py``).
 """
 
 from __future__ import annotations
@@ -37,16 +49,32 @@ from typing import Any, Callable
 
 import pytest
 
-from environments.shared.config import load_all_stages
+from environments.shared.command_tracking_panel import plan_command_panel
+from environments.shared.config import env_kwargs_record, load_all_stages
 from environments.shared.constants import PUBLICATION_SEED_START
-from environments.shared.curriculum.gate_schema import gate_config_view
+from environments.shared.curriculum import select_handoff_checkpoint
+from environments.shared.curriculum.checkpoints import HANDOFF_CHOICE_SCHEMA, write_handoff_choice
+from environments.shared.curriculum.command_tracking_evidence import COMMAND_TRACKING_PANEL_CSV
+from environments.shared.curriculum.command_tracking_gate import (
+    COMMAND_TRACKING_GATE_KIND,
+    CRUISE_FAMILY,
+    thresholds_from_curriculum,
+)
+from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
 from environments.shared.model_id import ModelId
 from environments.shared.replication import discover_replicates_for_run
 from environments.shared.reporting import save_result_bundle
 from environments.shared.reporting import write_training_summary as library_training_summary
+from environments.shared.reporting.command_tracking_report import (
+    HANDOFF_SELECTION_SEED_START,
+    assemble_command_tracking_report,
+    write_command_tracking_report,
+)
+from environments.shared.reporting.stage_artifacts import _apply_stage_gate
 from environments.shared.result_bundle import (
     ResultBundleError,
     read_bundle_status,
+    sha256_file,
     validate_result_bundle,
     write_gate_verdict,
 )
@@ -63,6 +91,7 @@ from .result_bundle_helpers import (
     _legacy_stage_dirname,
     _write_ancestor_record,
 )
+from .test_command_tracking_wiring import MEASUREMENT, PLAN, WALK_CONFIG, WALK_CURRICULUM, _panel
 from .test_sb3_notebook_pins import (
     CHAIN_CELL_MARKER,
     INFRA_CELL_MARKER,
@@ -136,11 +165,125 @@ def _judge(
         failures=[] if result["publication_gate_passed"] else ["min_avg_reward: evidence=0.5 threshold=1.0"],
         task_sha256=_ANCESTOR_TASK_SHA256,
         judged_by="reporting.stage_artifacts.generate_stage_artifacts",
-        checkpoint=Path(result["model_path"]),
+        checkpoint=Path(f"{result['model_path']}.zip"),
         normalization=Path(result["vecnorm_path"]),
         gate_config=gate_config_view(config["curriculum_kwargs"]),
         stage_result=result,
     )
+
+
+def _sb3_pairs(stage_dir: Path, result: dict[str, Any]) -> None:
+    """Give the node the pair layout ``evaluate_stage_checkpoints`` leaves: each checkpoint a ``.zip`` beside its
+    ``_vecnorm.pkl`` (the helpers write ``.pkl`` stand-ins; their evidence binds the bytes, which a rename keeps), and
+    ``model_path`` the selected pair's stem, as that function records it."""
+    models = stage_dir / "models"
+    for path in models.glob("*.pkl"):
+        if not path.name.endswith("_vecnorm.pkl"):
+            path.rename(path.with_suffix(".zip"))
+    result["model_path"] = str(models / "best_model")
+
+
+#: The task the walk's stage records (its own fingerprint: the panel, the handoff choice and the verdict are bound to
+#: it).
+WALK_TASK_SHA256 = "sha256:" + "5a" * 32
+
+
+def _walk_env(model_id: ModelId) -> dict[str, Any]:
+    """The walk's ``[env]`` block as ``save_stage_config`` records it under ``reward_weights``: the model's own horizon
+    and frame skip, and the design walk's live command (``WALK_CONFIG``)."""
+    real = _real_stage_configs(model_id)[2]["env_kwargs"]
+    return {
+        "max_episode_steps": int(real["max_episode_steps"]),
+        "frame_skip": int(real.get("frame_skip", 5)),
+        "command_mode": "heading_and_speed",
+        "command_config": env_kwargs_record({"command_config": WALK_CONFIG})["command_config"],
+    }
+
+
+def _choose_walk_handoff(models: Path, selected: str = "best_model") -> None:
+    """Record *selected* as the walk's handoff choice among every pair of the stage, under its gate and task, on the
+    selection panel (as ``command_tracking_report.choose_command_handoff`` records it at the end of training)."""
+    ranked = sorted(path.name[: -len("_vecnorm.pkl")] for path in models.glob("*_vecnorm.pkl"))
+    selection = plan_command_panel(
+        thresholds_from_curriculum(WALK_CURRICULUM), WALK_CONFIG, seed_start=HANDOFF_SELECTION_SEED_START
+    )
+    write_handoff_choice(
+        models,
+        {
+            "schema": HANDOFF_CHOICE_SCHEMA,
+            "gate_kind": COMMAND_TRACKING_GATE_KIND,
+            "gate_sha256": gate_config_sha256(gate_config_view(WALK_CURRICULUM)),
+            "selection_seed_start": HANDOFF_SELECTION_SEED_START,
+            "plan": selection.as_dict(),
+            "task_sha256": WALK_TASK_SHA256,
+            "selected": selected,
+            **_handoff_digests(models, selected),
+            "candidates": [{"name": name, **_handoff_digests(models, name)} for name in ranked],
+        },
+    )
+
+
+def _judge_walk(
+    stage_dir: Path, model_id: ModelId, result: dict[str, Any], config: dict[str, Any], *, passed: bool
+) -> None:
+    """Judge the walk as training judges it (decision D-D61): its stage records the live command and its task, its
+    handoff choice names the pair, the command panel is rolled on that pair (``command_tracking_report.json`` and the
+    panel CSV; one cruise episode never settles when *passed* is False), and the shared judge writes the verdict from
+    the report, recording the command-tracking numbers onto the stage result."""
+    env = _walk_env(model_id)
+    record_path = stage_dir / "stage_config.json"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record.update(
+        curriculum_kwargs=dict(WALK_CURRICULUM),
+        reward_weights=env,
+        task_fingerprint={"schema": "mesozoic.task-fingerprint/v2", "task_sha256": WALK_TASK_SHA256},
+    )
+    record_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    config["curriculum_kwargs"] = dict(WALK_CURRICULUM)
+    models = stage_dir / "models"
+    _choose_walk_handoff(models)
+    horizon, control_dt = env["max_episode_steps"], 0.002 * env["frame_skip"]
+    overrides: dict[str, dict[str, Any]] = {
+        f"seed_{seed}": {"length": horizon, "horizon": horizon, "dt": control_dt} for seed in PLAN.seeds
+    }
+    if not passed:
+        overrides[f"seed_{PLAN.seeds[PLAN.families.index(CRUISE_FAMILY)]}"]["first_event_settled"] = False
+    report = assemble_command_tracking_report(
+        model_id,
+        2,
+        curriculum=WALK_CURRICULUM,
+        command_config=WALK_CONFIG,
+        plan=PLAN,
+        episodes=_panel(PLAN, **overrides),
+        measurement=MEASUREMENT,
+        horizon=horizon,
+        control_dt=control_dt,
+        policy="best_model.zip — VecNormalize stats applied (clip 10)",
+        normalization={"mode": "vecnormalize-frozen", "clip_obs": 10.0, "epsilon": 1e-8},
+        handoff={"checkpoint": "best_model.zip", **_handoff_digests(models, "best_model")},
+        task_sha256=WALK_TASK_SHA256,
+        plant_identity=_plant(model_id).to_dict(),
+        checkpoint_plant_validated=True,
+    )
+    write_command_tracking_report(stage_dir, report)
+    _apply_stage_gate(
+        stage=2,
+        stage_config=config,
+        stage_results=result,
+        stance_report=None,
+        stage_dir=stage_dir,
+        model_id=model_id,
+        command_tracking_report=report,
+    )
+    assert result["publication_gate_passed"] is passed, result["gate_failures"]
+    assert json.loads((stage_dir / "gate_verdict.json").read_text(encoding="utf-8"))["passed"] is passed
+
+
+def _handoff_digests(models: Path, name: str) -> dict[str, str]:
+    return {
+        "checkpoint_sha256": sha256_file(models / f"{name}.zip"),
+        "normalization_sha256": sha256_file(models / f"{name}_vecnorm.pkl"),
+    }
 
 
 def _record_seed(stage_dir: Path, seed: int) -> None:
@@ -161,17 +304,23 @@ def _judged_run(
     dirname: "Callable[[Any], str] | None" = None,
 ) -> "dict[int | str, dict[str, Any]]":
     """A run the chain loop trained and judged node by node in its stage layout, cut off before its bundle: each
-    node holds its stage config, selected and final pairs, evaluation evidence and ``gate_verdict.json``, and the
-    run holds no ``summary.json``, ``collected_results.csv`` or ``artifact_manifest.json``. Returns its configs.
-    *dirname* names a stage directory (default: the chain loop's ``stage_dirname``)."""
+    node holds its stage config, selected and final pairs, evaluation evidence and ``gate_verdict.json`` (the walk's,
+    locomotion's, judged from its command panel by ``_judge_walk``), and the run holds no ``summary.json``,
+    ``collected_results.csv`` or ``artifact_manifest.json``. Returns its configs. *dirname* names a stage directory
+    (default: the chain loop's ``stage_dirname``)."""
     layout = dirname if dirname is not None else (lambda stage: stage_dirname(model_id, stage))
     results, configs = _complete_bundle_inputs(
         run_dir, algorithm="PPO", dirname=layout, model_id=model_id, stage_refs=stage_refs
     )
     for result in results:
+        stage_dir = run_dir / layout(result["stage"])
+        _sb3_pairs(stage_dir, result)
+        _record_seed(stage_dir, seed)
+        if result["stage"] == 2:
+            _judge_walk(stage_dir, model_id, result, configs[2], passed=2 not in failed)
+            continue
         if result["stage"] in failed:
             result["gate_passed"] = result["publication_gate_passed"] = False
-        _record_seed(run_dir / layout(result["stage"]), seed)
         _judge(run_dir, model_id, result, configs[result["stage"]], layout)
     return configs
 
@@ -205,7 +354,8 @@ def _namespace(
     quick_test: bool = False,
 ) -> dict[str, Any]:
     """What the publish cell reads after sections 1-6: the resolve cell's chain (``MANIFEST.resolve_behavior``,
-    ``chain_for``), the storage cell's run and seeds, and the helpers cell's real wrappers over the library."""
+    ``chain_for``), the storage cell's run, seeds and ``LOG_BASE``, and the helpers cell's real wrappers over the
+    library, ``save_run_bundle``'s run report (``write_run_report_quietly``) included."""
     manifest = load_stage_manifest(model_id)
     target = manifest.resolve_behavior(behavior)
     calls: list[dict[str, Any]] = []
@@ -223,6 +373,8 @@ def _namespace(
     namespace: dict[str, Any] = {
         "Path": Path,
         "RUN_DIR": run_dir,
+        # The storage cell's log base: <LOG_BASE>/<species>/<embodiment>/<tree>/<run_id>.
+        "LOG_BASE": run_dir.parents[3],
         "_ACTIVE_RUN_ID": run_dir.name,
         "MODEL_ID": model_id,
         "BEHAVIOR": behavior,
@@ -248,7 +400,7 @@ def _namespace(
         "bundle_calls": calls,
     }
     infra = _cell(INFRA_CELL_MARKER)
-    for name in ("chain_results", "write_training_summary", "save_run_bundle"):
+    for name in ("chain_results", "write_training_summary", "write_run_report_quietly", "save_run_bundle"):
         exec_top_level_def(infra, name, namespace)
     return namespace
 
@@ -315,6 +467,8 @@ class TestTheCell:
             "gate_verdict.json",
             "ancestors/<id>/ancestor.json",
             "`provenance.json` records another target deliverable",
+            # A passed node whose stage hands on another pair than its verdict's (on the walk, its handoff choice's).
+            "`models/handoff_choice.json`",
             "Skip the RESUME cell and the chain loop",
             # The publish path ends in section 9, whose disconnect flushes Drive's buffered writes of the bundle.
             "this cell, and last section 9's cell",
@@ -433,26 +587,85 @@ class TestRefusals:
         assert _files(run_dir) == before
 
     def test_a_judged_node_below_the_failed_one_is_never_left_out(self, tmp_path):
-        """The manual cell judged hunt's behavior node in a run whose locomotion failed: the walk stops at the failed
-        locomotion, and the behavior verdict below it would be dropped."""
+        """The manual cell judged the walk (locomotion) in a run whose stance failed: the walk of the chain stops at
+        the failed stance, and the locomotion verdict below it would be dropped."""
         run_dir = _run_dir(tmp_path, VELOCIRAPTOR_MONGOLIENSIS)
-        configs = _judged_run(run_dir, VELOCIRAPTOR_MONGOLIENSIS, (1, 2, 3), failed=(2,))
+        configs = _judged_run(run_dir, VELOCIRAPTOR_MONGOLIENSIS, (1, 2), failed=(1,))
         before = _files(run_dir)
-        with pytest.raises(RuntimeError, match=r"'behavior' is judged in run") as refused:
-            _publish(_namespace(run_dir, VELOCIRAPTOR_MONGOLIENSIS, "hunt", configs))
-        assert "it lies below 'locomotion', whose verdict FAILED, where the chain loop stops" in str(refused.value)
+        with pytest.raises(RuntimeError, match=r"'locomotion' is judged in run") as refused:
+            _publish(_namespace(run_dir, VELOCIRAPTOR_MONGOLIENSIS, "walk", configs))
+        assert "it lies below 'stance', whose verdict FAILED, where the chain loop stops" in str(refused.value)
         assert _files(run_dir) == before
 
-    @pytest.mark.parametrize("held", ["nothing", "unjudged checkpoints", "an ancestor record of the target"])
-    def test_an_unjudged_node_is_refused_by_name_before_anything_is_written(self, tmp_path, held):
+    @pytest.mark.parametrize("node", ["stance", "locomotion"])
+    def test_a_passed_node_whose_stage_hands_on_another_pair_is_refused_as_the_chain_loops_reuse_refuses_it(
+        self, tmp_path, node
+    ):
+        """The chain loop's reuse of a node of this run takes the pair ``select_handoff_checkpoint`` picks now and
+        refuses it unless it is the pair the verdict hashes (rule 5). On the walk that pair is the one its handoff
+        choice names: a choice made again after the verdict, naming the final pair, moves it. On the stance a
+        ``robust_best_model`` pair written after the verdict does (it comes first in the reward order)."""
+        run_dir = _run_dir(tmp_path, VELOCIRAPTOR_MONGOLIENSIS)
+        configs = _judged_run(run_dir, VELOCIRAPTOR_MONGOLIENSIS, (1, 2))
+        entry = load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS).resolve(node)
+        models = run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, entry.reference) / "models"
+        if node == "locomotion":
+            _choose_walk_handoff(models, selected="stage2_final")
+            moved_to = "'stage2_final'"
+        else:
+            for suffix in (".zip", "_vecnorm.pkl"):
+                (models / f"robust_best_model{suffix}").write_bytes(b"written after the verdict" + suffix.encode())
+            moved_to = "'robust_best_model'"
+        assert select_handoff_checkpoint(models)[0] == moved_to.strip("'")
+        before = _files(run_dir)
+        namespace = _namespace(run_dir, VELOCIRAPTOR_MONGOLIENSIS, "walk", configs)
+        with pytest.raises(RuntimeError, match=rf"{node!r} passed its gate in run '20261121_175147'") as refused:
+            _publish(namespace)
+        message = str(refused.value)
+        assert "on the pair 'models/best_model.zip'" in message and f"hands on {moved_to} now" in message
+        assert "models/handoff_choice.json" in message and "the chain loop's reuse refuses the node" in message
+        assert "remove that directory's gate_verdict.json so the chain loop's JUDGE branch re-judges it" in message
+        assert _files(run_dir) == before and namespace["bundle_calls"] == [] and namespace["NODE_RESULTS"] == {}
+
+    def test_a_failed_walk_is_published_on_the_pair_it_was_judged_on_whatever_its_stage_hands_on_now(self, tmp_path):
+        """A failed verdict is never re-entered by the chain loop's reuse (it halts on it): the cell publishes it as
+        the chain loop's own write did, on the pair it was judged on."""
+        run_dir = _run_dir(tmp_path, VELOCIRAPTOR_MONGOLIENSIS)
+        configs = _judged_run(run_dir, VELOCIRAPTOR_MONGOLIENSIS, (1, 2), failed=(2,))
+        locomotion = run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, 2)
+        _choose_walk_handoff(locomotion / "models", selected="stage2_final")
+        namespace = _namespace(run_dir, VELOCIRAPTOR_MONGOLIENSIS, "walk", configs)
+        _publish(namespace)
+        assert read_bundle_status(run_dir) == "partial"
+        [_, walk] = namespace["bundle_calls"][0]["stage_results_list"]
+        assert walk["model_path"] == str(locomotion / "models" / "best_model")
+
+    @pytest.mark.parametrize(
+        "held", ["nothing", "unjudged checkpoints", "an evaluated, unjudged node", "an ancestor record of the target"]
+    )
+    def test_an_unjudged_node_is_refused_by_name_before_anything_is_written(self, tmp_path, monkeypatch, held):
         """Walk on the velociraptor: stance judged here, locomotion (the target) not judged. The chain loop judges a
-        finished node and trains a missing one; an ancestors/ record never stands in for the target (D-A18)."""
+        finished node and trains a missing one; an ancestors/ record never stands in for the target (D-A18). The run's
+        report names the step that judges a trained node, never this cell, which refuses the run."""
+        from environments.shared.reporting import run_index
+
+        from .test_run_index import _committed_entry
+
+        monkeypatch.setattr(run_index, "_committed_plant", lambda model: _committed_entry(_plant(model).to_dict()))
         run_dir = _run_dir(tmp_path, VELOCIRAPTOR_MONGOLIENSIS)
         configs = _judged_run(run_dir, VELOCIRAPTOR_MONGOLIENSIS, (1,))
+        # The plant the stance trained on, as config.save_stage_config records it: the current one here.
+        (run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, 1) / "plant_identity.json").write_text(
+            json.dumps(_plant(VELOCIRAPTOR_MONGOLIENSIS).to_dict()), encoding="utf-8"
+        )
         locomotion = run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, 2)
-        if held == "unjudged checkpoints":
+        if held in ("unjudged checkpoints", "an evaluated, unjudged node"):
             (locomotion / "models").mkdir(parents=True)
             (locomotion / "models" / "stage2_final.zip").write_bytes(b"trained, never judged")
+            (locomotion / "models" / "stage2_final_vecnorm.pkl").write_bytes(b"its statistics")
+        if held == "an evaluated, unjudged node":
+            # The runtime was lost after the evaluation, during the walk's command panel, before the verdict.
+            (locomotion / "evaluation_selected.csv").write_text("episode,reward\n0,1.0\n", encoding="utf-8")
         elif held == "an ancestor record of the target":
             _write_ancestor_record(run_dir, 2, source_run_dir=run_dir.parent / "20261101_000000")
         before = _files(run_dir)
@@ -465,6 +678,29 @@ class TestRefusals:
         assert "re-run sections 2-3 and the helpers cell" in message
         assert "the target is never reused from another run (D-A18)" in message
         assert _files(run_dir) == before and namespace["bundle_calls"] == [] and namespace["NODE_RESULTS"] == {}
+        page = run_index.render_run_report(run_dir)
+        assert "**State: judged_no_bundle.**" in page
+        if held in ("nothing", "an ancestor record of the target"):
+            assert (
+                "writes the training summary and the bundle from the verdicts the run holds, once every node of "
+                "`BEHAVIOR`'s chain down to its first failed verdict is judged here or reused (it refuses the run "
+                "otherwise)"
+            ) in page
+            return
+        step = {
+            "unjudged checkpoints": 'Next: re-enter the run (`RUN_ID = "20261121_175147"`): the chain loop judges a '
+            "node whose final pair is intact, and section 5's RESUME cell (`RESUME_STAGE`) first finishes one cut "
+            "off before its final pair",
+            "an evaluated, unjudged node": 'Next: re-enter the run (`RUN_ID = "20261121_175147"`) and run the chain '
+            "loop: it judges a node that was trained but never gated (an intact final pair and no verdict), then saves "
+            "the bundle",
+        }[held]
+        unjudged = (
+            "The run holds `locomotion` (`02_locomotion/`) trained and not judged, and the publish cell refuses a run "
+            "while a node of its chain is not judged."
+        )
+        assert f"{step}. {unjudged}" in page
+        assert "publish cell (section 6" not in page
 
     def test_a_run_that_holds_no_node_is_refused_as_a_run_id_mistake(self, tmp_path):
         """RUN_ID = "" in a fresh runtime lets the storage cell open a new run, which holds only its provenance and the
@@ -515,7 +751,7 @@ class TestRefusals:
         configs = _judged_run(judged, VELOCIRAPTOR_MONGOLIENSIS, (1,))
         run_dir = tmp_path / "local" / judged.relative_to(tmp_path / "drive")
         shutil.copytree(judged, run_dir)
-        (run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, 1) / "models" / "best_model.pkl").write_bytes(b"other")
+        (run_dir / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, 1) / "models" / "best_model.zip").write_bytes(b"other")
         before = _files(run_dir)
         namespace = _namespace(run_dir, VELOCIRAPTOR_MONGOLIENSIS, "stance", configs)
         with pytest.raises(RuntimeError, match=r"'stance' was judged with its model_path at .*drive.*, outside run"):
@@ -544,11 +780,17 @@ class TestPublishing:
     @pytest.mark.parametrize("model_id", MODELS, ids=str)
     @pytest.mark.parametrize("tree", ["ppo", "ppo_screen", "ppo_quick_test"])
     def test_a_run_cut_off_before_its_bundle_is_sealed_without_touching_a_stage_file(
-        self, tmp_path, capsys, model_id, tree
+        self, tmp_path, capsys, monkeypatch, model_id, tree
     ):
         """The r11 T. rex stance case, for every model and every run tree: the stance verdict, summary, figures and
         replays are on disk and the stance probes are not (the runtime ended during them). The bundle appears,
-        complete, and verifies; the stage directory is byte-for-byte what it was."""
+        complete, and verifies; the stage directory is byte-for-byte what it was. The helpers' plant is the current
+        one here, as for a run trained on this checkout, so the run report reads the run as not stranded."""
+        from environments.shared.reporting import run_index
+
+        from .test_run_index import _committed_entry
+
+        monkeypatch.setattr(run_index, "_committed_plant", lambda model: _committed_entry(_plant(model).to_dict()))
         run_dir = _run_dir(tmp_path, model_id, tree)
         configs = _judged_run(run_dir, model_id, (1,))
         stage_dir = run_dir / stage_dirname(model_id, 1)
@@ -572,6 +814,11 @@ class TestPublishing:
         out = capsys.readouterr().out
         assert "Result bundle published and checked: complete (canonical-valid), target 'stance'" in out
         assert "  stance: certified, 1 run of 1 seed" in out
+        # save_run_bundle then wrote the run's report and the model's index outside the run, which still verifies.
+        reports = model_id.path(tmp_path / "logs") / "reports"
+        assert f"Run report: {reports / tree / run_dir.name / 'report.md'}" in out
+        assert "**State: complete.**" in (reports / tree / run_dir.name / "report.md").read_text(encoding="utf-8")
+        assert f"| {run_dir.name} | {tree} | complete | stance |" in (reports / "INDEX.md").read_text(encoding="utf-8")
         # The summary's sim time is the episode length times the node's own control step (a verdict records none:
         # the cell takes it from a bare env of the task, 0.02 s for the Compsognathus pair, 0.01 s for the rest).
         summary = (run_dir / "training_summary.txt").read_text(encoding="utf-8")
@@ -607,7 +854,7 @@ class TestPublishing:
         assert report["deliverables"]["1"]["certified"] is True
         [result] = namespace["bundle_calls"][0]["stage_results_list"]
         stage_dir = run_dir / stage_dirname(model_id, 1)
-        assert result["model_path"] == str(stage_dir / "models" / "best_model.pkl")
+        assert result["model_path"] == str(stage_dir / "models" / "best_model.zip")
         assert result["vecnorm_path"] == str(stage_dir / "models" / "best_model_vecnorm.pkl")
 
     @pytest.mark.parametrize("model_id", MODELS, ids=str)
@@ -661,14 +908,44 @@ class TestPublishing:
         assert set(validate_result_bundle(run_dir, require_complete=True)["deliverables"]) == {"1"}
 
     @pytest.mark.parametrize("model_id", MODELS, ids=str)
-    def test_a_chain_stopped_at_a_failed_node_below_its_target_is_published_partial(self, tmp_path, capsys, model_id):
-        """The usual partial run, on the model's deepest behavior (hunt's behavior node; walk's locomotion on the
-        Allosaurus, which has no hunt): stance passed and locomotion failed. The walk stops after the failed node, as
-        the chain loop halted there; nothing below it is required."""
+    def test_a_walk_run_cut_off_before_its_bundle_is_sealed_from_its_command_tracking_verdict(
+        self, tmp_path, capsys, model_id
+    ):
+        """The walk certifies on every model: stance and locomotion judged, the runtime lost after locomotion's verdict
+        (its figures and replays are best effort). Locomotion re-enters from its command_tracking/v1 verdict, on the
+        pair its handoff choice names, and the writer re-derives its pass from the panel CSV."""
+        run_dir = _run_dir(tmp_path, model_id)
+        configs = _judged_run(run_dir, model_id, (1, 2))
+        locomotion = run_dir / stage_dirname(model_id, 2)
+        assert {"gate_verdict.json", "command_tracking_report.json", COMMAND_TRACKING_PANEL_CSV} <= {
+            path.name for path in locomotion.iterdir()
+        }
+        assert select_handoff_checkpoint(locomotion / "models")[0] == "best_model"
+        nodes = _node_files(run_dir)
+        namespace = _namespace(run_dir, model_id, "walk", configs)
+        _publish(namespace)
+        assert _node_files(run_dir) == nodes
+        report = validate_result_bundle(run_dir, require_complete=True)
+        assert report["status"] == "canonical-valid"
+        assert report["deliverables"]["1"]["certified"] is True and report["deliverables"]["2"]["certified"] is True
+        [_, walk] = namespace["bundle_calls"][0]["stage_results_list"]
+        verdict = json.loads((locomotion / "gate_verdict.json").read_text(encoding="utf-8"))
+        assert verdict["gate_kind"] == COMMAND_TRACKING_GATE_KIND and verdict["checkpoint"] == "models/best_model.zip"
+        assert walk == {**verdict["stage_result"], "sim_dt": _control_dt(model_id, 2)}
+        assert walk["command_profile"] == "walk" and walk["command_handoff_selected"] == "best_model"
+        assert (walk["command_cruise_successes"], walk["command_stand_successes"]) == (4, 2)
+        out = capsys.readouterr().out
+        assert "Result bundle published and checked: complete (canonical-valid), target 'locomotion'" in out
+        assert "  locomotion: certified, 1 run of 1 seed" in out
+
+    @pytest.mark.parametrize("model_id", MODELS, ids=str)
+    def test_a_chain_stopped_at_its_failed_target_is_published_partial(self, tmp_path, capsys, model_id):
+        """The usual partial run, on the model's deepest behavior (walk, since decision D-D59 removed the hunt):
+        stance passed and locomotion failed its command panel. The walk of the chain stops after the failed node, as
+        the chain loop halted there."""
         run_dir = _run_dir(tmp_path, model_id)
         configs = _judged_run(run_dir, model_id, (1, 2), failed=(2,))
-        behavior = "hunt" if "hunt" in load_stage_manifest(model_id).recipe_labels else "walk"
-        namespace = _namespace(run_dir, model_id, behavior, configs)
+        namespace = _namespace(run_dir, model_id, "walk", configs)
         _publish(namespace)
         report = validate_result_bundle(run_dir, require_complete=False, require_publishable=True)
         assert report["status"] == "canonical-partial" and read_bundle_status(run_dir) == "partial"
@@ -770,14 +1047,16 @@ class TestPublishing:
         assert stance["provisional"] is False
         assert "  stance: certified, 2 runs of 2 seeds" in capsys.readouterr().out
 
-    def test_a_hunt_run_whose_locomotion_failed_counts_a_stance_replicate_that_certified_later(self, tmp_path, capsys):
-        """Decision D-B10 on the usual partial run: T. rex hunt run A certified stance (seed 42) and failed locomotion,
-        below its behavior target, and its chain loop's write left the bundle partial. Run B certifies the same stance
-        recipe on seed 43; publishing A counts it, with BEHAVIOR = "hunt" as A's session had it."""
+    def test_a_walk_run_the_chain_loop_left_partial_counts_a_stance_replicate_that_certified_later(
+        self, tmp_path, capsys
+    ):
+        """Decision D-B10 on the usual partial run: T. rex walk run A certified stance (seed 42) and its locomotion
+        failed its command panel, and the chain loop's own write left the bundle partial. Run B certifies the same
+        stance recipe on seed 43; publishing A counts it, with BEHAVIOR = "walk" as A's session had it."""
         run_a = _run_dir(tmp_path, TYRANNOSAURUS_REX)
         configs = _judged_run(run_a, TYRANNOSAURUS_REX, (1, 2), failed=(2,))
         _declare_certification_seeds(run_a, TYRANNOSAURUS_REX, configs)
-        _chain_loop_write(_namespace(run_a, TYRANNOSAURUS_REX, "hunt", configs), "stance", "locomotion")
+        _chain_loop_write(_namespace(run_a, TYRANNOSAURUS_REX, "walk", configs), "stance", "locomotion")
         stance = validate_result_bundle(run_a, require_complete=False)["deliverables"]["1"]
         assert (stance["replication"]["count"], stance["provisional"]) == (1, True)
 
@@ -786,13 +1065,13 @@ class TestPublishing:
         configs_b = _judged_run(run_b, TYRANNOSAURUS_REX, (1,), seed=43)
         _declare_certification_seeds(run_b, TYRANNOSAURUS_REX, configs_b)
         capsys.readouterr()
-        _publish(_namespace(run_a, TYRANNOSAURUS_REX, "hunt", configs))
+        _publish(_namespace(run_a, TYRANNOSAURUS_REX, "walk", configs))
         report = validate_result_bundle(run_a, require_complete=False, require_publishable=True)
         assert report["status"] == "canonical-partial"
         assert report["deliverables"]["1"]["replication"]["count"] == 2
         assert report["deliverables"]["1"]["provisional"] is False
         out = capsys.readouterr().out
-        assert "target 'behavior'" in out and "  stance: certified, 2 runs of 2 seeds" in out
+        assert "target 'locomotion'" in out and "  stance: certified, 2 runs of 2 seeds" in out
         assert "  locomotion: NOT certified" in out
 
 

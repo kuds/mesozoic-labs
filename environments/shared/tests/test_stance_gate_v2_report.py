@@ -478,9 +478,9 @@ class TestThePadCentreOfPressure:
     def test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it(
         self, tmp_path, monkeypatch
     ):
-        """Real physics on the current plant (physics r10; the bar was calibrated on r8).
+        """Real physics on the current plant (physics r12; the bar was calibrated on r8).
 
-        The left ankle, ramped to -0.09 over the first 300 steps, leans the
+        The left ankle, ramped to -0.095 over the first 300 steps, leans the
         animal onto its right pad's front edge: that pad pitches about a degree
         toe-down, as the r8 seed-44 left foot does, and stays inside the
         block's tilt, corner-lift and contact bars, so the centre-of-pressure
@@ -492,7 +492,11 @@ class TestThePadCentreOfPressure:
         the 4 mm corner-lift bar too.  r10's level tail (D-D44) leaves 1 of
         3 clean at -0.0825 (0.759) and -0.085, a row at 0.806 at -0.0875;
         -0.09 reads 0.829-1.000 with the corner lift at most 3.7 mm, and
-        -0.095 trips the corner-lift bar.
+        -0.095 trips the corner-lift bar.  r12, whose statue stands 4.6 mm
+        further back (the skull's 0.2 kg bite box gone, plant_versions note
+        24), leaves 1 of 3 clean at -0.09 (0.789) and a row at 0.812 at
+        -0.0925; -0.095 reads 0.836-1.000 with the corner lift at most
+        3.6 mm, and -0.0975 trips the corner-lift bar.
         """
         config = _tyrannosaurus_rex_stage_config()
         curriculum = config["curriculum_kwargs"]
@@ -501,7 +505,7 @@ class TestThePadCentreOfPressure:
         env = model_env_class(TYRANNOSAURUS_REX)(**config["env_kwargs"])
         try:
             command = np.zeros(int(env.action_space.shape[0]))
-            command[env.model.actuator("l_ankle_act").id] = -0.09
+            command[env.model.actuator("l_ankle_act").id] = -0.095
         finally:
             env.close()
         predict = _ramped(command, steps=300, horizon=TYRANNOSAURUS_REX_HORIZON)

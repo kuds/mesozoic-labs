@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND, WALK_PROFILE
 from ..file_io import atomic_write_text
 from ..model_id import ModelId
 from ..species_names import model_display_name
@@ -33,13 +34,68 @@ def _forward_velocity(results: dict[str, Any]) -> str:
     return f"{mean_vel:.2f}{std_text} m/s"
 
 
+def _command_tracking_lines(results: dict[str, Any]) -> list[str]:
+    """A ``command_tracking/v1`` stage's family statistics (decision D-D61), or nothing for another kind.
+
+    The numbers are the ``command_*`` stage-result keys the judge re-derived
+    from an admitted report (``stage_artifacts._apply_stage_gate`` copies
+    nothing from a refused one); an unrecorded number prints as ``n/a``.
+    """
+    if results.get("gate_kind") != COMMAND_TRACKING_GATE_KIND or not results.get("command_profile"):
+        return []
+
+    def shown(key: str, spec: str = ".4f") -> str:
+        value = results.get(key)
+        if value is None or value == "" or isinstance(value, bool):
+            return "n/a"
+        if not isinstance(value, (int, float)):
+            return str(value)
+        if spec == "d":
+            return str(int(value)) if float(value).is_integer() else str(value)
+        return format(value, spec)
+
+    profile = results["command_profile"]
+    lines = [f"  Profile:      {profile} ({shown('command_n_episodes', 'd')} panel episodes)"]
+    if profile == WALK_PROFILE:
+        lines.append(
+            f"  Cruise:       {shown('command_cruise_successes', 'd')}/{shown('command_cruise_episodes', 'd')} "
+            f"successful; success LCB95 {shown('command_cruise_success_lcb')}, survival LCB95 "
+            f"{shown('command_cruise_survival_lcb')}"
+        )
+        lines.append(
+            f"  Stand:        {shown('command_stand_successes', 'd')}/{shown('command_stand_episodes', 'd')} "
+            f"holding the stop ({shown('command_stand_success_fraction', '.3f')}); falls "
+            f"{shown('command_stand_falls', 'd')}"
+        )
+    else:
+        lines.append(
+            f"  Follow:       {shown('command_follow_successes', 'd')}/{shown('command_follow_episodes', 'd')} "
+            f"successful; success LCB95 {shown('command_follow_success_lcb')}, survival LCB95 "
+            f"{shown('command_follow_survival_lcb')}"
+        )
+        if results.get("command_paired_delta_lcb") is not None:
+            lines.append(f"  Reference:    paired success difference LCB95 {shown('command_paired_delta_lcb')}")
+    if results.get("command_handoff_selected"):
+        lines.append(f"  Handoff:      {results['command_handoff_selected']} (chosen by the gated statistic)")
+    return lines
+
+
 def write_stage_summary(
     stage_dir,
     results_dict: dict[str, Any],
     model_id: ModelId,
     algorithm: str,
+    *,
+    evaluation_episodes: int | None = None,
 ) -> Path:
     """Write a text summary for a single completed stage to its directory.
+
+    *evaluation_episodes* is the size of the panel the ``best_model_*``
+    results were rolled on (``stage_artifacts.EVALUATION_PANEL_EPISODES``
+    from :func:`~environments.shared.reporting.generate_stage_artifacts`);
+    without it the best-model section states no episode count.  The success
+    rate line appears only when the panel measured one (a model that declares
+    success keys).
 
     Returns the path to the written summary file.
     """
@@ -85,9 +141,9 @@ def write_stage_summary(
         bm_vel = results_dict.get("best_model_fwd_vel", "")
         bm_vel_s = results_dict.get("best_model_std_fwd_vel", "")
         bm_sr = results_dict.get("best_model_success_rate", "")
-        bm_n_episodes = results_dict.get("best_model_n_episodes", 30)
         lines.append("")
-        lines.append(f"Best Model Evaluation ({bm_n_episodes} episodes)")
+        panel = f" ({evaluation_episodes} episodes)" if evaluation_episodes is not None else ""
+        lines.append(f"Best Model Evaluation{panel}")
         lines.append("-" * 40)
         lines.append(f"  Reward:       {bm_r} +/- {bm_s}")
         if bm_len != "":
@@ -120,6 +176,7 @@ def write_stage_summary(
         lines.append("Curriculum Gate")
         lines.append("-" * 40)
         lines.append(f"  Verdict:      {'PASS' if gate_passed else 'FAIL'}")
+        lines.extend(_command_tracking_lines(results_dict))
         for failure in results_dict.get("gate_failures") or []:
             lines.append(f"  - {failure}")
         lines.append("")

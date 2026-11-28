@@ -13,12 +13,64 @@ import math
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..curriculum.command_tracking_gate import COMMAND_TRACKING_GATE_KIND, WALK_PROFILE
 from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from ..model_id import ModelId
 from .formatting import _optional_metric, parse_optional_bool
 
 logger = logging.getLogger(__name__)
+
+
+def command_tracking_columns(curriculum: Mapping[str, Any], results: Mapping[str, Any]) -> dict[str, Any]:
+    """The results-CSV columns a ``command_tracking/v1`` row adds (decision D-D61), and only such a row.
+
+    The profile, the certifying bars the row would otherwise not show (every
+    bar is also in its ``curriculum_*`` column), each judged family's
+    episode and success counts and bounds as the post-stage judgement
+    re-derived them (the ``command_*`` stage-result keys,
+    ``command_tracking_report.COMMAND_TRACKING_STAGE_RESULT_KEYS``), and the
+    handoff name the panel scored.  A walk row carries the cruise and stand
+    families, a follow row its one family and the paired reference bound.
+    """
+    profile = curriculum.get("profile")
+    row: dict[str, Any] = {
+        "command_profile": profile if isinstance(profile, str) else "",
+        "command_n_episodes": _optional_metric(results.get("command_n_episodes")),
+    }
+    if profile == WALK_PROFILE:
+        row.update(
+            {
+                "cruise_success_lcb_threshold": curriculum.get("min_cruise_success_lcb", ""),
+                "cruise_survival_lcb_threshold": curriculum.get("min_cruise_survival_lcb", ""),
+                "stand_success_fraction_threshold": curriculum.get("min_stand_success_fraction", ""),
+                "command_cruise_episodes": _optional_metric(results.get("command_cruise_episodes")),
+                "command_cruise_successes": _optional_metric(results.get("command_cruise_successes")),
+                "command_cruise_success_lcb": _optional_metric(results.get("command_cruise_success_lcb"), digits=4),
+                "command_cruise_survival_lcb": _optional_metric(results.get("command_cruise_survival_lcb"), digits=4),
+                "command_stand_episodes": _optional_metric(results.get("command_stand_episodes")),
+                "command_stand_successes": _optional_metric(results.get("command_stand_successes")),
+                "command_stand_success_fraction": _optional_metric(
+                    results.get("command_stand_success_fraction"), digits=4
+                ),
+                "command_stand_falls": _optional_metric(results.get("command_stand_falls")),
+            }
+        )
+    else:
+        row.update(
+            {
+                "follow_success_lcb_threshold": curriculum.get("min_follow_success_lcb", ""),
+                "follow_survival_lcb_threshold": curriculum.get("min_follow_survival_lcb", ""),
+                "command_follow_episodes": _optional_metric(results.get("command_follow_episodes")),
+                "command_follow_successes": _optional_metric(results.get("command_follow_successes")),
+                "command_follow_success_lcb": _optional_metric(results.get("command_follow_success_lcb"), digits=4),
+                "command_follow_survival_lcb": _optional_metric(results.get("command_follow_survival_lcb"), digits=4),
+                "command_paired_delta_lcb": _optional_metric(results.get("command_paired_delta_lcb"), digits=4),
+            }
+        )
+    selected = results.get("command_handoff_selected")
+    row["command_handoff_selected"] = selected if isinstance(selected, str) else ""
+    return row
 
 
 # Canonical metric column order for collected_results.csv.
@@ -38,16 +90,6 @@ CSV_METRIC_COLUMNS: list[str] = [
     "reward_threshold",
     "ep_length_threshold",
     "forward_vel_threshold",
-    "success_rate_threshold",
-    # task_success/v1 (plan §4.4): the LCB bar, the recorded count / panel
-    # size (D-B12), and the same panel's mean reward / length the rail is
-    # judged on.
-    # Additive: success_rate_threshold stays for the reward_and_length species.
-    "success_lcb_threshold",
-    "success_count",
-    "n_success_episodes",
-    "selected_mean_reward",
-    "selected_mean_episode_length",
     "gate_kind",
     "gate_evaluable",
     "stage_passed",
@@ -276,8 +318,6 @@ def build_results_csv_rows(
         row["reward_threshold"] = cur.get("min_avg_reward", "")
         row["ep_length_threshold"] = cur.get("min_avg_episode_length", "")
         row["forward_vel_threshold"] = cur.get("min_avg_forward_vel", "")
-        row["success_rate_threshold"] = cur.get("min_success_rate", "")
-        row["success_lcb_threshold"] = cur.get("min_success_lcb", "")
         # stance_quality/v1. Without these a stance-gated stage exports only
         # its reward RAIL, reading as though reward were the gate.
         row["gate_kind"] = cur.get("gate_kind", "")
@@ -303,6 +343,11 @@ def build_results_csv_rows(
             row["stance_eval_episodes"] = cur.get("min_eval_episodes", "")
             row["stance_heading_clean_seeds"] = _optional_metric(r.get("stance_heading_clean_seeds"))
             row["stance_heading_clean_seed_lcb"] = _optional_metric(r.get("stance_heading_clean_seed_lcb"), digits=4)
+        elif cur.get("gate_kind") == COMMAND_TRACKING_GATE_KIND:
+            # command_tracking/v1 (D-D61): the profile, its certifying bars and
+            # each family's counts and bounds, so the row does not read as
+            # gated on a reward it never declares.  Only on such a row.
+            row.update(command_tracking_columns(cur, r))
         row["stage_passed"] = r.get("publication_gate_passed", "")
         row["publication_gate_passed"] = r.get("publication_gate_passed", "")
 
@@ -391,6 +436,12 @@ def save_evaluation_episodes(
     bundle save would otherwise be hashed into provenance unbound.  Without
     a sidecar (the retired JAX path had none) it is left out, so the
     evidence carries no such column.
+
+    *successes* are the per-episode flags of the model's success event, one
+    per episode, or EMPTY for a model that declares no success keys
+    (``evaluation.eval_policy`` records none for it): the evidence then has
+    no ``task_success`` column, rather than one that reads False in every
+    row by construction.
     """
     if not isinstance(evaluation_seed, int) or isinstance(evaluation_seed, bool) or evaluation_seed < 0:
         raise ValueError("evaluation_seed must be a non-negative integer")
@@ -411,12 +462,13 @@ def save_evaluation_episodes(
         character not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for character in checkpoint_label
     ):
         raise ValueError("checkpoint_label must use lowercase letters, digits, '_' or '-'")
+    records_success = len(successes) > 0
     counts = {
         len(rewards),
         len(lengths),
         len(forward_velocities),
         len(distances),
-        len(successes),
+        *((len(successes),) if records_success else ()),
     }
     if len(counts) != 1:
         raise ValueError("evaluation metric sequences must have equal lengths")
@@ -427,11 +479,18 @@ def save_evaluation_episodes(
     output.parent.mkdir(parents=True, exist_ok=True)
     rows = []
     for index, (reward, length, forward_velocity, distance, success) in enumerate(
-        zip(rewards, lengths, forward_velocities, distances, successes, strict=True),
+        zip(
+            rewards,
+            lengths,
+            forward_velocities,
+            distances,
+            successes if records_success else [None] * len(rewards),
+            strict=True,
+        ),
         start=1,
     ):
-        parsed_success = parse_optional_bool(success)
-        if parsed_success is None:
+        parsed_success = parse_optional_bool(success) if records_success else None
+        if records_success and parsed_success is None:
             raise ValueError(f"evaluation success at episode {index} is not boolean")
         numeric_values = {
             "reward": float(reward),
@@ -444,25 +503,23 @@ def save_evaluation_episodes(
         parsed_length = int(length)
         if isinstance(length, bool) or parsed_length <= 0 or float(length) != parsed_length:
             raise ValueError(f"evaluation length at episode {index} must be a positive integer")
-        rows.append(
-            {
-                "episode": index,
-                "evaluation_seed": evaluation_seed,
-                "checkpoint": checkpoint_label,
-                "reward": numeric_values["reward"],
-                "length": parsed_length,
-                "mean_forward_velocity": numeric_values["forward velocity"],
-                "distance_traveled": numeric_values["distance"],
-                # "task_success", not "success": this is the stage's TASK event
-                # (bite/strike/food-reached), which a stance-gated stage can
-                # never emit, so it reads False in every stage-1 row by
-                # construction. Under the bare name it was repeatedly misread
-                # as the gate verdict — that lives in stance_gate_report.{txt,
-                # json} and stage_summary.txt, never here (gate-pass
-                # postmortem, follow-up 1).
-                "task_success": parsed_success,
-            }
-        )
+        row: dict[str, Any] = {
+            "episode": index,
+            "evaluation_seed": evaluation_seed,
+            "checkpoint": checkpoint_label,
+            "reward": numeric_values["reward"],
+            "length": parsed_length,
+            "mean_forward_velocity": numeric_values["forward velocity"],
+            "distance_traveled": numeric_values["distance"],
+        }
+        if records_success:
+            # "task_success", not "success": this is the model's TASK event
+            # (its SUCCESS_KEYS, the Allosaurus' course_complete), never the
+            # gate verdict. Under the bare name it was repeatedly misread as
+            # the verdict — that lives in stance_gate_report.{txt,json} and
+            # stage_summary.txt, never here (gate-pass postmortem, follow-up 1).
+            row["task_success"] = parsed_success
+        rows.append(row)
     fieldnames = [
         "episode",
         "evaluation_seed",
@@ -471,7 +528,7 @@ def save_evaluation_episodes(
         "length",
         "mean_forward_velocity",
         "distance_traveled",
-        "task_success",
+        *(("task_success",) if records_success else ()),
     ]
     for column, digest in evidence_hashes.items():
         for row in rows:

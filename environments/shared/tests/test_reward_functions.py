@@ -16,7 +16,6 @@ from environments.shared.reward_functions import (
     reward_action_saturation,
     reward_action_smoothness,
     reward_alive,
-    reward_approach_shaping,
     reward_backward_penalty,
     reward_bilateral_support,
     reward_energy,
@@ -26,7 +25,6 @@ from environments.shared.reward_functions import (
     reward_idle_penalty,
     reward_lean_aware_posture,
     reward_posture,
-    reward_proximity,
     reward_soft_home_pose,
     reward_sole_flatness,
     reward_speed_penalty,
@@ -123,22 +121,6 @@ class TestRewardAlive:
         assert reward_alive(0.0) == pytest.approx(0.0)
 
 
-class TestRewardApproachShaping:
-    def test_closing_distance(self):
-        reward, delta = reward_approach_shaping(5.0, 6.0, 1.0, 10.0, 0.1)
-        assert reward > 0.0
-        assert delta == pytest.approx(1.0)
-
-    def test_retreating(self):
-        reward, delta = reward_approach_shaping(6.0, 5.0, 1.0, 10.0, 0.1)
-        assert reward < 0.0
-
-    def test_first_step_zero(self):
-        reward, delta = reward_approach_shaping(5.0, None, 1.0, 10.0, 0.1)
-        assert reward == 0.0
-        assert delta == 0.0
-
-
 class TestRewardPosture:
     def test_upright_no_penalty(self):
         quat = np.array([1.0, 0.0, 0.0, 0.0])
@@ -220,21 +202,6 @@ class TestRewardLeanAwarePosture:
         zero_weight_reward, _ = self._reward(self._pitch_quat(-0.5), weight=0.0)
         assert -2.0 <= reward <= 0.0
         assert zero_weight_reward == 0.0
-
-
-class TestRewardProximity:
-    def test_at_target(self):
-        reward, prox = reward_proximity(0.0, 10.0, 1.0)
-        assert reward == pytest.approx(1.0)
-        assert prox == pytest.approx(1.0)
-
-    def test_at_max_distance(self):
-        reward, prox = reward_proximity(10.0, 10.0, 1.0)
-        assert reward == pytest.approx(0.0)
-
-    def test_beyond_max(self):
-        reward, prox = reward_proximity(15.0, 10.0, 1.0)
-        assert reward == pytest.approx(0.0)
 
 
 class TestStageOneStancePrimitives:

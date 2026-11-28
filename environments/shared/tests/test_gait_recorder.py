@@ -669,9 +669,12 @@ def test_a_foot_that_declares_no_ankle_has_no_whole_foot_cop(envs):
     assert math.isnan(episode_stance_metrics(trace, settle_steps=10).max_foot_cop_fore_aft)
 
 
-def test_the_physics_r11_statue_whole_foot_cop_reading(envs):
+def test_the_physics_r12_statue_whole_foot_cop_reading(envs):
     """Seed 3042 of the T. rex statue panel, the full 1,000 steps: the whole-foot reading on the span 0.070-0.210 m.
 
+    On physics r12 (the 0.2 kg bite box gone from the skull, plant_versions note 24) the statue stands 4.6 mm
+    further back and the seed-3042 magnitudes read 0.1076 (right) and 0.2435 (left), signed -0.1014 and -0.2435;
+    the right CoP averages 0.13290 m ahead of the ankle, so the left foot stays the episode's metric.
     On physics r11 the wider toe contact pattern brings the seed-3042 magnitudes to 0.0617 (right) and 0.1806
     (left); the signed right reading is -0.0312. The right CoP averages 0.13781 m ahead of the ankle.
     On physics r10 (the tail pitch springs preloaded, D-D44) this test's reading was 0.0624 (right foot) and
@@ -695,11 +698,11 @@ def test_the_physics_r11_statue_whole_foot_cop_reading(envs):
             recorder.end_step(zero, 0.0)
         trace = recorder.end_episode(truncated=True)
     pads = episode_pad_telemetry(trace, PadLayout.from_morphology(morphology), settle_steps=200)
-    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.0616838401129263, abs=1e-6)
-    assert pads["l_foot_cop_fore_aft_gate"] == pytest.approx(0.1806102140058762, abs=1e-6)
-    assert pads["r_foot_cop_fore_aft"] == pytest.approx(-0.0312326515967270, abs=1e-6)
-    assert pads["l_foot_cop_fore_aft"] == pytest.approx(-0.1806102140058762, abs=1e-6)
-    assert np.mean(trace.foot_cop[200:, 0]) == pytest.approx(0.1378137143882291, abs=1e-6)
+    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.10764313212822404, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft_gate"] == pytest.approx(0.24350205671248948, abs=1e-6)
+    assert pads["r_foot_cop_fore_aft"] == pytest.approx(-0.10138044884670336, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft"] == pytest.approx(-0.24350205671248948, abs=1e-6)
+    assert np.mean(trace.foot_cop[200:, 0]) == pytest.approx(0.1329033685807308, abs=1e-6)
     assert episode_stance_metrics(trace, settle_steps=200).max_foot_cop_fore_aft == pads["l_foot_cop_fore_aft_gate"]
 
 

@@ -26,6 +26,12 @@
 > **Update (2026-09-27):** Trials 2 and 4 were Ray Tune sweeps. D-D17 retired
 > Ray Tune, its notebook and the sweep JSONs these trials name; all are
 > recoverable from the `0.3.8` tag and git history.
+>
+> **Update (2026-11-24):** D-D59 (2026-11-23) removed the hunt and the prey.
+> `BEHAVIOR = "hunt"` is refused naming `"walk"`, every chain ends at walk, no
+> model has a Stage 3 (`behavior`) any more, and the Brachiosaurus Stage 3
+> `food_reach` trials below (2 and 4) and every Stage 3 gate they name have no
+> task left to run; since D-D62 (2026-11-24) the walk follows a live command.
 
 ---
 

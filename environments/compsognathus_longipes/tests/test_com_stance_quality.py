@@ -14,7 +14,9 @@ not been selected, though the load split is the strongest lean signal here (the 
 under its 1 mm bar, but splits the load 64/36); the world yaw, the turn from the spawn and the foot travel only with
 a world pose estimate.  ``imu_lean_keys`` holds the scripted lean to its bar on the IMU's roll alone.
 
-The anatomical r3 sampler ran on 2026-11-19 and the robot r1 sampler on 2026-10-28, both using MuJoCo 3.10.0.
+The anatomical r3 sampler ran on 2026-11-19 and the robot r1 sampler on 2026-10-28, both using MuJoCo 3.10.0; on
+2026-11-23 the anatomical r4 and robot r2 plants, whose only change was the removal of the prey mocap body, re-read
+every pin, target count and scripted ratio below unchanged.
 Both models stood for the full scripted episodes. The 1 deg hip-roll command exceeded a lean bar by 17.2x on the
 anatomical model (window 3–20 s) and 13.8x on the robot (window 2–20 s, IMU roll alone 4.8x). The yaw torque
 of 0.05 m g w exceeded the pivot bar by 17.3x and 8.6x respectively. A 4 % body-weight fore-aft force at 0.75 Hz
@@ -34,10 +36,12 @@ from environments.shared.tests.com_stance_helpers import ComStanceQualityBase, T
 class TestAnatomicalComStanceQuality(ComStanceQualityBase):
     model_id = ModelId("compsognathus_longipes", "anatomical")
     species_label = "Compsognathus"
-    physics_revision = 3
+    physics_revision = 4
     window_start_s = 3.0
     # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-11-19 with
     # com_stance_calibration and rounded to 0.01 mm and 1e-4 deg and of the load (under 1 % of a width).
+    # Re-read on physics r4 (the prey mocap body removed, the dynamics bit-identical) on 2026-11-23: every
+    # pin, target count and scripted ratio equal (the calibration's ratchet found nothing to change).
     reference = {
         "com_margin_min_m": 0.03044,
         "xcom_margin_min_m": 0.03044,
@@ -112,7 +116,7 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "Physics r3, 2026-11-19: 63 of 80 noisy spawns exceeded the 1 deg turn target. "
+            "Physics r3 (2026-11-19) and r4: 63 of 80 noisy spawns exceeded the 1 deg turn target. "
             "Worst 5.83 deg (seed 112), median 2.09 deg. All 80 stood for 20 s."
         ),
     )
@@ -124,7 +128,7 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "Physics r3, 2026-11-19: 17 of 80 noisy spawns settled at 3 s, including test seed 112. "
+            "Physics r3 (2026-11-19) and r4: 17 of 80 noisy spawns settled at 3 s, including test seed 112. "
             "The target and 80-spawn median are 2 s."
         ),
     )
@@ -136,7 +140,7 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "Physics r3, 2026-11-19: 36 of 80 noisy spawns exceeded the 1 mm slip target. "
+            "Physics r3 (2026-11-19) and r4: 36 of 80 noisy spawns exceeded the 1 mm slip target. "
             "Worst 2.295 mm (seed 24), median 0.965 mm. A 1 deg turn at the 37 mm foot radius "
             "slides the foot 0.646 mm, so the existing 1 mm floor governs."
         ),
@@ -149,10 +153,12 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
 class TestRobotComStanceQuality(ComStanceQualityBase):
     model_id = ModelId("compsognathus_longipes", "robot")
     species_label = "Compsognathus robot"
-    physics_revision = 1
+    physics_revision = 2
     window_start_s = 2.0
     # The noise-free statue's window values, physics r1, mujoco 3.10.0, read on 2026-10-28 with
     # com_stance_calibration and rounded to 0.01 mm and 1e-4 deg and of the load (under 1 % of a width).
+    # Re-read on physics r2 (the prey mocap body removed, the dynamics bit-identical) on 2026-11-23: every
+    # pin, target count and scripted ratio equal (the calibration's ratchet found nothing to change).
     reference = {
         "com_margin_min_m": 0.03492,
         "xcom_margin_min_m": 0.03492,
@@ -230,11 +236,11 @@ class TestRobotComStanceQuality(ComStanceQualityBase):
     @pytest.mark.xfail(
         strict=True,
         reason=(
-            "a known poor stance on physics r1 (2026-10-28): after this spawn at reset noise 0.02 the robot buzzes "
-            "on its feet (floor load 0-22 N, under 5 % of its weight on 33 window samples) and creeps 79 mm back "
-            "over 2-20 s, 4.4 mm/s, turning 2.4 deg; 9 more of 280 spawns creep about 58 mm at 3.2 mm/s (seeds "
-            "143, 218, 249, 251, 271, 304, 330, 388, 390). Strict: when a plant change stops it, this passes and "
-            "fails, so move the seed to noisy_seeds"
+            "a known poor stance on physics r1 (2026-10-28) and r2: after this spawn at reset noise 0.02 the robot "
+            "buzzes on its feet (floor load 0-22 N, under 5 % of its weight on 33 window samples) and creeps 79 mm back"
+            " over 2-20 s, 4.4 mm/s, turning 2.4 deg; 9 more of 280 spawns creep about 58 mm at 3.2 mm/s (seeds 143, "
+            "218, 249, 251, 271, 304, 330, 388, 390). Strict: when a plant change stops it, this passes and fails, so "
+            "move the seed to noisy_seeds"
         ),
     )
     def test_known_poor_spawn_seed111_stays_within_the_calibrated_spread(self):
@@ -245,11 +251,11 @@ class TestRobotComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "physics r1 (2026-10-29): the turn read at the episode's end (the yaw at its end less at the spawn): "
-            "root_turn_from_spawn_deg seed 141 1.92 deg, seed 102 1.47 deg, seed 111 3.85 deg (23 of the 80 spawns at "
+            "physics r1 (2026-10-29) and r2: the turn read at the episode's end (the yaw at its end less at the spawn):"
+            " root_turn_from_spawn_deg seed 141 1.92 deg, seed 102 1.47 deg, seed 111 3.85 deg (23 of the 80 spawns at "
             "reset noise 0.02 miss; worst 3.85 deg, seed 111; median 0.66 deg). Target: |root_turn_from_spawn_deg| <= "
-            "1.00 deg. Strict: when a model change meets it this passes and so fails; run com_stance_calibration, "
-            "check the 80 spawns, then drop the mark (the target becomes a real bar)"
+            "1.00 deg. Strict: when a model change meets it this passes and so fails; run com_stance_calibration, check"
+            " the 80 spawns, then drop the mark (the target becomes a real bar)"
         ),
     )
     def test_target_turn_from_spawn(self, statue):
@@ -260,9 +266,9 @@ class TestRobotComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "physics r1 (2026-10-29): the worst whole second's CoM speed RMS from 3 s and the fore-aft spread from 3 "
-            "s: com_speed_worst_second_rms_mps seed 111 4.46 mm/s (2 of the 80 spawns at reset noise 0.02 miss; worst "
-            "4.46 mm/s, seed 111; median 0.01 mm/s). Target: |com_speed_worst_second_rms_mps| <= 1.00 mm/s, "
+            "physics r1 (2026-10-29) and r2: the worst whole second's CoM speed RMS from 3 s and the fore-aft spread "
+            "from 3 s: com_speed_worst_second_rms_mps seed 111 4.46 mm/s (2 of the 80 spawns at reset noise 0.02 miss; "
+            "worst 4.46 mm/s, seed 111; median 0.01 mm/s). Target: |com_speed_worst_second_rms_mps| <= 1.00 mm/s, "
             "|com_fore_aft_sd_m| <= 1.00 mm. Strict: when a model change meets it this passes and so fails; run "
             "com_stance_calibration, check the 80 spawns, then drop the mark (the target becomes a real bar)"
         ),
@@ -275,10 +281,10 @@ class TestRobotComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "physics r1 (2026-10-29): settle_s seed 111 never (2 of the 80 spawns at reset noise 0.02 miss; worst "
-            "never, seed 111; median 2 s). Target: |settle_s| <= 2 s. Strict: when a model change meets it this passes "
-            "and so fails; run com_stance_calibration, check the 80 spawns, then drop the mark (the target becomes a "
-            "real bar)"
+            "physics r1 (2026-10-29) and r2: settle_s seed 111 never (2 of the 80 spawns at reset noise 0.02 miss; "
+            "worst never, seed 111; median 2 s). Target: |settle_s| <= 2 s. Strict: when a model change meets it this "
+            "passes and so fails; run com_stance_calibration, check the 80 spawns, then drop the mark (the target "
+            "becomes a real bar)"
         ),
     )
     def test_target_settled_by_2s(self, statue):
@@ -289,10 +295,10 @@ class TestRobotComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "physics r1 (2026-10-29): foot_travel_max_m seed 141 1.81 mm, seed 111 85.49 mm (8 of the 80 spawns at "
-            "reset noise 0.02 miss; worst 85.49 mm, seed 111; median 0.69 mm). Target: |foot_travel_max_m| <= 1.13 mm: "
-            "the slide of a 1 deg turn about the feet's centre, the farthest foot standing 65.0 mm from it. Strict: "
-            "when a model change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, "
+            "physics r1 (2026-10-29) and r2: foot_travel_max_m seed 141 1.81 mm, seed 111 85.49 mm (8 of the 80 spawns "
+            "at reset noise 0.02 miss; worst 85.49 mm, seed 111; median 0.69 mm). Target: |foot_travel_max_m| <= 1.13 "
+            "mm: the slide of a 1 deg turn about the feet's centre, the farthest foot standing 65.0 mm from it. Strict:"
+            " when a model change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, "
             "then drop the mark (the target becomes a real bar)"
         ),
     )

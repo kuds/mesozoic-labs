@@ -9,6 +9,7 @@ marking is tested in ``test_train_base.py`` and ``test_behavior_checkpoint.py``)
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import inspect
 import pickle
@@ -403,6 +404,46 @@ def test_every_episode_primes_the_fifo_again_from_its_own_reset(stance_kwargs):
         env.close()
 
 
+def test_a_stand_block_step_is_delayed_as_any_other():
+    """On a live walk whose stage declares stand weights, a zero command makes step() hold the stand block (main's
+    decision D-D62) around the step body; that step's target still reaches the plant k physics steps late, through
+    the FIFO, and the step's info carries the delay.  set_direction(heading, 0) makes the command a live zero."""
+    walk = dict(load_stage_config(ROBOT, "locomotion")["env_kwargs"])
+    assert walk["command_mode"] != "none"
+    k = 3
+    env = DelayedCompsognathusLongipesRobotEnv(**walk, actuation_delay_range_s=(_steps(k), _steps(k)))
+    try:
+        assert (env.frame_skip, env.model.opt.timestep) == (FRAME_SKIP, DT) and k < FRAME_SKIP
+        rng = np.random.default_rng(21)
+        env.reset(seed=6)
+        env.step(rng.uniform(-0.3, 0.3, size=NU))
+        previous = env._actuation_delay_fifo[-1].copy()
+        env.set_direction(env._heading(), 0.0)
+        assert env._live_zero_command() and env._stand_block_weights() == env._stand_weights != {}
+        held: list[dict[str, float]] = []
+        original = env._stand_block
+
+        @contextlib.contextmanager
+        def recording():
+            with original() as weights:
+                held.append(dict(weights))
+                yield weights
+
+        env._stand_block = recording
+        applied: list[np.ndarray] = []
+        env._substep_probe_hook = lambda: applied.append(env.data.ctrl.copy())
+        *_, info = env.step(rng.uniform(-0.3, 0.3, size=NU))
+        target = env._actuation_delay_fifo[-1]
+        assert held == [env._stand_weights]
+        assert (info["actuation_delay_steps"], info["actuation_delay_s"]) == (k, round(k * DT, 12))
+        assert len(applied) == FRAME_SKIP and not np.array_equal(previous, target)
+        assert all(np.array_equal(ctrl, previous) for ctrl in applied[:k])
+        assert all(np.array_equal(ctrl, target) for ctrl in applied[k:])
+        assert len(env._actuation_delay_fifo) == k + 1
+    finally:
+        env.close()
+
+
 def test_a_delayed_env_pickles_and_its_copies_continue_bit_identically(stance_kwargs):
     """Each test subclass is bound in its module under its own name, so pickle finds it by reference (as a
     SubprocVecEnv or a pickled env attribute needs); a pickled and a deep-copied env continue mid-episode, the FIFO
@@ -746,7 +787,7 @@ def test_an_existing_species_opting_in_keeps_every_committed_robot_stage_digest(
     golden = (REPOSITORY_ROOT / "configs" / "digest_snapshot.generated.txt").read_text(encoding="utf-8").splitlines()
     prefix = f"stage\t{ROBOT.species}\t{ROBOT.embodiment}\t"
     committed = [line for line in golden if line.startswith(prefix)]
-    assert out.errors == 0 and len(committed) == 28
+    assert out.errors == 0 and len(committed) == 21  # stance, recovery and locomotion, 7 lines each
     assert out.kept == committed
 
 

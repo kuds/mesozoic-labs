@@ -14,12 +14,34 @@ from environments.shared.stance_diagnostics import derive_stance_info
 
 
 class AllosaurusFragilisEnv(BaseDinoEnv):
-    """Control hindlimb joint torques on a free-root, digitigrade biped."""
+    """Control hindlimb joint torques on a free-root, digitigrade biped.
+
+    The observation follows ``bipedal-heading-free/v1`` (41 values since
+    policy interface r2; r1 had 45, with a target direction and distance):
+    hinge positions (12) and velocities (12), pelvis projected gravity (3),
+    the pelvis gyro (3), the pelvis velocity in its heading frame (3), the
+    pelvis accelerometer (3), one touch reading per foot (2) and the command
+    (3, last).  Nothing in it reads the world heading.
+    """
 
     MODEL_PATH: Path
     HEIGHT_LABEL = "Pelvis height"
-    BEHAVIOR_SECTION_LABEL = "Forward walking"
     SUCCESS_KEYS = ("course_complete",)
+    #: The walking course: the pelvis completes it once its displacement from
+    #: the spawn along the course direction reaches this length less
+    #: COURSE_TOLERANCE_M, with a foot bearing weight.  Under command_mode
+    #: "none" the course runs along the spawn heading while forward_vel_weight
+    #: is positive, and completing it ends the episode as a success.  Under a
+    #: live command (decision D-D62) it runs along the commanded heading at
+    #: reset whatever forward_vel_weight is, a stand episode has none, and
+    #: completing it is an event that does not end the episode: the
+    #: command_tracking/v1 walk gate judges a cruise episode over its whole
+    #: horizon (decision D-D61), so a course that ended it would fail every
+    #: cruise episode that completed it.  Until policy interface r2 a massless
+    #: mocap target sat this far ahead of the spawn, and the course ended
+    #: within the tolerance of it.
+    COURSE_LENGTH_M = 8.0
+    COURSE_TOLERANCE_M = 0.35
     supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 10.2
@@ -44,11 +66,13 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         command_config: DirectionCommandConfig | None = None,
     ):
         # Gymnasium consumes max_episode_steps for its TimeLimit wrapper.
-        # Keep the native walking horizon long enough to reach the course end.
+        # Keep the native walking horizon long enough to reach the course end:
+        # a forward-velocity walk, or any live command (whose walk zeroes the
+        # forward-velocity term, which tracking subsumes; decision D-D62).
         if max_episode_steps is None:
-            max_episode_steps = 3000 if forward_vel_weight > 0 else 1000
+            max_episode_steps = 3000 if forward_vel_weight > 0 or command_mode != "none" else 1000
         self.drift_penalty_weight = drift_penalty_weight
-        self._initial_pos_2d = np.zeros(2)
+        self._live_course_complete = False
         super().__init__(
             model_path=str(self.MODEL_PATH),
             render_mode=render_mode,
@@ -70,7 +94,6 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         self._cache_home_keyframe("Allosaurus fragilis")
         self.pelvis_id = self.model.body("pelvis").id
         self.floor_geom_id = self.model.geom("floor").id
-        self._target_mocap_id = int(self.model.body_mocapid[self.model.body("target").id])
         self._sensor_gyro_start = int(self.model.sensor("pelvis_gyro").adr[0])
         self._sensor_accel_start = int(self.model.sensor("pelvis_accel").adr[0])
         self._sensor_quat_start = int(self.model.sensor("pelvis_orientation").adr[0])
@@ -94,11 +117,7 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         return cast(np.ndarray, self._home_ctrl + residual * span)
 
     def _get_obs(self) -> np.ndarray:
-        offset = self.data.mocap_pos[self._target_mocap_id] - self.data.xpos[self.pelvis_id]
-        distance = np.linalg.norm(offset)
-        gravity, velocity, direction = heading_free_root_segments(
-            self.data.qpos, self.data.qvel[:3], offset / (distance + 1e-8)
-        )
+        gravity, velocity = heading_free_root_segments(self.data.qpos, self.data.qvel[:3])
         sensors = self.data.sensordata
         return np.asarray(
             np.concatenate(
@@ -110,27 +129,28 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
                     velocity,
                     sensors[self._sensor_accel_start : self._sensor_accel_start + 3],
                     self._foot_contact_forces(),
-                    direction,
-                    [distance],
                     self._command,
                 )
             ),
             dtype=np.float32,
         )
 
-    def _spawn_target(self) -> None:
-        # The target is a straight, eight-metre course in the starting heading.
-        self._initial_pos_2d = self.data.qpos[:2].copy()
-        self._initial_prey_dir_2d = self._quat_to_forward_2d(self.data.qpos[3:7])
-        self.data.mocap_pos[self._target_mocap_id] = (
-            *(self._initial_pos_2d + 8 * self._initial_prey_dir_2d),
-            self.target_standing_z,
-        )
+    def _reset_episode_state(self) -> None:
+        """Clear whether a live command's course is complete; nothing else is per-episode.
+
+        The course starts at the spawn's drift anchor and runs along its
+        reference heading (or, under a live command, the commanded heading
+        drawn after this hook), which reset() sets before this hook, and no
+        reward term keeps an action history or gait state.
+        """
+        self._live_course_complete = False
 
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         pelvis = self.data.xpos[self.pelvis_id]
-        delta = pelvis[:2] - self._initial_pos_2d
-        forward = float(self.data.qvel[:2] @ self._initial_prey_dir_2d)
+        # The spawn's anchors under command_mode "none", the command's under a
+        # live one (BaseDinoEnv._drift_anchor_2d and _forward_reference_2d).
+        delta = pelvis[:2] - self._drift_anchor_2d()
+        forward = float(self.data.qvel[:2] @ self._forward_reference_2d())
         drift = float(np.linalg.norm(delta))
         right, left = self._aggregated_foot_contact_forces()
         supported = max(right, left) > self._contact_threshold
@@ -168,11 +188,56 @@ class AllosaurusFragilisEnv(BaseDinoEnv):
         contact, reason = self._check_floor_contact(self._body_ground_geoms, self.floor_geom_id)
         if contact:
             return True, {**info, "termination_reason": reason}
+        if self._rewards_follow_command():
+            return self._live_course(info)
         if self.forward_vel_weight > 0:
-            remaining = self.data.mocap_pos[self._target_mocap_id, :2] - self.data.xpos[self.pelvis_id, :2]
+            # The course ends at a line across the spawn heading, not at a
+            # point: lateral offset neither prevents nor causes completion.
+            along = float((self.data.xpos[self.pelvis_id, :2] - self._initial_pos_2d) @ self._reference_heading_2d)
             if (
-                np.linalg.norm(remaining) <= 0.35
+                along >= self.COURSE_LENGTH_M - self.COURSE_TOLERANCE_M
                 and max(self._aggregated_foot_contact_forces()) > self._contact_threshold
             ):
                 return True, {**info, "termination_reason": "course_complete", "course_complete": 1.0, "success": True}
+        return False, info
+
+    def _course_direction_2d(self) -> np.ndarray | None:
+        """The unit direction the course runs along, or ``None`` when the episode has no course.
+
+        Under command_mode "none": the spawn heading while forward_vel_weight
+        is positive.  Under a live command: the desired heading of the
+        episode's first request (the commanded heading at reset), unless that
+        request is a stop: a stand episode has no course.
+        """
+        if not self._rewards_follow_command():
+            return self._reference_heading_2d if self.forward_vel_weight > 0 else None
+        state = self._reset_command_state
+        if state is None or not state.heading_active:
+            return None
+        return np.array([np.cos(state.desired_heading), np.sin(state.desired_heading)], dtype=np.float64)
+
+    def _live_course(self, info: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        """A live command's course, which never ends the episode: ``(False, info)`` with the course keys.
+
+        ``course_complete`` is 1.0 on the step the pelvis first passes the
+        line across the course direction (:meth:`_course_direction_2d`) at
+        COURSE_LENGTH_M less COURSE_TOLERANCE_M from the spawn with a foot
+        bearing weight, the success event the model's SUCCESS_KEYS name, and
+        ``success`` is True from that step on, so an episode that completed
+        the course and reached its horizon ends a success; a fall after it
+        does not, as the fall's own branch carries no ``success``.  A stand
+        episode has no course.
+        """
+        if self._live_course_complete:
+            return False, {**info, "success": True}
+        course = self._course_direction_2d()
+        if course is None:
+            return False, info
+        along = float((self.data.xpos[self.pelvis_id, :2] - self._initial_pos_2d) @ course)
+        if (
+            along >= self.COURSE_LENGTH_M - self.COURSE_TOLERANCE_M
+            and max(self._aggregated_foot_contact_forces()) > self._contact_threshold
+        ):
+            self._live_course_complete = True
+            return False, {**info, "course_complete": 1.0, "success": True}
         return False, info

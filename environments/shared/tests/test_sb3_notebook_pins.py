@@ -159,6 +159,42 @@ def _define_node_budget(namespace: dict) -> None:
     exec_top_level_def(_cell(INFRA_CELL_MARKER), "node_budget", namespace)
 
 
+#: The deliverable :func:`_deep_chain_configs` adds below locomotion, and its recipe label.
+DEEP_NODE = "follow_direction"
+DEEP_BEHAVIOR = "follow"
+
+
+def _deep_chain_configs(configs_root: Path, monkeypatch, model_id: ModelId) -> None:
+    """Serve a copy of *model_id*'s configs with one more deliverable, ``follow_direction`` (recipe ``follow``,
+    warm-started from locomotion, its config a copy of ``locomotion.toml``), from *configs_root*.
+
+    Since decision D-D59 removed the hunt nodes every committed chain ends at walk, so no committed chain has a
+    non-root ancestor below its target; the cases that need one (a node between the root and the target) run on
+    this copy. Both readers of the configs root (the stage manifest and the stage config loader) are pointed at
+    it."""
+    import shutil
+
+    from environments.shared import config as config_module
+    from environments.shared import stage_manifest as stage_manifest_module
+
+    source = model_id.path(stage_manifest_module._CONFIGS_DIR)
+    target = model_id.path(configs_root)
+    shutil.copytree(source, target)
+    shutil.copyfile(target / "locomotion.toml", target / f"{DEEP_NODE}.toml")
+    with open(target / "stages.toml", "a", encoding="utf-8") as handle:
+        handle.write(
+            f'\n[[stages]]\nid = "{DEEP_NODE}"\nconfig = "{DEEP_NODE}.toml"\nwarm_start_from = "locomotion"\n'
+            f'recipe = "{DEEP_BEHAVIOR}"\ndeliverable = true\n'
+        )
+    monkeypatch.setattr(stage_manifest_module, "_CONFIGS_DIR", configs_root)
+    monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs_root)
+    assert [entry.id for entry in load_stage_manifest(model_id).chain_for(DEEP_NODE)] == [
+        "stance",
+        "locomotion",
+        DEEP_NODE,
+    ]
+
+
 def _top_level_assigns(src: str) -> dict[str, ast.expr]:
     """``NAME = value`` statements at the top level of *src*, by name."""
     assigns: dict[str, ast.expr] = {}
@@ -2270,14 +2306,20 @@ class TestJudgeFirst:
             capsys.readouterr().out
         )
 
-    def test_executed_an_unjudged_ancestor_on_the_resolved_parent_is_judged(self, tmp_path, monkeypatch):
+    def test_executed_an_unjudged_ancestor_on_the_resolved_parent_is_judged(
+        self, tmp_path, tmp_path_factory, monkeypatch
+    ):
         """A non-root trained here on the parent this session resolved (the trunk's stance) is judged; the trunk
-        still stands in for stance, which this run never trained."""
+        still stands in for stance, which this run never trained. Run on a chain one node deeper than walk
+        (:func:`_deep_chain_configs`), so locomotion is an ancestor, not the target."""
+        _deep_chain_configs(
+            tmp_path_factory.mktemp("configs"), monkeypatch, ModelId("velociraptor_mongoliensis", "anatomical")
+        )
         finals: dict = {}
         namespace, asked, recorded, judged, trained = self._loop(
             tmp_path,
             monkeypatch,
-            behavior="hunt",
+            behavior=DEEP_BEHAVIOR,
             prepare=lambda run: finals.update(
                 locomotion=self._final_pair(run, "locomotion", run_block=self._edge(self.TRUNK_SHA))
             ),
@@ -2289,17 +2331,20 @@ class TestJudgeFirst:
         assert asked == [(self.RUN_ID, "stance"), (self.TRUNK_ID, "stance"), (self.RUN_ID, "locomotion")]
 
     def test_executed_an_unjudged_ancestor_on_another_parent_is_refused_before_the_trunk_is_asked(
-        self, tmp_path, monkeypatch
+        self, tmp_path, tmp_path_factory, monkeypatch
     ):
         """Rule 4 before the trunk is skipped: JUDGE applies no chain check, so a node trained on another parent
         than the one resolved here is refused, with the remedy that works (a fresh RUN_ID), not judged; and the
-        trunk's copy may not stand in for it either."""
+        trunk's copy may not stand in for it either. Run on the deeper chain, as above."""
         from environments.shared.result_bundle import ResultBundleError
 
+        _deep_chain_configs(
+            tmp_path_factory.mktemp("configs"), monkeypatch, ModelId("velociraptor_mongoliensis", "anatomical")
+        )
         namespace, asked, recorded, judged, trained = self._loop(
             tmp_path,
             monkeypatch,
-            behavior="hunt",
+            behavior=DEEP_BEHAVIOR,
             prepare=lambda run: self._final_pair(run, "locomotion", run_block=self._edge("sha256:" + "c" * 64)),
         )
         with pytest.raises(ResultBundleError, match="does not chain onto the parent this session resolved") as excinfo:
@@ -3225,12 +3270,13 @@ class TestResumeCell:
         assert "BEHAVIOR" not in str(excinfo.value)
         assert "judges the resumed node before it consults any trunk" in str(excinfo.value)
 
-    def test_a_retrain_from_below_the_resumed_node_does_not_cover_it(self, tmp_path):
+    def test_a_retrain_from_below_the_resumed_node_does_not_cover_it(self, tmp_path, tmp_path_factory, monkeypatch):
         """Executed: RETRAIN_FROM covers the named node and its descendants only; resuming an ancestor of it
-        trains as usual."""
-        [call] = self._run_resume_cell(
-            tmp_path, ModelId("compsognathus_longipes", "robot"), "hunt", "locomotion", 2, retrain_from="behavior"
-        )
+        trains as usual. On a chain one node deeper than walk (:func:`_deep_chain_configs`), since every
+        committed chain ends at walk (decision D-D59)."""
+        model_id = ModelId("compsognathus_longipes", "robot")
+        _deep_chain_configs(tmp_path_factory.mktemp("configs"), monkeypatch, model_id)
+        [call] = self._run_resume_cell(tmp_path, model_id, DEEP_BEHAVIOR, "locomotion", 2, retrain_from=DEEP_NODE)
         assert call["stage"] == 2
 
     def test_a_broken_newest_periodic_pair_falls_back_to_the_next_intact_one(self, tmp_path, capsys):
@@ -3663,13 +3709,14 @@ class TestArchiveLoadPreflightCell:
         assert free <= {"MODEL_ID", "CHAIN", "TRUNK_DIR"}, sorted(free)
 
 
-class TestCommandSliceReseed:
-    """Amendment A12 / invariant 8 (BEHAVIOR_RECIPES_PLAN §4.6): the loaded statistics' command slice is reseeded
-    whenever the node's command_mode is not "none" — EXCEPT on a same-stage resume, whose sidecar already holds the
-    statistics the policy trained under. ``train_base._load_vecnorm_into_envs`` applies the rule
-    (test_command_frame.py) and ``train_base.train``, which ``train_stage`` trains through (consolidation PR-14c),
-    feeds it the stage config's mode and the notebook's sidecar — always False in Phase C.  Since cleanup CU-10b
-    train() does so through the stage body it hands its load, sidecar, load mode and plant identity."""
+class TestCommandSliceIdentity:
+    """Decision D-D60 (amending A12 / invariant 8's reseed, BEHAVIOR_RECIPES_PLAN §4.6): the loaded statistics'
+    command slice must be at identity for a live stage and is re-imposed at identity for a "none" one, on every load
+    mode.  ``curriculum.load_vecnorm_stats`` applies the rule (test_command_frame.py), which
+    ``train_base._load_vecnorm_into_envs`` hands the stage's command mode, and ``train_base.train``, which
+    ``train_stage`` trains through (consolidation PR-14c), feeds it the stage config's mode and the notebook's
+    sidecar.  Since cleanup CU-10b train() does so through the stage body it hands its load, sidecar, load mode
+    and plant identity."""
 
     def test_train_feeds_the_rule_the_stage_config_and_the_sidecar(self):
         import inspect
@@ -3705,21 +3752,75 @@ class TestCommandSliceReseed:
         # Without it a sidecar loads with plant validation skipped (the notebook's manual cell names any sidecar).
         assert _keyword_source(src, load, "plant_identity") == "plant_identity"
         assert [ast.unparse(arg) for arg in load.args] == ["vecnorm_load_path", "train_env", "eval_env"], (
-            "both destinations are passed, so the reseed reaches the train AND the eval wrapper"
+            "both destinations are passed, so the rule reaches the train AND the eval wrapper"
         )
-        rule = ast.get_source_segment(src, _top_level_def(src, "_load_vecnorm_into_envs")) or ""
-        assert 'if command_mode != "none" and task_load_mode != "resume_same_stage":' in rule
+        rule = _top_level_def(src, "_load_vecnorm_into_envs")
+        (stats_call,) = _calls(rule, "load_vecnorm_stats")
+        assert _keyword_source(src, stats_call, "command_mode") == "command_mode"
         parameters = inspect.signature(load_vecnorm_stats).parameters
-        assert parameters["reseed_command_slice"].kind is inspect.Parameter.KEYWORD_ONLY
-        assert parameters["reseed_command_slice"].default is False, "reseeding stays opt-in in the library"
+        assert "reseed_command_slice" not in parameters
+        assert parameters["command_mode"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameters["command_mode"].default is inspect.Parameter.empty, "every caller states the stage's mode"
 
-    def test_every_committed_stage_is_command_mode_none_in_phase_c(self):
-        """The flag is False on every committed config today; Phase D flips it per stage, not the notebook."""
+    def test_every_stage_training_path_learns_with_the_hold_first(self):
+        """The notebook trains a stage only through ``train_base.train`` (``train_stage``, whose arguments
+        TestTrainStageRecordKeeping pins), and ``train`` and ``train_curriculum`` (the CLI ``train`` and
+        ``curriculum``) only through ``_train_stage_body``, whose one ``learn()`` takes the list
+        ``_build_core_callbacks`` starts with ``CommandIdentityCallback`` (decision D-D60): no path trains a stage
+        without the hold, and nothing is put in front of it (test_phase_d_identity_slice.py runs the list)."""
+        for index, cell in enumerate(_code_cells()):
+            assert not _calls(ast.parse(cell), "learn"), f"cell {index} calls learn() itself"
+        assert ast.unparse(_call(_top_level_def(_cell(INFRA_CELL_MARKER), "train_stage"), "train").func) == (
+            "train_base.train"
+        )
+        src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
+        learners = [
+            node.name for node in ast.parse(src).body if isinstance(node, ast.FunctionDef) and _calls(node, "learn")
+        ]
+        assert learners == ["_train_stage_body"]
+        for entry in ("train", "train_curriculum"):
+            assert len(_calls(_top_level_def(src, entry), "_train_stage_body")) == 1, entry
+
+        def assignments(function: ast.FunctionDef, name: str) -> list[ast.stmt]:
+            return [
+                node
+                for node in ast.walk(function)
+                if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign))
+                and any(
+                    isinstance(leaf, ast.Name) and leaf.id == name
+                    for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+                    for leaf in ast.walk(target)
+                )
+            ]
+
+        body = _top_level_def(src, "_train_stage_body")
+        assert _keyword_source(src, _call(body, "learn"), "callback") == "callback_list"
+        (callback_list,) = assignments(body, "callback_list")
+        assert ast.unparse(callback_list.value) == "sb3['CallbackList'](callbacks)"
+        (built,) = assignments(body, "callbacks")
+        assert isinstance(built, ast.Assign) and ast.unparse(built.value).startswith("_build_core_callbacks(")
+        builder = _top_level_def(src, "_build_core_callbacks")
+        (first,) = assignments(builder, "callbacks")
+        assert ast.unparse(first.value) == "[CommandIdentityCallback(eval_env=eval_env)]"
+        for function in (body, builder):
+            assert not _calls(function, "insert"), "nothing goes in front of the hold"
+            assert not any(
+                isinstance(node, ast.Subscript)
+                and ast.unparse(node.value) == "callbacks"
+                and isinstance(node.ctx, ast.Store)
+                for node in ast.walk(function)
+            )
+
+    def test_every_stance_and_recovery_is_command_mode_none_and_every_walk_live(self):
+        """The flag is per stage, set by the stage's config, not by the notebook: every stance and recovery runs
+        command_mode "none", and every walk (locomotion) the live walk command since decision D-D62."""
         from environments.shared.config import load_all_stages
 
         for model_id in MODELS_WITH_MANIFESTS:
             for reference, config in load_all_stages(model_id).items():
-                assert config.get("env_kwargs", {}).get("command_mode", "none") == "none", (model_id, reference)
+                mode = config.get("env_kwargs", {}).get("command_mode", "none")
+                expected = "heading_and_speed" if config["name"] == "locomotion" else "none"
+                assert mode == expected, (model_id, reference)
 
 
 class TestDeliverableAwareCells:
@@ -3925,19 +4026,29 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert namespace["TARGET_NODE"].id == "stance"
         assert [node.id for node in namespace["CHAIN"]] == ["stance"]
 
-    def test_allosaurus_defaults_to_walk_and_rejects_an_explicit_hunt(self):
+    @pytest.mark.parametrize("model_id", MODELS_WITH_MANIFESTS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_every_model_defaults_to_walk_and_refuses_hunt_naming_walk(self, model_id):
+        """Decision D-D59: ``"auto"`` resolves to walk (stance -> locomotion) on all seven models, and
+        ``BEHAVIOR = "hunt"`` stops the resolve cell with the pointer to ``"walk"``, binding no chain."""
         from environments.shared.config import load_all_stages
 
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         config = _cell(CONFIG_CELL_MARKER)
-        exec(config.replace('SPECIES = "velociraptor_mongoliensis"', 'SPECIES = "allosaurus_fragilis"'), namespace)
+        assert config.count('SPECIES = "velociraptor_mongoliensis"') == 1
+        config = config.replace('SPECIES = "velociraptor_mongoliensis"', f"SPECIES = {model_id.species!r}")
+        config = config.replace('EMBODIMENT = "anatomical"', f"EMBODIMENT = {model_id.embodiment!r}")
+        exec(config, namespace)
         resolve = _cell("EnvClass = SPECIES_CFG.env_class")
         exec(resolve, namespace)
+        assert namespace["BEHAVIOR"] == "auto"
         assert namespace["TARGET_NODE"].recipe == "walk"
         assert [node.id for node in namespace["CHAIN"]] == ["stance", "locomotion"]
-        namespace["BEHAVIOR"] = "hunt"
-        with pytest.raises(StageManifestError, match="has no behavior 'hunt'"):
-            exec(resolve, namespace)
+        fresh = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(config, fresh)
+        fresh["BEHAVIOR"] = "hunt"
+        with pytest.raises(StageManifestError, match=r"has no behavior 'hunt': .* use 'walk'"):
+            exec(resolve, fresh)
+        assert "TARGET_NODE" not in fresh and "CHAIN" not in fresh
 
     @staticmethod
     def _tyrannosaurus_rex_configuration():
@@ -3975,15 +4086,49 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         config = _cell(CONFIG_CELL_MARKER)
         behavior_line = next(line for line in config.splitlines() if line.startswith("BEHAVIOR ="))
         options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
-        # The four recipe labels (decisions D-D35 and D-D38): "recover" is the recovery stage's label,
-        # and "stance", the stance stage's id and label, is the stance stage alone on every model.
-        assert options == ["auto", "stance", "recover", "walk", "hunt"]
+        # The three recipe labels (decisions D-D35, D-D38 and D-D59): "recover" is the recovery stage's label,
+        # "stance", the stance stage's id and label, is the stance stage alone on every model, and "hunt" left
+        # with the hunt nodes.
+        assert options == ["auto", "stance", "recover", "walk"]
         assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
         assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
         for source in (_cell("REPO_REF ="), config):
             for line in source.splitlines():
                 if "# @param {" in line:
                     assert "type" in json.loads(line.split("# @param ", 1)[1])
+
+    def test_the_walk_help_describes_the_command_driven_walk(self):
+        """Decision D-D62: walk is the first live-command stage on every model, so ``BEHAVIOR``'s help in the
+        configuration guide and on the knob itself names its command, its stand episodes and its post-stage
+        command-tracking judge; and every committed walk is what the help says (one forward cruise or an exactly
+        zero command a reset, about 15% stands, a heading within 0.26 rad, speeds in [0.5, 1] x cruise, ramped in
+        from a quarter over 2M steps, command_tracking/v1's walk profile)."""
+        from environments.shared.config import load_all_stages
+
+        sources = _all_cell_sources()
+        guide = sources[_cell_index(sources, "- `BEHAVIOR`: the deliverable")]
+        walk_help = guide.split('`"walk"` is stance → locomotion', 1)[1].split('`"hunt"`', 1)[0]
+        for phrase in (
+            "the command-driven walk (decision D-D62)",
+            "a forward cruise at 0.5-1 × the model's cruise speed on a heading within ±15° of the spawn's",
+            "on about 15% of episodes, an exactly zero command (stand still)",
+            "from a quarter of them over the first 2M steps",
+            "(`command_tracking/v1`, walk profile)",
+        ):
+            assert phrase in walk_help, phrase
+        knob = _cell(CONFIG_CELL_MARKER).split('#   "walk"', 1)[1].split("BEHAVIOR =", 1)[0]
+        for phrase in ("follow a forward cruise command with heading hold", "about 15% of episodes (D-D62)"):
+            assert phrase in " ".join(line.lstrip("# ").strip() for line in knob.splitlines()), phrase
+        assert "(command_tracking/v1)" in knob
+        for model_id in MODELS_WITH_MANIFESTS:
+            walk = load_all_stages(model_id)[2]
+            command = walk["env_kwargs"]["command_config"]
+            assert walk["env_kwargs"]["command_mode"] == "heading_and_speed", model_id
+            assert command.stop_probability == 0.15 and command.initial_heading_offset_max == 0.26, model_id
+            assert command.speed_range == (0.5 * command.cruise_speed, command.cruise_speed), model_id
+            assert (command.cruise_ramp_start_fraction, command.cruise_ramp_timesteps) == (0.25, 2_000_000)
+            assert walk["curriculum_kwargs"]["gate_kind"] == "command_tracking/v1"
+            assert walk["curriculum_kwargs"]["profile"] == "walk"
 
     def test_the_direction_terrain_mode_is_gone_from_every_cell(self):
         knobs = r"\bBEHAVIOR_(LOAD_MODE|CHECKPOINT|VECNORMALIZE|SEED|STEPS|EVAL_ONLY|EVAL_EPISODES|RECORD_VIDEO|VIDEO_FPS|RUN_ID)\b"

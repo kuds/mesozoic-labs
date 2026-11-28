@@ -1,9 +1,11 @@
 # Triceratops robot port to the main pipeline (design record, 2026-11-27)
 
-Status: design, to be built in this PR. Base: `main` at 2c1039f4; every `file:line` is at 2c1039f4 unless it names
-the build. Main has no `hardware/` folder (removed in c42b6a93), so build files are cited by commit, never by a branch
-path: build commit 8198001c (the build tip) or f6deec9f (the commit that last wrote the source model). Short build
-paths (`rl/trike_env.py`, `rl/train.py`, `rl/README.md`) are under `hardware/triceratops_build/` at 8198001c.
+Status: this record alone is on `main` (commit 71ffe746); commits 2-5 continue on the same branch,
+`claude/trike60-main-pipeline`, in a follow-up PR, merged with `main` a232da31 (§3). Base: `main` at 2c1039f4; every
+`file:line` is at 2c1039f4 unless it names the build or the merge. Main has no `hardware/` folder (removed in c42b6a93),
+so build files are cited by commit, never by a branch path: build commit 8198001c (the build tip) or f6deec9f (the
+commit that last wrote the source model). Short build paths (`rl/trike_env.py`, `rl/train.py`, `rl/README.md`) are under
+`hardware/triceratops_build/` at 8198001c.
 
 Two kinds of statement appear here. **Design** is what the implementers build. **Measured on the prototype** is
 simulation evidence from scratch prototypes of each part, run at 2c1039f4 and since deleted; none of it is on any
@@ -65,6 +67,91 @@ under `environments/tyrannosaurus_rex/**` or `configs/tyrannosaurus_rex/**` chan
 2c1039f4 (`base_env.py:217-237`). Measured on the prototype: the model's patch alone fails at construction with
 `TypeError: ... unexpected keyword argument 'actuation_delay_range_s'` (M1). So the model lands last, and its
 generated files come only from the tree that has all three features.
+
+### Merged with main a232da31 (27 Nov 2026)
+
+Commits 2-4 were built and reviewed on 2c1039f4; then `main` at a232da31 (41 commits after 2c1039f4, this record's
+commit 71ffe746 among them, with the target-free revision D-D59 and the live commands of D-D60 to D-D64) was merged into
+the branch. The `file:line` references elsewhere in this record stay at 2c1039f4. The merged code differs from the text
+above in these places (locations on the merged tree):
+
+- **Reset draws (§4.2).** Main's `reset` (`base_env.py:2271-2342`) draws from `np_random` only the joint and
+  velocity jitter and the push-schedule seed: the height draw and the target spawn went with D-D59, and a live
+  command draws from its own stream (`_command_rng`, `base_env.py:1480`, keyed by
+  `command_frame.COMMAND_STREAM_DOMAIN`, D-D60). The features still never draw `np_random`, and the branch still
+  leaves `reset`'s source alone; its `super().reset(seed=seed)` is at `:2277`. `episode_start.py`'s docstring names
+  the same draws.
+- **The step (§5, §7).** Main split `step()` into `step()`, which holds a live zero command's stand weights
+  (`_stand_block`, D-D62), and `_step_body()` (`base_env.py:1903-1917`). The delay's FIFO, its info keys and the
+  noise are in `_step_body` (`:1959`, `:1993`, `:2063`, `:2094`), the noise after main's command recompute as before,
+  so a stand-block step is delayed and noised like any other. Tests pin it: on the Compsognathus robot's live walk,
+  whose stage declares stand weights, `set_direction(heading, 0)` makes the command a live zero, and the next step,
+  under the stand block, hands its target to the plant k physics steps late with the delay's info keys
+  (`test_actuation_delay.py`) and returns its observation with one draw of the noise (`test_observation_noise.py`).
+- **`set_direction` (§7, built in commit 4).** Main moved it from the behaviour env into `BaseDinoEnv` (1c224969,
+  D-D60), where every live command mode has it. The noise is applied there now (`base_env.py:1528-1546`), so a live
+  walk's `set_direction` is noised as a behaviour env's is; `behavior_env.py` no longer defines it. Its test runs on
+  a behaviour env and on the Compsognathus robot's live walk, at a cruise speed and at zero, and checks the step
+  after it too.
+- **The segment table (§7).** Main removed both legacy schemas and the target segments (D-D59,
+  `configs/plant_versions.toml` note 24): every model declares `bipedal-heading-free/v1` or
+  `quadrupedal-heading-free/v1`. `observation_segments(model, env, observation_schema)`
+  (`plant_contract/policy_layer.py:373`) returns main's `_heading_free_observation_segments` for the schema's root
+  label and refuses any other schema with `PlantContractError`, which a test checks for both legacy target schemas
+  and an unknown one through the table, `observation_layout` and `resolve_observation_noise` (both take an explicit
+  schema); the payload keeps main's schema check, its no-mocap check and its width check, and records the table
+  `observation_segments()` returns (`:408`). No digest moves.
+- **The layout (§7).** `observation_layout` (`observation_noise.py:154`) takes every width from `_segment_width`,
+  `foot_contact`'s included: on the heading-free schemas that segment carries its channel count, touch-sensor groups
+  or, on the Compsognathus robot, main's floor-contact geom groups (`_foot_observation_floor_geoms`). The
+  Brachiosaurus case of eight touch sensors in four channels went with the legacy table.
+- **Unit segments (§7).** The rule (`UNIT_SEGMENT_SUFFIXES`) and `OBSERVATION_NOISE_IMPLEMENTATION` are unchanged,
+  but on every current schema the root's projected gravity is the only unit segment. The std test's two models are
+  both heading-free now; the unit-segment test noises the projected gravity or leaves it out; the probe test feeds
+  the Compsognathus robot's floor-contact channels through its reader and perturbs no mocap target. The noise tests
+  name only the heading-free schemas' segment kinds, so a segment of a new schema fails their kind lookup until it is
+  named there; the probe test checks that the orientation sensor and the root position feed no segment now.
+- **Who sees what (§4.3, §6 R15).** On a live-command stage, every walk since D-D62, `StageAwareEvalCallback`
+  reseeds the evaluation env before every evaluation (`eval_diagnostics.py:1556`, `curriculum/command_evaluation.py`),
+  so there each evaluation round rolls the same per-episode feature draws (plants, delay, noise), fixed by the
+  evaluation seed; on a command-free stage each round still sees new ones. Main's new env builders, the
+  command-tracking panel (`command_tracking_panel.py:303`) and its report (`reporting/command_tracking_report.py:136,
+  148`), build evaluation envs, and the warm-start noise scan, which now sets the cruise ramp's start command, stays
+  one; two more, `_env_command_manifest` (`harnesses/digest_snapshot.py:414`) and the push probe of the
+  off-distribution recovery panel (`harnesses/recovery_offdist_panel.py:120`, `multiple_for_force`), only construct
+  an env and never reset it, so no feature draws there. Main added no trainer path: the marking call sites are those
+  of §4.3. Main also changed the fixed-seed panels of §6 "Draws": the hunt's publication-seed panel (after
+  `eval_env.seed(PUBLICATION_SEED_START)`) went with the `task_success/v1` gate (3368abe2, D-D59). A walk's gate is
+  judged after its training on the `command_tracking/v1` certification panel from seed 3042
+  (`PUBLICATION_SEED_START`), and its handoff is chosen by `choose_command_handoff`
+  (`reporting/command_tracking_report.py:571`) on a selection panel from seed 2042 (`HANDOFF_SELECTION_SEED_START`),
+  not by the EvalCallback env of §4.3's "Checkpoint selection, curriculum gate" row. Both panels are evaluation envs
+  reset with one seed per episode (`command_tracking_panel.py:329`), so under the features they are paired per seed
+  as §6 says of fixed-seed panels. The stance and recovery panels stay as §6 describes them.
+- **Tests (§5, §6).** No plant has a mocap body, so the draw block on the Compsognathus robot is `3 + 19 + 24`, the
+  pool-shape refusal names 20 bodies, and the per-body test keeps the world's mass; that robot's committed stage
+  lines in the digest snapshot are 21 (stance, recovery and locomotion: main removed its behaviour stage), not 28;
+  main removed `SpeciesConfig.behavior_section_label`, so the SB3 marking test's species double drops it.
+- **Baselines at a232da31.** The `--exact` capture is 33,208 lines (sha256
+  dfc81228eb3459853ca4174ab39d3599961cebadf8a73fa91e96569a5a4c2fc9), and the merged tree's is byte-identical;
+  `digest_snapshot --check` is current at 663 lines. The full suite runs 9,187 tests on `main` and 9,661 on the merged
+  tree (474 more), with no failure or error on either (48 skipped on both). From the merge on, §9's gates compare
+  against the `main` the branch was last merged with, a232da31 now: read that sha for 2c1039f4 in gate 2's `git show`
+  and `git diff --exit-code` and in gate 3's base worktree, which gate 4's base run uses too. Against 2c1039f4,
+  where main has since moved the generated files and the capture, gate 2's `git diff --exit-code` lists all three
+  generated files and gate 3's diff is not empty: a false red. The `--baseline` revision check passes against either
+  sha, as main's plant changes carry their revisions, but CI runs it against the PR's base sha
+  (`python-ci.yml:147`), a232da31 while `main` stays there. Against a232da31 gate 2's diff is empty, the snapshot is
+  663 lines and gate 3's two captures are the 33,208 lines above, with an empty diff. The merge also re-explains its
+  `base_env.py` edit in `tests/test_assemble_recovery_profile.py`, which pins that recorded source of the committed
+  Compsognathus recovery measurements, and names no PR in this record's status line or in this subsection: a
+  landing is recorded only in the consolidation plan's status table and the CHANGELOG (the one-landing-record rule,
+  `docs/README.md`; `tests/test_landing_records.py`).
+- **Commit 5 (§8), not built.** Its design predates main's revision: a target mocap body (§8.1) is refused by the
+  plant contract (`_require_no_mocap_body`), the target schema of §8.4 has no place beside main's
+  `quadrupedal-heading-free/v1`, every walk follows a live command and is judged by `command_tracking/v1` with a
+  course that ends nothing (D-D61, D-D62), and `SpeciesConfig.behavior_section_label` is gone. §8 is to be revised
+  against `main` before commit 5 is built.
 
 ## 4. Shared pieces
 
@@ -847,7 +934,8 @@ Neither file imports SB3 or calls `make_env`, so both run in the species matrix 
 Every code commit (2-5) passes all of these locally; the outputs are kept and their summary lines quoted in the PR
 description. Install with the canonical MuJoCo and tensorboard (the `train` extra): `python -m pip install -e
 ".[train,test]" "mujoco==3.10.0" "ruff==0.16.9" "mypy==2.3.1" -c constraints.txt`. Before the gates, run `ruff check
---fix` and `ruff format` on the commit's Python files (R9, P11, M2).
+--fix` and `ruff format` on the commit's Python files (R9, P11, M2). The base below is 2c1039f4, the base the
+commits were built on; from the merge with a232da31 on, read that sha for it (§3, "Baselines at a232da31").
 
 1. Lint and types (`python-ci.yml:101, 104, 107, 118, 430`):
 
@@ -913,7 +1001,8 @@ description. Install with the canonical MuJoCo and tensorboard (the `train` extr
      untracked (it passes after `git add -N`).
    - Noise: focused tests only (615 passed, 1 failed; the fix was the noise role helper this design drops).
 
-   No full-suite pass exists yet for the reconciled design.
+   No full-suite pass existed for the reconciled design when this section was written; the merged tree's is in §3
+   ("Baselines at a232da31").
 
 ## 10. Skeptic findings and their resolution
 
@@ -970,7 +1059,7 @@ description. Install with the canonical MuJoCo and tensorboard (the `train` extr
 | Model M9 | ROADMAP Phase 6 and the capability status go stale | Both updated | §6, §8.11 |
 | Model M10 | Behaviour envs held 10 ms without the trainer's mark | `train_behaviors` marks via the helper; robot test | §4.3, §8.10 |
 
-## 11. Not in this PR, and points for the owner
+## 11. Not in the follow-up PR (commits 2-5), and points for the owner
 
 **Follow-ups:**
 
@@ -990,7 +1079,7 @@ description. Install with the canonical MuJoCo and tensorboard (the `train` extr
 **Points for the owner** (points 1, 4, 5 and 6 decided on 27 Nov 2026 as D41, D44 and D42; point 2 is D40; point 3
 stays open until commit 5 measures it):
 
-1. `docs/hardware/README.md` says only an adopted design becomes a species' robot model (2026-11-26). This PR makes
+1. `docs/hardware/README.md` says only an adopted design becomes a species' robot model (2026-11-26). Commit 5 makes
    the 60 cm design `triceratops_horridus/robot` in simulation (D32, D36) and updates the page. **Decided (D41):** the
    design is adopted for building too, ordering nothing (§2, §8.11).
 2. The gates and course values are provisional (D40), revised after the first main-pipeline run.

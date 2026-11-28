@@ -67,6 +67,11 @@ STEPS = 768
 #: The keys main writes for this run without this change (at ``2e734e29``, unchanged through ``c6292b1e``),
 #: termination causes aside (which causes a run meets is the run's; both runs here must meet the same ones).
 #: Derived by running this module's ``_train`` in an export of ``2e734e29`` (2026-10-17).
+#: Less the hunt's keys since decision D-D59's amendment of 2026-11-23: the T. rex no longer emits its bite,
+#: approach and head-proximity terms (``term_bite``, ``term_approach``, ``term_head_proximity``), and the
+#: DiagnosticsCallback lists dropped every hunt key (the strike, bite, food, approach and proximity terms, the
+#: success keys, ``prey_distance``, ``approach_delta``, ``head_food_distance`` and the never-emitted
+#: ``jaw_distance``).
 BASE_GATE_PROGRESS_KEYS = frozenset(
     """
     action_ac_rms action_ac_rms_per_actuator action_dc_per_actuator action_dc_rms action_delta action_freq_hz
@@ -81,9 +86,9 @@ BASE_GATE_PROGRESS_KEYS = frozenset(
     r_foot_cop_fore_aft_gate r_foot_cop_std_m r_heel_margin_nm r_sole_cop_fore_aft r_sole_cop_fore_aft_gate
     r_sole_corner_lift_m r_sole_tilt_deg r_toe_d2_load_pos r_toe_d2_load_share r_toe_d3_load_pos
     r_toe_d3_load_share r_toe_d4_load_pos r_toe_d4_load_share r_toe_margin_nm term_action_jerk
-    term_action_saturation term_airborne_substeps term_alive term_approach term_backward
-    term_bilateral_support term_bite term_drift term_energy term_floor_impact term_foot_flatness
-    term_foot_load_balance term_forward term_gait term_head_clearance term_head_proximity term_heading
+    term_action_saturation term_airborne_substeps term_alive term_backward
+    term_bilateral_support term_drift term_energy term_floor_impact term_foot_flatness
+    term_foot_load_balance term_forward term_gait term_head_clearance term_heading
     term_height term_idle term_lateral term_leg_home_pose term_neck_posture term_nosedive term_posture
     term_smoothness term_speed term_spin term_stance_width term_tail term_tail_home_pose term_total
     timesteps unsupported_duty unsupported_duty_ucb
@@ -91,21 +96,21 @@ BASE_GATE_PROGRESS_KEYS = frozenset(
 )
 BASE_DIAGNOSTICS_KEYS = frozenset(
     """
-    abs_speed action_abs_mean action_delta action_jerk action_saturation action_std approach_delta
-    backward_vel bilateral_support_duty bite_success contact_asymmetry distance_traveled drift_distance
-    food_reached foot_load_asymmetry foot_load_balance foot_load_imbalance forward_vel forward_z
-    head_food_distance head_pelvis_rel_z head_tip_z heading_alignment heading_alignment_std height_error
-    jaw_distance l_foot_contact l_foot_contact_duty l_foot_load_share lateral_vel leg_home_pose_error
-    neck_posture_error pelvis_angular_vel pelvis_height pelvis_yaw_vel prey_distance r_foot_contact
+    abs_speed action_abs_mean action_delta action_jerk action_saturation action_std
+    backward_vel bilateral_support_duty contact_asymmetry distance_traveled drift_distance
+    foot_load_asymmetry foot_load_balance foot_load_imbalance forward_vel forward_z
+    head_pelvis_rel_z head_tip_z heading_alignment heading_alignment_std height_error
+    l_foot_contact l_foot_contact_duty l_foot_load_share lateral_vel leg_home_pose_error
+    neck_posture_error pelvis_angular_vel pelvis_height pelvis_yaw_vel r_foot_contact
     r_foot_contact_duty r_foot_load_share reward_action_saturation reward_airborne_substeps reward_alive
-    reward_approach reward_backward reward_bilateral_support reward_bite reward_claw_proximity reward_drift
-    reward_energy reward_floor_impact reward_food reward_foot_flatness reward_foot_load_balance reward_forward
-    reward_gait reward_gait_symmetry reward_head_clearance reward_head_proximity reward_heading reward_height
+    reward_backward reward_bilateral_support reward_drift
+    reward_energy reward_floor_impact reward_foot_flatness reward_foot_load_balance reward_forward
+    reward_gait reward_gait_symmetry reward_head_clearance reward_heading reward_height
     reward_home_pose reward_idle reward_lateral reward_leg_home_pose reward_neck_posture reward_nosedive
-    reward_posture reward_proximity reward_smoothness reward_speed reward_spin reward_stance_width
-    reward_strike reward_support_geom_coverage reward_tail reward_tail_home_pose reward_target reward_total
-    rl_foot_contact rr_foot_contact single_support_duty spin_instability strike_success tail_instability
-    target_success term_timesteps tilt_angle timesteps torso_height unsupported_duty
+    reward_posture reward_smoothness reward_speed reward_spin reward_stance_width
+    reward_support_geom_coverage reward_tail reward_tail_home_pose reward_total
+    rl_foot_contact rr_foot_contact single_support_duty spin_instability tail_instability
+    term_timesteps tilt_angle timesteps torso_height unsupported_duty
     """.split()
 )
 #: This change's ``gate_progress.npz`` keys on this run, the reward-term split and the screen's per-criterion
@@ -448,10 +453,12 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     plain_record = json.loads((_plain / "progress.json").read_text(encoding="utf-8"))
     assert not {"policy", "training_rollouts"} & set(plain_record)
     with np.load(full / "policy_probe.npz", allow_pickle=False) as probe:
-        # One row per PPO update, and the whole bank although the stage's horizon is 240 steps.
+        # One row per PPO update, and every bank row the T. rex holds although the stage's horizon is 240 steps:
+        # 9 of 10 since physics r12, whose statue falls from the +0.03 lean on seed 3043 at step 515
+        # (test_curriculum_policy_probe.TYRANNOSAURUS_REX_DROPPED_ROWS).
         assert probe["update_timesteps"].tolist() == [256, 512, 768]
-        assert len(probe["bank_labels"]) == 10 and int(probe["bank_horizon"]) == 601
-        assert probe["bank_action_now"].shape == (3, 10, 15)
+        assert len(probe["bank_labels"]) == 9 and int(probe["bank_horizon"]) == 601
+        assert probe["bank_action_now"].shape == (3, 9, 15)
         # The rollout clip shares: each update's whole buffer (256 steps of one env), per actuator.
         assert probe["rollout_rows"].tolist() == [256, 256, 256]
         for key in ("rollout_action_clip_high_share", "rollout_mu_beyond_low_share", "rollout_mu_q95"):

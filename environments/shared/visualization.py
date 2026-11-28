@@ -13,14 +13,16 @@ called headless (no display).  The notebook can continue to call
 from __future__ import annotations
 
 import logging
+import math
 import zlib
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .direction_commands import stand_weights_of
 from .model_id import ModelId
 from .species_names import model_display_name
-from .stage_manifest import stage_display_name
+from .stage_manifest import StageManifestError, stage_display_name, stage_label
 
 logger = logging.getLogger(__name__)
 
@@ -274,14 +276,32 @@ _REWARD_KEY_TO_CONFIG_WEIGHTS: dict[str, tuple[str, ...]] = {
     "reward_heading": ("heading_weight",),
     "reward_lateral": ("lateral_penalty_weight",),
     "reward_spin": ("spin_penalty_weight",),
-    "reward_strike": ("strike_bonus",),
-    "reward_approach": ("strike_approach_weight", "bite_approach_weight", "food_approach_weight"),
-    "reward_proximity": ("strike_proximity_weight",),
-    "reward_claw_proximity": ("strike_claw_proximity_weight",),
-    "reward_bite": ("bite_bonus",),
-    "reward_food": ("food_reach_bonus",),
     "reward_idle": ("idle_penalty_weight",),
 }
+#: The live command's tracking term (decision D-D60): ``DiagnosticsCallback`` records it as one of its
+#: ``COMMAND_TRACKING_KEYS``, only from a run whose env emitted it, and its weight is the command config's
+#: ``tracking_weight``, not an ``[env]`` kwarg.  The reward decomposition draws it after every other term.
+_TRACKING_REWARD_KEY = "reward_tracking"
+#: The tracking term's own colour and line width in the reward decomposition.  Every other term takes a tab10
+#: colour by its index, and those wrap every ten terms, so the tracking term's index would share one with an active
+#: walk term (``reward_tail``, ``reward_height``, ``reward_stance_width``) at the same per-stage line style; black is
+#: no tab10 colour, and the heavier line marks the walk's dominant term apart from the terms it outweighs.
+_TRACKING_REWARD_COLOR = "black"
+_TRACKING_REWARD_LINEWIDTH = 2.5
+
+
+def _tracking_weight(command_config: Any) -> float:
+    """The command config's ``tracking_weight`` (a loaded config or its record); 0 without a live command."""
+    if command_config is None:
+        return 0.0
+    value = (
+        command_config.get("tracking_weight")
+        if isinstance(command_config, Mapping)
+        else getattr(command_config, "tracking_weight", None)
+    )
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        return 0.0
+    return float(value)
 
 
 def plot_diagnostics_graphs(
@@ -300,11 +320,11 @@ def plot_diagnostics_graphs(
 
     Figure 2 -- Behavioral Metrics (``behavioral_metrics.png``):
       - Distance Traveled (cumulative path length) across the top row,
-        Heading Alignment, Drift Distance (displacement from spawn),
-        and, when any stage recorded a finite prey distance, strike
-        success or bite success, Prey Distance and Strike Success Rate.
-        A panel no stage recorded (allosaurus emits no heading
-        alignment) reads "No data recorded" instead of drawing blank.
+        Heading Alignment and Drift Distance (displacement from spawn)
+        below it.  A panel no stage recorded (allosaurus emits no
+        heading alignment) reads "No data recorded" instead of drawing
+        blank.  The hunt's prey-distance and strike-success row left
+        with it (decision D-D59).
 
     Neither figure draws a cost of transport or a gait symmetry:
     ``diagnostics.npz`` holds rollout means of the action penalty
@@ -321,16 +341,28 @@ def plot_diagnostics_graphs(
     from environments.shared.diagnostics import DiagnosticsCallback
 
     model_title = model_display_name(model_id)
-    _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"]
+    # The live command's tracking term last, so every other term keeps its colour on a command-free stage, whose
+    # diagnostics.npz holds no reward_tracking series.
+    _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"] + [_TRACKING_REWARD_KEY]
 
     def _signal_active(reward_key: str, stage_num: "int | str") -> bool:
-        """Return True if *reward_key* has a non-zero weight in this stage's config."""
+        """Return True if *reward_key* has a non-zero weight in this stage's config.
+
+        A live stage's stand block counts (decision D-D62): a term its ``[env]``
+        leaves at 0 is paid on the stand episodes when the block names its weight.
+        The tracking term is active on a live stage whose command config's
+        ``tracking_weight`` is above 0.
+        """
         env_kw = stage_configs.get(stage_num, {}).get("env_kwargs", {})
+        if reward_key == _TRACKING_REWARD_KEY:
+            live = str(env_kw.get("command_mode", "none")) != "none"
+            return live and _tracking_weight(env_kw.get("command_config")) > 0.0
         weight_keys = _REWARD_KEY_TO_CONFIG_WEIGHTS.get(reward_key, ())
         if not weight_keys:
             # Unknown reward key — show it to be safe.
             return True
-        return any(abs(env_kw.get(wk, 0.0)) > 0 for wk in weight_keys)
+        stand = stand_weights_of(env_kw.get("command_config"))
+        return any(abs(env_kw.get(wk, 0.0)) > 0 or abs(stand.get(wk, 0.0)) > 0 for wk in weight_keys)
 
     # -----------------------------------------------------------
     # Figure 1: Locomotion Health Metrics (the reward decomposition,
@@ -375,12 +407,16 @@ def plot_diagnostics_graphs(
         # Reward Decomposition — only signals with non-zero weight
         for _ci, _rkey in enumerate(_REWARD_COMPONENTS):
             if _rkey in diag and _signal_active(_rkey, stage_num):
+                # Only a live stage draws the tracking term, so a command-free stage's lines are unchanged.
+                _tracking = _rkey == _TRACKING_REWARD_KEY
+                _line_style: dict[str, Any] = {"linewidth": _TRACKING_REWARD_LINEWIDTH} if _tracking else {}
                 axes1["rewards"].plot(
                     ts,
                     _smooth(diag[_rkey]),
                     label=f"S{stage_num} {_rkey.replace('reward_', '')}",
-                    color=_reward_colors[_ci % len(_reward_colors)],
+                    color=_TRACKING_REWARD_COLOR if _tracking else _reward_colors[_ci % len(_reward_colors)],
                     linestyle=["-", "--", "-."][style_idx % 3],
+                    **_line_style,
                 )
 
     # Render termination breakdown as grouped bar chart
@@ -438,28 +474,11 @@ def plot_diagnostics_graphs(
 
     # -----------------------------------------------------------
     # Figure 2: Behavioral Metrics (distance traveled, which every
-    # species records, across the top row, then two rows of two
-    # panels, or one without hunting data)
+    # species records, across the top row, then one row of two panels)
     # -----------------------------------------------------------
-    # Pre-scan: check if any stage has finite hunting/food data
-    # (prey_distance, strike_success, bite_success).  If so, add a third
-    # row for those.  DiagnosticsCallback saves all three for every
-    # species, all-NaN when never emitted, so key presence proves nothing.
-    _has_hunting_data = False
-    for _, _sd in stage_dirs:
-        _dl = Path(_sd) / "diagnostics.npz"
-        if _dl.exists():
-            _d = np.load(_dl)
-            if any(_has_finite(_d, k) for k in ("prey_distance", "strike_success", "bite_success")):
-                _has_hunting_data = True
-                break
-
-    _n_rows = 3 if _has_hunting_data else 2
     fig2, axes2 = plt.subplot_mosaic(
-        [["distance", "distance"], ["heading", "drift"], ["prey", "success"]]
-        if _has_hunting_data
-        else [["distance", "distance"], ["heading", "drift"]],
-        figsize=(14, 5 * _n_rows),
+        [["distance", "distance"], ["heading", "drift"]],
+        figsize=(14, 10),
     )
     fig2.suptitle(
         f"{model_title} {algorithm} \u2013 Behavioral Metrics",
@@ -501,18 +520,6 @@ def plot_diagnostics_graphs(
         if _has_finite(diag, "drift_distance"):
             axes2["drift"].plot(ts, _smooth(diag["drift_distance"]), label=label, color=color)
 
-        # Last row (only when hunting data present)
-        if _has_hunting_data:
-            # Prey / Food Distance
-            if _has_finite(diag, "prey_distance"):
-                axes2["prey"].plot(ts, _smooth(diag["prey_distance"]), label=label, color=color)
-
-            # Strike / Bite / Food Success Rate
-            if _has_finite(diag, "strike_success"):
-                axes2["success"].plot(ts, _smooth(diag["strike_success"]), label=label, color=color)
-            if _has_finite(diag, "bite_success"):
-                axes2["success"].plot(ts, _smooth(diag["bite_success"]), label=label, color=color)
-
     axes2["heading"].set_xlabel("Timesteps")
     axes2["heading"].set_ylabel("Heading Alignment (cos \u03b8)")
     axes2["heading"].set_title(f"{model_title} {algorithm} \u2013 Heading Alignment")
@@ -530,19 +537,6 @@ def plot_diagnostics_graphs(
     axes2["drift"].set_title(f"{model_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
     _safe_legend(axes2["drift"])
     axes2["drift"].grid(True, alpha=0.3)
-
-    if _has_hunting_data:
-        axes2["prey"].set_xlabel("Timesteps")
-        axes2["prey"].set_ylabel("Prey Distance (m)")
-        axes2["prey"].set_title(f"{model_title} {algorithm} \u2013 Prey Distance")
-        _safe_legend(axes2["prey"])
-        axes2["prey"].grid(True, alpha=0.3)
-
-        axes2["success"].set_xlabel("Timesteps")
-        axes2["success"].set_ylabel("Strike Success Rate")
-        axes2["success"].set_title(f"{model_title} {algorithm} \u2013 Strike Success Rate")
-        _safe_legend(axes2["success"])
-        axes2["success"].grid(True, alpha=0.3)
 
     for _ax in axes2.values():
         if not _ax.get_lines():
@@ -843,6 +837,15 @@ def _gate_progress_groups(keys: Sequence[str]) -> dict[str, list[str]]:
     return {name: groups[name] for name in GATE_PROGRESS_PANELS if groups[name]}
 
 
+def _records_a_live_command(stage_dir: "str | Path") -> bool:
+    """Whether *stage_dir*'s recorded ``stage_config.json`` task has a command section (a live-command stage)."""
+    from .config import read_recorded_stage_config
+
+    record = read_recorded_stage_config(stage_dir) or {}
+    fingerprint = record.get("task_fingerprint")
+    return isinstance(fingerprint, dict) and isinstance(fingerprint.get("command"), dict)
+
+
 def plot_gate_progress(
     stage_dir: "str | Path",
     *,
@@ -850,12 +853,17 @@ def plot_gate_progress(
     model_id: ModelId | None = None,
     save_path: "str | Path | None" = None,
     show: bool = False,
+    live_command: bool | None = None,
 ) -> Any:
     """One figure of a stage's ``gate_progress.npz``: a panel per group it holds, against millions of steps.
 
     1. ``mean_reward``, with the run's zero-action (statue) reward when its
-       ``zero_action_baseline.json`` covers the model, and
-       ``full_horizon_fraction`` on a twin axis;
+       ``zero_action_baseline.json`` covers the model and the stage runs no
+       live command, and ``full_horizon_fraction`` on a twin axis (that
+       baseline is the stance's statue, so on a live-command stage, whose
+       *live_command* is true or, when ``None``, whose recorded
+       ``stage_config.json`` task has a command section, it would compare
+       the walk with another task; decision D-D62);
     2. the signed per-foot pad and whole-foot centres of pressure
        (``<label>_sole_cop_fore_aft``, ``<label>_foot_cop_fore_aft``), with
        each declared bar at plus and minus;
@@ -901,7 +909,9 @@ def plot_gate_progress(
         if name == "reward":
             axis.plot(steps, rows["mean_reward"], label="mean reward", color="C0")
             statue = None
-            if model_id is not None:
+            if live_command is None:
+                live_command = _records_a_live_command(stage_dir)
+            if model_id is not None and not live_command:
                 from .curriculum.baseline_watch import read_zero_action_baseline
 
                 statue = read_zero_action_baseline(Path(stage_dir).parent, model_id)
@@ -956,6 +966,616 @@ def plot_gate_progress(
     if save_path is not None:
         figure.savefig(save_path, dpi=120, bbox_inches="tight")
         logger.info("Gate progress figure saved to: %s", save_path)
+    if not show:
+        plt.close(figure)
+    return figure
+
+
+#: The ``command_tracking/v1`` figures ``generate_stage_artifacts`` draws into ``figures/`` (decision D-D61).
+COMMAND_TRACKING_FIGURE = "command_tracking.png"
+COMMAND_GATE_PROGRESS_FIGURE = "command_gate_progress.png"
+#: The tracking fraction over training: ``diagnostics.npz``'s rollout mean of the env's in-tolerance flag.
+_TRACKING_HISTORY_KEY = "tracking_in_tolerance"
+#: Each profile's bar on the per-episode in-tolerance fraction (after the settle), drawn against that history.
+_TRACKING_BAR_KEYS: dict[str, str] = {"walk": "min_cruise_tracking_fraction", "follow": "min_follow_tracking_fraction"}
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    """*value* when it is a JSON object, else an empty one (the figures read recorded files leniently)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _true_runs(times: Any, flags: Any) -> list[tuple[float, float]]:
+    """The ``(start, end)`` time spans of the consecutive steps whose flag is set (each step ends at its time)."""
+    spans: list[tuple[float, float]] = []
+    start = None
+    previous = 0.0
+    for time_s, flag in zip(times, flags):
+        if flag and start is None:
+            start = previous
+        if not flag and start is not None:
+            spans.append((start, previous))
+            start = None
+        previous = float(time_s)
+    if start is not None:
+        spans.append((start, previous))
+    return spans
+
+
+def _command_tracking_history(stage_dir: Path) -> "tuple[Any, Any] | None":
+    """``(timesteps, in-tolerance fraction)`` from the stage's ``diagnostics.npz``, or ``None`` when not recorded."""
+    import numpy as np
+
+    path = stage_dir / "diagnostics.npz"
+    if not path.is_file():
+        return None
+    with np.load(path) as data:
+        if _TRACKING_HISTORY_KEY not in data.files or "timesteps" not in data.files:
+            return None
+        timesteps = np.asarray(data["timesteps"], dtype=float)
+        fraction = np.asarray(data[_TRACKING_HISTORY_KEY], dtype=float)
+    if fraction.shape != timesteps.shape or not np.isfinite(fraction).any():
+        return None
+    return timesteps, fraction
+
+
+def _recorded_cruise_ramp(stage_dir: "str | Path") -> "tuple[float, int] | None":
+    """The cruise ramp ``(start_fraction, timesteps)`` *stage_dir*'s recorded task declares; ``None`` without one."""
+    from .config import read_recorded_stage_config
+
+    record = read_recorded_stage_config(stage_dir) or {}
+    fingerprint = record.get("task_fingerprint")
+    command = fingerprint.get("command") if isinstance(fingerprint, dict) else None
+    config = command.get("config") if isinstance(command, dict) else None
+    if not isinstance(config, dict):
+        return None
+    start, timesteps = config.get("cruise_ramp_start_fraction"), config.get("cruise_ramp_timesteps")
+    if isinstance(start, bool) or not isinstance(start, (int, float)):
+        return None
+    if isinstance(timesteps, bool) or not isinstance(timesteps, int) or timesteps <= 0:
+        return None
+    return float(start), int(timesteps)
+
+
+def _recorded_same_stage_resumes(stage_dir: "str | Path") -> list[tuple[str, int | None]]:
+    """The checkpoints *stage_dir*'s recorded run resumed its own stage from, oldest first.
+
+    Each is its file name and, for a load that continued the run, the step
+    count it resumed at; ``None`` for a load that restarted the step counter.
+    ``save_stage_config`` records a root's resume as ``run.load_mode``
+    ``"resume_same_stage"`` with its ``load_path``, and the resume of a stage
+    that entered from its parent under ``run.resume_load_path``
+    (:data:`~environments.shared.config.RESUME_LINEAGE_KEYS`);
+    ``record_resume_session`` lists every session that continued the record
+    under ``run.resume_sessions``.  As ``train_base._is_resume_continuation``
+    reads a load, only a PPO load of one of the stage's own periodic
+    checkpoints (``<label>_<steps>_steps.zip``,
+    ``policy_loading._PERIODIC_CHECKPOINT_RE``) continues the run: a SAC load
+    (the recorded ``algorithm``; nothing persists its replay buffer) or a
+    checkpoint whose name carries no step count (``best_model.zip``,
+    ``<label>_final.zip``) restarts the counter and seeds nothing.  A record
+    that names no algorithm or stage is not held to them.
+    """
+    from .config import RESUME_SESSIONS_KEY, read_recorded_stage_config
+    from .policy_loading import _PERIODIC_CHECKPOINT_RE
+
+    record = read_recorded_stage_config(stage_dir) or {}
+    run = record.get("run")
+    if not isinstance(run, dict):
+        return []
+    algorithm = record.get("algorithm")
+    restarts = isinstance(algorithm, str) and algorithm.upper() != "PPO"
+    try:
+        label = stage_label(record["stage"]) if "stage" in record else None
+    except StageManifestError:
+        label = None
+    paths = [run.get("load_path")] if run.get("load_mode") == "resume_same_stage" else []
+    sessions = run.get(RESUME_SESSIONS_KEY)
+    if isinstance(sessions, list):
+        paths.extend(session.get("resume_load_path") for session in sessions if isinstance(session, dict))
+    # The latest session's checkpoint; already listed when record_resume_session recorded that session.
+    paths.append(run.get("resume_load_path"))
+    resumes: list[tuple[str, int | None]] = []
+    seen: set[str] = set()
+    for path in paths:
+        if not isinstance(path, str) or not path or path in seen:
+            continue
+        seen.add(path)
+        name = Path(path).name
+        stem = name[: -len(".zip")] if name.endswith(".zip") else name
+        match = _PERIODIC_CHECKPOINT_RE.match(stem)
+        continues = match is not None and not restarts and label in (None, match.group(1))
+        resumes.append((name, int(match.group(2)) if continues and match is not None else None))
+    return resumes
+
+
+def plot_command_tracking(
+    stage_dir: "str | Path",
+    *,
+    curriculum_kwargs: "dict[str, Any] | None" = None,
+    model_id: ModelId | None = None,
+    save_path: "str | Path | None" = None,
+    show: bool = False,
+) -> Any:
+    """A ``command_tracking/v1`` stage's tracking: commanded against achieved over panel episodes, and over training.
+
+    One column per chart episode of ``command_tracking_trace.csv``
+    (``reporting.command_tracking_trace``: the panel's first episode whose
+    reset drew a cruise command and its first that drew a stand), each with
+
+    1. the commanded speed against the achieved speed along the requested
+       heading (and the planar speed), with the velocity tolerance (the
+       stop-speed tolerance on a stand) and the start of the window the
+       gate averages over (2 s for the speed ratio, 1 s for the hold);
+    2. the commanded against the achieved yaw rate, with the yaw-rate
+       tolerance (the stop yaw-rate tolerance on a stand);
+    3. the heading error, with the heading tolerance and the first event's
+       settle deadline (1 s + |initial error| / yaw_rate_max + the tracking
+       window, decision D-D64); on a stand, the distance from the spawn
+       instead;
+
+    and the steps the gate's in-tolerance test holds shaded.  The plotted
+    lines are per step; under a tracking window (the measurement's
+    ``tracking_window_s`` above 0) the shaded band at a moving command is
+    judged on the window's means, the stride mean, so a swaying gait can be
+    shaded where its per-step line leaves the tolerance band.  The tolerances
+    and each episode's verdict are the command-tracking report's; a title
+    says whether the re-rolled episode's record equals the certified one.
+    Only the trace rows rolled on the report's handoff checkpoint are drawn
+    (``command_tracking_trace.trace_rows_of``): a trace of another pair, or
+    a trace without a report, is left out.
+    The bottom panel is the tracking fraction over training, the training
+    rollouts' mean of the env's in-tolerance flag (``diagnostics.npz``'s
+    ``tracking_in_tolerance``, all steps of a stochastic policy, both
+    families), against the profile's per-episode tracking bar; "not
+    recorded" when the file holds none.  The training rollouts run the
+    cruise ramp's commanded speeds (decision D-D62), not the end state the
+    panel and the bar are judged on, so when the recorded
+    ``stage_config.json`` task declares a ramp its window is shaded: there a
+    standing policy reads partly in tolerance at the ramp's slow commands,
+    and a walker's fraction can fall as the commands rise.  The shading
+    stops at the history's last rollout, so the axis follows the data on a
+    run shorter than its ramp, and the label then says the ramp continues
+    past the run.
+
+    Returns the figure, or ``None`` when the stage has neither a trace nor a
+    tracking history.  Report-only; reads the stage directory and writes
+    *save_path* only.
+    """
+    import math
+    import textwrap
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    from .curriculum.command_tracking_evidence import COMMAND_TRACKING_REPORT_JSON
+    from .curriculum.command_tracking_gate import (
+        SETTLE_BASE_S,
+        SPEED_SETTLE_S,
+        STAND_FAMILY,
+        STAND_SETTLE_S,
+    )
+    from .file_io import read_json_object
+    from .reporting.command_tracking_trace import (
+        COMMAND_TRACKING_TRACE_CSV,
+        read_command_tracking_trace,
+        trace_episodes,
+        trace_rows_of,
+    )
+
+    stage_dir = Path(stage_dir)
+    report = read_json_object(stage_dir / COMMAND_TRACKING_REPORT_JSON) or {}
+    trace = read_command_tracking_trace(stage_dir / COMMAND_TRACKING_TRACE_CSV) or []
+    current = trace_rows_of(trace, report)
+    if len(current) != len(trace):
+        logger.warning(
+            "%s: %d of %d trace rows were not rolled on the report's handoff checkpoint; they are not drawn",
+            stage_dir / COMMAND_TRACKING_TRACE_CSV,
+            len(trace) - len(current),
+            len(trace),
+        )
+    episodes = trace_episodes(current)
+    history = _command_tracking_history(stage_dir)
+    if not episodes and history is None:
+        return None
+    measurement = _mapping(report.get("measurement"))
+    tolerances = _mapping(measurement.get("tolerances"))
+    yaw_rate_max = measurement.get("yaw_rate_max")
+    window_s = measurement.get("tracking_window_s")
+    if isinstance(window_s, bool) or not isinstance(window_s, (int, float)) or not math.isfinite(float(window_s)):
+        window_s = 0.0
+    band_label = f"in tolerance (a {float(window_s):g} s window mean while moving)" if window_s > 0 else "in tolerance"
+    curriculum = dict(report.get("thresholds") or {})
+    curriculum.update(curriculum_kwargs or {})
+    evidence = {
+        int(entry["record"]["seed"]): entry
+        for entry in report.get("episode_evidence") or ()
+        if isinstance(entry, dict)
+        and isinstance(entry.get("record"), dict)
+        and isinstance(entry["record"].get("seed"), int)
+    }
+
+    def tolerance(name: str) -> float | None:
+        value = tolerances.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            return None
+        return float(value)
+
+    def column(rows: Sequence[Any], key: str) -> Any:
+        return np.asarray([float(row[key]) for row in rows], dtype=float)
+
+    columns = max(1, len(episodes))
+    panel_rows = 3 if episodes else 0
+    figure = plt.figure(figsize=(7.0 * columns, 2.6 * panel_rows + 3.0))
+    grid = figure.add_gridspec(panel_rows + 1, columns)
+    title = model_display_name(model_id) if model_id is not None else stage_dir.name
+    figure.suptitle(f"{title} – command tracking ({stage_dir.name})", fontsize=13, fontweight="bold")
+    for index, (seed, family, rows) in enumerate(episodes):
+        times = column(rows, "time_s")
+        commanded = column(rows, "desired_speed")
+        flags = [bool(row["in_tolerance"]) for row in rows]
+        stand = family == STAND_FAMILY
+        axes = [figure.add_subplot(grid[row, index]) for row in range(3)]
+        speed_axis, yaw_axis, third_axis = axes
+        speed_tolerance = tolerance("stop_speed_tolerance" if stand else "velocity_tolerance")
+        if speed_tolerance is not None:
+            low = np.zeros_like(commanded) if stand else commanded - speed_tolerance
+            speed_axis.fill_between(
+                times, low, commanded + speed_tolerance, color="0.88", step="post", linewidth=0, label="tolerance"
+            )
+        speed_axis.plot(times, commanded, color="0.2", linestyle="--", drawstyle="steps-post", label="commanded speed")
+        speed_axis.plot(times, column(rows, "speed_along_heading_mps"), color="C0", label="achieved, along the heading")
+        speed_axis.plot(
+            times, column(rows, "actual_speed"), color="C0", linewidth=0.8, alpha=0.45, label="achieved, planar"
+        )
+        window = STAND_SETTLE_S if stand else SPEED_SETTLE_S
+        speed_axis.axvline(window, color="0.5", linestyle=":", label=f"judged from {window:g} s")
+        speed_axis.set_ylabel("speed (m/s)")
+
+        commanded_yaw = column(rows, "command_yaw_rate")
+        yaw_tolerance = tolerance("stop_yaw_rate_tolerance" if stand else "yaw_rate_tolerance")
+        if yaw_tolerance is not None:
+            centre = np.zeros_like(commanded_yaw) if stand else commanded_yaw
+            yaw_axis.fill_between(
+                times,
+                centre - yaw_tolerance,
+                centre + yaw_tolerance,
+                color="0.88",
+                step="post",
+                linewidth=0,
+                label="tolerance",
+            )
+        yaw_axis.plot(times, commanded_yaw, color="0.2", linestyle="--", drawstyle="steps-post", label="commanded")
+        yaw_axis.plot(times, column(rows, "actual_yaw_rate"), color="C1", label="achieved")
+        yaw_axis.set_ylabel("yaw rate (rad/s)")
+
+        entry = evidence.get(seed) or {}
+        record = _mapping(entry.get("record"))
+        if stand:
+            third_axis.plot(times, column(rows, "course_progress_m"), color="C4", label="distance from the spawn")
+            third_axis.set_ylabel("m")
+        else:
+            heading_tolerance = tolerance("heading_tolerance")
+            if heading_tolerance is not None:
+                bound = math.degrees(heading_tolerance)
+                third_axis.axhspan(-bound, bound, color="0.88", linewidth=0, label="tolerance")
+            third_axis.plot(times, np.degrees(column(rows, "heading_error_rad")), color="C4", label="heading error")
+            initial = record.get("initial_heading_error_rad")
+            if isinstance(initial, (int, float)) and isinstance(yaw_rate_max, (int, float)) and yaw_rate_max > 0:
+                deadline = SETTLE_BASE_S + abs(float(initial)) / float(yaw_rate_max) + float(window_s)
+                third_axis.axvline(deadline, color="0.5", linestyle=":", label=f"settle deadline {deadline:.2f} s")
+            third_axis.axhline(0.0, color="0.7", linewidth=0.8)
+            third_axis.set_ylabel("heading error (deg)")
+        third_axis.set_xlabel("time (s)")
+
+        if "success" in entry:
+            failed = sorted({str(reason).split(":", 1)[0] for reason in entry.get("reasons") or ()})
+            shown = ", ".join(failed[:4]) + (f" and {len(failed) - 4} more" if len(failed) > 4 else "")
+            verdict = "passed" if entry["success"] else f"failed: {shown}"
+        else:
+            verdict = "not in the report"
+        matches = rows[0]["record_matches_report"] if rows else False
+        provenance = "the certified episode" if matches else "re-rolled; its record is not the report's"
+        speed_axis.set_title(
+            f"{family} episode, seed {seed}, commanded {commanded[0]:.3g} m/s ({provenance})\n"
+            + textwrap.fill(verdict, width=90),
+            fontsize=9,
+        )
+        for axis in axes:
+            # Over the tolerance bands, so the steps the gate's in-tolerance test holds stay visible.
+            for number, (start, end) in enumerate(_true_runs(times, flags)):
+                axis.axvspan(start, end, color="C2", alpha=0.15, linewidth=0, label=band_label if number == 0 else None)
+            axis.grid(alpha=0.3)
+            _safe_legend(axis, loc="upper right", fontsize=7)
+
+    training = figure.add_subplot(grid[panel_rows, :])
+    if history is not None:
+        timesteps, fraction = history
+        training.plot(timesteps / 1e6, fraction, color="C0", label="in-tolerance fraction of training steps")
+        recorded = timesteps[np.isfinite(timesteps)]
+        if recorded.size:
+            # The marker says where the recorded series starts (the first rollout's step).  A PPO continuation
+            # continues diagnostics.npz from the prior session's file (DiagnosticsCallback.seed_prior_diagnostics),
+            # so a continued stage's series normally starts where the run did; one that starts after a checkpoint
+            # the stage continued from holds no row from before it (the prior file was missing or unreadable, or
+            # the resume predates the continuation), and says so.  Any other same-stage resume (a SAC load, a
+            # checkpoint without a step count) restarted the step counter and seeded nothing, wherever its
+            # series starts: the steps before its checkpoint are not in this record, which says so first.
+            first = float(recorded.min())
+            label = f"training history recorded from step {first:,.0f}"
+            resumes = _recorded_same_stage_resumes(stage_dir)
+            restarted = [name for name, steps in resumes if steps is None]
+            resumed = [steps for _, steps in resumes if steps is not None and steps < first]
+            if restarted:
+                label += (
+                    f" (a resume from {restarted[-1]} restarted the step counter: the steps before that "
+                    "checkpoint are not in this record)"
+                )
+            elif resumed:
+                label += (
+                    f" (after the step-{min(resumed):,} checkpoint this stage resumed from: the rows before it "
+                    "were not continued)"
+                )
+            training.axvline(first / 1e6, color="C0", linestyle=":", linewidth=0.9, label=label)
+        bar_key = _TRACKING_BAR_KEYS.get(str(report.get("profile") or curriculum.get("profile")))
+        bar_value = curriculum.get(bar_key) if bar_key else None
+        if isinstance(bar_value, (int, float)) and not isinstance(bar_value, bool):
+            training.axhline(
+                float(bar_value),
+                color="C3",
+                linestyle="--",
+                label=f"{bar_key} {float(bar_value):.2f} (panel, after the settle)",
+            )
+        ramp = _recorded_cruise_ramp(stage_dir)
+        title = "Tracking fraction over training (training rollouts, the env's tolerances)"
+        if ramp is not None:
+            start_fraction, ramp_timesteps = ramp
+            label = f"cruise ramp: commanded speeds {start_fraction:g} to 1 x the end state"
+            # Clipped to the history's last rollout, so a run shorter than its ramp (a quick test) keeps the axis
+            # its data spans; the label says the ramp goes on past it.
+            last = float(recorded.max()) if recorded.size else float(ramp_timesteps)
+            if ramp_timesteps > last:
+                length = f"{ramp_timesteps / 1e6:.1f}M" if ramp_timesteps >= 1_000_000 else f"{ramp_timesteps / 1e3:g}k"
+                label += f" (ramp to {length} continues past the run)"
+            training.axvspan(
+                0.0,
+                min(float(ramp_timesteps), last) / 1e6,
+                color="0.6",
+                alpha=0.15,
+                linewidth=0,
+                label=label,
+            )
+            title = (
+                "Tracking fraction over training (training rollouts at the cruise ramp's commanded speeds, "
+                "the env's tolerances)"
+            )
+        training.set_ylim(-0.05, 1.05)
+        training.set_xlabel("steps (millions)")
+        training.set_ylabel("in-tolerance fraction")
+        training.set_title(title, fontsize=10)
+        training.grid(alpha=0.3)
+        _safe_legend(training, loc="lower right", fontsize=8)
+    else:
+        training.axis("off")
+        training.text(
+            0.5,
+            0.5,
+            "Tracking fraction over training: not recorded (diagnostics.npz holds no tracking_in_tolerance)",
+            ha="center",
+            va="center",
+            fontsize=10,
+            color="0.3",
+        )
+    figure.tight_layout()
+    if save_path is not None:
+        figure.savefig(save_path, dpi=120, bbox_inches="tight")
+        logger.info("Command tracking figure saved to: %s", save_path)
+    if not show:
+        plt.close(figure)
+    return figure
+
+
+#: The gated statistics of each profile the gate-progress view draws: ``(family, statistic, bar key, label)``.
+_COMMAND_GATE_STATISTICS: dict[str, tuple[tuple[str, str, str, str], ...]] = {
+    "walk": (
+        ("cruise", "survival_lcb", "min_cruise_survival_lcb", "cruise survival LCB95"),
+        ("cruise", "success_lcb", "min_cruise_success_lcb", "cruise success LCB95"),
+        ("stand", "success_fraction", "min_stand_success_fraction", "stand success fraction"),
+    ),
+    "follow": (
+        ("follow", "survival_lcb", "min_follow_survival_lcb", "follow survival LCB95"),
+        ("follow", "success_lcb", "min_follow_success_lcb", "follow success LCB95"),
+    ),
+}
+
+
+def _family_statistic(families: Any, family: str, statistic: str) -> float | None:
+    """One family's statistic from a ``CommandTrackingResult.as_dict()`` families list, or ``None``."""
+    import math
+
+    for block in families or ():
+        if isinstance(block, dict) and block.get("family") == family:
+            value = block.get(statistic)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                return None
+            return float(value)
+    return None
+
+
+def plot_command_gate_progress(
+    stage_dir: "str | Path",
+    *,
+    model_id: ModelId | None = None,
+    verdict: bool | None = None,
+    save_path: "str | Path | None" = None,
+    show: bool = False,
+) -> Any:
+    """A ``command_tracking/v1`` stage's gate-progress view: its gated statistics at each checkpoint against the bars.
+
+    One panel per gated statistic of the profile (walk: cruise survival and
+    success LCB95, stand success fraction; follow: survival and success
+    LCB95, and the paired difference against the reference when the gate
+    declares it).  Each panel has
+
+    * every handoff candidate the stage's choice ranked
+      (``models/handoff_choice.json``: ``robust_best_model``,
+      ``best_model``, the final pair) on the SELECTION panel, in the order
+      training saved them (each zip's ``num_timesteps``), a filled marker
+      for a candidate that passed and a ring for one that failed;
+    * the certified handoff on the CERTIFICATION panel
+      (``command_tracking_report.json``), a star;
+    * the gate's bar, dashed.
+
+    The last panel counts the certification panel's episodes failing each
+    criterion, per family: which clause holds the stage back.
+
+    The title states *verdict*, the stage's verdict (the judge's, which can
+    refuse a report that records a pass); without one it says what the
+    report records ("report records PASS"), never as the verdict.
+
+    Returns the figure, or ``None`` when the stage has no report.
+    Report-only; reads the stage directory and writes *save_path* only.
+    """
+    import math
+
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+
+    from .curriculum.checkpoints import HANDOFF_CHOICE_FILENAME
+    from .curriculum.command_tracking_evidence import COMMAND_TRACKING_REPORT_JSON
+    from .file_io import read_json_object
+    from .task_fingerprint import read_checkpoint_attribute
+
+    stage_dir = Path(stage_dir)
+    report = read_json_object(stage_dir / COMMAND_TRACKING_REPORT_JSON)
+    if report is None:
+        return None
+    profile = str(report.get("profile"))
+    thresholds = _mapping(report.get("thresholds"))
+    result = _mapping(report.get("result"))
+    choice = read_json_object(stage_dir / "models" / HANDOFF_CHOICE_FILENAME) or {}
+
+    candidates: list[tuple[str, int | None, dict[str, Any]]] = []
+    for entry in choice.get("candidates") or ():
+        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str):
+            continue
+        steps = read_checkpoint_attribute(stage_dir / "models" / f"{entry['name']}.zip", "num_timesteps")
+        candidates.append((entry["name"], int(steps) if isinstance(steps, (int, float)) else None, entry))
+    candidates.sort(key=lambda item: (item[1] is None, item[1] if item[1] is not None else 0))
+    checkpoint = _mapping(report.get("handoff")).get("checkpoint")
+    certified = (checkpoint if isinstance(checkpoint, str) else "").removesuffix(".zip") or "the handoff"
+
+    statistics = list(_COMMAND_GATE_STATISTICS.get(profile, ()))
+    paired_bar = thresholds.get("min_follow_reference_delta_lcb")
+    if profile == "follow" and paired_bar is not None:
+        statistics.append(("", "paired_delta_lcb", "min_follow_reference_delta_lcb", "paired success difference LCB95"))
+    panels = len(statistics) + 1
+    columns = 2
+    rows = math.ceil(panels / columns)
+    figure, axes = plt.subplots(rows, columns, figsize=(13, 3.8 * rows), squeeze=False)
+    title = model_display_name(model_id) if model_id is not None else stage_dir.name
+    if verdict is None:
+        stated = f"report records {'PASS' if report.get('passed') is True else 'FAIL'}"
+    else:
+        stated = "PASS" if verdict else "FAIL"
+    figure.suptitle(
+        f"{title} – {report.get('scored_gate_kind')} {profile} gate progress: {stated} ({stage_dir.name})",
+        fontsize=13,
+        fontweight="bold",
+    )
+    labels = [name if steps is None else f"{name}\n{steps:,} steps" for name, steps, _ in candidates]
+    names = [name for name, _, _ in candidates]
+    certified_x = names.index(certified) if certified in names else len(names)
+    if certified not in names:
+        labels.append(certified)
+    selection_start = choice.get("selection_seed_start")
+    for axis, (family, statistic, bar_key, label) in zip(axes.flat, statistics):
+        xs: list[int] = []
+        ys: list[float] = []
+        for x, (_name, _steps, entry) in enumerate(candidates):
+            value = _family_statistic(entry.get("families"), family, statistic)
+            if value is None:
+                axis.annotate("n/a", (x, 0.0), ha="center", fontsize=8, color="0.4")
+                continue
+            xs.append(x)
+            ys.append(value)
+            axis.plot(
+                [x],
+                [value],
+                marker="o",
+                markersize=8,
+                color="C0",
+                markerfacecolor="C0" if entry.get("passed") else "white",
+                linestyle="none",
+                label=f"selection panel (seeds from {selection_start})" if len(xs) == 1 else None,
+            )
+        if len(xs) > 1 and all(steps is not None for _, steps, _ in candidates):
+            axis.plot(xs, ys, color="C0", linewidth=1.0, alpha=0.5)
+        if statistic == "paired_delta_lcb":
+            value = result.get("paired_delta_lcb")
+            value = float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+        else:
+            value = _family_statistic(result.get("families"), family, statistic)
+        if value is not None:
+            axis.plot(
+                [certified_x],
+                [value],
+                marker="*",
+                markersize=14,
+                color="C3",
+                linestyle="none",
+                label=f"certified, {certified} (seeds from {report.get('seed_start')})",
+            )
+        bar = thresholds.get(bar_key)
+        if isinstance(bar, (int, float)) and not isinstance(bar, bool):
+            axis.axhline(float(bar), color="0.3", linestyle="--", linewidth=1.0, label=f"{bar_key} {float(bar):.2f}")
+        axis.set_xticks(range(len(labels)))
+        axis.set_xticklabels(labels, fontsize=8)
+        axis.set_xlim(-0.5, max(len(labels), 1) - 0.5)
+        axis.set_ylim(-1.05 if statistic == "paired_delta_lcb" else -0.05, 1.05)
+        axis.set_title(label, fontsize=10)
+        axis.grid(alpha=0.3)
+        _safe_legend(axis, loc="best", fontsize=7)
+
+    failures_axis = axes.flat[len(statistics)]
+    tallies = [
+        (f"{block.get('family')}: {criterion}", int(count), int(block.get("n_episodes") or 0))
+        for block in result.get("families") or ()
+        if isinstance(block, dict)
+        for criterion, count in sorted((block.get("criterion_failures") or {}).items())
+    ]
+    n_episodes = result.get("n_episodes")
+    if tallies:
+        positions = list(range(len(tallies)))
+        failures_axis.barh(positions, [count for _, count, _ in tallies], color="C3", alpha=0.7, height=0.6)
+        failures_axis.set_yticks(positions)
+        failures_axis.set_yticklabels([name for name, _, _ in tallies], fontsize=8)
+        failures_axis.invert_yaxis()
+        for position, (_, count, total) in zip(positions, tallies):
+            failures_axis.annotate(
+                f"{count} / {total}",
+                (count, position),
+                xytext=(4, 0),
+                textcoords="offset points",
+                va="center",
+                fontsize=8,
+            )
+        failures_axis.set_xlim(0, max(count for _, count, _ in tallies) * 1.25 + 0.5)
+        failures_axis.xaxis.set_major_locator(MaxNLocator(integer=True))
+        failures_axis.set_xlabel("episodes failing the criterion")
+        failures_axis.grid(axis="x", alpha=0.3)
+    else:
+        failures_axis.axis("off")
+        failures_axis.text(0.5, 0.5, "every episode passed every criterion", ha="center", va="center", color="0.3")
+    failures_axis.set_title(
+        f"Episodes failing each criterion (certification panel, {n_episodes} episodes)", fontsize=10
+    )
+    for axis in list(axes.flat)[panels:]:
+        axis.axis("off")
+    figure.tight_layout()
+    if save_path is not None:
+        figure.savefig(save_path, dpi=120, bbox_inches="tight")
+        logger.info("Command gate progress figure saved to: %s", save_path)
     if not show:
         plt.close(figure)
     return figure

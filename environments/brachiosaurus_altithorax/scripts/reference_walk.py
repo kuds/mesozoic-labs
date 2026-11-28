@@ -45,13 +45,7 @@ class ReferenceWalk(QuadrupedReferenceWalk):
 
 def run_walk(seed: int = 0, reset_noise: float = 0.0) -> tuple[EpisodeTrace, np.ndarray, np.ndarray]:
     """Measure nine strides plus startup using actual floor contacts at every physics substep."""
-    env = BrachiosaurusAltithoraxAnatomicalEnv(
-        reset_noise_scale=reset_noise,
-        food_distance_range=(50, 50),
-        food_lateral_range=(0, 0),
-        food_approach_weight=0,
-        food_reach_bonus=0,
-    )
+    env = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=reset_noise)
     try:
         env.max_episode_steps = round((START + 9 * PERIOD) / env.dt)
         recorder = SubstepContactRecorder(env, Morphology.from_env(env, MODEL), balance=True)

@@ -165,16 +165,21 @@ def assert_checkpoint_round_trip(model_id, algorithm, configs, stage, checkpoint
         plant_identity=identity,
     )
     try:
-        assert load_vecnorm_stats(stats, eval_env, current_plant=identity)
+        assert load_vecnorm_stats(stats, eval_env, current_plant=identity, command_mode="none")
         eval_env.training = False
         eval_env.norm_reward = False
         obs = eval_env.reset()
         expected = model.predict(obs, deterministic=True)[0]
         reloaded = getattr(sb3, algorithm.upper()).load(checkpoint, device="cpu")
         np.testing.assert_array_equal(expected, reloaded.predict(obs, deterministic=True)[0])
-        panels = eval_policy(model, eval_env, ["target_success"], n_episodes=2)
-        assert all(len(panel) == 2 and np.all(np.isfinite(panel)) for panel in panels)
-        assert all(0 < length <= 32 for length in panels[1])
+        # The Compsognathus declares no success key since the target-free revision: the success panel is empty
+        # and every other panel holds one finite value per episode.
+        success_keys = get_species_config(model_id).success_keys
+        assert success_keys == []
+        rewards, lengths, fwd_vels, successes, distances = eval_policy(model, eval_env, success_keys, n_episodes=2)
+        assert successes == []
+        assert all(len(panel) == 2 and np.all(np.isfinite(panel)) for panel in (rewards, lengths, fwd_vels, distances))
+        assert all(0 < length <= 32 for length in lengths)
     finally:
         eval_env.close()
 
@@ -185,7 +190,8 @@ def test_shared_trainer_all_stages_and_checkpoint_handoffs(model_id, algorithm, 
     config = get_species_config(model_id)
     stages = smoke_configs(model_id)
     previous = None
-    for stage in (1, 2, 3):
+    # Every advancing stage: stance then locomotion (the third, the target-reach hunt, left with decision D-D59).
+    for stage in (1, 2):
         directory = tmp_path / f"stage{stage}"
         ppo_updates.clear()
         model = train(

@@ -9,6 +9,7 @@ and MuJoCo only: no SB3 (the behaviour-transition check of the
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import inspect
 import pickle
@@ -44,6 +45,7 @@ from environments.shared.observation_noise import (
 )
 from environments.shared.paths import REPOSITORY_ROOT
 from environments.shared.plant_contract import (
+    PlantContractError,
     current_plant_identity,
     fingerprint_model_layers,
     load_plant_versions,
@@ -78,37 +80,31 @@ MODEL_STAGES = [
 #: Triceratops robot joins it (design record §8.9); every other model refuses the keys.
 OPTED_IN_OBSERVATION_NOISE: frozenset[ModelId] = frozenset()
 
-#: Each segment kind, the segment's name less its root or target label; longest first, so a suffix match is the kind.
+#: Each segment kind of the heading-free schemas, every model's since main's target-free revision (D-D59) removed the
+#: legacy schemas with their orientation, world-velocity and target segments: the segment's name less its root label,
+#: longest first, so a suffix match is the kind.  A segment of any other kind fails :func:`_kind`, so a new schema
+#: (commit 5's planned target schema among them) has to name its kinds here.
 KINDS = (
     "heading_linear_velocity",
-    "orientation_quaternion",
     "linear_acceleration",
     "projected_gravity",
     "angular_velocity",
-    "linear_velocity",
-    "direction_body",
     "joint_position",
     "joint_velocity",
     "foot_contact",
-    "direction",
-    "distance",
     "command",
 )
 
-#: The test table by segment kind: the robot's values of design record §7 where it has the kind, a std on both unit
-#: target directions so their renormalisation runs, and nothing on the distance or the command.
+#: The test table by segment kind: the robot's values of design record §7, the root's projected gravity (the one unit
+#: segment of a heading-free schema, so its renormalisation runs) among them, and nothing on the command.
 STD_BY_KIND = {
     "joint_position": 0.005,
     "joint_velocity": 0.05,
-    "orientation_quaternion": 0.02,
     "projected_gravity": 0.02,
     "angular_velocity": 0.02,
-    "linear_velocity": 0.02,
     "heading_linear_velocity": 0.02,
     "linear_acceleration": 0.2,
     "foot_contact": 2.5,
-    "direction": 0.01,
-    "direction_body": 0.01,
 }
 
 
@@ -210,7 +206,7 @@ def test_one_draw_covers_the_whole_width_so_a_segment_on_or_off_never_moves_anot
     # The floor: a noisy unit segment of zero length is divided by 1e-9, never by zero.
     degenerate = ObservationNoise(
         _segments(
-            ("prey_direction", 3, 1.0),
+            ("torso_projected_gravity", 3, 1.0),
         ),
         False,
     )
@@ -271,6 +267,25 @@ def test_a_layout_that_does_not_sum_to_the_observation_width_is_refused(stance_k
         env.close()
 
 
+@pytest.mark.parametrize("schema", ["bipedal-target/v1", "quadrupedal-target/v1", "bipedal-heading-free/v2"])
+def test_a_schema_that_is_not_heading_free_is_refused_by_the_segment_table_and_by_the_noise(stance_kwargs, schema):
+    """observation_segments refuses every schema but the heading-free ones with PlantContractError, so neither the
+    layout nor a noise resolved for an explicit schema (commit 5's planned target schema among them, design record
+    §3) names its segments by a heading-free table; the robot's own schema, named, is its default layout."""
+    env = NOISY_ROBOT(**stance_kwargs)
+    try:
+        refused = f"observation schema {re.escape(repr(schema))} is not one of the observation schemas"
+        with pytest.raises(PlantContractError, match=refused):
+            policy_layer.observation_segments(env.model, env, schema)
+        with pytest.raises(PlantContractError, match=refused):
+            observation_layout(env, schema)
+        with pytest.raises(PlantContractError, match=refused):
+            resolve_observation_noise(env, {"joint_position": 0.01}, False, schema=schema)
+        assert observation_layout(env, "bipedal-heading-free/v1") == observation_layout(env)
+    finally:
+        env.close()
+
+
 def test_an_env_of_no_manifest_model_has_no_schema_to_name_its_segments():
     with pytest.raises(ValueError, match="not the env class of a manifest model"):
         observation_schema(object())
@@ -287,13 +302,13 @@ def test_the_validated_noise_keeps_every_segment_in_order_with_its_std(stance_kw
         assert [(s.name, s.width) for s in noise.segments] == list(layout)
         assert noise.std_by_segment == {name: robot_table.get(name, 0.0) for name, _ in layout}
         assert [s.start for s in noise.segments] == list(np.cumsum([0, *[w for _, w in layout]])[:-1])
-        assert {s.name for s in noise.segments if s.renormalize} == {"pelvis_orientation_quaternion", "prey_direction"}
+        assert {s.name for s in noise.segments if s.renormalize} == {"pelvis_projected_gravity"}
         assert noise.width == env.observation_space.shape[0]
         # A table that leaves every unit segment out renormalises none (std 0 is never renormalised).
         partial = resolve_observation_noise(env, {"joint_position": 0.01}, False)
         assert not any(s.renormalize for s in partial.segments) and partial.unit_slices == ()
-        half = resolve_observation_noise(env, {"joint_position": 0.01, "prey_direction": 0.01}, False)
-        assert [s.name for s in half.segments if s.renormalize] == ["prey_direction"]
+        half = resolve_observation_noise(env, {"joint_position": 0.01, "pelvis_projected_gravity": 0.01}, False)
+        assert [s.name for s in half.segments if s.renormalize] == ["pelvis_projected_gravity"]
         assert resolve_observation_noise(env, None, False) is None
         assert (
             resolve_observation_noise(env, {"joint_position": 1}, np.bool_(False)).std_by_segment["joint_position"]
@@ -451,8 +466,8 @@ def test_marking_an_env_is_inert_while_the_noise_is_off(model_id):
 # ---------------------------------------------------------------------------------------------------- the layout
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=str)
 def test_the_layout_names_the_plant_contracts_segments_and_sums_to_the_observation_width(model_id):
-    """Names are observation_segments' and the policy payload's (the refactor records the very table); widths are
-    the segments' own but foot_contact's, which is the number of foot channels; they sum to the observation width."""
+    """Names and widths are observation_segments' and the policy payload's (the refactor records the very table);
+    foot_contact's width is the number of foot channels; they sum to the observation width."""
     env = species_registry.env_class(model_id)()
     try:
         version = load_plant_versions()[1][model_id]
@@ -462,13 +477,12 @@ def test_the_layout_names_the_plant_contracts_segments_and_sums_to_the_observati
         assert payload["observation_segments"] == segments
         layout = observation_layout(env)
         assert [name for name, _ in layout] == [segment["name"] for segment in segments]
+        assert [w for _, w in layout] == [policy_layer._segment_width(segment) for segment in segments]
+        floor = env._foot_observation_floor_geoms
         declared = env._foot_observation_groups
-        channels = len(declared if declared is not None else env._foot_sensor_groups)
-        for (name, width), segment in zip(layout, segments):
-            assert width == (channels if name == "foot_contact" else policy_layer._segment_width(segment)), name
+        channels = len(floor if floor is not None else declared if declared is not None else env._foot_sensor_groups)
+        assert dict(layout)["foot_contact"] == channels
         assert sum(width for _, width in layout) == env.observation_space.shape[0]
-        if version.observation_schema == policy_layer.HEADING_FREE_OBSERVATION_SCHEMA:
-            assert [w for _, w in layout] == [policy_layer._segment_width(segment) for segment in segments]
         # A subclass of the model's class (a test subclass, a behaviour env) reads the model's schema.
         assert observation_schema(NOISY_ENV_CLASSES[model_id].__new__(NOISY_ENV_CLASSES[model_id])) == (
             version.observation_schema
@@ -482,20 +496,22 @@ def _shift(array: np.ndarray, index: Any, delta: Any) -> None:
 
 
 #: Each source of the observation, perturbed on the plant contract's probe state, and the segment kinds it may feed.
+#: The orientation sensor and the root position feed no segment of a heading-free schema: perturbing them changes
+#: nothing.
 SOURCES = {
     "joint positions": (lambda env, data: _shift(data.qpos, slice(7, None), 0.0123), {"joint_position"}),
     "joint velocities": (lambda env, data: _shift(data.qvel, slice(6, None), 0.0123), {"joint_velocity"}),
     "root linear velocity": (
         lambda env, data: _shift(data.qvel, slice(0, 3), np.array([0.11, -0.07, 0.05])),
-        {"linear_velocity", "heading_linear_velocity"},
+        {"heading_linear_velocity"},
     ),
     "root orientation": (
         lambda env, data: _shift(data.qpos, slice(3, 7), np.array([0.05, -0.04, 0.03, 0.02])),
-        {"projected_gravity", "heading_linear_velocity", "direction_body"},
+        {"projected_gravity", "heading_linear_velocity"},
     ),
     "orientation sensor": (
         lambda env, data: _shift(data.sensordata, slice(env._sensor_quat_start, env._sensor_quat_start + 4), 0.1),
-        {"orientation_quaternion"},
+        set(),
     ),
     "gyro": (
         lambda env, data: _shift(data.sensordata, slice(env._sensor_gyro_start, env._sensor_gyro_start + 3), 0.1),
@@ -509,16 +525,28 @@ SOURCES = {
         lambda env, data: _shift(data.sensordata, sorted({a for group in env._foot_sensor_groups for a in group}), 0.5),
         {"foot_contact"},
     ),
+    # The probe state has no contacts, so a floor-contact reading (the Compsognathus robot's foot channels) is fed
+    # through the env's own reader, shadowed on the instance for this one observation.
+    "floor contacts": (
+        lambda env, data: setattr(
+            env, "_foot_floor_contact_forces", lambda: tuple(0.5 for _ in env._foot_observation_floor_geoms or ())
+        ),
+        {"foot_contact"},
+    ),
     "root position": (
         lambda env, data: _shift(data.xpos, env._root_body_id, np.array([0.1, -0.2, 0.05])),
-        {"direction", "direction_body", "distance"},
-    ),
-    "target position": (
-        lambda env, data: _shift(data.mocap_pos, 0, np.array([0.3, 0.2, -0.1])),
-        {"direction", "direction_body", "distance"},
+        set(),
     ),
     "command": (lambda env, data: setattr(env, "_command", env._command + np.float32(0.125)), {"command"}),
 }
+
+
+def _fed_kinds(env, source: str, kinds: set[str]) -> set[str]:
+    """The kinds *source* feeds on *env*: its foot channels read the touch sensors or the floor contacts, not both."""
+    floor = getattr(env, "_foot_observation_floor_geoms", None) is not None
+    if (source == "touch sensors" and floor) or (source == "floor contacts" and not floor):
+        return set()
+    return kinds
 
 
 def _probe_observation(env, edit=None) -> np.ndarray:
@@ -533,6 +561,7 @@ def _probe_observation(env, edit=None) -> np.ndarray:
         return np.asarray(env._get_obs(), dtype=np.float64)
     finally:
         env.data, env._command = saved
+        vars(env).pop("_foot_floor_contact_forces", None)
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=str)
@@ -545,7 +574,7 @@ def test_perturbing_each_source_on_the_probe_state_changes_only_its_segments_and
         fed: set[str] = set()
         for source, (edit, kinds) in SOURCES.items():
             changed = {names[index] for index in np.flatnonzero(_probe_observation(env, edit) != base)}
-            assert {_kind(name) for name in changed} == kinds & present, source
+            assert {_kind(name) for name in changed} == _fed_kinds(env, source, kinds) & present, source
             fed |= changed
         assert fed == set(names)
     finally:
@@ -555,7 +584,7 @@ def test_perturbing_each_source_on_the_probe_state_changes_only_its_segments_and
 # ---------------------------------------------------------------------------------------------------- the noise
 @pytest.mark.parametrize("model_id", [BRACHIOSAURUS_ALTITHORAX, ALLOSAURUS], ids=str)
 def test_each_segment_carries_its_std_and_the_unit_segments_stay_unit(model_id):
-    """The legacy (Brachiosaurus) and the heading-free (Allosaurus) schemas, the test table, reset until at least
+    """The quadrupedal (Brachiosaurus) and the bipedal (Allosaurus) heading-free schemas, the test table, reset until at least
     2000 noised steps: every component of a segment with a std carries it, within 5 / sqrt(2 n) of the setting (P6),
     and a mean within 5 std / sqrt(n); a segment without one is the clean observation exactly; each noised unit
     segment has norm 1 within 1e-6."""
@@ -595,47 +624,53 @@ def test_each_segment_carries_its_std_and_the_unit_segments_stay_unit(model_id):
         env.close()
 
 
-#: Per schema, the two unit segments: the test below noises the first and leaves the second out.
+#: Per schema, its one unit segment (main's target-free revision removed the target directions): the root's
+#: projected gravity.
 UNIT_SEGMENTS = {
-    BRACHIOSAURUS_ALTITHORAX: ["torso_orientation_quaternion", "food_direction"],
-    ALLOSAURUS: ["pelvis_projected_gravity", "target_direction_body"],
+    BRACHIOSAURUS_ALTITHORAX: ["torso_projected_gravity"],
+    ALLOSAURUS: ["pelvis_projected_gravity"],
 }
 
 
 @pytest.mark.parametrize("model_id", [BRACHIOSAURUS_ALTITHORAX, ALLOSAURUS], ids=str)
 def test_a_unit_segment_without_a_std_is_never_renormalised(model_id):
-    """Design record §7: a unit segment is renormalised only when its std is above 0, so one the table leaves out
-    (as the robot's own table leaves its target direction) is the clean observation exactly.  On the legacy and the
-    heading-free schema, one unit segment noised and the other left out: only the noised one is renormalised;
-    apply() passes the left-out one through untouched even where it is not of unit length; and over 300 noised
-    zero-action steps it equals _get_obs() bit for bit while the noised one has norm 1 within 1e-6."""
+    """Design record §7: a unit segment is renormalised only when its std is above 0, so one the table leaves out is
+    the clean observation exactly.  On the quadrupedal and the bipedal heading-free schema, whose one unit segment
+    is the root's projected gravity: left out of a noised table, it is not renormalised; apply() passes it through
+    untouched even where it is not of unit length; and over 300 noised zero-action steps it equals _get_obs() bit
+    for bit.  Noised, it has norm 1 within 1e-6 at every step."""
     env_kwargs = _first_stage_kwargs(model_id)
     probe = NOISY_ENV_CLASSES[model_id](**env_kwargs)
     units = [name for name, _ in observation_layout(probe) if name.endswith(UNIT_SEGMENT_SUFFIXES)]
     probe.close()
     assert units == UNIT_SEGMENTS[model_id]
-    noised, left_out = units
-    table = {"joint_position": 0.005, noised: 0.02}
-    env = NOISY_ENV_CLASSES[model_id](**env_kwargs, observation_noise_std=table, observation_noise_eval=True)
-    try:
-        segments = {segment.name: segment for segment in env._observation_noise.segments}
-        assert segments[noised].renormalize and segments[left_out].std == 0.0 and not segments[left_out].renormalize
-        unit, block = _segment_slice(env, noised), _segment_slice(env, left_out)
-        # apply() on an observation whose left-out unit segment has norm 0.5: a renormalisation would scale it to 1.
-        width = block.stop - block.start
-        synthetic = np.zeros(env._observation_noise.width, dtype=np.float32)
-        synthetic[block] = np.float32(0.5 / np.sqrt(width))
-        out = env._observation_noise.apply(synthetic, np.random.default_rng(0))
-        np.testing.assert_array_equal(out[block], synthetic[block])
-        env.reset(seed=11)
-        for _ in range(300):
-            obs, _, terminated, truncated, _ = env.step(_zeros(env))
-            np.testing.assert_array_equal(obs[block], env._get_obs()[block], err_msg=left_out)
-            assert abs(float(np.linalg.norm(obs[unit].astype(np.float64))) - 1.0) < 1e-6, noised
-            if terminated or truncated:
-                env.reset()
-    finally:
-        env.close()
+    (unit_name,) = units
+    for noised in (False, True):
+        table = {"joint_position": 0.005, **({unit_name: 0.02} if noised else {})}
+        env = NOISY_ENV_CLASSES[model_id](**env_kwargs, observation_noise_std=table, observation_noise_eval=True)
+        try:
+            segment = {segment.name: segment for segment in env._observation_noise.segments}[unit_name]
+            assert segment.renormalize is noised and (segment.std > 0.0) is noised
+            block = _segment_slice(env, unit_name)
+            if not noised:
+                # apply() on an observation whose left-out unit segment has norm 0.5: a renormalisation would
+                # scale it to 1.
+                width = block.stop - block.start
+                synthetic = np.zeros(env._observation_noise.width, dtype=np.float32)
+                synthetic[block] = np.float32(0.5 / np.sqrt(width))
+                out = env._observation_noise.apply(synthetic, np.random.default_rng(0))
+                np.testing.assert_array_equal(out[block], synthetic[block])
+            env.reset(seed=11)
+            for _ in range(300):
+                obs, _, terminated, truncated, _ = env.step(_zeros(env))
+                if noised:
+                    assert abs(float(np.linalg.norm(obs[block].astype(np.float64))) - 1.0) < 1e-6, unit_name
+                else:
+                    np.testing.assert_array_equal(obs[block], env._get_obs()[block], err_msg=unit_name)
+                if terminated or truncated:
+                    env.reset()
+        finally:
+            env.close()
 
 
 def _rollout(env, seeds, actions) -> list[list[bytes]]:
@@ -907,7 +942,7 @@ def test_a_behavior_env_noises_its_step_observations_and_never_its_reset(opted_i
     noisy = behavior_class(observation_noise_std=robot_table, observation_noise_eval=True)
     clean = behavior_class()
     try:
-        assert observation_schema(noisy) == "bipedal-target/v1"
+        assert observation_schema(noisy) == "bipedal-heading-free/v1"
         rows = []
         for env in (noisy, clean):
             obs, info = env.reset(seed=8)
@@ -925,19 +960,64 @@ def test_a_behavior_env_noises_its_step_observations_and_never_its_reset(opted_i
         clean.close()
 
 
+def _record_stand_block(env) -> list[dict[str, float]]:
+    """Shadow *env*'s ``_stand_block`` with one that records the weights of every stand block ``step()`` holds."""
+    held: list[dict[str, float]] = []
+    original = env._stand_block
+
+    @contextlib.contextmanager
+    def recording():
+        with original() as weights:
+            held.append(dict(weights))
+            yield weights
+
+    env._stand_block = recording
+    return held
+
+
+@pytest.mark.parametrize(
+    ("kind", "speed"),
+    [
+        pytest.param("behavior", 0.04, id="behavior"),
+        pytest.param("walk", 0.04, id="walk"),
+        pytest.param("walk", 0.0, id="walk-stand"),
+    ],
+)
 def test_set_direction_noises_the_observation_it_returns_exactly_when_the_episode_is_noised(
-    opted_in_robot, robot_table
+    opted_in_robot, robot_table, kind, speed
 ):
-    """The behaviour env's set_direction returns the observation the policy acts on next: in a noised episode it is
-    _get_obs() plus one draw of the noise's stream, as step()'s is (its command exact: never noised); otherwise it is
-    the very array _get_obs built, and the stream is not drawn."""
+    """BaseDinoEnv.set_direction, which a behaviour env and a live walk share, returns the observation the policy
+    acts on next: in a noised episode it is _get_obs() plus one draw of the noise's stream, as step()'s is (its
+    command exact: never noised); otherwise it is the very array _get_obs built, and the stream is not drawn.  The
+    step after it is noised the same way, a stand-block step included: on the walk, whose stage declares stand
+    weights, a zero speed is a live zero command, so step() holds the stand block (main's decision D-D62) around
+    the step body that noises."""
     from environments.shared.behavior_env import get_behavior_env_class
     from environments.shared.direction_commands import DirectionCommandConfig
 
-    behavior_class = get_behavior_env_class(ROBOT)
-    commands = DirectionCommandConfig(cruise_speed=0.04, speed_scale=0.06)
-    noisy = behavior_class(commands=commands, observation_noise_std=robot_table, observation_noise_eval=True)
-    quiet = behavior_class(commands=commands, observation_noise_std=robot_table)
+    if kind == "behavior":
+        behavior_class = get_behavior_env_class(ROBOT)
+        commands = DirectionCommandConfig(cruise_speed=0.04, speed_scale=0.06)
+        noisy = behavior_class(commands=commands, observation_noise_std=robot_table, observation_noise_eval=True)
+        quiet = behavior_class(commands=commands, observation_noise_std=robot_table)
+    else:
+        # The walk follows a live command on every model (main's decision D-D62).
+        walk = dict(load_stage_config(ROBOT, "locomotion")["env_kwargs"])
+        assert walk["command_mode"] != "none"
+        noisy = NOISY_ROBOT(**walk, observation_noise_std=robot_table, observation_noise_eval=True)
+        quiet = NOISY_ROBOT(**walk, observation_noise_std=robot_table)
+
+    def check(env, active, obs, clean, state) -> None:
+        """*obs* is *clean* plus exactly one draw of the stream from *state* when *active*, else *clean* itself."""
+        if active:
+            replay = np.random.Generator(np.random.PCG64())
+            replay.bit_generator.state = state
+            np.testing.assert_array_equal(obs, env._observation_noise.apply(clean, replay))
+            assert not np.array_equal(obs, clean)
+            assert env._observation_noise_rng.bit_generator.state == replay.bit_generator.state
+        else:
+            assert obs is clean and env._observation_noise_rng.bit_generator.state == state
+
     try:
         for env, active in ((noisy, True), (quiet, False)):
             built = _record_get_obs(env)
@@ -945,17 +1025,16 @@ def test_set_direction_noises_the_observation_it_returns_exactly_when_the_episod
             assert env.observation_noise_active is active
             env.step(_zeros(env))
             state = copy.deepcopy(env._observation_noise_rng.bit_generator.state)
-            obs = env.set_direction(env._heading() + np.pi / 4, 0.04)
-            clean = built[-1]
+            obs = env.set_direction(env._heading() + np.pi / 4, speed)
             np.testing.assert_array_equal(obs[-3:], env._command_state.normalized)
-            if active:
-                replay = np.random.Generator(np.random.PCG64())
-                replay.bit_generator.state = state
-                np.testing.assert_array_equal(obs, env._observation_noise.apply(clean, replay))
-                assert not np.array_equal(obs, clean)
-                assert env._observation_noise_rng.bit_generator.state == replay.bit_generator.state
-            else:
-                assert obs is clean and env._observation_noise_rng.bit_generator.state == state
+            check(env, active, obs, built[-1], state)
+            stand = kind == "walk" and speed == 0.0
+            assert env._live_zero_command() == stand and bool(env._stand_block_weights()) == stand
+            held = _record_stand_block(env)
+            state = copy.deepcopy(env._observation_noise_rng.bit_generator.state)
+            obs, *_ = env.step(_zeros(env))
+            check(env, active, obs, built[-1], state)
+            assert held == ([env._stand_weights] if stand else [])
     finally:
         noisy.close()
         quiet.close()
@@ -1104,7 +1183,7 @@ def test_an_existing_species_opting_in_keeps_every_committed_robot_stage_digest(
     golden = (REPOSITORY_ROOT / "configs" / "digest_snapshot.generated.txt").read_text(encoding="utf-8").splitlines()
     prefix = f"stage\t{ROBOT.species}\t{ROBOT.embodiment}\t"
     committed = [line for line in golden if line.startswith(prefix)]
-    assert out.errors == 0 and len(committed) == 28
+    assert out.errors == 0 and len(committed) == 21  # stance, recovery and locomotion, 7 lines each
     assert out.kept == committed
 
 

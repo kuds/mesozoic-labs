@@ -9,11 +9,13 @@ silently the moment either side moves.
 
 The layout
 ----------
-Generated, renderable artifacts are grouped by kind::
+Generated, renderable artifacts are grouped by kind (``docs/DRIVE_LAYOUT.md`` maps the
+whole run and stage directory)::
 
-    stage1/
+    NN_<stage_id>/  (01_stance/, 03_locomotion/, ...)
     ├── figures/    training_curves.png  foot_contacts.png  stance_diagnostics.png
     │   │           locomotion_health.png  behavioral_metrics.png  gate_progress.png
+    │   │           command_tracking.png  command_gate_progress.png  (command_tracking/v1 only)
     │   └── training_history/  01_outcomes.png ... 12_hip_roll.png  13_commands.png ... 20_gait_ledger.png
     │                          training_history.html  training_history.json
     ├── replays/    <species>_<embodiment>_<algo>_stage<N>_<label>.mp4  (+ _front/_side views)
@@ -46,9 +48,9 @@ indistinguishable from a semantic one in review.
 
 Reading old runs
 ----------------
-:func:`iter_replay_files` falls back to the legacy flat location, so the
-~35 existing runs on Drive keep resolving.  New runs write only the nested
-form; nothing rewrites history.
+:func:`iter_replay_files` falls back to the legacy flat location, so a
+stage written before ``replays/`` existed keeps resolving.  New runs write
+only the nested form; nothing rewrites history.
 """
 
 from __future__ import annotations

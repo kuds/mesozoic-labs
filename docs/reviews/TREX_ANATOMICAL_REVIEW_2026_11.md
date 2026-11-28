@@ -2,6 +2,14 @@
 
 **November 21, 2026 · MuJoCo 3.10.0 · physics r11 · visual r5 · policy interface r16**
 
+> **Status update (2026-11-23):** physics r12 (`configs/plant_versions.toml` note 24, decision D-D59) removed the
+> skull's 0.2 kg `head_bite` box with the prey, so the animal is 85.52 kg and weighs 838.95 N. On r12 the
+> noise-free statue settles with the pelvis about 0.69° nose-down (was 0.95°), its centre of mass 4.6 mm further back
+> and its smallest margin to the loaded contacts 58.5 mm (was 63.1 mm); the derived recovery push at 1.5 times
+> capture velocity is 159.7 N (was 165.6 N). Everything below was measured on r11. The Pilot4 replay command below
+> runs only in a checkout of `3368abe` or earlier: the current environment refuses the bite arguments and the prey
+> range the checkpoints' recorded config passes, and its observation is 59 values wide where theirs is 63.
+
 The revised 85.72 kg model stands on both feet and walks freely under joint control. Its hindlimb segment lengths now reflect measured adult proportions more closely. The original model already had a useful flexed stance, a spring-supported tail and separate touch sensors on three passive toes. Its visible capsule chain obscured the ribcage, skull, hands and feet. The largest remaining gait discrepancies are the wide track, lateral pelvic roll and a push-off that still carries most of the load on the plantar pad.
 
 ## Proportions and design

@@ -640,7 +640,7 @@ def load_sb3_checkpoint(
     allow_unnormalized: bool = False,
     plant_identity: Any = None,
     allow_legacy_plant: bool = False,
-    reseed_command_slice: bool = False,
+    hold_command_identity: bool = False,
 ) -> tuple[Any, Any, str | None]:
     """Return ``(model, normalizer, resolved_vecnorm_path)`` for a saved SB3 checkpoint.
 
@@ -670,19 +670,17 @@ def load_sb3_checkpoint(
     unreadable sidecar raises :class:`PolicyLoadError` naming the file; plant
     refusals propagate as ``PlantCompatibilityError``.
 
-    *reseed_command_slice* resets the trailing command slice of the loaded
-    ``obs_rms`` to mean 0 / var 1 (``command_frame.reseed_command_slice``).
-    It is for a sidecar whose command slice was never live -- a
-    ``command_mode = "none"`` parent scored under a live command, the same
-    case ``load_vecnorm_stats`` reseeds when such a parent is loaded into a
-    live node (BEHAVIOR_RECIPES_PLAN §4.6, invariant 8).  A checkpoint saved
-    by a live-command node already carries the slice statistics it trained
-    under; loading it with the flag would score the policy under a
-    normaliser it never saw, so the default stays ``False``.  No caller
-    passes it yet; the never-live case is the one
-    ``train_base._create_or_load_model`` recognises from the checkpoint's
-    recorded task fingerprint (no ``command`` section) before it neutralizes
-    a warm start's command columns.
+    The statistics are scored as saved: a checkpoint's own sidecar is the
+    normaliser its policy trained under.  Training holds the command slice at
+    identity since decision D-D60, so a sidecar saved since then carries it;
+    *hold_command_identity* re-imposes it (``command_frame.hold_command_identity``,
+    a no-op on such a sidecar) for one saved before the rule whose command
+    slice was never live -- a ``command_mode = "none"`` checkpoint scored
+    under a live command, whose zero-command statistics decayed toward
+    variance 0 and would clip a live command at ``clip_obs``.  No caller
+    passes it yet.  A sidecar of a recipe (``train_behaviors``), whose
+    command statistics keep updating (decision D-D3), would be scored under a
+    normaliser its policy never saw, so the default stays ``False``.
     """
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
@@ -730,10 +728,10 @@ def load_sb3_checkpoint(
         ) from exc
     normalizer.training = False
     normalizer.norm_reward = False
-    if reseed_command_slice:
-        from environments.shared.command_frame import reseed_command_slice as _reseed_command_slice
+    if hold_command_identity:
+        from environments.shared.command_frame import hold_command_identity as _hold_command_identity
 
-        _reseed_command_slice(normalizer.obs_rms)
+        _hold_command_identity(normalizer.obs_rms)
 
     if plant_identity is not None:
         from environments.shared.plant_contract import validate_model_plant

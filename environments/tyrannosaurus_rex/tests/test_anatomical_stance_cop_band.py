@@ -9,7 +9,8 @@ no task fingerprint, no recorded stage config, and the env never loads the band'
           full_price_load_share of the two limbs' floor load; 1 from min_load_share up; linear between
           (info <s>_cop_band_guard; <s>_cop_band_counted is 1 only at g_k = 1)
     q_k = g_k * exp(-(u_k / tolerance)^2)
-    reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps and only while the command is zero
+    reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps (a live walk pays it at a zero
+    command through its stand block, decision D-D62)
 
 The whole-foot CoP is the judge's K2b reading for the step (every floor contact of the limb over the step's
 substeps, span half-lengths), computed with the recorder's reduction fused into one pass per step, in the neutral
@@ -41,6 +42,7 @@ import pytest
 
 from environments.shared import symmetry as SY
 from environments.shared.config import load_stage_config, save_stage_config
+from environments.shared.direction_commands import stand_weights_of
 from environments.shared.floor_contact import reduction
 from environments.shared.floor_contact.morphology import Morphology
 from environments.shared.floor_contact.step_cop import StepCopReading
@@ -301,10 +303,14 @@ def test_off_it_moves_no_task_fingerprint_and_no_recorded_config(tmp_path, off_k
     explicit_off = {**off_kwargs, "stance_cop_band_weight": 0, "stance_cop_band_upper": 0.9}
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, "stance", env_kwargs=explicit_off) == base
     assert not set(OPTION_KEYS) & set(base["env"])
-    # Every stage that leaves it off keeps its committed fingerprint with the keys written out at off values.
+    # Every stage that leaves it off keeps its committed fingerprint with the keys written out at off values.  The
+    # walk pays it through its stand block (decision D-D62), which turns it on there.
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
-        if env_kwargs.get("stance_cop_band_weight", 0.0) == 0.0:
+        stand = stand_weights_of(env_kwargs.get("command_config"))
+        if entry.id == "locomotion":
+            assert stand["stance_cop_band_weight"] > 0.0 and env_kwargs.get("stance_cop_band_weight", 0.0) == 0.0
+        if env_kwargs.get("stance_cop_band_weight", 0.0) == 0.0 and stand.get("stance_cop_band_weight", 0.0) == 0.0:
             written = {**env_kwargs, "stance_cop_band_weight": 0.0, "stance_cop_band_tolerance": 0.5}
             committed = stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference)
             assert stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference, env_kwargs=written) == committed, entry.id
@@ -424,7 +430,9 @@ def test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_stat
         env.close()
 
 
-def test_the_gates_pay_nothing_at_or_before_the_settle_and_under_a_command(off_kwargs):
+def test_the_gate_pays_nothing_at_or_before_the_settle_whatever_the_command(off_kwargs):
+    """The settle gates the band; the command no longer does (decision D-D62): a live walk pays the band at a zero
+    command through its stand block (environments/shared/tests/test_walk_command_mechanism.py)."""
     env, base = _settled({**off_kwargs, **ON})
     try:
         edits = OPENED_ANKLES
@@ -437,7 +445,10 @@ def test_the_gates_pay_nothing_at_or_before_the_settle_and_under_a_command(off_k
         _pose(env, base, edits)
         env._command = np.array([0.0, 0.1, 0.0], dtype=env._command.dtype)
         _, info = env._get_reward_info(np.zeros(15))
-        assert info["reward_stance_cop_band"] == 0.0 and info["stance_cop_band_quality"] < 1.0
+        assert info["stance_cop_band_quality"] < 1.0
+        assert info["reward_stance_cop_band"] == pytest.approx(
+            -env.stance_cop_band_weight * (1.0 - info["stance_cop_band_quality"]), rel=1e-12
+        )
     finally:
         env.close()
 
@@ -495,7 +506,7 @@ def test_on_the_env_computes_the_pure_functions_values_byte_for_byte(off_kwargs,
             before = len(kept)
             _, _, terminated, truncated, info = env.step(rng.uniform(-0.2, 0.2, 15))
             assert len(kept) == before + 1  # one reading a step, the one the reward took
-            gate = env._step_count > env.stance_width_settle_steps and not np.any(env._command)
+            gate = env._step_count > env.stance_width_settle_steps
             rows.append((info, _pure_info(kept[-1], gate, kwargs)))
             if terminated or truncated:
                 break
@@ -617,25 +628,28 @@ def test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time():
 #: change: the 300-step test pins the env's values to the pure functions byte for byte.
 #: On r11, redistributing hindlimb length and widening the lateral digits alters the contact moments and
 #: measured limb loads. All band keys move. The same 60 steps cover 20 ramp foot-steps and 50 paid steps.
+#: Re-pinned for physics r12 (the 0.2 kg head_bite box removed from the skull with the hunt, decision D-D59), the
+#: band's code unchanged: the lighter head stands the statue further back, and every key but the two counted ones
+#: moves.  The same 60 steps still cover 20 ramp foot-steps (15 at guard 0) and 50 paid steps.
 GOLDEN_MUJOCO = "3.10.0"
 GOLDEN_STEPS = 60
 GOLDEN = {
     "l_cop_band_counted": "180b48735f6487974b9ada3609b1564309fc76d41bb20680c87832cac73fdf0f",
-    "l_cop_band_digit_share": "ac99d108e72c185ea3b0f8357d6ef069592e0dc16873304a7fe749625855cb25",
-    "l_cop_band_foot_cop": "4dca3bc7a2706d43b8ce2c6516d2dec7b68b9fc819bec9c3057989c443d91dfb",
-    "l_cop_band_guard": "45a0b365895a23b5a3565c18356246b37e2bcdb90b82f786ba4fe6dd10d8aea1",
-    "l_cop_band_load_share": "6078f2882c061e11c7d5a128ebdf8e363bb0ff25a653112c6c79a0d4a74ade2c",
-    "l_cop_band_pad_cop": "3d6ff25de91bd7486bafce04b15d4da5f63bb36d2016f1f77cccf8b35a161479",
-    "l_cop_band_quality": "ad83250c3043446bbb7def7c1988317f0f48adf0296bbe93966aa032176b8eab",
+    "l_cop_band_digit_share": "555928bc9f097d3ac06ae25d999aa38462f6c3e0ff088cdb3746bb17f37a5cfb",
+    "l_cop_band_foot_cop": "2e2ed8eaf50ea9a9b3a1d37a31d95f24d97522702f79a296c8ba4931a20c303f",
+    "l_cop_band_guard": "d4cc693f469c062ffabcb1c2bdf9aee7376227bb59c6e4d7da8fb7ab323f911e",
+    "l_cop_band_load_share": "c92ac4f20a5eef23d53fdfe9785ac0bc48755b79dbc1b45e3764870849606820",
+    "l_cop_band_pad_cop": "4b3e7dd601fb867da4785aa7fb85f1ac6e2d9792c9ba689ed2b94242cfce2acb",
+    "l_cop_band_quality": "fc18898ea7762b2325a8f937bef3ebd2f95e8a760dac0cb39463cbdd84fababe",
     "r_cop_band_counted": "a9c84afa603695a5aa9b72c9ded275d12015c80b174db528e96b8199daf8b583",
-    "r_cop_band_digit_share": "abaac9f7dba6ba8a1f1a65e1c63d928ed6a81870fd7dae29a8a7abb71941fec7",
-    "r_cop_band_foot_cop": "3500b580a794be9acab0a6e30fd5fbd8a24c6e97ddf6e9dabc8d8aabbad5ccf5",
-    "r_cop_band_guard": "db269b2ab5f794ca8a7dc611e7194b6a2c101edc30d3333319b7eb99a6f4c484",
-    "r_cop_band_load_share": "79aab64a12110f397ffe9eea4f0437d915052f2248a9f85eea027139a249549a",
-    "r_cop_band_pad_cop": "8dbdd7572ea63e3479521f54d3172c7854c277c0fe4bc34ddd8ff09df7e6e195",
-    "r_cop_band_quality": "3300670ee64d8c19f8d828fa66087a4786c79a84dde6eddac612433d03e6dda8",
-    "reward_stance_cop_band": "ab7584d969c96baa576ff2fea8575794795be3f66943ef22aa546e08f3a43668",
-    "stance_cop_band_quality": "c4bb0621fcc18e5a9887eeea3ac8ab8904aa177896bd69ef100a6c2fbfc21f14",
+    "r_cop_band_digit_share": "7739660ae796194f689161905411c4bdf1707643a13f6845dd37208a3097751a",
+    "r_cop_band_foot_cop": "b86bf1efe5a3727e0b44a3fc11794504bda83d9e0bc2c56ca0a460630b0e4551",
+    "r_cop_band_guard": "ec8771f8d812dcc385ef3bf622404a6da7cc5467df5fd950805ee7ec634aac2d",
+    "r_cop_band_load_share": "003601ac107a3aaeb8afffb7565d4be18cd9b69b8e02c6af1b5efe1e60b1123d",
+    "r_cop_band_pad_cop": "3dc04fe11a234bf0274f510e4f0316d1bd32239f1e6f2bd7db7bf469440dfb6d",
+    "r_cop_band_quality": "cfeb5b9bfd903eabe339e75c71c1b28fe6b6944a8e8e2d19a4d3e3e416e76267",
+    "reward_stance_cop_band": "9621d47ade8b59f679a3322892381eef3424488507df627a1e1f9e47615179b5",
+    "stance_cop_band_quality": "77da4ce5b5a6fffaf90ed7a20360f4d3d7b7d5c4b3759f882f7d0a107a71dc98",
 }
 
 
@@ -1071,7 +1085,7 @@ def test_guard_2_the_pad_band_prices_load_moved_onto_the_digits(off_kwargs):
 def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_kwargs, ramp):
     env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **ON, **ramp)
     try:
-        mirror = SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+        mirror = SY.build_env_mirror(env, SY.BIPEDAL_HEADING_FREE_SCHEMA)
         env.reset(seed=3052)
         for action in np.random.default_rng(2).uniform(-0.2, 0.2, (40, 15)):
             env.step(action)

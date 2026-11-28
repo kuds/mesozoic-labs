@@ -233,6 +233,31 @@ def test_unreadable_records_decide_nothing(log_base):
     assert excluded_run_reason(log_base / "absent") is None
 
 
+def test_the_records_form_agrees_with_the_stage_reader(log_base, monkeypatch):
+    """``excluded_stage_records_reason``, the form the run index calls on the records it has read once, gives
+    ``excluded_stage_reason``'s answer under rules (b), (c) and (d), and for a stage that counts."""
+    from environments.shared.file_io import read_json_object
+    from environments.shared.run_exclusions import excluded_stage_reason, excluded_stage_records_reason
+
+    runs = [
+        _run(log_base, "by_stage_record", seed=60, stage_commit=STANCE6_COMMIT),
+        _run(log_base, "by_handoff", seed=80),
+        _run(log_base, "by_lineage", seed=45, lineage={"parent_run_id": "stance7_r10LTSBpc_s80"}),
+        _run(log_base, "control", seed=43, commit=MAIN_COMMIT, stage_commit=MAIN_COMMIT),
+    ]
+    _exclude_handoff(monkeypatch, runs[1] / "01_stance")
+    answers = []
+    for run in runs:
+        stage_dir = run / "01_stance"
+        expected = excluded_stage_reason(stage_dir)
+        config = read_json_object(stage_dir / "stage_config.json")
+        verdict = read_json_object(stage_dir / "gate_verdict.json")
+        assert excluded_stage_records_reason(stage_dir.name, config, verdict) == expected, run.name
+        answers.append(expected is not None)
+    assert answers == [True, True, True, False]
+    assert excluded_stage_records_reason("01_stance", None, None) is None
+
+
 # ------------------------------------------------------------------------------------------------- replicate discovery
 
 
@@ -320,11 +345,10 @@ def test_reuse_rule_9_is_applied_at_a_followed_source(tmp_path):
 
 def _chain_and_configs():
     manifest = load_stage_manifest(TYRANNOSAURUS_REX)
-    chain = tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion", "behavior"))
+    chain = tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion"))
     configs = {
         1: {"env_kwargs": {}, "curriculum_kwargs": STANCE_CURRICULUM},
         2: {"env_kwargs": {}, "curriculum_kwargs": LOCOMOTION_CURRICULUM},
-        3: {"env_kwargs": {}, "curriculum_kwargs": {"gate_kind": "task_success/v1", "timesteps": 10}},
     }
     return chain, configs
 

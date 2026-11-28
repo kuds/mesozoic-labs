@@ -129,7 +129,7 @@ manifest table names, `environments.custom_dino.anatomical.env:CustomDinoAnatomi
 
 Create `configs/<species>/<embodiment>/stages.toml` declaring the model's recipe graph:
 one `[[stages]]` entry per node, in an order where every parent precedes its
-children. The committed Velociraptor manifest is the three-node template:
+children. The committed Velociraptor manifest is the two-node template:
 
 ```toml
 schema = "mesozoic.stage-manifest/v2"
@@ -148,37 +148,31 @@ legacy_number = 2
 warm_start_from = "stance"
 recipe = "walk"
 deliverable = true
-
-[[stages]]                       # id stays "behavior"; the task name (strike) is the TOML's [stage] name
-id = "behavior"
-config = "strike.toml"
-legacy_number = 3
-warm_start_from = "locomotion"
-recipe = "hunt"
-deliverable = true
 ```
 
 Per entry: `id` must match `^[a-z][a-z0-9_]*$` (`stance`, `recovery`,
 `locomotion` and `behavior` are reserved, and a numbered reserved id must
 declare its `legacy_number`); `config` is the stage TOML filename;
-`legacy_number` is one of the three historical numbers, absent on an id-only
-stage; `warm_start_from` names an **earlier** entry (a self or forward
+`legacy_number` is one of the historical numbers (1 for `stance`, 2 for
+`locomotion`; 3, the removed hunt's `behavior`, stays reserved), absent on an
+id-only stage; `warm_start_from` names an **earlier** entry (a self or forward
 reference is fatal); `deliverable = true` marks every node whose certified
 checkpoint is a published policy (a v2 manifest with no deliverable is fatal);
-and `recipe` is the behavior label (`stance`, `recover`, `walk`, `hunt`), equal
+and `recipe` is the behavior label (`stance`, `recover`, `walk`), equal
 to a stage id only when it resolves to that stage (a label naming another
-stage's id is fatal). A model with a recovery node uses the four-entry T-Rex
+stage's id is fatal). A model with a recovery node uses the three-entry T-Rex
 layout, where `recovery` (recipe `recover`, `warm_start_from = "stance"`, no
 legacy number) sits between stance and locomotion; `stance` labels the stance
 node alone on every model (decisions D-D35 and D-D38). `stand`, the stance
-label until D-D38, is refused at load, naming `stance`. See [Behavior Recipes](/docs/training/recipes) for how the
+label until D-D38, is refused at load, naming `stance`, and `hunt`, removed
+with the hunt nodes by decision D-D59, naming `walk`. See [Behavior Recipes](/docs/training/recipes) for how the
 manifest drives training and publication.
 
 ## Config Files
 
 Create the TOML configs the manifest names, one per training stage, under
 `configs/<species>/<embodiment>/`, each named by its stage with no number
-(`stance.toml`, `locomotion.toml`, `strike.toml`, ...). The stance stage's
+(`stance.toml`, `locomotion.toml`, ...). The stance stage's
 `stance.toml`:
 
 ```toml
@@ -222,7 +216,7 @@ display_name = "Custom dino"
 [species.custom_dino.embodiments.anatomical]
 tagline = "Small Bipedal Theropod"
 gait = "Bipedal"
-specialty = "Non-contact target reach"
+specialty = "Small-bodied bipedal walking"
 env_entrypoint = "environments.custom_dino.anatomical.env:CustomDinoAnatomicalEnv"
 model_path = "environments/custom_dino/anatomical/assets/custom_dino_anatomical.xml"
 training_backends = ["stable-baselines3"]
@@ -247,10 +241,15 @@ stating what "success" means for that checkpoint:
 [[species.custom_dino.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"                 # a recipe label, or a deliverable stage id
 backends = ["stable-baselines3"]
-key = "forward_velocity_gate"
-label = "Gated forward velocity (reward_and_length/v1)"
-definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: ..."
+key = "command_tracking"
+label = "Walk command tracking (command_tracking/v1)"
+definition = "The locomotion checkpoint the handoff choice selected clears the command_tracking/v1 walk panel: ..."
 ```
+
+Every committed walk states its deliverable this way since its node follows a live
+command (decision D-D62); `configs/species_manifest.toml` holds the full
+definitions. A walk that is still command-free and gated by
+`reward_and_length/v1` should say so in its definition instead.
 
 `deliverable` resolves exactly as the training notebook's `BEHAVIOR` knob
 does: a recipe label names its deepest deliverable in manifest order (`"stance"`
@@ -297,3 +296,10 @@ python -m environments.shared.species_catalog --check
 The check also confirms that every implemented model is represented in the
 manifest and that all declared configs, notebooks, videos, and summaries are
 valid.
+
+The model's animal page also needs a still image and a rotating view, which
+the generator does not make: the still is
+`website/static/img/animals/<species>-<embodiment>.webp`, and
+`python website/scripts/render_turntables.py <species>-<embodiment>` renders
+the view from the model's MJCF into `website/static/videos/turntables/`.
+`npm test` in `website/` fails for a catalog model without them.

@@ -14,12 +14,15 @@ description = "Hold an upright stance with foot support"
 frame_skip = 10
 max_episode_steps = 1000
 reset_noise_scale = 0.01
-reset_height_noise_scale = 0.0
 forward_vel_max = 0.25
 fall_penalty = -25.0
 energy_penalty_weight = 0.02
 smoothness_weight = 0.02
 spin_penalty_weight = 0.02
+# lateral_penalty_weight and heading_weight read the episode's reference heading, the spawn's
+# own forward (BaseDinoEnv.reset). Until the target left the scene they read the bearing to a
+# target spawned 0.8-1.2 m ahead with no lateral offset:
+# the same axis on this plant, which spawns at the origin facing +x.
 lateral_penalty_weight = 0.1
 max_tilt_angle = 0.7
 forward_vel_weight = 0.0
@@ -30,10 +33,6 @@ home_pose_weight = 0.15
 drift_penalty_weight = 0.5
 heading_weight = 0.0
 gait_symmetry_weight = 0.0
-target_approach_weight = 0.0
-target_reach_bonus = 0.0
-prey_distance_range = [0.8, 1.2]
-prey_lateral_range = [0.0, 0.0]
 # Stance-quality terms (CompsognathusLongipesAnatomicalEnv; decision D-D26), added with physics r2 and policy interface r3
 # (plant_versions note 15). Every one is inert at its constructor default, which reproduces CompsognathusLongipesEnv's reward
 # bit for bit; recovery.toml inherits them (`extends`). Each weight is MEASURED by re-scoring recorded rollouts of the
@@ -344,8 +343,8 @@ timesteps = 11000000
 # adopted 2026-10-11, as on the trex; docs/HEADING_INVARIANCE_DESIGN_2026_10.md).
 # The bars and rails above and below are v2's, unchanged, applied at each of
 # six whole-scene turns of the certification panel (-90, -45, 0, 45, 90 and
-# 180 degrees, protocol whole_scene_yaw/v1: the animal, the target and the
-# episode's reference direction turned together), each heading against the
+# 180 degrees, protocol whole_scene_yaw/v1: the animal and the episode's
+# reference heading turned together), each heading against the
 # statue rolled at it; the certificate passes only when every heading passes
 # and the bound on seeds clean at EVERY heading clears the bar. So
 # min_eval_episodes and min_clean_stance_lcb each say two things: the seeds
@@ -540,12 +539,14 @@ max_window_peak_floor_force_bw = 2.0     # The window's peak summed floor force,
 # Physics r3 zero-action stance: all 40 seeds (3042–3081) completed 1,000 steps.
 # Mean standing return 4574.4, SD 4.5. The fixed rail is 60% of this mean,
 # rounded to the nearest 10. The ratio rail uses each report's paired control.
+# Physics r4 (the prey removed, plant_versions note 24; dynamics bit-identical)
+# measured the same: 4574.38 +/- 4.51, 40/40 (seed 3042, reset noise 0.01).
 min_avg_reward = 2740.0
 min_avg_reward_statue_ratio = 0.60
 collapse_peak_floor_reference = 4574.4
 # Deliberately omit a collapse floor until learning runs on this anatomy
 # establish a peak-return threshold for the shared early-stopping detector.
-statue_constants_physics_revision = 3
+statue_constants_physics_revision = 4
                                          # test_statue_constant_freshness.py cross-checks this against the plant
                                          # manifest. Update it WITH the re-measurement, never alone.
 required_consecutive = 3                 # Scheduler hysteresis ONLY. Under the floor-truth kinds (stance_quality/v2

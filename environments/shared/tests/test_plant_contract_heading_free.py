@@ -1,18 +1,25 @@
-"""The plant contract on the ``bipedal-target-heading-free/v1`` schema (plant_versions note 18, D-D31).
+"""The plant contract on the heading-free schemas (plant_versions note 18, D-D31; every model since the target-free
+revision).
 
-The T-Rex (policy interface r14) and the anatomical Compsognathus (r4) are the
-schema's two species.  Its policy-interface payload differs from the legacy
-schemas' in four ways, each pinned here: the observation segments name their
-frames, sources and thresholds and describe the feet per foot (the velociraptor's
-per site since its policy interface r14, plant_versions note 22), so their widths
-sum to the observation width (checked, with the command last); the frame
-helpers ``_get_obs`` calls are hashed beside it
+The T-Rex, the anatomical Compsognathus, the velociraptor and the Allosaurus
+carry the biped schema ``bipedal-heading-free/v1`` (before the target-free
+revision ``bipedal-target-heading-free/v1``, which also carried the target
+direction and distance); the robot joined them in that revision, and the two
+quadrupeds took ``quadrupedal-heading-free/v1``, the same segments on the
+torso.  The
+policy-interface payload is pinned here in four ways: the observation segments
+name their frames, sources and thresholds and describe the feet per foot (the
+velociraptor's per site since its policy interface r14, plant_versions note 22;
+the robot's as floor-contact force since its r4), so their widths sum to the
+observation width (checked, with the command last); the frame helpers
+``_get_obs`` calls are hashed beside it
 (``interface_implementations.heading_free_observation``), so editing one moves
-the digest; the schema is SB3-only, and a jax-mjx declaration is refused; and
+the digest; the schemas are SB3-only, and a jax-mjx declaration is refused; and
 the synthetic probe's non-unit quaternion is normalized, so the probe still
 exercises a real tilt.  The observation-ablation script's T-Rex slices are
-checked against the same segments.  The legacy schemas keep their payloads
-(the digest snapshot pins every other species' lines).
+checked against the same segments.  A world-frame or target schema, a plant
+with a mocap body, and floor-contact foot channels that are not disjoint groups
+of the animal's geoms, are refused.
 """
 
 from __future__ import annotations
@@ -20,11 +27,19 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from environments.allosaurus_fragilis.anatomical.env import AllosaurusFragilisAnatomicalEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared import heading_observation
 from environments.shared.command_frame import COMMAND_SEGMENT_NAME
-from environments.shared.heading_observation import HEADING_FREE_FUNCTIONS, HEADING_FREE_OBSERVATION_SCHEMA
+from environments.shared.heading_observation import (
+    BIPEDAL_HEADING_FREE_SCHEMA,
+    HEADING_FREE_FUNCTIONS,
+    HEADING_FREE_ROOT_LABELS,
+    QUADRUPEDAL_HEADING_FREE_SCHEMA,
+)
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     POLICY_INTERFACE_SCHEMA,
@@ -41,16 +56,27 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+QUADRUPEDS = {BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS}
 
+#: Every model whose feet read touch sensors (the robot's read floor contact: its own test below).
 HEADING_FREE = (
     pytest.param(TYRANNOSAURUS_REX, TyrannosaurusRexAnatomicalEnv, id="tyrannosaurus_rex-anatomical"),
     pytest.param(COMPSOGNATHUS_LONGIPES, CompsognathusLongipesAnatomicalEnv, id="compsognathus_longipes-anatomical"),
     pytest.param(
         VELOCIRAPTOR_MONGOLIENSIS, VelociraptorMongoliensisAnatomicalEnv, id="velociraptor_mongoliensis-anatomical"
     ),
+    pytest.param(ALLOSAURUS_FRAGILIS, AllosaurusFragilisAnatomicalEnv, id="allosaurus_fragilis-anatomical"),
+    pytest.param(
+        BRACHIOSAURUS_ALTITHORAX, BrachiosaurusAltithoraxAnatomicalEnv, id="brachiosaurus_altithorax-anatomical"
+    ),
+    pytest.param(DIBOTHROSUCHUS_ELAPHROS, DibothrosuchusElaphrosAnatomicalEnv, id="dibothrosuchus_elaphros-anatomical"),
 )
-#: Each model's foot-contact channels' touch-sensor groups, right foot first: the T-Rex sums its plantar pad and
-#: three digits per foot; the velociraptor observes each of its six sensors as its own channel.
+#: Each model's foot-contact channels' touch-sensor groups, right foot first (the quadrupeds' front right, front
+#: left, rear right, rear left): the T-Rex sums its plantar pad and three digits per foot, the brachiosaurus its
+#: pad and metapodial per leg; the velociraptor observes each of its six sensors as its own channel.
 FOOT_GROUPS = {
     TYRANNOSAURUS_REX: [
         ["r_foot_touch", "r_toe_d2_touch", "r_toe_d3_touch", "r_toe_d4_touch"],
@@ -67,7 +93,19 @@ FOOT_GROUPS = {
         ["l_toe_d3_touch"],
         ["l_toe_d4_touch"],
     ],
+    ALLOSAURUS_FRAGILIS: [["r_foot_touch"], ["l_foot_touch"]],
+    BRACHIOSAURUS_ALTITHORAX: [
+        ["fr_foot_touch", "fr_meta_touch"],
+        ["fl_foot_touch", "fl_meta_touch"],
+        ["rr_foot_touch", "rr_meta_touch"],
+        ["rl_foot_touch", "rl_meta_touch"],
+    ],
+    DIBOTHROSUCHUS_ELAPHROS: [["fr_foot_touch"], ["fl_foot_touch"], ["rr_foot_touch"], ["rl_foot_touch"]],
 }
+
+
+def _schema(model_id: ModelId) -> str:
+    return QUADRUPEDAL_HEADING_FREE_SCHEMA if model_id in QUADRUPEDS else BIPEDAL_HEADING_FREE_SCHEMA
 
 
 def _payload(model_id: ModelId, env, **kwargs):
@@ -94,32 +132,41 @@ def animal(request):
 
 def test_heading_free_payload_records_segments_frames_and_helper(animal):
     model_id, env = animal
-    assert load_plant_versions()[1][model_id].observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
+    schema = _schema(model_id)
+    root = HEADING_FREE_ROOT_LABELS[schema]
+    assert load_plant_versions()[1][model_id].observation_schema == schema
     payload = _payload(model_id, env)
-    assert payload["observation_schema"] == HEADING_FREE_OBSERVATION_SCHEMA
+    assert payload["observation_schema"] == schema
     segments = {segment["name"]: segment for segment in payload["observation_segments"]}
-    assert list(segments)[-1] == COMMAND_SEGMENT_NAME
-    assert "pelvis_orientation_quaternion" not in segments and "prey_direction" not in segments
-    assert segments["pelvis_projected_gravity"] == {
-        "name": "pelvis_projected_gravity",
+    assert list(segments) == [
+        "joint_position",
+        "joint_velocity",
+        f"{root}_projected_gravity",
+        f"{root}_angular_velocity",
+        f"{root}_heading_linear_velocity",
+        f"{root}_linear_acceleration",
+        "foot_contact",
+        COMMAND_SEGMENT_NAME,
+    ]
+    assert segments[f"{root}_projected_gravity"] == {
+        "name": f"{root}_projected_gravity",
         "width": 3,
-        "frame": "pelvis",
+        "frame": root,
         "source": "qpos[3:7]",
         "convention": "unit-down",
         "normalization_floor": "1e-12",
     }
-    assert segments["pelvis_heading_linear_velocity"] == {
-        "name": "pelvis_heading_linear_velocity",
+    assert segments[f"{root}_heading_linear_velocity"] == {
+        "name": f"{root}_heading_linear_velocity",
         "width": 3,
         "components": ["forward", "left", "up"],
-        "frame": "gravity-aligned-pelvis-heading",
+        "frame": f"gravity-aligned-{root}-heading",
         "source": "qvel[0:3]",
-        "fallback": "horizontal-pelvis-y-rotated-clockwise-90",
+        "fallback": f"horizontal-{root}-y-rotated-clockwise-90",
         "fallback_threshold": "1e-08",
     }
-    assert segments["pelvis_angular_velocity"]["frame"] == "gyro-site"
-    assert segments["pelvis_linear_acceleration"]["frame"] == "accelerometer-site"
-    assert segments["prey_direction_body"]["frame"] == "pelvis"
+    assert segments[f"{root}_angular_velocity"]["frame"] == "gyro-site"
+    assert segments[f"{root}_linear_acceleration"]["frame"] == "accelerometer-site"
     groups = FOOT_GROUPS[model_id]
     assert segments["foot_contact"] == {"name": "foot_contact", "width": len(groups), "groups": groups}
     widths = [stop.stop - stop.start for stop in _offsets(payload).values()]
@@ -135,16 +182,97 @@ def test_heading_free_payload_records_segments_frames_and_helper(animal):
     assert payload["backend_observation_equal"] is None
     # The T-Rex's low-pass filter pins stay in its interface after it left the frozen MJX core.
     assert ("action_low_pass_filter" in implementations) is (model_id == TYRANNOSAURUS_REX)
+    # Only an embodiment whose feet read floor contact hashes the floor-contact reading.
+    assert "foot_floor_contact_observation" not in implementations
 
 
-def test_the_legacy_schemas_keep_their_layout():
-    """The robot (and every other species) stays on its world-frame layout and hashes no heading helper."""
+def test_the_robot_reads_the_biped_schema_with_floor_contact_feet():
+    """The robot left its world-frame layout in the target-free revision (policy interface r4): the biped schema's
+    segments, each foot the normal force of its sole against the floor alone (a sole resting on the other foot reads
+    0 N), with that reading hashed beside the heading helpers."""
     with CompsognathusLongipesRobotEnv(reset_noise_scale=0.0) as env:
         payload = _payload(COMPSOGNATHUS_LONGIPES_ROBOT, env)
-    names = [segment["name"] for segment in payload["observation_segments"]]
-    assert names[2] == "pelvis_orientation_quaternion" and "prey_direction" in names
-    assert "heading_free_observation" not in payload["interface_implementations"]
-    assert payload["observation"]["shape"] == [46]
+    assert payload["observation_schema"] == BIPEDAL_HEADING_FREE_SCHEMA
+    segments = {segment["name"]: segment for segment in payload["observation_segments"]}
+    assert list(segments)[2:] == [
+        "pelvis_projected_gravity",
+        "pelvis_angular_velocity",
+        "pelvis_heading_linear_velocity",
+        "pelvis_linear_acceleration",
+        "foot_contact",
+        COMMAND_SEGMENT_NAME,
+    ]
+    assert segments["foot_contact"] == {
+        "name": "foot_contact",
+        "width": 2,
+        "source": "floor-contact-normal-force",
+        "floor_geom": "floor",
+        "geom_groups": [["right_sole"], ["left_sole"]],
+    }
+    implementations = payload["interface_implementations"]
+    assert set(implementations["heading_free_observation"]) == set(HEADING_FREE_FUNCTIONS)
+    assert implementations["foot_floor_contact_observation"]["qualname"] == "BaseDinoEnv._foot_floor_contact_forces"
+    assert payload["observation"]["shape"] == [41]
+
+
+def _no_floor_channel(model, groups):
+    return ()
+
+
+def _an_empty_floor_channel(model, groups):
+    return (*groups, ())
+
+
+def _a_geom_off_the_model(model, groups):
+    return (groups[0], (model.ngeom,))
+
+
+def _the_floor_itself(model, groups):
+    return (groups[0], (model.geom("floor").id,))
+
+
+def _a_sole_in_both_channels(model, groups):
+    return (groups[0], (*groups[1], *groups[0]))
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [_no_floor_channel, _an_empty_floor_channel, _a_geom_off_the_model, _the_floor_itself, _a_sole_in_both_channels],
+    ids=["none", "empty", "off-model", "floor", "shared"],
+)
+def test_the_floor_contact_channels_must_be_disjoint_groups_of_the_animals_geoms(monkeypatch, edit):
+    """``_foot_floor_contact_forces`` credits a geom named in two channels to the last of them only, and a channel
+    naming the floor geom reads nothing for it, so the contract refuses those groups, as it refuses no channel, an
+    empty channel or a geom the model does not have."""
+    with CompsognathusLongipesRobotEnv(reset_noise_scale=0.0) as env:
+        monkeypatch.setattr(env, "_foot_observation_floor_geoms", edit(env.model, env._foot_observation_floor_geoms))
+        with pytest.raises(PlantContractError, match="needs disjoint, non-empty groups of the model's geoms"):
+            _payload(COMPSOGNATHUS_LONGIPES_ROBOT, env)
+
+
+@pytest.mark.parametrize("schema", ["bipedal-target/v1", "bipedal-target-heading-free/v1", "quadrupedal-target/v1"])
+def test_a_world_frame_or_target_schema_is_refused(schema):
+    """The world-frame and target schemas went with every scene's target: a plant declaring one is refused."""
+    import dataclasses
+
+    with TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0) as env:
+        version = dataclasses.replace(load_plant_versions()[1][TYRANNOSAURUS_REX], observation_schema=schema)
+        with pytest.raises(PlantContractError, match=f"declares observation schema '{schema}'"):
+            policy_layer._policy_interface_payload(env.model, env, version)
+
+
+def test_a_plant_with_a_mocap_body_is_refused():
+    """No scene carries a mocap body: one added back (a target marker, say) is refused by name."""
+    import mujoco
+
+    with TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0) as env:
+        spec = mujoco.MjSpec.from_file(str(env.MODEL_PATH))
+        marker = spec.worldbody.add_body(name="marker", mocap=True, pos=[8.0, 0.0, 0.5])
+        marker.add_site(name="marker_site")
+        model = spec.compile()
+        assert model.nmocap == 1
+        with pytest.raises(PlantContractError, match=r"defines 1 mocap bodies \['marker'\]"):
+            policy_layer._policy_interface_payload(model, env, load_plant_versions()[1][TYRANNOSAURUS_REX])
 
 
 def test_editing_a_heading_helper_moves_the_policy_digest(animal, monkeypatch):
@@ -272,7 +400,8 @@ def test_heading_free_probe_normalizes_the_synthetic_quaternion(animal, monkeypa
     monkeypatch.setattr(policy_layer, "_deterministic_probe_data", scaled)
     after = _payload(model_id, env)
     np.testing.assert_array_equal(after["observation_probe"]["values"], before["observation_probe"]["values"])
-    gravity = np.asarray(before["observation_probe"]["values"])[_offsets(before)["pelvis_projected_gravity"]]
+    root = HEADING_FREE_ROOT_LABELS[_schema(model_id)]
+    gravity = np.asarray(before["observation_probe"]["values"])[_offsets(before)[f"{root}_projected_gravity"]]
     assert np.linalg.norm(gravity) == pytest.approx(1.0, abs=1e-5)
     assert np.max(np.abs(gravity - [0.0, 0.0, -1.0])) > 0.5
 
@@ -283,8 +412,6 @@ def test_observation_ablation_slices_match_segments():
     table = observation_ablation_report.SLICES[TYRANNOSAURUS_REX]
     expected = {
         "root_linvel": "pelvis_heading_linear_velocity",
-        "target_dir": "prey_direction_body",
-        "target_dist": "prey_distance",
         "command": COMMAND_SEGMENT_NAME,
     }
     assert set(table) == set(expected)

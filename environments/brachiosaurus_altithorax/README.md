@@ -2,8 +2,8 @@
 
 A sauropod-inspired quadruped with a long, articulated neck, a tapering tail and shoulders that stand higher than its
 hips. It walks with a slow four-beat, lateral-sequence gait that keeps at least two feet on the ground. The model is
-for learning to stand, to walk, and to reach food: bringing the head tip to an elevated food target. It is a research
-abstraction at model scale, not a validated model of how the animal moved.
+for learning to stand and to walk. It is a research abstraction at model scale, not a validated model of how the
+animal moved.
 
 ## Models
 
@@ -90,9 +90,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then food reach, each warm-started from its parent in `stages.toml` and run with
-the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
-missing:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. The food reach that followed locomotion was removed with every hunt node (decision D-D59). To reuse the
+certified stance of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical \
@@ -100,37 +100,63 @@ python -m environments.shared.train --species brachiosaurus_altithorax --embodim
 ```
 
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "brachiosaurus_altithorax"`,
-`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"` or `"walk"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
 
 Species notes:
 
-- **Published results.** The published results and training clips predate physics revision 6, so a policy for the
-  current model must be trained and evaluated again. Checkpoints from policy interface r10 or earlier fail the plant
-  check and cannot seed a warm start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
-- **Reference walk speed.** The reference walk is slower than the locomotion gate's minimum speed. It shows what the
-  plant can do mechanically, not a gait that would pass the gate.
+- **Published clips.** The published training clips predate physics revision 6, so a policy for the current model
+  must be trained and evaluated again. The 2026-07-18 result summary they came with was deleted with the hunt nodes
+  (decision D-D59; `results/README.md`). Checkpoints from policy interface r11 or earlier fail the plant
+  check and cannot seed a warm start or `--trunk-from`: r11 declared the model SB3-only (note 23), and r12 removed the
+  food and made the observation heading-free (`configs/plant_versions.toml`).
+- **Reference walk speed.** The reference walk (about 0.35 m/s) sits just below the walk's commanded cruise range
+  (0.375-0.75 m/s). At a command it matches it passes the whole walk gate since decision D-D64 (it failed the tracking
+  bars when they were scored per step), but on the committed panel it clears the cruise bars only at the slowest
+  commands. It shows what the plant can do mechanically, not a gait that passes the committed gate.
 
 ## Task and rewards
 
-A food target spawns ahead of and above the animal at reset. The task is to bring the head-tip site within a
-configured distance of it; it is a distance test, and no food geom touches the head. The environment reports
-`food_reached` and, when the food-reach bonus is enabled (the food-reach stage), ends the episode.
+The trained tasks are the stance and the walk; the food reach, the hunt that followed the walk, was removed by
+decision D-D59. Its reward terms, its `food_reached` termination and its constructor arguments (with the replay-camera
+widening they switched on) are gone from the code, and the model declares no success key. The food target and its
+observation channels went with it in policy interface r12 (physics r7), so the scene holds only the animal and the
+floor. Under the stance the forward and heading terms measure along the heading the animal spawns with. The head-tip
+site and its position sensor stay.
 
-The observation holds the joint positions and velocities, the torso orientation quaternion, gyro, linear velocity and
-accelerometer, one touch channel per foot, the food direction and distance, and the command. Actions are offsets from
-the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
-[`base_env.py`](base_env.py) gives both layouts.
+**The walk follows a live command** (decision D-D62); the stance runs no command. Each walk episode draws one request
+at reset and holds it for the whole 10 s episode: a forward cruise at 0.375-0.75 m/s along a heading up to 0.26 rad
+(15 degrees) off the spawn heading, or, in about 15% of episodes, an exactly zero command, which asks the animal to
+stand still. The command is the observation's last three values. A Gaussian term pays tracking the commanded velocity
+and yaw rate (weight 2.5); it subsumes the forward, heading and sideways terms, which the walk sets to 0, and the
+terms that read a forward direction measure along the commanded heading. On a zero command a stand block
+(`[commands.stand_weights]`, 10 weights) pays the stance's reward weights, so zero means stand still, not march in
+place. The commanded speeds ramp from 0.25 of their end values to the full range over the first 2M training steps. The
+standing-idle penalty is not paid on a zero command. After training the walk is judged on its `command_tracking/v1`
+panel: the cruise family's survival and success bounds, the stand family's hold and the quadruped gait clause (pair
+alternation, limb duty, the flight cap) and the lead-swap bar. The bars are provisional, and no controller has yet
+passed the committed panel; the gait-symmetry term pays a standing statue its whole weight, and the reference walk's
+hind-pair alternation is close to its bar (decision D-D62 (16)). The tracking term and the gate score a moving command
+on the trailing mean of the last 1.40 s, one stride of the reference walk (`[commands] tracking_window_s`, decision
+D-D64): at a command it matches the reference walk reads tracking quality 0.98 (0.34 a step on its own) and is in
+tolerance on every step after the settle.
+
+The observation reads no world heading: it uses the torso's projected gravity and its velocity in a gravity-aligned
+heading frame, beside the joint positions and velocities, the torso gyro and accelerometer, one touch channel per foot
+and the command. Before that revision it read the world-frame torso quaternion and velocity and the food direction and
+distance. Actions are offsets from the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each
+actuator's limits. The docstring of [`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
 
 - **Survival and posture:** an alive bonus, a fall penalty, and penalties on tilt and nosedive with a torso-height
   term.
-- **Progress:** forward velocity and heading toward the food, with penalties on backward, sideways and drifting
-  motion, spin, speed above a threshold and standing idle.
-- **Food reach:** a large bonus on success, shaping on the head-to-food distance and a head-proximity term.
+- **Command tracking** (walk): the Gaussian of the velocity and yaw-rate errors against the command.
+- **Progress:** forward velocity and heading along the spawn heading (the commanded heading on the walk), with
+  penalties on backward, sideways and drifting motion, spin, speed above a threshold and standing idle; the walk sets
+  the forward, heading and sideways weights to 0.
 - **Gait quality:** penalties on torso and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs.
 - **Effort:** an energy penalty on actuator use.
@@ -138,8 +164,8 @@ The main reward groups:
 The weights are the `BrachiosaurusAltithoraxEnv` constructor defaults in `base_env.py`, where most terms are off,
 overridden by the `[env]` table of each stage TOML in
 [`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/). An episode ends
-when the torso height leaves its healthy range or the torso tilts too far, when the torso, belly, head or distal tail
-touches the floor, or when the food is reached. The thresholds are in `base_env.py`.
+when the torso height leaves its healthy range or the torso tilts too far, or when the torso, belly, head or distal
+tail touches the floor. The thresholds are in `base_env.py`.
 
 ## Files
 

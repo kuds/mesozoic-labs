@@ -19,6 +19,7 @@ from environments.shared.curriculum.stance_gate_v2 import EPISODE_CRITERION_KEYS
 from environments.shared.model_id import ModelId
 from environments.shared.result_schema import certified_deliverables
 from environments.shared.species_catalog import (
+    _COMMAND_TRACKING_EXPORTED_KEYS,
     _HEADLINE_BY_GATE_KIND,
     _STANCE_V2_EXPORTED_KEYS,
     CATALOG_PAGE_DIR,
@@ -27,6 +28,7 @@ from environments.shared.species_catalog import (
     DEFAULT_OUTPUT_PATH,
     DEFAULT_PLANT_MANIFEST_PATH,
     DEFAULT_README_PATH,
+    DEFAULT_STAGE_THRESHOLD,
     REPOSITORY_ROOT,
     CatalogError,
     _build_deliverable_metrics,
@@ -53,7 +55,6 @@ from environments.shared.stage_manifest import load_stage_manifest, resolve_stag
 
 from .notebook_cells import cell_sources, code_cell_sources
 
-GOLDEN_RESULTS_BLOCK = Path(__file__).parent / "fixtures" / "readme_results_block_2026_09_06.md"
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
@@ -109,19 +110,23 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         # note 21).  The velociraptor's life-size plant (note 22, the
         # maintainer's decision of 2026-11-08): 23 hinges, 17 servos, six
         # per-site foot channels, 15 kg (r4: 69, 22, 31, 30, 22, 13.5).
-        ALLOSAURUS_FRAGILIS: (45, 10, 19, 18, 10, 1482.2),
-        VELOCIRAPTOR_MONGOLIENSIS: (71, 17, 30, 29, 17, 15.0),
-        TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
-        BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
-        DIBOTHROSUCHUS_ELAPHROS: (80, 27, 35, 34, 27, 8.65),
-        COMPSOGNATHUS_LONGIPES: (55, 14, 24, 23, 14, 1.0),
-        COMPSOGNATHUS_LONGIPES_ROBOT: (46, 12, 19, 18, 12, 1.5856),
+        # The target-free revision dropped the 4 target channels from all
+        # seven and made the brachiosaurus, the dibothrosuchus and the robot
+        # heading-free too: 45/71/63/86/80/55/46 -> 41/67/59/81/75/51/41; the
+        # T-Rex's bite box (0.2 kg) and the dibothrosuchus's snap box
+        # (0.02 kg) left with it (85.72 -> 85.52, 8.65 -> 8.63 kg).
+        ALLOSAURUS_FRAGILIS: (41, 10, 19, 18, 10, 1482.2),
+        VELOCIRAPTOR_MONGOLIENSIS: (67, 17, 30, 29, 17, 15.0),
+        TYRANNOSAURUS_REX: (59, 15, 28, 27, 15, 85.52),
+        BRACHIOSAURUS_ALTITHORAX: (81, 30, 38, 37, 30, 175.3),
+        DIBOTHROSUCHUS_ELAPHROS: (75, 27, 35, 34, 27, 8.63),
+        COMPSOGNATHUS_LONGIPES: (51, 14, 24, 23, 14, 1.0),
+        COMPSOGNATHUS_LONGIPES_ROBOT: (41, 12, 19, 18, 12, 1.5856),
     }
 
     assert [stage["timesteps"] for stage in models[VELOCIRAPTOR_MONGOLIENSIS]["stages"]] == [
         11_000_000,
         8_000_000,
-        12_000_000,
     ]
     # Every model's stance is 11M (2026-11-26). The trex 1a stance-gated
     # stage outgrew its 6M budget first -- run 20260802_203215's best
@@ -134,13 +139,13 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     # and dibothrosuchus (6M) stances rose to it so that every stance shares
     # one budget.
     #
-    # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
+    # Three rows in MANIFEST order: the recovery stage (3M, recovery.toml)
     # sits between stance and locomotion, labelled by its semantic id — it
-    # has no legacy number and none is invented for it.
+    # has no legacy number and none is invented for it. The bite hunt
+    # (legacy 3) left with decision D-D59.
     assert [stage["timesteps"] for stage in models[TYRANNOSAURUS_REX]["stages"]] == [
         11_000_000,
         3_000_000,
-        8_000_000,
         8_000_000,
     ]
     assert [
@@ -150,7 +155,6 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         ("stance", 1, "1", 1),
         ("recovery", None, "recovery", 2),
         ("locomotion", 2, "2", 3),
-        ("behavior", 3, "3", 4),
     ]
     # The recipe DAG the committed v2 manifest declares (plan §4.1): every
     # node a deliverable, recovery and locomotion both rooted on stance,
@@ -163,21 +167,18 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         ("stance", True, None, "stance"),
         ("recovery", True, "stance", "recover"),
         ("locomotion", True, "stance", "walk"),
-        ("behavior", True, "locomotion", "hunt"),
     ]
     for model_id in (VELOCIRAPTOR_MONGOLIENSIS, BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS):
-        assert [stage["deliverable"] for stage in models[model_id]["stages"]] == [True, True, True]
-        assert [stage["warm_start_from"] for stage in models[model_id]["stages"]] == [None, "stance", "locomotion"]
-        assert [stage["recipe"] for stage in models[model_id]["stages"]] == ["stance", "walk", "hunt"]
+        assert [stage["deliverable"] for stage in models[model_id]["stages"]] == [True, True]
+        assert [stage["warm_start_from"] for stage in models[model_id]["stages"]] == [None, "stance"]
+        assert [stage["recipe"] for stage in models[model_id]["stages"]] == ["stance", "walk"]
     assert [stage["timesteps"] for stage in models[BRACHIOSAURUS_ALTITHORAX]["stages"]] == [
         11_000_000,
         16_000_000,
-        12_000_000,
     ]
     assert [stage["timesteps"] for stage in models[DIBOTHROSUCHUS_ELAPHROS]["stages"]] == [
         11_000_000,
         12_000_000,
-        8_000_000,
     ]
 
 
@@ -192,14 +193,16 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "fingerprint_tool_version": 2,
         "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
+    # Two schemas since the target-free revision: every biped on one heading-free layout rooted at the pelvis,
+    # both quadrupeds on one rooted at the torso.
     expected_observation_schemas = {
-        ALLOSAURUS_FRAGILIS: "bipedal-target-heading-free/v1",
-        VELOCIRAPTOR_MONGOLIENSIS: "bipedal-target-heading-free/v1",
-        TYRANNOSAURUS_REX: "bipedal-target-heading-free/v1",
-        BRACHIOSAURUS_ALTITHORAX: "quadrupedal-target/v1",
-        DIBOTHROSUCHUS_ELAPHROS: "quadrupedal-target/v1",
-        COMPSOGNATHUS_LONGIPES: "bipedal-target-heading-free/v1",
-        COMPSOGNATHUS_LONGIPES_ROBOT: "bipedal-target/v1",
+        ALLOSAURUS_FRAGILIS: "bipedal-heading-free/v1",
+        VELOCIRAPTOR_MONGOLIENSIS: "bipedal-heading-free/v1",
+        TYRANNOSAURUS_REX: "bipedal-heading-free/v1",
+        BRACHIOSAURUS_ALTITHORAX: "quadrupedal-heading-free/v1",
+        DIBOTHROSUCHUS_ELAPHROS: "quadrupedal-heading-free/v1",
+        COMPSOGNATHUS_LONGIPES: "bipedal-heading-free/v1",
+        COMPSOGNATHUS_LONGIPES_ROBOT: "bipedal-heading-free/v1",
     }
     # The T-Rex is at physics r5 for the theropod stance correction: the home
     # keyframe moved off a near-straight knee onto a 135 deg one and the leg
@@ -263,31 +266,34 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # Brachiosaurus and dibothrosuchus declared SB3-only when the frozen MJX
     # interface core was removed (plant_versions note 23): POLICY only,
     # physics and visual unchanged.
+    # The target-free revision (the prey, food and course targets out of every
+    # scene, the hunt-only claw collision, bite box and snap box out of the
+    # bodies, every observation heading-free) bumped all three on all seven.
     expected_policy_revisions = {
-        ALLOSAURUS_FRAGILIS: 1,
-        VELOCIRAPTOR_MONGOLIENSIS: 14,
-        TYRANNOSAURUS_REX: 16,
-        BRACHIOSAURUS_ALTITHORAX: 11,
-        DIBOTHROSUCHUS_ELAPHROS: 10,
-        COMPSOGNATHUS_LONGIPES: 6,
-        COMPSOGNATHUS_LONGIPES_ROBOT: 3,
+        ALLOSAURUS_FRAGILIS: 2,
+        VELOCIRAPTOR_MONGOLIENSIS: 15,
+        TYRANNOSAURUS_REX: 17,
+        BRACHIOSAURUS_ALTITHORAX: 12,
+        DIBOTHROSUCHUS_ELAPHROS: 11,
+        COMPSOGNATHUS_LONGIPES: 7,
+        COMPSOGNATHUS_LONGIPES_ROBOT: 4,
     }
     expected_physics_revisions = {
-        ALLOSAURUS_FRAGILIS: 1,
-        VELOCIRAPTOR_MONGOLIENSIS: 5,
-        TYRANNOSAURUS_REX: 11,
-        BRACHIOSAURUS_ALTITHORAX: 6,
-        DIBOTHROSUCHUS_ELAPHROS: 3,
+        ALLOSAURUS_FRAGILIS: 2,
+        VELOCIRAPTOR_MONGOLIENSIS: 6,
+        TYRANNOSAURUS_REX: 12,
+        BRACHIOSAURUS_ALTITHORAX: 7,
+        DIBOTHROSUCHUS_ELAPHROS: 4,
     }
     expected_visual_revisions = {
-        ALLOSAURUS_FRAGILIS: 1,
-        VELOCIRAPTOR_MONGOLIENSIS: 6,
-        TYRANNOSAURUS_REX: 5,
-        BRACHIOSAURUS_ALTITHORAX: 3,
-        DIBOTHROSUCHUS_ELAPHROS: 2,
+        ALLOSAURUS_FRAGILIS: 2,
+        VELOCIRAPTOR_MONGOLIENSIS: 7,
+        TYRANNOSAURUS_REX: 6,
+        BRACHIOSAURUS_ALTITHORAX: 4,
+        DIBOTHROSUCHUS_ELAPHROS: 3,
     }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
-        revisions.update({COMPSOGNATHUS_LONGIPES: 3, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
+        revisions.update({COMPSOGNATHUS_LONGIPES: 4, COMPSOGNATHUS_LONGIPES_ROBOT: 2})
     # Every table pins every model (review M4): a new model fails here, naming the table.
     for name, table in (
         ("expected_policy_revisions", expected_policy_revisions),
@@ -309,34 +315,79 @@ def test_catalog_publishes_layered_plant_contract() -> None:
             assert digest_pattern.fullmatch(plant[layer]["sha256"])
 
 
-def test_catalog_keeps_current_configs_separate_from_historical_results() -> None:
-    catalog = build_catalog()
-    brachiosaurus_altithorax = _models(catalog)[BRACHIOSAURUS_ALTITHORAX]
-    current_stage_three = brachiosaurus_altithorax["stages"][2]
-    published_stage_three = brachiosaurus_altithorax["historical_results"][0]["stages"][2]
+def test_catalog_keeps_current_configs_separate_from_historical_results(tmp_path: Path, monkeypatch: Any) -> None:
+    """A published row reports the budget its run trained, never the stage's current one. Run on the historical
+    fixture filed as a T-Rex summary, since ``results/`` holds none (decision D-D59)."""
+    current_locomotion = next(stage for stage in _build_catalog_stages(TYRANNOSAURUS_REX) if stage["number"] == 2)
+    summary = _tyrannosaurus_rex_historical_summary()
+    summary["stages"]["2"]["timesteps"] = 7_999_488
+    summary["total_timesteps"] = sum(stage["timesteps"] for stage in summary["stages"].values())
+    result = _build_result_from(tmp_path, monkeypatch, summary)
 
-    assert current_stage_three["timesteps"] == 12_000_000
-    assert published_stage_three["timesteps"] == 12_009_472
-    assert brachiosaurus_altithorax["historical_results"][0]["provenance"]["model_revision_status"] == "historical"
-    assert brachiosaurus_altithorax["historical_results"][0]["provenance"]["verification_status"] == "unverified"
+    published_locomotion = next(stage for stage in result["stages"] if stage["number"] == 2)
+    assert current_locomotion["timesteps"] == 8_000_000
+    assert published_locomotion["timesteps"] == 7_999_488
+    assert result["provenance"]["model_revision_status"] == "historical"
+    assert result["provenance"]["verification_status"] == "unverified"
 
 
 def test_catalog_uses_nullable_video_for_unpublished_stage() -> None:
     catalog = build_catalog()
-    brachiosaurus_altithorax = _models(catalog)[BRACHIOSAURUS_ALTITHORAX]
-    assert brachiosaurus_altithorax["stages"][2]["video"] is None
+    tyrannosaurus_rex = _models(catalog)[TYRANNOSAURUS_REX]
+    assert [stage["id"] for stage in tyrannosaurus_rex["stages"] if stage["video"] is None] == ["recovery"]
 
 
 def test_catalog_labels_published_videos_with_artifact_provenance() -> None:
     catalog = build_catalog()
     videos = [stage["video"] for entry in catalog["models"] for stage in entry["stages"] if stage["video"] is not None]
 
-    assert len(videos) == 8
+    # Stance and locomotion of the velociraptor, the T-Rex and the brachiosaurus; the two stage-3 hunt videos
+    # left with decision D-D59.
+    assert len(videos) == 6
     assert all(video["algorithm"] == "PPO" for video in videos)
     assert all(video["backend"] == "stable-baselines3" for video in videos)
     assert all(video["backend_version"] is None for video in videos)
     assert all(video["model_revision_status"] == "historical" for video in videos)
     assert all(video["verification_status"] == "unverified" for video in videos)
+
+
+def _command_walk_gate(*, biped: bool, flight_cap: bool) -> dict[str, Any]:
+    """A live walk's exported gate (decisions D-D61 and D-D62): the shared keys, nulls for every kind it does not
+    declare, the walk profile's PROVISIONAL_WALK_THRESHOLDS, the follow profile's keys null, and the animal's
+    gait clause (the biped's six separators, its 0.05 flight cap below Froude 0.5; the quadruped's three floors
+    and the optional lead-swap bar)."""
+    from environments.shared.curriculum.command_tracking_gate import (
+        PROVISIONAL_BIPED_FLIGHT_FRACTION,
+        PROVISIONAL_BIPED_GAIT_THRESHOLDS,
+        PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS,
+        PROVISIONAL_WALK_THRESHOLDS,
+    )
+
+    gait = dict(PROVISIONAL_BIPED_GAIT_THRESHOLDS if biped else PROVISIONAL_QUADRUPED_GAIT_THRESHOLDS)
+    if biped and flight_cap:
+        gait["max_flight_fraction"] = PROVISIONAL_BIPED_FLIGHT_FRACTION
+    if not biped:
+        gait["min_lead_swaps_per_stride"] = 1.0
+    return (
+        {
+            "gate_kind": "command_tracking/v1",
+            "pending_gate_kind": None,
+            "min_avg_reward": None,
+            "min_avg_episode_length": None,
+            "min_avg_forward_velocity": None,
+            "min_full_horizon_fraction": None,
+            "max_unsupported_duty": None,
+            "max_unsupported_duty_ucb": None,
+            "min_recovery_success_lcb": None,
+            "min_paired_success_delta_lcb": None,
+            "recovery_t_recover_steps": None,
+            "recovery_dwell_steps": None,
+            "min_eval_episodes": DEFAULT_STAGE_THRESHOLD.min_eval_episodes,
+            "required_consecutive": DEFAULT_STAGE_THRESHOLD.required_consecutive,
+        }
+        | {key: None for key in _COMMAND_TRACKING_EXPORTED_KEYS}
+        | {"profile": "walk", **PROVISIONAL_WALK_THRESHOLDS, **gait}
+    )
 
 
 def test_catalog_exports_effective_early_advancement_gates() -> None:
@@ -354,14 +405,16 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # width; 3495.2 on r7 with the 20260810 shaping pack:
     # tail_home_pose 0.25 at the settled-droop targets, action_saturation
     # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
-    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 3341.0 (the
-    # life-size physics r5 with the neck home pose beside the tail, impact and
+    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 3241.7 (physics
+    # r6, the target-free plant, whose stance pays no heading term; 3341.0 on
+    # the life-size physics r5 with the neck home pose beside the tail, impact and
     # airborne terms; 3091.3 on r4 with the 2026-11-06 terms, 2843.0 on r4
     # before them, 2842.8 on r3 with its stance-quality terms, 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
     # the plant repaired by plant_versions notes 7-8; 1749.6 on physics r6, 1738.4 on r5),
-    # dibothrosuchus 2598.3 (2598.5 on physics r2); the elliptic cone of note
-    # 17 moves none of the three rails.
+    # dibothrosuchus 2499.2 (physics r4, the target-free plant, whose stance
+    # pays no heading term; 2598.3 on r3, 2598.5 on physics r2); the elliptic
+    # cone of note 17 moves none of the three rails.
     #
     # A rail sits BELOW its statue deliberately. Section 9 showed the statue
     # is the reward optimum -- it collects 97.0% of the theoretical maximum
@@ -388,11 +441,12 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 3756.8, x0.60 = 2254.1 -> 2250, and for physics r10 (D-D44): statue
         # 3766.6, x0.60 = 2260.0 -> 2260.
         TYRANNOSAURUS_REX: 2260.0,
-        # 0.60 x 3341.0 = 2004.6 -> 2000 nearest-10 (physics r5; 1850 on r4's 3091.3, 1710 on 2842.8 before the
-        # 2026-11-06 [env], 1050 on the r2 plant).
-        VELOCIRAPTOR_MONGOLIENSIS: 2000.0,
+        # 0.60 x 3241.7 = 1945.0 -> 1950 nearest-10 (physics r6; 2000 on r5's 3341.0, 1850 on r4's 3091.3, 1710 on
+        # 2842.8 before the 2026-11-06 [env], 1050 on the r2 plant).
+        VELOCIRAPTOR_MONGOLIENSIS: 1950.0,
         BRACHIOSAURUS_ALTITHORAX: 1050.0,
-        DIBOTHROSUCHUS_ELAPHROS: 1560.0,
+        # 0.60 x 2499.2 = 1499.5 -> 1500 nearest-10 (physics r4; 1560 on r3's 2598.5).
+        DIBOTHROSUCHUS_ELAPHROS: 1500.0,
     }
 
     # T-Rex 1a moved to stance_quality/v1 and then, with physics r8, to
@@ -511,27 +565,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "recovery_t_recover_steps": None,
         "recovery_dwell_steps": None,
     }
-    # task_success/v1's bar (plan §4.4) is exported on every stage row and
-    # is null wherever the kind is not declared — every committed stage
-    # except the trex hunt, which adopted the kind (WS-B2; D-B14 keeps the
-    # other species' hunts on reward_and_length/v1).
-    task_success_null: dict[str, float | None] = {"min_success_lcb": None}
-    # The trex hunt under task_success/v1: the LCB95 bar (D-B2, provisional),
-    # the declared panel n (D-B1), the statue-derived collapse rail 361 =
-    # round(0.6 x 602.13) (D-B4) and neither retired criterion (CF2 / D1
-    # retired the velocity target, SS2 the raw-mean success rate).
-    tyrannosaurus_rex_stage_three = {
-        "gate_kind": "task_success/v1",
-        "pending_gate_kind": None,
-        "min_avg_reward": 361.0,
-        "min_avg_episode_length": None,
-        "min_avg_forward_velocity": None,
-        "min_success_rate": None,
-        "min_eval_episodes": 30,
-        "required_consecutive": 3,
-        "min_success_lcb": 0.5,
-    }
-
     stage_one_gate_kind = {
         # The six-heading certificate since D-D32 (v2's block judged at six whole-scene headings).
         TYRANNOSAURUS_REX: "stance_quality_heading/v1",
@@ -548,14 +581,14 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             assert stance["min_full_horizon_fraction"] == 0.95
             assert stance["max_unsupported_duty"] == stance["max_unsupported_duty_ucb"] == 0.02
             assert stance["min_eval_episodes"] == 40
-            assert walk["gate_kind"] == "reward_and_length/v1"
-            assert stance["min_avg_forward_velocity"] is None and walk["min_avg_forward_velocity"] == 0.25
+            # The live walk of decision D-D62: command_tracking/v1's walk profile and the biped clause with its cap.
+            assert walk == _command_walk_gate(biped=True, flight_cap=True)
+            assert stance["min_avg_forward_velocity"] is None
             continue
         if model_id.species == "compsognathus_longipes":
             stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
-            first, second, third = (
-                stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
-            )
+            assert list(stages_by_id) == ["stance", "recovery", "locomotion"]
+            first, second = (stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion"))
             if model_id == COMPSOGNATHUS_LONGIPES:
                 # The anatomical stance moved to stance_quality/v2 with physics r2 (D-D26) and to the six-heading
                 # certificate, which declares the same keys, with D-D32; the robot keeps v1.
@@ -572,20 +605,14 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 assert first["max_unsupported_duty"] == 0.02
                 assert first["max_unsupported_duty_ucb"] == 0.02
             assert first["min_full_horizon_fraction"] == 0.95
-            assert second["min_avg_forward_velocity"] == (0.04 if model_id.embodiment == "robot" else 0.08)
-            assert second["min_avg_episode_length"] == 900
-            assert third["min_success_rate"] == 0.7
-            assert third["min_avg_episode_length"] is None
             assert first["min_eval_episodes"] == 40
-            assert all(gate["min_eval_episodes"] == 20 for gate in (second, third))
+            # The live walk (D-D62): its reward_and_length/v1 keys left with the gate, min_eval_episodes 20 among
+            # them, so the export reads the default the kind never consults.
+            assert second == _command_walk_gate(biped=True, flight_cap=True)
             # The semantic recovery row is published without renumbering the
             # advancing curriculum or turning its pilot verdict into a handoff.
-            assert [stage.id for stage in load_stage_manifest(model_id).advancing_stages] == [
-                "stance",
-                "locomotion",
-                "behavior",
-            ]
-            assert [stages_by_id[stage_id]["number"] for stage_id in ("stance", "locomotion", "behavior")] == [1, 2, 3]
+            assert [stage.id for stage in load_stage_manifest(model_id).advancing_stages] == ["stance", "locomotion"]
+            assert [stages_by_id[stage_id]["number"] for stage_id in ("stance", "locomotion")] == [1, 2]
             recovery = stages_by_id["recovery"]
             assert recovery["number"] is None
             assert recovery["label"] == "recovery"
@@ -596,7 +623,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 "min_avg_reward": None,
                 "min_avg_episode_length": None,
                 "min_avg_forward_velocity": None,
-                "min_success_rate": None,
                 "min_eval_episodes": 40,
                 "required_consecutive": 3,
                 "min_recovery_success_lcb": 0.5,
@@ -604,58 +630,32 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 "recovery_t_recover_steps": 40,
                 "recovery_dwell_steps": 20,
                 **stance_null,
-                **task_success_null,
             }
             continue
         # Gates are addressed by LEGACY number, not by list position: the
-        # trex list has four rows because the recovery stage sits at
+        # Tyrannosaurus rex list has three rows because the recovery stage sits at
         # position 2, and the numbered stages must be unaffected by it.
+        # Legacy 3, the hunt, left every manifest with decision D-D59.
         gates_by_number = {stage["number"]: stage["advancement_gate"] for stage in entry["stages"]}
-        stage_one, stage_two, stage_three = (gates_by_number[number] for number in (1, 2, 3))
+        assert sorted(number for number in gates_by_number if number is not None) == [1, 2]
+        stage_one, stage_two = (gates_by_number[number] for number in (1, 2))
         assert stage_one == {
             "gate_kind": stage_one_gate_kind[model_id],
             "pending_gate_kind": None,
             "min_avg_reward": stage_one_min_avg_reward[model_id],
             "min_avg_episode_length": stage_one_length[model_id],
             "min_avg_forward_velocity": None,
-            "min_success_rate": None,
             "min_eval_episodes": stage_one_eval_episodes[model_id],
             "required_consecutive": 3,
             **stage_one_stance[model_id],
             **recovery_null,
-            **task_success_null,
         }
-        # Stages 2 and 3 stay on reward_and_length/v1, so their stance fields
-        # export as nulls.
-        assert stage_two | {"min_avg_forward_velocity": None} == {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": None,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": 750,
-            "min_avg_forward_velocity": None,
-            "min_success_rate": None,
-            "min_eval_episodes": 10,
-            "required_consecutive": 3,
-            **stance_null,
-            **recovery_null,
-            **task_success_null,
-        }
-        if model_id == TYRANNOSAURUS_REX:
-            assert stage_three == {**tyrannosaurus_rex_stage_three, **stance_null, **recovery_null}
-            continue
-        assert stage_three | {"min_avg_forward_velocity": None} == {
-            "gate_kind": "reward_and_length/v1",
-            "pending_gate_kind": None,
-            "min_avg_reward": 100.0,
-            "min_avg_episode_length": None,
-            "min_avg_forward_velocity": None,
-            "min_success_rate": 0.5,
-            "min_eval_episodes": 10,
-            "required_consecutive": 3,
-            **stance_null,
-            **recovery_null,
-            **task_success_null,
-        }
+        # Stage 2 is the live walk of decision D-D62 on command_tracking/v1's walk profile: its stance and recovery
+        # fields export as nulls, and the reward_and_length/v1 floors it no longer declares as nulls too.
+        quadruped = model_id in {BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS}
+        assert stage_two == _command_walk_gate(biped=not quadruped, flight_cap=model_id != VELOCIRAPTOR_MONGOLIENSIS), (
+            model_id
+        )
 
     # The recovery stage exports its frozen recovery_quality/v1 gate (P5,
     # 2026-08-28): the certifying criteria the resolution was frozen at, no
@@ -674,7 +674,6 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "min_avg_reward": None,
         "min_avg_episode_length": None,
         "min_avg_forward_velocity": None,
-        "min_success_rate": None,
         "min_eval_episodes": 40,
         "required_consecutive": 3,
         "min_recovery_success_lcb": 0.30,
@@ -682,39 +681,25 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "recovery_t_recover_steps": 100,
         "recovery_dwell_steps": 50,
         **stance_null,
-        **task_success_null,
     }
     assert tyrannosaurus_rex_recovery["video"] is None
 
-    # Trex stage 2 gates a 1.0 m/s walk, re-derived from the plant (Froude
-    # 0.14-0.16; the copied raptor 2.0 was this plant's walk-run boundary and
-    # passed 0/109 evals on run 20260821_142144 — 2026-08 review §5.3).
     # Stages addressed by legacy NUMBER, not list index: trex's list gained
     # a recovery row at position 2, and "stage 2" must keep meaning
-    # locomotion (the no-silent-renumbering invariant).
+    # locomotion (the no-silent-renumbering invariant). The forward walk's
+    # velocity floors (velociraptor 2.1, T-Rex 1.0, brachiosaurus 0.75 m/s)
+    # left with reward_and_length/v1 (decision D-D62): each walk's cruise
+    # speed now lives in its [commands] table, which the gate does not export.
     def _gate(model_id: ModelId, number: int) -> dict:
         return next(stage["advancement_gate"] for stage in models[model_id]["stages"] if stage["number"] == number)
 
-    # 2.1 since physics r5: r4's 2.0 Froude-matched to the life-size hip height (x 1.042).
-    assert _gate(VELOCIRAPTOR_MONGOLIENSIS, 2)["min_avg_forward_velocity"] == 2.1
-    assert _gate(TYRANNOSAURUS_REX, 2)["min_avg_forward_velocity"] == 1.0
-    assert _gate(BRACHIOSAURUS_ALTITHORAX, 2)["min_avg_forward_velocity"] == 0.75
-    # No species gates stage 3 on speed. The 2.0 m/s capability target that
-    # review §5.3 decision (b) relocated to trex's behavior stage was retired
-    # by plan D1 (review CF2: a bite terminates the episode after ~0.5 m, so
-    # a bite episode cannot AVERAGE 2.0 m/s); closing speed is measured, not
-    # gated. The trex hunt instead certifies the binomial LCB95 on task
-    # success (task_success/v1, plan §4.4; D-B2's provisional 0.5 bar) and
-    # consumes no raw-mean success rate (review SS2).
-    for stage_three_model in (
-        TYRANNOSAURUS_REX,
-        VELOCIRAPTOR_MONGOLIENSIS,
-        BRACHIOSAURUS_ALTITHORAX,
-        DIBOTHROSUCHUS_ELAPHROS,
-    ):
-        assert _gate(stage_three_model, 3)["min_avg_forward_velocity"] is None
-    assert _gate(TYRANNOSAURUS_REX, 3)["min_success_lcb"] == 0.5
-    assert _gate(TYRANNOSAURUS_REX, 3)["min_success_rate"] is None
+    for model_id in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX):
+        assert _gate(model_id, 2)["min_avg_forward_velocity"] is None
+        assert _gate(model_id, 2)["profile"] == "walk"
+    # The success-rate floor and the task-success bound left the export with the gate (decision D-D59).
+    for entry in models.values():
+        for stage in entry["stages"]:
+            assert not {"min_success_rate", "min_success_lcb"} & set(stage["advancement_gate"]), stage["id"]
 
 
 def test_catalog_scopes_success_semantics_to_training_backends() -> None:
@@ -725,11 +710,30 @@ def test_catalog_scopes_success_semantics_to_training_backends() -> None:
     # since revision 14, and brachiosaurus and dibothrosuchus since revisions
     # 11 and 10 (plant_versions note 23, the frozen MJX core removed), so each
     # catalog carries its SB3 semantics alone: the proximity proxies the MJX
-    # path scored are gone with it.
-    for sb3_only in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, DIBOTHROSUCHUS_ELAPHROS):
-        metrics = models[sb3_only]["success_metrics"]
-        assert [metric["backends"] for metric in metrics] == [["stable-baselines3"]], sb3_only
-        assert "contacts the prey geom" in metrics[0]["definition"], sb3_only
+    # path scored are gone with it. Since decision D-D59 removed the hunts,
+    # the six models that had one stated the walk's gated forward velocity as
+    # their backend success metric, and the Allosaurus its walking course;
+    # since decision D-D62 every model states its live walk's command-tracking
+    # gate, word for word the walk deliverable's.
+    for model_id in model_ids():
+        metrics = models[model_id]["success_metrics"]
+        assert [metric["backends"] for metric in metrics] == [["stable-baselines3"]], model_id
+        walk = next(metric for metric in models[model_id]["deliverable_metrics"] if metric["deliverable"] == "walk")
+        assert {key: metrics[0][key] for key in ("key", "label", "definition")} == {
+            key: walk[key] for key in ("key", "label", "definition")
+        }, model_id
+        assert metrics[0]["key"] == "command_tracking"
+        assert "command_tracking/v1" in metrics[0]["label"]
+        definition = metrics[0]["definition"]
+        assert "about 15% of its episodes are stand episodes" in definition and "D-D62" in definition
+        for retired in ("prey", "reward_and_length/v1", "forward velocity"):
+            assert retired not in definition, (model_id, retired)
+        # summary.json carries the walk's counts and bounds since decision D-D61 (reporting.summaries), which
+        # the catalog headlines; the stance's "not exported" sentence does not describe the walk.
+        assert "exported to summary.json from the admitted command_tracking_report.json" in definition, model_id
+        assert "not exported to summary.json" not in definition, model_id
+        # The Allosaurus' course stays a recorded event along the commanded heading, never a gate criterion.
+        assert ("course_complete" in definition) == (model_id == ALLOSAURUS_FRAGILIS)
     for model_id in model_ids():
         assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["success_metrics"])
         assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["deliverable_metrics"]), (
@@ -743,11 +747,13 @@ def test_manifest_covers_all_curated_results_and_implemented_models() -> None:
         result["summary_path"] for entry in catalog["models"] for result in entry["historical_results"]
     }
     # Coverage equality with the committed files: a result is results/<species>/<embodiment>/<algorithm>/.
+    # Both are empty since decision D-D59 deleted the four historical ladder summaries with the hunt nodes.
     curated_results = {
         path.relative_to(REPOSITORY_ROOT).as_posix()
         for path in (REPOSITORY_ROOT / "results").glob("*/*/*/summary.json")
     }
-    assert curated_results and manifested_results == curated_results
+    assert (REPOSITORY_ROOT / "results").is_dir()
+    assert manifested_results == curated_results == set()
 
     manifested_models = set(_models(catalog))
     implemented_models = {
@@ -763,8 +769,11 @@ def test_manifest_covers_all_curated_results_and_implemented_models() -> None:
 
 
 def _published_summary() -> dict[str, Any]:
-    summary_path = VELOCIRAPTOR_MONGOLIENSIS.path(REPOSITORY_ROOT / "results") / "ppo" / "summary.json"
-    return cast(dict[str, Any], json.loads(summary_path.read_text(encoding="utf-8")))
+    """The complete schema-5 historical fixture (``result_bundle_helpers.HISTORICAL_SUMMARY``): ``results/`` holds no
+    summary since decision D-D59."""
+    from .result_bundle_helpers import HISTORICAL_SUMMARY
+
+    return deepcopy(HISTORICAL_SUMMARY)
 
 
 def test_result_validator_rejects_missing_public_metric() -> None:
@@ -781,7 +790,7 @@ def test_result_validator_rejects_missing_public_metric() -> None:
 
 def test_result_validator_rejects_invalid_success_rate_and_step_totals() -> None:
     summary = deepcopy(_published_summary())
-    summary["stages"]["3"]["mean_success_rate"] = 1.1
+    summary["stages"]["2"]["mean_success_rate"] = 1.1
     with pytest.raises(CatalogError, match="must be between 0 and 1"):
         _validate_result_summary(
             summary,
@@ -1101,68 +1110,66 @@ def test_default_paths_are_inside_repository() -> None:
 
 
 # Review SS5: a published stage_passed is rendered with the gate it was earned
-# under.  The committed summaries predate gate provenance and were certified
-# by the retired reward gate, while trex's stance stage now declares the
-# six-heading certificate stance_quality_heading/v1 (D-D32) — a bare "Yes"
-# beneath that description misstates what was measured.
+# under.  The summaries committed until decision D-D59 predated gate
+# provenance and were certified by the retired reward gate, while the
+# Tyrannosaurus rex stance stage now declares the six-heading certificate
+# stance_quality_heading/v1 (D-D32) — a bare "Yes" beneath that description
+# misstates what was measured.
 
 
 def test_current_gate_kinds_follow_the_manifest() -> None:
-    # The trex hunt adopted task_success/v1 (plan §4.4, WS-B2); every other
-    # species' hunt stays on reward_and_length/v1 (D-B14).
+    # The Tyrannosaurus rex hunt, the one stage on task_success/v1 (plan §4.4, WS-B2), left
+    # with every other hunt by decision D-D59, and the kind with it.  Every
+    # walk moved from reward_and_length/v1 to command_tracking/v1 with its live
+    # command (decision D-D62), so a published walk verdict earned under the
+    # forward walk's gate renders as a retired gate's.
     assert current_gate_kinds(TYRANNOSAURUS_REX) == {
         "stance": "stance_quality_heading/v1",
         "recovery": "recovery_quality/v1",
-        "locomotion": "reward_and_length/v1",
-        "behavior": "task_success/v1",
+        "locomotion": "command_tracking/v1",
     }
     assert current_gate_kinds(VELOCIRAPTOR_MONGOLIENSIS) == {
         "stance": "stance_quality_heading/v1",
-        "locomotion": "reward_and_length/v1",
-        "behavior": "reward_and_length/v1",
+        "locomotion": "command_tracking/v1",
     }
+    for model_id in model_ids():
+        assert current_gate_kinds(model_id)["locomotion"] == "command_tracking/v1", model_id
 
 
-def test_published_verdicts_carry_gate_provenance() -> None:
+def test_published_verdicts_carry_gate_provenance(tmp_path: Path, monkeypatch: Any) -> None:
+    """A historical row's verdicts name the gate they passed (none recorded: a retired reward gate)."""
     catalog = build_catalog()
-    tyrannosaurus_rex = _models(catalog)[TYRANNOSAURUS_REX]
-    stance = next(stage for stage in tyrannosaurus_rex["historical_results"][0]["stages"] if stage["id"] == "stance")
+    result = _build_result_from(tmp_path, monkeypatch, _tyrannosaurus_rex_historical_summary())
+    stance = next(stage for stage in result["stages"] if stage["id"] == "stance")
     assert stance["stage_passed"] is True
     assert stance["gate_kind"] is None
     assert stance["current_gate_kind"] == "stance_quality_heading/v1"
     assert stance["gate_retired"] is True
 
+    _models(catalog)[TYRANNOSAURUS_REX]["historical_results"] = [result]
     rendered = render_readme_results(catalog)
-    assert "| 1 — Stance | 3008.66 | 0.02 m/s | — | 6M | passed retired gate (reward gate) |" in rendered
+    assert "| 1 — Stance | 1964.43 | 0.11 m/s | — | 6M | passed retired gate (reward gate) |" in rendered
     assert "| Yes |" not in rendered
 
 
 def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path, monkeypatch: Any) -> None:
-    from environments.shared import species_catalog
-
-    summary = deepcopy(
-        json.loads(
-            (REPOSITORY_ROOT / "results/tyrannosaurus_rex/anatomical/ppo/summary.json").read_text(encoding="utf-8")
-        )
-    )
+    summary = _tyrannosaurus_rex_historical_summary()
     summary["stages"]["1"]["gate_kind"] = "stance_quality_heading/v1"
-    summary_path = tmp_path / "summary.json"
-    summary_path.write_text(json.dumps(summary), encoding="utf-8")
-    monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
 
-    result = species_catalog._build_result(TYRANNOSAURUS_REX, "results/tyrannosaurus_rex/anatomical/ppo/summary.json")
+    result = _build_result_from(tmp_path, monkeypatch, summary)
 
     stages = {stage["id"]: stage for stage in result["stages"]}
     assert stages["stance"]["gate_retired"] is False
     assert _format_verdict(stages["stance"]) == "Yes"
     assert stages["locomotion"]["gate_retired"] is True
     assert _format_verdict(stages["locomotion"]) == "passed retired gate (reward gate)"
-    # Extended 2026-09-12: a current-gate pass on a schema-2 ladder summary
-    # is still a ladder pass — it publishes NO deliverable and no primary.
-    # Relabelling it certified would mint a certification nothing measured.
-    assert result["deliverables"] == []
-    assert result["primary_deliverable"] is None
-    assert result["target_deliverable"] is None
+    # The stage row's recorded gate relabels no deliverable: each is published under the gate its own record
+    # names (the reward gate here), certified as its record says.
+    assert [(row["stage_key"], row["gate_kind"], row["certified"]) for row in result["deliverables"]] == [
+        ("1", "reward_and_length/v1", True),
+        ("2", "reward_and_length/v1", True),
+    ]
+    assert (result["primary_deliverable"], result["target_deliverable"]) == ("2", "2")
 
 
 @pytest.mark.parametrize(
@@ -1230,34 +1237,43 @@ def test_stage_rows_carry_recipe_edges_for_every_model() -> None:
         assert any(stage["deliverable"] for stage in entry["stages"])
 
 
-def test_ladder_summaries_keep_stage3_headline_and_publish_no_deliverables() -> None:
-    """The four committed schema-2 rows keep their ladder headline and publish nothing new.
+def test_a_summary_without_deliverables_is_not_published_and_no_stage3_headline(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """No committed model publishes a result, and a summary that certifies no deliverable is never published.
 
-    `stage3_success_rate` is the historical headline (plan §4.3 keeps it);
-    `deliverables` is [] and both deliverable keys are null because a
-    reward-gate pass is not a certification and is never synthesized into
-    one.
+    A schema-2 ladder summary published none: a reward-gate pass relabelled "certified" would mint a certification
+    nothing measured, so its row carried no deliverable.  Schema 2 is retired (decision D-D63), and a schema-5
+    summary without a deliverables map is refused, never published with an empty one.  The stage-3 task-success
+    headline (`stage3_success_rate`) left with the hunt nodes (decision D-D59), with the four historical ladder
+    summaries that carried it; a published row keeps its fastest stage velocity.
     """
-    catalog = build_catalog()
-    rows = {
-        (model_id, result["algorithm"].lower()): result
-        for model_id, entry in _models(catalog).items()
-        for result in entry["historical_results"]
-    }
-    assert {key: row["stage3_success_rate"] for key, row in rows.items()} == {
-        (VELOCIRAPTOR_MONGOLIENSIS, "ppo"): 0.9333,
-        (VELOCIRAPTOR_MONGOLIENSIS, "sac"): 0.9,
-        (TYRANNOSAURUS_REX, "ppo"): 0.9667,
-        (BRACHIOSAURUS_ALTITHORAX, "ppo"): 1.0,
-    }
-    for row in rows.values():
-        assert row["deliverables"] == []
-        assert row["primary_deliverable"] is None
-        assert row["target_deliverable"] is None
-        assert all({"recipe", "deliverable"} <= set(stage) for stage in row["stages"])
+    assert all(entry["historical_results"] == [] for entry in build_catalog()["models"])
+    bare = _tyrannosaurus_rex_historical_summary()
+    for key in ("deliverables", "primary_deliverable", "target_deliverable"):
+        del bare["provenance"][key]
+    with pytest.raises(CatalogError, match="without provenance.deliverables, so it certifies nothing"):
+        _build_result_from(tmp_path, monkeypatch, bare)
+    row = _build_result_from(tmp_path, monkeypatch, _tyrannosaurus_rex_historical_summary())
+    assert [deliverable["stage_key"] for deliverable in row["deliverables"]] == ["1", "2"]
+    assert (row["primary_deliverable"], row["target_deliverable"]) == ("2", "2")
+    assert "stage3_success_rate" not in row
+    assert row["max_average_forward_velocity"] == 3.47
+    assert [stage["id"] for stage in row["stages"]] == ["stance", "locomotion"]
+    assert all({"recipe", "deliverable"} <= set(stage) for stage in row["stages"])
 
 
 _SHA = "sha256:" + "a" * 64
+
+
+def _tyrannosaurus_rex_historical_summary() -> dict[str, Any]:
+    """The complete schema-5 historical fixture (``result_bundle_helpers.HISTORICAL_SUMMARY``) filed as a T-Rex
+    summary: its stance and walk rows and their deliverable records, under the T-Rex's identity in the summary and
+    its provenance. ``results/`` holds no summary since decision D-D59."""
+    summary = _published_summary()
+    summary.update(TYRANNOSAURUS_REX.record())
+    summary["provenance"].update(TYRANNOSAURUS_REX.record())
+    return summary
 
 
 def _tyrannosaurus_rex_v5_summary(
@@ -1267,8 +1283,11 @@ def _tyrannosaurus_rex_v5_summary(
     primary: str | None,
     bundle_status: str,
 ) -> dict[str, Any]:
-    """The committed T-Rex ladder summary re-cut as a result under the deliverable rules, at the writers' schema
-    (v5; it was schema 4 until decision D-D33 retired it).
+    """The historical fixture filed as a T-Rex summary (:func:`_tyrannosaurus_rex_historical_summary`) re-cut with
+    the T-Rex's current gate kinds and the given verdicts, at the writers' schema (v5; it was schema 4 until
+    decision D-D33 retired it).
+    *verdicts* is keyed ``"1"`` (stance) and ``"2"`` (walk); the committed T-Rex summary this was built on, whose
+    stage 3 was the bite hunt, left with decision D-D59.
 
     Non-canonical provenance (historical, identifiers null), which is the
     shape the catalog validates: `provenance.species` / `backend` plus the
@@ -1276,12 +1295,7 @@ def _tyrannosaurus_rex_v5_summary(
     from the recorded verdicts through the shared rule so a fixture can
     never claim more than its chain supports.
     """
-    summary = deepcopy(
-        json.loads(
-            (REPOSITORY_ROOT / "results/tyrannosaurus_rex/anatomical/ppo/summary.json").read_text(encoding="utf-8")
-        )
-    )
-    summary["schema_version"] = 5
+    summary = _tyrannosaurus_rex_historical_summary()
     summary["bundle_status"] = bundle_status
     summary["stages"] = {key: stage for key, stage in summary["stages"].items() if key in verdicts}
     gates = current_gate_kinds(TYRANNOSAURUS_REX)
@@ -1328,27 +1342,24 @@ def _build_result_from(tmp_path: Path, monkeypatch: Any, summary: dict[str, Any]
 
 
 def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, monkeypatch: Any) -> None:
-    """A failed-hunt run publishes its certified trunk (plan §8.5) with gate-kind headlines.
+    """A failed-walk run publishes its certified trunk (plan §8.5) with gate-kind headlines.
 
-    Stance and walk certified, hunt failed: the primary is walk ("2"), the
-    target hunt stays recorded, every deliverable row carries its gate
-    kind, certification, hash, replication and headline, and the stance
-    headline names its statistics with null values (D-A9).
+    Stance certified, walk failed: the primary is stance ("1"), the target
+    walk stays recorded, every deliverable row carries its gate kind,
+    certification, hash, replication and headline, and the stance headline
+    names its statistics with null values (D-A9).
     """
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
-    )
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": False}, target="2", primary="1", bundle_status="partial")
 
     result = _build_result_from(tmp_path, monkeypatch, summary)
 
-    assert result["primary_deliverable"] == "2"
-    assert result["target_deliverable"] == "3"
+    assert result["primary_deliverable"] == "1"
+    assert result["target_deliverable"] == "2"
     assert [
         (row["id"], row["stage_key"], row["label"], row["recipe"], row["certified"]) for row in result["deliverables"]
     ] == [
         ("stance", "1", "1", "stance", True),
-        ("locomotion", "2", "2", "walk", True),
-        ("behavior", "3", "3", "hunt", False),
+        ("locomotion", "2", "2", "walk", False),
     ]
     by_id = {row["id"]: row for row in result["deliverables"]}
     assert by_id["stance"]["gate_kind"] == "stance_quality_heading/v1"
@@ -1356,10 +1367,9 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     assert by_id["stance"]["replication_count"] == 1
     # Seed replication (plan §4.5, D-B10/D-B11): the bar is the CURRENT
     # config's — trex stance declares 2, every other stage the default 1 —
-    # so a one-run stance is provisional and a one-run walk or hunt is not.
+    # so a one-run stance is provisional and a one-run walk is not.
     assert (by_id["stance"]["certification_seeds"], by_id["stance"]["provisional"]) == (2, True)
     assert (by_id["locomotion"]["certification_seeds"], by_id["locomotion"]["provisional"]) == (1, False)
-    assert (by_id["behavior"]["certification_seeds"], by_id["behavior"]["provisional"]) == (1, False)
     # The six-heading certificate (D-D32) headlines the grouped bound over seeds clean at every heading.
     assert by_id["stance"]["headline"] == [
         {
@@ -1375,22 +1385,26 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
             "unit": "percent",
         },
     ]
+    # A failed deliverable keeps its gate-kind headline: since decision D-D62 the walk's command_tracking/v1
+    # statistics, the cruise family's success bound and the stand family's hold fraction, null until the
+    # summary carries them (D-A9, deferred by D-B15); the forward walk's velocity headline left with its gate.
+    assert by_id["locomotion"]["gate_kind"] == "command_tracking/v1"
     assert by_id["locomotion"]["headline"] == [
-        {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 3.47, "unit": "m/s"}
+        {
+            "key": "command_cruise_success_lcb",
+            "label": "cruise episodes on the command LCB95",
+            "value": None,
+            "unit": "ratio",
+        },
+        {
+            "key": "command_stand_success_fraction",
+            "label": "stand episodes holding the stop",
+            "value": None,
+            "unit": "percent",
+        },
     ]
-    # Trex's hunt is task_success/v1 (plan §4.4, WS-B2): the headline names
-    # the certified bound and the rate it bounds, and this ladder-shaped
-    # fixture records neither selected_model_success_lcb nor
-    # selected_model_success_rate, so both carry null values like the stance
-    # row above -- never the retired velocity target (plan D1) nor the raw
-    # ladder mean.
-    assert by_id["behavior"]["gate_kind"] == "task_success/v1"
-    assert by_id["behavior"]["headline"] == [
-        {"key": "selected_model_success_lcb", "label": "task success LCB95", "value": None, "unit": "ratio"},
-        {"key": "selected_model_success_rate", "label": "task success", "value": None, "unit": "percent"},
-    ]
-    # The ladder headline is untouched by the per-deliverable rows.
-    assert result["stage3_success_rate"] == 0.9667
+    # The ladder velocity is untouched by the per-deliverable rows, and no stage-3 headline exists (D-D59).
+    assert "stage3_success_rate" not in result
     assert result["max_average_forward_velocity"] == 3.47
     # The exported provenance is the same six-key identity/status surface a
     # v2 row exports: the validated block's deliverables map, primary and
@@ -1415,9 +1429,7 @@ def test_provisional_is_rederived_from_the_current_config(tmp_path: Path, monkey
     The recorded pair is validated (the schema refuses an inconsistent one)
     but never re-served over the current bar.
     """
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
-    )
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
     stance = summary["provenance"]["deliverables"]["1"]
     stance.update({"certification_seeds": 1, "provisional": False})
 
@@ -1476,9 +1488,7 @@ def test_v4_headline_reads_the_statistic_the_summary_records(
     ladder projection that carries only the fixed ladder columns: Phase
     B's export must surface without a second catalog edit.
     """
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
-    )
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
     summary["stages"]["1"]["gate_kind"] = gate_kind
     summary["provenance"]["deliverables"]["1"]["gate_kind"] = gate_kind
     summary["stages"]["1"].update(statistics)
@@ -1492,83 +1502,50 @@ def test_v4_headline_reads_the_statistic_the_summary_records(
     assert not set(statistics) & set(result["stages"][0])
 
 
-def test_v4_headline_reads_the_task_success_lcb_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
-    """A task_success/v1 hunt deliverable headlines selected_model_success_lcb from the stage row as written."""
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete"
-    )
-    summary["stages"]["3"]["gate_kind"] = "task_success/v1"
-    summary["provenance"]["deliverables"]["3"]["gate_kind"] = "task_success/v1"
-    summary["stages"]["3"]["selected_model_success_lcb"] = 0.851
-    summary["stages"]["3"]["selected_model_success_count"] = 29
-    summary["stages"]["3"]["selected_model_n_episodes"] = 30
-    summary["stages"]["3"]["selected_model_success_rate"] = 0.9667
-
-    result = _build_result_from(tmp_path, monkeypatch, summary)
-
-    hunt = next(row for row in result["deliverables"] if row["id"] == "behavior")
-    assert hunt["gate_kind"] == "task_success/v1"
-    assert [(metric["key"], metric["value"]) for metric in hunt["headline"]] == [
-        ("selected_model_success_lcb", 0.851),
-        ("selected_model_success_rate", 0.9667),
-    ]
-    assert "selected_model_success_lcb" not in result["stages"][-1]
-
-
 def test_v4_summary_whose_primary_is_spelled_by_id_over_numeric_keys_is_rejected(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     """A primary that names a stage by id while the deliverables are keyed by number fails closed.
 
     The primary is a KEY of provenance.deliverables; "locomotion" over a map
-    keyed "1", "2", "3" resolves to a stage but matches no key.  The shared
+    keyed "1", "2" resolves to a stage but matches no key.  The shared
     validator rejects it with a message naming the keys (a CatalogError
     here, never a bare StopIteration escaping ``python -m ...species_catalog``).
     """
     summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="locomotion", bundle_status="partial"
+        {"1": True, "2": True}, target="2", primary="locomotion", bundle_status="complete"
     )
-    with pytest.raises(
-        CatalogError, match=r"'locomotion', which is not a key of provenance.deliverables \['1', '2', '3'\]"
-    ):
+    with pytest.raises(CatalogError, match=r"'locomotion', which is not a key of provenance.deliverables \['1', '2'\]"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
 
 def test_v4_summary_whose_primary_is_uncertified_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
     """The catalog never headlines a failed leaf: an uncertified primary is fatal."""
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="3", bundle_status="partial"
-    )
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": False}, target="2", primary="2", bundle_status="partial")
     with pytest.raises(CatalogError, match="not certified"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
     # A certified primary that is not the one the deliverables and target
-    # imply (walk is the deepest certified, so stance cannot be primary).
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="1", bundle_status="partial"
-    )
+    # imply (walk is the certified target, so stance cannot be primary).
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": True}, target="2", primary="1", bundle_status="complete")
     with pytest.raises(CatalogError, match="is not the one its deliverables and target"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary=None, bundle_status="partial"
-    )
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": False}, target="2", primary=None, bundle_status="partial")
     with pytest.raises(CatalogError, match="no primary deliverable"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
 
 def test_v4_summary_with_unknown_deliverable_stage_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
     """A deliverable key outside the species' manifest vocabulary fails closed."""
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete"
-    )
-    summary["provenance"]["deliverables"]["follow_direction"] = deepcopy(summary["provenance"]["deliverables"]["3"])
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
+    summary["provenance"]["deliverables"]["follow_direction"] = deepcopy(summary["provenance"]["deliverables"]["2"])
     with pytest.raises(CatalogError, match="follow_direction"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
 
 def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -> None:
-    """A walk-targeted run with no behavior stage publishes (plan §8.5) and has no ladder headline."""
+    """A walk-targeted run, the whole chain since decision D-D59, publishes (plan §8.5) with no stage-3 headline."""
     summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
 
     result = _build_result_from(tmp_path, monkeypatch, summary)
@@ -1577,7 +1554,7 @@ def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -
     assert all(row["certified"] for row in result["deliverables"])
     assert result["primary_deliverable"] == "2"
     assert result["target_deliverable"] == "2"
-    assert result["stage3_success_rate"] is None
+    assert "stage3_success_rate" not in result
     assert [stage["id"] for stage in result["stages"]] == ["stance", "locomotion"]
 
 
@@ -1612,46 +1589,27 @@ def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -
         (
             "reward_and_length/v1",
             {"avg_forward_vel": 3.47, "mean_success_rate": None},
-            {"min_avg_forward_velocity": 1.0, "min_success_rate": None},
+            {"min_avg_forward_velocity": 1.0},
             [("avg_forward_vel", 3.47, "m/s")],
         ),
-        (
-            "reward_and_length/v1",
-            {"avg_forward_vel": 0.71, "mean_success_rate": 0.9333},
-            {"min_avg_forward_velocity": None, "min_success_rate": 0.5},
-            [("mean_success_rate", 0.9333, "percent")],
-        ),
+        # A success rate is never a headline: the success floor left with the hunt nodes (decision D-D59).
         (
             "reward_and_length/v1",
             {"avg_forward_vel": 1.68, "mean_success_rate": 0.9667},
-            {"min_avg_forward_velocity": 2.0, "min_success_rate": 0.5},
-            [("avg_forward_vel", 1.68, "m/s"), ("mean_success_rate", 0.9667, "percent")],
+            {"min_avg_forward_velocity": 2.0},
+            [("avg_forward_vel", 1.68, "m/s")],
         ),
-        # A reward-only rail headlines nothing: neither floor is declared.
+        # A reward-only rail headlines nothing: no floor is declared.
         ("reward_and_length/v1", {"avg_forward_vel": 0.02}, {"min_avg_reward": 1050.0}, []),
-        # task_success/v1 (plan §4.4): the bound the gate certifies, then
-        # the raw selected-checkpoint rate it bounds; nulls until recorded.
-        (
-            "task_success/v1",
-            {"selected_model_success_lcb": 0.5006, "selected_model_success_rate": 0.6667},
-            {"min_success_lcb": 0.5},
-            [("selected_model_success_lcb", 0.5006, "ratio"), ("selected_model_success_rate", 0.6667, "percent")],
-        ),
-        (
-            "task_success/v1",
-            {"mean_success_rate": 0.9667},
-            {"min_success_lcb": 0.5},
-            [("selected_model_success_lcb", None, "ratio"), ("selected_model_success_rate", None, "percent")],
-        ),
         (
             "stance_quality/v2",
             {"mean_success_rate": 1.0},
             {"min_clean_stance_lcb": 0.8},
             [("stance_clean_lcb", None, "ratio"), ("stance_clean_fraction", None, "percent")],
         ),
-        ("none/v1", {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
+        ("none/v1", {"mean_success_rate": 1.0}, {}, []),
         # Unrecorded gate kind: nothing measured, nothing headlined.
-        (None, {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
+        (None, {"mean_success_rate": 1.0}, {}, []),
     ],
 )
 def test_headline_metric_by_gate_kind(
@@ -1664,9 +1622,8 @@ def test_headline_metric_by_gate_kind(
 
     Stance and recovery name their statistics with null values in Phase A
     (D-A9) and carry the value through as soon as the summary stage records
-    it; reward_and_length headlines velocity and/or success according
-    to which floors the current gate declares; none/v1 and an unrecorded
-    kind headline nothing.
+    it; reward_and_length headlines velocity when the current gate declares
+    its floor; none/v1 and an unrecorded kind headline nothing.
     """
     headline = _deliverable_headline(gate_kind, stage_row, current_gate)
     assert [(metric["key"], metric["value"], metric["unit"]) for metric in headline] == expected
@@ -1677,6 +1634,14 @@ def test_unknown_gate_kind_has_no_headline_and_is_fatal() -> None:
     """A kind the registry does not know is a catalog failure that names the registry."""
     with pytest.raises(CatalogError, match="_HEADLINE_BY_GATE_KIND"):
         _deliverable_headline("tracking_quality/v1", {}, {})
+
+
+def test_a_deliverable_certified_under_the_retired_task_success_gate_is_fatal_naming_the_decision() -> None:
+    """task_success/v1 left with the hunt nodes (decision D-D59): its headline went too, and the refusal says why."""
+    with pytest.raises(
+        CatalogError, match=r"gate_kind 'task_success/v1' was removed with the hunt nodes \(decision D-D59\)"
+    ):
+        _deliverable_headline("task_success/v1", {"selected_model_success_lcb": 0.5006}, {})
 
 
 def test_a_stance_v2_stage_exports_and_renders_its_own_criteria() -> None:
@@ -1741,7 +1706,7 @@ def test_deliverable_metrics_cover_every_declared_deliverable() -> None:
         assert entry["success_metrics"]
         assert all(set(metric) == {"backends", "key", "label", "definition"} for metric in entry["success_metrics"])
 
-    with pytest.raises(CatalogError, match=r"missing \['behavior'\]"):
+    with pytest.raises(CatalogError, match=r"missing \['locomotion'\]"):
         _build_deliverable_metrics(
             VELOCIRAPTOR_MONGOLIENSIS,
             [
@@ -1752,7 +1717,6 @@ def test_deliverable_metrics_cover_every_declared_deliverable() -> None:
                     "label": "l",
                     "definition": "d",
                 },
-                {"deliverable": "walk", "backends": ["stable-baselines3"], "key": "k", "label": "l", "definition": "d"},
             ],
             {"stable-baselines3", "jax-mjx"},
         )
@@ -1771,27 +1735,26 @@ def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
     # D-D35); a stage id names its node too.
     tyrannosaurus_rex = _build_deliverable_metrics(
         TYRANNOSAURUS_REX,
-        [_metric("stance"), _metric("recover"), _metric("walk"), _metric("hunt")],
+        [_metric("stance"), _metric("recover"), _metric("walk")],
         {"stable-baselines3", "jax-mjx"},
     )
     assert [(metric["deliverable"], metric["stage_id"]) for metric in tyrannosaurus_rex] == [
         ("stance", "stance"),
         ("recover", "recovery"),
         ("walk", "locomotion"),
-        ("hunt", "behavior"),
     ]
     by_id = _build_deliverable_metrics(
         TYRANNOSAURUS_REX,
-        [_metric("stance"), _metric("recovery"), _metric("locomotion"), _metric("behavior")],
+        [_metric("stance"), _metric("recovery"), _metric("locomotion")],
         {"stable-baselines3"},
     )
     assert [metric["stage_id"] for metric in by_id] == [metric["stage_id"] for metric in tyrannosaurus_rex]
     velociraptor_mongoliensis = _build_deliverable_metrics(
         VELOCIRAPTOR_MONGOLIENSIS,
-        [_metric("stance"), _metric("walk"), _metric("hunt")],
+        [_metric("stance"), _metric("walk")],
         {"stable-baselines3", "jax-mjx"},
     )
-    assert [metric["stage_id"] for metric in velociraptor_mongoliensis] == ["stance", "locomotion", "behavior"]
+    assert [metric["stage_id"] for metric in velociraptor_mongoliensis] == ["stance", "locomotion"]
 
     with pytest.raises(CatalogError, match="unknown deliverable 'follow_direction'"):
         _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("follow_direction")], {"stable-baselines3"})
@@ -1814,6 +1777,15 @@ def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
         + re.escape("'stand' was renamed to 'stance' (decision D-D38); use 'stance'"),
     ):
         _build_deliverable_metrics(VELOCIRAPTOR_MONGOLIENSIS, [_metric("stand")], {"stable-baselines3"})
+    # "hunt", the removed hunt nodes' label (decision D-D59), is retired too: refused naming "walk", on every model.
+    for model_id in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, ALLOSAURUS_FRAGILIS):
+        with pytest.raises(
+            CatalogError,
+            match=re.escape("unknown deliverable 'hunt'")
+            + ".*"
+            + re.escape("'hunt' was removed with every node it labelled (decision D-D59); use 'walk'"),
+        ):
+            _build_deliverable_metrics(model_id, [_metric("hunt")], {"stable-baselines3"})
     # "recover" names nothing on a model without a recovery node.
     with pytest.raises(CatalogError, match="unknown deliverable 'recover'"):
         _build_deliverable_metrics(VELOCIRAPTOR_MONGOLIENSIS, [_metric("recover")], {"stable-baselines3"})
@@ -1919,7 +1891,8 @@ def test_committed_stage_videos_are_keyed_by_id() -> None:
             assert isinstance(video["stage"], str), (model_id, video["stage"])
             assert video["stage"] in declared
     # Migration is presentation-neutral: the committed rows still label the
-    # eight historical videos exactly as test_catalog_labels_published_videos
+    # six historical videos (eight until the two stage-3 hunt videos left
+    # with decision D-D59) exactly as test_catalog_labels_published_videos
     # pins, keyed onto the stage rows by id.
     videos = {
         (model_id, stage["id"]): stage["video"]["path"]
@@ -1933,6 +1906,7 @@ def test_committed_stage_videos_are_keyed_by_id() -> None:
         == "/videos/brachiosaurus_altithorax_anatomical_ppo_stage2_best.mp4"
     )
     assert (TYRANNOSAURUS_REX, "recovery") not in videos
+    assert not any(stage_id == "behavior" for _, stage_id in videos)
 
 
 def test_readme_species_table_renders_recipe_edges() -> None:
@@ -1945,7 +1919,8 @@ def test_readme_species_table_renders_recipe_edges() -> None:
     assert "| 1 — Stance | stance (deliverable) | — |" in rendered
     assert "| recovery — Recovery | recover (deliverable) | 1 — Stance |" in rendered
     assert "| 2 — Locomotion | walk (deliverable) | 1 — Stance |" in rendered
-    assert "| 3 — Bite | hunt (deliverable) | 2 — Locomotion |" in rendered
+    # No hunt row since decision D-D59.
+    assert "hunt (deliverable)" not in rendered and "| 3 — " not in rendered
     assert "**Per-deliverable success semantics:**" in rendered
     # Every model names its deliverables by recipe label (D-D35): the robot's stance is "stance" (its id
     # and its label, D-D38), its recovery "recover".
@@ -1965,53 +1940,78 @@ def test_readme_species_table_renders_recipe_edges() -> None:
     assert "Stance quality (stance_quality/v2)" not in rendered
 
 
-def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> None:
-    """The generated RESULTS block preserves historical metrics and normalizes the stance label.
+#: The RESULTS preamble, then the line an empty block ends on (decision D-D59 deleted every committed summary).
+RESULTS_PREAMBLE = (
+    "The summaries below are historical experiment records generated from the versioned JSON files under\n"
+    "`results/`. They are not evidence for the current model revision unless provenance is marked both current\n"
+    "and verified. Current stage budgets may therefore differ from the steps reported here.\n"
+)
+NO_RESULTS_LINE = "No result summary is published under `results/` at present.\n"
 
-    The golden fixture is the block between the RESULTS markers of
-    README.md at the merge of PR #528 (`git show HEAD:README.md`, captured
-    2026-09-12 before any WS4 edit).  A Deliverables line is only emitted
-    for a result under the deliverable rules (schema 5), and the four
-    committed summaries are schema 2.  Since cleanup CU-17 the block lives in
-    docs/SPECIES_CATALOG.md (D-A10's amendment), whose links are relative to
-    docs/: the committed block there is the golden with its four
-    source-summary links one directory up, and the root README no longer
-    embeds it.
 
-    Decision D-D33 moved the four summaries to ``results/<species>/<embodiment>/``
-    and heads each section with the model display name.  The fixture is
-    unchanged: its four headings and four source links are normalised here
-    from the catalog's own records (the species display name, which the
-    fixture spells in its earlier Title Case, becomes the model's display
-    name, each link the recorded ``summary_path``), and every other byte must
-    still match.
-    """
-    golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8").replace("1 — Balance", "1 — Stance")
-    assert golden.count("### ") == 4
+def test_readme_results_block_says_no_summary_is_published() -> None:
+    """With no committed summary (decision D-D59 deleted the four historical ladder summaries, whose last stage was a
+    hunt), the generated RESULTS block is the preamble and one line saying so, on the catalog page as rendered."""
     catalog = build_catalog()
-    recorded = [(entry, result) for entry in catalog["models"] for result in entry["historical_results"]]
-    assert len(recorded) == 4
-    lines = golden.splitlines(keepends=True)
-    sections = iter(recorded)
-    for index, line in enumerate(lines):
-        if line.startswith("### "):
-            entry, _ = next(sections)
-            heading = f"### {entry['species_display_name'].title()} ("
-            assert line.startswith(heading), line
-            lines[index] = f"### {entry['display_name']} (" + line[len(heading) :]
-    golden = "".join(lines)
-    links = iter(result["summary_path"] for _, result in recorded)
-    golden = re.sub(r"\]\(results/[^)]+/summary\.json\)", lambda _: f"]({next(links)})", golden)
-    assert next(links, None) is None
-    assert render_readme_results(catalog).rstrip() + "\n" == golden
-    assert golden.count("](results/") == 4
-    on_page = golden.replace("](results/", "](../results/")
-    assert render_readme_results(catalog, page_dir=CATALOG_PAGE_DIR).rstrip() + "\n" == on_page
+    expected = RESULTS_PREAMBLE + "\n" + NO_RESULTS_LINE
+    assert render_readme_results(catalog).rstrip() + "\n" == expected
+    assert render_readme_results(catalog, page_dir=CATALOG_PAGE_DIR).rstrip() + "\n" == expected
     committed = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
     begin, end = "<!-- BEGIN GENERATED: RESULTS -->\n", "<!-- END GENERATED: RESULTS -->"
     assert committed.count(begin) == 1 and committed.count(end) == 1
-    assert committed.split(begin, 1)[1].split(end, 1)[0] == on_page
+    assert committed.split(begin, 1)[1].split(end, 1)[0] == expected
     assert "GENERATED: RESULTS" not in DEFAULT_README_PATH.read_text(encoding="utf-8")
+
+
+def test_readme_results_block_renders_a_historical_summary_with_stance_labels(tmp_path: Path, monkeypatch: Any) -> None:
+    """A historical section renders its stage rows as D-A10's golden held them, the stance label normalized, and
+    one Deliverables line.
+
+    D-A10's golden pinned the block of the four committed summaries byte for byte; with those summaries deleted
+    (decision D-D59) the stage rows are pinned on the historical fixture, whose two stage rows are the stance and
+    walk rows of the velociraptor PPO section that golden held (``1 — Balance`` relabelled ``1 — Stance``, the
+    amendment of 2026-10-10), and whose run total is re-summed over those two stages.  Its schema-5 deliverable
+    records add the Deliverables line a schema-2 ladder section never had (decision D-D63 retired schema 2); the
+    stance is provisional against the velociraptor's current two certification seeds.  The empty-block line is not
+    emitted.
+    """
+    from environments.shared import species_catalog
+
+    catalog = build_catalog()
+    summary_path = tmp_path / "summary.json"
+    summary_path.write_text(json.dumps(_published_summary()), encoding="utf-8")
+    monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
+    relative = "results/velociraptor_mongoliensis/anatomical/ppo/summary.json"
+    _models(catalog)[VELOCIRAPTOR_MONGOLIENSIS]["historical_results"] = [
+        _build_result(VELOCIRAPTOR_MONGOLIENSIS, relative)
+    ]
+    walk_definition = next(
+        metric["definition"]
+        for metric in _models(catalog)[VELOCIRAPTOR_MONGOLIENSIS]["success_metrics"]
+        if "stable-baselines3" in metric["backends"]
+    )
+    section = (
+        "### Velociraptor mongoliensis (Anatomical) (PPO · Stable-Baselines3) — 2026-03-15\n"
+        "\n"
+        "**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 "
+        "(version not recorded). **Run total:** 14M steps; 7:33:20. "
+        "[Source summary](results/velociraptor_mongoliensis/anatomical/ppo/summary.json).\n"
+        "\n"
+        "| Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |\n"
+        "|---|---:|---:|---:|---:|---:|\n"
+        "| 1 — Stance | 1964.43 | 0.11 m/s | — | 6M | passed retired gate (reward gate) |\n"
+        "| 2 — Locomotion | 2678.68 | 3.47 m/s | — | 8M | passed retired gate (reward gate) |\n"
+        "\n"
+        "**Deliverables:** 1 — stance (certified; gate reward_and_length/v1; 1 run of 2 seeds; provisional) · "
+        "2 — walk (certified, primary; gate reward_and_length/v1; 1 run of 1 seed)\n"
+        "\n"
+        f"**Current Stable-Baselines3 catalog definition for this task label:** {walk_definition}\n"
+    )
+    assert render_readme_results(catalog).rstrip() + "\n" == RESULTS_PREAMBLE + "\n" + section
+    on_page = section.replace("](results/", "](../results/")
+    assert render_readme_results(catalog, page_dir=CATALOG_PAGE_DIR).rstrip() + "\n" == (
+        RESULTS_PREAMBLE + "\n" + on_page
+    )
 
 
 def test_readme_species_summary_rows_keep_anchors_and_resolve() -> None:
@@ -2110,7 +2110,9 @@ def test_catalog_page_blocks_differ_from_the_root_renderings_only_in_their_links
     for render in (render_readme_species, render_readme_results):
         root_relative = render(catalog)
         targets = link.findall(root_relative)
-        assert targets
+        # The RESULTS block holds no link while no summary is published (decision D-D59); a rendered section's
+        # links are test_readme_results_block_renders_a_historical_summary_with_stance_labels's.
+        assert targets or render is render_readme_results
         assert not [t for t in targets if t.startswith(("http://", "https://", "/", "../", "#"))]
         rebased = link.sub(lambda m: f"]({posixpath.relpath(m.group(1), CATALOG_PAGE_DIR)})", root_relative)
         assert render(catalog, page_dir=CATALOG_PAGE_DIR) == rebased
@@ -2118,12 +2120,12 @@ def test_catalog_page_blocks_differ_from_the_root_renderings_only_in_their_links
 
 def test_check_catalog_refuses_a_stale_or_missing_catalog_page(tmp_path: Path) -> None:
     """A hand edit of a generated cell, or a missing page, fails ``--check`` (cleanup CU-17)."""
-    # The velociraptor's row: 71 since its policy interface r14 (69 before).
+    # The velociraptor's row: 67 since its policy interface r15 (71 at r14, 69 before).
     page = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
-    assert "| Observation dimension | 71 |" in page
+    assert "| Observation dimension | 67 |" in page
     edited = tmp_path / "SPECIES_CATALOG.md"
     edited.write_text(
-        page.replace("| Observation dimension | 71 |", "| Observation dimension | 72 |", 1), encoding="utf-8"
+        page.replace("| Observation dimension | 67 |", "| Observation dimension | 68 |", 1), encoding="utf-8"
     )
     with pytest.raises(CatalogError, match="species catalog page is stale"):
         check_catalog(catalog_page_path=edited)
@@ -2155,7 +2157,7 @@ def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
     assert main([*paths, "--check"]) == 0
     capsys.readouterr()
     edited = page.read_text(encoding="utf-8").replace(
-        "| Observation dimension | 71 |", "| Observation dimension | 72 |", 1
+        "| Observation dimension | 67 |", "| Observation dimension | 68 |", 1
     )
     page.write_text(edited, encoding="utf-8")
     with pytest.raises(SystemExit) as stale:
@@ -2183,40 +2185,37 @@ def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
 
 
 def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monkeypatch: Any) -> None:
-    """A result under the deliverable rules (schema 5; schema 4 before decision D-D33) adds one Deliverables line,
-    and every ladder section stays as it was."""
+    """A result under the deliverable rules (schema 5; schema 4 before decision D-D33) adds one Deliverables line of
+    its own, and the section beside it stays as it was."""
     catalog = build_catalog()
-    baseline = render_readme_results(catalog)
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
-    )
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": False}, target="2", primary="1", bundle_status="partial")
     v4_result = _build_result_from(tmp_path, monkeypatch, summary)
+    (tmp_path / "historical").mkdir()
+    historical_result = _build_result_from(
+        tmp_path / "historical", monkeypatch, _tyrannosaurus_rex_historical_summary()
+    )
     tyrannosaurus_rex = _models(catalog)[TYRANNOSAURUS_REX]
-    tyrannosaurus_rex["historical_results"] = [v4_result]
+    tyrannosaurus_rex["historical_results"] = [historical_result]
+    baseline = render_readme_results(catalog)
+    tyrannosaurus_rex["historical_results"] = [historical_result, v4_result]
 
     rendered = render_readme_results(catalog)
 
     assert "**Deliverables:** " in rendered
     assert (
-        "1 — stance (certified; gate stance_quality_heading/v1; 1 run of 2 seeds; provisional; "
+        "1 — stance (certified, primary; gate stance_quality_heading/v1; 1 run of 2 seeds; provisional; "
         "seeds clean at all six headings LCB95 not recorded; seeds clean at all six headings not recorded) · "
-        "2 — walk (certified, primary; gate reward_and_length/v1; 1 run of 1 seed; avg. forward velocity 3.47 m/s) · "
-        "3 — hunt (not certified; gate task_success/v1; 1 run of 1 seed; task success LCB95 not recorded; "
-        "task success not recorded)"
+        "2 — walk (not certified; gate command_tracking/v1; 1 run of 1 seed; cruise episodes on the command LCB95 "
+        "not recorded; stand episodes holding the stop not recorded)"
     ) in rendered
     # Count and bar are always rendered (D-B11); only a count below the bar says provisional.
     replicated = {**v4_result["deliverables"][0], "replication_count": 2, "provisional": False}
     assert "; 2 runs of 2 seeds; " in _format_deliverable(replicated, primary=False)
     assert "provisional" not in _format_deliverable(replicated, primary=False)
-    assert rendered.count("**Deliverables:**") == 1
-    # The other models' sections are untouched by the new line (headed by the model display name, D-D33).
-    for heading in (
-        "### Velociraptor mongoliensis (Anatomical) (PPO",
-        "### Velociraptor mongoliensis (Anatomical) (SAC",
-        "### Brachiosaurus altithorax (Anatomical)",
-    ):
-        section = lambda text: text.split(heading, 1)[1].split("\n### ", 1)[0]  # noqa: E731
-        assert section(rendered) == section(baseline)
+    assert baseline.count("**Deliverables:**") == 1 and rendered.count("**Deliverables:**") == 2
+    # The section beside it is untouched by the new one (headed by the model display name, D-D33).
+    assert rendered.startswith(baseline.rstrip("\n"))
+    assert rendered.count("### Tyrannosaurus rex (Anatomical) (PPO") == 2
 
 
 # ── Website adapter pins (WS4, decisions D-A8, D-A10, D-A13) ──────────────
@@ -2292,23 +2291,21 @@ def test_website_adapter_declares_every_exported_key(tmp_path: Path, monkeypatch
     Two-sided: an exported key the adapter never declares is a field the
     site silently drops (the seven gate keys were, before WS4 — D-A13), and
     a declared key the catalog no longer exports is a field the site reads
-    as undefined.  Deliverable rows are taken from a schema-4 fixture
-    because the four committed ladder summaries publish none (D-A10); the
-    result and provenance pins take the committed v2 rows AND that fixture,
-    so the six-key provenance projection holds for the first schema-4
-    summary committed, not only for the rows committed today.
+    as undefined.  The result, deliverable and provenance pins take the
+    historical fixture's row (no summary is committed since decision D-D59)
+    AND a partial fixture under the current gate kinds, so the six-key
+    provenance projection holds for the first summary committed.
     """
     source = _website_source("data/species.ts")
     catalog = build_catalog()
     models = catalog["models"]
     stage_rows = [stage for entry in models for stage in entry["stages"]]
-    results = [result for entry in models for result in entry["historical_results"]]
+    (tmp_path / "historical").mkdir()
+    results = [_build_result_from(tmp_path / "historical", monkeypatch, _tyrannosaurus_rex_historical_summary())]
     v4_result = _build_result_from(
         tmp_path,
         monkeypatch,
-        _tyrannosaurus_rex_v5_summary(
-            {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
-        ),
+        _tyrannosaurus_rex_v5_summary({"1": True, "2": False}, target="2", primary="1", bundle_status="partial"),
     )
     videos = [stage["video"] for stage in stage_rows if stage["video"] is not None]
     assert videos, "at least one published video is needed to pin the video row"
@@ -2370,19 +2367,25 @@ def test_website_gate_formatter_mirrors_python() -> None:
 
     Both renderers are pinned against one phrase list, so a criterion added
     to one and not the other fails here whichever side moved.  The branch
-    order pin (none/v1, then recovery_quality/v1, then task_success/v1, then
-    stance_quality/v2, then the six-heading certificate, then the generic
-    path) keeps the frozen-verdict
-    sentence on the recovery row, the evidence-CSV sentence on the hunting
-    row, the floor-truth report sentence on the v2 stance row, and the
-    consecutive-passes tail off all three, on both sides.  The task_success
-    and stance_quality/v2 rails are rendered as "reward rail" so the generic
-    path's "reward ≥ " stays unique to it.
+    order pin (none/v1, then recovery_quality/v1, then stance_quality/v2,
+    then the six-heading certificate, then command_tracking/v1, then the generic path) keeps the
+    frozen-verdict sentence on the recovery row, the floor-truth report
+    sentence on the v2 stance row, and the consecutive-passes tail off all
+    three, on both sides.  The stance_quality/v2 rails are rendered as
+    "reward rail" so the generic path's "reward ≥ " stays unique to it.
+    task_success/v1's branch and the generic path's success-rate criterion
+    left with the gate and min_success_rate (decision D-D59), on both sides.
+    The command_tracking/v1 branch, which every walk takes since decision
+    D-D62, delegates to ``_format_command_tracking_gate`` and
+    ``formatCommandTrackingGate``, whose phrases and order are pinned the same way.
     """
     python_source = (REPOSITORY_ROOT / "environments/shared/species_catalog.py").read_text(encoding="utf-8")
     python_body = python_source.split("def _format_advancement_gate(", 1)[1].split("\ndef ", 1)[0]
     tsx_source = _website_source("components/SpeciesCatalog/index.tsx")
     tsx_body = "function formatGate(" + _ts_block(tsx_source, "function formatGate(")
+    # The command_tracking/v1 branch delegates to one function on each side (decisions D-D61 and D-D62).
+    python_command = python_source.split("def _format_command_tracking_gate(", 1)[1].split("\ndef ", 1)[0]
+    tsx_command = _ts_block(tsx_source, "function formatCommandTrackingGate(")
 
     phrases = [
         "non-advancing pilot (gate_kind none/v1); never advances",
@@ -2392,9 +2395,7 @@ def test_website_gate_formatter_mirrors_python() -> None:
         "re-entry ≤ ",
         "-step dwell",
         "verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)",
-        "task success LCB95 ≥ ",
         "reward rail ≥ ",
-        "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
         "clean stance episodes LCB95 ≥ ",
         " over ≥ ",
         "episodes (settle ",
@@ -2411,7 +2412,6 @@ def test_website_gate_formatter_mirrors_python() -> None:
         "episode length ≥ ",
         "avg. velocity ≥ ",
         " m/s",
-        "task success ≥ ",
         "full-horizon episodes ≥ ",
         "unsupported duty ≤ ",
         "unsupported duty 95% upper bound ≤ ",
@@ -2423,17 +2423,62 @@ def test_website_gate_formatter_mirrors_python() -> None:
         for phrase in phrases
     }
     assert {phrase: sides for phrase, sides in missing.items() if sides} == {}
+    command_phrases = [
+        # The walk profile (every committed walk since decision D-D62).
+        "cruise episodes (a non-zero reset command) success LCB95 ≥ ",
+        " and survival LCB95 ≥ ",
+        " over ≥ ",
+        "a cruise episode succeeds when it reaches the horizon, settles its initial heading within 1 s + ",
+        "|error| / yaw_rate_max + the stage's tracking window ([commands] tracking_window_s, decision D-D64) ",
+        "and holds it 1 s, stays in tolerance on ≥ ",
+        " of its steps after the settle (its velocity ",
+        "and yaw-rate errors read on that window's means), makes ≥ ",
+        " × the commanded speed along the heading after 2 s and passes the ",
+        "stand episodes (an exactly zero command) over ≥ ",
+        " hold the stop (it settles, and holds on ≥ ",
+        " of the steps after 1 s) and ≤ ",
+        " fall",
+        # The follow profile.
+        "command-following episodes success LCB95 ≥ ",
+        " episodes of ≥ ",
+        "an episode succeeds when it survives, stays in tolerance on ≥ ",
+        " of its steps, settles ≥ ",
+        " of its commands, ≥ ",
+        " of its stops and ≥ ",
+        " of its turns (each where the schedule draws ",
+        " episodes exposed to each of stops and turns",
+        "course ≥ ",
+        "paired Δ success vs the parent policy LCB95 ≥ ",
+        # Both.
+        "gait clause (",
+        "tolerances overridden for the gate: ",
+        "handoff chosen by the gated statistic on a separate selection panel; verdict from ",
+        "command_tracking_report.json on that pair (post-stage; fail-closed when absent)",
+    ]
+    missing = {
+        phrase: [side for side, body in (("python", python_command), ("tsx", tsx_command)) if phrase not in body]
+        for phrase in command_phrases
+    }
+    assert {phrase: sides for phrase, sides in missing.items() if sides} == {}
+    for body in (python_command, tsx_command):
+        # The follow branch first, then the walk's; the gait clause, the overrides and the source close both.
+        follow, walk = body.index("command-following episodes"), body.index("cruise episodes (a non-zero")
+        assert follow < walk < body.index("gait clause (") < body.index("tolerances overridden")
+        assert body.index("tolerances overridden") < body.index("handoff chosen by the gated statistic")
+        assert " consecutive passes" not in body and "episodes/evaluation" not in body
 
     for body in (python_body, tsx_body):
+        for retired in ("task_success/v1", "task success", "min_success_rate", "minSuccessRate"):
+            assert retired not in body, retired
         none_branch = body.index("none/v1")
         recovery_branch = body.index("recovery_quality/v1")
-        task_success_branch = body.index("task_success/v1")
         stance_v2_branch = body.index("stance_quality/v2")
         heading_branch = body.index("stance_quality_heading/v1")
+        command_branch = body.index("command_tracking/v1")
         # Anchored on a phrase ONLY the generic path emits: "reward ≥ " would
         # resolve inside a branch that rendered its rail with the same words.
         generic_path = body.index("avg. velocity ≥ ")
-        assert none_branch < recovery_branch < task_success_branch < stance_v2_branch < heading_branch < generic_path
+        assert none_branch < recovery_branch < stance_v2_branch < heading_branch < command_branch < generic_path
         # The certificate's sentences belong to its own branch.
         assert heading_branch < body.index("seeds clean at all six headings") < generic_path
         assert heading_branch < body.index("verdict from the six-heading stance_heading_report.json") < generic_path
@@ -2442,11 +2487,12 @@ def test_website_gate_formatter_mirrors_python() -> None:
         assert stance_v2_branch < body.index("verdict from the floor-truth stance_gate_report.json") < generic_path
         # The consecutive-passes tail belongs to the generic path only.
         assert body.index(" consecutive passes") > generic_path
-        assert body.index("verdict from the frozen gate_resolution.json") < task_success_branch
-        assert task_success_branch < body.index("verdict from the selected checkpoint") < generic_path
-        # The hunting rail is "reward rail ≥ "; the plain criterion is generic.
-        assert task_success_branch < body.index("reward rail ≥ ") < generic_path
-        assert body.index("reward ≥ ") > body.index("reward rail ≥ ")
+        assert body.index("verdict from the frozen gate_resolution.json") < stance_v2_branch
+        # The floor-truth rail is "reward rail ≥ "; the plain criterion is generic, rendered after every rail
+        # (comments, which name the phrase to explain the rule, are not renderings).
+        assert stance_v2_branch < body.index("reward rail ≥ ") < generic_path
+        code = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith(("#", "//")))
+        assert code.index("reward ≥ ") > code.rindex("reward rail ≥ ")
 
 
 def test_website_stance_criteria_follow_the_gate() -> None:
@@ -2460,6 +2506,25 @@ def test_website_stance_criteria_follow_the_gate() -> None:
     source = _website_source("data/species.ts")
     block = source.split("export const STANCE_V2_EPISODE_CRITERIA = [", 1)[1].split("] as const;", 1)[0]
     assert re.findall(r"'([a-z0-9_]+)'", block) == list(EPISODE_CRITERION_KEYS)
+
+
+def test_website_command_criteria_follow_the_gate() -> None:
+    """species.ts lists the command_tracking/v1 gait bars and tolerance overrides in the gate's own order.
+
+    The site renders a command stage's gait clause from ``COMMAND_GAIT_CRITERIA`` and its overrides from
+    ``COMMAND_TOLERANCE_OVERRIDES`` as the catalog renders them from ``command_tracking_gate.GAIT_CRITERIA`` and
+    ``TOLERANCE_OVERRIDE_KEYS``, so each pair must be one list (decision D-D62: every walk declares the kind).
+    """
+    from environments.shared.curriculum.command_tracking_gate import GAIT_CRITERIA, TOLERANCE_OVERRIDE_KEYS
+
+    source = _website_source("data/species.ts")
+    gait = source.split("export const COMMAND_GAIT_CRITERIA = [", 1)[1].split("] as const;", 1)[0]
+    overrides = source.split("export const COMMAND_TOLERANCE_OVERRIDES = [", 1)[1].split("] as const;", 1)[0]
+    assert re.findall(r"'([a-z0-9_]+)'", gait) == [key for key, _, _ in GAIT_CRITERIA]
+    assert re.findall(r"'([a-z0-9_]+)'", overrides) == [key for key, _ in TOLERANCE_OVERRIDE_KEYS]
+    adapter = _ts_block(source, "function adaptCommandTrackingGate(")
+    assert "gate.gate_kind !== 'command_tracking/v1'" in adapter
+    assert "commandTracking: adaptCommandTrackingGate(stage.advancement_gate)" in source
 
 
 def test_website_replication_formatter_mirrors_python() -> None:
@@ -2521,12 +2586,17 @@ def test_animal_page_uses_catalog_stage_and_result_identity() -> None:
     assert "headline.value" in page and "headline.label" in page
     assert "result.provenance.modelRevisionStatus" in page and "result.provenance.verificationStatus" in page
 
+    # The stage-3 task-success headline left with the hunt nodes (decision D-D59): nothing reads it, and a ladder
+    # result headlines its fastest stage velocity through the same adapter.
     readers = sorted(
         path.relative_to(WEBSITE_SRC).as_posix()
         for path in WEBSITE_SRC.rglob("*.ts*")
         if "stage3SuccessRate" in path.read_text(encoding="utf-8")
+        or "stage3_success_rate" in path.read_text(encoding="utf-8")
     )
-    assert readers == ["data/species.ts"]
+    assert readers == []
+    adapter = _website_source("data/species.ts")
+    assert "label: 'Max. avg. forward velocity'" in adapter and "result.maxAverageForwardVelocity" in adapter
 
 
 def test_a_committed_result_of_a_run_that_never_counts_is_refused(tmp_path: Path, monkeypatch: Any) -> None:
@@ -2534,9 +2604,7 @@ def test_a_committed_result_of_a_run_that_never_counts_is_refused(tmp_path: Path
     commit (environments/shared/run_exclusions.py), through its own call site, not only the helper."""
     from environments.shared.species_catalog import CatalogError
 
-    summary = _tyrannosaurus_rex_v5_summary(
-        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
-    )
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": False}, target="2", primary="1", bundle_status="partial")
     _build_result_from(tmp_path, monkeypatch, summary)
     summary["provenance"]["repository_commit"] = "1dfe2327f773007fa7fd68460dc0c53740936ff9"
     with pytest.raises(CatalogError, match="never a committed result"):

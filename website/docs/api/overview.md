@@ -36,7 +36,23 @@ a subclass of the species base class `<Species>Env` in `environments.<species>.b
 
 ## Velociraptor Environment
 
-The main environment for velociraptor locomotion and predatory strike training.
+The main environment for velociraptor stance and locomotion training.
+
+The hunt tasks (the velociraptor strike, the T-Rex head-contact bite, the
+Brachiosaurus food reach, the Dibothrosuchus snap) are gone: decision D-D59
+removed every hunt node, and with it their reward terms, success terminations,
+info keys and constructor arguments (`strike_*`, `bite_*`, `food_reach_*`,
+`food_approach_weight`, `food_head_proximity_weight`, `snap_*`), which these
+classes now refuse with a `TypeError`. None of the four declares a success key,
+so its evaluations record no success rate. The prey, food or target object went
+too, in the policy-interface revision that followed under the same decision
+(`configs/plant_versions.toml` note 24): no scene has a mocap body, no
+observation reads a target, and the constructors refuse the target placement
+ranges (`prey_distance_range`, `prey_lateral_range`, `food_distance_range`,
+`food_lateral_range`, `food_height_range`, the Compsognathus `target_*`
+arguments) and `reset_height_noise_scale` with a `TypeError`. The forward,
+lateral and heading terms measure against the heading the animal spawns with,
+`env._reference_heading_2d`.
 
 ```python
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
@@ -47,7 +63,6 @@ env = VelociraptorMongoliensisAnatomicalEnv(
     max_episode_steps=1000,
     forward_vel_weight=1.0,    # Reward for forward movement
     alive_bonus=0.1,           # Bonus for staying upright
-    strike_bonus=10.0,         # Reward for claw-prey contact
 )
 
 observation, info = env.reset(seed=42)
@@ -57,11 +72,18 @@ obs, reward, terminated, truncated, info = env.step(action)
 
 ### Observation and Action Spaces
 
-Observations combine joint state, root-body sensors, foot contacts, and
-target-relative features. Actions are continuous values in `[-1, 1]`, scaled to
-the actuator control ranges in the MJCF. The exact observation and action
-dimensions are derived from the environment and compiled model and displayed on
-the generated [Velociraptor model page](/docs/models/velociraptor_mongoliensis/anatomical).
+Every model's observation reads no world heading and no target. It is, in
+order: the joint positions and velocities, the direction of gravity in the root
+body's frame, the root's gyro, the root's linear velocity in its
+gravity-aligned heading frame, its accelerometer, the foot-contact channels and
+the 3-wide command last (zeros unless a command is drawn). The root is the
+pelvis on the bipeds (`bipedal-heading-free/v1`) and the torso on the
+quadrupeds (`quadrupedal-heading-free/v1`). Turning the whole scene about
+vertical leaves the observation unchanged. Actions are continuous values in
+`[-1, 1]`, scaled to the actuator control ranges in the MJCF. The exact
+observation and action dimensions are derived from the environment and
+compiled model and displayed on the generated
+[Velociraptor model page](/docs/models/velociraptor_mongoliensis/anatomical).
 
 ### Reward Components
 
@@ -75,24 +97,19 @@ TOML configs.
 | `alive_bonus` | 0.1 | Per-step survival bonus |
 | `energy_penalty_weight` | 0.001 | Penalizes large actions |
 | `tail_stability_weight` | 0.05 | Penalizes tail angular velocity |
-| `strike_bonus` | 10.0 | Bonus when sickle claw contacts prey |
-| `strike_approach_weight` | 1.0 | Reward for closing distance to prey |
 | `fall_penalty` | -100.0 | Penalty on termination from falling |
 
 ## T-Rex Environment
 
-Large dinosaur-inspired bipedal model with a fixed head-contact task. The
-Stage 3 name "Bite" is retained in configs and metric keys, but the model has no
-articulated jaw: success means the fixed `head_bite` geom contacted the prey.
+Large dinosaur-inspired bipedal model. Its former hunt, a fixed head-contact
+"bite" (the model has no articulated jaw), was removed by decision D-D59 with
+its `bite_*` arguments; the `head_bite` geom it used left with the prey in
+physics r12.
 
 ```python
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-env = TyrannosaurusRexAnatomicalEnv(
-    render_mode="human",
-    bite_bonus=10.0,           # Reward for fixed head-geom/prey contact
-    bite_approach_weight=1.0,  # Reward for closing distance
-)
+env = TyrannosaurusRexAnatomicalEnv(render_mode="human")
 ```
 
 The generated [T-Rex model page](/docs/models/tyrannosaurus_rex/anatomical) is the authoritative public
@@ -100,9 +117,11 @@ source for its current observation and action dimensions.
 
 ## Brachiosaurus Environment
 
-Quadrupedal dinosaur-inspired model with a distance-based food-target task.
-"Food reached" means the head tip moved within the configured threshold; it
-does not require physical contact with a food geom.
+Quadrupedal dinosaur-inspired model. Its former hunt, a distance-based food
+reach (the head tip within a threshold of the food, with no contact), was
+removed by decision D-D59 with its `food_reach_*`, `food_approach_weight` and
+`food_head_proximity_weight` arguments; the food left the scene in physics r7.
+The `head_tip` site and its framepos sensor stay; no reward reads them.
 
 ```python
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
@@ -136,10 +155,10 @@ model.save("velociraptor_mongoliensis_anatomical_stance")
 ```
 
 Or use the shared training CLI from the repository root, which takes the model as
-`--species <species> --embodiment <embodiment>` (both required). The `curriculum` command runs all three stages in a single call — each stage loads its own hyperparameters from the TOML config automatically:
+`--species <species> --embodiment <embodiment>` (both required). The `curriculum` command runs the model's advancing stages, stance then locomotion, in a single call — each stage loads its own hyperparameters from the TOML config automatically:
 
 ```bash
-# Full 3-stage curriculum (recommended) — one command, stages 1-3
+# The full curriculum (recommended) — one command, stance then locomotion
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo --n-envs 4
 
@@ -202,25 +221,24 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 
 | Metric key | Description | Species |
 |---|---|---|
-| `mean_heading_alignment` | cos θ alignment toward prey ∈ [-1, 1] | T-Rex, Velociraptor |
+| `mean_heading_alignment` | cos θ between the body's heading and its forward reference ∈ [-1, 1]: the commanded heading on the walk, the spawn heading on a stage without a command | All but the Allosaurus |
 | `mean_contact_asymmetry` | Left/right contact imbalance ∈ [0, 1] | All |
-| `success_rate` | Episode-level indicator: 1 if any success event fired, otherwise 0 | All |
-| `min_prey_distance` | Minimum distance reached to prey (m) | T-Rex, Velociraptor |
-| `min_prey_distance` | Minimum distance reached to food (m) | Brachiosaurus |
+| `success_rate` | Episode-level indicator: 1 if any of the model's success keys fired, otherwise 0; absent for a model that declares none | Allosaurus (`course_complete`) |
 
 ### Species-Specific Key Mapping
 
 | Metric | T-Rex | Velociraptor | Brachiosaurus |
 |---|---|---|---|
 | Height key | `pelvis_height` | `pelvis_height` | `pelvis_height` (aliased from torso) |
-| Success key | `bite_success` | `strike_success` | `food_reached` |
-| Prey/food key | `prey_distance` | `prey_distance` | `prey_distance` (aliased from head_food_distance) |
-| Heading | ✓ | ✓ | N/A |
+| Success keys (`SUCCESS_KEYS`) | none | none | none |
+| Heading | ✓ | ✓ | ✓ |
 
-The key names are stable API labels, not biomechanical claims. In particular,
-`bite_success` is fixed head-geom contact and `food_reached` is head-tip
-proximity to the target.
+`LocomotionMetrics(success_keys=...)` takes a model's `SUCCESS_KEYS`
+(`SpeciesConfig.success_keys`); with none it records no `success_rate`. The
+hunt's success keys (`bite_success`, `strike_success`, `food_reached`,
+`snap_success`, the Compsognathus `target_success`) and its `prey_distance`
+and time-to-target metrics were removed with the hunt (decision D-D59).
 
 The shared CLI's `eval` command prints all metrics above grouped
-into **Core Performance**, **Velocity**, **Balance**, and a species-specific
-**Hunting / Food Reaching** section.
+into **Core Performance**, **Velocity** and **Balance**, with a success rate
+only for a model that declares success keys.

@@ -320,3 +320,17 @@ def test_a_heading_certificate_stage_is_preflighted_at_its_zero_heading_cell_onl
     assert record["passed"] is True and (record["n_clean"], record["n_episodes"]) == (2, 2)
     # The caller's block is never relabelled in place.
     assert config["curriculum_kwargs"]["gate_kind"] == "stance_quality_heading/v1"
+
+
+def test_stage_3_is_refused_when_the_arguments_are_parsed(capsys):
+    """Legacy stage 3, the hunt, resolves to no stage since decision D-D59: argparse refuses it before any model
+    is built, as the sibling report scripts' ``--stage`` does."""
+    from environments.shared.scripts.zero_action_baseline import KNOWN_STAGES, main
+
+    assert KNOWN_STAGES == frozenset({1, 2})
+    with pytest.raises(SystemExit) as excinfo:
+        main(["--stage", "3"])
+    assert excinfo.value.code == 2
+    err = capsys.readouterr().err
+    assert "[--stage {1,2}]" in err
+    assert "argument --stage: invalid choice" in err
