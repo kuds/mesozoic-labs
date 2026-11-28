@@ -125,6 +125,9 @@ class TrikeEnvConfig:
     # --- observation content ---
     obs_ankle_angles: bool = True  # the 4 passive ankle pitch angles (the model has jointpos sensors on them)
     obs_privileged_lin_vel: bool = True  # base linear velocity from qvel (simulation only; no sensor gives it)
+    obs_foot_loads: bool = True  # the 4 foot touch loads / nominal weight (the core build has no foot load cells)
+    # With any of these three off its slot leaves the observation; its noise is still drawn, so every other channel,
+    # the rewards and the random stream are as with it on. All three off: the robot's own sensors only (D46).
     # sin/cos gait clock in the observation (Hz); 0 removes it. Off by default since 19 Nov 2026: no reward term uses
     # it and the pipe1 policy ignored it (it stepped at 2.39 Hz against the clock's 1.5 Hz). Runs that trained with it
     # (trike60-pipe1: 1.5) keep it through the env config in their run_record.json, so their checkpoints still load.
@@ -698,9 +701,10 @@ class TrikeEnv(gym.Env):
         parts += [("gravity_body", 3), ("heading_error_sin_cos_ESTIMATE", 2), ("gyro", 3)]
         if cfg.obs_privileged_lin_vel:
             parts.append(("base_lin_vel_body_PRIVILEGED", 3))
+        if cfg.obs_foot_loads:
+            parts.append(("foot_load_over_weight", 4))
         # both: the action-rate penalty is on the raw outputs, the targets follow the filtered ones
-        parts += [("foot_load_over_weight", 4), ("previous_action_filtered", 12), ("previous_action_raw", 12),
-                  ("command_speed_mps", 1)]
+        parts += [("previous_action_filtered", 12), ("previous_action_raw", 12), ("command_speed_mps", 1)]
         if cfg.phase_clock_hz > 0:
             parts.append(("phase_sin_cos", 2))
         if cfg.command_mode != "none":  # the shared command segment, LAST (environments/shared/command_frame.py)
@@ -1237,7 +1241,9 @@ class TrikeEnv(gym.Env):
         parts += [grav_b, [math.sin(yaw_err_est), math.cos(yaw_err_est)], gyro]
         if cfg.obs_privileged_lin_vel:
             parts.append(lin_vel)
-        parts += [loads, self._action_filtered, self._prev_action, [self.command_speed]]
+        if cfg.obs_foot_loads:
+            parts.append(loads)
+        parts += [self._action_filtered, self._prev_action, [self.command_speed]]
         if cfg.phase_clock_hz > 0:
             ph = 2.0 * math.pi * cfg.phase_clock_hz * self._step_count * self.dt
             parts.append([math.sin(ph), math.cos(ph)])
