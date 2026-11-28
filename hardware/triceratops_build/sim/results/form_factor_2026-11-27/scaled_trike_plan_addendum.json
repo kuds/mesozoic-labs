@@ -1,0 +1,203 @@
+{
+ "simulation_only": true,
+ "what": "Addendum to scaled_trike_plan.json (which is left as written): supporting cases added AFTER the first results and after an independent review of the form-factor study (findings PH-1, CTRL-7: drive sets other than D0 never simulated; F3: gains rescaled in every scaled model; MECH-2: the rule has no layout term). Written before any of these cases ran. They are post hoc and supporting: none is a pre-registered size, and no configuration is scored on them.",
+ "written_utc": "2026-11-28T03:05:04Z",
+ "rules": "unchanged: S1 and S2 as quoted in scaled_trike_plan.json, judged on seeds 101-103 with 104-110 as scatter; prediction k x the H0.60 run (as built, D0, similar gains) on the same seed, k = (m / 12.7506 kg) x (H / 0.60 m) with m from the study's mass_model(layout=None, bms=False) for the case's drive set. The trot is the committed walk60 TrotController, Froude-scaled exactly as before; it is NOT retuned for a drive set's mass or leg inertia (so a failure says the rule is unchecked with this controller, not that the configuration cannot walk).",
+ "cases": {
+  "H0.50_D1": {
+   "size_m": 0.5,
+   "drive_set": "D1",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D1, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.50_D2": {
+   "size_m": 0.5,
+   "drive_set": "D2",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D2, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.50_D4": {
+   "size_m": 0.5,
+   "drive_set": "D4",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D4, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.50_D5": {
+   "size_m": 0.5,
+   "drive_set": "D5",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D5, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.50_D6": {
+   "size_m": 0.5,
+   "drive_set": "D6",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D6, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.50_D8": {
+   "size_m": 0.5,
+   "drive_set": "D8",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D8, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.55_D2": {
+   "size_m": 0.55,
+   "drive_set": "D2",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D2, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.55_D6": {
+   "size_m": 0.55,
+   "drive_set": "D6",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D6, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.55_D8": {
+   "size_m": 0.55,
+   "drive_set": "D8",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D8, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.60_D2": {
+   "size_m": 0.6,
+   "drive_set": "D2",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D2, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.60_D6": {
+   "size_m": 0.6,
+   "drive_set": "D6",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D6, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.60_D8": {
+   "size_m": 0.6,
+   "drive_set": "D8",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D8, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.65_D6": {
+   "size_m": 0.65,
+   "drive_set": "D6",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D6, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.65_D8": {
+   "size_m": 0.65,
+   "drive_set": "D8",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: drive set D8, as-built layout (the scaling rule on a drive set the desk study ranks as passing)"
+  },
+  "H0.50_kp_adopted": {
+   "size_m": 0.5,
+   "drive_set": "D0",
+   "kp_rule": "adopted",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: the adopted A2 leg gains unchanged (no gain rescaling)"
+  },
+  "H0.55_kp_adopted": {
+   "size_m": 0.55,
+   "drive_set": "D0",
+   "kp_rule": "adopted",
+   "delay": "fixed",
+   "layout": null,
+   "role": "post hoc (after review), supporting: the adopted A2 leg gains unchanged (no gain rescaling)"
+  },
+  "H0.60_D0_L1": {
+   "size_m": 0.6,
+   "drive_set": "D0",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L1",
+   "role": "post hoc (after review), supporting: drive set D0 in the study's desk layout L1 (lateral offsets and knee-drive place; masses as built)"
+  },
+  "H0.60_D0_L2": {
+   "size_m": 0.6,
+   "drive_set": "D0",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L2",
+   "role": "post hoc (after review), supporting: drive set D0 in the study's desk layout L2 (lateral offsets and knee-drive place; masses as built)"
+  },
+  "H0.50_D0_L1": {
+   "size_m": 0.5,
+   "drive_set": "D0",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L1",
+   "role": "post hoc (after review), supporting: drive set D0 in the study's desk layout L1 (lateral offsets and knee-drive place; masses as built)"
+  },
+  "H0.50_D0_L2": {
+   "size_m": 0.5,
+   "drive_set": "D0",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L2",
+   "role": "post hoc (after review), supporting: drive set D0 in the study's desk layout L2 (lateral offsets and knee-drive place; masses as built)"
+  },
+  "H0.50_D2_L2": {
+   "size_m": 0.5,
+   "drive_set": "D2",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L2",
+   "role": "post hoc (after review), supporting: drive set D2 in the study's desk layout L2 (lateral offsets and knee-drive place; masses as built)"
+  },
+  "H0.50_D6_L2": {
+   "size_m": 0.5,
+   "drive_set": "D6",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L2",
+   "role": "post hoc (after review), supporting: drive set D6 in the study's desk layout L2 (lateral offsets and knee-drive place; masses as built)"
+  },
+  "H0.55_D6_L2": {
+   "size_m": 0.55,
+   "drive_set": "D6",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L2",
+   "role": "post hoc (after review), supporting: drive set D6 in the study's desk layout L2 (lateral offsets and knee-drive place; masses as built)"
+  },
+  "H0.60_D6_L1": {
+   "size_m": 0.6,
+   "drive_set": "D6",
+   "kp_rule": "similar",
+   "delay": "fixed",
+   "layout": "L1",
+   "role": "post hoc (after review), supporting: drive set D6 in the study's desk layout L1 (lateral offsets and knee-drive place; masses as built)"
+  }
+ },
+ "kp_rule_adopted": "leg kp and kv as the source model (A2, DECISION_LOG.md:72) at every size",
+ "layout_cases": "sim/build_scaled_trike.py _apply_layout: the roll drive, yoke, pitch drive, link plane and knee drive moved to design/form_factor_study.py make_layout's places for that configuration; masses as built (no offset mounts or longer rods); the prediction has no layout term, which is what is tested",
+ "code_sha256": "d2e97075ac842c5a7f04f8684d3b6c55b0fc6e03699b3e4bfcfdb7456439828a"
+}

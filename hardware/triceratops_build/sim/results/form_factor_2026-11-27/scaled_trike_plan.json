@@ -1,0 +1,48 @@
+{
+ "simulation_only": true,
+ "what": "Implementation choices for the form-factor study's Simulate phase (the test of the torque scaling rule on scaled copies of the adopted model), written before any scaled model was run. The phase rules S1 and S2 were fixed by the study's lead before this file; they are quoted, not changed.",
+ "written_utc": "2026-11-28T01:44:44Z",
+ "disclosure": "Before this file: two harness smoke tests on the SOURCE model only (a 2 s stand and a 3 s trot, seed 1, for timing and to check the code runs). No scaled model had been stood or walked.",
+ "code": {
+  "builder_and_runs": "sim/build_scaled_trike.py",
+  "controller": "walk/walk60.py TrotController (committed, sha256 5225c64a2006d8b4e5a3d0b6e43332160e08cbbc1821dfc2de73b6f2064b51b1), not walk/fore128_walk60.py",
+  "env": "rl/trike_env.py (working tree sha256 766864a9...; its uncommitted change only makes the foot-load slot optional, default on, so the observation is as committed)",
+  "measures": "rl/gait_metrics.py (committed)",
+  "rule_and_mass_model": "design/form_factor_study.py (sha256 33e953fc..., imported read-only): torque_factor, mass_model(layout=None, bms=False)",
+  "source_model": "sim/generated/trike60_C_closed_capsule_fore128.xml (sha256 372ac07b...), read only",
+  "repo_head": "db43e595bf9c656578800289bc1ca06146497b12"
+ },
+ "phase_rules_quoted": {
+  "S1": "each variant stands for 10 s at zero action on a flat floor with every foot above 15 % of weight",
+  "S2": "on a scripted walk (the build's committed model-based trot under walk/, with Froude-scaled timing: period x sqrt(s), stride x s), 3 seeds x 20 s, flat floor, friction 0.8, the per-joint RMS and peak torques at each size are compared with the scaling rule's prediction from the 0.60 m run; the rule holds if every leg joint's RMS is within +-25 % of the prediction on at least 2 of 3 seeds. If the trot does not walk at some size, report that (it is a finding), and still compare the standing torques (S1) and any walking that happened."
+ },
+ "choices": {
+  "sizes_pre_registered": [
+   0.5,
+   0.6,
+   0.7,
+   0.8
+  ],
+  "drive_set": "D0 (current: 10 X4 + 2 X6 at the fore knees) at every pre-registered size. The study's best passing configuration at 0.70 or 0.80 m: none exists (design/form_factor_out.json: no configuration at 0.70 or 0.80 m has passes_C1_C5 true), so none is built as such.",
+  "control": "H0.60 (the builder at s = 1) must reproduce the source model: compiled arrays identical, and the same standing torques as the source XML run through the same harness (case H0.60_source).",
+  "seeds": "S2 and S1 verdicts on seeds 101, 102, 103 (the trot's judged seeds, walk/PREREG_WALK60.md, first three). Seeds 104-110 are also run, as supporting scatter only.",
+  "plant": "walk60.plant_config with the scaled model: 1 ms physics, 100 Hz control, action filter off, 10 ms servo delay (D9) at every size, observation noise and heading drift on, domain randomisation ON but every factor range fixed at 1 except friction fixed at 0.8 (so the env sets floor and sole friction to 0.8 and the plant is otherwise nominal), continuous ratings from the drive set.",
+  "trot_scaling": "walk60.WalkParams() with lengths x s (leg_drop_m, lift_m, press_m, max_reach_m), times x sqrt(s) (period_s, velocity_tau_s, stand_s, ramp_s, attitude_tau_s, land_ramp_s, and the gains k_speed, k_side, which are in seconds), rates / sqrt(s) (k_heading, k_drift), shares and flags unchanged; command 0.25 x sqrt(s) m/s (Froude-matched to the 60 cm trot's 0.25 m/s, not capped), so the stride goes as s.",
+  "rms_window": "2-20 s (gait_metrics.WINDOW_S), per leg joint, joint side, N m",
+  "prediction": "k x the H0.60 run's figure on the SAME seed, k = FF.torque_factor(mass_model(H, D0, layout=None, bms=False), H) = (m / 12.7506 kg) x (H / 0.60 m). Supporting: k x the mean over seeds of H0.60.",
+  "S2_verdict": "per size: every one of the 12 leg joints has |RMS / prediction - 1| <= 0.25 on at least 2 of seeds 101-103. An episode that falls is compared over what it ran (2 s to the fall) and flagged.",
+  "walked": "a trot episode 'walked' when it did not fall and its 2-20 s forward speed is at least half its command; the slow mode is flagged when the 10-20 s speed is under 0.85 x the command (labels for the report, not rules).",
+  "S1_verdict": "per size, on every seed 101-103: no termination in 10 s at zero action, and each foot's load share (touch sensor / nominal weight), averaged over successive 100 ms windows from 1 s to 10 s, never at or below 0.15.",
+  "standing_torques": "per leg joint, |mean torque| over 5-10 s of the S1 run; prediction k x the H0.60 S1 figure on the same seed; reported with its error (no pass line; the +-25 % band shown for reference only).",
+  "peaks": "per leg joint, max |torque| and the 99.9th percentile over 2-20 s, against k x the H0.60 figure, reported with the clamp (force limit) and the share of steps at >= 99 % of it; no pass line (C3 is the desk study's).",
+  "speeds": "peak and RMS joint speed reported; similarity predicts x 1 / sqrt(s) of the H0.60 figures."
+ },
+ "model_rules": "sim/build_scaled_trike.py module docstring (geometry x s; masses from the study's mass model distributed as the 60 cm ledger; drive limits, armature and ratings from the drive set; leg kp x (m/m60) s and kv x (m/m60) s^1.5 so kp / (m g L) and the damping ratio match; ankle springs by the build's own rule; neck spring and head/tail servo gains by their gravity moments; servo class above 67.5 cm as the budget).",
+ "supporting_cases_planned_before_runs": {
+  "H0.55, H0.65": "the same harness at the intermediate sizes the study's verdicts turn on (50 cm passes C2 at 0.705, 55 cm misses at 0.815)",
+  "H0.50_kp_literal, H0.80_kp_literal": "the literal reading of 'stance stiffness per weight': foot stiffness (kp / L^2) / (m g) kept, kp and kv x (m/m60) s^2",
+  "H0.50_delay_scaled, H0.80_delay_scaled": "servo delay x sqrt(s) (9 and 12 ms), to separate the fixed delay's share of any deviation",
+  "H0.80_D8": "X8-150 at all 12 leg joints at 80 cm, as-built layout (no L1/L2 additions, no cut-off): NOT a passing configuration; the 80 cm row the study comes nearest to passing with (it passes only under the supporting C3 reading, which is not the criterion); tests the rule where the drives are 56 % of the mass and k = 2.96"
+ },
+ "outputs": "sim/results/form_factor_2026-11-27/: this plan, scaled_raw_<case>.json per case, scaled_trike_compare.json and .csv. Built XML files go to the scratch folder (the build tree takes JSON and CSV only here); their sha256 are in the raw files and the builder regenerates them exactly."
+}
