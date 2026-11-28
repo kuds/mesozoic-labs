@@ -179,8 +179,9 @@ def record_trunk_run(run_dir: "str | Path", *, trunk_dir: "str | Path | None", l
         return (
             f"WARNING: this run's ancestor records ({held_ids}) were reused through "
             f'TRUNK_FROM = "{recorded}" ({path}), but this session resolved TRUNK_FROM = "{session}": the chain loop '
-            "refuses a second parent for a recorded node this session's trunk certifies, trains a recorded node it "
-            'does not certify again here (every one, under TRUNK_FROM = ""), and the RESUME cell refuses a resume. '
+            "refuses a second parent for a recorded node this session's trunk certifies, stops at a recorded node it "
+            'does not certify (every one, under TRUNK_FROM = ""; a QUICK_TEST trains it again here), and the RESUME '
+            "cell refuses a resume. "
             f'Set TRUNK_FROM = "{recorded}" in the configuration cell and re-run sections 2-3.'
         )
     _write_json(path, {"schema": TRUNK_RECORD_SCHEMA, "trunk_from": session})

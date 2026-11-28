@@ -35,12 +35,16 @@ PUBLICATION_SEED_START: int = 3042
 
 # Environment steps between in-training evaluations (EvalCallback): the SB3
 # notebook's train_stage, the command line's --eval-freq default and
-# train_base's.  100,000 since 2026-11-28 (the maintainer's decision; 50,000
+# train_base's.  100,000 since 2026-11-28 (decision D-D79 (4); 50,000
 # before): at 40 episodes every 50,000 steps the in-training evaluation was
-# about 45% of an 11M T. rex stance's wall clock on a Colab L4, and it
-# certifies nothing (every gate is judged after training on its own panel).
-# The evaluation-counted collapse backstop keys were halved with it
-# (collapse_min_evals 20 -> 10, collapse_patience 10 -> 5) so they keep their
-# step spans (1M and 500k).  It enters no digest; stage_config.json records it
-# as run.eval_freq.
+# about 45% of an 11M T. rex stance's wall clock on a Colab L4.  In the
+# notebook it judges no gate (every gate is judged after training on its own
+# panel), though it ranks the checkpoints the handoff is chosen from; the
+# command line's curriculum also advances the stance gates that can pass
+# in training (reward_and_length/v1, stance_quality/v1) on it.  The collapse
+# backstop's wait, collapse_min_evals, was halved with it (20 -> 10 on the
+# eight configs that declare it, 6 declared on the T. rex recovery) to keep
+# its step span; its patience, a count of consecutive low evaluations
+# calibrated as a count, was not.  It enters no digest; stage_config.json
+# records it as run.eval_freq.
 DEFAULT_EVAL_FREQ: int = 100_000

@@ -413,7 +413,7 @@ committed as:
 
 ```python
 BEHAVIOR = "stance"  # the one deliverable this session trains: a recipe label or a deliverable's stage id
-TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" trains every node here
+TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" reuses nothing from another run (the chain loop then stops at an ancestor this run does not hold certified, unless RETRAIN_FROM covers it or QUICK_TEST; D-D79)
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
 RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run (letters, digits, _ and - only; refused if, in this ALGORITHM's trees, it names only another model's run: SPECIES and EMBODIMENT pick the model); an existing run id re-enters that run to finish an interrupted or partial run (section 5)
@@ -607,8 +607,10 @@ and both Compsognathus models:
 BEHAVIOR = "recover"
 ```
 
-The chain is `stance -> recovery`. Stance trains (or is reused), then the
-recovery resolution is frozen from the stance handoff, recovery trains, the
+The chain is `stance -> recovery`. The stance is reused, certified in this run
+or through `TRUNK_FROM` (the chain loop stops at a stance it cannot reuse
+unless `RETRAIN_FROM = "stance"` or `QUICK_TEST`), then the recovery resolution
+is frozen from the stance handoff, recovery trains, the
 frozen panel is rolled, and the `recovery_quality/v1` verdict is enforced
 exactly like any other node's. `BEHAVIOR = "stance"` trains the stance node
 alone, on these models as on every other. The old

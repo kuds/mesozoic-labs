@@ -43,8 +43,9 @@ alive_bonus = 1.75                                # Setting 4 sweep: all best en
 # committed stance), its lateral lean and settled leg target (off on main) and the screens' stagger and CoP band
 # are step-gated or settle-referenced, and the T-Rex's tail habit was traced in part to that hidden clock: the
 # critic reads the step from the tail angle (the 2026-10-30 why-probe and the critic-phase screen, on the
-# never-merged branches claude/handoff-day-2026-10-30 and claude/records-phase-screen). None is ported; one
-# would need [ppo] critic_phase, which reads a stance_width_settle_steps attribute this env does not have. No
+# never-merged branches claude/handoff-day-2026-10-30 and claude/records-phase-screen). None is ported. Since
+# decision D-D79 (3) [ppo] critic_phase trains here too, reading the phase of critic_phase.DEFAULT_SETTLE_STEPS
+# (200): this env has no stance_width_settle_steps, so it is a plain episode clock no term here is gated on. No
 # clock does not rule a tail habit out: the r2 audit stance parked tail_1_pitch at its stop with none.
 # Physics r5 (the life-size plant, plant_versions note 22; the maintainer's decision of 2026-11-08) re-measured
 # every constant below on its statue (zero action, this [env], reset noise 0.05, seeds 3042-3081, and out of
@@ -614,7 +615,7 @@ required_consecutive = 3                # Scheduler hysteresis ONLY. Under the f
                                         # the handoff pair), so nothing reads this until the in-training screen
                                         # exists.
 collapse_min_evals = 10                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (10 evals x 100k) before it can fire.
-collapse_patience = 5                   # Require 5 consecutive raw per-eval mean drops (~500k steps at 100k) so transition turbulence won't abort the stage.
+collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops (~1M steps at 100k; a count, kept at the 100k cadence: D-D79) so transition turbulence won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count. Stage-1 balance learning has a long
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults

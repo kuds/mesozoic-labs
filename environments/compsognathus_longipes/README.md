@@ -117,8 +117,9 @@ control latency, motor calibration and sim-to-real validation are future work.
 Species notes:
 
 - **Recovery.** `recovery` holds the certified stance against horizontal pushes calibrated for each model. Nothing
-  warm-starts from it, so `curriculum` skips it; train it in the notebook with `BEHAVIOR = "recover"`, which reuses or
-  trains a certified stance first. [RECOVERY_CALIBRATION.md](RECOVERY_CALIBRATION.md) gives the push, the judge and
+  warm-starts from it, so `curriculum` skips it; train it in the notebook with `BEHAVIOR = "recover"`, which reuses a
+  certified stance first (one behavior a session, D-D79: with none to reuse the session stops before it writes
+  anything). [RECOVERY_CALIBRATION.md](RECOVERY_CALIBRATION.md) gives the push, the judge and
   the pilot targets.
 - **Stance.** The anatomical stance passes on a stance-quality check of the floor forces under each foot, rolled at
   six headings after the stage ends, not on reward. Its bars still admit a soft two-foot bounce, a foot lifted for

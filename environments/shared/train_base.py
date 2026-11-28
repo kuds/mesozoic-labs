@@ -305,7 +305,9 @@ def _critic_phase_drop_record(
     record is malformed, a non-PPO load of one, and a load of one that crosses no edge into a stage without the
     option (a same-stage resume, a root re-initialised from itself) raise
     :class:`~environments.shared.critic_phase.CriticPhaseError`.  A stage that declares the option returns ``None``:
-    the load is checked against its phase when the model loads (both ways), as before.
+    the load is checked against its phase when the model loads, and a warm start across the edge from a critic that
+    reads another phase, or none, is re-phased then (``run.critic_phase_rephased``, recorded once the model has
+    loaded).
     """
     if not load_path:
         return None
@@ -1001,9 +1003,10 @@ def _create_or_load_model(
         # Both ways, any load mode: a critic built for the phase cannot train without it, nor one built without
         # it on the phase-carrying observations.  A phase checkpoint always carries its JSON record (read from
         # the instance's own attributes, as SB3's load restores them); a stock checkpoint on a stage without the
-        # option never enters this branch, and nothing else of the loaded model is read for it.  The one
-        # exception is the warm start across the node's edge into a stage without the option: the critic's
-        # phase inputs are dropped, before anything below reads the critic.
+        # option never enters this branch, and nothing else of the loaded model is read for it.  The two
+        # exceptions are both warm starts across the node's edge: into a stage without the option the critic's
+        # phase inputs are dropped, and into a stage with it a critic that reads another phase, or none, is
+        # re-phased (decision D-D79 (3)), before anything below reads the critic.
         recorded_phase = getattr(model, "__dict__", {}).get(CRITIC_PHASE_ATTRIBUTE)
         if (
             recorded_phase is not None

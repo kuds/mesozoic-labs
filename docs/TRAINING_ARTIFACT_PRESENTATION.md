@@ -892,8 +892,8 @@ instead, every 100,000 steps on the notebook's cadence against an
 evaluation every 50,000, which halves that total to about 1.9 GB [inferred:
 the same rows over half as many rewrites]. Since 2026-11-28 the evaluation is
 every 100,000 steps too (decision D-D79 (4)): half the rows over the same
-rewrites, about 0.9 GB for 12M steps [inferred: 3.2 KB a row, 40 rows an
-evaluation, 120 rewrites].
+rewrites, 4,800 rows and about 15 MB at the end, about 0.9 GB written for 12M
+steps [inferred: 3.2 KB a row, 40 rows an evaluation, 120 rewrites].
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 

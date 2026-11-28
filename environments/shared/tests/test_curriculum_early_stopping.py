@@ -899,8 +899,9 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
     #: The spacing the recorded traces were evaluated at: every 50,000 steps, the cadence until 2026-11-28.
     TRACE_SPACING = 50_000
     #: The evaluation counts those runs trained with (collapse_min_evals 20, collapse_patience 10 at 50,000 steps:
-    #: a 1M-step wait and 500k-step patience).  The committed counts are halved for the 100,000-step cadence
-    #: (decision D-D79 (4)), the same step spans; the run's own stop is reproduced under its own counts and spacing.
+    #: a 1M-step wait and 500k-step patience).  At the 100,000-step cadence (decision D-D79 (4)) the committed wait is
+    #: halved to keep its span and the patience stays 10 evaluations, a count; the run's own stop is reproduced under
+    #: its own counts and spacing.
     HISTORICAL_COUNTS = {"min_evals": 20, "patience": 10}
 
     @classmethod
@@ -999,7 +1000,8 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         """The warm-up delays the peak; it must not disarm the backstop.  The walking level is the matched reference
         walk's expected evaluation, 0.85 x 4594.1 + 0.15 x 4977.4 = 4651.6, above the floor (decision D-D65 (1))."""
         settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2)
-        trace = [2245.0] * 66 + [4651.6] * 10 + [300.0] * 12
+        # 50,000-step spacing: a 1.2M-step collapse, longer than the patience (10 evaluations, 1M steps at 100k).
+        trace = [2245.0] * 66 + [4651.6] * 10 + [300.0] * 24
         stopped_at, cb = self._drive(trace, settings)
         assert stopped_at is not None
         assert cb._peak_score == pytest.approx(4651.6) and cb._peak_score >= settings["peak_floor"]

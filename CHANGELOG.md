@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notebook's default model, the Brachiosaurus, the Dibothrosuchus, the
   Compsognathus robot and the Allosaurus): their training env now reads the
   phase of `critic_phase.DEFAULT_SETTLE_STEPS` (200 steps, the settle step of
-  both settle-gated stance rewards), a plain episode clock there; a vec env of
-  envs with and without one is refused. A warm start across a node's edge into
+  both settle-gated stance rewards), a plain episode clock there; an
+  in-process vec env of envs with and without one is refused (a SubprocVecEnv
+  answers only for all of them, and `create_vec_env` never builds a mix). A warm start across a node's edge into
   a node that declares the phase, from a parent whose critic reads another
   phase (the T. rex stance's (200, 0.98) into its walk's (200, 0.995) or its
   recovery's (140, 0.98)) or none, was refused too: it now re-phases the critic
@@ -28,10 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warm-start keys) and in every checkpoint's task lineage as
   `rephased_critic_phase`. A parent whose critic reads the node's own phase
   still continues it; a same-stage resume and a load that crosses no edge keep
-  the refusal. Measured on all seven models with `train_base.train` (a stance
-  with and without the phase, then each walk and recovery warm-started from
-  each with the phase on and off): 44 of 44 cases train, against 14 before (18
-  refused and 12 never reached, their phase parent refused).
+  the refusal. Measured on all seven models with `train_base.train`: a stance
+  with and without the phase, then each walk and recovery warm-started three
+  ways (from the phase stance with the phase on and off, from the stock stance
+  with it on), 44 cases: all 44 train, against 14 before (18 refused and 12
+  never reached, their phase parent refused). The command-blind warm start and
+  its probe read a critic that keeps the phase (the Fixed entry), and the
+  warm-start noise scan opens a walk that keeps it.
   The notebook's configuration cell refuses `CRITIC_PHASE` under SAC, which
   ignored it.
 - **Run reports and a per-model run index.** `python -m
@@ -3626,9 +3630,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ancestor it can neither reuse nor judge (a walk session whose certified
   stance the reuse rule refused, for one) stops the session with `halt`,
   which releases the runtime, before anything is written for that node,
-  naming the node, the trunk and the two ways on (its own session, or
-  `RETRAIN_FROM`), instead of training an 11M-step stance on the way to the
-  walk. A reused ancestor whose recipe differs from the session's only in
+  naming the node and the ways on (its own session, or `RETRAIN_FROM`; for a
+  node the run holds only as an `ancestors/` record, the recorded trunk or a
+  fresh `RUN_ID`), instead of training an 11M-step stance on the way to the
+  walk. The resolve cell says beforehand which ancestors must be reused. A
+  reused ancestor whose recipe differs from the session's only in
   `[ppo] critic_phase` prints a note, not the warning that sends the reader to
   `RETRAIN_FROM`. The in-training evaluation runs every 100,000 environment
   steps (`environments/shared/constants.py` `DEFAULT_EVAL_FREQ`), in the
@@ -3637,16 +3643,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before: at 40 episodes every 50,000 steps it was about 45% of an 11M T. rex
   stance's Colab L4 wall clock (the r10 certification runs at 142-144 steps/s
   against the 10-episodes-every-131,072 screens at 238-240; measured here
-  with the trainer's own callbacks, 44% of every 50,000-step block), and it
-  certifies nothing: every gate is judged after training on its own panel,
-  whose seeds the in-training evaluation never draws. `stage_config.json`
-  records `run.eval_freq`. `collapse_min_evals` (20 → 10) and
-  `collapse_patience` (10 → 5) moved with it on the T. rex, Velociraptor,
-  Brachiosaurus and Dibothrosuchus stance and walk configs, so the collapse
-  backstop keeps its 1M-step wait and 500k-step patience; `required_consecutive`
+  with the trainer's own callbacks, 44% of every 50,000-step block). In the
+  notebook it judges no gate (every gate is judged after training on its own
+  panel, whose seeds it never draws), though it ranks the checkpoints the
+  handoff is chosen from; on the command line's curriculum it also advances
+  the stance gates that can pass in training. The notebook's `train_stage`
+  evaluates a node shorter than the cadence (a `QUICK_TEST` node's 50,000
+  steps) once, at its end, as before, and a resume at the cadence.
+  `stage_config.json` records `run.eval_freq`. The collapse backstop's wait
+  keeps its step span: `collapse_min_evals` 20 → 10 on the T. rex,
+  Velociraptor, Brachiosaurus and Dibothrosuchus stance and walk configs, and
+  6 declared on the T. rex recovery (its code default is 12). Its patience
+  does not move: it counts consecutive low evaluations and was calibrated as a
+  count (`collapse_settings_from_config`), so 10 (8 on the recovery) now spans
+  1M (800k) steps and a collapse is caught later rather than a noisy run
+  stopped oftener. The 5-evaluation smoothing window, `required_consecutive`
   (a gate key) and the advisory posture-watch counts are unchanged. No task,
-  gate or recipe digest moves; the eight stage-config view digests do
-  (`configs/digest_snapshot.generated.txt`). Docs: the notebook's prose, the
+  gate or recipe digest moves; the PPO and SAC stage-config view digests of
+  those nine stages do (18 lines of `configs/digest_snapshot.generated.txt`).
+  The collapse-backstop replay tests replay their recorded 50,000-step series
+  at the committed cadence, and a run's own stop under its own counts. Docs: the notebook's prose, the
   behavior recipes and getting-started pages, `docs/NEXT_STEPS.md`, the
   KNOWN_ISSUES cadence, quick-test, status, SAC and knob-validation entries,
   and `docs/TRAINING_ARTIFACT_PRESENTATION.md`.

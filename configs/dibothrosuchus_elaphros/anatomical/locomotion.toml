@@ -265,7 +265,7 @@ collapse_peak_warmup_timesteps = 2800000 # Evaluations before this step cannot S
                                          # D-B5 bound and leaves 9.2M protected; it also keeps the cruise ramp's 2M
                                          # steps out of the peak.
 collapse_min_evals = 10                 # Backstop early-stop: wait ~1M steps (10 evals x 100k) before it can fire.
-collapse_patience = 5                   # Require 5 consecutive raw per-eval mean drops (~500k steps at 100k) so a transient dip won't abort the stage.
+collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops (~1M steps at 100k; a count, kept at the 100k cadence: D-D79) so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5
 warmup_timesteps = 800000               # Give the critic time to adapt to the new reward landscape before the policy moves fast
 warmup_clip_range = 0.035

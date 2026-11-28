@@ -69,8 +69,10 @@ sphere, its observation channels and the 0.2 kg head-contact box the bite
 read.
 
 Each recipe label names one node: the notebook's `BEHAVIOR = "stance"` trains
-the stance node alone, and `BEHAVIOR = "recover"` trains stance and then
-recovery and enforces the recovery verdict. Until decision D-D35 (2026-10-16)
+the stance node alone, and `BEHAVIOR = "recover"` trains recovery on a
+certified stance (reused from this run or through `TRUNK_FROM`; one behavior a
+session, decision D-D79, so a session with no stance to reuse stops before it
+writes anything) and enforces the recovery verdict. Until decision D-D35 (2026-10-16)
 the recovery node was labelled `stand` too, so `"stand"` meant that
 stance-then-recovery chain here; since decision D-D38 (2026-10-18) the stance
 node's label is `stance`, its own id, and `"stand"` is refused with a pointer

@@ -89,8 +89,10 @@ class CriticPhaseVecNormalize(VecNormalize):
 
     ``critic_phase_gamma`` is the stage's PPO discount; the settle step is read from every env instance
     (``stance_width_settle_steps``) and must agree.  Envs that have none (every model but the T. rex and the
-    anatomical Compsognathus) get :data:`~environments.shared.critic_phase.DEFAULT_SETTLE_STEPS`; a mix of envs
-    with and without one is refused.  Every other keyword is ``VecNormalize``'s.
+    anatomical Compsognathus) get :data:`~environments.shared.critic_phase.DEFAULT_SETTLE_STEPS`.  A mix of envs
+    with and without one is refused on an in-process vec env, whose envs are asked one by one; a SubprocVecEnv
+    answers only for all of them, so a mix there would read the default (``create_vec_env`` builds every rank from
+    one class and one set of kwargs, so it never builds one).  Every other keyword is ``VecNormalize``'s.
     """
 
     def __init__(self, venv: Any, *, critic_phase_gamma: float, **kwargs: Any) -> None:

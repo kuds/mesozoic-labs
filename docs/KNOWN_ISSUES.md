@@ -861,8 +861,8 @@ robustness, **LOW** = cosmetic / QoL.
   recorded node the chain loop refuses a second parent for it
   (`record_ancestor`: "a run cannot reuse two parents for one node",
   `ancestors.py:777-780`) before it trains anything there, and under
-  `TRUNK_FROM = ""` it trains the nodes this run holds only as records again
-  here (found by the review of #559's first round, `ee91f51`; review 2 in
+  `TRUNK_FROM = ""` it trained the nodes this run holds only as records again
+  here (since decision D-D79 it stops at them, outside `QUICK_TEST`) (found by the review of #559's first round, `ee91f51`; review 2 in
   CLEANUP_PLAN_2026_09.md §5.4), as it does a recorded node that another
   trunk does not certify. A run opened before ROW-4/6 that holds records has
   no `trunk_run.json` (the resolve cell never records a guess there and says
@@ -872,7 +872,8 @@ robustness, **LOW** = cosmetic / QoL.
   (a shallower record names the run that certified that node, not
   necessarily the trunk). A wrong pin there still fails late
   (`record_ancestor` refuses only after the RESUME cell trained) or, under
-  `TRUNK_FROM = ""`, trains the recorded ancestors again. The record is only
+  `TRUNK_FROM = ""`, stops the chain loop at the recorded ancestors (it
+  trained them again before decision D-D79). The record is only
   as good as the order the cells ran in (found designing ROW-4/6; executed
   against the notebook cells 2026-10-03; the command-line route by reading
   `train_base.py`): only the resolve cell writes `trunk_run.json`, and only
@@ -1409,11 +1410,16 @@ robustness, **LOW** = cosmetic / QoL.
   `--eval-freq` default and `train_base`, which halves the evaluation steps
   (0.4 per training step on a 40-episode stance, about 4.4M over 11M), and
   `stage_config.json` records it as `run.eval_freq`. `collapse_min_evals`
-  (20 → 10) and `collapse_patience` (10 → 5) moved with it on the eight
-  stance and walk configs that declare them, so the backstop keeps its 1M and
-  500k step spans; `required_consecutive` (a gate key) and the advisory
-  posture-watch counts did not. Still open: a per-stage cadence key, and the
-  serial evaluation env.
+  moved with it (20 → 10 on the eight stance and walk configs that declare
+  it, and 6 declared on the T. rex recovery, whose code default is 12), so the
+  backstop's wait keeps its step span (1M, 600k on the recovery). The
+  patience did not move: it counts consecutive low evaluations, and was
+  calibrated as a count (0.5 / 10 was the only setting tested that does not
+  abort run 20260801_021545, `collapse_settings_from_config`), so 10 (8 on the
+  recovery) now spans 1M (800k) steps and a collapse is caught later, not
+  oftener on noise. The 5-evaluation smoothing window, `required_consecutive`
+  (a gate key) and the advisory posture-watch counts did not move either.
+  Still open: a per-stage cadence key, and the serial evaluation env.
 - **MEDIUM** — **under SAC, `diagnostics.npz` gains a row every few
   transitions and is rewritten whole every minute, and SAC's exploration
   reaches no report (read from the code 2026-11-26).** `DiagnosticsCallback`
@@ -3587,7 +3593,9 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   compsognathus-quick-test-passes-stance-at-init)
 - **MEDIUM** — **the SB3 notebook runs chains past Colab's ~24 h session cap
   with no time check, and resuming one is a manual second pass (read from the
-  code 2026-11-26).** The default walk chain is 14M-27M steps (stance plus
+  code 2026-11-26).** A stance-plus-walk chain is 14M-27M steps (the default
+  until decision D-D79; since it, the default session is one 11M stance and a
+  session trains the chain only with `RETRAIN_FROM` naming the stance; stance plus
   locomotion: the Compsognathus pair 11M + 3M, the T. rex and velociraptor
   11M + 8M, the brachiosaurus 11M + 16M), and the two 12M-step T. rex
   stances of 2026-11-07 took 23 h 07 min and 23 h 29 min on a Colab L4

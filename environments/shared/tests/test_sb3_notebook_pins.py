@@ -1583,8 +1583,9 @@ class TestTrainStageRecordKeeping:
             "seed": "SEED",
             "load_path": "load_path",
             "vecnorm_path": "vecnorm_path",
-            # 2026-11-28: a node shorter than the 100,000-step cadence (a QUICK_TEST node) evaluates once, at its end.
-            "eval_freq": "min(eval_freq, timesteps)",
+            # 2026-11-28: a node shorter than the 100,000-step cadence (a QUICK_TEST node) evaluates once, at its end;
+            # a resume of the node's own checkpoint keeps the cadence (its first session evaluated already).
+            "eval_freq": 'eval_freq if (load_path and task_load_mode == "resume_same_stage") else min(eval_freq, timesteps)',
             "save_freq": "save_freq",
             "verbose": "VERBOSE",
             "algorithm": "ALGORITHM.lower()",
@@ -4504,7 +4505,7 @@ class TestOneBehaviorASession:
         monkeypatch.setattr(ancestors, "find_certified_ancestor", find)
         monkeypatch.setattr(ancestors, "record_ancestor", lambda run_dir, ancestor: None)
         run_dir = tmp_path / "20261128_000000"
-        run_dir.mkdir(parents=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
         namespace: dict = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
         namespace.update(
@@ -4513,6 +4514,7 @@ class TestOneBehaviorASession:
             TRUNK_DIR=trunk_dir,
             BEHAVIOR=behavior,
             RETRAIN_FROM=retrain_from,
+            QUICK_TEST=quick_test,
         )
         exec(_cell(RESOLVE_CELL_MARKER), namespace)
         namespace.update(
@@ -4544,12 +4546,35 @@ class TestOneBehaviorASession:
         assert reason.startswith(
             "Refusing to train 'stance' on the way to 'locomotion': one session trains one behavior"
         )
-        assert "could not be reused from this run or the trunk (TRUNK_FROM = 'auto'" in reason
+        assert "could not be reused from this run, and no trunk was selected (TRUNK_FROM = 'auto'" in reason
         assert "train it in a session of its own (BEHAVIOR = 'stance') and point TRUNK_FROM at that run" in reason
         assert "set RETRAIN_FROM = 'stance' to train it here on purpose" in reason
         # The release knobs, as the gate-failure halt reads them.
         assert kwargs == {"in_colab": False, "auto": namespace["AUTO_DISCONNECT"], "flush_drive": False}
         assert not (namespace["RUN_DIR"] / "01_stance").exists(), "nothing is written for the refused node"
+
+    def test_an_ancestor_this_run_reuses_through_its_record_names_the_recorded_trunk_or_a_fresh_run(
+        self, tmp_path, monkeypatch
+    ):
+        """A node the run holds as an ancestors/ record, which no trunk certifies in this session: another trunk would
+        be refused as a second parent and a retrain as a node both reused and trained, so the message names neither."""
+        record = tmp_path / "20261128_000000" / "ancestors" / "stance" / "ancestor.json"
+        record.parent.mkdir(parents=True)
+        record.write_text("{}", encoding="utf-8")
+        _, halts, trained = self._run(tmp_path, monkeypatch, behavior="walk")
+        assert trained == []
+        [(reason, _)] = halts
+        assert "this run reuses it through its ancestors/ record" in reason
+        assert "set TRUNK_FROM to the trunk trunk_run.json records" in reason and "start a fresh RUN_ID" in reason
+        assert "RETRAIN_FROM" not in reason and "session of its own" not in reason
+
+    def test_the_resolve_cell_says_which_ancestors_must_be_reused(self, tmp_path, monkeypatch, capsys):
+        self._run(tmp_path / "walk", monkeypatch, behavior="walk")
+        out = capsys.readouterr().out
+        assert "One behavior a session: the chain loop trains only 'locomotion'; 'stance' must be reused" in out
+        for kwargs in ({"behavior": "stance"}, {"behavior": "walk", "quick_test": True}):
+            self._run(tmp_path / str(len(kwargs)), monkeypatch, **kwargs)
+            assert "One behavior a session" not in capsys.readouterr().out, kwargs
 
     def test_the_deliverable_trains_and_so_does_a_covered_or_quick_test_ancestor(self, tmp_path, monkeypatch):
         _, halts, trained = self._run(tmp_path / "stance", monkeypatch, behavior="stance")
