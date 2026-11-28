@@ -14,7 +14,8 @@ pass flags are checked against the thresholds before they are tallied. It also c
 addenda record are of the CRLF bytes, and runs the candidate checks' unit tests. No experiment is rerun; only the unit
 tests step the simulator, on small cases.
 
-Run from a scratch working directory (needs mujoco, which gait_report imports, and pytest):
+Run from a scratch working directory (needs a git checkout of the build, mujoco, which gait_report imports, and
+pytest):
     python -B <build>/sim/results/candidates_2026-11-28/lead_check/lead_check.py \
         > <build>/sim/results/candidates_2026-11-28/lead_check/lead_check_2026-11-28.txt
 """
@@ -246,8 +247,12 @@ for csv_path, addendum in (("E2/e2a_grid.csv", "E2/e2_review_addendum.json"),
                 find(x)
 
     find(json.load(open(RES / addendum)))
-    lf = subprocess.run(["git", "-C", str(BUILD), "show", f"HEAD:{os.path.relpath(RES / csv_path, BUILD.parents[1])}"],
-                        capture_output=True).stdout
+    shown = subprocess.run(["git", "-C", str(BUILD), "show",
+                            f"HEAD:{os.path.relpath(RES / csv_path, BUILD.parents[1])}"], capture_output=True)
+    if shown.returncode != 0:
+        print(f"{csv_path}: git show failed, not checked: {shown.stderr.decode().strip()}")
+        continue
+    lf = shown.stdout
     crlf = hashlib.sha256(lf.replace(b"\n", b"\r\n")).hexdigest()
     n_cr = lf.count(b"\r")
     print(f"{csv_path}: recorded {sorted(x[:16] for x in found)}; HEAD's LF bytes back to CRLF {crlf[:16]} "
