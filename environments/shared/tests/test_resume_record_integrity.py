@@ -872,7 +872,7 @@ def _run_resume_cell(
     label = stage_label(reference)
     _write_pair(models / f"{label}_{steps}_steps.zip", models / f"{label}_vecnormalize_{steps}_steps.pkl")
     manifest = load_stage_manifest(COMPSOGNATHUS_LONGIPES_ROBOT)
-    target = manifest.deliverables[-1] if behavior == "auto" else manifest.resolve_behavior(behavior)
+    target = manifest.resolve_behavior(behavior)
     calls: list[dict] = []
     _run_resume_cell.calls = calls  # type: ignore[attr-defined]
 
@@ -911,14 +911,10 @@ class TestTheResumeCellWarns:
         assert call["task_load_mode"] == "resume_same_stage"
         assert "WARNING" not in capsys.readouterr().out
 
-    def test_behavior_auto_is_warned(self, tmp_path, capsys):
-        [_] = _run_resume_cell(tmp_path, behavior="auto")
-        out = capsys.readouterr().out
-        # The walk is the last deliverable since the hunt's behavior node left (decision D-D59).
-        assert "WARNING: BEHAVIOR is 'auto'" in out and "last deliverable, 'locomotion'" in out
-        # An action, not a note: the training below would scroll it past before the chain loop retargets the run.
-        assert "interrupt the run before the chain loop (section 6) starts" in out
-        assert "set BEHAVIOR as the interrupted session had it and Run all again" in out
+    def test_the_auto_behavior_warning_left_with_auto(self):
+        """BEHAVIOR = "auto" left on 2026-11-28 (the configuration cell refuses it), and its RESUME warning with it."""
+        assert 'BEHAVIOR == "auto"' not in _cell(RESUME_CELL_MARKER)
+        assert "BEHAVIOR is 'auto'" not in _cell(RESUME_CELL_MARKER)
 
     def test_a_recorded_target_other_than_behaviors_is_warned(self, tmp_path, capsys):
         (tmp_path / "provenance.json").write_text(json.dumps({"target_deliverable": "3"}))
@@ -965,7 +961,7 @@ class TestTheResumeCellWarns:
             "Opening the notebook itself at such a commit\nresumes it without these protections",
             "interrupt the run before the chain\nloop starts",
             "load lineage",
-            '`BEHAVIOR` is `"auto"`',
+            "this checkout is at another commit and when the run's `provenance.json` records another target",
             "`provenance.json` records another target deliverable",
             "`run.resume_sessions`",
             "`diagnostics.prior_<UTC>.npz`",

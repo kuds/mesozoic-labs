@@ -198,7 +198,7 @@ term, so its CSV has these errors but no env `leg_home_pose_error`.
 Each training stage directory holds `gate_progress.npz` beside
 `diagnostics.npz` and `evaluations.npz`. `StageGatePlateauCallback`
 (`environments/shared/eval_diagnostics.py`) rewrites it after every periodic
-evaluation (every `eval_freq` steps, 50,000 by default). It is measured on the
+evaluation (every `eval_freq` steps, 100,000 by default since 2026-11-28, 50,000 before). It is measured on the
 deterministic policy over the evaluation panel: `max(30, min_eval_episodes)`
 episodes, 40 on the stance stages that declare it. Every array has one
 value (or one row) per evaluation, aligned with `timesteps`. A key a run
@@ -890,7 +890,10 @@ about 3.7 GB to Drive over the run; at the first r10 round's draft cadence
 2.94 MB]. Since 2026-11-24 the file is rewritten on the checkpoint cadence
 instead, every 100,000 steps on the notebook's cadence against an
 evaluation every 50,000, which halves that total to about 1.9 GB [inferred:
-the same rows over half as many rewrites].
+the same rows over half as many rewrites]. Since 2026-11-28 the evaluation is
+every 100,000 steps too (decision D-D79 (4)): half the rows over the same
+rewrites, about 0.9 GB for 12M steps [inferred: 3.2 KB a row, 40 rows an
+evaluation, 120 rewrites].
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 

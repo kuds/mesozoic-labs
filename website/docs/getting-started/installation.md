@@ -55,7 +55,7 @@ The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/c
 
 Both notebooks open in Google Colab.
 
-- [`notebooks/sb3_training.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb) - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable, which is walk on every model; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
+- [`notebooks/sb3_training.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb) - Trains one behavior a session (`BEHAVIOR = "stance"` by default; `"recover"`, `"walk"` or a deliverable's stage id) with SB3. The walk trains in a later session on a certified stance: set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
 - [`notebooks/google_drive_summary.ipynb`](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/google_drive_summary.ipynb) - Training-run summaries and comparisons
 
 ## Dependencies

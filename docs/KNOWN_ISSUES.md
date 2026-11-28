@@ -1404,6 +1404,16 @@ robustness, **LOW** = cosmetic / QoL.
   `stage_config.json` records, with an `EVAL_FREQ` knob in the notebook, or a
   subprocess-vectorized evaluation env; the gate panels keep their size. (June
   §6.1; 2026-11 notebook review: eval-cadence-dominates-wallclock)
+  *Update (2026-11-28, decision D-D79 (4)):* the cadence is 100,000 steps
+  (`constants.DEFAULT_EVAL_FREQ`) in the notebook, the command line's
+  `--eval-freq` default and `train_base`, which halves the evaluation steps
+  (0.4 per training step on a 40-episode stance, about 4.4M over 11M), and
+  `stage_config.json` records it as `run.eval_freq`. `collapse_min_evals`
+  (20 → 10) and `collapse_patience` (10 → 5) moved with it on the eight
+  stance and walk configs that declare them, so the backstop keeps its 1M and
+  500k step spans; `required_consecutive` (a gate key) and the advisory
+  posture-watch counts did not. Still open: a per-stage cadence key, and the
+  serial evaluation env.
 - **MEDIUM** — **under SAC, `diagnostics.npz` gains a row every few
   transitions and is rewritten whole every minute, and SAC's exploration
   reaches no report (read from the code 2026-11-26).** `DiagnosticsCallback`
@@ -1797,8 +1807,9 @@ robustness, **LOW** = cosmetic / QoL.
   report's touchdown bar (`max_touchdown_rate`,
   `configs/compsognathus_longipes/anatomical/stance.toml:383`) counts
   debounced step-level touchdowns, which the sub-step lifts above never reach;
-  the SB3 notebook does not prompt for the check; and `BEHAVIOR = "auto"`
-  warm-starts the walk from a certified stance without it. Fix: compute both
+  the SB3 notebook does not prompt for the check; and a walk session
+  (`BEHAVIOR = "walk"`; `"auto"` left with decision D-D79) warm-starts the
+  walk from a certified stance without it. Fix: compute both
   as report-only columns of the stance certificate (lift-offs per foot per
   episode, and a spectral peak of the window root height) and print them at
   the handoff. (2026-11 notebook review:
@@ -3553,7 +3564,9 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   that passes now chains into the walk, where a 50k-step policy can be
   expected to fail `command_tracking/v1` on every model (the statue fails
   every committed walk panel and no controller has passed one; the walk entry
-  under Training / RL). Under the default `BEHAVIOR = "auto"` every quick test
+  under Training / RL). Under `BEHAVIOR = "walk"` (the default `"auto"` until
+  decision D-D79 of 2026-11-28 removed it; the default is `"stance"` since, and
+  the one-behavior guard lets a quick test train the whole chain) every quick test
   should therefore end at a gate failure, and `halt`
   (`environments/shared/notebook_runtime.py:51-57`, called at
   `sb3_training.ipynb:1689`) raises before section 8: cells 26-32 (the
@@ -3587,7 +3600,8 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   `:1074-1105`) sets `RUN_ID`, the `TRUNK_FROM` that `trunk_run.json` records,
   `RETRAIN_FROM = ""` and `RESUME_STAGE`, then a second Run all; `76b27b2`
   made the RESUME cell refuse what would not continue the node and warn on
-  `BEHAVIOR = "auto"` and another commit, but the pass stays manual, as
+  `BEHAVIOR = "auto"` (removed with decision D-D79, and its warning with it)
+  and another commit, but the pass stays manual, as
   decision D-D16 (c) chose. A session the cap cuts off before its final save
   records no duration: `train_base.train` writes `run.duration_seconds` only
   at the final save, summed over the sessions that reached one
@@ -3630,9 +3644,11 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   `status` keys describe project capabilities, :44-62, and
   `model_revision_status` its videos), and the chain table the resolve cell
   prints (cell 9, `sb3_training.ipynb:632-641`) shows each node's id, name,
-  parent, recipe, deliverable flag and gate only. `BEHAVIOR = "auto"` resolves
-  to the last deliverable (:602), the walk on all seven models, so a plain Run
-  all trains the stance and then the walk. What the records say instead is
+  parent, recipe, deliverable flag and gate only. Until decision D-D79
+  (2026-11-28) `BEHAVIOR = "auto"` resolved to the last deliverable, the walk on
+  all seven models, so a plain Run all trained the stance and then the walk;
+  the default is now the stance alone, and a walk session refuses to train a
+  stance it cannot reuse. What the records say instead is
   prose the notebook never shows:
   - GQ-3 of [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)
     (:190, open) recommends three holds that bear on the notebook: the
@@ -3707,7 +3723,8 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   - `CRITIC_PHASE = True` writes `[ppo] critic_phase = true` into every chain
     node and prints "Critic phase on" (cell 9, :606-609; cell 6 prints it
     too, :260), but SAC reads only its `[sac]` table
-    (`train_base.py:552-553`), so the switch does nothing;
+    (`train_base.py:552-553`), so the switch does nothing (the configuration
+    cell refuses it under SAC since decision D-D79, 2026-11-28);
   - the T. rex stance's mirror-symmetric PPO (`[ppo] symmetry = "mirror_kl"`,
     `stance.toml:511`) is dropped with no log: `pop_symmetry_config` runs only
     when `algorithm == "ppo"` (`train_base.py:1826`);
@@ -3994,14 +4011,13 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   (`MANIFEST.resolve_behavior`, cell 9, :602); and a `RETRAIN_FROM` that is no
   node or off the chain (:612-618). A corrected Run all in the same runtime
   re-enters that run id, so only a restarted runtime leaves the empty run
-  behind. `CRITIC_PHASE = True` is refused later still, when the first node
-  builds its training env, after the zero-action preflight (cell 13) has
-  written its copy into the run too: `CriticPhaseVecNormalize` reads the env's
-  `stance_width_settle_steps`
-  (`environments/shared/critic_phase_ppo.py:80-87`), which only the T. rex and
-  anatomical Compsognathus envs define, so it fails on the velociraptor (the
-  notebook's default model), the brachiosaurus, the dibothrosuchus, the
-  Compsognathus robot and the Allosaurus. Fix: one `MODEL` dropdown of the
+  behind. Until decision D-D79 (2026-11-28) `CRITIC_PHASE = True` was refused
+  later still, when the first node built its training env, on every model
+  whose env defines no `stance_width_settle_steps` (the velociraptor, the
+  notebook's default model, the brachiosaurus, the dibothrosuchus, the
+  Compsognathus robot and the Allosaurus); it now trains on every model
+  (`critic_phase.DEFAULT_SETTLE_STEPS`), and the configuration cell refuses
+  `BEHAVIOR = "auto"` and `CRITIC_PHASE` under SAC before anything is written. Fix: one `MODEL` dropdown of the
   seven model ids; `@param` on the other knobs, with the decision prose in the
   markdown cell; one call before cell 8 writes anything that validates
   `BEHAVIOR`, `RETRAIN_FROM`, a pinned `TRUNK_FROM` and `CRITIC_PHASE` against

@@ -192,14 +192,43 @@ def test_the_sidecar_is_the_stock_vecnormalize_pickle_byte_for_byte(tmp_path):
     assert phase.critic_phase == SPEC and phase.reset().shape == (2, 62)
 
 
-def test_the_training_env_refuses_an_env_it_cannot_phase():
-    class NoSettle(PhaseToyEnv):
-        def __init__(self):
-            super().__init__()
+class NoSettle(PhaseToyEnv):
+    """An env with no reward settle step: every model's but the T. rex's and the anatomical Compsognathus's."""
+
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+        self._gate_step = self.stance_width_settle_steps
+        del self.stance_width_settle_steps
+
+    def step(self, action):
+        self.stance_width_settle_steps = self._gate_step  # the toy's reward gate only, for the step's duration
+        try:
+            return super().step(action)
+        finally:
             del self.stance_width_settle_steps
 
-    with pytest.raises(CP.CriticPhaseError, match="stance_width_settle_steps"):
-        CPP.CriticPhaseVecNormalize(DummyVecEnv([lambda: Monitor(NoSettle())]), critic_phase_gamma=GAMMA)
+
+def test_an_env_without_a_settle_step_gets_the_default_and_a_mix_is_refused():
+    """The maintainer's request of 2026-11-28: the option trains on every model.  An env without
+    stance_width_settle_steps reads the phase of DEFAULT_SETTLE_STEPS (200); a vec env of envs with and without one
+    is refused, as one whose envs disagree on its value."""
+    assert CP.DEFAULT_SETTLE_STEPS == 200
+    venv = CPP.CriticPhaseVecNormalize(
+        DummyVecEnv([lambda: Monitor(NoSettle()) for _ in range(2)]), critic_phase_gamma=GAMMA
+    )
+    assert venv.critic_phase == CP.CriticPhaseSpec(settle_steps=CP.DEFAULT_SETTLE_STEPS, gamma=GAMMA)
+    first = venv.reset()
+    assert first.shape == (2, 59 + CP.PHASE_WIDTH)
+    np.testing.assert_array_equal(first[:, 59:], np.tile([0.0, 0.0, GAMMA**200], (2, 1)).astype(np.float32))
+    stepped = venv.step(np.zeros((2, 15), np.float32))[0]
+    np.testing.assert_array_equal(stepped[:, 59:], np.tile([1 / 200, 0.0, GAMMA**199], (2, 1)).astype(np.float32))
+    with pytest.raises(CP.CriticPhaseError, match="only some have one"):
+        CPP.CriticPhaseVecNormalize(
+            DummyVecEnv([lambda: Monitor(NoSettle()), lambda: Monitor(PhaseToyEnv())]), critic_phase_gamma=GAMMA
+        )
+
+
+def test_the_training_env_refuses_an_env_it_cannot_phase():
     mixed = DummyVecEnv([lambda: PhaseToyEnv(settle=5), lambda: PhaseToyEnv(settle=6)])
     with pytest.raises(CP.CriticPhaseError, match="disagree"):
         CPP.CriticPhaseVecNormalize(mixed, critic_phase_gamma=GAMMA)

@@ -228,8 +228,8 @@ collapse_peak_warmup_timesteps = 2300000 # Evaluations before this step cannot S
                                          # too; the warm-up also keeps the ramp's window out of the peak); 2.3M
                                          # leaves 71% of the 8M budget protected (test_curriculum_early_stopping.py
                                          # pins the bound).
-collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
-collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
+collapse_min_evals = 10                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (10 evals x 100k) before it can fire.
+collapse_patience = 5                   # Require 5 consecutive raw per-eval mean drops (~500k steps at 100k) so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives.
 # warm_start_log_std is not declared: the walk inherits the stance's learned action std (a warm start keeps the
 # parent's log_std; [ppo.policy_kwargs] applies only to a new model), at most about 0.10 now that the stance starts

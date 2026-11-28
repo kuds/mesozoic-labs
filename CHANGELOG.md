@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The critic phase trains on every model and node (decision D-D79 (3)).**
+  `CRITIC_PHASE = True` (`[ppo] critic_phase`) was refused on the five models
+  whose env defines no `stance_width_settle_steps` (the Velociraptor, the
+  notebook's default model, the Brachiosaurus, the Dibothrosuchus, the
+  Compsognathus robot and the Allosaurus): their training env now reads the
+  phase of `critic_phase.DEFAULT_SETTLE_STEPS` (200 steps, the settle step of
+  both settle-gated stance rewards), a plain episode clock there; a vec env of
+  envs with and without one is refused. A warm start across a node's edge into
+  a node that declares the phase, from a parent whose critic reads another
+  phase (the T. rex stance's (200, 0.98) into its walk's (200, 0.995) or its
+  recovery's (140, 0.98)) or none, was refused too: it now re-phases the critic
+  (`critic_phase_ppo.rephase_critic`): the parent's phase columns, if any, are
+  dropped as the existing drop does, then `add_critic_phase` gives the critic's
+  first layer the node's three columns at exactly zero (Adam moments too, no
+  global random draw, the actor bitwise unchanged and the stock critic's value
+  kept, each checked before the swap). The report is recorded as
+  `run.critic_phase_rephased` (kept by a same-stage resume, as the other
+  warm-start keys) and in every checkpoint's task lineage as
+  `rephased_critic_phase`. A parent whose critic reads the node's own phase
+  still continues it; a same-stage resume and a load that crosses no edge keep
+  the refusal. Measured on all seven models with `train_base.train` (a stance
+  with and without the phase, then each walk and recovery warm-started from
+  each with the phase on and off): 44 of 44 cases train, against 14 before (18
+  refused and 12 never reached, their phase parent refused).
+  The notebook's configuration cell refuses `CRITIC_PHASE` under SAC, which
+  ignored it.
 - **Run reports and a per-model run index.** `python -m
   environments.shared.scripts.run_report RUN_DIR` (or `--model-dir
   LOG_BASE/<species>/<embodiment>` for every run of a model) writes
@@ -3589,6 +3615,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **One behavior a session, and the in-training evaluation every 100,000
+  steps (decision D-D79, 2026-11-28).** The SB3 notebook's `BEHAVIOR = "auto"`
+  (the model manifest's last deliverable, the walk on every model) is gone:
+  the configuration cell refuses it before the storage cell writes anything,
+  with a pointer to naming the behavior, and `BEHAVIOR` defaults to
+  `"stance"` (dropdown `stance`, `recover`, `walk`; the RESUME cell's `auto`
+  warning left with it). The chain loop trains only `BEHAVIOR`'s deliverable,
+  a node `RETRAIN_FROM` covers, or, under `QUICK_TEST`, the whole chain: an
+  ancestor it can neither reuse nor judge (a walk session whose certified
+  stance the reuse rule refused, for one) stops the session with `halt`,
+  which releases the runtime, before anything is written for that node,
+  naming the node, the trunk and the two ways on (its own session, or
+  `RETRAIN_FROM`), instead of training an 11M-step stance on the way to the
+  walk. A reused ancestor whose recipe differs from the session's only in
+  `[ppo] critic_phase` prints a note, not the warning that sends the reader to
+  `RETRAIN_FROM`. The in-training evaluation runs every 100,000 environment
+  steps (`environments/shared/constants.py` `DEFAULT_EVAL_FREQ`), in the
+  notebook's `train_stage`, the command line's `--eval-freq` default (`train`
+  and `curriculum`) and `train_base.train` / `train_curriculum`, 50,000
+  before: at 40 episodes every 50,000 steps it was about 45% of an 11M T. rex
+  stance's Colab L4 wall clock (the r10 certification runs at 142-144 steps/s
+  against the 10-episodes-every-131,072 screens at 238-240; measured here
+  with the trainer's own callbacks, 44% of every 50,000-step block), and it
+  certifies nothing: every gate is judged after training on its own panel,
+  whose seeds the in-training evaluation never draws. `stage_config.json`
+  records `run.eval_freq`. `collapse_min_evals` (20 → 10) and
+  `collapse_patience` (10 → 5) moved with it on the T. rex, Velociraptor,
+  Brachiosaurus and Dibothrosuchus stance and walk configs, so the collapse
+  backstop keeps its 1M-step wait and 500k-step patience; `required_consecutive`
+  (a gate key) and the advisory posture-watch counts are unchanged. No task,
+  gate or recipe digest moves; the eight stage-config view digests do
+  (`configs/digest_snapshot.generated.txt`). Docs: the notebook's prose, the
+  behavior recipes and getting-started pages, `docs/NEXT_STEPS.md`, the
+  KNOWN_ISSUES cadence, quick-test, status, SAC and knob-validation entries,
+  and `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
 - **The decisions waiting for an id are numbered, and `docs/NEXT_STEPS.md`
   gives every model's next sessions on the plants #703 left.** Decisions D-D67
   to D-D78 are rows of `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and
@@ -7673,6 +7734,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **The command-blind warm start reads a critic that keeps the episode phase.**
+  A live walk warm-started from a command-free stance whose critic reads the
+  phase, with `[ppo] critic_phase` on the walk too (the anatomical
+  Compsognathus's stance and walk share the phase), failed in
+  `policy_loading.neutralize_command_columns` ("Unsupported policy input
+  layer") or in `assert_command_blind`, which asked the critic for a value
+  without the phase. The critic's first layer is now read at the observation's
+  width plus `critic_phase_width`, its command columns are zeroed where the
+  observation puts them (the phase columns untouched), and the probe asks a
+  phase critic at the reset phase. The warm-start noise scan's walk-with-phase
+  path takes the same code.
 - **Stale layout statements are corrected.** `RESULT_BUNDLES.md` now draws a
   trained and a reused stance apart. It says that a run can hold both a stage
   directory and an `ancestors/` record for one node, when its own verdict no

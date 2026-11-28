@@ -239,8 +239,8 @@ collapse_peak_warmup_timesteps = 3000000 # Evaluations before this step cannot S
                                          # (under the absolute 100 it armed at 1.0M without one); the warm-up also keeps
                                          # the cruise ramp's 2M steps out of the peak. 3.0M leaves 13M of the 16M budget
                                          # protected.
-collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (20 evals x 50k) before it can fire.
-collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops (~500k steps) so a transient dip won't abort the stage.
+collapse_min_evals = 10                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (10 evals x 100k) before it can fire.
+collapse_patience = 5                   # Require 5 consecutive raw per-eval mean drops (~500k steps) so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives until entropy decay (floor ~6M) stabilises the gait.
 warmup_timesteps = 1000000              # Sweep winner: 1M — 3x longer warmup was the biggest signal. Gives critic much more time to adapt to new reward landscape before policy changes accelerate.
 warmup_clip_range = 0.035               # Sweep winner: 0.0335 — more clip room during warmup lets policy adjust faster once critic is ready.

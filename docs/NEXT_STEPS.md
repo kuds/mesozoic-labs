@@ -292,9 +292,10 @@ consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; th
 after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
 Configuration-cell defaults:
-`BEHAVIOR = "auto"`, the model's last deliverable, walk on every model since
-decision D-D59 (dropdown: `auto`, `stance`, `recover`, `walk`, stage ids by
-free input; `hunt` is refused naming `walk` since D-D59; the eleven
+`BEHAVIOR = "stance"` since decision D-D79 (2026-11-28: one behavior a
+session; `"auto"`, the model's last deliverable, walk on every model since
+decision D-D59, was removed and is refused; dropdown: `stance`, `recover`,
+`walk`, stage ids by free input; `hunt` is refused naming `walk` since D-D59; the eleven
 direction/terrain values leave with the PR-12 slice;
 `recover`, stance then push recovery on the T-Rex and both Compsognathus
 models, since decision D-D35, before which `stand` meant that chain there;
@@ -697,10 +698,12 @@ already on Drive, and read the model's index before its next session.*
       new explicit `RUN_ID`, `TRUNK_FROM` pinned to one certified r12 stance
       run (for the walk the run whose handoff was scanned: with both seeds
       certified, `"auto"` picks the greater directory name on the tie, the
-      2026-11-08 note's inference) and `CRITIC_PHASE = False`: the switch
-      would write `critic_phase = true` into every chain node, and the warm
-      start drops the parent's phase inputs only for a node without the
-      option (the 2026-11-06 note below). The walk's tree and its place as
+      2026-11-08 note's inference) and `CRITIC_PHASE = False`: the committed
+      walk and recovery recipes declare no `[ppo] critic_phase`, and the warm
+      start drops the parent's phase inputs into them (the 2026-11-06 note
+      below). With the switch on, the warm start re-phases the critic instead
+      (D-D79 (3)), and the node trains under a recipe digest nobody committed
+      (`c0a3a291` on the T. rex walk). The walk's tree and its place as
       the walk pilot are section 7's fourteenth question.
    4. Run `20261121_175147` (physics r11): D-D73 (2) seals it, and since
       #703 the seal is possible only as a record; whether that record is

@@ -1052,8 +1052,8 @@ checkpoint_archive_every_timesteps = 500000  # Also keep the newest periodic che
                                         # (20 MB), at 0.5M resolution; max_checkpoints = 0 would keep 110 (444 MB). A
                                         # retention key: in no gate, task or hyperparameter digest; only the stage-config
                                         # view digests move.
-collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
-collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
+collapse_min_evals = 10                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (10 evals x 100k) before it can fire.
+collapse_patience = 5                   # Require 5 consecutive raw per-eval mean drops (~500k steps at 100k) so transition turbulence won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count. Stage-1 balance learning has a long
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults

@@ -721,6 +721,28 @@ def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Pat
     return path
 
 
+def record_run_entry(stage_dir: str | Path, key: str, value: Any) -> Path:
+    """Set ``run[key] = value`` (JSON) in ``stage_config.json``, atomically, like :func:`record_stage_duration`.
+
+    For what a stage learns only once its model has loaded, after :func:`save_stage_config` wrote the record:
+    ``train_base`` records the critic's warm-start re-phase this way (``run.critic_phase_rephased``).  A stage
+    directory without a readable ``stage_config.json`` object (:func:`read_recorded_stage_config`) is an error.
+    """
+    from .file_io import atomic_write_text
+
+    data = read_recorded_stage_config(stage_dir)
+    if data is None:
+        raise FileNotFoundError(f"cannot record run.{key}: no readable stage_config.json in {stage_dir}")
+    run_block = data.get("run")
+    if not isinstance(run_block, dict):
+        run_block = {}
+    run_block[str(key)] = value
+    data["run"] = run_block
+    path = Path(stage_dir) / STAGE_CONFIG_FILENAME
+    atomic_write_text(path, json.dumps(data, indent=2) + "\n")
+    return path
+
+
 def record_resume_session(stage_dir: str | Path, *, load_path: str, timesteps: int | None) -> Path:
     """Append this session to ``run.resume_sessions`` (:data:`RESUME_SESSIONS_KEY`) in ``stage_config.json``.
 
