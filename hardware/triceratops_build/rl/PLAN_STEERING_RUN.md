@@ -88,6 +88,29 @@ fixed again before any run (`rl/README.md`, "The steering run's training additio
     turns. A long climb is measured and reported, not judged, since this run does not train on terrain (D28).
 - **Seeds:** two judged seeds (D30).
 
+**Note, 27 Nov 2026 (D48: heat rules assume a 35 C room).** The owner decided that every heat rule in degrees not
+yet judged is checked at 35 C. This plan is not a pre-registration. What D48 means for the rules above (desk
+figures from the build's thermal model on simulated
+torques, open air, no shell, nothing measured; every 35 C figure below is method A: each drive fitted at the 25 C
+rating room, then run in the warmer room. `analysis/thermal_ambient.py`, tables in
+`analysis/results/heat35/thermal_ambient_2026-11-27.md`, written up in `analysis/REPORT_HEAT_35C.md`):
+- **The rules above are ratios, not degrees** (lines 85-88), so D48 does not change them as written. In degrees they
+  shift with the room. A drive held at 0.85 of its continuous rating settles at 87.1-87.5 C in a 35 C room
+  (75.1-75.5 C at 25 C); held at 1.0, at 112.9-113.7 C (100.0-100.7 C at 25 C). In a 35 C room a steady load of
+  0.866-0.870 of rating settles at 90 C, and 0.927-0.931 at 100 C. The bench's 90 C at 35 C (B3,
+  `../bench/BENCH_PLAN_FORELEG.md:61`) was written for a measured winding on the 75 cm T20 foreleg, shell on, over a
+  30 min loop with held poses; the model is open air. So the 0.85 margin and B3's 90 C are close only in this
+  open-air model and only for a steady load. "Under its rating" at the stress points allows a winding to settle near
+  113 C in a 35 C room. The pre-registration should say which room each ratio rule stands for.
+- **The demo course is the stress point measured in degrees.** `demo_course.py --room-c 35` now runs it in a 35 C
+  room (added 27 Nov 2026; left out, the room is 25 C as before, and the twelve stored D22 demo courses' temperatures
+  are reproduced exactly). Under D48 a demo-course heat rule in degrees is written for 35 C, with the 25 C run
+  reported beside it. For scale, the D22 128 mm policies' stored demo courses in a 35 C room, method A: hottest
+  winding 76.3, 74.4, 93.3 and 98.3 C (seeds 0-3, 8 min time constant). Two of the four are over 90 C, the figure B3
+  sets for its own case; none reaches 100 C. Walked with no breaks, the demo's walking segment would settle the
+  worst drive in a 35 C room, method A, at 89.7, 86.6, 112.5 and 114.2 C.
+- `demo_course.py` walks straight segments only; "the demo course with turns" needs a turning segment first.
+
 ## Not in this run
 
 - Real-robot sensing (no simulator-only velocity): the run after (D20).

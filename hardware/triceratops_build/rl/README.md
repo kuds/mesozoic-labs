@@ -483,7 +483,8 @@ feet, or a checkpoint. Each segment records, every 1 ms:
 - the joint bearing loads and the foot forces.
 
 **2. The demo, modelled.** A loop (default 90 s walking, 30 s standing) is repeated for one pack's runtime (or
-`--minutes`), from 25 °C in open air, through two models:
+`--minutes`), from 25 °C in open air (`--room-c` sets another room: D48 checks at 35 °C, `analysis/REPORT_HEAT_35C.md`),
+through two models:
 - **winding temperature per drive:** a first-order model calibrated so the maker's thermal-equilibrium torque (7.5
   N·m for the X4-36-L; not its 10.5 N·m rated torque) reaches 100 °C at 90 min. The X6-60 has no published table,
   so the X6-50-L's (12 N·m) stands in, as `sim/data/drives.json` records. The thermal time constant is given at 4,

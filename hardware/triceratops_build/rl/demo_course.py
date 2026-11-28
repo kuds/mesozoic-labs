@@ -6,7 +6,8 @@
    loss 3 R (tau_drive / Kt)^2, the drives' net draw on a shared bus, the braking surplus), the joint bearing loads
    and the foot forces (``telemetry/loads.py``).
 2. **The demo, modelled.** A loop of segments (default: 90 s walking at 0.25 m/s, 30 s standing) repeated for
-   ``--minutes`` (default: one pack's runtime on that loop), from 25 C in open air:
+   ``--minutes`` (default: one pack's runtime on that loop), from the room's temperature in open air (``--room-c``,
+   default 25 C, the thermal calibration's room; decision D48 checks heat rules in degrees at 35 C):
    - winding temperatures per drive (``telemetry/thermal.py``), calibrated from the maker's thermal-equilibrium
      torque, for thermal time constants of 4, 8 and 15 min (fitted to the maker's overload figures; a range), with
      the middle of the settled temperature cycle when the loop runs without a break;
@@ -24,7 +25,7 @@ The walker is the frozen model-based trot (``walk/walk60.py``) on the capsule-fo
 (SIMULATION-labelled).
 
 Usage: python hardware/triceratops_build/rl/demo_course.py --out DIR [--ckpt-dir DIR] [--minutes 20]
-       [--walk-s 90 --stand-s 30] [--seed 700000]
+       [--walk-s 90 --stand-s 30] [--seed 700000] [--room-c 35]
 """
 
 from __future__ import annotations
@@ -194,11 +195,13 @@ def loads_headline(segments: dict) -> dict:
 
 
 def run(make, label: str, loop, minutes: float | None, seed: int, segment_s: float = 20.0,
-        time_constants_s=None) -> dict:
-    """Measure the segments, then model the demo: the loop for ``minutes``, or (None) for one pack's runtime."""
+        time_constants_s=None, room_c: float | None = None) -> dict:
+    """Measure the segments, then model the demo: the loop for ``minutes``, or (None) for one pack's runtime.
+    ``room_c``: the room the windings start in and shed heat to (None: the calibration's 25 C; the drives are
+    calibrated at that room whatever ``room_c`` is, ``telemetry/thermal.py``)."""
     import gait_report as gr
     from telemetry.power import demo_battery, pack_currents
-    from telemetry.thermal import TIME_CONSTANTS_S, DriveThermal, demo_temperatures, tc_key
+    from telemetry.thermal import RATING_AMBIENT_C, TIME_CONSTANTS_S, DriveThermal, demo_temperatures, tc_key
 
     tcs = tuple(time_constants_s or TIME_CONSTANTS_S)
     build_sequence(loop, 1.0)  # refuse a bad loop before the simulations
@@ -209,7 +212,8 @@ def run(make, label: str, loop, minutes: float | None, seed: int, segment_s: flo
     base = {"simulation_only": True, "estimates": "temperatures, battery and currents are model estimates",
             "walker": label, "loop": [list(x) for x in loop], "seed0": seed, "segments": segs,
             "valid": not fallen, "fallen_segments": fallen, "loads_headline": loads_headline(segs),
-            "pack": PACK, "hotel_range_w": list(HOTEL_RANGE_W), "time_constants_s": list(tcs)}
+            "pack": PACK, "hotel_range_w": list(HOTEL_RANGE_W), "time_constants_s": list(tcs),
+            "room_c": RATING_AMBIENT_C if room_c is None else float(room_c)}
     if any(not s["measured"] for s in segs.values()):
         return {**base, "minutes": minutes, "temperatures": None, "battery": None, "traces": None}
     bkeys = ("mean_draw_w", "mean_sq_draw_w2", "peak_draw_w", "peak_surplus_w", "surplus_share", "brake_event_j_max")
@@ -226,7 +230,7 @@ def run(make, label: str, loop, minutes: float | None, seed: int, segment_s: flo
         therm[jn] = DriveThermal(jn, drives[g]["kt_nm_per_a_rms"], drives[g]["phase_resistance_ohm"],
                                  float(dd["thermal_eq_nm"]))
         per_joint[jn] = [(sec, segs[name]["tau_drive_sq_mean"][j]) for name, sec in seq]
-    temps = demo_temperatures(therm, per_joint, tcs)
+    temps = demo_temperatures(therm, per_joint, tcs, room_c=room_c)
     battery = battery_of(seq)
     battery["current_peak_all_segments_a"] = pack_currents(
         max(s["peak_draw_w"] for s in segs.values()) + PACK["hotel_w"], v_nominal=PACK["v_nominal"],
@@ -238,7 +242,7 @@ def run(make, label: str, loop, minutes: float | None, seed: int, segment_s: flo
     for g in dict.fromkeys(groups):
         jg = [jn for jn, gg in zip(joints, groups) if gg == g]
         hot = max(jg, key=lambda jn: temps[jn][tc_key(shown)]["peak_c"])
-        tr = therm[hot].calibrate(shown).run(per_joint[hot])
+        tr = therm[hot].calibrate(shown, room_c=room_c).run(per_joint[hot])
         step = max(1, len(tr) // 600)
         traces["groups"][g] = {"joint": hot, "t_min": [t / 60 for t, _ in tr[::step]],
                                "temp_c": [T for _, T in tr[::step]],
@@ -267,13 +271,27 @@ def hottest(res: dict) -> dict:
     return out
 
 
+def _bottom_clear_of_legend(fig, ax, leg, traces, margin_c: float = 3.0) -> float:
+    """The y-axis bottom (a multiple of 5 C, never above the current one) that keeps every trace, and so its end
+    label, at least ``margin_c`` above a lower-right legend over the minutes the legend spans. The legend's size on
+    the page does not change with the y-limits, so its top stays at the same fraction of the axis height."""
+    fig.canvas.draw()  # places the legend
+    box = leg.get_window_extent(fig.canvas.get_renderer()).transformed(ax.transAxes.inverted())  # axes fraction
+    lo, hi = ax.get_ylim()
+    t0 = ax.transData.inverted().transform(ax.transAxes.transform((box.x0, 0.0)))[0]
+    low = min(T for tr in traces for t, T in zip(tr["t_min"], tr["temp_c"]) if t >= t0)
+    need = (low - margin_c - box.y1 * hi) / (1.0 - box.y1)  # the bottom b at which b + box.y1 (hi - b) = low - margin
+    return min(lo, 5.0 * math.floor(need / 5.0))
+
+
 def chart(res: dict, out: Path, label: str) -> str:
     import chart_style as cs
 
     cs.setup()
     plt = cs.plt
-    from telemetry.thermal import tc_key
+    from telemetry.thermal import RATING_AMBIENT_C, tc_key
 
+    room_c = res.get("room_c", RATING_AMBIENT_C)  # a result from before 27 Nov 2026 has no room: it was 25 C
     fig, ax = plt.subplots(figsize=(11, 6.6))
     fig.subplots_adjust(left=0.08, right=0.82, top=0.72, bottom=0.11)
     tr_all = res["traces"]
@@ -285,11 +303,18 @@ def chart(res: dict, out: Path, label: str) -> str:
     ax.axhline(100, color=cs.INK2, lw=0.9, ls="--")
     ax.annotate("100 C: the maker's temperature-rise reference", (0, 100), xytext=(2, 4),
                 textcoords="offset points", fontsize=8, color=cs.INK2)
-    ax.set_ylim(20, 110)
-    ax.set_xlabel("demo time, minutes (from 25 C, open air)")
+    ylim, legend = (20.0, 110.0), dict(loc="upper left", bbox_to_anchor=(0.0, 0.86))  # the 25 C chart, as before
+    if room_c != RATING_AMBIENT_C:  # another room: every trace and its end label in frame, the legend lower right
+        hi = max(max(tr["temp_c"]) for tr in tr_all["groups"].values())  # with the axis bottom taken clear of it
+        ylim = (min(20.0, 5.0 * math.floor((room_c - 5.0) / 5.0)), max(110.0, 5.0 * math.ceil((hi + 5.0) / 5.0)))
+        legend = dict(loc="lower right")
+    ax.set_ylim(*ylim)
+    ax.set_xlabel(f"demo time, minutes (from {room_c:g} C, open air)")
     ax.set_ylabel("winding temperature, C (estimate)")
     ax.set_title(f"Hottest drive of each group, thermal time constant {shown / 60:g} min")
-    ax.legend(loc="upper left", bbox_to_anchor=(0.0, 0.86), fontsize=8)
+    leg = ax.legend(fontsize=8, **legend)
+    if room_c != RATING_AMBIENT_C:
+        ax.set_ylim(_bottom_clear_of_legend(fig, ax, leg, tr_all["groups"].values()), ylim[1])
     b = res["battery"]
     loop = ", ".join(f"{n} {s:.0f} s" for n, s in res["loop"])
     hot = hottest(res)
@@ -300,10 +325,12 @@ def chart(res: dict, out: Path, label: str) -> str:
     import textwrap
 
     one_pack = " (one pack)" if res["minutes_is_one_pack"] else ""
+    room = "" if room_c == RATING_AMBIENT_C else f" in a {room_c:g} C room"
     sub = (f"{invalid}Loop: {loop}, for {res['minutes']:.0f} min{one_pack}. Battery: {b['runtime_minutes']:.0f} "
            f"min per pack at {b['mean_total_w']:.0f} W mean, incl. {b['hotel_w']:.0f} W hotel; peak pack current "
            f"{b['current_peak_a']['low_v']:.1f} A on the loop, {b['current_peak_all_segments_a']['low_v']:.1f} A in "
-           f"any segment, at {res['pack']['v_low']} V.\nHottest winding: {hot[k]['joint']} {hot[k]['peak_c']:.1f} C "
+           f"any segment, at {res['pack']['v_low']} V.\nHottest winding{room}: {hot[k]['joint']} "
+           f"{hot[k]['peak_c']:.1f} C "
            f"(time constant {shown / 60:g} min; {rng[0]:.1f}-{rng[-1]:.1f} C over {lo_tc:g}-{hi_tc:g} min); "
            f"without a break, {_settled(hot[k]['continuous_c'])}.\nESTIMATES: a first-order "
            "thermal model calibrated to the maker's thermal-equilibrium torque; leg drives only.")
@@ -324,11 +351,13 @@ def main(argv=None) -> int:
     ap.add_argument("--stand-s", type=float, default=30.0)
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--label", default=None)
+    ap.add_argument("--room-c", type=float, default=None,
+                    help="room temperature, C (default: 25, the thermal calibration's room; D48: rules at 35)")
     a = ap.parse_args(argv)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     make, walker = policy_factory(Path(a.ckpt_dir)) if a.ckpt_dir else trot_factory()
-    res = run(make, walker, [("walk_0.25", a.walk_s), ("stand", a.stand_s)], a.minutes, a.seed)
+    res = run(make, walker, [("walk_0.25", a.walk_s), ("stand", a.stand_s)], a.minutes, a.seed, room_c=a.room_c)
     label = a.label or ("model-based trot" if not a.ckpt_dir else Path(a.ckpt_dir).name)
     print(f"walker: {walker}")
     for n, s in res["segments"].items():
@@ -347,14 +376,15 @@ def main(argv=None) -> int:
         print("no demo modelled: a segment fell before the measuring window")
         print("wrote", out)
         return 1
-    from telemetry.thermal import tc_key
+    from telemetry.thermal import RATING_AMBIENT_C, tc_key
 
     b = res["battery"]
     hh = hottest(res)
+    room = "" if res["room_c"] == RATING_AMBIENT_C else f" in a {res['room_c']:g} C room"
     for tc in res["time_constants_s"]:
         k = tc_key(tc)
         hot = sorted(((v[k]["peak_c"], jn) for jn, v in res["temperatures"].items()), reverse=True)[:3]
-        print(f"hottest windings over {res['minutes']:.0f} min (time constant {tc / 60:g} min): "
+        print(f"hottest windings over {res['minutes']:.0f} min{room} (time constant {tc / 60:g} min): "
               + ", ".join(f"{jn} {T:.1f} C" for T, jn in hot) + f"; without a break, {_settled(hh[k]['continuous_c'])}")
     rt = ", ".join(f"{h} W hotel {m:.0f} min" for h, m in b["runtime_minutes_by_hotel_w"].items())
     print(f"battery: {b['runtime_minutes']:.0f} min at {b['mean_total_w']:.0f} W ({rt}); pack current at low "
