@@ -54,6 +54,7 @@ import environments.shared.species_registry as species_registry
 from environments.brachiosaurus_altithorax.scripts.reference_walk import ReferenceWalk
 from environments.shared.command_tracking_panel import plan_command_panel, roll_command_panel
 from environments.shared.config import build_env, load_stage_config
+from environments.shared.constants import DEFAULT_EVAL_FREQ
 from environments.shared.curriculum.command_tracking_gate import (
     SPEED_SETTLE_S,
     classify_cruise_episode,
@@ -83,7 +84,8 @@ REFERENCE_WALK_MATCHED = (3932.87, 213.67)
 REFERENCE_WALK_COMMITTED = 2619.85
 #: Episodes per in-training evaluation (train_base._DEFAULT_EVAL_EPISODES) and its spacing in steps.
 EVAL_EPISODES = 30
-EVAL_FREQ = 50_000
+EVAL_FREQ = 50_000  # the spacing the traces are written at: the runs evaluated every 50,000 steps
+HISTORICAL_COUNTS = early_stopping_tests.TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups.HISTORICAL_COUNTS
 #: The most stand episodes an evaluation of a stander may hold and still read below the floor.
 STANDS_BELOW_THE_FLOOR = 9
 
@@ -107,8 +109,12 @@ def _stander_evaluation(stands: int, cruise: float = STATUE_CRUISE[0], stand: fl
     return cruise + (stand - cruise) * stands / EVAL_EPISODES
 
 
-def _drive(trace, settings):
-    """Feed *trace* (one mean reward per evaluation, EVAL_FREQ apart) to the backstop; the step it stops at, or None."""
+def _drive(trace, settings, *, cadence=DEFAULT_EVAL_FREQ):
+    """Feed *trace* (one mean reward per evaluation, EVAL_FREQ apart) to the backstop at *cadence*; the step it stops
+    at, or None.  At the committed cadence (100,000 steps since decision D-D79 (4)) the evaluations that cadence makes
+    are kept, every second one, each at its own step; a run's own stop replays at EVAL_FREQ under its own counts."""
+    stride = cadence // EVAL_FREQ
+    trace = list(trace)[stride - 1 :: stride]
     cb = object.__new__(EvalCollapseEarlyStopCallback)
     cb.eval_callback = MagicMock()
     cb._last_seen_n_evals = 0
@@ -118,8 +124,8 @@ def _drive(trace, settings):
         setattr(cb, key, settings[key])
     for index in range(len(trace)):
         cb.eval_callback.evaluations_results = [[value] for value in trace[: index + 1]]
-        cb.eval_callback.evaluations_timesteps = [(j + 1) * EVAL_FREQ for j in range(index + 1)]
-        cb.num_timesteps = (index + 1) * EVAL_FREQ
+        cb.eval_callback.evaluations_timesteps = [(j + 1) * cadence for j in range(index + 1)]
+        cb.num_timesteps = (index + 1) * cadence
         if cb._on_step() is False:
             return cb.num_timesteps, cb
     return None, cb
@@ -244,7 +250,12 @@ def test_the_run_20260923_shape_never_arms_with_or_without_the_warmup():
         for settings in (_settings(), _settings(peak_warmup_timesteps=0.0)):
             stopped_at, cb = _drive(trace, settings)
             assert stopped_at is None and not cb._peak_score >= settings["peak_floor"]
-        assert _drive(trace, _settings(peak_floor=100.0, peak_warmup_timesteps=0.0))[0] == 1_450_000
+        assert (
+            _drive(
+                trace, _settings(peak_floor=100.0, peak_warmup_timesteps=0.0, **HISTORICAL_COUNTS), cadence=EVAL_FREQ
+            )[0]
+            == 1_450_000
+        )
         assert _drive(trace, _settings(peak_floor=100.0))[0] is None
 
 

@@ -42,8 +42,13 @@ STOCK = {
     "vec_normalize": "stable_baselines3.common.vec_env.vec_normalize.VecNormalize",
 }
 #: What later changes record that main at 4c9d5e9b did not, none of it the critic phase's: a same-stage resume into
-#: the directory it continues lists its session under ``run.resume_sessions`` (2026-11-24, config.record_resume_session).
-ADDED_SINCE_GOLDEN: dict[str, dict[str, list[str]]] = {"S3": {"run_keys": ["resume_sessions"]}}
+#: the directory it continues lists its session under ``run.resume_sessions`` (2026-11-24, config.record_resume_session),
+#: and every stage records its in-training evaluation cadence as ``run.eval_freq`` (2026-11-28, decision D-D79 (4)).
+ADDED_SINCE_GOLDEN: dict[str, dict[str, list[str]]] = {
+    "S1": {"run_keys": ["eval_freq"]},
+    "S2": {"run_keys": ["eval_freq"]},
+    "S3": {"run_keys": ["eval_freq", "resume_sessions"]},
+}
 
 
 @pytest.fixture(scope="module")

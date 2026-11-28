@@ -79,7 +79,10 @@ Protocol:
   ``train_base._create_or_load_model`` prepares it for the walk, in the
   same order.  A parent whose critic reads the episode phase loses those
   inputs when the walk declares no ``[ppo] critic_phase``
-  (``critic_phase_ppo.drop_critic_phase``; the actor is untouched).  A
+  (``critic_phase_ppo.drop_critic_phase``; the actor is untouched); into a
+  walk that declares one it keeps its critic, which training re-phases to
+  the walk's (``critic_phase_ppo.rephase_critic``, decision D-D79 (3)) and
+  which changes no action.  A
   parent whose recorded task has no ``command`` section, as every stance's
   has none, has its command columns zeroed
   (``policy_loading.neutralize_command_columns``), and the policy is proven
@@ -670,7 +673,9 @@ def prepare_warm_start_policy(
     node's edge: a parent whose critic reads the episode phase
     (``critic_phase.CHECKPOINT_ATTRIBUTE``) into a walk without one loses
     those inputs (``critic_phase_ppo.drop_critic_phase``; the actor is
-    untouched); then, for a live walk, the statistics' command slice must be
+    untouched), and into a walk with one the parent's critic is kept (training re-phases it, which changes no
+    action, and the command preparation and probe read a phase critic); then, for a live walk, the statistics'
+    command slice must be
     at identity (``command_frame.require_command_identity``, the refusal
     ``load_vecnorm_stats`` makes), and a parent whose recorded task
     (``task_fingerprint.MODEL_TASK_ATTRIBUTE``) has no ``command`` section,
