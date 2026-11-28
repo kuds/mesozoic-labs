@@ -2,8 +2,8 @@
 
 These are the scripts that ran, summarised and reviewed experiments E1-E5 of
 `design/PREREG_CANDIDATES_2026_11_28.md`. They were copied here byte for byte from the session's scratch folder
-after the runs, so that the record outlives that folder (each copy compared byte for byte with its original,
-28 Nov 2026). Each result file's `provenance` block names its runner by the scratch path it ran from and gives its
+after the runs, so that the record outlives that folder (each copy byte-identical to its original, checked
+28 Nov 2026 by `../lead_check/`). Each result file's `provenance` block names its runner by the scratch path it ran from and gives its
 sha256. For 19 of the 24 copies a result file records a sha256, and each matches (`../lead_check/`). The other five
 have no recorded hash; their sha256, from these copies:
 

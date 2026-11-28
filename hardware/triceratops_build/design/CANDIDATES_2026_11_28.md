@@ -44,13 +44,14 @@ written (study) and was barely tested here.
     only the coupled software limit both leaves the logged motion and removes the full-range overlap; no single
     joint stop does both.
   - **Fallback.** The retuned scripted trot avoids the slow, hot gait at 60 cm on held-out seeds with its body-pitch
-    setpoint (E5; SIMULATION). That is the pre-registered verdict on the prereg's own reading of item 9, that the
-    setpoint is not new controller structure; the ruling item 9 required before the run was not made, and one made
-    now would come after the result (section 6). In a branch changed after a result it also passes without the
-    setpoint, on a supporting reading only (E5).
+    setpoint (E5; SIMULATION). That is the pre-registered verdict only on a "not structure" reading of item 9 (the
+    reading E5 ran with); on a "structure" reading E5 has no pre-registered verdict. The ruling item 9 required
+    before the run was not made, and one made now would come after the result (section 6). In a branch changed after
+    a result it also passes without the setpoint, on a supporting reading only (E5).
 - **What did not change for A:** no hip-pitch or knee reduction passes the 83 rpm speed check for all four policies
-  (E2(a); at the hip pitch, s3's right fore hip pitch blocks it; with the knees reduced, the left fore elbow of s3 from
-  r = 1.0, of s1 from 1.25 and of s0 at 1.3), and no usable forced-air figure was found (E4).
+  (E2(a); at the hip pitch, s3's right fore hip pitch fails at every r from 1.1 (block B) or 1.2 (block A); at the
+  knees, s3's left fore elbow already exceeds the 91.3 rpm peak line unreduced (96.60 rpm at r = 1.0), and on the
+  same elbow s1 fails from 1.25 and s0 at 1.3), and no usable forced-air figure was found (E4).
 - **B gained little direct evidence.** Only E5 ran at 50 cm, where the untuned trot was already close to passing;
   the retune lowered the hind-knee load (worst per condition 0.59-0.71 of rating across both branches, 0.593-0.678
   with the body-pitch setpoint and 0.598-0.709 at pitch 0, against 0.76-1.02 untuned). B's
@@ -132,7 +133,7 @@ policies on both seed blocks.
 - Knee-only reductions leave C1 and C2 at 98.3 C and 0.914: each policy's deciding drive is a hip pitch.
 - **Who fails the speed check** (from `E2_REVIEW_ADDENDUM.md`, which takes precedence over `E2_summary.md`): at hip
   pitch only s3, on its right fore pitch drive (first at r = 1.2 on block A, 99.17 rpm; r = 1.1 on block B, 94.18).
-  With the knees reduced, s3's left fore elbow (an X6-60) fails from r = 1.0 (96.60 rpm), s1 from r = 1.25 (92.18)
+  With the knees reduced, s3's left fore elbow (an X6-60) fails at every r, already unreduced (r = 1.0, 96.60 rpm, over the 91.3 rpm peak line), s1 from r = 1.25 (92.18)
   and s0 at r = 1.3 (93.85), on the same elbow.
 - **Per policy** (supporting, not the verdict): at hip pitch, r = 1.2-1.3, s0, s1 and s2 pass all three checks on both
   blocks with every transmission. With both placements reduced: s0-s2 at r = 1.2, s0 and s2 at 1.25, s2 alone at 1.3.
@@ -175,10 +176,10 @@ today's drives on the build's ratings (X4 7.5 N m, X6 12 N m), on both of its de
 
 | Policy (model) | C1, C (700000 / 710000) | C2 | Deciding drive | MEETS |
 |---|---|---|---|---|
-| fore128-s0 (adopted) | 76.31 / 74.91 | 0.7613 / 0.7500 | left hind pitch (mirror 0.63 / 0.62) | **yes** |
-| fore128-s1 (adopted) | 74.38 / 76.41 | 0.7459 / 0.7620 | left fore pitch (mirror 0.59 / 0.60) | **yes** |
-| fore128-s2 (adopted) | 93.27 / 91.04 | 0.8812 / 0.8671 | left fore pitch | no |
-| fore128-s3 (adopted) | 98.28 / 97.34 | 0.9137 / 0.9085 | left hind pitch | no |
+| fore128-s0 (adopted model) | 76.31 / 74.91 | 0.7613 / 0.7500 | left hind pitch (mirror 0.63 / 0.62) | **yes** |
+| fore128-s1 (adopted model) | 74.38 / 76.41 | 0.7459 / 0.7620 | left fore pitch (mirror 0.59 / 0.60) | **yes** |
+| fore128-s2 (adopted model) | 93.27 / 91.04 | 0.8812 / 0.8671 | left fore pitch | no |
+| fore128-s3 (adopted model) | 98.28 / 97.34 | 0.9137 / 0.9085 | left hind pitch | no |
 | fore160-s0 / s1 / s2 (160 mm) | 120.8-123.2 / 96.6-97.2 / 90.1-92.6 | 1.02-1.03 / 0.90-0.91 / 0.87-0.88 | hind pitch / fore pitch / hind knee | no |
 | fore160-s3 (160 mm) | 80.63 / 83.26 | 0.7955 / 0.8198 | changes with the course | no (C2 at 710000) |
 | run3-s0 (188 mm) | 77.90 / 79.23 | 0.7775 / 0.7872 | right fore pitch | yes (1.6 % margin) |
@@ -212,8 +213,8 @@ have no falls in J1-J4, J3 mean speed >= 0.225 m/s, at most 1 slow-gait episode 
 knee RMS <= 1.0 of its continuous rating.
 
 **Outcome as pre-registered (with `PitchedTrot`'s body-pitch setpoint): SUCCEEDS at 60 cm and at 50 cm,** the
-pre-registered verdict on the prereg's own reading of item 9, that the setpoint is not new controller structure. The
-ruling item 9 required before the run was not made (below).
+pre-registered verdict only on a "not structure" reading of item 9 (the reading E5 ran with); on a "structure"
+reading E5 has no pre-registered verdict. The ruling item 9 required before the run was not made (below).
 
 | Setting | Seeds | Falls J1-J4 | J3 speed, m/s | Most slow-gait episodes in a condition | Worst hind knee |
 |---|---|---|---|---|---|
@@ -229,9 +230,9 @@ ruling item 9 required before the run was not made (below).
   reading, changed after a result: the branch is the one item 9 names, but it was planned after the pitched held-out
   results (`pitch0/E5_PITCH0_PLAN.md`, 09:07 UTC), and it is judged on a four-set rule added then and partly on
   seeds 501-510 and 601-610, which prereg section 6 reserved for a harness-fault rerun. Its search also takes E5 over
-  the lead's budget of at most 60 settings per size: 33 distinct settings per branch, 65 across both (1 shared);
-  counted over stages, as each branch's tuning JSON does, 39 per branch and 78 across both, or 77 with the shared
-  setting counted once (`lead_check/`; E5-C3).
+  the lead's budget of at most 60 settings per size, which prereg section 6 counts over all stages: 39 per branch,
+  78 across both (77 with the one shared setting counted once); by distinct settings, 33 per branch and 65 across
+  both (`lead_check/`; E5-C3). The pitched search alone is within the budget.
 - **The frozen trot** (supporting, not judged): at 60 cm it fails on every held-out set (slow gait in 5-8 of 10 J3
   episodes and in up to 10 of 10 after the pushes; hind knee up to 1.155). At 50 cm it failed only on 301-310, by a
   hind knee of 1.019, and passed the other three sets.
@@ -241,7 +242,7 @@ ruling item 9 required before the run was not made (below).
   at 0.2084 m/s, knee 0.961). These are not slow gait, which also needs the knee at 1.0 or more; had both reached
   it, the 501-510 set would have failed.
 - **Drive speeds at 60 cm:** the fastest X4 peaked at 73.6-75.1 rpm pitched (301-310, 401-410) and 67.1-80.5 rpm at
-  pitch 0 (four sets; 80.5 on 301-310), against 62.4-63.3 rpm for the frozen trot on 301-410 and 64.6 and 78.1 rpm on
+  pitch 0 (four sets; 80.5 on 301-310), against 62.4-63.3 rpm for the frozen trot on 301-310 and 401-410, and 64.6 and 78.1 rpm on
   501-510 and 601-610; all under 83 rpm (`lead_check/`).
 
 ## 2. What it means for A and B
@@ -343,11 +344,12 @@ one controller.
 | E4-C2 | S01's conditional "would qualify with rho of about 0.29" fixes the most favourable reading in advance | Not carried; if the full text is read, item 12 is applied afresh |
 | E5-C1 | `E5_REVIEW_FIXES.md` says one J3 seed runs slow early "with either setting"; that is true only of the pitched setting | Corrected in E5 above (three early, two late at pitch 0) |
 | E5-C2 | The pitch-0 branch used seeds 501-510 and 601-610, which prereg section 6 reserved for an E5 rerun after a harness fault | No unseen reserve seeds are left for E5; a rerun would need new ones |
-| E5-C3 | Across both branches 65 distinct settings per size were run (78 counted over stages, 77 with the shared one once), against the lead's budget of at most 60; the pitch-0 branch counted its own 39 runs (33 distinct) | If item 9 is ruled "structure", E5's verdict rests on a search over budget once both branches are counted |
+| E5-C3 | Across both branches 65 distinct settings per size were run (78 counted over stages, 77 with the shared one once), against the lead's budget of at most 60; the pitch-0 branch counted its own 39 runs (33 distinct) | No ruling is made. On a "structure" reading E5 has no pre-registered verdict, and the pitch-0 pass, a supporting reading, rests on a search over the budget once both branches are counted. The pitched search alone (33 distinct, 39 over stages) is within 60 |
+| E5-C4 | `E5/E5_REVIEW_FIXES.md` and `E5/pitch0/E5_PITCH0_PLAN.md` say that under a "structure" ruling the pitch-0 branch is E5's search and its verdict E5's verdict, so that E5's outcome is the same under either ruling | Not carried: the branch's four-set rule, its use of the reserve seeds and its count over the budget were set after a result, so on a "structure" reading this report gives E5 no pre-registered verdict and treats the pitch-0 pass as supporting |
 
 **Accepted and fixed in new files:** E2-R1 to E2-R4, E4-R1 to E4-R6 and E5-R1 to E5-R4. Where they differ from the
 summaries, the addenda (`E2_REVIEW_ADDENDUM.md`, `E4_REVIEW_ADDENDUM.md`, `E5_REVIEW_FIXES.md`) take precedence, with
-E2-C1 and E5-C1 applied on top as above.
+E2-C1, E5-C1 and E5-C4 applied on top as above.
 
 ## 6. Changed after a result, and rule breaches
 
@@ -387,21 +389,26 @@ after a result was seen:
   reproduce the stored torques exactly. The "on 2 workers" wall times in `E5_SUMMARY.md` and `E5_PITCH0_SUMMARY.md`
   are per pool; E5's 60 cm tuning shared the machine with E2's pool until 07:05.
 
-**Deviation from the pre-registration** (an outcome depends on it):
+**Deviations from the pre-registration** (an outcome depends on each):
 - **E5 ran without the item-9 ruling,** which prereg item 9 required "before the first E5 run". No ruling is on
   record (`DECISION_LOG.md` D1-D56 has no line on body pitch or `PitchedTrot`), and E5 ran with `PitchedTrot` from
   06:52 UTC (smoke test; tuning from 06:53). A ruling made now would come after the result, so none is made. Its
   pitched verdict therefore holds only on a "not structure" reading; on a "structure" reading E5 has no
   pre-registered verdict (E5 above).
+- **E5's settings across both branches exceed the budget** of at most 60 per size, counted over all stages as prereg
+  section 6 counts it: 78 per size (77 with the shared setting counted once). The pitched search alone (39) is within
+  it; only the pitch-0 supporting reading depends on the overrun.
 
 ## 7. Files and provenance
 
 - **Code and commits.** E1-E5 ran at commit `fb1e80c8`; the pitch-0 branch and E5's review checks ran at
-  `743b5c75` (10 result files record it: the eight under `E5/pitch0/`, `E5/e5_review_checks.json` and
+  `743b5c75` (10 result files record it: the eight JSON files under `E5/pitch0/`, `E5/e5_review_checks.json` and
   `E5/e5_tuning_seeds_walltime.json`). `743b5c75` differs from `fb1e80c8` in this tree only in `DECISION_LOG.md`
   (D50-D56; `git diff --stat`, read only), so no result depends on which. Both used frozen `sim/candidate_checks.py`
   (sha256 `008aa308debdf1b6`), `plan.json` (`1403a4b326aaf2aa`) and the adopted model (`372ac07b14338c26`), and all
-  three hashes were unchanged when this was written. The prereg's sha256 is now `94ae9e3dc6002b4a`;
+  three hashes were unchanged when this was written. These three and the prereg were untracked at both commits
+  (first committed in `120393eb`), so `git diff` does not cover them; every result file identifies them by sha256,
+  the same in all of them. The prereg's sha256 is now `94ae9e3dc6002b4a`;
   it was last modified at 05:54:56 UTC, before the first E1 episode file (05:58:38 UTC).
 - **Results** (each file under 500 KB, committed with this report) in `sim/results/candidates_2026-11-28/`:
   `E1/E1_SUMMARY.md`;
@@ -411,22 +418,33 @@ after a result was seen:
   time, which prereg section 6 asks of every result file);
   `E3/E3_SUMMARY.md`; `E4/E4_SUMMARY.md` with
   `E4_REVIEW_ADDENDUM.md`; `E5/E5_SUMMARY.md` with `E5_REVIEW_FIXES.md` and `pitch0/E5_PITCH0_SUMMARY.md`. Each has
-  its JSON and CSV files beside it, with provenance.
+  its JSON and CSV files beside it. The JSON files carry provenance, except as noted above for
+  `e2b_vs_R_supporting.json`; `E2/e2a_speed_x6_allowance_supporting.csv` has none of its own (E2 addendum).
 - **Runners.** The 24 runner, summary and review scripts are copied byte for byte into
   `sim/results/candidates_2026-11-28/runners/` (`runners/README.md`). Each result file's provenance names its runner
   by its scratch path and sha256; for 19 of the 24 copies a result file records a sha256, and each matches. The other
   five (`E1/md_tables_e1.py`, `E5/check_push_applied.py`, `E5/md_e5.py`, `E5_pitch0/make_runner.py`,
-  `E5_pitch0/md_p0.py`) have no recorded hash; `runners/README.md` lists their sha256, taken from the copies, which
-  were compared byte for byte with the scratch originals on 28 Nov 2026. The runners read and write the scratch
+  `E5_pitch0/md_p0.py`) have no recorded hash; `runners/README.md` lists their sha256, taken from the copies. All
+  24 copies are byte-identical to their scratch originals (`lead_check/`). The runners read and write the scratch
   paths, so rerunning one needs those paths or an edit.
 - **Raw episode logs** (191 MB) stay in the session scratch folder, which is not durable storage:
   `/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/`.
 - **The lead's check of key figures** (28 Nov 2026, after the reviews; `lead_check/lead_check.py`, its output
-  `lead_check/lead_check_2026-11-28.txt`): without the experiments' summarisers, it recomputes E1's 248 episodes,
-  480,024 poses and 14 falls from the raw episode records; E2(a)'s 0 of 45 judged rows, the hip-pitch table and each
-  failing drive from `e2a_grid.csv`; E2(b)'s falls, the reduced drives' peaks and the episodes over 91.3 rpm from the
-  raw records; E3's C1 (through the build's `rl/analysis/thermal_ambient.py`) and C2 for the four fore128 policies on
-  both courses; E5's held-out falls, J3 speeds, slow-gait counts, worst hind knees and X4 peaks for both branches and
-  the frozen trot at both sizes; the search counts; and the runner copies' hashes. All agree with the figures above.
-  It does not cover E1's clearances and stops, E2(b)'s p99 or E4, which rest on the reviews. Separately,
-  `sim/tests/test_candidate_checks.py`: 45 passed (`pytest` exit 0).
+  `lead_check/lead_check_2026-11-28.txt`). Without the experiments' summarisers, it recomputes only these:
+  - E1's 248 episodes, 480,024 poses and 14 falls, from the raw episode records;
+  - E2(a), from `e2a_grid.csv` (which holds each row's fastest reduced drive only): each row's pass flags against the
+    thresholds, the 0 of 45 judged rows, every row's worst C1, C2, p99 and peak (the hip-pitch table), the fastest
+    failing drive of each policy and block, and the first failing r of each policy by placement and block;
+  - E2(b), from the raw records of all seven runs: episodes, falls, unstable endings, the reduced drives' peak and
+    the episodes over 91.3 rpm (B1 also on its 96 E2(b) episodes);
+  - E3's C1 (through the build's `rl/analysis/thermal_ambient.py`) and C2 for all 11 policies on both courses, and the
+    5 of 11 that meet the rule (seed0 700000 from the build's stored D22 courses for fore128 and fore160, the rest
+    from the raw records);
+  - E5's held-out falls, J3 speeds, slow-gait counts, worst hind knees and X4 peaks, for both branches and the
+    frozen trot at both sizes, from the raw records, and the search counts both ways from the tuning files;
+  - each runner copy against the sha256 the result files record and byte for byte against its scratch original;
+  - `sim/tests/test_candidate_checks.py` (45 passed, `pytest` exit 0).
+
+  All agree with the figures above. It does not cover E1's clearances, stops and logged extremes, E2(b)'s p99,
+  speed and RMS changes and its pairs against R, E4, or E5's tuning, choice and margin episodes; those rest on the
+  experiments' own outputs and their reviews.
