@@ -787,4 +787,4 @@ class TestColabWithoutDriveKeepsItsRuntime:
                     [flush] = [keyword for keyword in call.keywords if keyword.arg == "flush_drive"]
                     assert ast.unparse(flush.value) == "RUNS_ON_DRIVE", f"code cell {index}"
                     releases += 1
-        assert releases == 2, "the chain loop's gate-failure halt and the final cell"
+        assert releases == 3, "the chain loop's one-behavior guard and gate-failure halt, and the final cell"

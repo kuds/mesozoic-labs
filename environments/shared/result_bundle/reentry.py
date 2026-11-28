@@ -341,9 +341,9 @@ def refuse_trunk_other_than_recorded(
     directory a ``TRUNK_FROM`` id resolves under
     (``trunk_record.trunk_from_value``).  Under another trunk the chain loop
     refuses a second parent for a recorded node that trunk certifies
-    (``record_ancestor``) only after the resume has trained, and trains a
-    recorded node it does not certify again here (every one, under
-    ``TRUNK_FROM = ""``).  With *resumed* (the node to resume), a node
+    (``record_ancestor``) only after the resume has trained, and stops at a
+    recorded node it does not certify (every one, under ``TRUNK_FROM =
+    ""``; decision D-D79: a QUICK_TEST trains it again here).  With *resumed* (the node to resume), a node
     the run holds as an ``ancestors/`` record is refused first: that record
     stays the node in the run (the chain loop takes it while a trunk
     certifies the node, and otherwise the bundle write refuses a node both

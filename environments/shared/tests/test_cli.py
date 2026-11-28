@@ -462,7 +462,15 @@ class TestMainDispatch:
             main(species_cfg)
         assert mock_train.call_args.kwargs["eval_freq"] == 1
         assert self._run_curriculum(species_cfg, ["--eval-freq", "2048"]).call_args.kwargs["eval_freq"] == 2048
-        assert self._run_curriculum(species_cfg, []).call_args.kwargs["eval_freq"] == 50000
+        # 100,000 since 2026-11-28 (constants.DEFAULT_EVAL_FREQ; 50,000 before), as the SB3 notebook evaluates.
+        assert self._run_curriculum(species_cfg, []).call_args.kwargs["eval_freq"] == 100_000
+        with (
+            patch("environments.shared.config.load_all_stages", mock_load),
+            patch("environments.shared.train_base.train", mock_train),
+            patch("sys.argv", ["prog", "train", "--timesteps", "1000"]),
+        ):
+            main(species_cfg)
+        assert mock_train.call_args.kwargs["eval_freq"] == 100_000
 
     def test_eval_command(self, species_cfg):
         """main() with 'eval' should call evaluate()."""

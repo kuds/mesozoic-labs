@@ -854,13 +854,25 @@ def test_a_critic_phase_parent_loses_its_critics_phase_and_keeps_its_actor(tyran
         context.close()
 
 
-def test_a_critic_phase_parent_into_a_walk_that_kept_the_phase_is_refused_as_training_refuses_it(
+def test_a_critic_phase_parent_into_a_walk_that_kept_the_phase_opens_as_training_now_warm_starts_it(
     tyrannosaurus_rex_critic_phase_parent,
 ):
-    with pytest.raises(scan.NoiseScanError, match="the critic reads .* inputs"):
-        scan.open_context(
-            _spec(tyrannosaurus_rex_critic_phase_parent, TYRANNOSAURUS_REX, horizon=2, walk_critic_phase=True)
-        )
+    """Training refused this warm start until decision D-D79 (3) (the command probe asked the phase critic for a
+    value without the phase); it now re-phases the critic, which changes no action.  The scan keeps the parent's
+    critic, prepares the command columns and proves the policy command-blind through it."""
+    context = scan.open_context(
+        _spec(tyrannosaurus_rex_critic_phase_parent, TYRANNOSAURUS_REX, horizon=2, walk_critic_phase=True)
+    )
+    try:
+        preparation = context.preparation
+        assert preparation["dropped_critic_phase"] is None
+        assert preparation["zeroed_command_parameters"] == [
+            "mlp_extractor.policy_net.0.weight",
+            "mlp_extractor.value_net.0.weight",
+        ]
+        assert preparation["command_blind_probe"]["max_value_delta"] <= 1e-6
+    finally:
+        context.close()
 
 
 def test_a_spec_without_the_walks_command_config_is_refused(tyrannosaurus_rex_parent):

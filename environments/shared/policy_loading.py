@@ -880,12 +880,19 @@ def _command_model_algorithm(model: Any) -> str:
 def _command_input_widths(model: Any, algorithm: str, observation_dim: int) -> dict[str, int]:
     """The first layers that read the observation, by ``model.policy`` name, with their input widths.
 
-    PPO's ``MlpPolicy``: the actor's and the critic's first layers. SAC: the
-    actor's first layer and the first layer of every Q network of the critic
-    and of its target, whose input is the observation followed by the action.
+    PPO's ``MlpPolicy``: the actor's and the critic's first layers; a critic
+    that also reads the episode phase (``critic_phase_ppo``) reads its
+    ``critic_phase_width`` columns after the observation, so the command
+    columns stay where the observation puts them. SAC: the actor's first
+    layer and the first layer of every Q network of the critic and of its
+    target, whose input is the observation followed by the action.
     """
     if algorithm == "ppo":
-        return {"mlp_extractor.policy_net.0": observation_dim, "mlp_extractor.value_net.0": observation_dim}
+        phase_width = int(getattr(type(model.policy), "critic_phase_width", 0))
+        return {
+            "mlp_extractor.policy_net.0": observation_dim,
+            "mlp_extractor.value_net.0": observation_dim + phase_width,
+        }
     critic_width = observation_dim + int(model.action_space.shape[0])
     widths = {"actor.latent_pi.0": observation_dim}
     for network in ("critic", "critic_target"):
@@ -1003,7 +1010,16 @@ def assert_command_blind(
         with torch.no_grad():
             critic_actions = model.actor(torch.as_tensor(reference_inputs, device=model.device), deterministic=True)
 
+    # A critic that also reads the episode phase (critic_phase_ppo) is asked at the reset phase (k = 0): the phase
+    # columns follow the observation's, so the command columns are probed exactly as on a stock critic.
+    phase_spec = getattr(model.policy, "critic_phase", None) if algorithm == "ppo" else None
+
     def values(inputs: Any) -> Any:
+        if phase_spec is not None:
+            inputs = np.concatenate(
+                [inputs, phase_spec.matrix(np.zeros(len(inputs), dtype=np.int64)).astype(np.asarray(inputs).dtype)],
+                axis=1,
+            )
         observations = torch.as_tensor(inputs, device=model.device)
         with torch.no_grad():
             if critic_actions is None:

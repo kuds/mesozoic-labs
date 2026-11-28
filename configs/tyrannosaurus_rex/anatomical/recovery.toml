@@ -341,3 +341,7 @@ collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of t
                                         # test_every_committed_stage_can_still_arm_within_its_budget). A
                                         # warm-started policy evals near its final level immediately, so it
                                         # loses no protection that matters.
+collapse_min_evals = 6                  # The backstop's wait, 600k steps as the code default of 12 gave at the
+                                        # 50k cadence: declared since the 100k cadence (decision D-D79 (4)). The
+                                        # patience stays the code default, 8 consecutive evaluations (a count:
+                                        # 800k steps at 100k).

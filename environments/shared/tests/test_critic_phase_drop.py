@@ -1,7 +1,10 @@
 """The warm-start drop of the critic's episode phase (critic_phase_ppo.drop_critic_phase, train_base's wiring): a
 phase checkpoint warm-started across a node's edge into a stage without ``[ppo] critic_phase`` loses the critic's
-three phase inputs and becomes stock PPO; the actor is untouched.  Every other mismatch is still refused.  Also the
-names the phase-critic runs' archives depend on, and an archive written by the screen branch's code (1dfe2327).
+three phase inputs and becomes stock PPO; the actor is untouched.  A checkpoint whose critic reads another phase, or
+none, warm-started across a node's edge into a stage WITH ``[ppo] critic_phase`` is re-phased instead
+(critic_phase_ppo.rephase_critic: drop, then the stage's phase columns at zero; the actor is untouched).  Every other
+mismatch is still refused.  Also the names the phase-critic runs' archives depend on, and an archive written by the
+screen branch's code (1dfe2327).
 Needs stable-baselines3 (the SB3 job)."""
 
 from __future__ import annotations
@@ -293,21 +296,30 @@ def test_a_load_that_crosses_no_edge_or_mismatches_is_still_refused(phase_zip, t
     # crosses_edge on a resume is not an edge.
     with pytest.raises(CP.CriticPhaseError, match="declares no"):
         _create(phase_zip, mode="resume_same_stage", crosses_edge=True)
-    for mode in ("resume_same_stage", "initialize_next_stage"):
-        # Another settle step, then another discount: refused, the edge or not.
-        for spec, gamma in ((other, GAMMA), (CP.CriticPhaseSpec(SETTLE, 0.99), 0.99)):
+    # Another settle step, then another discount, then a stock parent into a phase stage: refused on a same-stage
+    # resume and on a load that crosses no edge; across the node's edge the critic is re-phased instead
+    # (the re-phase section below).
+    for spec, gamma in ((other, GAMMA), (CP.CriticPhaseSpec(SETTLE, 0.99), 0.99)):
+        for mode, crosses_edge in (("resume_same_stage", True), ("initialize_next_stage", False)):
             venv = CPP.CriticPhaseVecNormalize(
                 DummyVecEnv([lambda s=spec: Monitor(PhaseToyEnv(settle=s.settle_steps))]),
                 critic_phase_gamma=gamma,
             )
             with pytest.raises(CP.CriticPhaseError, match="reads"):
-                _create(phase_zip, mode=mode, spec=spec, venv=venv)
-        # A stock parent into a phase stage: no zero-append at a warm start.
+                _create(phase_zip, mode=mode, spec=spec, venv=venv, crosses_edge=crosses_edge)
+        venv = CPP.CriticPhaseVecNormalize(
+            DummyVecEnv([lambda s=spec: Monitor(PhaseToyEnv(settle=s.settle_steps))]), critic_phase_gamma=gamma
+        )
+        rephased = _create(phase_zip, spec=spec, venv=venv)
+        assert CPP.model_critic_phase(rephased) == spec
+    for mode, crosses_edge in (("resume_same_stage", True), ("initialize_next_stage", False)):
         with pytest.raises(CP.CriticPhaseError, match="reads no phase"):
-            _create(cut, mode=mode, spec=SPEC, venv=_venv(3, phase=True, gamma=GAMMA))
-    # The same spec across the edge loads as the phase critic (the phase continues).
+            _create(cut, mode=mode, spec=SPEC, venv=_venv(3, phase=True, gamma=GAMMA), crosses_edge=crosses_edge)
+    assert CPP.model_critic_phase(_create(cut, spec=SPEC, venv=_venv(3, phase=True, gamma=GAMMA))) == SPEC
+    # The same spec across the edge loads as the phase critic (the phase continues): nothing is re-phased.
     same = _create(phase_zip, spec=SPEC, venv=_venv(3, phase=True, gamma=GAMMA))
     assert type(same.policy) is CPP.CriticPhaseActorCriticPolicy
+    assert "rephased_critic_phase" not in (getattr(same, "mesozoic_task_lineage", None) or {})
 
 
 def _edited(source: Path, target: Path, **changes: Any) -> Path:
@@ -401,12 +413,18 @@ def test_a_refused_load_leaves_no_stage_directory(phase_zip, tmp_path):  # D8
     assert not (tmp_path / "stage").exists()
 
 
-def test_the_drop_comes_before_the_command_column_neutralisation(phase_zip):  # D10
-    from environments.shared.policy_loading import PolicyLoadError, neutralize_command_columns
+def test_the_command_column_neutralisation_reads_either_critic(phase_zip):  # D10
+    """The drop still comes before the neutralisation; the neutralisation also serves a critic that keeps the phase
+    (a live walk warm-started from a phase stance under its own [ppo] critic_phase): it zeroes the command columns,
+    which the phase columns follow, and leaves the phase columns as they were."""
+    from environments.shared.policy_loading import neutralize_command_columns
 
     undropped = _load(phase_zip)
-    with pytest.raises(PolicyLoadError, match="Unsupported policy input layer: mlp_extractor.value_net.0"):
-        neutralize_command_columns(undropped, observation_dim=63)
+    phase_columns = undropped.policy.mlp_extractor.value_net[0].weight[:, 63:].detach().clone()
+    assert neutralize_command_columns(undropped, observation_dim=63)
+    wide = undropped.policy.mlp_extractor.value_net[0].weight.detach()
+    assert torch.equal(wide[:, 63:], phase_columns)
+    assert not wide[:, 60:63].any()
     dropped = _load(phase_zip)
     CPP.drop_critic_phase(dropped)
     assert neutralize_command_columns(dropped, observation_dim=63)
@@ -664,3 +682,140 @@ def test_an_archive_the_screen_branch_wrote_drops_across_an_edge_and_resumes_und
     with torch.no_grad():
         values = resumed.policy.predict_values(torch.as_tensor(settled)).numpy().ravel()
     np.testing.assert_allclose(values, np.asarray(manifest["settled_values"]), rtol=0, atol=1e-5)
+
+
+# ---------------------------------------------------------------------------------------------------- the re-phase
+def test_the_zero_column_start_keeps_the_actor_and_the_stock_critic_s_values(phase_zip, tmp_path):  # R1
+    """critic_phase_ppo.add_critic_phase on a loaded stock model: the actor is bitwise the stock one, the critic keeps
+    its observation columns and gains three exactly-zero phase columns (their Adam moments too), so it values every
+    observation as the stock critic did at any phase; no global random number is drawn."""
+    cut = _cut_archive(phase_zip, tmp_path / "stock.zip")
+    model = PPO.load(str(cut), env=_venv(21), seed=21, **_CHILD_KWARGS)
+    before, adam_before = _state(model.policy), _adam(model)
+    probe = _probe()
+    with torch.no_grad():
+        stock_value = model.policy.predict_values(probe).clone()
+    torch_state, numpy_state, python_state = torch.random.get_rng_state(), np.random.get_state(), random.getstate()
+    CPP.add_critic_phase(model, SPEC)
+    assert torch.equal(torch.random.get_rng_state(), torch_state)
+    after = np.random.get_state()
+    assert after[0] == numpy_state[0] and np.array_equal(after[1], numpy_state[1]) and after[2:] == numpy_state[2:]
+    assert random.getstate() == python_state
+    assert type(model.policy) is CPP.CriticPhaseActorCriticPolicy and model.policy.critic_phase == SPEC
+    assert (
+        type(model.rollout_buffer) is CPP.CriticPhaseRolloutBuffer
+        and model.policy_class is CPP.CriticPhaseActorCriticPolicy
+    )
+    assert getattr(model, CP.CHECKPOINT_ATTRIBUTE) == SPEC.record()
+    after = _state(model.policy)
+    for name in before:
+        if name == LAYER:
+            assert torch.equal(after[name][:, :63], before[name]) and not torch.any(after[name][:, 63:])
+        else:
+            assert torch.equal(after[name], before[name]), name
+    index = list(before).index(LAYER)
+    adam_after = _adam(model)
+    for key in ("exp_avg", "exp_avg_sq"):
+        assert torch.equal(adam_after[index][key][:, :63], adam_before[index][key])
+        assert not torch.any(adam_after[index][key][:, 63:])
+    assert torch.equal(adam_after[index]["step"], adam_before[index]["step"])
+    with torch.no_grad():
+        for k in (0, 3, SETTLE, HORIZON):
+            phase = torch.as_tensor(SPEC.matrix(np.full(len(probe), k)), dtype=torch.float32)
+            assert torch.allclose(model.policy.predict_values(torch.cat([probe, phase], dim=1)), stock_value, atol=1e-6)
+
+
+def test_a_critic_that_reads_another_phase_is_dropped_then_given_the_stage_s(phase_zip):  # R2
+    other = CP.CriticPhaseSpec(SETTLE, 0.995)
+    model = _load(phase_zip)
+    before = _state(model.policy)
+    report = CPP.rephase_critic(model, other)
+    assert report["schema"] == CPP.REPHASE_SCHEMA and report["source"] == SPEC.record()
+    assert report["phase"] == other.record() and report["dropped"]["source"] == SPEC.record()
+    assert report["parameter"] == LAYER and report["columns"] == [63, 64, 65]
+    assert CPP.model_critic_phase(model) == other and getattr(model, CP.CHECKPOINT_ATTRIBUTE) == other.record()
+    after = _state(model.policy)
+    assert all(torch.equal(after[name], before[name]) for name in before if name.startswith(ACTOR))
+    assert torch.equal(after[LAYER][:, :63], before[LAYER][:, :63]) and not torch.any(after[LAYER][:, 63:])
+    assert torch.any(before[LAYER][:, 63:]), "the parent's phase columns had learned something, and were dropped"
+
+
+def test_the_re_phase_refuses_what_it_cannot_serve(phase_zip, tmp_path):  # R3
+    with pytest.raises(CP.CriticPhaseError, match="nothing to re-phase"):
+        CPP.rephase_critic(_load(phase_zip), SPEC)
+    with pytest.raises(CP.CriticPhaseError, match="a stock ActorCriticPolicy without a phase record is required"):
+        CPP.add_critic_phase(_load(phase_zip), SPEC)
+    model = PPO.load(str(_cut_archive(phase_zip, tmp_path / "stock.zip")), env=_venv(21), seed=21, **_CHILD_KWARGS)
+    narrow = model.policy.mlp_extractor.value_net[0].weight
+    model.policy.optimizer.state[narrow]["max_exp_avg_sq"] = torch.zeros_like(narrow)
+    with pytest.raises(CP.CriticPhaseError, match="only Adam's"):
+        CPP.add_critic_phase(model, SPEC)
+    assert type(model.policy) is ActorCriticPolicy  # refused before anything changed
+
+
+@pytest.mark.parametrize("parent_phase", [True, False], ids=["phase-parent", "stock-parent"])
+def test_the_trainer_re_phases_records_and_resumes_the_child(parent_phase, tmp_path, capsys):  # R4
+    """train_base.train on the real T. rex stages: a stance with or without the phase, then locomotion WITH
+    ``[ppo] critic_phase`` warm-started from it across the edge (its discount is 0.995, the stance's 0.98): the
+    critic is re-phased, the run block and every checkpoint record it, and a same-stage resume keeps the record and
+    re-phases nothing."""
+    from environments.shared import train_base
+    from environments.shared.species_registry import get_species_config
+
+    species = get_species_config(TYRANNOSAURUS_REX)
+    configs = _tyrannosaurus_rex_configs()
+    if not parent_phase:
+        configs[1]["ppo_kwargs"].pop("critic_phase")
+    configs[2]["ppo_kwargs"]["critic_phase"] = True
+    stance = tmp_path / "stance"
+    train_base.train(species, configs, 1, 64, save_freq=10**9, output_dir=str(stance), **_TRAIN)
+    parent = stance / "models" / "stage1_final.zip"
+    parent_policy = load_from_zip_file(str(parent), device="cpu", load_data=False)[1]["policy"]
+    capsys.readouterr()
+    child = train_base.train(
+        species,
+        configs,
+        2,
+        64,
+        save_freq=64,
+        output_dir=str(tmp_path / "locomotion"),
+        load_path=str(parent),
+        task_load_mode="initialize_next_stage",
+        **_TRAIN,
+    )
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("Warm start:")]
+    assert len(lines) == 1
+    assert lines[0].startswith("Warm start: the critic now reads the episode phase (settle step 200, gamma 0.995)")
+    assert ("(settle step 200, gamma 0.98) were dropped" in lines[0]) is parent_phase
+    assert ("the parent's critic read no phase" in lines[0]) is not parent_phase
+    spec = CP.CriticPhaseSpec(200, 0.995)
+    assert type(child.policy) is CPP.CriticPhaseActorCriticPolicy and CPP.model_critic_phase(child) == spec
+    # The actor learned on after the load; the critic's phase columns started at zero and are 3 wide.
+    assert tuple(child.policy.state_dict()[LAYER].shape) == (512, 62) and tuple(parent_policy[LAYER].shape)[1] in (
+        59,
+        62,
+    )
+    run = json.loads((tmp_path / "locomotion" / "stage_config.json").read_text())["run"]
+    rephased = run["critic_phase_rephased"]
+    assert rephased["schema"] == CPP.REPHASE_SCHEMA and rephased["phase"] == spec.record()
+    assert (rephased["source"] is not None) is parent_phase and "critic_phase_dropped" not in run
+    with zipfile.ZipFile(tmp_path / "locomotion" / "models" / "stage2_final.zip") as archive:
+        data = json.loads(archive.read("data"))
+    assert data[CP.CHECKPOINT_ATTRIBUTE] == spec.record()
+    assert data["mesozoic_task_lineage"]["rephased_critic_phase"] == rephased
+    capsys.readouterr()
+    resumed = train_base.train(
+        species,
+        configs,
+        2,
+        64,
+        save_freq=10**9,
+        output_dir=str(tmp_path / "locomotion"),
+        load_path=str(tmp_path / "locomotion" / "models" / "stage2_64_steps.zip"),
+        task_load_mode="resume_same_stage",
+        **_TRAIN,
+    )
+    assert not [line for line in capsys.readouterr().out.splitlines() if line.startswith("Warm start:")]
+    assert CPP.model_critic_phase(resumed) == spec and resumed.num_timesteps == 128
+    run = json.loads((tmp_path / "locomotion" / "stage_config.json").read_text())["run"]
+    assert run["critic_phase_rephased"] == rephased and run["resume_load_path"].endswith("stage2_64_steps.zip")

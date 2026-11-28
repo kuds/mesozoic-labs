@@ -273,8 +273,8 @@ collapse_peak_warmup_timesteps = 2300000 # Evaluations before this step cannot S
                                          # stand count k, fixed by its evaluation seed (4 at the default seed 42),
                                          # and a stander's level holds. 2.3M leaves 71% of the budget protected
                                          # (test_locomotion_collapse_backstop.py).
-collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
-collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
+collapse_min_evals = 10                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (10 evals x 100k) before it can fire.
+collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops (~1M steps at 100k; a count, kept at the 100k cadence: D-D79) so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives.
 warmup_timesteps = 300000               # Increased from 100k: give critic more time to adapt to new reward landscape (matches the velociraptor's stage 2 proportional warmup)
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change

@@ -115,7 +115,8 @@ Species notes:
   is a published behavior, judged after the stage against a frozen recovery gate (`recovery.toml`). Nothing
   warm-starts from it, so `curriculum` skips it. Train it on its own from the stance's handoff checkpoint (the one its
   `gate_verdict.json` names); the load is refused unless that checkpoint is a stance. It trains with PPO only. In the
-  notebook, `BEHAVIOR = "recover"` trains stance and then recovery.
+  notebook, `BEHAVIOR = "recover"` trains recovery on a certified stance it reuses (from the run or through
+  `TRUNK_FROM`); with none to reuse the session stops before it writes anything (one behavior a session, D-D79).
 
   ```bash
   python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \

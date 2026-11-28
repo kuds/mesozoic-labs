@@ -1,4 +1,5 @@
-"""The critic's episode phase: ``[ppo] critic_phase = true`` (off by default; no committed stage config sets it).
+"""The critic's episode phase: ``[ppo] critic_phase = true`` (off by default; no committed stage config sets it;
+the SB3 notebook's ``CRITIC_PHASE`` writes it, on any model).
 
 Why.  On the T. rex stance (``TyrannosaurusRexAnatomicalEnv``) one reward term of the committed stance is paid only
 after the settle: ``reward_stance_width`` under ``stance_width_reference = "settled"``, while
@@ -19,7 +20,11 @@ observation was made):
     discount  gamma ** max(0, S - k)
 
 ``S`` is the env's ``stance_width_settle_steps`` (read from the env instances, never restated) and ``gamma`` the
-stage's PPO discount: the screen's definition (S 200, gamma 0.98 on the stance), the same float arithmetic.  No
+stage's PPO discount: the screen's definition (S 200, gamma 0.98 on the stance), the same float arithmetic.  Only
+the T. rex and the anatomical Compsognathus envs gate a reward on a settle step; every other model's env has no
+``stance_width_settle_steps``, and there ``S`` is :data:`DEFAULT_SETTLE_STEPS` (200), so the option trains on every
+model (the maintainer's request of 2026-11-28).  There the phase is a plain clock of the episode's first ``S``
+steps, which no reward term is gated on.  No
 off-by-one: ``BaseDinoEnv.step`` increments ``_step_count`` before it builds the observation and the reward, so the
 observation returned with ``_step_count == k`` is followed by the reward of step ``k + 1``, which the gates pay iff
 ``k + 1 > S``, i.e. ``k >= S`` -- ``settled``; the first gated reward is ``S - k`` steps after the next one, so its
@@ -55,8 +60,12 @@ CRITIC_PHASE_KEY = "critic_phase"
 #: The features, in column order after the actor's observation.
 PHASE_FEATURES: tuple[str, ...] = ("ramp", "settled", "discount")
 PHASE_WIDTH = len(PHASE_FEATURES)
-#: The env attribute that holds the reward gates' settle step (``TyrannosaurusRexEnv``).
+#: The env attribute that holds the reward gates' settle step (``TyrannosaurusRexEnv`` and
+#: ``CompsognathusLongipesAnatomicalEnv``; no other model's env has one).
 SETTLE_ATTRIBUTE = "stance_width_settle_steps"
+#: The settle step of an env without :data:`SETTLE_ATTRIBUTE`: the 200 steps both settle-gated rewards use, and the
+#: ``[curriculum] settle_steps`` of four of the five stance gates that declare one (the Velociraptor's is 100).
+DEFAULT_SETTLE_STEPS = 200
 #: The SB3 checkpoint attribute (JSON) that records the phase a checkpoint's critic reads.
 CHECKPOINT_ATTRIBUTE = "mesozoic_critic_phase"
 CHECKPOINT_SCHEMA = "mesozoic.critic-phase/v1"

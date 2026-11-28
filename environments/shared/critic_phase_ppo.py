@@ -25,12 +25,17 @@
 5. :func:`drop_critic_phase`, the warm start into a stage without the option: the loaded critic's phase columns
    (and their Adam moments) are cut off and the model becomes stock PPO, the exact reverse of the zero-column start;
    the actor is untouched.
+6. :func:`rephase_critic`, the warm start into a stage with the option from a parent whose critic reads another
+   phase or none: the parent's phase columns (if any) are dropped as in 5, then the critic gains the stage's, exactly
+   zero (:func:`add_critic_phase`, the zero-column start of 3 on a loaded model); the actor is untouched.
 
 Checkpoints: ``model.save`` records the policy class and its two keyword arguments (``policy_kwargs``), the buffer
 class, and the JSON attribute :data:`~environments.shared.critic_phase.CHECKPOINT_ATTRIBUTE`; ``train_base``
 refuses any load whose phase (or its absence) differs from the stage's, both ways (:func:`critic_phase_mismatch`),
-with one exception: a warm start across a node's edge into a stage that declares no phase drops the critic's phase
-columns (:func:`drop_critic_phase`; the actor is untouched).
+with two exceptions, both at a warm start across a node's edge: into a stage that declares no phase the critic's
+phase columns are dropped (:func:`drop_critic_phase`), and into a stage that declares one the critic is re-phased to
+it (:func:`rephase_critic`); the actor is untouched either way.  A parent whose critic already reads the stage's phase
+loads as it is (the phase continues).  A same-stage resume, and a load that crosses no edge, keep the refusal.
 """
 
 from __future__ import annotations
@@ -50,6 +55,7 @@ from torch import nn
 
 from .critic_phase import (
     CHECKPOINT_ATTRIBUTE,
+    DEFAULT_SETTLE_STEPS,
     PHASE_WIDTH,
     POLICY_KWARGS,
     SETTLE_ATTRIBUTE,
@@ -59,6 +65,15 @@ from .critic_phase import (
 
 #: The attributes :class:`CriticPhaseVecNormalize` adds to a stock ``VecNormalize`` (left out of its sidecar).
 _OWN_ATTRIBUTES = ("critic_phase", "critic_observation_space")
+
+
+def _has_env_attribute(env: Any, name: str) -> bool:
+    """Whether one env of a vec env, through its wrappers (Gymnasium's ``get_wrapper_attr``), has *name*."""
+    try:
+        env.get_wrapper_attr(name) if hasattr(env, "get_wrapper_attr") else getattr(env, name)
+    except AttributeError:
+        return False
+    return True
 
 
 def critic_input_space(observation_space: spaces.Space, width: int = PHASE_WIDTH) -> spaces.Box:
@@ -73,18 +88,24 @@ class CriticPhaseVecNormalize(VecNormalize):
     """The training ``VecNormalize`` that appends the critic's phase (module docstring, 1).
 
     ``critic_phase_gamma`` is the stage's PPO discount; the settle step is read from every env instance
-    (``stance_width_settle_steps``) and must agree.  Every other keyword is ``VecNormalize``'s.
+    (``stance_width_settle_steps``) and must agree.  Envs that have none (every model but the T. rex and the
+    anatomical Compsognathus) get :data:`~environments.shared.critic_phase.DEFAULT_SETTLE_STEPS`.  A mix of envs
+    with and without one is refused on an in-process vec env, whose envs are asked one by one; a SubprocVecEnv
+    answers only for all of them, so a mix there would read the default (``create_vec_env`` builds every rank from
+    one class and one set of kwargs, so it never builds one).  Every other keyword is ``VecNormalize``'s.
     """
 
     def __init__(self, venv: Any, *, critic_phase_gamma: float, **kwargs: Any) -> None:
         super().__init__(venv, **kwargs)
-        try:
+        # has_attr is True only when every env has it (a SubprocVecEnv's workers answer it without raising).
+        if venv.has_attr(SETTLE_ATTRIBUTE):
             settles = venv.get_attr(SETTLE_ATTRIBUTE)
-        except AttributeError as exc:
-            raise CriticPhaseError(
-                f"the critic phase reads the env's {SETTLE_ATTRIBUTE} (the reward gates' settle step); "
-                f"{type(venv).__name__}'s envs have none"
-            ) from exc
+        else:
+            # None of them, or a mix: an in-process vec env's envs are asked one by one, and a mix is refused.
+            present = [_has_env_attribute(env, SETTLE_ATTRIBUTE) for env in getattr(venv, "envs", ())]
+            if any(present):
+                raise CriticPhaseError(f"the envs disagree on {SETTLE_ATTRIBUTE}: only some have one ({present!r})")
+            settles = [DEFAULT_SETTLE_STEPS] * venv.num_envs
         if len({repr(value) for value in settles}) != 1:
             raise CriticPhaseError(f"the envs disagree on {SETTLE_ATTRIBUTE}: {settles!r}")
         self.critic_phase = CriticPhaseSpec(settle_steps=settles[0], gamma=critic_phase_gamma)
@@ -470,4 +491,158 @@ def drop_critic_phase(model: Any) -> dict[str, Any]:
         "column_l2": [float(value) for value in th.linalg.vector_norm(phase_columns, dim=0)],
         "column_max_abs": [float(value) for value in phase_columns.abs().amax(dim=0)],
         "optimizer_moments": [key for key in DROP_MOMENTS if key in moments],
+    }
+
+
+# ---------------------------------------------------------------------------------------------------- 6. the re-phase
+#: The schema of the report :func:`rephase_critic` returns (``run.critic_phase_rephased`` and
+#: ``mesozoic_task_lineage["rephased_critic_phase"]``).
+REPHASE_SCHEMA = "mesozoic.critic-phase-rephase/v1"
+
+
+def add_critic_phase(model: Any, spec: CriticPhaseSpec) -> None:
+    """The zero-column start on a loaded stock PPO model, in memory: its critic also reads *spec*'s phase.
+
+    The warm start into a stage that declares ``[ppo] critic_phase`` from a parent whose critic reads no phase.  The
+    exact counterpart of a fresh model's start (:meth:`CriticPhaseMlpExtractor.widen_critic`) and the reverse of
+    :func:`drop_critic_phase`: the critic's first layer gains :data:`PHASE_WIDTH` columns of exactly zero (its other
+    columns, its bias and every deeper layer are kept), the same columns of that tensor's Adam ``exp_avg`` /
+    ``exp_avg_sq`` are zero (the step count is kept), and the model becomes the phase model -- policy, rollout buffer
+    and ``policy_kwargs`` -- so every checkpoint it saves records *spec*.  The actor, every other parameter and
+    optimizer state and every other attribute are untouched, and no random number is drawn from the global
+    generators (the phase policy is built under ``torch.random.fork_rng``, then given the loaded state).  The
+    widened critic computes the stock critic's value whatever the phase: it starts out reading no phase and learns
+    to.  The last observations are cleared: a warm start resets the env before its first rollout.
+
+    Refused (:class:`~environments.shared.critic_phase.CriticPhaseError`), before anything changes, for a model whose
+    policy is not SB3's stock ``ActorCriticPolicy`` (or that records a phase), whose actor or critic does not read the
+    observation, or whose optimizer state for that tensor holds any moment but Adam's two.
+    """
+    old = model.policy
+    if type(old) is not ActorCriticPolicy or getattr(model, "__dict__", {}).get(CHECKPOINT_ATTRIBUTE) is not None:
+        raise CriticPhaseError(
+            f"cannot give the critic the phase: the model's policy is {type(old).__name__} (a stock ActorCriticPolicy "
+            "without a phase record is required)"
+        )
+    obs_dim = int(model.observation_space.shape[0])
+    narrow = old.mlp_extractor.value_net[0] if len(old.mlp_extractor.value_net) else None
+    actor_first = old.mlp_extractor.policy_net[0] if len(old.mlp_extractor.policy_net) else None
+    if not isinstance(narrow, nn.Linear) or narrow.in_features != obs_dim:
+        raise CriticPhaseError(f"the critic's first layer does not read the {obs_dim}-value observation")
+    if not isinstance(actor_first, nn.Linear) or actor_first.in_features != obs_dim:
+        raise CriticPhaseError(f"the actor's first layer does not read the {obs_dim}-value observation")
+    names = [name for name, _ in old.named_parameters()]
+    if DROP_PARAMETER not in names or dict(old.named_parameters())[DROP_PARAMETER] is not narrow.weight:
+        raise CriticPhaseError(f"{DROP_PARAMETER} is not the critic's first layer")
+    moments = old.optimizer.state.get(narrow.weight, {})
+    other = sorted(
+        str(key)
+        for key, value in moments.items()
+        if th.is_tensor(value) and value.dim() > 0 and key not in DROP_MOMENTS
+    )
+    if other or any(tuple(moments[key].shape) != tuple(narrow.weight.shape) for key in DROP_MOMENTS if key in moments):
+        raise CriticPhaseError(
+            f"the optimizer state of {DROP_PARAMETER} holds {sorted(map(str, moments))}; only Adam's "
+            f"{list(DROP_MOMENTS)} can be widened"
+        )
+
+    phase_kwargs = {**dict(model.policy_kwargs), **spec.policy_kwargs()}
+    with th.random.fork_rng(devices=[]):
+        new = CriticPhaseActorCriticPolicy(
+            model.observation_space, model.action_space, model.lr_schedule, use_sde=model.use_sde, **phase_kwargs
+        )
+    new = new.to(model.device)
+    if [name for name, _ in new.named_parameters()] != names:
+        raise CriticPhaseError("the phase policy's parameters are not the loaded policy's, in order")
+
+    state = old.state_dict()
+    weight = state[DROP_PARAMETER]
+    state[DROP_PARAMETER] = th.cat(
+        [weight, th.zeros(weight.shape[0], PHASE_WIDTH, dtype=weight.dtype, device=weight.device)], dim=1
+    )
+    new.load_state_dict(state, strict=True)
+    optimizer_state = old.optimizer.state_dict()
+    index = names.index(DROP_PARAMETER)
+    groups = optimizer_state["param_groups"]
+    if len(groups) != 1 or list(groups[0]["params"]) != list(range(len(names))):
+        raise CriticPhaseError("the optimizer does not hold the policy's parameters in one group, in order")
+    for key in DROP_MOMENTS:
+        if key in optimizer_state["state"].get(index, {}):
+            moment = optimizer_state["state"][index][key]
+            optimizer_state["state"][index][key] = th.cat(
+                [moment, th.zeros(moment.shape[0], PHASE_WIDTH, dtype=moment.dtype, device=moment.device)], dim=1
+            )
+    new.optimizer.load_state_dict(optimizer_state)
+    new.set_training_mode(old.training)
+
+    # Self-check before the swap: the actor, bitwise, and its deterministic action on a fixed probe batch; the critic's
+    # value on that batch at two phases equals the stock critic's (the phase columns are exactly zero).  A local
+    # generator: the global ones are never drawn from.
+    new_state = new.state_dict()
+    changed = [
+        name
+        for name, value in old.state_dict().items()
+        if name.startswith(_ACTOR_PREFIXES) and not th.equal(value, new_state[name])
+    ]
+    probe = th.as_tensor(np.random.default_rng(0).normal(size=(16, obs_dim)), dtype=th.float32, device=model.device)
+    if changed or not th.equal(_actor_mode(old, probe), _actor_mode(new, probe)):
+        raise CriticPhaseError(
+            f"the zero-column start would change the actor ({changed or 'its deterministic action'})"
+        )
+    with th.no_grad():
+        stock_value = old.predict_values(probe)
+        for k in (0, spec.settle_steps):
+            phase = th.as_tensor(spec.matrix(np.full(len(probe), k)), dtype=probe.dtype, device=model.device)
+            wide_value = new.predict_values(th.cat([probe, phase], dim=1))
+            if not th.allclose(wide_value, stock_value, rtol=0.0, atol=1e-5):
+                raise CriticPhaseError("the zero-column start would change the critic's value")
+
+    model.policy = new
+    model.policy_class = CriticPhaseActorCriticPolicy
+    model.policy_kwargs = phase_kwargs
+    model.rollout_buffer_class = CriticPhaseRolloutBuffer
+    model.rollout_buffer_kwargs = {"critic_phase_width": PHASE_WIDTH}
+    model.rollout_buffer = CriticPhaseRolloutBuffer(
+        model.n_steps,
+        model.observation_space,
+        model.action_space,
+        device=model.device,
+        gamma=model.gamma,
+        gae_lambda=model.gae_lambda,
+        n_envs=model.n_envs,
+        critic_phase_width=PHASE_WIDTH,
+    )
+    setattr(model, CHECKPOINT_ATTRIBUTE, spec.record())
+    model._last_obs = None
+    model._last_original_obs = None
+
+
+def rephase_critic(model: Any, spec: CriticPhaseSpec) -> dict[str, Any]:
+    """The warm start into a stage that declares *spec*'s phase from a checkpoint whose critic reads another or none.
+
+    A parent whose critic reads another phase (another settle step or discount: the T. rex stance's (200, 0.98) into
+    its walk's (200, 0.995) or its recovery's (140, 0.98)) loses its phase columns first (:func:`drop_critic_phase`);
+    then the critic gains *spec*'s, exactly zero (:func:`add_critic_phase`).  Either way the child's critic starts
+    out reading no phase, as a fresh model's does, and the actor is bitwise unchanged.  A parent whose critic already
+    reads *spec*'s phase is not re-phased: ``train_base`` loads it as it is, and the phase continues.
+
+    Returns the JSON report ``train_base`` records as ``run.critic_phase_rephased`` and in the child's task lineage
+    under ``rephased_critic_phase``: the schema, the parent's phase record (``None`` for a stock parent), the
+    :func:`drop_critic_phase` report (``None`` when nothing was dropped), the stage's record, the widened parameter
+    and the new columns.
+    """
+    recorded = getattr(model, "__dict__", {}).get(CHECKPOINT_ATTRIBUTE)
+    source = dict(recorded) if recorded is not None else None
+    if source is not None and model_critic_phase(model) == spec and dict(source) == spec.record():
+        raise CriticPhaseError(f"the checkpoint's critic already reads {spec.record()!r}: nothing to re-phase")
+    dropped = drop_critic_phase(model) if source is not None else None
+    add_critic_phase(model, spec)
+    obs_dim = int(model.observation_space.shape[0])
+    return {
+        "schema": REPHASE_SCHEMA,
+        "source": source,
+        "dropped": dropped,
+        "phase": spec.record(),
+        "parameter": DROP_PARAMETER,
+        "columns": list(range(obs_dim, obs_dim + PHASE_WIDTH)),
     }

@@ -13,6 +13,7 @@ import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .constants import DEFAULT_EVAL_FREQ
 from .species_names import model_display_name
 
 if TYPE_CHECKING:
@@ -352,8 +353,8 @@ def main(species_cfg):
     train_parser.add_argument(
         "--eval-freq",
         type=_positive_steps,
-        default=50000,
-        help="Evaluation frequency in environment steps (at least 1)",
+        default=DEFAULT_EVAL_FREQ,
+        help=f"Evaluation frequency in environment steps (at least 1; default {DEFAULT_EVAL_FREQ:,})",
     )
     train_parser.add_argument(
         "--save-freq",
@@ -431,7 +432,7 @@ def main(species_cfg):
     )
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
-    cur_parser.add_argument("--eval-freq", type=_positive_steps, default=50000)
+    cur_parser.add_argument("--eval-freq", type=_positive_steps, default=DEFAULT_EVAL_FREQ)
     cur_parser.add_argument("--save-freq", type=int, default=100000)
     cur_parser.add_argument("--log-dir", type=str, default=None)
     cur_parser.add_argument("--subproc", action="store_true")
@@ -537,7 +538,7 @@ def main(species_cfg):
             args.allow_legacy_plant = False
             args.allow_fresh_vecnorm = False
             args.seed = 42
-            args.eval_freq = 50000
+            args.eval_freq = DEFAULT_EVAL_FREQ
             args.save_freq = 100000
             args.log_dir = None
             args.subproc = False

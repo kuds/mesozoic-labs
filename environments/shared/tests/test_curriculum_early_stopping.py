@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from environments.shared.constants import DEFAULT_EVAL_FREQ
 from environments.shared.curriculum import (
     EvalCollapseEarlyStopCallback,
     build_eval_collapse_early_stop_callback,
@@ -895,9 +896,22 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         settings.update(overrides)
         return settings
 
-    @staticmethod
-    def _drive(trace, settings, *, eval_freq=50_000):
-        """`TestPeakWarmup._drive`, parameterised by resolved settings."""
+    #: The spacing the recorded traces were evaluated at: every 50,000 steps, the cadence until 2026-11-28.
+    TRACE_SPACING = 50_000
+    #: The evaluation counts those runs trained with (collapse_min_evals 20, collapse_patience 10 at 50,000 steps:
+    #: a 1M-step wait and 500k-step patience).  At the 100,000-step cadence (decision D-D79 (4)) the committed wait is
+    #: halved to keep its span and the patience stays 10 evaluations, a count; the run's own stop is reproduced under
+    #: its own counts and spacing.
+    HISTORICAL_COUNTS = {"min_evals": 20, "patience": 10}
+
+    @classmethod
+    def _drive(cls, trace, settings, *, cadence=DEFAULT_EVAL_FREQ):
+        """`TestPeakWarmup._drive`, parameterised by resolved settings, at *cadence*: a trace recorded every
+        TRACE_SPACING steps is replayed at the committed cadence by keeping the evaluations that cadence makes (every
+        second one at 100,000 steps), each at its own step."""
+        stride = cadence // cls.TRACE_SPACING
+        trace = list(trace)[stride - 1 :: stride]
+        eval_freq = cadence
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
         cb._last_seen_n_evals = 0
@@ -923,17 +937,21 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
 
     def test_without_the_warmup_the_committed_stance_config_reproduces_the_stop(self):
         """Not an approximation of the failure — the failure itself, on the stance node."""
-        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 1, peak_warmup_timesteps=0.0)
-        stopped_at, cb = self._drive(self.STANCE_20260923, settings)
+        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 1, peak_warmup_timesteps=0.0, **self.HISTORICAL_COUNTS)
+        stopped_at, cb = self._drive(self.STANCE_20260923, settings, cadence=self.TRACE_SPACING)
         assert stopped_at == 1_450_000
         assert cb._peak_score == pytest.approx(2592.9)
 
     def test_without_the_warmup_the_forward_walk_floor_reproduces_the_locomotion_stop(self):
         """The failure itself on the locomotion node, under the floor the run trained with (an explicit override)."""
         settings = self._settings(
-            DIBOTHROSUCHUS_ELAPHROS, 2, peak_floor=self.FORWARD_WALK_FLOOR, peak_warmup_timesteps=0.0
+            DIBOTHROSUCHUS_ELAPHROS,
+            2,
+            peak_floor=self.FORWARD_WALK_FLOOR,
+            peak_warmup_timesteps=0.0,
+            **self.HISTORICAL_COUNTS,
         )
-        stopped_at, cb = self._drive(self.LOCOMOTION_20260923, settings)
+        stopped_at, cb = self._drive(self.LOCOMOTION_20260923, settings, cadence=self.TRACE_SPACING)
         assert stopped_at == 1_450_000
         assert cb._peak_score == pytest.approx(2246.9)
 
@@ -965,9 +983,14 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         (decision D-D65 (1)) stands far above that regime, so there it never arms.
         """
         settings = self._settings(
-            DIBOTHROSUCHUS_ELAPHROS, 2, peak_floor=self.FORWARD_WALK_FLOOR, peak_warmup_timesteps=1_000_000
+            DIBOTHROSUCHUS_ELAPHROS,
+            2,
+            peak_floor=self.FORWARD_WALK_FLOOR,
+            peak_warmup_timesteps=1_000_000,
+            **self.HISTORICAL_COUNTS,
         )
-        _, cb = self._drive(self.LOCOMOTION_20260923, settings)
+        # The run's own evaluations, at its own 50,000-step spacing: the reason is a fact about that run.
+        _, cb = self._drive(self.LOCOMOTION_20260923, settings, cadence=self.TRACE_SPACING)
         assert settings["peak_floor"] <= cb._peak_score < 200.0
         committed = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2, peak_warmup_timesteps=1_000_000)
         _, cb = self._drive(self.LOCOMOTION_20260923, committed)
@@ -977,7 +1000,8 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
         """The warm-up delays the peak; it must not disarm the backstop.  The walking level is the matched reference
         walk's expected evaluation, 0.85 x 4594.1 + 0.15 x 4977.4 = 4651.6, above the floor (decision D-D65 (1))."""
         settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2)
-        trace = [2245.0] * 66 + [4651.6] * 10 + [300.0] * 12
+        # 50,000-step spacing: a 1.2M-step collapse, longer than the patience (10 evaluations, 1M steps at 100k).
+        trace = [2245.0] * 66 + [4651.6] * 10 + [300.0] * 24
         stopped_at, cb = self._drive(trace, settings)
         assert stopped_at is not None
         assert cb._peak_score == pytest.approx(4651.6) and cb._peak_score >= settings["peak_floor"]
@@ -1056,5 +1080,6 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
             assert stopped_at is None and not cb._peak_score >= settings["peak_floor"]
         # The forward walk's floor rule on the same trace: the plateau clears 0.45 x 891.3 and, without the
         # warm-up, the lunge-and-fall stops the run at 1.45M, the failure the D-B5 warm-up was added for.
-        stopped_at, _ = self._drive(trace, {**settings, "peak_floor": 0.45 * 891.3, "peak_warmup_timesteps": 0.0})
+        historical = {**settings, "peak_floor": 0.45 * 891.3, "peak_warmup_timesteps": 0.0, **self.HISTORICAL_COUNTS}
+        stopped_at, _ = self._drive(trace, historical, cadence=self.TRACE_SPACING)
         assert stopped_at == 1_450_000

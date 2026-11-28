@@ -412,8 +412,8 @@ verifying.
 committed as:
 
 ```python
-BEHAVIOR = "auto"  # the model's final deliverable, a recipe label, or a deliverable's stage id
-TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" trains every node here
+BEHAVIOR = "stance"  # the one deliverable this session trains: a recipe label or a deliverable's stage id
+TRUNK_FROM = "auto"  # "auto" (D-A25): the run in this model's certification tree (<algo>/, whatever RUN_KIND says) whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id (resolved in <algo>/) or a path pins one (a screen pins a screen as ../<algo>_screen/<id>; a certification run refuses one under <algo>_screen/ or <algo>_quick_test/); "" reuses nothing from another run (the chain loop then stops at an ancestor this run does not hold certified, unless RETRAIN_FROM covers it or QUICK_TEST; D-D79)
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
 RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM, RUN_KIND or QUICK_TEST changed); a new id starts a fresh run (letters, digits, _ and - only; refused if, in this ALGORITHM's trees, it names only another model's run: SPECIES and EMBODIMENT pick the model); an existing run id re-enters that run to finish an interrupted or partial run (section 5)
@@ -518,13 +518,25 @@ must not be this run — certified nodes of an earlier run come in through
 `TRUNK_FROM`, never by pointing `RUN_ID` at that run. `RETRAIN_FROM` must name
 a node on the chosen behavior's chain.
 
-The setup cell resolves `"auto"` to the last deliverable in the model manifest.
-This selects `walk` on every model. Explicit
-recipe labels and stage IDs go through `MANIFEST.resolve_behavior(BEHAVIOR)`.
+One session trains one behavior (the maintainer's decision of 2026-11-28).
+`BEHAVIOR` defaults to `"stance"`, and `"auto"`, which selected the model
+manifest's last deliverable (the walk on every model), is gone: the
+configuration cell refuses it before anything is written. Train the stance in
+a session of its own, then the walk in a later session with `BEHAVIOR = "walk"`
+and `TRUNK_FROM` naming the run that certified the stance. Recipe labels and
+stage IDs go through `MANIFEST.resolve_behavior(BEHAVIOR)`.
 The cell obtains the chain with `MANIFEST.chain_for(TARGET_NODE.id)`. One `# ===== BEHAVIOR CHAIN LOOP =====`
 cell then walks `CHAIN` root-first and, per node, reuses, judges or trains
-as described above. Reuse looks in this run first, then — for ancestors only
-— in the trunk. For a frozen-null gate kind (`recovery_quality/v1`, the
+as described above, with one rule of its own: it trains only `BEHAVIOR`'s
+deliverable, a node `RETRAIN_FROM` covers, or, under `QUICK_TEST`, the whole
+chain. An ancestor it can neither reuse nor judge stops the session, and
+releases the runtime, before anything is written for it, with the reuse
+refusals printed above the message, instead of spending the session on a stance
+nobody asked for. Reuse looks in this run first, then — for ancestors only
+— in the trunk. A reused stance whose recipe differs from this session's only
+in `[ppo] critic_phase` is reused as it was certified (a note, not the
+`RETRAIN_FROM` warning a real edit gets), and the walk's warm start drops or
+re-phases the critic's phase inputs as the walk declares. For a frozen-null gate kind (`recovery_quality/v1`, the
 `FROZEN_NULL_GATE_KINDS` set) the gate's thresholds and null panels freeze
 **before** the node trains and the policy panel rolls after, on the same
 frozen seeds. Every trained or judged node writes its artifacts, the training
@@ -595,8 +607,10 @@ and both Compsognathus models:
 BEHAVIOR = "recover"
 ```
 
-The chain is `stance -> recovery`. Stance trains (or is reused), then the
-recovery resolution is frozen from the stance handoff, recovery trains, the
+The chain is `stance -> recovery`. The stance is reused, certified in this run
+or through `TRUNK_FROM` (the chain loop stops at a stance it cannot reuse
+unless `RETRAIN_FROM = "stance"` or `QUICK_TEST`), then the recovery resolution
+is frozen from the stance handoff, recovery trains, the
 frozen panel is rolled, and the `recovery_quality/v1` verdict is enforced
 exactly like any other node's. `BEHAVIOR = "stance"` trains the stance node
 alone, on these models as on every other. The old
@@ -628,7 +642,7 @@ the keys, and a `RUN_LABEL` other than the recorded label (an empty one keeps
 it). A node first trained at a commit from before 2026-11-24 resumes at
 `main` like any other: these checks compare it with its record, and the
 re-saved record keeps its first session. The cell warns
-when `BEHAVIOR` is `"auto"`, when the run's `provenance.json` records another
+when the run's `provenance.json` records another
 target deliverable than `BEHAVIOR` resolves to, and when the checkout's
 commit is not the one the node records; it trains the same node either way,
 so to keep the run's target, interrupt the run before the chain loop starts,

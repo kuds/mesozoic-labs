@@ -352,7 +352,8 @@ class TestBehaviorKnob:
         for name in ("WIDEN_FROM", "WIDEN_MAX_REVISION_GAP"):
             assert name not in assigns, f"{name} left the notebook with the widen cell (D-D14)"
         assert DEFAULT_MAX_REVISION_GAP == 1
-        assert assigns["BEHAVIOR"].value == "auto"
+        # One behavior a session (2026-11-28): "auto" left, and the default is the stance alone.
+        assert assigns["BEHAVIOR"].value == "stance"
 
     def test_run_recovery_stage_knob_is_gone(self):
         for index, src in enumerate(_all_cell_sources()):
@@ -428,7 +429,10 @@ class TestChainResolution:
         target_expression = compile(ast.Expression(assigns["TARGET_NODE"]), "<resolve cell>", "eval")
         for model_id in MODELS_WITH_MANIFESTS:
             manifest = load_stage_manifest(model_id)
-            assert eval(target_expression, {"MANIFEST": manifest, "BEHAVIOR": "auto"}) == manifest.deliverables[-1]
+            # "auto" (the last deliverable) left on 2026-11-28: it is no recipe label, so the manifest refuses it too.
+            assert ast.unparse(assigns["TARGET_NODE"]) == "MANIFEST.resolve_behavior(BEHAVIOR)"
+            with pytest.raises(StageManifestError, match="has no behavior 'auto'"):
+                eval(target_expression, {"MANIFEST": manifest, "BEHAVIOR": "auto"})
             for label in manifest.recipe_labels:
                 assert eval(target_expression, {"MANIFEST": manifest, "BEHAVIOR": label}) == manifest.resolve_behavior(
                     label
@@ -1579,7 +1583,9 @@ class TestTrainStageRecordKeeping:
             "seed": "SEED",
             "load_path": "load_path",
             "vecnorm_path": "vecnorm_path",
-            "eval_freq": "eval_freq",
+            # 2026-11-28: a node shorter than the 100,000-step cadence (a QUICK_TEST node) evaluates once, at its end;
+            # a resume of the node's own checkpoint keeps the cadence (its first session evaluated already).
+            "eval_freq": 'eval_freq if (load_path and task_load_mode == "resume_same_stage") else min(eval_freq, timesteps)',
             "save_freq": "save_freq",
             "verbose": "VERBOSE",
             "algorithm": "ALGORITHM.lower()",
@@ -2641,9 +2647,9 @@ class TestPublication:
         reuse_nodes = list(ast.walk(_reuse_if(src, loop)))
         trained_handoffs = [assign for assign in _handoff_assigns(loop) if assign not in reuse_nodes]
         assert len(trained_handoffs) == 1 and trained_handoffs[0].lineno > gate_if.end_lineno
-        # The gate refusal is the loop's only runtime release: the certified-library
-        # publish block and its own disconnect left with consolidation PR-4.
-        assert len(_calls(loop, "halt")) == 1 and not _calls(loop, "disconnect_runtime")
+        # The gate refusal and the one-behavior guard (2026-11-28; TestOneBehaviorASession) are the loop's only
+        # runtime releases: the certified-library publish block and its own disconnect left with consolidation PR-4.
+        assert len(_calls(loop, "halt")) == 2 and not _calls(loop, "disconnect_runtime")
         assert "PUBLISH_CERTIFIED" not in src and "publish_canonical_stage" not in src
         assert "CERTIFIED_LIBRARY" not in src and "certified_publications" not in src
         # The results dict recorded is the gated one (generate_stage_artifacts returns the verdict).
@@ -4013,7 +4019,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
 
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
-        assert namespace["BEHAVIOR"] == "auto"
+        assert namespace["BEHAVIOR"] == "stance"
         assert (namespace["SPECIES"], namespace["EMBODIMENT"]) == ("velociraptor_mongoliensis", "anatomical")
         assert namespace["MODEL_ID"] == ModelId("velociraptor_mongoliensis", "anatomical")
         assert namespace["N_ENVS"] == 4 and namespace["SEED"] == 42
@@ -4027,9 +4033,10 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert [node.id for node in namespace["CHAIN"]] == ["stance"]
 
     @pytest.mark.parametrize("model_id", MODELS_WITH_MANIFESTS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    def test_every_model_defaults_to_walk_and_refuses_hunt_naming_walk(self, model_id):
-        """Decision D-D59: ``"auto"`` resolves to walk (stance -> locomotion) on all seven models, and
-        ``BEHAVIOR = "hunt"`` stops the resolve cell with the pointer to ``"walk"``, binding no chain."""
+    def test_every_model_defaults_to_the_stance_and_refuses_auto_and_hunt(self, model_id):
+        """One behavior a session (2026-11-28): the default is the stance alone on all seven models, ``"walk"``
+        is stance -> locomotion (decision D-D59), ``BEHAVIOR = "auto"`` stops the configuration cell before anything
+        is written, and ``"hunt"`` stops the resolve cell with the pointer to ``"walk"``, binding no chain."""
         from environments.shared.config import load_all_stages
 
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
@@ -4040,9 +4047,17 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         exec(config, namespace)
         resolve = _cell("EnvClass = SPECIES_CFG.env_class")
         exec(resolve, namespace)
-        assert namespace["BEHAVIOR"] == "auto"
-        assert namespace["TARGET_NODE"].recipe == "walk"
-        assert [node.id for node in namespace["CHAIN"]] == ["stance", "locomotion"]
+        assert namespace["BEHAVIOR"] == "stance"
+        assert [node.id for node in namespace["CHAIN"]] == ["stance"]
+        walk = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(config.replace('BEHAVIOR = "stance"', 'BEHAVIOR = "walk"', 1), walk)
+        exec(resolve, walk)
+        assert walk["TARGET_NODE"].recipe == "walk"
+        assert [node.id for node in walk["CHAIN"]] == ["stance", "locomotion"]
+        auto = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        with pytest.raises(ValueError, match=r'BEHAVIOR = "auto" was removed .* one behavior'):
+            exec(config.replace('BEHAVIOR = "stance"', 'BEHAVIOR = "auto"', 1), auto)
+        assert "RUN_DIR" not in auto
         fresh = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(config, fresh)
         fresh["BEHAVIOR"] = "hunt"
@@ -4088,8 +4103,8 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
         # The three recipe labels (decisions D-D35, D-D38 and D-D59): "recover" is the recovery stage's label,
         # "stance", the stance stage's id and label, is the stance stage alone on every model, and "hunt" left
-        # with the hunt nodes.
-        assert options == ["auto", "stance", "recover", "walk"]
+        # with the hunt nodes. "auto" left on 2026-11-28: one session trains one behavior.
+        assert options == ["stance", "recover", "walk"]
         assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
         assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
         for source in (_cell("REPO_REF ="), config):
@@ -4441,3 +4456,185 @@ def test_the_notebook_round_trips_through_json_dump_indent_1(path):
         # Every SB3 code cell is plain Python.
         for index, source in code_cells(path):
             ast.parse(source, filename=f"{path.name}[code cell {index}]")
+
+
+class TestOneBehaviorASession:
+    """The maintainer's decisions of 2026-11-28: one session trains one behavior.  ``BEHAVIOR = "auto"`` left (pinned
+    in TestBehaviorKnob and TestNotebookWithoutTheDirectionTerrainMode); the chain loop trains only BEHAVIOR's
+    deliverable, besides a node RETRAIN_FROM covers and a QUICK_TEST pipeline check, and stops, releasing the
+    runtime, before it writes anything for an ancestor it could not reuse; a reused ancestor whose recipe differs from
+    this session's only in [ppo] critic_phase is a note, never a call to retrain it; the in-training evaluation runs
+    every 100,000 steps."""
+
+    class Halted(Exception):
+        """The cell called halt()."""
+
+    class Trained(Exception):
+        """The cell called train_stage(): which node is pinned by the caller."""
+
+    def _run(
+        self, tmp_path, monkeypatch, *, behavior, quick_test=False, retrain_from="", stance_reuse=None, trunk_dir=None
+    ):
+        """Execute the configuration, resolve and chain-loop cells for the velociraptor under *behavior* with no trunk;
+        the reuse rule refuses every node unless *stance_reuse* (a fake ancestor) serves the stance from *trunk_dir*.  Returns the
+        namespace and the halt and train_stage calls."""
+        import types
+
+        from environments.shared import ancestors
+        from environments.shared.ancestors import AncestorReuseError
+        from environments.shared.config import load_all_stages
+        from environments.shared.plant_contract import current_plant_identity
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        halts: list = []
+        trained: list = []
+
+        def find(candidate, **kwargs):
+            if stance_reuse is not None and kwargs["entry"].id == "stance" and candidate == trunk_dir:
+                return stance_reuse
+            raise AncestorReuseError("refused by the reuse rule (test)")
+
+        def halt(reason, **kwargs):
+            halts.append((reason, kwargs))
+            raise self.Halted(reason)
+
+        def train_stage(**kwargs):
+            trained.append(kwargs)
+            raise self.Trained(kwargs["stage"])
+
+        monkeypatch.setattr(ancestors, "find_certified_ancestor", find)
+        monkeypatch.setattr(ancestors, "record_ancestor", lambda run_dir, ancestor: None)
+        run_dir = tmp_path / "20261128_000000"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        namespace: dict = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        namespace.update(
+            LOG_BASE=tmp_path / "logs",
+            RUN_DIR=run_dir,
+            TRUNK_DIR=trunk_dir,
+            BEHAVIOR=behavior,
+            RETRAIN_FROM=retrain_from,
+            QUICK_TEST=quick_test,
+        )
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)
+        namespace.update(
+            Path=Path,
+            types=types,
+            stage_dirname=stage_dirname,
+            stage_label=stage_label,
+            PLANT_IDENTITY=current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
+            NODE_RESULTS={},
+            completed_stages=[],
+            NODE_HANDOFF={},
+            QUICK_TEST=quick_test,
+            IN_COLAB=False,
+            RUNS_ON_DRIVE=False,
+            halt=halt,
+            train_stage=train_stage,
+        )
+        _define_node_budget(namespace)
+        try:
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        except (self.Halted, self.Trained):
+            pass
+        return namespace, halts, trained
+
+    def test_a_walk_session_without_a_reusable_stance_stops_before_writing_anything(self, tmp_path, monkeypatch):
+        namespace, halts, trained = self._run(tmp_path, monkeypatch, behavior="walk")
+        assert trained == [], "the stance is never trained on the way to the walk"
+        [(reason, kwargs)] = halts
+        assert reason.startswith(
+            "Refusing to train 'stance' on the way to 'locomotion': one session trains one behavior"
+        )
+        assert "could not be reused from this run, and no trunk was selected (TRUNK_FROM = 'auto'" in reason
+        assert "train it in a session of its own (BEHAVIOR = 'stance') and point TRUNK_FROM at that run" in reason
+        assert "set RETRAIN_FROM = 'stance' to train it here on purpose" in reason
+        # The release knobs, as the gate-failure halt reads them.
+        assert kwargs == {"in_colab": False, "auto": namespace["AUTO_DISCONNECT"], "flush_drive": False}
+        assert not (namespace["RUN_DIR"] / "01_stance").exists(), "nothing is written for the refused node"
+
+    def test_an_ancestor_this_run_reuses_through_its_record_names_the_recorded_trunk_or_a_fresh_run(
+        self, tmp_path, monkeypatch
+    ):
+        """A node the run holds as an ancestors/ record, which no trunk certifies in this session: another trunk would
+        be refused as a second parent and a retrain as a node both reused and trained, so the message names neither."""
+        record = tmp_path / "20261128_000000" / "ancestors" / "stance" / "ancestor.json"
+        record.parent.mkdir(parents=True)
+        record.write_text("{}", encoding="utf-8")
+        _, halts, trained = self._run(tmp_path, monkeypatch, behavior="walk")
+        assert trained == []
+        [(reason, _)] = halts
+        assert "this run reuses it through its ancestors/ record" in reason
+        assert "set TRUNK_FROM to the trunk trunk_run.json records" in reason and "start a fresh RUN_ID" in reason
+        assert "RETRAIN_FROM" not in reason and "session of its own" not in reason
+
+    def test_the_resolve_cell_says_which_ancestors_must_be_reused(self, tmp_path, monkeypatch, capsys):
+        self._run(tmp_path / "walk", monkeypatch, behavior="walk")
+        out = capsys.readouterr().out
+        assert "One behavior a session: the chain loop trains only 'locomotion'; 'stance' must be reused" in out
+        for kwargs in ({"behavior": "stance"}, {"behavior": "walk", "quick_test": True}):
+            self._run(tmp_path / str(len(kwargs)), monkeypatch, **kwargs)
+            assert "One behavior a session" not in capsys.readouterr().out, kwargs
+
+    def test_the_deliverable_trains_and_so_does_a_covered_or_quick_test_ancestor(self, tmp_path, monkeypatch):
+        _, halts, trained = self._run(tmp_path / "stance", monkeypatch, behavior="stance")
+        assert halts == [] and [call["stage"] for call in trained] == [1]
+        _, halts, trained = self._run(tmp_path / "retrain", monkeypatch, behavior="walk", retrain_from="stance")
+        assert halts == [] and [call["stage"] for call in trained] == [1]
+        _, halts, trained = self._run(tmp_path / "quick", monkeypatch, behavior="walk", quick_test=True)
+        assert halts == [] and [call["stage"] for call in trained] == [1]
+
+    def test_a_reused_stance_lets_the_walk_train(self, tmp_path, monkeypatch, capsys):
+        import types
+
+        trunk = tmp_path / "trunk" / "20261127_000000"
+        stance_dir = trunk / "01_stance"
+        stance_dir.mkdir(parents=True)
+        ancestor = types.SimpleNamespace(
+            stage_id="stance",
+            run_id=trunk.name,
+            stage_dir=stance_dir,
+            source_run_dir=trunk,
+            handoff_name="robust_best_model",
+            model_stem=str(stance_dir / "models" / "robust_best_model"),
+            normalization_path=stance_dir / "models" / "robust_best_model_vecnorm.pkl",
+            model_sha256="a" * 64,
+            normalization_sha256="b" * 64,
+        )
+        from environments.shared.config import load_all_stages
+
+        stance = load_all_stages(ModelId("velociraptor_mongoliensis", "anatomical"))[1]
+        recorded = {
+            "algorithm": "PPO",
+            "hyperparameters": {**stance["ppo_kwargs"], "critic_phase": True},
+            "curriculum": stance["curriculum_kwargs"],
+        }
+        (stance_dir / "stage_config.json").write_text(json.dumps(recorded), encoding="utf-8")
+        _, halts, trained = self._run(
+            tmp_path / "run", monkeypatch, behavior="walk", stance_reuse=ancestor, trunk_dir=trunk
+        )
+        assert halts == [] and [call["stage"] for call in trained] == [2]
+        assert (
+            trained[0]["task_load_mode"] == "initialize_next_stage" and trained[0]["load_path"] == ancestor.model_stem
+        )
+        out = capsys.readouterr().out
+        # The stance was certified with the critic phase, which CRITIC_PHASE = False does not give it here: a note,
+        # not the warning that sends the reader to RETRAIN_FROM (which would train the stance again in this session).
+        assert f"Note: certified 'stance' from run {trunk.name} was trained with another [ppo] critic_phase" in out
+        assert "Nothing to do: RETRAIN_FROM would train it again here." in out
+        assert "WARNING: reusing certified 'stance'" not in out
+
+    def test_the_in_training_evaluation_runs_every_100000_steps_everywhere(self):
+        import inspect
+
+        from environments.shared import train_base
+        from environments.shared.constants import DEFAULT_EVAL_FREQ
+
+        assert DEFAULT_EVAL_FREQ == 100_000
+        train_stage = _top_level_def(_cell(INFRA_CELL_MARKER), "train_stage")
+        defaults = dict(zip([arg.arg for arg in train_stage.args.kwonlyargs], train_stage.args.kw_defaults))
+        assert ast.literal_eval(defaults["eval_freq"]) == DEFAULT_EVAL_FREQ
+        for function in (train_base.train, train_base.train_curriculum):
+            assert inspect.signature(function).parameters["eval_freq"].default == DEFAULT_EVAL_FREQ
+        # The command line's --eval-freq defaults are pinned in test_cli.py
+        # (test_a_positive_eval_freq_reaches_both_trainers).
