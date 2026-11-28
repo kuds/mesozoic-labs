@@ -17,6 +17,7 @@ measured.** Simulation results are labelled as simulation; targets and estimates
 | File | What it is |
 |---|---|
 | [DECISION_LOG.md](DECISION_LOG.md) | The owner's requirements and decisions (with the options put), constraints, findings (F), assumptions (A) |
+| [READINESS_REVIEW_2026_11_27.md](READINESS_REVIEW_2026_11_27.md) | Readiness review, 27 Nov 2026: will the adopted 60 cm design work as a real robot? A review of the records (simulation and desk, nothing measured; not a judged result): heat in a 35 C room, what only hardware can show, the order of work before the large spend, and the D45-D48 batch's files |
 | [pr669_review/](pr669_review/REVIEW.md) | Review of PR #669 (sound as a concept study), draft errata for its README and its PDF, checks run |
 | [outreach/QUESTIONS_WIM_MYACTUATOR_DRAFT.md](outreach/QUESTIONS_WIM_MYACTUATOR_DRAFT.md) | Draft questions for WIM Robotics (PLEM) and MyActuator, for the owner to send |
 | [sim/STAND_REPORT.md](sim/STAND_REPORT.md) | Task 3: the T20 and T15 models with the parts list's mass distribution; four-foot standing (all pass) |

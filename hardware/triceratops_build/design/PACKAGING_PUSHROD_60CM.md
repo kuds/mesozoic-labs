@@ -31,8 +31,8 @@ search between grid points):
 | # | Clash | Overlap, mm (neutral / worst in range) | Records before today | What would fix it |
 |---|---|---|---|---|
 | 1 | Hind X4 knee housing on its own upper strut, both hind legs | **38.70 / 38.70** (same body, every pose) | estimated "up to about 38.7" (readiness review, `fore128.xml:250-251`); now confirmed | A forked hind link (two side plates bolted to the housing's faces), or the drive moved at least 38.7 mm plus the wanted gap off the strut's centreline, as the 128 mm front leg does (its X6 axis sits 59.9 mm off its strut, my arithmetic from `fore128.xml:186-187`; an X4 there would clear by 21.2 mm). Either changes the model (rod length, masses) |
-| 2 | Pelvic crossmember through both hips | hind roll drive **41.10**, pitch drive 40.10, yoke 24.80, upper strut 20.80 / the same | F21 (`DECISION_LOG.md:65`), reproduced | No straight bar at x -260 mm: between today's rails, raised 45 mm, it clears the drives but meets the tail yaw servo by 13.6 mm. **On the shortened, inset rails' ends (x -212 mm) with the I/O carrier 20 mm forward (combined layout C, below) it clears every solid part, by 3.40 mm or more** (the packs below it, the moved I/O carrier ahead); the tail then needs a bracket to its pivot, 34.6 mm aft |
-| 3 | Shoulder crossmember into the front roll and pitch drives | roll drives **1.10 / 1.10**; pitch drive 1.10 / **28.96** (roll +24 deg); yoke and strut - / 10.83 | F19 restated (`DECISION_LOG.md:63`: 29.0, 10.8), reproduced | **With today's rails** (ending at x +-260 mm): end it at the rails and raise it 6-10 mm; it then sits on the rails' ends (1.2 mm overlap at 10 mm up) and clears every part by at least 0.61 mm (6 mm up) or 3.01 mm (10 mm up). It does not combine with fixes 4 and 6, which end the rails 45 mm short of it: with those, use layout C (it moves onto the rails' ends at x 212 mm, the DC-DC block 20 mm aft and 3 mm up; the two then clear by 3.40 mm) |
+| 2 | Pelvic crossmember through both hips | hind roll drive **41.10**, pitch drive 40.10, yoke 24.80, upper strut 20.80 / the same | F21 (`DECISION_LOG.md`, F21), reproduced | No straight bar at x -260 mm: between today's rails, raised 45 mm, it clears the drives but meets the tail yaw servo by 13.6 mm. **On the shortened, inset rails' ends (x -212 mm) with the I/O carrier 20 mm forward (combined layout C, below) it clears every solid part, by 3.40 mm or more** (the packs below it, the moved I/O carrier ahead); the tail then needs a bracket to its pivot, 34.6 mm aft |
+| 3 | Shoulder crossmember into the front roll and pitch drives | roll drives **1.10 / 1.10**; pitch drive 1.10 / **28.96** (roll +24 deg); yoke and strut - / 10.83 | F19 restated (`DECISION_LOG.md` (F19): 29.0, 10.8), reproduced | **With today's rails** (ending at x +-260 mm): end it at the rails and raise it 6-10 mm; it then sits on the rails' ends (1.2 mm overlap at 10 mm up) and clears every part by at least 0.61 mm (6 mm up) or 3.01 mm (10 mm up). It does not combine with fixes 4 and 6, which end the rails 45 mm short of it: with those, use layout C (it moves onto the rails' ends at x 212 mm, the DC-DC block 20 mm aft and 3 mm up; the two then clear by 3.40 mm) |
 | 4 | Side rails into the roll drives | front **8.19**, hind **23.10** / the same | none (the 18 Nov layout check skips frame-to-drive pairs, `sim/check_layout60.py:26`) | End the rails short of the roll drives and carry each drive on a bracket at its inboard face, as PR #697's drop bracket does at the front (and a new one at each hind drive, which the rails no longer pass through): rails ending at x +-215 mm clear the drives by 4.9-5.0 mm. This leaves both crossmembers (x +-260 mm) 45 mm past the rails' ends: they move onto the rails' ends (layouts B, C) or onto brackets from the drives (layout A) |
 | 5 | Side rails into the moving hind yokes | **8.80 / 11.61** (roll -18 deg) | none | Fixed by the same shortening (no hind yoke within 10 mm) |
 | 6 | Hind cranks and pushrod against the rails | 0.45 mm clear at roll 0; overlap from roll -2 deg inward, **2.91** (cranks) and 2.41 (rod) at roll -18, pitch -38 deg | none | Not fixed by shortening the rails. Rails 8 mm further in (y +-75.2 mm) and shortened: 4.70 mm clear at the worst pose (the crossmembers as in fix 4). Or the hind linkage moved to the outboard side, as at the front (not tried) |
@@ -312,7 +312,7 @@ which the FINAL step sheets pin, so none of them is applied here.
   output), no solid pair deepens by more than 0.08 mm and no new pair comes within 10 mm; the shell's rib 1 against
   the hind drive crank deepens most, by 0.97 mm (12.67 to 13.64 mm).
 - The walking envelope: the ranges checked are the joints' full ranges. Over the 128 mm model-based trot episode
-  that F19 records (seed 101) the shoulder crossmember's overlap reached 5.3 mm (`DECISION_LOG.md:63`); no gait
+  that F19 records (seed 101) the shoulder crossmember's overlap reached 5.3 mm (`DECISION_LOG.md`, F19); no gait
   report records the roll, pitch or flexion angles (only ankle percentiles, `rl/analytics/gait_report.py:572`).
 - The chest camera's view (the 21 Nov review's "blinded" OAK-D Lite) and the tail yaw servo outside the shell: not
   packaging overlaps; unchanged in the adopted model.
@@ -462,7 +462,7 @@ pair at the output rated at least 2x (`PARTS_PREMIUM.md:256`).
   the owner" ($20.1k-$20.9k) rise by $647 with the battery cut-off (`design/PARTS_60CM.md`); line 75's "0.5 kg over
   the budget's mass" is now 0.55 kg (0.85 kg with the cut-off's estimated 0.25 kg listed, 0.30 kg grown by the closed
   variant's x 1.2088 like the model's other estimates).
-- **DECISION_LOG.md:54 (F10)** gives 11.54 kg listed and 12.69 kg closed with `design/PARTS_60CM.md` as its source;
+- **DECISION_LOG.md (F10) (F10)** gives 11.54 kg listed and 12.69 kg closed with `design/PARTS_60CM.md` as its source;
   the regenerated list shows the adopted model, 11.624 / 12.751 kg (13.053 kg closed with the cut-off). F10 describes
   the 188 mm model, so its source becomes the list as of aa150f89 (`git show aa150f89:hardware/triceratops_build/
   design/PARTS_60CM.md`, line 21), or the row gains the adopted figures.
@@ -506,7 +506,7 @@ pair at the output rated at least 2x (`PARTS_PREMIUM.md:256`).
 
 ## Sources
 
-Records: `sim/generated/trike60_C_closed_capsule_fore128.xml`; `sim/data/drives.json`; `DECISION_LOG.md:63, :65`
+Records: `sim/generated/trike60_C_closed_capsule_fore128.xml`; `sim/data/drives.json`; `DECISION_LOG.md (F19), :65`
 (F19, F21); `rl/analysis/PLAN_FORELEG_D22.md:37-41`; `git show 2ac57608:hardware/triceratops_build/REVIEW_60CM.md`
 (lines 29, 113, 116-123, 118-122 and 158 for the bay, 164); `git show 65a44fad:hardware/triceratops_build/bench/BENCH_PLAN_FORELEG.md` (lines
 10-11); `hardware/triceratops_kickoff/PARTS_PREMIUM.md:253, :256`; `rl/analytics/results/fore128-s{0..3}/
