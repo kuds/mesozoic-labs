@@ -1023,7 +1023,10 @@ draws fewer numbers before them): on the current plants the same build
 keeps 5 of the 10 on the T. rex (neither `statue` row), all 10 on the
 anatomical Compsognathus and 9 on the robot (measured 2026-11-23). With the
 multiple at 0 the env's reset draws exactly what a push-free reset of the
-same seed draws, and the observation does not depend on it.
+same seed draws, and the observation does not depend on it. On a stage
+that sets the opt-in observation noise's `observation_noise_eval`, the bank
+env holds it false too: the bank env is never a trainer's rollout env, so
+its states are the clean observations.
 
 Per update the probe reads parameters and runs `torch.no_grad()` forward
 passes of the constant bank: no sampling, no gradient, and no parameter,

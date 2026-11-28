@@ -32,8 +32,8 @@ reset seeds: the settled statue (step 199) and the statue at step 599,
 mirror-symmetric ankle leans of +0.03 and -0.03 (action units, ramped over
 steps 200-300 and held) at step 599, and a -0.05 lean at step 400.  It is
 built on a separate env instance that nothing else steps, with its own
-horizon long enough for every row (:func:`bank_horizon`) and any scheduled
-pushes off (:func:`bank_env_kwargs`), under
+horizon long enough for every row (:func:`bank_horizon`), any scheduled
+pushes off and the opt-in observation noise held off (:func:`bank_env_kwargs`), under
 :class:`GlobalRngGuard`, which snapshots and restores the global generators
 (the build draws none; the guard is a backstop and warns if one moved).
 
@@ -158,10 +158,12 @@ def bank_horizon(stage_horizon: int, spec: Sequence[tuple[str, int, float, int]]
 
 #: The env keyword that switches a stage's scheduled pushes on (the recovery stages'); 0 is off.
 PUSH_MULTIPLE_KWARG = "perturbation_capture_velocity_multiple"
+#: The env keyword that noises the observations of an env no trainer marked (observation_noise.py); False is off.
+OBSERVATION_NOISE_EVAL_KWARG = "observation_noise_eval"
 
 
 def bank_env_kwargs(env_kwargs: Mapping[str, Any], horizon: int) -> dict[str, Any]:
-    """The bank env's keywords: the stage's own, at *horizon*, with any scheduled pushes off.
+    """The bank env's keywords: the stage's own, at *horizon*, with any scheduled pushes and observation noise off.
 
     A recovery stage pushes the animal on a schedule, and a push topples
     the statue and the leans before their kept steps: on the T. rex
@@ -170,12 +172,18 @@ def bank_env_kwargs(env_kwargs: Mapping[str, Any], horizon: int) -> dict[str, An
     The bank is the unpushed statue and held leans on every stage.  With
     the multiple at 0 the env runs no push code and its reset draws exactly
     what a push-free reset of the same seed draws (``base_env``); the
-    observation does not depend on it.  The key is set only where the stage
-    declares it, so an env class without it is never handed it.
+    observation does not depend on it.  The bank's states are the clean
+    observations too: its env is never a trainer's rollout env, so the opt-in
+    observation noise (``observation_noise.py``) is off there once its
+    evaluation flag is, and the bank holds the flag false (the noise is forced
+    off as the pushes are).  Each key is set only where the stage declares
+    it, so an env class without it is never handed it.
     """
     kwargs = {**dict(env_kwargs), "max_episode_steps": int(horizon)}
     if PUSH_MULTIPLE_KWARG in kwargs:
         kwargs[PUSH_MULTIPLE_KWARG] = 0.0
+    if OBSERVATION_NOISE_EVAL_KWARG in kwargs:
+        kwargs[OBSERVATION_NOISE_EVAL_KWARG] = False
     return kwargs
 
 

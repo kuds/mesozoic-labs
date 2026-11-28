@@ -8,6 +8,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Opt-in observation (sensor) noise for every model, off by default (design
+  record `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §7, the third shared feature
+  of the 60 cm Triceratops robot's port; the build's decision-log rows D32 and
+  D37).** Two `[env]` keys in `environments/shared/observation_noise.py`:
+  `observation_noise_std`, `None` (off) or a table of observation segment to
+  standard deviation in the segment's own units, and `observation_noise_eval`
+  (default `False`). The segment names are the plant contract's own, now read
+  from a public `plant_contract.policy_layer.observation_segments(model, env,
+  observation_schema)` that the policy payload calls (a refactor that moves no
+  digest). `BaseDinoEnv.step()` adds zero-mean Gaussian noise to the
+  observation it returns, after the command recompute, drawing one standard
+  normal per observation entry from its own stream (so one segment on or off
+  never changes another's draw, and `np_random` is never drawn) and
+  renormalising each unit segment it noises. The reset observation, the plant
+  contract's probe and plant validation stay clean, and the command is never
+  noised. A trainer's rollout envs are noised, any other env only while
+  `observation_noise_eval` is true, latched at the episode's start as the third
+  feature of the episode-start hook; the policy probe's state bank sets the
+  flag false. Off, `step()` returns the very array `_get_obs` built.
+  `BaseDinoEnv.set_direction` (a live walk's and a behavior env's) noises the
+  observation it returns as `step()` does, and the symmetry module's state
+  mirror refuses an env whose episode is noised (its step observations would
+  not be mirror images). A table naming
+  another segment, a std that is not a finite nonnegative number (in float32
+  too), a positive std on the command, a table with no positive std and the
+  eval flag without a table are refused at construction. The task
+  fingerprint gains an `observation_noise` section while the table is set,
+  which `resume_same_stage` and behavior transitions name when it differs. No
+  model lists the keys, so no digest, golden, plant manifest entry, task hash
+  or checkpoint moves, and the digest harness's `--exact` capture is
+  byte-identical to `main`'s.
+- **Opt-in per-episode physics randomisation for every model, off by default
+  (design record `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §6, the second shared
+  feature of the 60 cm Triceratops robot's port; the build's decision-log rows
+  D32, D37 and D38).** Six `[env]` keys, each `None` (off) or `(low, high)`, in
+  `environments/shared/episode_physics.py`: `randomize_friction` (an absolute
+  sliding coefficient on every floor geom and on the geoms
+  `BaseDinoEnv._randomized_friction_geoms()` returns, every colliding animal
+  geom by default), `randomize_body_mass_scale` (per animal body, mass and
+  inertia), `randomize_actuator_kp_scale` (per position servo, kp and its bias
+  term together), `randomize_actuator_force_limit_scale` (per force-limited
+  actuator, both ends of `forcerange`), and `randomize_total_mass_scale` and
+  `randomize_payload_kg`, which apply in a trainer's rollout envs only. Each
+  episode begins with it, first in the episode-start hook: every model the env
+  changed goes back to its exact nominal copies, then one block of
+  `3 + nbody + 2 x nu` uniforms from its own stream is drawn whatever is
+  enabled, so enabling one key moves no other's draw and a seed's per-body
+  factors are the same in training and evaluation. A changed mass recomputes
+  the derived constants with `mj_setConst` on a scratch `MjData`. The plant
+  identity stays the nominal plant: after a randomised reset both plant
+  validators refuse the live model, and pass inside `env.nominal_physics()`.
+  A behavior env restores every pool model before it selects one. Friction on
+  a model with explicit contact pairs or no floor geom, a friction hook that
+  returns anything but colliding animal geom ids, the kp key without a position
+  servo, the force key without a force limit and a payload on a massless body
+  are refused at construction and again at each model's first episode. A reset
+  inside a `nominal_physics()` block raises before any of it runs (no reseed,
+  no pool model selected), as does reconfiguring it there, and the symmetry
+  state mirror refuses a randomised plant. The task fingerprint gains an `episode_physics`
+  section while any key is on, which `resume_same_stage` and behavior
+  transitions name when it differs. The `domain_randomization` capability becomes `experimental`.
+  No model lists the keys, so no digest, golden, plant manifest entry, task
+  hash or checkpoint moves, and the digest harness's `--exact` capture is
+  byte-identical to `main`'s.
+- **An opt-in actuation delay for every model, off by default (design record
+  `docs/TRICERATOPS_ROBOT_PORT_2026_11.md` §4-§5, the first shared feature of
+  the 60 cm Triceratops robot's port; the build's decision-log rows D33 and
+  D37).** Two `[env]` keys, in seconds and each a whole number of physics
+  steps: `actuation_delay_range_s` (`None` is off) and
+  `actuation_delay_eval_s` (`environments/shared/actuation_delay.py`). A FIFO
+  of the nu-wide ctrl in `BaseDinoEnv.step()` hands each control target to the
+  plant k physics steps late, primed with the reset ctrl, so zero action is
+  unchanged by the delay. A trainer's rollout envs draw k per episode from the
+  range; every other env holds the eval value (or draws from the range when
+  it is `None`). A delay as long as an episode is refused, naming it in
+  seconds and steps. Three shared pieces carry it,
+  all in `environments/shared/episode_start.py`. An episode-start hook,
+  `EpisodeStartHook`, is the base class `BaseDinoEnv` now derives from: it
+  runs after gymnasium seeds `np_random` and before the keyframe loads, and
+  `BaseDinoEnv.reset`'s hashed source is unchanged. Each feature has its own
+  PCG64 stream, `feature_stream`, so the reset draws never move. A role flag,
+  `training_rollouts`, is `False` unless a trainer marks the env with
+  `mark_training_rollouts`, which refuses a vectorised env.
+  `train_base.make_env` and `create_vec_env` take a
+  keyword `training` (default `False`), and the stage body passes
+  `training=True` on its training env only. `train_behaviors` marks its env
+  before training and unmarks it before scoring. While the delay is on, `info`
+  carries `actuation_delay_steps` and `actuation_delay_s`, and the task
+  fingerprint gains an `actuation_delay` section that `resume_same_stage` and
+  behavior transitions name when it differs. The symmetry module's state
+  mirror carries the in-flight targets, and refuses two envs whose delay
+  configurations differ. No model lists the keys, so no digest,
+  golden, plant manifest entry, task hash or checkpoint moves, and the digest
+  harness's `--exact` capture is byte-identical to `main`'s.
 - **Run reports and a per-model run index.** `python -m
   environments.shared.scripts.run_report RUN_DIR` (or `--model-dir
   LOG_BASE/<species>/<embodiment>` for every run of a model) writes

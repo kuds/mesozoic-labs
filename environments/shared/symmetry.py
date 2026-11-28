@@ -71,6 +71,7 @@ import argparse
 import hashlib
 import json
 import math
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Hashable, Mapping, Sequence
@@ -1254,6 +1255,17 @@ def _mirror_env_attributes(src: Any, em: EnvMirror) -> dict[str, Any]:
         out["_substep_floor_hit_geom"] = None if geom is None else int(em.model.geom_map[geom])
     if have.get("_push_schedule_directions") is not None:
         out["_push_schedule_directions"] = xy(have["_push_schedule_directions"])
+    if "_actuation_delay_fifo" in have:
+        # The opt-in actuation delay's in-flight targets, nu-wide ctrl through the ctrl map, and the episode's delay.
+        # Not training_rollouts: that is the env's role, not episode state.
+        fifo = have["_actuation_delay_fifo"]
+        out["_actuation_delay_fifo"] = (
+            None
+            if fifo is None
+            else deque((em.model.ctrl.apply(np.asarray(entry, dtype=np.float64)) for entry in fifo), maxlen=fifo.maxlen)
+        )
+    if "_actuation_delay_k" in have:
+        out["_actuation_delay_k"] = have["_actuation_delay_k"]
     for name in (
         "_push_schedule_starts",
         "_step_count",
@@ -1274,14 +1286,43 @@ def mirror_env_state(src: Any, dst: Any, em: EnvMirror, *, forward: bool = True)
     With *forward*, ``mj_forward`` recomputes every derived quantity (positions, sensors, contacts) at the mirrored
     state.  Mid-episode the source's own derived quantities are those of its last substep's pre-integration state,
     so mirror a source after an ``mj_forward`` of its own when comparing observations at that instant; every later
-    step is consistent either way.
+    step is consistent either way.  Both envs must share the model and the opt-in actuation delay's configuration.
 
     Refused (:class:`SymmetryError`): a live command mode's controller state, and an env with a positive
     ``gait_symmetry_weight`` that keeps a touchdown history, biped or quadruped, whose gait reward is not
-    mirror-equivariant (see :func:`_mirror_env_attributes`).
+    mirror-equivariant (see :func:`_mirror_env_attributes`).  Also refused: an env that holds a randomised plant
+    (the opt-in per-episode physics randomisation), since the state is mirrored, not the plant; and an env whose
+    episode is noised by the opt-in observation noise (``observation_noise_active``): its physics would step as the
+    mirror image, but its step observations carry each env's own draws, in observation order, so they would not be.
     """
     if dst.model.nq != src.model.nq or dst.model.nu != src.model.nu:
         raise SymmetryError("the source and destination envs must share the model")
+    for role, env in (("source", src), ("destination", dst)):
+        physics = getattr(env, "_episode_physics", None)
+        if physics is not None and physics.holds_episode_values(env.model):
+            # The opt-in per-episode physics randomisation draws per body and per servo, so a randomised plant is not
+            # mirror-symmetric, and each env keeps its own: the image would not step as the mirror of its source.
+            # Pair-tied draws are a follow-up (design record docs/TRICERATOPS_ROBOT_PORT_2026_11.md section 11).
+            raise SymmetryError(
+                f"the {role} env holds a randomised plant (the opt-in per-episode physics randomisation), which the "
+                "state mirror does not mirror; mirror envs on their nominal plants"
+            )
+        if getattr(env, "observation_noise_active", False):
+            # The opt-in observation noise draws per env, in observation order, from each env's own stream: a noised
+            # episode's step observations are not the mirror images of its source's, though its physics is.
+            raise SymmetryError(
+                f"the {role} env's episode is noised (the opt-in observation noise), and the state mirror does not "
+                "mirror its step observations; mirror envs whose episodes are not noised"
+            )
+    src_delay, dst_delay = getattr(src, "_actuation_delay", None), getattr(dst, "_actuation_delay", None)
+    if src_delay != dst_delay:
+        # The in-flight targets and the episode's delay are mirrored, so both envs must run the same delay: a delay-off
+        # source would leave a delay-on destination with no delay chosen, and a delay-off destination would drop the
+        # source's in-flight targets.
+        raise SymmetryError(
+            "the source and destination envs must share the actuation delay configuration, got "
+            f"{src_delay!r} and {dst_delay!r}"
+        )
     attributes = _mirror_env_attributes(src, em)
     mirror_physics_state(em.model, src.model, src.data, dst.data)
     for name, value in attributes.items():

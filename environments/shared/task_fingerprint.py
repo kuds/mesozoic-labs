@@ -56,8 +56,11 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from .actuation_delay import ACTUATION_DELAY_IMPLEMENTATION
 from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE, RETIRED_COMMAND_ENV_KEYS
+from .episode_physics import EPISODE_PHYSICS_ENV_KEYS, EPISODE_PHYSICS_IMPLEMENTATION
 from .model_id import ModelId
+from .observation_noise import OBSERVATION_NOISE_IMPLEMENTATION
 from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
 
 if TYPE_CHECKING:
@@ -341,6 +344,25 @@ def compute_task_fingerprint(
         )
     if command_manifest is not None:
         payload["command"] = _canonical(dict(command_manifest))
+    # The opt-in actuation delay (actuation_delay.py): its two keys are in the
+    # env section (seconds; the plant's physics_sha256 pins the timestep that
+    # makes them steps), and while it is on this section names what the delay
+    # means.  No species lists the keys but one that opts in, so every other
+    # task keeps its hash.
+    if payload["env"].get("actuation_delay_range_s") is not None:
+        payload["actuation_delay"] = {"implementation": ACTUATION_DELAY_IMPLEMENTATION}
+    # The opt-in per-episode physics randomisation (episode_physics.py): its
+    # six ranges are in the env section, and while any is on this section
+    # names what they mean.  An opted-in species carves each key out while it
+    # is off, so a stage that leaves them off keeps its hash.
+    if any(payload["env"].get(name) is not None for name in EPISODE_PHYSICS_ENV_KEYS):
+        payload["episode_physics"] = {"implementation": EPISODE_PHYSICS_IMPLEMENTATION}
+    # The opt-in observation noise (observation_noise.py): its table and eval
+    # flag are in the env section, and while the table is set this section
+    # names what the noise means.  An opted-in species carves both keys out
+    # while the table is off, so a stage that leaves it off keeps its hash.
+    if payload["env"].get("observation_noise_std") is not None:
+        payload["observation_noise"] = {"implementation": OBSERVATION_NOISE_IMPLEMENTATION}
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     ).hexdigest()
@@ -370,7 +392,19 @@ def attach_task_lineage(model: Any, lineage: Mapping[str, Any]) -> None:
 
 
 def _differing_sections(recorded: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
-    sections = ("species", "embodiment", "stage", "backend", "plant", "env", "perturbation", "command")
+    sections = (
+        "species",
+        "embodiment",
+        "stage",
+        "backend",
+        "plant",
+        "env",
+        "perturbation",
+        "command",
+        "actuation_delay",
+        "episode_physics",
+        "observation_noise",
+    )
     return [name for name in sections if _canonical(recorded.get(name)) != _canonical(current.get(name))]
 
 

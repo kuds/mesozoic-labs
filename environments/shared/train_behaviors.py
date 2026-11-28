@@ -24,6 +24,7 @@ import numpy as np
 
 from environments.shared.behavior_env import get_behavior_env_class
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.episode_start import mark_training_rollouts
 from environments.shared.model_id import ModelId
 from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT
 from environments.shared.species_names import add_model_arguments, model_ids, parsed_model_id
@@ -304,6 +305,9 @@ def main(argv: list[str] | None = None) -> None:
 
     torch.set_num_threads(1)
     env = create_behavior_env(model_id, commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
+    # This env collects the training rollouts: the opt-in per-episode features draw their training
+    # distribution in it (episode_start.py).  Scoring below reuses it, unmarked first.
+    mark_training_rollouts(env, True)
     if args.record_video:
         try:
             from environments.shared.behavior_replay import require_replay_dependencies
@@ -469,6 +473,8 @@ def main(argv: list[str] | None = None) -> None:
         # using these as a training curriculum signal.
         seeds = [int(s) for s in np.random.SeedSequence([run_seed, 0xE7A1]).generate_state(args.eval_episodes)]
         if seeds and not interrupted:
+            # Scored as an evaluation env: each feature holds its evaluation value from the next reset on.
+            mark_training_rollouts(env, False)
             manifest["evaluation"] = evaluate_behavior(
                 model,
                 normalizer,

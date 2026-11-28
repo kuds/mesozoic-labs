@@ -370,6 +370,26 @@ def _heading_free_observation_segments(
     ]
 
 
+def observation_segments(model: mujoco.MjModel, env: Any, observation_schema: str) -> list[dict[str, Any]]:
+    """The observation segment table the policy payload records for *observation_schema*, in observation order.
+
+    Every model is on a heading-free schema: the root label follows the
+    declared schema (:data:`~environments.shared.heading_observation.HEADING_FREE_ROOT_LABELS`)
+    and each foot channel is described by its touch sensors or, where the env
+    reads floor-contact force, its geoms (:func:`_foot_contact_segment`), so
+    the widths sum to the observation width (the payload checks that).  A
+    schema that is not a heading-free one is refused with
+    ``PlantContractError``.  Also read by the opt-in observation noise, which
+    names its segments by this table (``observation_noise.observation_layout``).
+    """
+    if observation_schema not in HEADING_FREE_ROOT_LABELS:
+        raise PlantContractError(
+            f"observation schema {observation_schema!r} is not one of the observation schemas "
+            f"{sorted(HEADING_FREE_ROOT_LABELS)}"
+        )
+    return _heading_free_observation_segments(model, env, HEADING_FREE_ROOT_LABELS[observation_schema])
+
+
 def _policy_interface_payload(
     model: mujoco.MjModel,
     env: Any,
@@ -385,14 +405,14 @@ def _policy_interface_payload(
             f"{sorted(HEADING_FREE_ROOT_LABELS)}"
         )
     _require_no_mocap_body(model, version.model_id)
-    observation_segments = _heading_free_observation_segments(model, env, HEADING_FREE_ROOT_LABELS[schema])
-    segment_widths = [_segment_width(segment) for segment in observation_segments]
+    segments = observation_segments(model, env, schema)
+    segment_widths = [_segment_width(segment) for segment in segments]
     observation_width = int(np.prod(env.observation_space.shape))
-    if sum(segment_widths) != observation_width or observation_segments[-1]["name"] != COMMAND_SEGMENT_NAME:
+    if sum(segment_widths) != observation_width or segments[-1]["name"] != COMMAND_SEGMENT_NAME:
         raise PlantContractError(
             f"{version.model_id}'s {schema} segments must sum to the observation width {observation_width} "
             f"and end with the command; widths {segment_widths} sum to {sum(segment_widths)}, last segment "
-            f"{observation_segments[-1]['name']!r}"
+            f"{segments[-1]['name']!r}"
         )
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
@@ -436,7 +456,7 @@ def _policy_interface_payload(
         "observation_schema": version.observation_schema,
         "observation": _space_payload(env.observation_space),
         "observation_probe": sb3_observation_probe,
-        "observation_segments": observation_segments,
+        "observation_segments": segments,
         "action": _space_payload(env.action_space),
         "action_mapping": action_mapping,
         "interface_implementations": interface_implementations,

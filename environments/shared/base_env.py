@@ -12,9 +12,11 @@ across all dinosaur species. Subclasses override species-specific methods:
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Iterator
+from collections import deque
+from collections.abc import Callable, Collection, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
 from typing import Any
@@ -25,6 +27,9 @@ import numpy as np
 
 from .action_filter import apply_low_pass as _apply_low_pass
 from .action_filter import low_pass_alpha as _low_pass_alpha
+from .actuation_delay import ActuationDelay as _ActuationDelay
+from .actuation_delay import primed_fifo as _primed_fifo
+from .actuation_delay import validate_actuation_delay as _validate_actuation_delay
 from .command_frame import COMMAND_MODE_NONE, COMMAND_STREAM_DOMAIN
 from .command_frame import validate_command_mode as _validate_command_mode
 from .command_frame import zero_command as _zero_command
@@ -42,6 +47,14 @@ from .direction_commands import (
     windowed_tracking_metrics,
     wrap_angle,
 )
+from .episode_physics import EpisodePhysicsRandomizer as _EpisodePhysicsRandomizer
+from .episode_physics import validate_episode_physics as _validate_episode_physics
+from .episode_start import ACTUATION_DELAY_STREAM_KEY as _ACTUATION_DELAY_STREAM_KEY
+from .episode_start import OBSERVATION_NOISE_STREAM_KEY as _OBSERVATION_NOISE_STREAM_KEY
+from .episode_start import EpisodeStartHook
+from .episode_start import feature_stream as _feature_stream
+from .observation_noise import ObservationNoise as _ObservationNoise
+from .observation_noise import resolve_observation_noise as _resolve_observation_noise
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
 from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
@@ -74,7 +87,7 @@ _RESET_GROUND_CLEARANCE = 0.0
 _GROUND_PROBE_DISTANCE = 10.0
 
 
-class BaseDinoEnv(gym.Env, ABC):
+class BaseDinoEnv(EpisodeStartHook, ABC):
     """Abstract base class for dinosaur locomotion environments.
 
     Species hook with a base implementation driven by ``_foot_sensor_groups``:
@@ -233,6 +246,51 @@ class BaseDinoEnv(gym.Env, ABC):
     # comparison per substep.
     _substep_probe_hook: "Callable[[], None] | None" = None
 
+    # The env's role (environments/shared/episode_start.py): False, an
+    # evaluation env, unless a trainer marks it through
+    # episode_start.mark_training_rollouts (train_base.make_env for
+    # create_vec_env(training=True), and train_behaviors.main).  Every opt-in
+    # per-episode feature reads it when its episode begins (_begin_episode), so
+    # a change takes effect at the next reset.  The role is not episode state:
+    # the symmetry module's state mirror never copies it.
+    training_rollouts: bool = False
+
+    # The opt-in actuation delay (environments/shared/actuation_delay.py),
+    # None (off) unless the species lists actuation_delay_range_s and a stage
+    # sets it.  The episode's delay in physics steps and the FIFO of nu-wide
+    # ctrl the step loop reads; the FIFO is primed at each episode's first
+    # step.  Off, step() pays two `is not None` checks per step (before the
+    # ctrl write and before the info keys) and one per substep, and copies
+    # nothing.
+    _actuation_delay: "_ActuationDelay | None" = None
+    _actuation_delay_rng: "np.random.Generator | None" = None
+    _actuation_delay_k: "int | None" = None
+    _actuation_delay_fifo: "deque[np.ndarray] | None" = None
+
+    # The opt-in per-episode physics randomisation
+    # (environments/shared/episode_physics.py), None (off) unless the species
+    # lists a randomize_* key and a stage sets one.  It begins each episode
+    # first in _begin_episode, restoring the nominal plant and writing the
+    # episode's draws into self.model; off, a reset pays two `is not None`
+    # checks (_check_episode_may_begin and _begin_episode) and a behavior
+    # env's reset two more (its own _check_episode_may_begin and the model
+    # selection's restore).
+    _episode_physics: "_EpisodePhysicsRandomizer | None" = None
+
+    # The opt-in observation noise (environments/shared/observation_noise.py),
+    # None (off) unless the species lists observation_noise_std and a stage
+    # sets it.  It begins each episode third in _begin_episode, latching
+    # whether the episode is noised (a trainer's rollout env, or any env while
+    # observation_noise_eval is true; None before the first reset) and
+    # continuing or rebuilding its stream; step() adds it to the observation
+    # it returns, after the command recompute (and set_direction to the one
+    # it returns).  The reset observation is never
+    # noised.  Off, step() pays one `is not None` check and returns the very
+    # object _get_obs built.
+    _observation_noise: "_ObservationNoise | None" = None
+    _observation_noise_rng: "np.random.Generator | None" = None
+    _observation_noise_active: "bool | None" = None
+
     metadata = {
         "render_modes": ["human", "rgb_array"],
         "render_fps": 50,
@@ -264,6 +322,16 @@ class BaseDinoEnv(gym.Env, ABC):
         perturbation_direction: str = "uniform_horizontal",
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
+        actuation_delay_range_s: tuple[float, float] | None = None,
+        actuation_delay_eval_s: float | None = None,
+        randomize_friction: tuple[float, float] | None = None,
+        randomize_body_mass_scale: tuple[float, float] | None = None,
+        randomize_actuator_kp_scale: tuple[float, float] | None = None,
+        randomize_actuator_force_limit_scale: tuple[float, float] | None = None,
+        randomize_total_mass_scale: tuple[float, float] | None = None,
+        randomize_payload_kg: tuple[float, float] | None = None,
+        observation_noise_std: Mapping[str, float] | None = None,
+        observation_noise_eval: bool = False,
     ):
         super().__init__()
 
@@ -285,6 +353,12 @@ class BaseDinoEnv(gym.Env, ABC):
             _low_pass_alpha(self.action_filter_cutoff_hz, self.dt) if self.action_filter_cutoff_hz > 0.0 else 0.0
         )
         self._action_filter_state: np.ndarray | None = None
+
+        # The env's role and the opt-in actuation delay (the class attributes
+        # above): an evaluation env, and the delay off unless a stage sets
+        # actuation_delay_range_s (seconds; validated against the timestep).
+        self.training_rollouts = False
+        self._configure_actuation_delay(actuation_delay_range_s, actuation_delay_eval_s)
 
         # Distance tracking (cumulative XY path length)
         self._prev_pos_2d: np.ndarray = np.zeros(2)
@@ -423,6 +497,19 @@ class BaseDinoEnv(gym.Env, ABC):
         # constructor has run (_check_stand_weights); empty under "none".
         self._stand_weights: dict[str, float] = {}
 
+        # The opt-in per-episode physics randomisation (the class attribute
+        # above): off unless a stage sets a randomize_* range.  Checked here,
+        # after _cache_ids and the push derivation, against the model as
+        # constructed; it first changes the model when an episode begins.
+        self._configure_episode_physics(
+            randomize_friction=randomize_friction,
+            randomize_body_mass_scale=randomize_body_mass_scale,
+            randomize_actuator_kp_scale=randomize_actuator_kp_scale,
+            randomize_actuator_force_limit_scale=randomize_actuator_force_limit_scale,
+            randomize_total_mass_scale=randomize_total_mass_scale,
+            randomize_payload_kg=randomize_payload_kg,
+        )
+
         # Define action space (normalized to [-1, 1])
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -439,6 +526,12 @@ class BaseDinoEnv(gym.Env, ABC):
             shape=obs.shape,
             dtype=np.float32,
         )
+
+        # The opt-in observation noise (the class attributes above): off unless
+        # a stage sets observation_noise_std.  Resolved here, once the
+        # observation space exists, against the plant contract's segment table
+        # of the model's observation schema.
+        self._configure_observation_noise(observation_noise_std, observation_noise_eval)
 
         # Rendering
         self.render_mode = render_mode
@@ -1436,14 +1529,21 @@ class BaseDinoEnv(gym.Env, ABC):
         """Set a persistent world heading (radians) and speed (m/s) under a live command mode.
 
         Overrides the schedule until reset and restarts the tracking dwell.
-        Returns the updated observation to use for the next policy action.
+        Returns the updated observation to use for the next policy action.  In
+        an episode the opt-in observation noise noises
+        (``observation_noise_active``) it carries one draw of the noise, as
+        ``step()``'s observation does, so the policy never acts on a clean
+        mid-episode observation; otherwise it is the array ``_get_obs`` built.
         """
         if self.direction_controller is None:
             raise RuntimeError('set_direction needs a live command_mode, not "none"')
         self.direction_controller.set_target(heading, speed, time_s=self._step_count * self.dt)
         self._command = self._update_command()
         self._tracking_dwell_s = 0.0
-        return self._get_obs()
+        obs = self._get_obs()
+        if self._observation_noise is not None:
+            obs = self._noisy_observation(obs)
+        return obs
 
     def _reward_with_command_tracking(self, action: np.ndarray) -> tuple[float, dict[str, Any]]:
         """The species reward and, while a command is live, its tracking term, metrics and dwell.
@@ -1562,6 +1662,226 @@ class BaseDinoEnv(gym.Env, ABC):
         self.command_config = config
         self.direction_controller.replace_config(config)
 
+    def set_training_rollouts(self, enabled: bool) -> None:
+        """Set the env's role: a trainer's rollout env (*enabled*) or an evaluation env.
+
+        Called only through :func:`~environments.shared.episode_start.mark_training_rollouts`
+        (the two trainer call sites ``test_episode_start.py`` pins).  It takes
+        effect at the next reset, for every opt-in feature alike.
+        """
+        if not isinstance(enabled, (bool, np.bool_)):
+            raise TypeError(f"training_rollouts must be a bool, got {enabled!r}")
+        self.training_rollouts = bool(enabled)
+
+    def _configure_actuation_delay(self, range_s: Any, eval_s: Any) -> None:
+        """Validate and install the opt-in actuation delay against this model's timestep (None: off).
+
+        ``__init__`` calls it with its two delay kwargs; a test subclass of a
+        species that does not forward them may call it again after
+        ``super().__init__()``, before the first reset.  A delay of at least
+        the episode's physics steps (``max_episode_steps x frame_skip`` as
+        constructed) is refused: no target would reach the plant within an
+        episode, the mark of a value typed in milliseconds.
+        """
+        self._actuation_delay = _validate_actuation_delay(
+            range_s,
+            eval_s,
+            float(self.model.opt.timestep),
+            episode_steps=int(self.max_episode_steps) * int(self.frame_skip),
+        )
+        self._actuation_delay_rng = None
+        self._actuation_delay_k = None
+        self._actuation_delay_fifo = None
+
+    @property
+    def actuation_delay_steps(self) -> int | None:
+        """This episode's actuation delay in physics steps; ``None`` while the delay is off or before the first reset.
+
+        Chosen when the episode begins, so it is valid from the reset on.
+        """
+        return self._actuation_delay_k if self._actuation_delay is not None else None
+
+    def _configure_episode_physics(self, **ranges: Any) -> None:
+        """Validate and install the opt-in per-episode physics randomisation (every key ``None``: off).
+
+        Takes the six ``randomize_*`` keys by name
+        (``episode_physics.EPISODE_PHYSICS_ENV_KEYS``).  ``__init__`` calls it
+        with its six kwargs; a test subclass of a species that does not
+        forward them may call it again after ``super().__init__()``, before
+        the first reset.  The ranges are checked here against ``self.model``
+        (contact pairs, the floor and the friction hook's geoms, position
+        servos, force limits, the payload body's mass), and again on each
+        model at the first episode on it; the model is first changed when an
+        episode begins, so a species edit made after ``super().__init__()`` is
+        part of the nominal plant.  Refused with ``RuntimeError`` inside a
+        :meth:`nominal_physics` block, before anything moves: the block's exit
+        would write the episode's values back over the plant the new
+        randomisation records as nominal.
+        """
+        if self._episode_physics is not None:
+            self._episode_physics.refuse_inside_nominal("reconfiguring the randomisation")
+        self._restore_episode_physics()
+        config = _validate_episode_physics(**ranges)
+        self._episode_physics = None if config is None else _EpisodePhysicsRandomizer(self, config)
+
+    def _randomized_friction_geoms(self) -> "np.ndarray":
+        """The animal geoms whose sliding friction ``randomize_friction`` writes, with every static floor geom.
+
+        Every colliding animal geom by default (:meth:`_root_subtree_geoms`), so
+        each floor contact takes the episode's coefficient whichever geom's
+        friction MuJoCo picks.  A species narrows it (to its soles, say) to
+        keep its self-contacts at their authored friction.  It returns a 1-D
+        array of integer geom ids, each a colliding animal geom (a boolean
+        mask, an id outside the model or any other geom is refused with
+        ``ValueError``).  Read when the randomisation is constructed and once
+        per model, at the first episode on it.
+        """
+        return self._root_subtree_geoms()
+
+    def _restore_episode_physics(self) -> None:
+        """Every model this env randomised back to its nominal values (nothing while randomisation is off)."""
+        if self._episode_physics is not None:
+            self._episode_physics.restore_all()
+
+    def nominal_physics(self) -> "contextlib.AbstractContextManager[None]":
+        """A block in which ``self.model`` holds its nominal values, the episode's written back after it.
+
+        For a diagnostic that needs the nominal plant after a randomised reset,
+        such as plant validation, which refuses the randomised model.  The
+        episode's values come back whether the block returns or raises, and
+        blocks nest.  Off, or before the first randomised episode, the block
+        changes nothing.  Reset no env inside it: a reset inside the block
+        raises ``RuntimeError`` before anything of it runs
+        (:meth:`_check_episode_may_begin`), and so does reconfiguring the
+        randomisation.
+        """
+        if self._episode_physics is None:
+            return contextlib.nullcontext()
+        return self._episode_physics.nominal(self)
+
+    @property
+    def episode_physics_factors(self) -> "dict[str, Any] | None":
+        """This episode's applied draws, by quantity.
+
+        ``None`` while randomisation is off, before the first reset, and after
+        an episode whose values could not be written (a refusal when its
+        model's record is taken, or a raise while the values are written).  A
+        reset refused before it begins (inside a :meth:`nominal_physics`
+        block) changes nothing, these factors included.
+        """
+        return None if self._episode_physics is None else self._episode_physics.factors
+
+    def _check_episode_may_begin(self) -> None:
+        """Refuse a reset inside a :meth:`nominal_physics` block with ``RuntimeError``, before anything of it runs.
+
+        ``EpisodeStartHook.reset`` calls it before gymnasium reseeds
+        ``np_random``, and the behaviour mixin's ``reset`` before it moves its
+        episode counters or selects a pool model, so a refused reset leaves
+        the env as it was: its model, data, generators and
+        :attr:`episode_physics_factors`.  One ``is not None`` check while
+        randomisation is off.
+        """
+        if self._episode_physics is not None:
+            self._episode_physics.refuse_inside_nominal("a reset")
+
+    def _configure_observation_noise(self, std_by_segment: Any, eval_noise: Any) -> None:
+        """Validate and install the opt-in observation noise against this env's observation (``None``: off).
+
+        ``__init__`` calls it with its two noise kwargs, once the observation
+        space exists; a test subclass of a species that does not forward them
+        may call it again after ``super().__init__()``, before the first reset.
+        The table's names are the plant contract's observation segments of the
+        model's observation schema (``observation_noise.observation_layout``).
+        """
+        self._observation_noise = _resolve_observation_noise(self, std_by_segment, eval_noise)
+        self._observation_noise_rng = None
+        self._observation_noise_active = None
+
+    @property
+    def observation_noise_active(self) -> bool:
+        """Whether this episode's step observations are noised (never the reset observation).
+
+        Latched when the episode begins: true in a trainer's rollout env, or in
+        any env while ``observation_noise_eval`` is true.  ``False`` while the
+        noise is off and before the first reset.
+        """
+        return self._observation_noise is not None and bool(self._observation_noise_active)
+
+    def _begin_episode(self, seed: int | None) -> None:
+        """Where each opt-in feature begins its episode (``episode_start.EpisodeStartHook``).
+
+        Runs inside :meth:`reset`'s ``super().reset(seed=seed)``, after
+        gymnasium seeds ``np_random`` and before the keyframe is loaded.  Each
+        feature is behind one ``is not None`` check on a class attribute that
+        defaults to ``None``; with every feature off this calls nothing, reads
+        no generator and writes nothing.  The physics randomisation begins
+        first, so every later feature's episode starts on this episode's plant;
+        then the actuation delay, then the observation noise.
+        """
+        if self._episode_physics is not None:
+            self._episode_physics.begin_episode(self, seed)
+        if self._actuation_delay is not None:
+            self._begin_actuation_delay_episode(seed)
+        if self._observation_noise is not None:
+            self._begin_observation_noise_episode(seed)
+
+    def _begin_actuation_delay_episode(self, seed: int | None) -> None:
+        """Choose this episode's delay k and clear the FIFO (primed again at the first step).
+
+        The stream (``episode_start.feature_stream``) is rebuilt on a seeded
+        reset and on the first, and continued across unseeded ones.  k is the
+        eval value in an evaluation env when it is not ``None``, ``lo`` when the
+        range is one value, and otherwise one uniform draw over the whole steps
+        in ``[lo, hi]``: a draw happens only where k comes from the range.
+        """
+        config = self._actuation_delay
+        assert config is not None
+        if seed is not None or self._actuation_delay_rng is None:
+            self._actuation_delay_rng = _feature_stream(self, seed, _ACTUATION_DELAY_STREAM_KEY)
+        lo, hi = config.range_steps
+        if not self.training_rollouts and config.eval_steps is not None:
+            k = config.eval_steps
+        elif lo == hi:
+            k = lo
+        else:
+            k = int(self._actuation_delay_rng.integers(lo, hi + 1))
+        self._actuation_delay_k = k
+        self._actuation_delay_fifo = None
+
+    def _begin_observation_noise_episode(self, seed: int | None) -> None:
+        """Latch whether this episode's step observations are noised, and continue or rebuild the noise's stream.
+
+        Noised in a trainer's rollout env, and in any env while
+        ``observation_noise_eval`` is true.  The stream
+        (``episode_start.feature_stream``) is rebuilt on a seeded reset and on
+        the first, and continued across unseeded ones; it is drawn only while
+        an episode is noised, once per step.
+        """
+        noise = self._observation_noise
+        assert noise is not None
+        if seed is not None or self._observation_noise_rng is None:
+            self._observation_noise_rng = _feature_stream(self, seed, _OBSERVATION_NOISE_STREAM_KEY)
+        self._observation_noise_active = bool(self.training_rollouts or noise.eval_noise)
+
+    def _noisy_observation(self, obs: np.ndarray) -> np.ndarray:
+        """*obs* with one draw of this episode's noise, or *obs* itself while the episode is not noised."""
+        noise, rng = self._observation_noise, self._observation_noise_rng
+        if noise is None or rng is None or self._observation_noise_active is None:
+            raise RuntimeError(
+                "an env with observation noise steps only after reset(), which begins the noise's episode"
+            )
+        if not self._observation_noise_active:
+            return obs
+        return noise.apply(obs, rng)
+
+    def _actuation_delay_fifo_for_step(self) -> "deque[np.ndarray]":
+        """The FIFO this step appends to: primed from ``data.ctrl`` as reset left it at the episode's first step."""
+        if self._actuation_delay_k is None:
+            raise RuntimeError("an env with an actuation delay steps only after reset(), which chooses the delay")
+        if self._step_count == 0 or self._actuation_delay_fifo is None:
+            self._actuation_delay_fifo = _primed_fifo(self.data.ctrl, self._actuation_delay_k)
+        return self._actuation_delay_fifo
+
     def _filter_action(self, action: np.ndarray) -> np.ndarray:
         """Low-pass the commanded action (action_filter_cutoff_hz > 0 only).
 
@@ -1630,6 +1950,14 @@ class BaseDinoEnv(gym.Env, ABC):
             )
         # Scale action from [-1, 1] to actuator control ranges
         ctrl = self._scale_action(action)
+        # The opt-in actuation delay (actuation_delay.py): the FIFO is primed
+        # at the episode's first step from data.ctrl as reset left it, before
+        # the write below, and this step's target joins it as the float64
+        # copy that write stores.  Off, this check is all it costs here.
+        delay_fifo: "deque[np.ndarray] | None" = None
+        if self._actuation_delay is not None:
+            delay_fifo = self._actuation_delay_fifo_for_step()
+            delay_target = np.array(ctrl, dtype=np.float64)
         self.data.ctrl[:] = ctrl
 
         # Step physics, aggregating contact across the substeps: each mj_step
@@ -1658,6 +1986,12 @@ class BaseDinoEnv(gym.Env, ABC):
                 self._ground_geom_array = np.fromiter(sorted(track_strikes), dtype=np.int64)
             ground_geoms = self._ground_geom_array
         for substep in range(self.frame_skip):
+            if delay_fifo is not None:
+                # This physics step's target goes in; the one appended k
+                # physics steps ago (the reset ctrl for an episode's first k)
+                # reaches the plant.
+                delay_fifo.append(delay_target)
+                self.data.ctrl[:] = delay_fifo[0]
             mujoco.mj_step(self.model, self.data)
             if self._substep_probe_hook is not None:
                 self._substep_probe_hook()
@@ -1722,6 +2056,12 @@ class BaseDinoEnv(gym.Env, ABC):
         info = {**reward_info, **term_info}
         info["step"] = self._step_count
         info["distance_traveled"] = self._distance_traveled
+        if delay_fifo is not None:
+            # The steps are exact; the seconds are rounded, since 9 x 0.001 is
+            # 0.009000000000000001 in float64.
+            delay_steps = len(delay_fifo) - 1
+            info["actuation_delay_steps"] = delay_steps
+            info["actuation_delay_s"] = round(delay_steps * float(self.model.opt.timestep), 12)
 
         # SB3 convention: report episode success at episode end.  No
         # in-training reader collects it since decision D-D59
@@ -1744,6 +2084,14 @@ class BaseDinoEnv(gym.Env, ABC):
             if current is not None and current.event_id != executed.event_id:
                 self._tracking_dwell_s = 0.0
             obs = self._get_obs()
+
+        # The opt-in observation noise (observation_noise.py), on the returned
+        # observation only, after the command recompute: never in the hashed
+        # _get_obs or reset, so the reset observation, plant validation and the
+        # plant contract's probe stay clean.  Off, this check is all it costs
+        # and obs is the very object _get_obs built.
+        if self._observation_noise is not None:
+            obs = self._noisy_observation(obs)
 
         # Render if needed
         if self.render_mode == "human":

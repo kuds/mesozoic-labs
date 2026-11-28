@@ -1266,6 +1266,128 @@ def test_interrupted_evaluation_keeps_trained_bundle_and_records_status(stubbed_
     train_behaviors._verify_bundle(output / "model.zip", output / "vecnormalize.pkl")
 
 
+def _short_recipe(directory: Path) -> Path:
+    """A recipe with no [env] table, for the cheap command envs below (which take no species kwargs)."""
+    config = directory / "short.toml"
+    config.write_text(
+        '[behavior]\nspecies = "tyrannosaurus_rex"\nembodiment = "anatomical"\nname = "short"\nparent = "locomotion"\n'
+        "timesteps = 48\n"
+    )
+    return config
+
+
+def test_cli_marks_its_env_for_training_and_unmarks_it_before_scoring(stubbed_cli, tmp_path, monkeypatch):
+    """train_behaviors.main marks the env it trains in a trainer's rollout env right after building it, so the opt-in
+    per-episode features draw their training distribution while it trains, and unmarks it right before
+    evaluate_behavior scores the same env (design record docs/TRICERATOPS_ROBOT_PORT_2026_11.md §4.3)."""
+    from environments.shared import behavior_checkpoint, behavior_evaluation
+
+    _, parent, normalization = stubbed_cli
+    events = []
+
+    class MarkedPilotEnv(CommandEnv):
+        def __init__(self, **kwargs):
+            super().__init__(live=True)
+            self.training_rollouts = False
+            self.task_fingerprint = {"schema": "runner-test/v1", "task": "live-commands", "task_sha256": "sha256:m"}
+
+        def set_training_rollouts(self, enabled):
+            events.append(("mark", enabled))
+            self.training_rollouts = enabled
+
+    load = behavior_checkpoint.prepare_behavior_checkpoint
+
+    def recording_load(model_path, vecnorm_path, env, **kwargs):
+        events.append(("train", env.unwrapped.training_rollouts))
+        return load(model_path, vecnorm_path, env, **kwargs)
+
+    def evaluate(model, normalizer, **kwargs):
+        events.append(("evaluate", normalizer.env.unwrapped.training_rollouts))
+        return {"episodes": len(kwargs["episode_seeds"])}
+
+    monkeypatch.setattr(train_behaviors, "get_behavior_env_class", lambda model_id: MarkedPilotEnv)
+    monkeypatch.setattr(behavior_checkpoint, "prepare_behavior_checkpoint", recording_load)
+    monkeypatch.setattr(behavior_evaluation, "evaluate_behavior", evaluate)
+    output = tmp_path / "marked"
+    args = _args(_short_recipe(tmp_path), parent, normalization, output)
+    args[args.index("--eval-episodes") + 1] = "2"
+    train_behaviors.main(args + ["--steps", "100"])
+    assert events == [("mark", True), ("train", True), ("mark", False), ("evaluate", False)]
+    assert json.loads((output / "run.json").read_text())["evaluation"] == {"episodes": 2}
+
+
+def test_cli_leaves_a_plain_gymnasium_env_unmarked(stubbed_cli, tmp_path, monkeypatch):
+    """An env without set_training_rollouts (this file's CommandEnv) is left as it is (design record P1)."""
+    _, parent, normalization = stubbed_cli
+
+    class PlainPilotEnv(CommandEnv):
+        def __init__(self, **kwargs):
+            super().__init__(live=True)
+            self.task_fingerprint = {"schema": "runner-test/v1", "task": "live-commands", "task_sha256": "sha256:p"}
+
+    monkeypatch.setattr(train_behaviors, "get_behavior_env_class", lambda model_id: PlainPilotEnv)
+    output = tmp_path / "plain"
+    train_behaviors.main(_args(_short_recipe(tmp_path), parent, normalization, output) + ["--steps", "100"])
+    assert json.loads((output / "run.json").read_text())["status"] == "complete"
+
+
+def test_transition_refuses_a_changed_actuation_delay_section(learned_behavior):
+    """The opt-in actuation delay's section (its implementation tag) is task identity across a behavior transition,
+    as the perturbation section is: switching it on, or bumping its tag, is refused by name."""
+    from environments.shared.actuation_delay import ACTUATION_DELAY_IMPLEMENTATION
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+
+    previous = copy.deepcopy(learned_behavior[-1])
+    assert "actuation_delay" not in previous
+    switched_on = copy.deepcopy(previous)
+    switched_on["actuation_delay"] = {"implementation": ACTUATION_DELAY_IMPLEMENTATION}
+    bumped = copy.deepcopy(switched_on)
+    bumped["actuation_delay"]["implementation"] += "+next"
+    for old, new in ((previous, switched_on), (switched_on, previous), (switched_on, bumped)):
+        with pytest.raises(BehaviorCheckpointError, match="Incompatible behavior transition fields: actuation_delay$"):
+            _validate_behavior_transition(old, new)
+    _validate_behavior_transition(switched_on, copy.deepcopy(switched_on))
+
+
+def test_transition_refuses_a_changed_episode_physics_section(learned_behavior):
+    """The opt-in physics randomisation's section (its implementation tag) is task identity across a behavior
+    transition, as the actuation delay's is: switching it on or off, or bumping its tag, is refused by name."""
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+    from environments.shared.episode_physics import EPISODE_PHYSICS_IMPLEMENTATION
+
+    previous = copy.deepcopy(learned_behavior[-1])
+    assert "episode_physics" not in previous
+    switched_on = copy.deepcopy(previous)
+    switched_on["episode_physics"] = {"implementation": EPISODE_PHYSICS_IMPLEMENTATION}
+    bumped = copy.deepcopy(switched_on)
+    bumped["episode_physics"]["implementation"] += "+next"
+    for old, new in ((previous, switched_on), (switched_on, previous), (switched_on, bumped)):
+        with pytest.raises(BehaviorCheckpointError, match="Incompatible behavior transition fields: episode_physics$"):
+            _validate_behavior_transition(old, new)
+    _validate_behavior_transition(switched_on, copy.deepcopy(switched_on))
+
+
+def test_transition_refuses_a_changed_observation_noise_section(learned_behavior):
+    """The opt-in observation noise's section (its implementation tag) is task identity across a behavior
+    transition, as the delay's and the randomisation's are: switching it on or off, or bumping its tag, is refused by
+    name."""
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+    from environments.shared.observation_noise import OBSERVATION_NOISE_IMPLEMENTATION
+
+    previous = copy.deepcopy(learned_behavior[-1])
+    assert "observation_noise" not in previous
+    switched_on = copy.deepcopy(previous)
+    switched_on["observation_noise"] = {"implementation": OBSERVATION_NOISE_IMPLEMENTATION}
+    bumped = copy.deepcopy(switched_on)
+    bumped["observation_noise"]["implementation"] += "+next"
+    for old, new in ((previous, switched_on), (switched_on, previous), (switched_on, bumped)):
+        with pytest.raises(
+            BehaviorCheckpointError, match="Incompatible behavior transition fields: observation_noise$"
+        ):
+            _validate_behavior_transition(old, new)
+    _validate_behavior_transition(switched_on, copy.deepcopy(switched_on))
+
+
 def test_interrupted_bundle_save_finishes_a_resumable_pair(stubbed_cli, tmp_path, monkeypatch):
     _, parent, normalization = stubbed_cli
     output = tmp_path / "interrupted-save"

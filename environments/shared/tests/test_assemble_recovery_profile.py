@@ -39,7 +39,13 @@ EDITED_SINCE_MEASUREMENT = {
     # behavior change (the is_success comment in _step_body now says no in-training reader collects it since
     # decision D-D59).  2026-11-26: D-D64 tracking window, live-only; the none golden replays (the window is built only
     # for a live command config with tracking_window_s > 0, never under "none", and reset() is untouched).
-    "environments/shared/base_env.py": "14cf07b7ff68505f85b9118dd537fc607b53729aea3275c6719062dbfbf6d275",
+    # 2026-11-27: the opt-in actuation delay, per-episode physics randomisation and observation noise, with their
+    # episode-start hook (BaseDinoEnv derives from episode_start.EpisodeStartHook) and the trainer's role flag
+    # (design record docs/TRICERATOPS_ROBOT_PORT_2026_11.md sections 4-7); each is off unless the species lists its
+    # keys and a stage sets them, which no model does, so the off path calls nothing and draws nothing: the none golden
+    # replays, every task_sha256 and digest is unchanged, the --exact capture is byte-identical, and reset() is
+    # untouched.
+    "environments/shared/base_env.py": "a288de4aa7a191468e78aaa7bd15eed0c6069620df7ab48a412aea704e3857fb",
     # Decision D-D62: the species reward reads BaseDinoEnv's forward reference and drift anchor, which under the
     # recovery's command_mode "none" are the spawn arrays it read before (the same golden proves it).
     "environments/compsognathus_longipes/base_env.py": "303d40f3aa13f5cf65159eb180061b7214f941eff4d9c47c531d1b4e8ee12ba8",

@@ -276,42 +276,80 @@ critical bridge between "cool demo" and "transferable research."
 
 ### Milestone: v0.4.0 — "Into the Wild"
 
-- [ ] **Domain randomization**
-  **Planned design:** these APIs are not implemented in `BaseDinoEnv` today.
+- [-] **Domain randomization** — friction, mass, servo-gain and force-limit
+  randomisation are done, as opt-in shared features (below); joint damping and
+  gravity are not started
   External pushes exist in another form: the recovery stages of T-Rex and the
   Compsognathus pair train against scheduled pushes (`perturbation_*` `[env]`
   keys, `environments/shared/perturbation.py`), as the task rather than as
   randomization of later stages.
-  Add opt-in TOML settings, cache nominal physics at initialization, and apply
-  sampled changes relative to XML defaults on each `reset()`.
-  - **Ground friction** (`friction_range`): Multiplicative per-episode scaling
-    of all geom friction coefficients (e.g. `[0.8, 1.2]` = +/-20%). Teaches
-    handling of slippery and grippy surfaces.
+  - [x] **Per-episode physics randomisation** (2026-11, design record
+    [TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §6;
+    `environments/shared/episode_physics.py`): six opt-in `[env]` keys, each
+    `None` (off) or `(low, high)`. Each episode restores the nominal plant
+    (exact copies taken at the model's first episode) and writes one draw of
+    its own stream, before the keyframe is loaded. Off for every model: a
+    species opts in by listing the keys in its constructor.
+    - [x] **Ground friction** (`randomize_friction`): an ABSOLUTE sliding
+      coefficient, one per episode, on every floor geom and the species'
+      friction geoms (every colliding animal geom unless it narrows them),
+      not the multiplicative `friction_range` planned here, so the range reads
+      in the units of a measured coefficient and means the same on every model.
+    - [x] **Mass** (`randomize_body_mass_scale`, per animal body, mass and
+      inertia; `randomize_total_mass_scale` and `randomize_payload_kg`, the
+      whole animal and an added payload, in a trainer's rollout envs only).
+    - [x] **Actuator strength**, split in two: `randomize_actuator_kp_scale`
+      (per position servo, kp with its bias term, damping kept) and
+      `randomize_actuator_force_limit_scale` (per force-limited actuator, both
+      ends of `forcerange`), in place of one `actuator_strength_range`.
   - **Joint damping** (`joint_damping_range`): Per-joint multiplicative scaling
     each episode (e.g. `[0.9, 1.1]`). Simulates wear, temperature variation,
     and model uncertainty in joint dynamics.
   - **Gravity perturbation** (`gravity_range`): Additive offset on Z-gravity
     each episode (e.g. `[-0.5, 0.5]` around -9.81 m/s²). Prevents overfitting
     to the exact gravity constant.
-  - **Actuator strength** (`actuator_strength_range`): Per-actuator
-    multiplicative scaling each episode (e.g. `[0.9, 1.1]`). Forces the policy
-    to handle motor strength variation.
   - **External force perturbations** (`push_force_scale`, `push_interval`):
     Random 3D pushes applied to the root body every N steps during the episode
     (e.g. 5 N every 100 steps). Most impactful single technique for locomotion
     balance recovery.
   - Introduce in Stage 2+ configs only — Stage 1 (balance) should train
-    without perturbations so the agent learns to stand first.
+    without perturbations so the agent learns to stand first. The 60 cm
+    Triceratops robot of the design record (§8) departs from this on purpose:
+    it randomises in both its stages, stance included, as its build does.
   - _Dependency: Phase 1 (need working trained policies to evaluate against)_
 
-- [ ] **Sensor noise & action delay**
-  - **Observation noise** (`obs_noise_scale`): Additive Gaussian noise applied
-    to the full observation vector each step (e.g. std dev 0.01). Simulates
-    sensor imprecision and prevents reliance on unrealistically precise state.
-    Implemented in `BaseDinoEnv.step()` after `_get_obs()`.
+- [-] **Sensor noise & action delay** — observation noise and the action delay
+  are done, as opt-in shared features (below); accelerometer bias drift and
+  touch-sensor thresholds are not started
+  - [x] **Observation noise** (2026-11, design record
+    [TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §7;
+    `environments/shared/observation_noise.py`): per-segment keys in place of
+    one `obs_noise_scale`. `observation_noise_std` is `None` (off) or a table
+    of observation segment (the plant contract's segment names for the
+    model's observation schema) to standard deviation, in each segment's own
+    units; the command is never noised. Additive Gaussian noise on the
+    observation `BaseDinoEnv.step()` returns, after `_get_obs()` and the
+    command recompute, never on the reset observation; each noised unit
+    segment (the root's projected gravity, on every current heading-free
+    schema) is renormalised. A trainer's rollout envs are noised, and every
+    other env only when
+    `observation_noise_eval` is true. It draws from its own stream, never
+    `np_random`, and sits inside the env, before `VecNormalize`. Off for every
+    model: a species opts in by listing the keys in its constructor.
   - Add accelerometer bias drift model
   - Add touch sensor activation thresholds
-  - Simulate 1-3 step action delay to model communication latency
+  - [x] **Action delay** (2026-11, design record
+    [TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §5):
+    `actuation_delay_range_s` and `actuation_delay_eval_s` in `[env]`, in
+    seconds, each a whole number of physics steps
+    (`environments/shared/actuation_delay.py`). A FIFO in `BaseDinoEnv.step()`
+    hands every control target to the plant k physics steps late, the FIFO
+    primed with the reset ctrl. A trainer's rollout envs draw k per episode
+    from the range; every other env holds the fixed evaluation value (or
+    draws from the range when it is `None`). The delay
+    is counted in physics steps, not control steps, so it may be shorter than
+    one control step. Off for every model: a species opts in by listing the
+    keys in its constructor.
   - All noise parameters in TOML config `[env]` sections, disabled by default
   - _Dependency: Phase 0 config externalization_
 

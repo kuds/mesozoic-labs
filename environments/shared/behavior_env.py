@@ -245,6 +245,11 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
 
     def _select_contact_model(self, *, use_terrain: bool) -> None:
         """Select a precompiled scene and discard episode-dependent caches."""
+        # Every pool model back to nominal before the swap and _cache_ids,
+        # which reads masses (the species' weight thresholds): the opt-in
+        # physics randomisation (episode_physics.py) writes the next episode's
+        # values only when it begins.  Nothing while it is off.
+        self._restore_episode_physics()
         if use_terrain:
             assert self._terrain_model is not None and self._terrain_data is not None
             model, data = self._terrain_model, self._terrain_data
@@ -396,7 +401,10 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[np.ndarray, dict]:
         # Refused before the episode stream moves: a seed that is not a nonnegative integer, a family
         # override (options={"terrain_family": ...}, evaluation's round robin) outside this task, or a
-        # family whose surface cannot be built (a sampler reassigned after construction).
+        # family whose surface cannot be built (a sampler reassigned after construction).  First, a reset
+        # inside a nominal_physics() block (episode_physics.py), before the episode counters move or a pool
+        # model is selected; nothing while the randomisation is off.
+        self._check_episode_may_begin()
         if seed is not None:
             if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)) or seed < 0:
                 raise ValueError("seed must be a nonnegative integer")

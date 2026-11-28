@@ -672,6 +672,234 @@ def test_the_state_mirror_is_an_involution(stance_kwargs):
         env.close()
 
 
+#: A test-only Velociraptor that opts into the actuation delay (2 ms physics, frame_skip 5): 6-12 physics steps in a
+#: trainer's rollout env, 8 in an evaluation env, so the FIFO always holds targets of more than one control step.
+_DELAYED_VELOCIRAPTOR_MONGOLIENSIS = {"actuation_delay_range_s": (0.012, 0.024), "actuation_delay_eval_s": 0.016}
+
+
+def _velociraptor_mongoliensis_actions(n: int, seed: int, amplitude: float) -> list[np.ndarray]:
+    """:func:`_smooth_actions` for the Velociraptor's 17 actuators."""
+    rng = np.random.default_rng(seed)
+    x = np.zeros(17)
+    out = []
+    for _ in range(n):
+        x += -0.1 * x + 0.12 * rng.normal(size=17)
+        out.append(np.clip(amplitude * x / 0.27, -1.0, 1.0))
+    return out
+
+
+@pytest.mark.parametrize("seed", [3047, 3059])
+def test_a_delayed_env_mirrored_mid_episode_stays_the_mirror_image(seed):
+    """The state mirror carries the delay's in-flight targets (through the ctrl map) and the episode's delay, not
+    the env's role: a delayed Velociraptor mirrored mid-episode into an evaluation env of the same delay
+    configuration, which holds another k, steps as the mirror image of its source to the last bit, and keeps its
+    role.  Dropping the in-flight targets diverges."""
+    from environments.shared.episode_start import mark_training_rollouts
+
+    from .actuation_delay_helpers import DelayedVelociraptorMongoliensisAnatomicalEnv
+
+    kwargs = {**load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")["env_kwargs"]}
+    errors = {}
+    for drop in (False, True):
+        source, mirror = (
+            DelayedVelociraptorMongoliensisAnatomicalEnv(**kwargs, **_DELAYED_VELOCIRAPTOR_MONGOLIENSIS),
+            DelayedVelociraptorMongoliensisAnatomicalEnv(**kwargs, **_DELAYED_VELOCIRAPTOR_MONGOLIENSIS),
+        )
+        try:
+            em = _env_mirror(source)
+            mark_training_rollouts(source, True)
+            source.reset(seed=seed)
+            mirror.reset(seed=seed + 1)
+            assert mirror.actuation_delay_steps == 8 and source.actuation_delay_steps != 8
+            actions = _velociraptor_mongoliensis_actions(100, 1, 0.3)
+            for action in actions[:20]:
+                source.step(action)
+            mujoco.mj_forward(source.model, source.data)
+            SY.mirror_env_state(source, mirror, em)
+            assert (source.training_rollouts, mirror.training_rollouts) == (True, False)
+            assert mirror.actuation_delay_steps == source.actuation_delay_steps
+            if drop:
+                mirror._actuation_delay_fifo = None
+            worst = float(np.max(np.abs(mirror._get_obs() - em.obs.apply(source._get_obs()))))
+            for action in actions[20:]:
+                obs_source, _, terminated_source, truncated_source, _ = source.step(action)
+                obs_mirror, _, terminated_mirror, truncated_mirror, _ = mirror.step(em.action.apply(action))
+                worst = max(worst, float(np.max(np.abs(obs_mirror.astype(np.float64) - em.obs.apply(obs_source)))))
+                if terminated_source or truncated_source or terminated_mirror or truncated_mirror:
+                    break
+            errors[drop] = worst
+        finally:
+            source.close()
+            mirror.close()
+    assert errors[False] == 0.0
+    assert errors[True] > 1.0
+
+
+def test_the_state_mirror_of_the_delay_fifo_is_an_involution():
+    from .actuation_delay_helpers import DelayedVelociraptorMongoliensisAnatomicalEnv
+
+    env = DelayedVelociraptorMongoliensisAnatomicalEnv(**_DELAYED_VELOCIRAPTOR_MONGOLIENSIS)
+    try:
+        em = _env_mirror(env)
+        env.reset(seed=3050)
+        for action in _velociraptor_mongoliensis_actions(4, 2, 0.2):
+            env.step(action)
+        fifo = [entry.copy() for entry in env._actuation_delay_fifo]
+        SY.mirror_env_state(env, env, em)
+        assert env._actuation_delay_fifo.maxlen == len(fifo) and not np.array_equal(
+            env._actuation_delay_fifo[-1], fifo[-1]
+        )
+        SY.mirror_env_state(env, env, em)
+        assert len(env._actuation_delay_fifo) == len(fifo)
+        assert all(np.array_equal(a, b) for a, b in zip(env._actuation_delay_fifo, fifo))
+    finally:
+        env.close()
+
+
+def test_the_state_mirror_refuses_envs_whose_delays_differ():
+    """A delay-off source would leave a delay-on destination with no delay chosen, a delay-off destination would drop
+    the source's in-flight targets, and a destination of another delay configuration would step with a k its own
+    configuration does not give: each is refused before anything is written.  Two delay-off envs mirror as before."""
+    from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
+
+    from .actuation_delay_helpers import DelayedVelociraptorMongoliensisAnatomicalEnv
+
+    envs = {
+        "off": VelociraptorMongoliensisAnatomicalEnv(),
+        "also off": VelociraptorMongoliensisAnatomicalEnv(),
+        "on": DelayedVelociraptorMongoliensisAnatomicalEnv(**_DELAYED_VELOCIRAPTOR_MONGOLIENSIS),
+        "other": DelayedVelociraptorMongoliensisAnatomicalEnv(actuation_delay_range_s=(0.0, 0.010)),
+    }
+    try:
+        em = _env_mirror(envs["off"])
+        for index, env in enumerate(envs.values()):
+            env.reset(seed=3061 + index)
+            for action in _velociraptor_mongoliensis_actions(5, index, 0.2):
+                env.step(action)
+        for source, destination in (("off", "on"), ("on", "off"), ("on", "other"), ("other", "on")):
+            dst = envs[destination]
+            before = (dst.data.qpos.copy(), dst._step_count, dst._actuation_delay_k, dst._actuation_delay_fifo)
+            with pytest.raises(SY.SymmetryError, match="must share the actuation delay configuration"):
+                SY.mirror_env_state(envs[source], dst, em)
+            assert np.array_equal(dst.data.qpos, before[0])
+            assert (dst._step_count, dst._actuation_delay_k) == before[1:3] and dst._actuation_delay_fifo is before[3]
+        SY.mirror_env_state(envs["off"], envs["also off"], em)
+        assert envs["also off"]._actuation_delay_k is None and envs["also off"]._actuation_delay_fifo is None
+    finally:
+        for env in envs.values():
+            env.close()
+
+
+def test_the_state_mirror_refuses_a_randomised_plant():
+    """The state is mirrored, not the plant: the opt-in per-episode physics randomisation draws per body and per
+    servo, so a randomised plant is not mirror-symmetric and each env keeps its own.  A source or destination holding
+    a randomised plant (in place included) is refused before anything is written; an env whose randomiser holds no
+    episode values (the training-only keys in an evaluation env) mirrors as before."""
+    from environments.shared.episode_start import mark_training_rollouts
+    from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
+
+    from .episode_physics_helpers import with_episode_physics
+
+    randomized = with_episode_physics(VelociraptorMongoliensisAnatomicalEnv)
+    envs = {
+        "off": VelociraptorMongoliensisAnatomicalEnv(),
+        "randomised": randomized(randomize_body_mass_scale=(0.9, 1.1), randomize_actuator_kp_scale=(0.9, 1.1)),
+        "also randomised": randomized(randomize_body_mass_scale=(0.9, 1.1)),
+        "nominal": randomized(randomize_total_mass_scale=(0.9, 1.1), randomize_payload_kg=(0.0, 0.1)),
+    }
+    try:
+        em = _env_mirror(envs["off"])
+        for index, env in enumerate(envs.values()):
+            env.reset(seed=3047 + index)
+            for action in _velociraptor_mongoliensis_actions(5, index, 0.2):
+                env.step(action)
+        for source, destination in (
+            ("randomised", "off"),
+            ("off", "randomised"),
+            ("randomised", "also randomised"),
+            ("randomised", "randomised"),
+            ("nominal", "randomised"),
+        ):
+            dst = envs[destination]
+            before = (dst.data.qpos.copy(), dst.data.qvel.copy(), dst._step_count)
+            role = "source" if "randomised" in source else "destination"
+            with pytest.raises(SY.SymmetryError, match=f"the {role} env holds a randomised plant"):
+                SY.mirror_env_state(envs[source], dst, em)
+            assert np.array_equal(dst.data.qpos, before[0]) and np.array_equal(dst.data.qvel, before[1])
+            assert dst._step_count == before[2]
+        assert not envs["nominal"]._episode_physics.holds_episode_values(envs["nominal"].model)
+        SY.mirror_env_state(envs["off"], envs["nominal"], em)
+        SY.mirror_env_state(envs["nominal"], envs["off"], em)
+        mark_training_rollouts(envs["nominal"], True)
+        envs["nominal"].reset(seed=3051)
+        with pytest.raises(SY.SymmetryError, match="the destination env holds a randomised plant"):
+            SY.mirror_env_state(envs["off"], envs["nominal"], em)
+    finally:
+        for env in envs.values():
+            env.close()
+
+
+def test_the_state_mirror_refuses_an_episode_the_observation_noise_noises():
+    """The opt-in observation noise draws per env, from each env's own stream and in observation order, so a mirrored
+    noised pair would step as the physical mirror image while its step observations are not mirror images.  A source
+    or destination whose episode is noised (in place included) is refused before anything is written; an env whose
+    noise is configured but whose episode is not noised (an evaluation env without the eval flag) mirrors as before
+    and steps as the mirror image to the last bit, until a trainer marks it and its next episode is noised."""
+    from environments.shared.episode_start import mark_training_rollouts
+    from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
+
+    from .observation_noise_helpers import with_observation_noise
+
+    noisy = with_observation_noise(VelociraptorMongoliensisAnatomicalEnv)
+    table = {"joint_position": 0.01, "joint_velocity": 0.05}
+    envs = {
+        "off": VelociraptorMongoliensisAnatomicalEnv(),
+        "noised": noisy(observation_noise_std=table, observation_noise_eval=True),
+        "also noised": noisy(observation_noise_std=table),
+        "quiet": noisy(observation_noise_std=table),
+    }
+    try:
+        em = _env_mirror(envs["off"])
+        mark_training_rollouts(envs["also noised"], True)
+        for index, env in enumerate(envs.values()):
+            env.reset(seed=3071 + index)
+            for action in _velociraptor_mongoliensis_actions(5, index, 0.2):
+                env.step(action)
+        assert [env.observation_noise_active for env in envs.values()] == [False, True, True, False]
+        for source, destination in (
+            ("noised", "off"),
+            ("off", "noised"),
+            ("noised", "also noised"),
+            ("noised", "noised"),
+            ("quiet", "also noised"),
+        ):
+            dst = envs[destination]
+            before = (dst.data.qpos.copy(), dst.data.qvel.copy(), dst._step_count)
+            role = "source" if "noised" in source else "destination"
+            with pytest.raises(SY.SymmetryError, match=f"the {role} env's episode is noised"):
+                SY.mirror_env_state(envs[source], dst, em)
+            assert np.array_equal(dst.data.qpos, before[0]) and np.array_equal(dst.data.qvel, before[1])
+            assert dst._step_count == before[2]
+        source, mirror = envs["off"], envs["quiet"]
+        mujoco.mj_forward(source.model, source.data)
+        SY.mirror_env_state(source, mirror, em)
+        worst = float(np.max(np.abs(mirror._get_obs() - em.obs.apply(source._get_obs()))))
+        for action in _velociraptor_mongoliensis_actions(20, 9, 0.2):
+            obs_source, _, terminated_source, truncated_source, _ = source.step(action)
+            obs_mirror, _, terminated_mirror, truncated_mirror, _ = mirror.step(em.action.apply(action))
+            worst = max(worst, float(np.max(np.abs(obs_mirror.astype(np.float64) - em.obs.apply(obs_source)))))
+            if terminated_source or truncated_source or terminated_mirror or truncated_mirror:
+                break
+        assert worst == 0.0
+        mark_training_rollouts(mirror, True)
+        mirror.reset(seed=3079)
+        with pytest.raises(SY.SymmetryError, match="the destination env's episode is noised"):
+            SY.mirror_env_state(source, mirror, em)
+    finally:
+        for env in envs.values():
+            env.close()
+
+
 # ---------------------------------------------------------------------------------------------------- gait history
 def _locomotion_kwargs(model_id: ModelId, **overrides) -> dict:
     """The walk's [env] kwargs under command_mode "none": the mirror refuses the walk's live command (decision

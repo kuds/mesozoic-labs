@@ -273,6 +273,105 @@ how the frozen recovery gate (its nulls, brace and policy panel), the recovery c
 callers that certify compare it with the committed manifest in their own calls. A process that patches environment code
 and builds environments another way calls `clear_plant_identity_cache()`.
 
+## Opt-in per-episode features
+
+The shared env's opt-in per-episode features are task, not plant (design record
+[TRICERATOPS_ROBOT_PORT_2026_11.md](TRICERATOPS_ROBOT_PORT_2026_11.md) §4-§7). They live in `step()` and in an
+episode-start hook, outside every method the policy layer hashes, so no feature moves a plant identity, on or off.
+Three exist, the actuation delay, the per-episode physics randomisation and the observation noise; every model has all
+three off.
+
+- **The hook.** `BaseDinoEnv` derives from `episode_start.EpisodeStartHook`, whose `reset` calls `_begin_episode(seed)`
+  right after gymnasium seeds `np_random` and before the keyframe is loaded. `BaseDinoEnv.reset`, hashed as
+  `home_reset`, keeps its source, and no digest hashes class bases. Each feature draws from its own PCG64 stream
+  (`episode_start.feature_stream`, a spawn key of the episode's seed), never from `np_random`, so the reset draws and
+  `environments/shared/tests/fixtures/phase_c_reset_golden.json` are the same with any feature on or off. With every
+  feature off the hook reads no generator and writes nothing.
+- **The role.** `training_rollouts` is `False` (an evaluation env) unless a trainer marks the env with
+  `episode_start.mark_training_rollouts`: `train_base.make_env` does for `create_vec_env(training=True)`, which only
+  the stage body's training env passes, and `train_behaviors.main` does for its env, unmarking it before it scores.
+  It refuses a vectorised env, whose `unwrapped` has no `set_training_rollouts`: each env is marked before it is
+  vectorised. Every other env (checkpoint selection and the curriculum gate, CLI evaluation, the stage reports,
+  `config.build_env` and the digest snapshot harness among them) is an evaluation env. The role is not part of the
+  plant, the task fingerprint or the mirrored episode state.
+- **The actuation delay.** `actuation_delay_range_s` (`None`, off, or `(lo, hi)` in seconds) and
+  `actuation_delay_eval_s` (`None` or seconds), in `environments/shared/actuation_delay.py`. Each is a whole number
+  of physics steps and shorter than an episode's `max_episode_steps x frame_skip` physics steps; a longer one is
+  refused, named in seconds and in steps. A FIFO of the nu-wide ctrl in `step()` hands each control target to
+  `data.ctrl` k physics steps late. The FIFO is primed at the first step with `data.ctrl` as reset left it, the reset
+  keyframe's `key_ctrl`, which is `_scale_action(0)` under the home-keyframe mappings, so zero action is
+  delay-invariant. A trainer's rollout envs draw k per episode, uniform over the whole steps of the range; every other
+  env holds the eval value (or draws when it is `None`). The FIFO never writes `env.model`, so the delay never makes
+  `validate_environment_plant` or `validate_compiled_plant` refuse (with the physics randomisation on, see below).
+  While the delay is on,
+  `info` carries `actuation_delay_steps` and `actuation_delay_s`; the reset info is unchanged. The symmetry module's
+  state mirror carries the in-flight targets and refuses two envs whose delay configurations differ. The task
+  fingerprint records the two keys in its `env` section and, while the delay is on, an `actuation_delay` section
+  naming `ACTUATION_DELAY_IMPLEMENTATION`; `resume_same_stage` and behavior transitions name that section when it
+  differs. A species that does not list the keys refuses them with `TypeError`; one that lists them declares the
+  opt-in carve-out at off value `None` (`OPT_IN_TASK_KWARGS`), so a stage that leaves the delay off keeps its task
+  hash.
+- **Per-episode physics randomisation.** Six keys in `environments/shared/episode_physics.py`, each `None` (off) or
+  `(low, high)`: `randomize_friction` (an absolute sliding coefficient, written to every static floor geom and to the
+  geoms `_randomized_friction_geoms()` returns, every colliding animal geom unless the species narrows it),
+  `randomize_body_mass_scale` (per animal body, mass and inertia), `randomize_actuator_kp_scale` (per position servo,
+  `gainprm[0]` and `biasprm[1]` together), `randomize_actuator_force_limit_scale` (per force-limited actuator, both
+  ends of `forcerange`), and `randomize_total_mass_scale` and `randomize_payload_kg`, which apply in a trainer's
+  rollout env only (1 and 0 kg in every other env). Each episode begins by restoring the nominal plant and then
+  writes one draw of its own stream into `env.model`, before the keyframe is loaded; when a mass changed,
+  `mj_setConst` runs on a scratch `MjData`, never the live one, and the geometric statistics go back to nominal. The
+  rules:
+  - Randomised values live only between a reset and the next. The nominal plant is the identity: the physics digest
+    covers every randomised field, so after a randomised reset `validate_environment_plant` and
+    `validate_compiled_plant` refuse the live model (fail-closed). Every live site validates before the first reset;
+    a diagnostic that needs the nominal plant later wraps its call in `with env.nominal_physics():`, which restores
+    the nominal values for the block and writes the episode's back after it, whether the block returns or raises
+    (blocks nest). No env is reset inside the block: a reset inside it raises `RuntimeError` before any of it runs
+    (before gymnasium reseeds `np_random` or a behaviour env selects a pool model), since the block's exit would write
+    the previous episode's values back over the new one; reconfiguring the randomisation inside it is refused alike.
+    `plant_contract/validation.py` itself is unchanged and strict.
+  - Randomised values are never fingerprinted. The task fingerprint records the six keys in its `env` section and,
+    while any is on, an `episode_physics` section naming `EPISODE_PHYSICS_IMPLEMENTATION`; `resume_same_stage` and
+    behavior transitions name that section when it differs. A species that lists the keys declares one carve-out per
+    key at off value `None`, `(name, None, (name,))`, so a stage that leaves them off keeps its task hash.
+  - No managed field (`episode_physics.RANDOMIZED_FIELDS`, `SETCONST_FIELDS` and `model.stat`) may be written after
+    construction while randomisation is on. Each model's nominal copies are taken the first time an episode starts on
+    it, so a species edit made after `super().__init__()` is part of the nominal plant, and the restore undoes any
+    later write. A behavior env restores every pool model before it selects one and re-runs `_cache_ids`, which reads
+    masses. A raise while an episode's values are written restores the nominal plant before it propagates.
+
+  Push forces stay the newtons derived from the nominal plant at construction. The payload body's inertia is scaled
+  by `(m + p) / m`, which spreads the payload like the body's own mass, so the rule assumes a payload body heavy
+  against the payload (the 60 cm Triceratops robot's 6 kg chassis takes up to 1 kg); only a massless one is refused.
+  Refused at construction, and again when a model's nominal copies are taken (its first episode, so after any edit
+  made following `super().__init__()`): friction on a model with explicit contact pairs or with no static floor geom,
+  or whose `_randomized_friction_geoms()` returns no geom, anything but a 1-D array of integer geom ids (a boolean
+  mask included), or a geom that is not a colliding animal geom; the kp key without a position servo; the force key
+  without a force-limited actuator; and a payload on a body with no mass. A behavior pool model of another `nbody` or
+  `nu` than the constructor's is refused at its first episode. The symmetry module's state mirror refuses an env
+  that holds a randomised plant: it mirrors the state, not the plant.
+- **The observation noise.** `observation_noise_std` (`None`, off, or a table of observation segment to standard
+  deviation, in the segment's own units) and `observation_noise_eval` (`False` or `True`), in
+  `environments/shared/observation_noise.py`. The noise is task, not plant: `step()` adds it to the observation it
+  returns, after `_get_obs()` and the command recompute, outside the hashed `_get_obs` and `reset`. So the plant
+  contract's observation probe, `validate_environment_plant`, `validate_compiled_plant` and the reset observation
+  of every episode are clean, and no plant identity moves with the noise on or off. The table's names are the policy
+  layer's own observation segments, `policy_layer.observation_segments(model, env, observation_schema)`, the table
+  the policy payload records (its `foot_contact` width is the number of the env's foot channels); a table naming
+  another segment, a std that is not a finite nonnegative number (in float32, the observation's dtype, too), a
+  positive std on the command, a table with no positive std, and the eval flag without a table are refused at
+  construction. Each noised step draws one standard normal per observation entry from the noise's own stream, never
+  `np_random`, and renormalises each unit segment with a positive std. An episode is noised in a trainer's rollout
+  env, and in any other env only while `observation_noise_eval` is true, latched at the episode's start; the policy
+  probe's state bank sets the flag false (`policy_probe.bank_env_kwargs`). `BaseDinoEnv.set_direction` (a live walk's
+  and a behavior env's) noises the observation it returns as `step()` does. The symmetry module's state mirror refuses
+  an env whose episode is noised: the physics would step as the mirror image, but each env's step observations carry
+  its own draws. The task fingerprint records the two keys in its `env` section and, while the table is set, an
+  `observation_noise` section naming `OBSERVATION_NOISE_IMPLEMENTATION`; `resume_same_stage` and behavior transitions
+  name that section when it differs. A species that lists the keys declares the carve-out
+  `("observation_noise_std", None, OBSERVATION_NOISE_ENV_KEYS)`, so a stage that leaves the table off keeps its task
+  hash.
+
 ## Checkpoints and legacy artifacts
 
 Current plant identity compares policy and physics revisions, hashes, and interface dimensions. Source-closure and

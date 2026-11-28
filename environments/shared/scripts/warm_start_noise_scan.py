@@ -48,8 +48,14 @@ Protocol:
   ``[commands]`` keys through ``config.build_env``, the construction path
   the other report tools share, and checked against the current plant as
   ``make_env`` checks a training env (``validate_environment_plant``).  It
-  is then set as training sets its workers at step 0 of a fresh walk, a
-  load across the node's edge.  Every committed walk is a live command walk
+  is an evaluation env, not a trainer's rollout env
+  (``episode_start.mark_training_rollouts`` never marks it), so an opt-in
+  per-episode feature holds its evaluation value there: a walk stage that
+  declares an actuation delay rolls at its fixed ``actuation_delay_eval_s``
+  when it sets one, not the training draw from ``actuation_delay_range_s``.
+  This is a deliberate evaluation-env diagnostic.  Its command is then set
+  as training sets its workers at step 0 of a fresh walk, a load across the
+  node's edge.  Every committed walk is a live command walk
   (decision D-D62), whose training workers draw their first episodes from
   the cruise ramp's start: ``train_base._cruise_ramp_callback`` builds the
   ramp at ramp step 0, and the scan sets the config its ``prime`` sends
