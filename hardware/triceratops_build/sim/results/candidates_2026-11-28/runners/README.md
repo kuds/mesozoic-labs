@@ -33,4 +33,4 @@ the build imports them, and no test or CI job runs them.
 **Line ends.** Python's `csv` module wrote the CSV files here with CRLF line ends. The repository's `.gitattributes`
 (`* text=auto eol=lf`) stores and checks them out with LF, so the sha256 that a review addendum records for a CSV
 (`E2/e2_review_addendum.json`, `E4/e4_review_addendum.json`) is of the CRLF bytes. Turning a checkout's LF back into
-CRLF reproduces it (checked for all four recorded CSVs, 28 Nov 2026). No CSV has a bare LF.
+CRLF reproduces it (checked for all four recorded CSVs by `../lead_check/`, 28 Nov 2026). No CSV has a bare LF.

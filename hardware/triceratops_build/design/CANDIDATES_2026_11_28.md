@@ -28,8 +28,9 @@ read 28 Nov 2026.
 
 **Which candidate is strongest now? These experiments cannot rank A and B.** No pre-registered rule compares them,
 and E1-E4 ran only on the 60 cm adopted model by design (prereg section 1: E5 is the only experiment that tests B
-directly). A now has more evidence on its own model: two heat-passing policies, no clash reached, a working trot
-fallback. B keeps the larger desk heat margin (the study's worst of four policies, C2 0.705 and 69.4 C, where A passes
+directly). A now has more evidence on its own model: two policies that pass the heat rules on the desk, no clash reached
+in simulation, and a trot fallback that passes in simulation (pre-registered only on a "not structure" reading of
+item 9). B keeps the larger desk heat margin (the study's worst of four policies, C2 0.705 and 69.4 C, where A passes
 only per policy, 2 of 4) but was tested here only by E5. This comparison is a reading of the outputs, changed after a
 result (section 6), not a ranking. Neither candidate passes the study's pre-registered desk criteria as written: A
 still fails heat on the worst of its four policies and clash #9 over the full joint range, and B fails C4 on #9 as
@@ -276,8 +277,9 @@ its own model.
 The lead's view: drives moved off the legs help packaging and cooling; a 1.1-1.3:1 reduction helps heat within the
 83 rpm drive limit; cables add stretch and upkeep. On these outputs:
 - **"Helps heat" holds on the desk at hip pitch from r = 1.2.** At r = 1.1, C1 passes but C2 does not (0.840-0.856).
-- **"Within the 83 rpm limit" does not hold for today's worst policy.** s3 fails at hip pitch from r = 1.1-1.2; with
-  the knees reduced, s1 and s0 also fail from r = 1.25 and 1.3. In the simulated, capped plant the drives still
+- **"Within the 83 rpm limit" does not hold for today's worst policy.** s3 fails at hip pitch at every r from 1.1
+  (block B) or 1.2 (block A); at the knees s3's elbow is over the peak line even unreduced, and s1 and s0 also fail
+  from r = 1.25 and 1.3. In the simulated, capped plant the drives still
   passed 83 rpm.
 - **Stretch:** at these stiffnesses (upper bounds; no rod-end, tooth or construction-stretch compliance), the
   simulation cannot tell rod, belt and cable apart (all COMPATIBLE under the pre-registered torque envelope, which
@@ -307,8 +309,10 @@ loop's walking speed: main's pipeline trains 0.075-0.15 m/s with no heat cost an
   10-30 rpm rows, to bound s1's verdict (E3-R2).
 - Simulation: s0, s1 and the retuned trot on a scratch copy of the adopted model with the -16 deg roll stop, on new
   seeds; and the 16-20 ms / impratio-10 delay sweep on the seven policies, already planned.
-- Prereg item 9 (body pitch): no ruling is made now. One made after E5's results would itself come after a
-  result, so E5 stands as reported above, under both readings.
+
+Prereg item 9 (body pitch) is not open work: no ruling is made, because one made after E5's results would come after
+a result. E5 stays as reported: a pre-registered pass only on a "not structure" reading, and no pre-registered verdict
+on a "structure" reading.
 
 **Steps that are the owner's alone:**
 - **Colab training runs:** a heat-priced or symmetric policy on the adopted model on the robot's own sensors; a 50 cm
@@ -344,12 +348,12 @@ one controller.
 | E4-C2 | S01's conditional "would qualify with rho of about 0.29" fixes the most favourable reading in advance | Not carried; if the full text is read, item 12 is applied afresh |
 | E5-C1 | `E5_REVIEW_FIXES.md` says one J3 seed runs slow early "with either setting"; that is true only of the pitched setting | Corrected in E5 above (three early, two late at pitch 0) |
 | E5-C2 | The pitch-0 branch used seeds 501-510 and 601-610, which prereg section 6 reserved for an E5 rerun after a harness fault | No unseen reserve seeds are left for E5; a rerun would need new ones |
-| E5-C3 | Across both branches 65 distinct settings per size were run (78 counted over stages, 77 with the shared one once), against the lead's budget of at most 60; the pitch-0 branch counted its own 39 runs (33 distinct) | No ruling is made. On a "structure" reading E5 has no pre-registered verdict, and the pitch-0 pass, a supporting reading, rests on a search over the budget once both branches are counted. The pitched search alone (33 distinct, 39 over stages) is within 60 |
-| E5-C4 | `E5/E5_REVIEW_FIXES.md` and `E5/pitch0/E5_PITCH0_PLAN.md` say that under a "structure" ruling the pitch-0 branch is E5's search and its verdict E5's verdict, so that E5's outcome is the same under either ruling | Not carried: the branch's four-set rule, its use of the reserve seeds and its count over the budget were set after a result, so on a "structure" reading this report gives E5 no pre-registered verdict and treats the pitch-0 pass as supporting |
+| E5-C3 | Across both branches 78 settings per size were run, counted over stages as prereg section 6 counts them (77 with the shared one once; 65 distinct), against the lead's budget of at most 60; the pitch-0 branch counted its own 39 runs (33 distinct) | No ruling is made. On a "structure" reading E5 has no pre-registered verdict, and the pitch-0 pass, a supporting reading, rests on a search over the budget once both branches are counted. The pitched search alone (39 over stages, 33 distinct) is within 60 |
+| E5-C4 | `E5/E5_REVIEW_FIXES.md` and `E5/pitch0/E5_PITCH0_PLAN.md` say that under a "structure" ruling the pitch-0 branch is E5's search and its verdict E5's verdict, so that E5's outcome is the same under either ruling | Not carried: the branch's four-set rule, its use of the reserve seeds and its rule that the budget is counted for the branch alone (both branches together run 78 over stages, E5-C3) were set after a result, so on a "structure" reading this report gives E5 no pre-registered verdict and treats the pitch-0 pass as supporting |
 
 **Accepted and fixed in new files:** E2-R1 to E2-R4, E4-R1 to E4-R6 and E5-R1 to E5-R4. Where they differ from the
 summaries, the addenda (`E2_REVIEW_ADDENDUM.md`, `E4_REVIEW_ADDENDUM.md`, `E5_REVIEW_FIXES.md`) take precedence, with
-E2-C1, E5-C1 and E5-C4 applied on top as above.
+the corrections above (E2-C1 and E4-C1, E4-C2, E5-C1, E5-C4) applied on top.
 
 ## 6. Changed after a result, and rule breaches
 
@@ -389,7 +393,7 @@ after a result was seen:
   reproduce the stored torques exactly. The "on 2 workers" wall times in `E5_SUMMARY.md` and `E5_PITCH0_SUMMARY.md`
   are per pool; E5's 60 cm tuning shared the machine with E2's pool until 07:05.
 
-**Deviations from the pre-registration** (an outcome depends on each):
+**Deviations from the pre-registration** (an outcome or a supporting reading depends on each):
 - **E5 ran without the item-9 ruling,** which prereg item 9 required "before the first E5 run". No ruling is on
   record (`DECISION_LOG.md` D1-D56 has no line on body pitch or `PitchedTrot`), and E5 ran with `PitchedTrot` from
   06:52 UTC (smoke test; tuning from 06:53). A ruling made now would come after the result, so none is made. Its
@@ -406,10 +410,13 @@ after a result was seen:
   `E5/e5_tuning_seeds_walltime.json`). `743b5c75` differs from `fb1e80c8` in this tree only in `DECISION_LOG.md`
   (D50-D56; `git diff --stat`, read only), so no result depends on which. Both used frozen `sim/candidate_checks.py`
   (sha256 `008aa308debdf1b6`), `plan.json` (`1403a4b326aaf2aa`) and the adopted model (`372ac07b14338c26`), and all
-  three hashes were unchanged when this was written. These three and the prereg were untracked at both commits
-  (first committed in `120393eb`), so `git diff` does not cover them; every result file identifies them by sha256,
-  the same in all of them. The prereg's sha256 is now `94ae9e3dc6002b4a`;
-  it was last modified at 05:54:56 UTC, before the first E1 episode file (05:58:38 UTC).
+  three hashes were unchanged when this was written. `sim/candidate_checks.py`, `plan.json` and the
+  prereg were untracked at both commits (first committed in `120393eb`), so `git diff` does not cover them; the
+  adopted model was tracked (first committed in `4027a9db`) and is the same blob at both. The result files'
+  provenance records `candidate_checks.py`'s sha256 (all of them) and the model's (all but
+  `e2b_vs_R_supporting.json`), the same in each. `plan.json`'s sha256 is recorded only in the prereg and
+  `E1/E1_SUMMARY.md`, and the prereg's in no result file: its sha256 is now `94ae9e3dc6002b4a`, and its modification
+  time, 05:54:56 UTC, is before the first E1 episode file (05:58:38 UTC).
 - **Results** (each file under 500 KB, committed with this report) in `sim/results/candidates_2026-11-28/`:
   `E1/E1_SUMMARY.md`;
   `E2/E2_summary.md` with `E2_REVIEW_ADDENDUM.md` and the supporting `e2b_vs_R_supporting.csv` and `.json` (added
@@ -440,11 +447,14 @@ after a result was seen:
   - E3's C1 (through the build's `rl/analysis/thermal_ambient.py`) and C2 for all 11 policies on both courses, and the
     5 of 11 that meet the rule (seed0 700000 from the build's stored D22 courses for fore128 and fore160, the rest
     from the raw records);
-  - E5's held-out falls, J3 speeds, slow-gait counts, worst hind knees and X4 peaks, for both branches and the
-    frozen trot at both sizes, from the raw records, and the search counts both ways from the tuning files;
+  - E5's held-out falls, J3 speeds, J3 slow-gait counts and the most slow-gait episodes in any condition, worst
+    hind knees and X4 peaks, for both branches and the frozen trot at both sizes, from the raw records, and the
+    search counts both ways from the tuning files;
+  - the four CSV hashes the review addenda record, against the stored LF bytes turned back to CRLF;
   - each runner copy against the sha256 the result files record and byte for byte against its scratch original;
   - `sim/tests/test_candidate_checks.py` (45 passed, `pytest` exit 0).
 
-  All agree with the figures above. It does not cover E1's clearances, stops and logged extremes, E2(b)'s p99,
-  speed and RMS changes and its pairs against R, E4, or E5's tuning, choice and margin episodes; those rest on the
-  experiments' own outputs and their reviews.
+  All agree with the figures above. It covers nothing else. Among the figures it does not cover: E1's clearances,
+  stops and logged extremes; E2(a)'s per-policy pass sets; E2(b)'s p99, at-cap shares, speed and RMS changes and its
+  pairs against R; E3's mirror ratios, the 9 N m arithmetic and the harness check; E4; and E5's tuning, choice and
+  margin episodes. Those rest on the experiments' own outputs and their reviews.

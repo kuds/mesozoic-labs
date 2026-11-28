@@ -10,8 +10,9 @@ key figures"), and only those, without the experiments' own summarisers. Sources
 - the runner copies in ../runners/ and their scratch originals.
 E3's winding temperatures go through the build's rl/analysis/thermal_ambient.py (method A, 8 min time constant,
 35 C room); E3's loop RMS is recomputed here from the stored per-segment mean squared drive torques. E2(a)'s per-row
-pass flags are checked against the thresholds before they are tallied. It also runs the candidate checks' unit tests.
-Nothing is simulated.
+pass flags are checked against the thresholds before they are tallied. It also checks that the CSV hashes the review
+addenda record are of the CRLF bytes, and runs the candidate checks' unit tests. No experiment is rerun; only the unit
+tests step the simulator, on small cases.
 
 Run from a scratch working directory (needs mujoco, which gait_report imports, and pytest):
     python -B <build>/sim/results/candidates_2026-11-28/lead_check/lead_check.py \
@@ -118,9 +119,10 @@ for run in POLICIES:
     res = []
     for seed in (700000, 710000):
         p = CAND / "E3" / "demo" / run / f"demo_course_seed{seed}.json"
-        if not p.exists():
-            p = TA.D22 / "demo" / run / "demo_course.json"
+        if seed == 700000 and not p.exists():
+            p = TA.D22 / "demo" / run / "demo_course.json"  # E3's stored courses (fore128 and fore160 at 700000)
         st = json.loads(p.read_text())
+        assert st["seed0"] == seed, (run, seed, st["seed0"])
         therm, per_joint, groups = TA.thermal_inputs(st)
         with TA._cached_fits():
             temps = TA.temperatures(therm, per_joint, 35.0, "A", tcs=(480.0,))
@@ -130,12 +132,13 @@ for run in POLICIES:
         worst = max((math.sqrt(sum(segs[n]["tau_drive_sq_mean"][j] * s for n, s in loop) / sum(s for _, s in loop))
                      / RATING[dt[groups[name]]["drive"]], name)
                     for j, name in enumerate(segs["stand"]["joints"]))
-        res.append((temps[jn][k]["peak_c"], worst[0]))
-        print(f"{run} {seed}: C1 {temps[jn][k]['peak_c']:.2f} C ({jn}); C2 {worst[0]:.4f} ({worst[1]}); "
+        res.append((temps[jn][k]["peak_c"], worst[0], bool(st["valid"])))
+        print(f"{run} {seed}: valid {st['valid']} fallen {st['fallen_segments']}; "
+              f"C1 {temps[jn][k]['peak_c']:.2f} C ({jn}); C2 {worst[0]:.4f} ({worst[1]}); "
               f"source {os.path.relpath(p, BUILD) if str(p).startswith(str(BUILD)) else 'scratch ' + p.name}")
-    if all(c1 <= 90.0 and c2 <= 0.80 for c1, c2 in res):
+    if all(valid and c1 <= 90.0 and c2 <= 0.80 for c1, c2, valid in res):
         meet.append(run)
-print(f"MEET on both courses: {len(meet)} of {len(POLICIES)}: {meet}")
+print(f"MEET (both courses valid, C1 <= 90 C and C2 <= 0.80 on each): {len(meet)} of {len(POLICIES)}: {meet}")
 
 # ---------------------------------------------------------------- E5: both branches and the frozen trot, raw records
 head("E5 (raw episode records)")
@@ -155,7 +158,7 @@ def e5_sets(folder, pattern):
         x4 = max(p for e in s for a, p in zip(e["actuators"], e["rpm_peak"]) if "fore_flexion" not in a)
         out[f"{lo}-{lo + 9}"] = dict(n=len(s), falls_J=sum(e["fell"] for e in s if e["condition"] in JC),
                                      J3=sum(e["record"]["forward_speed_mps"] for e in j3) / len(j3),
-                                     slow_max=max(slow.values()), knee_max=max(knee.values()),
+                                     slow_max=max(slow.values()), slow_J3=slow["J3"], knee_max=max(knee.values()),
                                      knee_per_cond=(min(knee.values()), max(knee.values())), x4_peak=x4)
     return out
 
@@ -167,7 +170,8 @@ for size in ("0.60", "0.50"):
         for stage, label, pattern in (("heldout", f"{branch} {cid}", cid), ("heldout_frozen", "frozen trot", "*")):
             for setname, v in e5_sets(base / "episodes" / size / stage, pattern).items():
                 print(f"{size} {label:26s} {setname}: n {v['n']} falls J1-J4 {v['falls_J']} J3 {v['J3']:.5f} m/s "
-                      f"slow-gait max/cond {v['slow_max']} worst knee {v['knee_max']:.3f} (per condition "
+                      f"slow-gait J3 {v['slow_J3']}, most in a condition {v['slow_max']} worst knee "
+                      f"{v['knee_max']:.3f} (per condition "
                       f"{v['knee_per_cond'][0]:.3f}-{v['knee_per_cond'][1]:.3f}) X4 peak {v['x4_peak']:.2f} rpm")
 
 head("E5 search budget (tuning CSVs and JSONs; the prereg counts the budget over all stages, at most 60 per size)")
@@ -222,6 +226,33 @@ for p in sorted(glob.glob(str(RES / "runners" / "*" / "*.py"))):
     orig = ORIG[Path(p).parent.name] / Path(p).name
     same = orig.exists() and filecmp.cmp(p, orig, shallow=False)
     print(f"{os.path.relpath(p, RES)}: {h}  {state}; scratch original {'identical' if same else 'DIFFERS OR MISSING'}")
+
+# ---------------------------------------------------------------- CSV hashes recorded by the review addenda
+head("CSV hashes the review addenda record: of the CRLF bytes; the LF bytes git stores, turned back to CRLF")
+for csv_path, addendum in (("E2/e2a_grid.csv", "E2/e2_review_addendum.json"),
+                           ("E2/e2a_speed_x6_allowance_supporting.csv", "E2/e2_review_addendum.json"),
+                           ("E2/e2b_comparisons.csv", "E2/e2_review_addendum.json"),
+                           ("E4/e4_sources.csv", "E4/e4_review_addendum.json")):
+    found = set()
+
+    def find(o, name=os.path.basename(csv_path)):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k == name and isinstance(v, str):
+                    found.add(v)
+                find(v)
+        elif isinstance(o, list):
+            for x in o:
+                find(x)
+
+    find(json.load(open(RES / addendum)))
+    lf = subprocess.run(["git", "-C", str(BUILD), "show", f"HEAD:{os.path.relpath(RES / csv_path, BUILD.parents[1])}"],
+                        capture_output=True).stdout
+    crlf = hashlib.sha256(lf.replace(b"\n", b"\r\n")).hexdigest()
+    n_cr = lf.count(b"\r")
+    print(f"{csv_path}: recorded {sorted(x[:16] for x in found)}; HEAD's LF bytes back to CRLF {crlf[:16]} "
+          f"{'MATCH' if found and all(crlf.startswith(x) for x in found) else 'DIFFERS'}; "
+          f"CR bytes in the stored file {n_cr}")
 
 # ---------------------------------------------------------------- the candidate checks' unit tests
 head("sim/tests/test_candidate_checks.py")
