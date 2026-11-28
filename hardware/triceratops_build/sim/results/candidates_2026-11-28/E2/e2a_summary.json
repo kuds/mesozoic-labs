@@ -1,0 +1,7563 @@
+{
+ "experiment": "E2(a) transmission and speed cap, DESK on SIMULATED torques",
+ "prereg": "design/PREREG_CANDIDATES_2026_11_28.md section 4 E2(a); section 3 items 3, 6, 13, 14",
+ "rule": "PASSES if C1 (hottest winding <= 90 C at 35 C, 8 min), C2 (worst drive loop RMS / continuous <= 0.80) and the speed check (each reduced drive's p99 <= 83 rpm and peak <= 91.3 rpm, walk 0.25 and stand weighted 0.75 / 0.25) all pass for the worst of the four fore128 policies on both seed blocks",
+ "verdicts": {
+  "belt|1.0|both": {
+   "transmission": "belt",
+   "r": 1.0,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 100.1126923156857,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9242080234594205,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.1|both": {
+   "transmission": "belt",
+   "r": 1.1,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 86.6491465702864,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8401891122358367,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.2|both": {
+   "transmission": "belt",
+   "r": 1.2,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 77.11187168569917,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7701733528828503,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "belt|1.25|both": {
+   "transmission": "belt",
+   "r": 1.25,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 73.34101200547047,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7393664187675363,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "belt|1.3|both": {
+   "transmission": "belt",
+   "r": 1.3,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 70.07229414374893,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7109292488149388,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "belt|1.0|knees": {
+   "transmission": "belt",
+   "r": 1.0,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.1|knees": {
+   "transmission": "belt",
+   "r": 1.1,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.2|knees": {
+   "transmission": "belt",
+   "r": 1.2,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.25|knees": {
+   "transmission": "belt",
+   "r": 1.25,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.3|knees": {
+   "transmission": "belt",
+   "r": 1.3,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.0|pitch": {
+   "transmission": "belt",
+   "r": 1.0,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 100.1126923156857,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9242080234594205,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": true,
+   "speed_p99_worst_rpm": 65.7,
+   "speed_peak_worst_rpm": 85.61904191991304,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.1|pitch": {
+   "transmission": "belt",
+   "r": 1.1,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 86.6491465702864,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8401891122358367,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 72.27000000000001,
+   "speed_peak_worst_rpm": 94.18094611190436,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "belt|1.2|pitch": {
+   "transmission": "belt",
+   "r": 1.2,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 77.11187168569917,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7701733528828503,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.84,
+   "speed_peak_worst_rpm": 102.74285030389565,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "belt|1.25|pitch": {
+   "transmission": "belt",
+   "r": 1.25,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 73.34101200547047,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7393664187675363,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 82.125,
+   "speed_peak_worst_rpm": 107.02380239989131,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "belt|1.3|pitch": {
+   "transmission": "belt",
+   "r": 1.3,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.98,
+   "C1_worst_c": 72.98080671093827,
+   "C1_worst_at": "fore128-s2 A",
+   "C2_worst": 0.7391610302569571,
+   "C2_worst_at": "fore128-s2 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 85.41000000000001,
+   "speed_peak_worst_rpm": 111.30475449588697,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "cable|1.0|both": {
+   "transmission": "cable",
+   "r": 1.0,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 102.14374630257943,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9355550221554695,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.1|both": {
+   "transmission": "cable",
+   "r": 1.1,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 88.19434639530758,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8505045655958811,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.2|both": {
+   "transmission": "cable",
+   "r": 1.2,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 78.33373976180306,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7796291851295578,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "cable|1.25|both": {
+   "transmission": "cable",
+   "r": 1.25,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 74.4398008258167,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7484440177243755,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "cable|1.3|both": {
+   "transmission": "cable",
+   "r": 1.3,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 71.06657391773805,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.719657709350361,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "cable|1.0|knees": {
+   "transmission": "cable",
+   "r": 1.0,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.1|knees": {
+   "transmission": "cable",
+   "r": 1.1,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.2|knees": {
+   "transmission": "cable",
+   "r": 1.2,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.25|knees": {
+   "transmission": "cable",
+   "r": 1.25,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.3|knees": {
+   "transmission": "cable",
+   "r": 1.3,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.0|pitch": {
+   "transmission": "cable",
+   "r": 1.0,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 102.14374630257943,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9355550221554695,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": true,
+   "speed_p99_worst_rpm": 65.7,
+   "speed_peak_worst_rpm": 85.61904191991304,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.1|pitch": {
+   "transmission": "cable",
+   "r": 1.1,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 88.19434639530758,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8505045655958811,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 72.27000000000001,
+   "speed_peak_worst_rpm": 94.18094611190436,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "cable|1.2|pitch": {
+   "transmission": "cable",
+   "r": 1.2,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 78.33373976180306,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7796291851295578,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.84,
+   "speed_peak_worst_rpm": 102.74285030389565,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "cable|1.25|pitch": {
+   "transmission": "cable",
+   "r": 1.25,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 74.4398008258167,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7484440177243755,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 82.125,
+   "speed_peak_worst_rpm": 107.02380239989131,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "cable|1.3|pitch": {
+   "transmission": "cable",
+   "r": 1.3,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.96,
+   "C1_worst_c": 72.98080671093827,
+   "C1_worst_at": "fore128-s2 A",
+   "C2_worst": 0.7391610302569571,
+   "C2_worst_at": "fore128-s2 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 85.41000000000001,
+   "speed_peak_worst_rpm": 111.30475449588697,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "rod|1.0|both": {
+   "transmission": "rod",
+   "r": 1.0,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 103.23925897559666,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.941566586647782,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.1|both": {
+   "transmission": "rod",
+   "r": 1.1,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 89.02619689432315,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8559696242252562,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.2|both": {
+   "transmission": "rod",
+   "r": 1.2,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 78.99062998835655,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7846388222064848,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "rod|1.25|both": {
+   "transmission": "rod",
+   "r": 1.25,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 75.03020377583951,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7532532693182254,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "rod|1.3|both": {
+   "transmission": "rod",
+   "r": 1.3,
+   "placement": "both",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 71.60057219599143,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.724281989729063,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "rod|1.0|knees": {
+   "transmission": "rod",
+   "r": 1.0,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.1|knees": {
+   "transmission": "rod",
+   "r": 1.1,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.2|knees": {
+   "transmission": "rod",
+   "r": 1.2,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.25|knees": {
+   "transmission": "rod",
+   "r": 1.25,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.3|knees": {
+   "transmission": "rod",
+   "r": 1.3,
+   "placement": "knees",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.0|pitch": {
+   "transmission": "rod",
+   "r": 1.0,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 103.23925897559666,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.941566586647782,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": true,
+   "speed_p99_worst_rpm": 65.7,
+   "speed_peak_worst_rpm": 85.61904191991304,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.1|pitch": {
+   "transmission": "rod",
+   "r": 1.1,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 89.02619689432315,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8559696242252562,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 72.27000000000001,
+   "speed_peak_worst_rpm": 94.18094611190436,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": false
+  },
+  "rod|1.2|pitch": {
+   "transmission": "rod",
+   "r": 1.2,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 78.99062998835655,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7846388222064848,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.84,
+   "speed_peak_worst_rpm": 102.74285030389565,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "rod|1.25|pitch": {
+   "transmission": "rod",
+   "r": 1.25,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 75.03020377583951,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7532532693182254,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 82.125,
+   "speed_peak_worst_rpm": 107.02380239989131,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "rod|1.3|pitch": {
+   "transmission": "rod",
+   "r": 1.3,
+   "placement": "pitch",
+   "judged": true,
+   "eta": 0.95,
+   "C1_worst_c": 72.98080671093827,
+   "C1_worst_at": "fore128-s2 A",
+   "C2_worst": 0.7391610302569571,
+   "C2_worst_at": "fore128-s2 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 85.41000000000001,
+   "speed_peak_worst_rpm": 111.30475449588697,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": false
+  },
+  "rod_eta0.9|1.0|both": {
+   "transmission": "rod_eta0.9",
+   "r": 1.0,
+   "placement": "both",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 109.63958020911979,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9752521654177817,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.1|both": {
+   "transmission": "rod_eta0.9",
+   "r": 1.1,
+   "placement": "both",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 93.86386872047471,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8865928776525288,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.2|both": {
+   "transmission": "rod_eta0.9",
+   "r": 1.2,
+   "placement": "both",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 82.79845568358749,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8127101378481514,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.25|both": {
+   "transmission": "rod_eta0.9",
+   "r": 1.25,
+   "placement": "both",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 78.44824880710934,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7802017323342253,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.3|both": {
+   "transmission": "rod_eta0.9",
+   "r": 1.3,
+   "placement": "both",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 74.68865271545744,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7501939733982935,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.0|knees": {
+   "transmission": "rod_eta0.9",
+   "r": 1.0,
+   "placement": "knees",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 71.7,
+   "speed_peak_worst_rpm": 96.60211344692327,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.1|knees": {
+   "transmission": "rod_eta0.9",
+   "r": 1.1,
+   "placement": "knees",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.87,
+   "speed_peak_worst_rpm": 106.26232479161561,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.2|knees": {
+   "transmission": "rod_eta0.9",
+   "r": 1.2,
+   "placement": "knees",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 86.04,
+   "speed_peak_worst_rpm": 115.92253613630791,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.25|knees": {
+   "transmission": "rod_eta0.9",
+   "r": 1.25,
+   "placement": "knees",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 89.625,
+   "speed_peak_worst_rpm": 120.75264180865409,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.3|knees": {
+   "transmission": "rod_eta0.9",
+   "r": 1.3,
+   "placement": "knees",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 98.27785749294762,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9137250070127548,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 93.21000000000001,
+   "speed_peak_worst_rpm": 125.58274748100025,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.0|pitch": {
+   "transmission": "rod_eta0.9",
+   "r": 1.0,
+   "placement": "pitch",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 109.63958020911979,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.9752521654177817,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": true,
+   "speed_p99_worst_rpm": 65.7,
+   "speed_peak_worst_rpm": 85.61904191991304,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": false,
+    "fore128-s1": false,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.1|pitch": {
+   "transmission": "rod_eta0.9",
+   "r": 1.1,
+   "placement": "pitch",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 93.86386872047471,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8865928776525288,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": false,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 72.27000000000001,
+   "speed_peak_worst_rpm": 94.18094611190436,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": false,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.2|pitch": {
+   "transmission": "rod_eta0.9",
+   "r": 1.2,
+   "placement": "pitch",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 82.79845568358749,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.8127101378481514,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": false,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 78.84,
+   "speed_peak_worst_rpm": 102.74285030389565,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.25|pitch": {
+   "transmission": "rod_eta0.9",
+   "r": 1.25,
+   "placement": "pitch",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 78.44824880710934,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7802017323342253,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 82.125,
+   "speed_peak_worst_rpm": 107.02380239989131,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": null
+  },
+  "rod_eta0.9|1.3|pitch": {
+   "transmission": "rod_eta0.9",
+   "r": 1.3,
+   "placement": "pitch",
+   "judged": false,
+   "eta": 0.9,
+   "C1_worst_c": 74.68865271545744,
+   "C1_worst_at": "fore128-s3 A",
+   "C2_worst": 0.7501939733982935,
+   "C2_worst_at": "fore128-s3 A",
+   "C1_all_pass": true,
+   "C2_all_pass": true,
+   "speed_all_pass": false,
+   "speed_p99_worst_rpm": 85.41000000000001,
+   "speed_peak_worst_rpm": 111.30475449588697,
+   "methods": [
+    "exact"
+   ],
+   "per_policy_all_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": false
+   },
+   "per_policy_heat_pass": {
+    "fore128-s0": true,
+    "fore128-s1": true,
+    "fore128-s2": true,
+    "fore128-s3": true
+   },
+   "PASSES": null
+  }
+ },
+ "per_policy_block": {
+  "fore128-s0|A": {
+   "demo": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s0/demo_course.json",
+   "demo_valid": true,
+   "minutes": 95.95215738749239,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 700000",
+    "stand": "B1_dt0.001 stand seed 700002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 7.259650475861977e-15,
+    "stand": 1.2041420904380546e-14
+   },
+   "today": {
+    "C1_c": 76.30817881407339,
+    "C1_joint": "left_hind_pitch",
+    "C1_pass": true,
+    "C2": 0.761346530556573,
+    "C2_joint": "left_hind_pitch",
+    "C2_pass": true,
+    "C1_by_tc_c": {
+     "tau_240s": 77.36495541176568,
+     "tau_480s": 76.30817881407339,
+     "tau_900s": 75.99266631736005
+    }
+   },
+   "falls_in_speed_episodes": []
+  },
+  "fore128-s0|B": {
+   "demo": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s0/demo_course_seed710000.json",
+   "demo_valid": true,
+   "minutes": 93.31348130674824,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 710000",
+    "stand": "B1_dt0.001 stand seed 710002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 1.0384298207109626e-14,
+    "stand": 7.914992968903876e-15
+   },
+   "today": {
+    "C1_c": 74.90976433642983,
+    "C1_joint": "left_hind_pitch",
+    "C1_pass": true,
+    "C2": 0.7500488766683763,
+    "C2_joint": "left_hind_pitch",
+    "C2_pass": true,
+    "C1_by_tc_c": {
+     "tau_240s": 75.92891849604666,
+     "tau_480s": 74.90976433642983,
+     "tau_900s": 74.56927505184225
+    }
+   },
+   "falls_in_speed_episodes": []
+  },
+  "fore128-s1|A": {
+   "demo": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s1/demo_course.json",
+   "demo_valid": true,
+   "minutes": 85.74730869643203,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 700000",
+    "stand": "B1_dt0.001 stand seed 700002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 1.0023157419653e-14,
+    "stand": 9.270667786221397e-15
+   },
+   "today": {
+    "C1_c": 74.37681066379075,
+    "C1_joint": "left_fore_pitch",
+    "C1_pass": true,
+    "C2": 0.7459246044388713,
+    "C2_joint": "left_fore_pitch",
+    "C2_pass": true,
+    "C1_by_tc_c": {
+     "tau_240s": 75.35541107145386,
+     "tau_480s": 74.37681066379075,
+     "tau_900s": 73.97895263589822
+    }
+   },
+   "falls_in_speed_episodes": []
+  },
+  "fore128-s1|B": {
+   "demo": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s1/demo_course_seed710000.json",
+   "demo_valid": true,
+   "minutes": 83.75876172749692,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 710000",
+    "stand": "B1_dt0.001 stand seed 710002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 9.482577507689187e-15,
+    "stand": 6.122487359135302e-15
+   },
+   "today": {
+    "C1_c": 76.406131690385,
+    "C1_joint": "left_fore_pitch",
+    "C1_pass": true,
+    "C2": 0.7620442079603177,
+    "C2_joint": "left_fore_pitch",
+    "C2_pass": true,
+    "C1_by_tc_c": {
+     "tau_240s": 77.48208790179147,
+     "tau_480s": 76.406131690385,
+     "tau_900s": 75.92540302906349
+    }
+   },
+   "falls_in_speed_episodes": []
+  },
+  "fore128-s2|A": {
+   "demo": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s2/demo_course.json",
+   "demo_valid": true,
+   "minutes": 84.25375728170364,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 700000",
+    "stand": "B1_dt0.001 stand seed 700002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 9.702370536873176e-15,
+    "stand": 4.8564705585277936e-15
+   },
+   "today": {
+    "C1_c": 93.26734759015666,
+    "C1_joint": "left_fore_pitch",
+    "C1_pass": false,
+    "C2": 0.8812480044307821,
+    "C2_joint": "left_fore_pitch",
+    "C2_pass": false,
+    "C1_by_tc_c": {
+     "tau_240s": 94.69430610448784,
+     "tau_480s": 93.26734759015666,
+     "tau_900s": 92.53619959837546
+    }
+   },
+   "falls_in_speed_episodes": []
+  },
+  "fore128-s2|B": {
+   "demo": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s2/demo_course_seed710000.json",
+   "demo_valid": true,
+   "minutes": 85.50473205029303,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 710000",
+    "stand": "B1_dt0.001 stand seed 710002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 7.602913230436066e-15,
+    "stand": 8.562829702932143e-15
+   },
+   "today": {
+    "C1_c": 91.03611670435627,
+    "C1_joint": "left_fore_pitch",
+    "C1_pass": false,
+    "C2": 0.867140787971948,
+    "C2_joint": "left_fore_pitch",
+    "C2_pass": false,
+    "C1_by_tc_c": {
+     "tau_240s": 92.4047535466228,
+     "tau_480s": 91.03611670435627,
+     "tau_900s": 90.40217495955856
+    }
+   },
+   "falls_in_speed_episodes": []
+  },
+  "fore128-s3|A": {
+   "demo": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s3/demo_course.json",
+   "demo_valid": true,
+   "minutes": 89.55349714000765,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 700000",
+    "stand": "B1_dt0.001 stand seed 700002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 1.1429822412932147e-14,
+    "stand": 7.246759368185273e-15
+   },
+   "today": {
+    "C1_c": 98.27785749294762,
+    "C1_joint": "left_hind_pitch",
+    "C1_pass": false,
+    "C2": 0.9137250070127548,
+    "C2_joint": "left_hind_pitch",
+    "C2_pass": false,
+    "C1_by_tc_c": {
+     "tau_240s": 99.45113245454483,
+     "tau_480s": 98.27785749294762,
+     "tau_900s": 97.80437844930348
+    }
+   },
+   "falls_in_speed_episodes": []
+  },
+  "fore128-s3|B": {
+   "demo": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s3/demo_course_seed710000.json",
+   "demo_valid": true,
+   "minutes": 90.4643190888376,
+   "split_from": {
+    "walk_0.25": "B1_dt0.001 walk_0.25 seed 710000",
+    "stand": "B1_dt0.001 stand seed 710002"
+   },
+   "method": "exact",
+   "reproduction_rel_max": {
+    "walk_0.25": 5.815638897836465e-15,
+    "stand": 7.653333319177251e-15
+   },
+   "today": {
+    "C1_c": 97.3441120806738,
+    "C1_joint": "left_hind_pitch",
+    "C1_pass": false,
+    "C2": 0.908541018760026,
+    "C2_joint": "left_hind_pitch",
+    "C2_pass": false,
+    "C1_by_tc_c": {
+     "tau_240s": 98.44999492891088,
+     "tau_480s": 97.3441120806738,
+     "tau_900s": 96.90572459794498
+    }
+   },
+   "falls_in_speed_episodes": []
+  }
+ },
+ "speed_checks": [
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    19.700000000000003,
+    18.400000000000002,
+    19.0,
+    15.3
+   ],
+   "peak_rpm": [
+    38.93225678494982,
+    29.274103517910408,
+    30.890604455338778,
+    28.3154974784301
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    15.100000000000001,
+    12.600000000000001,
+    13.5,
+    14.0
+   ],
+   "walk_0.15_peak_rpm": [
+    26.083073788417828,
+    18.22913930598411,
+    27.67895770581803,
+    21.389811112618197
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    45.300000000000004,
+    23.900000000000002,
+    29.1,
+    11.200000000000001
+   ],
+   "peak_rpm": [
+    72.19031971511113,
+    57.24873839813705,
+    56.32911863942773,
+    18.249250513293962
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    35.6,
+    18.0,
+    23.400000000000002,
+    8.700000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    62.62862238380089,
+    29.927283080741063,
+    51.25357594453856,
+    14.762974692462853
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    19.700000000000003,
+    45.300000000000004,
+    18.400000000000002,
+    23.900000000000002,
+    19.0,
+    29.1,
+    15.3,
+    11.200000000000001
+   ],
+   "peak_rpm": [
+    38.93225678494982,
+    72.19031971511113,
+    29.274103517910408,
+    57.24873839813705,
+    30.890604455338778,
+    56.32911863942773,
+    28.3154974784301,
+    18.249250513293962
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    15.100000000000001,
+    35.6,
+    12.600000000000001,
+    18.0,
+    13.5,
+    23.400000000000002,
+    14.0,
+    8.700000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    26.083073788417828,
+    62.62862238380089,
+    18.22913930598411,
+    29.927283080741063,
+    27.67895770581803,
+    51.25357594453856,
+    21.389811112618197,
+    14.762974692462853
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    21.670000000000005,
+    20.240000000000006,
+    20.900000000000002,
+    16.830000000000002
+   ],
+   "peak_rpm": [
+    42.82548246344481,
+    32.20151386970145,
+    33.979664900872656,
+    31.147047226273113
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    16.610000000000003,
+    13.860000000000003,
+    14.850000000000001,
+    15.400000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    28.691381167259614,
+    20.052053236582523,
+    30.446853476399834,
+    23.528792223880018
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    49.830000000000005,
+    26.290000000000003,
+    32.010000000000005,
+    12.320000000000002
+   ],
+   "peak_rpm": [
+    79.40935168662224,
+    62.97361223795076,
+    61.962030503370514,
+    20.07417556462336
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    39.160000000000004,
+    19.8,
+    25.740000000000006,
+    9.570000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    68.89148462218098,
+    32.92001138881517,
+    56.37893353899242,
+    16.23927216170914
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    21.670000000000005,
+    49.830000000000005,
+    20.240000000000006,
+    26.290000000000003,
+    20.900000000000002,
+    32.010000000000005,
+    16.830000000000002,
+    12.320000000000002
+   ],
+   "peak_rpm": [
+    42.82548246344481,
+    79.40935168662224,
+    32.20151386970145,
+    62.97361223795076,
+    33.979664900872656,
+    61.962030503370514,
+    31.147047226273113,
+    20.07417556462336
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    16.610000000000003,
+    39.160000000000004,
+    13.860000000000003,
+    19.8,
+    14.850000000000001,
+    25.740000000000006,
+    15.400000000000002,
+    9.570000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    28.691381167259614,
+    68.89148462218098,
+    20.052053236582523,
+    32.92001138881517,
+    30.446853476399834,
+    56.37893353899242,
+    23.528792223880018,
+    16.23927216170914
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    23.640000000000004,
+    22.080000000000002,
+    22.8,
+    18.36
+   ],
+   "peak_rpm": [
+    46.718708141939786,
+    35.12892422149249,
+    37.06872534640653,
+    33.978596974116115
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.12,
+    15.120000000000001,
+    16.2,
+    16.8
+   ],
+   "walk_0.15_peak_rpm": [
+    31.299688546101393,
+    21.87496716718093,
+    33.21474924698163,
+    25.667773335141835
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    54.36000000000001,
+    28.680000000000003,
+    34.92,
+    13.440000000000001
+   ],
+   "peak_rpm": [
+    86.62838365813336,
+    68.69848607776446,
+    67.59494236731328,
+    21.899100615952754
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    42.72,
+    21.599999999999998,
+    28.080000000000002,
+    10.440000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    75.15434686056106,
+    35.912739696889275,
+    61.50429113344627,
+    17.71556963095542
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    23.640000000000004,
+    54.36000000000001,
+    22.080000000000002,
+    28.680000000000003,
+    22.8,
+    34.92,
+    18.36,
+    13.440000000000001
+   ],
+   "peak_rpm": [
+    46.718708141939786,
+    86.62838365813336,
+    35.12892422149249,
+    68.69848607776446,
+    37.06872534640653,
+    67.59494236731328,
+    33.978596974116115,
+    21.899100615952754
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.12,
+    42.72,
+    15.120000000000001,
+    21.599999999999998,
+    16.2,
+    28.080000000000002,
+    16.8,
+    10.440000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    31.299688546101393,
+    75.15434686056106,
+    21.87496716718093,
+    35.912739696889275,
+    33.21474924698163,
+    61.50429113344627,
+    25.667773335141835,
+    17.71556963095542
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    24.625000000000004,
+    23.000000000000004,
+    23.75,
+    19.125
+   ],
+   "peak_rpm": [
+    48.66532098118728,
+    36.59262939738801,
+    38.613255569173475,
+    35.39437184803762
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.875,
+    15.750000000000002,
+    16.875,
+    17.5
+   ],
+   "walk_0.15_peak_rpm": [
+    32.603842235522286,
+    22.786424132480136,
+    34.598697132272534,
+    26.737263890772745
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    56.62500000000001,
+    29.875000000000004,
+    36.375,
+    14.000000000000002
+   ],
+   "peak_rpm": [
+    90.23789964388891,
+    71.56092299767131,
+    70.41139829928467,
+    22.81156314161745
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    44.5,
+    22.5,
+    29.250000000000004,
+    10.875000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    78.28577797975112,
+    37.40910385092633,
+    64.0669699306732,
+    18.453718365578567
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    24.625000000000004,
+    56.62500000000001,
+    23.000000000000004,
+    29.875000000000004,
+    23.75,
+    36.375,
+    19.125,
+    14.000000000000002
+   ],
+   "peak_rpm": [
+    48.66532098118728,
+    90.23789964388891,
+    36.59262939738801,
+    71.56092299767131,
+    38.613255569173475,
+    70.41139829928467,
+    35.39437184803762,
+    22.81156314161745
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.875,
+    44.5,
+    15.750000000000002,
+    22.5,
+    16.875,
+    29.250000000000004,
+    17.5,
+    10.875000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    32.603842235522286,
+    78.28577797975112,
+    22.786424132480136,
+    37.40910385092633,
+    34.598697132272534,
+    64.0669699306732,
+    26.737263890772745,
+    18.453718365578567
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    25.610000000000003,
+    23.920000000000005,
+    24.7,
+    19.89
+   ],
+   "peak_rpm": [
+    50.61193382043477,
+    38.05633457328353,
+    40.15778579194041,
+    36.81014672195913
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    19.630000000000003,
+    16.380000000000003,
+    17.55,
+    18.2
+   ],
+   "walk_0.15_peak_rpm": [
+    33.90799592494318,
+    23.697881097779344,
+    35.982645017563435,
+    27.80675444640366
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    58.89000000000001,
+    31.070000000000004,
+    37.830000000000005,
+    14.560000000000002
+   ],
+   "peak_rpm": [
+    93.84741562964447,
+    74.42335991757817,
+    73.22785423125606,
+    23.724025667282152
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    46.28,
+    23.400000000000002,
+    30.420000000000005,
+    11.310000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    81.41720909894116,
+    38.90546800496338,
+    66.62964872790013,
+    19.19186710020171
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "A",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    25.610000000000003,
+    58.89000000000001,
+    23.920000000000005,
+    31.070000000000004,
+    24.7,
+    37.830000000000005,
+    19.89,
+    14.560000000000002
+   ],
+   "peak_rpm": [
+    50.61193382043477,
+    93.84741562964447,
+    38.05633457328353,
+    74.42335991757817,
+    40.15778579194041,
+    73.22785423125606,
+    36.81014672195913,
+    23.724025667282152
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    19.630000000000003,
+    46.28,
+    16.380000000000003,
+    23.400000000000002,
+    17.55,
+    30.420000000000005,
+    18.2,
+    11.310000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    33.90799592494318,
+    81.41720909894116,
+    23.697881097779344,
+    38.90546800496338,
+    35.982645017563435,
+    66.62964872790013,
+    27.80675444640366,
+    19.19186710020171
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    20.0,
+    18.400000000000002,
+    19.3,
+    15.200000000000001
+   ],
+   "peak_rpm": [
+    38.100380659622054,
+    31.064173112263052,
+    31.462815522398873,
+    22.905927304960446
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    15.100000000000001,
+    12.5,
+    13.3,
+    13.700000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    26.28151282948463,
+    19.49987133438092,
+    26.985483299290607,
+    20.135317397293328
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    45.1,
+    23.700000000000003,
+    29.0,
+    11.0
+   ],
+   "peak_rpm": [
+    70.28284014662493,
+    56.79016008615911,
+    56.30019146250457,
+    27.964931613047444
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    35.6,
+    17.7,
+    23.400000000000002,
+    8.5
+   ],
+   "walk_0.15_peak_rpm": [
+    62.83911916507742,
+    30.079469329470076,
+    47.900676765612666,
+    15.995992016979006
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    20.0,
+    45.1,
+    18.400000000000002,
+    23.700000000000003,
+    19.3,
+    29.0,
+    15.200000000000001,
+    11.0
+   ],
+   "peak_rpm": [
+    38.100380659622054,
+    70.28284014662493,
+    31.064173112263052,
+    56.79016008615911,
+    31.462815522398873,
+    56.30019146250457,
+    22.905927304960446,
+    27.964931613047444
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    15.100000000000001,
+    35.6,
+    12.5,
+    17.7,
+    13.3,
+    23.400000000000002,
+    13.700000000000001,
+    8.5
+   ],
+   "walk_0.15_peak_rpm": [
+    26.28151282948463,
+    62.83911916507742,
+    19.49987133438092,
+    30.079469329470076,
+    26.985483299290607,
+    47.900676765612666,
+    20.135317397293328,
+    15.995992016979006
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    22.0,
+    20.240000000000006,
+    21.230000000000004,
+    16.720000000000002
+   ],
+   "peak_rpm": [
+    41.910418725584265,
+    34.17059042348936,
+    34.60909707463876,
+    25.196520035456494
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    16.610000000000003,
+    13.750000000000002,
+    14.630000000000003,
+    15.070000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    28.909664112433095,
+    21.449858467819013,
+    29.68403162921967,
+    22.148849137022662
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    49.61000000000001,
+    26.070000000000004,
+    31.900000000000002,
+    12.100000000000001
+   ],
+   "peak_rpm": [
+    77.31112416128744,
+    62.46917609477503,
+    61.93021060875503,
+    30.76142477435219
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    39.160000000000004,
+    19.470000000000002,
+    25.740000000000006,
+    9.350000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    69.12303108158517,
+    33.087416262417086,
+    52.69074444217394,
+    17.59559121867691
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    22.0,
+    49.61000000000001,
+    20.240000000000006,
+    26.070000000000004,
+    21.230000000000004,
+    31.900000000000002,
+    16.720000000000002,
+    12.100000000000001
+   ],
+   "peak_rpm": [
+    41.910418725584265,
+    77.31112416128744,
+    34.17059042348936,
+    62.46917609477503,
+    34.60909707463876,
+    61.93021060875503,
+    25.196520035456494,
+    30.76142477435219
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    16.610000000000003,
+    39.160000000000004,
+    13.750000000000002,
+    19.470000000000002,
+    14.630000000000003,
+    25.740000000000006,
+    15.070000000000002,
+    9.350000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    28.909664112433095,
+    69.12303108158517,
+    21.449858467819013,
+    33.087416262417086,
+    29.68403162921967,
+    52.69074444217394,
+    22.148849137022662,
+    17.59559121867691
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    24.0,
+    22.080000000000002,
+    23.16,
+    18.240000000000002
+   ],
+   "peak_rpm": [
+    45.72045679154646,
+    37.27700773471566,
+    37.755378626878645,
+    27.487112765952535
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.12,
+    15.0,
+    15.96,
+    16.44
+   ],
+   "walk_0.15_peak_rpm": [
+    31.537815395381553,
+    23.399845601257102,
+    32.38257995914873,
+    24.162380876751993
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    54.12,
+    28.44,
+    34.8,
+    13.2
+   ],
+   "peak_rpm": [
+    84.33940817594991,
+    68.14819210339093,
+    67.56022975500548,
+    33.55791793565693
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    42.72,
+    21.24,
+    28.080000000000002,
+    10.2
+   ],
+   "walk_0.15_peak_rpm": [
+    75.4069429980929,
+    36.09536319536409,
+    57.480812118735194,
+    19.195190420374807
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    24.0,
+    54.12,
+    22.080000000000002,
+    28.44,
+    23.16,
+    34.8,
+    18.240000000000002,
+    13.2
+   ],
+   "peak_rpm": [
+    45.72045679154646,
+    84.33940817594991,
+    37.27700773471566,
+    68.14819210339093,
+    37.755378626878645,
+    67.56022975500548,
+    27.487112765952535,
+    33.55791793565693
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.12,
+    42.72,
+    15.0,
+    21.24,
+    15.96,
+    28.080000000000002,
+    16.44,
+    10.2
+   ],
+   "walk_0.15_peak_rpm": [
+    31.537815395381553,
+    75.4069429980929,
+    23.399845601257102,
+    36.09536319536409,
+    32.38257995914873,
+    57.480812118735194,
+    24.162380876751993,
+    19.195190420374807
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    25.0,
+    23.000000000000004,
+    24.125,
+    19.0
+   ],
+   "peak_rpm": [
+    47.62547582452757,
+    38.830216390328815,
+    39.328519402998595,
+    28.632409131200557
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.875,
+    15.625,
+    16.625,
+    17.125
+   ],
+   "walk_0.15_peak_rpm": [
+    32.85189103685579,
+    24.37483916797615,
+    33.731854124113255,
+    25.16914674661666
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    56.375,
+    29.625000000000004,
+    36.25,
+    13.75
+   ],
+   "peak_rpm": [
+    87.85355018328117,
+    70.98770010769888,
+    70.37523932813072,
+    34.95616451630931
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    44.5,
+    22.125,
+    29.250000000000004,
+    10.625
+   ],
+   "walk_0.15_peak_rpm": [
+    78.54889895634678,
+    37.5993366618376,
+    59.875845957015834,
+    19.994990021223757
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    25.0,
+    56.375,
+    23.000000000000004,
+    29.625000000000004,
+    24.125,
+    36.25,
+    19.0,
+    13.75
+   ],
+   "peak_rpm": [
+    47.62547582452757,
+    87.85355018328117,
+    38.830216390328815,
+    70.98770010769888,
+    39.328519402998595,
+    70.37523932813072,
+    28.632409131200557,
+    34.95616451630931
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    18.875,
+    44.5,
+    15.625,
+    22.125,
+    16.625,
+    29.250000000000004,
+    17.125,
+    10.625
+   ],
+   "walk_0.15_peak_rpm": [
+    32.85189103685579,
+    78.54889895634678,
+    24.37483916797615,
+    37.5993366618376,
+    33.731854124113255,
+    59.875845957015834,
+    25.16914674661666,
+    19.994990021223757
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    26.0,
+    23.920000000000005,
+    25.090000000000003,
+    19.76
+   ],
+   "peak_rpm": [
+    49.53049485750867,
+    40.38342504594197,
+    40.90166017911854,
+    29.777705496448583
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    19.630000000000003,
+    16.25,
+    17.290000000000003,
+    17.810000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    34.16596667833002,
+    25.349832734695198,
+    35.08112828907779,
+    26.175912616481327
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    58.63,
+    30.810000000000006,
+    37.7,
+    14.3
+   ],
+   "peak_rpm": [
+    91.36769219061242,
+    73.82720811200684,
+    73.19024890125594,
+    36.35441109696168
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    46.28,
+    23.01,
+    30.420000000000005,
+    11.05
+   ],
+   "walk_0.15_peak_rpm": [
+    81.69085491460065,
+    39.1033101283111,
+    62.270879795296466,
+    20.79478962207271
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s0",
+   "block": "B",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    26.0,
+    58.63,
+    23.920000000000005,
+    30.810000000000006,
+    25.090000000000003,
+    37.7,
+    19.76,
+    14.3
+   ],
+   "peak_rpm": [
+    49.53049485750867,
+    91.36769219061242,
+    40.38342504594197,
+    73.82720811200684,
+    40.90166017911854,
+    73.19024890125594,
+    29.777705496448583,
+    36.35441109696168
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    19.630000000000003,
+    46.28,
+    16.25,
+    23.01,
+    17.290000000000003,
+    30.420000000000005,
+    17.810000000000002,
+    11.05
+   ],
+   "walk_0.15_peak_rpm": [
+    34.16596667833002,
+    81.69085491460065,
+    25.349832734695198,
+    39.1033101283111,
+    35.08112828907779,
+    62.270879795296466,
+    26.175912616481327,
+    20.79478962207271
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    24.900000000000002,
+    26.8,
+    19.1,
+    26.400000000000002
+   ],
+   "peak_rpm": [
+    42.842779102726766,
+    42.515737931218865,
+    26.994897714818894,
+    36.3711040643089
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    21.5,
+    15.0,
+    15.200000000000001,
+    19.1
+   ],
+   "walk_0.15_peak_rpm": [
+    35.31502309711351,
+    21.954258900652793,
+    21.09283133193425,
+    26.554630760228303
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    49.2,
+    39.0,
+    25.900000000000002,
+    21.1
+   ],
+   "peak_rpm": [
+    73.74171602315464,
+    63.667602537530584,
+    52.091506197540184,
+    45.941397711902596
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    36.7,
+    29.200000000000003,
+    21.3,
+    16.1
+   ],
+   "walk_0.15_peak_rpm": [
+    63.02625728454321,
+    62.285881350522224,
+    48.75210133772179,
+    37.67176091090734
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    24.900000000000002,
+    49.2,
+    26.8,
+    39.0,
+    19.1,
+    25.900000000000002,
+    26.400000000000002,
+    21.1
+   ],
+   "peak_rpm": [
+    42.842779102726766,
+    73.74171602315464,
+    42.515737931218865,
+    63.667602537530584,
+    26.994897714818894,
+    52.091506197540184,
+    36.3711040643089,
+    45.941397711902596
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    21.5,
+    36.7,
+    15.0,
+    29.200000000000003,
+    15.200000000000001,
+    21.3,
+    19.1,
+    16.1
+   ],
+   "walk_0.15_peak_rpm": [
+    35.31502309711351,
+    63.02625728454321,
+    21.954258900652793,
+    62.285881350522224,
+    21.09283133193425,
+    48.75210133772179,
+    26.554630760228303,
+    37.67176091090734
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    27.390000000000004,
+    29.480000000000004,
+    21.01,
+    29.040000000000006
+   ],
+   "peak_rpm": [
+    47.127057012999444,
+    46.76731172434076,
+    29.694387486300787,
+    40.008214470739794
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    23.650000000000002,
+    16.5,
+    16.720000000000002,
+    21.01
+   ],
+   "walk_0.15_peak_rpm": [
+    38.84652540682487,
+    24.149684790718073,
+    23.202114465127675,
+    29.210093836251136
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    54.120000000000005,
+    42.900000000000006,
+    28.490000000000006,
+    23.210000000000004
+   ],
+   "peak_rpm": [
+    81.11588762547011,
+    70.03436279128364,
+    57.300656817294204,
+    50.53553748309286
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    40.370000000000005,
+    32.120000000000005,
+    23.430000000000003,
+    17.710000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    69.32888301299754,
+    68.51446948557445,
+    53.627311471493975,
+    41.43893700199808
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    27.390000000000004,
+    54.120000000000005,
+    29.480000000000004,
+    42.900000000000006,
+    21.01,
+    28.490000000000006,
+    29.040000000000006,
+    23.210000000000004
+   ],
+   "peak_rpm": [
+    47.127057012999444,
+    81.11588762547011,
+    46.76731172434076,
+    70.03436279128364,
+    29.694387486300787,
+    57.300656817294204,
+    40.008214470739794,
+    50.53553748309286
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    23.650000000000002,
+    40.370000000000005,
+    16.5,
+    32.120000000000005,
+    16.720000000000002,
+    23.430000000000003,
+    21.01,
+    17.710000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    38.84652540682487,
+    69.32888301299754,
+    24.149684790718073,
+    68.51446948557445,
+    23.202114465127675,
+    53.627311471493975,
+    29.210093836251136,
+    41.43893700199808
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    29.880000000000003,
+    32.16,
+    22.92,
+    31.68
+   ],
+   "peak_rpm": [
+    51.411334923272115,
+    51.018885517462635,
+    32.39387725778267,
+    43.64532487717068
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    25.8,
+    18.0,
+    18.240000000000002,
+    22.92
+   ],
+   "walk_0.15_peak_rpm": [
+    42.37802771653621,
+    26.34511068078335,
+    25.311397598321097,
+    31.865556912273963
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    59.04,
+    46.8,
+    31.080000000000002,
+    25.32
+   ],
+   "peak_rpm": [
+    88.49005922778557,
+    76.4011230450367,
+    62.50980743704822,
+    55.129677254283116
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    44.04,
+    35.04,
+    25.56,
+    19.32
+   ],
+   "walk_0.15_peak_rpm": [
+    75.63150874145185,
+    74.74305762062667,
+    58.502521605266146,
+    45.2061130930888
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    29.880000000000003,
+    59.04,
+    32.16,
+    46.8,
+    22.92,
+    31.080000000000002,
+    31.68,
+    25.32
+   ],
+   "peak_rpm": [
+    51.411334923272115,
+    88.49005922778557,
+    51.018885517462635,
+    76.4011230450367,
+    32.39387725778267,
+    62.50980743704822,
+    43.64532487717068,
+    55.129677254283116
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    25.8,
+    44.04,
+    18.0,
+    35.04,
+    18.240000000000002,
+    25.56,
+    22.92,
+    19.32
+   ],
+   "walk_0.15_peak_rpm": [
+    42.37802771653621,
+    75.63150874145185,
+    26.34511068078335,
+    74.74305762062667,
+    25.311397598321097,
+    58.502521605266146,
+    31.865556912273963,
+    45.2061130930888
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    31.125000000000004,
+    33.5,
+    23.875,
+    33.0
+   ],
+   "peak_rpm": [
+    53.553473878408454,
+    53.14467241402358,
+    33.743622143523616,
+    45.463880080386126
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    26.875,
+    18.75,
+    19.0,
+    23.875
+   ],
+   "walk_0.15_peak_rpm": [
+    44.14377887139189,
+    27.44282362581599,
+    26.36603916491781,
+    33.19328845028538
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    61.5,
+    48.75,
+    32.375,
+    26.375
+   ],
+   "peak_rpm": [
+    92.1771450289433,
+    79.58450317191323,
+    65.11438274692523,
+    57.426747139878245
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    45.875,
+    36.5,
+    26.625,
+    20.125
+   ],
+   "walk_0.15_peak_rpm": [
+    78.78282160567902,
+    77.85735168815278,
+    60.94012667215224,
+    47.08970113863417
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    31.125000000000004,
+    61.5,
+    33.5,
+    48.75,
+    23.875,
+    32.375,
+    33.0,
+    26.375
+   ],
+   "peak_rpm": [
+    53.553473878408454,
+    92.1771450289433,
+    53.14467241402358,
+    79.58450317191323,
+    33.743622143523616,
+    65.11438274692523,
+    45.463880080386126,
+    57.426747139878245
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    26.875,
+    45.875,
+    18.75,
+    36.5,
+    19.0,
+    26.625,
+    23.875,
+    20.125
+   ],
+   "walk_0.15_peak_rpm": [
+    44.14377887139189,
+    78.78282160567902,
+    27.44282362581599,
+    77.85735168815278,
+    26.36603916491781,
+    60.94012667215224,
+    33.19328845028538,
+    47.08970113863417
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    32.370000000000005,
+    34.84,
+    24.830000000000002,
+    34.32000000000001
+   ],
+   "peak_rpm": [
+    55.6956128335448,
+    55.27045931058453,
+    35.09336702926456,
+    47.28243528360157
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    27.95,
+    19.5,
+    19.76,
+    24.830000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    45.909530026247566,
+    28.54053657084863,
+    27.420680731514526,
+    34.52101998829679
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    63.96000000000001,
+    50.7,
+    33.67,
+    27.430000000000003
+   ],
+   "peak_rpm": [
+    95.86423083010104,
+    82.76788329878976,
+    67.71895805680224,
+    59.72381702547337
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    47.71000000000001,
+    37.96000000000001,
+    27.69,
+    20.930000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    81.93413446990618,
+    80.97164575567889,
+    63.37773173903833,
+    48.97328918417954
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "A",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    32.370000000000005,
+    63.96000000000001,
+    34.84,
+    50.7,
+    24.830000000000002,
+    33.67,
+    34.32000000000001,
+    27.430000000000003
+   ],
+   "peak_rpm": [
+    55.6956128335448,
+    95.86423083010104,
+    55.27045931058453,
+    82.76788329878976,
+    35.09336702926456,
+    67.71895805680224,
+    47.28243528360157,
+    59.72381702547337
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    27.95,
+    47.71000000000001,
+    19.5,
+    37.96000000000001,
+    19.76,
+    27.69,
+    24.830000000000002,
+    20.930000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    45.909530026247566,
+    81.93413446990618,
+    28.54053657084863,
+    80.97164575567889,
+    27.420680731514526,
+    63.37773173903833,
+    34.52101998829679,
+    48.97328918417954
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    25.0,
+    26.900000000000002,
+    19.5,
+    25.900000000000002
+   ],
+   "peak_rpm": [
+    41.82202716206377,
+    42.10270222215262,
+    28.419215640018447,
+    37.55335212555411
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    21.700000000000003,
+    15.100000000000001,
+    14.9,
+    19.400000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    35.67106190877109,
+    25.610909991648413,
+    21.13260498023725,
+    25.3116812553385
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    49.800000000000004,
+    38.800000000000004,
+    26.8,
+    20.900000000000002
+   ],
+   "peak_rpm": [
+    71.69698765450008,
+    63.1927960095301,
+    51.65384982077851,
+    45.79191355394116
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    37.300000000000004,
+    29.400000000000002,
+    21.5,
+    16.400000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    63.040229845123996,
+    62.35636571875617,
+    49.4988132934717,
+    38.25117041535089
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    25.0,
+    49.800000000000004,
+    26.900000000000002,
+    38.800000000000004,
+    19.5,
+    26.8,
+    25.900000000000002,
+    20.900000000000002
+   ],
+   "peak_rpm": [
+    41.82202716206377,
+    71.69698765450008,
+    42.10270222215262,
+    63.1927960095301,
+    28.419215640018447,
+    51.65384982077851,
+    37.55335212555411,
+    45.79191355394116
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    21.700000000000003,
+    37.300000000000004,
+    15.100000000000001,
+    29.400000000000002,
+    14.9,
+    21.5,
+    19.400000000000002,
+    16.400000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    35.67106190877109,
+    63.040229845123996,
+    25.610909991648413,
+    62.35636571875617,
+    21.13260498023725,
+    49.4988132934717,
+    25.3116812553385,
+    38.25117041535089
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    27.500000000000004,
+    29.590000000000003,
+    21.450000000000003,
+    28.490000000000006
+   ],
+   "peak_rpm": [
+    46.00422987827015,
+    46.31297244436789,
+    31.261137204020294,
+    41.30868733810953
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    23.870000000000005,
+    16.610000000000003,
+    16.39,
+    21.340000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    39.2381680996482,
+    28.172000990813256,
+    23.245865478260978,
+    27.84284938087235
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    54.78000000000001,
+    42.68000000000001,
+    29.480000000000004,
+    22.990000000000006
+   ],
+   "peak_rpm": [
+    78.86668641995008,
+    69.51207561048311,
+    56.819234802856364,
+    50.37110490933528
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    41.03000000000001,
+    32.34,
+    23.650000000000002,
+    18.040000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    69.3442528296364,
+    68.5920022906318,
+    54.44869462281887,
+    42.076287456885986
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    27.500000000000004,
+    54.78000000000001,
+    29.590000000000003,
+    42.68000000000001,
+    21.450000000000003,
+    29.480000000000004,
+    28.490000000000006,
+    22.990000000000006
+   ],
+   "peak_rpm": [
+    46.00422987827015,
+    78.86668641995008,
+    46.31297244436789,
+    69.51207561048311,
+    31.261137204020294,
+    56.819234802856364,
+    41.30868733810953,
+    50.37110490933528
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    23.870000000000005,
+    41.03000000000001,
+    16.610000000000003,
+    32.34,
+    16.39,
+    23.650000000000002,
+    21.340000000000003,
+    18.040000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    39.2381680996482,
+    69.3442528296364,
+    28.172000990813256,
+    68.5920022906318,
+    23.245865478260978,
+    54.44869462281887,
+    27.84284938087235,
+    42.076287456885986
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    30.0,
+    32.28,
+    23.4,
+    31.080000000000002
+   ],
+   "peak_rpm": [
+    50.18643259447652,
+    50.523242666583144,
+    34.10305876802214,
+    45.06402255066494
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    26.040000000000003,
+    18.12,
+    17.88,
+    23.28
+   ],
+   "walk_0.15_peak_rpm": [
+    42.805274290525304,
+    30.733091989978092,
+    25.359125976284698,
+    30.374017506406197
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    59.760000000000005,
+    46.56,
+    32.16,
+    25.080000000000002
+   ],
+   "peak_rpm": [
+    86.03638518540009,
+    75.83135521143612,
+    61.98461978493421,
+    54.95029626472939
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    44.760000000000005,
+    35.28,
+    25.8,
+    19.680000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    75.64827581414879,
+    74.8276388625074,
+    59.398575952166034,
+    45.901404498421066
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    30.0,
+    59.760000000000005,
+    32.28,
+    46.56,
+    23.4,
+    32.16,
+    31.080000000000002,
+    25.080000000000002
+   ],
+   "peak_rpm": [
+    50.18643259447652,
+    86.03638518540009,
+    50.523242666583144,
+    75.83135521143612,
+    34.10305876802214,
+    61.98461978493421,
+    45.06402255066494,
+    54.95029626472939
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    26.040000000000003,
+    44.760000000000005,
+    18.12,
+    35.28,
+    17.88,
+    25.8,
+    23.28,
+    19.680000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    42.805274290525304,
+    75.64827581414879,
+    30.733091989978092,
+    74.8276388625074,
+    25.359125976284698,
+    59.398575952166034,
+    30.374017506406197,
+    45.901404498421066
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    31.25,
+    33.625,
+    24.375,
+    32.375
+   ],
+   "peak_rpm": [
+    52.27753395257971,
+    52.62837777769078,
+    35.524019550023056,
+    46.94169015694264
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    27.125000000000004,
+    18.875,
+    18.625,
+    24.250000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    44.58882738596386,
+    32.013637489560516,
+    26.415756225296562,
+    31.639601569173124
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    62.25000000000001,
+    48.50000000000001,
+    33.5,
+    26.125000000000004
+   ],
+   "peak_rpm": [
+    89.62123456812509,
+    78.99099501191262,
+    64.56731227597314,
+    57.239891942426446
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    46.62500000000001,
+    36.75,
+    26.875,
+    20.500000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    78.800287306405,
+    77.94545714844521,
+    61.87351661683962,
+    47.81396301918861
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    31.25,
+    62.25000000000001,
+    33.625,
+    48.50000000000001,
+    24.375,
+    33.5,
+    32.375,
+    26.125000000000004
+   ],
+   "peak_rpm": [
+    52.27753395257971,
+    89.62123456812509,
+    52.62837777769078,
+    78.99099501191262,
+    35.524019550023056,
+    64.56731227597314,
+    46.94169015694264,
+    57.239891942426446
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    27.125000000000004,
+    46.62500000000001,
+    18.875,
+    36.75,
+    18.625,
+    26.875,
+    24.250000000000004,
+    20.500000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    44.58882738596386,
+    78.800287306405,
+    32.013637489560516,
+    77.94545714844521,
+    26.415756225296562,
+    61.87351661683962,
+    31.639601569173124,
+    47.81396301918861
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    32.5,
+    34.970000000000006,
+    25.35,
+    33.67
+   ],
+   "peak_rpm": [
+    54.368635310682905,
+    54.73351288879841,
+    36.94498033202398,
+    48.819357763220346
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    28.210000000000004,
+    19.630000000000003,
+    19.37,
+    25.220000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    46.372380481402416,
+    33.29418298914294,
+    27.472386474308426,
+    32.90518563194005
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    64.74000000000001,
+    50.440000000000005,
+    34.84,
+    27.170000000000005
+   ],
+   "peak_rpm": [
+    93.2060839508501,
+    82.15063481238913,
+    67.15000476701206,
+    59.529487620123504
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    48.49000000000001,
+    38.220000000000006,
+    27.95,
+    21.320000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    81.9522987986612,
+    81.06327543438303,
+    64.3484572815132,
+    49.72652153995616
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s1",
+   "block": "B",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    32.5,
+    64.74000000000001,
+    34.970000000000006,
+    50.440000000000005,
+    25.35,
+    34.84,
+    33.67,
+    27.170000000000005
+   ],
+   "peak_rpm": [
+    54.368635310682905,
+    93.2060839508501,
+    54.73351288879841,
+    82.15063481238913,
+    36.94498033202398,
+    67.15000476701206,
+    48.819357763220346,
+    59.529487620123504
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    28.210000000000004,
+    48.49000000000001,
+    19.630000000000003,
+    38.220000000000006,
+    19.37,
+    27.95,
+    25.220000000000002,
+    21.320000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    46.372380481402416,
+    81.9522987986612,
+    33.29418298914294,
+    81.06327543438303,
+    27.472386474308426,
+    64.3484572815132,
+    32.90518563194005,
+    49.72652153995616
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    50.6,
+    26.6,
+    15.100000000000001,
+    30.200000000000003
+   ],
+   "peak_rpm": [
+    62.38440248181373,
+    33.244431465529544,
+    25.2839161208167,
+    40.310604208188245
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    35.1,
+    18.5,
+    8.3,
+    24.200000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    42.300922444874104,
+    26.85055126299382,
+    13.444999357653268,
+    32.21097482950373
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    23.0,
+    23.3,
+    13.0,
+    13.700000000000001
+   ],
+   "peak_rpm": [
+    49.869972463185746,
+    52.88026682612601,
+    37.170964934475656,
+    41.55008885022116
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    17.7,
+    14.9,
+    10.0,
+    11.9
+   ],
+   "walk_0.15_peak_rpm": [
+    29.195827471961962,
+    23.2241759777585,
+    28.78843616434769,
+    35.23717093060438
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    50.6,
+    23.0,
+    26.6,
+    23.3,
+    15.100000000000001,
+    13.0,
+    30.200000000000003,
+    13.700000000000001
+   ],
+   "peak_rpm": [
+    62.38440248181373,
+    49.869972463185746,
+    33.244431465529544,
+    52.88026682612601,
+    25.2839161208167,
+    37.170964934475656,
+    40.310604208188245,
+    41.55008885022116
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    35.1,
+    17.7,
+    18.5,
+    14.9,
+    8.3,
+    10.0,
+    24.200000000000003,
+    11.9
+   ],
+   "walk_0.15_peak_rpm": [
+    42.300922444874104,
+    29.195827471961962,
+    26.85055126299382,
+    23.2241759777585,
+    13.444999357653268,
+    28.78843616434769,
+    32.21097482950373,
+    35.23717093060438
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    55.660000000000004,
+    29.260000000000005,
+    16.610000000000003,
+    33.220000000000006
+   ],
+   "peak_rpm": [
+    68.62284272999511,
+    36.5688746120825,
+    27.812307732898372,
+    44.34166462900707
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    38.61000000000001,
+    20.35,
+    9.13,
+    26.620000000000005
+   ],
+   "walk_0.15_peak_rpm": [
+    46.53101468936152,
+    29.535606389293207,
+    14.789499293418595,
+    35.43207231245411
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    25.3,
+    25.630000000000003,
+    14.3,
+    15.070000000000002
+   ],
+   "peak_rpm": [
+    54.85696970950433,
+    58.168293508738614,
+    40.888061427923226,
+    45.70509773524328
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    19.470000000000002,
+    16.39,
+    11.0,
+    13.090000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    32.115410219158164,
+    25.546593575534352,
+    31.66727978078246,
+    38.76088802366482
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    55.660000000000004,
+    25.3,
+    29.260000000000005,
+    25.630000000000003,
+    16.610000000000003,
+    14.3,
+    33.220000000000006,
+    15.070000000000002
+   ],
+   "peak_rpm": [
+    68.62284272999511,
+    54.85696970950433,
+    36.5688746120825,
+    58.168293508738614,
+    27.812307732898372,
+    40.888061427923226,
+    44.34166462900707,
+    45.70509773524328
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    38.61000000000001,
+    19.470000000000002,
+    20.35,
+    16.39,
+    9.13,
+    11.0,
+    26.620000000000005,
+    13.090000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    46.53101468936152,
+    32.115410219158164,
+    29.535606389293207,
+    25.546593575534352,
+    14.789499293418595,
+    31.66727978078246,
+    35.43207231245411,
+    38.76088802366482
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    60.72,
+    31.92,
+    18.12,
+    36.24
+   ],
+   "peak_rpm": [
+    74.86128297817648,
+    39.893317758635455,
+    30.340699344980038,
+    48.372725049825895
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    42.12,
+    22.2,
+    9.96,
+    29.040000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    50.76110693384892,
+    32.22066151559258,
+    16.13399922918392,
+    38.65316979540448
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    27.599999999999998,
+    27.96,
+    15.6,
+    16.44
+   ],
+   "peak_rpm": [
+    59.84396695582289,
+    63.45632019135121,
+    44.60515792137078,
+    49.86010662026539
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    21.24,
+    17.88,
+    12.0,
+    14.28
+   ],
+   "walk_0.15_peak_rpm": [
+    35.03499296635435,
+    27.8690111733102,
+    34.54612339721723,
+    42.28460511672525
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    60.72,
+    27.599999999999998,
+    31.92,
+    27.96,
+    18.12,
+    15.6,
+    36.24,
+    16.44
+   ],
+   "peak_rpm": [
+    74.86128297817648,
+    59.84396695582289,
+    39.893317758635455,
+    63.45632019135121,
+    30.340699344980038,
+    44.60515792137078,
+    48.372725049825895,
+    49.86010662026539
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    42.12,
+    21.24,
+    22.2,
+    17.88,
+    9.96,
+    12.0,
+    29.040000000000003,
+    14.28
+   ],
+   "walk_0.15_peak_rpm": [
+    50.76110693384892,
+    35.03499296635435,
+    32.22066151559258,
+    27.8690111733102,
+    16.13399922918392,
+    34.54612339721723,
+    38.65316979540448,
+    42.28460511672525
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    63.25,
+    33.25,
+    18.875,
+    37.75
+   ],
+   "peak_rpm": [
+    77.98050310226716,
+    41.55553933191193,
+    31.604895151020873,
+    50.388255260235304
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    43.875,
+    23.125,
+    10.375,
+    30.250000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    52.87615305609263,
+    33.563189078742276,
+    16.806249197066585,
+    40.263718536879665
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    28.75,
+    29.125,
+    16.25,
+    17.125
+   ],
+   "peak_rpm": [
+    62.33746557898218,
+    66.10033353265752,
+    46.46370616809457,
+    51.93761106277645
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    22.125,
+    18.625,
+    12.5,
+    14.875
+   ],
+   "walk_0.15_peak_rpm": [
+    36.49478433995245,
+    29.030219972198125,
+    35.98554520543461,
+    44.04646366325547
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    63.25,
+    28.75,
+    33.25,
+    29.125,
+    18.875,
+    16.25,
+    37.75,
+    17.125
+   ],
+   "peak_rpm": [
+    77.98050310226716,
+    62.33746557898218,
+    41.55553933191193,
+    66.10033353265752,
+    31.604895151020873,
+    46.46370616809457,
+    50.388255260235304,
+    51.93761106277645
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    43.875,
+    22.125,
+    23.125,
+    18.625,
+    10.375,
+    12.5,
+    30.250000000000004,
+    14.875
+   ],
+   "walk_0.15_peak_rpm": [
+    52.87615305609263,
+    36.49478433995245,
+    33.563189078742276,
+    29.030219972198125,
+    16.806249197066585,
+    35.98554520543461,
+    40.263718536879665,
+    44.04646366325547
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    65.78,
+    34.580000000000005,
+    19.630000000000003,
+    39.260000000000005
+   ],
+   "peak_rpm": [
+    81.09972322635785,
+    43.217760905188406,
+    32.86909095706171,
+    52.40378547064472
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    45.63,
+    24.05,
+    10.790000000000001,
+    31.460000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    54.99119917833634,
+    34.90571664189197,
+    17.47849916494925,
+    41.87426727835486
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    29.900000000000002,
+    30.290000000000003,
+    16.900000000000002,
+    17.810000000000002
+   ],
+   "peak_rpm": [
+    64.83096420214147,
+    68.74434687396382,
+    48.32225441481835,
+    54.015115505287504
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    23.01,
+    19.37,
+    13.0,
+    15.47
+   ],
+   "walk_0.15_peak_rpm": [
+    37.954575713550554,
+    30.19142877108605,
+    37.424967013652,
+    45.80832220978569
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "A",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    65.78,
+    29.900000000000002,
+    34.580000000000005,
+    30.290000000000003,
+    19.630000000000003,
+    16.900000000000002,
+    39.260000000000005,
+    17.810000000000002
+   ],
+   "peak_rpm": [
+    81.09972322635785,
+    64.83096420214147,
+    43.217760905188406,
+    68.74434687396382,
+    32.86909095706171,
+    48.32225441481835,
+    52.40378547064472,
+    54.015115505287504
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    45.63,
+    23.01,
+    24.05,
+    19.37,
+    10.790000000000001,
+    13.0,
+    31.460000000000004,
+    15.47
+   ],
+   "walk_0.15_peak_rpm": [
+    54.99119917833634,
+    37.954575713550554,
+    34.90571664189197,
+    30.19142877108605,
+    17.47849916494925,
+    37.424967013652,
+    41.87426727835486,
+    45.80832220978569
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    50.7,
+    26.700000000000003,
+    14.9,
+    30.0
+   ],
+   "peak_rpm": [
+    63.45721467410938,
+    32.85241753034693,
+    24.379069556282005,
+    43.66908799168476
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    35.5,
+    18.2,
+    8.3,
+    24.3
+   ],
+   "walk_0.15_peak_rpm": [
+    44.50731982147565,
+    26.966466830483363,
+    13.271376015704615,
+    32.013864803488644
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    23.6,
+    23.200000000000003,
+    12.8,
+    13.5
+   ],
+   "peak_rpm": [
+    34.57999659131163,
+    50.28834660557049,
+    36.408228318752045,
+    42.196770326682476
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    17.8,
+    14.8,
+    10.200000000000001,
+    11.9
+   ],
+   "walk_0.15_peak_rpm": [
+    25.07655569357572,
+    22.570679091109383,
+    27.59088771784689,
+    34.45659418234682
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    50.7,
+    23.6,
+    26.700000000000003,
+    23.200000000000003,
+    14.9,
+    12.8,
+    30.0,
+    13.5
+   ],
+   "peak_rpm": [
+    63.45721467410938,
+    34.57999659131163,
+    32.85241753034693,
+    50.28834660557049,
+    24.379069556282005,
+    36.408228318752045,
+    43.66908799168476,
+    42.196770326682476
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    35.5,
+    17.8,
+    18.2,
+    14.8,
+    8.3,
+    10.200000000000001,
+    24.3,
+    11.9
+   ],
+   "walk_0.15_peak_rpm": [
+    44.50731982147565,
+    25.07655569357572,
+    26.966466830483363,
+    22.570679091109383,
+    13.271376015704615,
+    27.59088771784689,
+    32.013864803488644,
+    34.45659418234682
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    55.77000000000001,
+    29.370000000000005,
+    16.39,
+    33.0
+   ],
+   "peak_rpm": [
+    69.80293614152032,
+    36.13765928338163,
+    26.81697651191021,
+    48.03599679085324
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    39.050000000000004,
+    20.02,
+    9.13,
+    26.730000000000004
+   ],
+   "walk_0.15_peak_rpm": [
+    48.95805180362321,
+    29.6631135135317,
+    14.598513617275078,
+    35.21525128383751
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    25.960000000000004,
+    25.520000000000007,
+    14.080000000000002,
+    14.850000000000001
+   ],
+   "peak_rpm": [
+    38.037996250442795,
+    55.31718126612754,
+    40.04905115062725,
+    46.41644735935073
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    19.580000000000002,
+    16.28,
+    11.220000000000002,
+    13.090000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    27.584211262933295,
+    24.827747000220324,
+    30.34997648963158,
+    37.9022536005815
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    55.77000000000001,
+    25.960000000000004,
+    29.370000000000005,
+    25.520000000000007,
+    16.39,
+    14.080000000000002,
+    33.0,
+    14.850000000000001
+   ],
+   "peak_rpm": [
+    69.80293614152032,
+    38.037996250442795,
+    36.13765928338163,
+    55.31718126612754,
+    26.81697651191021,
+    40.04905115062725,
+    48.03599679085324,
+    46.41644735935073
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    39.050000000000004,
+    19.580000000000002,
+    20.02,
+    16.28,
+    9.13,
+    11.220000000000002,
+    26.730000000000004,
+    13.090000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    48.95805180362321,
+    27.584211262933295,
+    29.6631135135317,
+    24.827747000220324,
+    14.598513617275078,
+    30.34997648963158,
+    35.21525128383751,
+    37.9022536005815
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    60.84,
+    32.04,
+    17.88,
+    36.0
+   ],
+   "peak_rpm": [
+    76.14865760893126,
+    39.42290103641632,
+    29.254883467538406,
+    52.40290559002171
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    42.6,
+    21.84,
+    9.96,
+    29.16
+   ],
+   "walk_0.15_peak_rpm": [
+    53.40878378577077,
+    32.359760196580034,
+    15.925651218845537,
+    38.41663776418637
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    28.32,
+    27.840000000000003,
+    15.36,
+    16.2
+   ],
+   "peak_rpm": [
+    41.49599590957395,
+    60.346015926684586,
+    43.689873982502455,
+    50.63612439201897
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    21.36,
+    17.76,
+    12.24,
+    14.28
+   ],
+   "walk_0.15_peak_rpm": [
+    30.09186683229086,
+    27.08481490933126,
+    33.10906526141627,
+    41.34791301881618
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    60.84,
+    28.32,
+    32.04,
+    27.840000000000003,
+    17.88,
+    15.36,
+    36.0,
+    16.2
+   ],
+   "peak_rpm": [
+    76.14865760893126,
+    41.49599590957395,
+    39.42290103641632,
+    60.346015926684586,
+    29.254883467538406,
+    43.689873982502455,
+    52.40290559002171,
+    50.63612439201897
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    42.6,
+    21.36,
+    21.84,
+    17.76,
+    9.96,
+    12.24,
+    29.16,
+    14.28
+   ],
+   "walk_0.15_peak_rpm": [
+    53.40878378577077,
+    30.09186683229086,
+    32.359760196580034,
+    27.08481490933126,
+    15.925651218845537,
+    33.10906526141627,
+    38.41663776418637,
+    41.34791301881618
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    63.375,
+    33.375,
+    18.625,
+    37.5
+   ],
+   "peak_rpm": [
+    79.32151834263672,
+    41.06552191293367,
+    30.473836945352506,
+    54.58635998960595
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    44.375,
+    22.75,
+    10.375,
+    30.375
+   ],
+   "walk_0.15_peak_rpm": [
+    55.63414977684456,
+    33.708083538104205,
+    16.58922001963077,
+    40.017331004360805
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    29.5,
+    29.000000000000004,
+    16.0,
+    16.875
+   ],
+   "peak_rpm": [
+    43.22499573913953,
+    62.86043325696311,
+    45.510285398440054,
+    52.74596290835309
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    22.25,
+    18.5,
+    12.750000000000002,
+    14.875
+   ],
+   "walk_0.15_peak_rpm": [
+    31.345694616969652,
+    28.21334886388673,
+    34.488609647308614,
+    43.07074272793352
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    63.375,
+    29.5,
+    33.375,
+    29.000000000000004,
+    18.625,
+    16.0,
+    37.5,
+    16.875
+   ],
+   "peak_rpm": [
+    79.32151834263672,
+    43.22499573913953,
+    41.06552191293367,
+    62.86043325696311,
+    30.473836945352506,
+    45.510285398440054,
+    54.58635998960595,
+    52.74596290835309
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    44.375,
+    22.25,
+    22.75,
+    18.5,
+    10.375,
+    12.750000000000002,
+    30.375,
+    14.875
+   ],
+   "walk_0.15_peak_rpm": [
+    55.63414977684456,
+    31.345694616969652,
+    33.708083538104205,
+    28.21334886388673,
+    16.58922001963077,
+    34.488609647308614,
+    40.017331004360805,
+    43.07074272793352
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    65.91000000000001,
+    34.71000000000001,
+    19.37,
+    39.0
+   ],
+   "peak_rpm": [
+    82.4943790763422,
+    42.70814278945102,
+    31.692790423166606,
+    56.769814389190195
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    46.15,
+    23.66,
+    10.790000000000001,
+    31.590000000000003
+   ],
+   "walk_0.15_peak_rpm": [
+    57.859515767918346,
+    35.05640687962837,
+    17.252788820416,
+    41.61802424453524
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    30.680000000000003,
+    30.160000000000004,
+    16.64,
+    17.55
+   ],
+   "peak_rpm": [
+    44.95399556870512,
+    65.37485058724164,
+    47.33069681437766,
+    54.85580142468722
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    23.14,
+    19.240000000000002,
+    13.260000000000002,
+    15.47
+   ],
+   "walk_0.15_peak_rpm": [
+    32.599522401648436,
+    29.341882818442198,
+    35.86815403320096,
+    44.79357243705087
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s2",
+   "block": "B",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    65.91000000000001,
+    30.680000000000003,
+    34.71000000000001,
+    30.160000000000004,
+    19.37,
+    16.64,
+    39.0,
+    17.55
+   ],
+   "peak_rpm": [
+    82.4943790763422,
+    44.95399556870512,
+    42.70814278945102,
+    65.37485058724164,
+    31.692790423166606,
+    47.33069681437766,
+    56.769814389190195,
+    54.85580142468722
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    46.15,
+    23.14,
+    23.66,
+    19.240000000000002,
+    10.790000000000001,
+    13.260000000000002,
+    31.590000000000003,
+    15.47
+   ],
+   "walk_0.15_peak_rpm": [
+    57.859515767918346,
+    32.599522401648436,
+    35.05640687962837,
+    29.341882818442198,
+    17.252788820416,
+    35.86815403320096,
+    41.61802424453524,
+    44.79357243705087
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    35.1,
+    65.5,
+    46.1,
+    13.100000000000001
+   ],
+   "peak_rpm": [
+    46.47861979352519,
+    82.63953725364372,
+    58.408756122238856,
+    26.32446879991778
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    26.400000000000002,
+    55.6,
+    33.7,
+    7.300000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    39.338990101007795,
+    77.1005563039121,
+    44.212326855253025,
+    14.65666110665327
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    71.7,
+    29.900000000000002,
+    26.1,
+    14.9
+   ],
+   "peak_rpm": [
+    96.60211344692327,
+    56.94294137620923,
+    36.97144325946428,
+    39.817738429576536
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    40.2,
+    24.400000000000002,
+    23.5,
+    12.700000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    80.07162485711045,
+    56.793684476907586,
+    36.91322809315624,
+    26.155257970145367
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    35.1,
+    71.7,
+    65.5,
+    29.900000000000002,
+    46.1,
+    26.1,
+    13.100000000000001,
+    14.9
+   ],
+   "peak_rpm": [
+    46.47861979352519,
+    96.60211344692327,
+    82.63953725364372,
+    56.94294137620923,
+    58.408756122238856,
+    36.97144325946428,
+    26.32446879991778,
+    39.817738429576536
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    26.400000000000002,
+    40.2,
+    55.6,
+    24.400000000000002,
+    33.7,
+    23.5,
+    7.300000000000001,
+    12.700000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    39.338990101007795,
+    80.07162485711045,
+    77.1005563039121,
+    56.793684476907586,
+    44.212326855253025,
+    36.91322809315624,
+    14.65666110665327,
+    26.155257970145367
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    38.61000000000001,
+    72.05000000000001,
+    50.71000000000001,
+    14.410000000000002
+   ],
+   "peak_rpm": [
+    51.12648177287771,
+    90.9034909790081,
+    64.24963173446275,
+    28.95691567990956
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    29.040000000000006,
+    61.160000000000004,
+    37.07000000000001,
+    8.030000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    43.272889111108576,
+    84.81061193430331,
+    48.63355954077833,
+    16.1223272173186
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    78.87,
+    32.89000000000001,
+    28.710000000000004,
+    16.39
+   ],
+   "peak_rpm": [
+    106.26232479161561,
+    62.637235513830156,
+    40.66858758541071,
+    43.799512272534194
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    44.220000000000006,
+    26.840000000000003,
+    25.85,
+    13.970000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    88.0787873428215,
+    62.47305292459835,
+    40.60455090247187,
+    28.770783767159905
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    38.61000000000001,
+    78.87,
+    72.05000000000001,
+    32.89000000000001,
+    50.71000000000001,
+    28.710000000000004,
+    14.410000000000002,
+    16.39
+   ],
+   "peak_rpm": [
+    51.12648177287771,
+    106.26232479161561,
+    90.9034909790081,
+    62.637235513830156,
+    64.24963173446275,
+    40.66858758541071,
+    28.95691567990956,
+    43.799512272534194
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    29.040000000000006,
+    44.220000000000006,
+    61.160000000000004,
+    26.840000000000003,
+    37.07000000000001,
+    25.85,
+    8.030000000000001,
+    13.970000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    43.272889111108576,
+    88.0787873428215,
+    84.81061193430331,
+    62.47305292459835,
+    48.63355954077833,
+    40.60455090247187,
+    16.1223272173186,
+    28.770783767159905
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    42.12,
+    78.6,
+    55.32,
+    15.72
+   ],
+   "peak_rpm": [
+    55.77434375223023,
+    99.16744470437247,
+    70.09050734668662,
+    31.589362559901335
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    31.68,
+    66.72,
+    40.440000000000005,
+    8.76
+   ],
+   "walk_0.15_peak_rpm": [
+    47.20678812120935,
+    92.52066756469452,
+    53.054792226303626,
+    17.587993327983924
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    86.04,
+    35.88,
+    31.32,
+    17.88
+   ],
+   "peak_rpm": [
+    115.92253613630791,
+    68.33152965145106,
+    44.36573191135714,
+    47.781286115491845
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    48.24,
+    29.28,
+    28.2,
+    15.24
+   ],
+   "walk_0.15_peak_rpm": [
+    96.08594982853253,
+    68.1524213722891,
+    44.295873711787486,
+    31.38630956417444
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    42.12,
+    86.04,
+    78.6,
+    35.88,
+    55.32,
+    31.32,
+    15.72,
+    17.88
+   ],
+   "peak_rpm": [
+    55.77434375223023,
+    115.92253613630791,
+    99.16744470437247,
+    68.33152965145106,
+    70.09050734668662,
+    44.36573191135714,
+    31.589362559901335,
+    47.781286115491845
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    31.68,
+    48.24,
+    66.72,
+    29.28,
+    40.440000000000005,
+    28.2,
+    8.76,
+    15.24
+   ],
+   "walk_0.15_peak_rpm": [
+    47.20678812120935,
+    96.08594982853253,
+    92.52066756469452,
+    68.1524213722891,
+    53.054792226303626,
+    44.295873711787486,
+    17.587993327983924,
+    31.38630956417444
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    43.875,
+    81.875,
+    57.625,
+    16.375
+   ],
+   "peak_rpm": [
+    58.098274741906486,
+    103.29942156705465,
+    73.01094515279857,
+    32.90558599989723
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    33.0,
+    69.5,
+    42.125,
+    9.125
+   ],
+   "walk_0.15_peak_rpm": [
+    49.173737626259744,
+    96.37569537989012,
+    55.26540856906628,
+    18.32082638331659
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    89.625,
+    37.375,
+    32.625,
+    18.625
+   ],
+   "peak_rpm": [
+    120.75264180865409,
+    71.17867672026154,
+    46.21430407433035,
+    49.77217303697067
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    50.25,
+    30.500000000000004,
+    29.375,
+    15.875000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    100.08953107138807,
+    70.99210559613448,
+    46.141535116445304,
+    32.69407246268171
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    43.875,
+    89.625,
+    81.875,
+    37.375,
+    57.625,
+    32.625,
+    16.375,
+    18.625
+   ],
+   "peak_rpm": [
+    58.098274741906486,
+    120.75264180865409,
+    103.29942156705465,
+    71.17867672026154,
+    73.01094515279857,
+    46.21430407433035,
+    32.90558599989723,
+    49.77217303697067
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    33.0,
+    50.25,
+    69.5,
+    30.500000000000004,
+    42.125,
+    29.375,
+    9.125,
+    15.875000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    49.173737626259744,
+    100.08953107138807,
+    96.37569537989012,
+    70.99210559613448,
+    55.26540856906628,
+    46.141535116445304,
+    18.32082638331659,
+    32.69407246268171
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    45.63,
+    85.15,
+    59.93000000000001,
+    17.03
+   ],
+   "peak_rpm": [
+    60.42220573158275,
+    107.43139842973684,
+    75.93138295891052,
+    34.221809439893114
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    34.32000000000001,
+    72.28,
+    43.81,
+    9.490000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    51.14068713131014,
+    100.23072319508573,
+    57.47602491182894,
+    19.05365943864925
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    93.21000000000001,
+    38.870000000000005,
+    33.93,
+    19.37
+   ],
+   "peak_rpm": [
+    125.58274748100025,
+    74.02582378907199,
+    48.06287623730356,
+    51.763059958449496
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    52.260000000000005,
+    31.720000000000002,
+    30.55,
+    16.51
+   ],
+   "walk_0.15_peak_rpm": [
+    104.09311231424358,
+    73.83178981997986,
+    47.987196521103115,
+    34.00183536118898
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "A",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    45.63,
+    93.21000000000001,
+    85.15,
+    38.870000000000005,
+    59.93000000000001,
+    33.93,
+    17.03,
+    19.37
+   ],
+   "peak_rpm": [
+    60.42220573158275,
+    125.58274748100025,
+    107.43139842973684,
+    74.02582378907199,
+    75.93138295891052,
+    48.06287623730356,
+    34.221809439893114,
+    51.763059958449496
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    34.32000000000001,
+    52.260000000000005,
+    72.28,
+    31.720000000000002,
+    43.81,
+    30.55,
+    9.490000000000002,
+    16.51
+   ],
+   "walk_0.15_peak_rpm": [
+    51.14068713131014,
+    104.09311231424358,
+    100.23072319508573,
+    73.83178981997986,
+    57.47602491182894,
+    47.987196521103115,
+    19.05365943864925,
+    34.00183536118898
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.0,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    34.9,
+    65.7,
+    46.1,
+    13.100000000000001
+   ],
+   "peak_rpm": [
+    45.355591792946896,
+    85.61904191991304,
+    59.711135434305376,
+    21.469513428521736
+   ],
+   "pass": true,
+   "walk_0.15_p99_rpm": [
+    26.3,
+    55.400000000000006,
+    34.0,
+    7.1000000000000005
+   ],
+   "walk_0.15_peak_rpm": [
+    40.66752480146403,
+    72.94627520600477,
+    45.6510685710248,
+    17.482027934212137
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.0,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    71.7,
+    29.900000000000002,
+    26.0,
+    14.700000000000001
+   ],
+   "peak_rpm": [
+    94.90470001464305,
+    55.90166531364441,
+    37.42288730330911,
+    39.08968375447382
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    39.5,
+    24.3,
+    23.400000000000002,
+    12.700000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    82.00308567399969,
+    56.27746432777335,
+    37.636682406998325,
+    36.01738220584251
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.0,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    34.9,
+    71.7,
+    65.7,
+    29.900000000000002,
+    46.1,
+    26.0,
+    13.100000000000001,
+    14.700000000000001
+   ],
+   "peak_rpm": [
+    45.355591792946896,
+    94.90470001464305,
+    85.61904191991304,
+    55.90166531364441,
+    59.711135434305376,
+    37.42288730330911,
+    21.469513428521736,
+    39.08968375447382
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    26.3,
+    39.5,
+    55.400000000000006,
+    24.3,
+    34.0,
+    23.400000000000002,
+    7.1000000000000005,
+    12.700000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    40.66752480146403,
+    82.00308567399969,
+    72.94627520600477,
+    56.27746432777335,
+    45.6510685710248,
+    37.636682406998325,
+    17.482027934212137,
+    36.01738220584251
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.1,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    38.39,
+    72.27000000000001,
+    50.71000000000001,
+    14.410000000000002
+   ],
+   "peak_rpm": [
+    49.89115097224159,
+    94.18094611190436,
+    65.68224897773592,
+    23.616464771373913
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    28.930000000000003,
+    60.94000000000001,
+    37.400000000000006,
+    7.810000000000001
+   ],
+   "walk_0.15_peak_rpm": [
+    44.73427728161044,
+    80.24090272660526,
+    50.216175428127286,
+    19.23023072763335
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.1,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    78.87,
+    32.89000000000001,
+    28.6,
+    16.17
+   ],
+   "peak_rpm": [
+    104.39517001610737,
+    61.49183184500885,
+    41.16517603364002,
+    42.998652129921204
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    43.45,
+    26.730000000000004,
+    25.740000000000006,
+    13.970000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    90.20339424139966,
+    61.905210760550695,
+    41.40035064769816,
+    39.61912042642676
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.1,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    38.39,
+    78.87,
+    72.27000000000001,
+    32.89000000000001,
+    50.71000000000001,
+    28.6,
+    14.410000000000002,
+    16.17
+   ],
+   "peak_rpm": [
+    49.89115097224159,
+    104.39517001610737,
+    94.18094611190436,
+    61.49183184500885,
+    65.68224897773592,
+    41.16517603364002,
+    23.616464771373913,
+    42.998652129921204
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    28.930000000000003,
+    43.45,
+    60.94000000000001,
+    26.730000000000004,
+    37.400000000000006,
+    25.740000000000006,
+    7.810000000000001,
+    13.970000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    44.73427728161044,
+    90.20339424139966,
+    80.24090272660526,
+    61.905210760550695,
+    50.216175428127286,
+    41.40035064769816,
+    19.23023072763335,
+    39.61912042642676
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.2,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    41.879999999999995,
+    78.84,
+    55.32,
+    15.72
+   ],
+   "peak_rpm": [
+    54.42671015153628,
+    102.74285030389565,
+    71.65336252116644,
+    25.763416114226082
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    31.56,
+    66.48,
+    40.8,
+    8.52
+   ],
+   "walk_0.15_peak_rpm": [
+    48.80102976175684,
+    87.53553024720573,
+    54.78128228522976,
+    20.978433521054566
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.2,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    86.04,
+    35.88,
+    31.2,
+    17.64
+   ],
+   "peak_rpm": [
+    113.88564001757166,
+    67.08199837637329,
+    44.90746476397093,
+    46.90762050536858
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    47.4,
+    29.16,
+    28.080000000000002,
+    15.24
+   ],
+   "walk_0.15_peak_rpm": [
+    98.40370280879962,
+    67.53295719332802,
+    45.16401888839799,
+    43.220858647011006
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.2,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    41.879999999999995,
+    86.04,
+    78.84,
+    35.88,
+    55.32,
+    31.2,
+    15.72,
+    17.64
+   ],
+   "peak_rpm": [
+    54.42671015153628,
+    113.88564001757166,
+    102.74285030389565,
+    67.08199837637329,
+    71.65336252116644,
+    44.90746476397093,
+    25.763416114226082,
+    46.90762050536858
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    31.56,
+    47.4,
+    66.48,
+    29.16,
+    40.8,
+    28.080000000000002,
+    8.52,
+    15.24
+   ],
+   "walk_0.15_peak_rpm": [
+    48.80102976175684,
+    98.40370280879962,
+    87.53553024720573,
+    67.53295719332802,
+    54.78128228522976,
+    45.16401888839799,
+    20.978433521054566,
+    43.220858647011006
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.25,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    43.625,
+    82.125,
+    57.625,
+    16.375
+   ],
+   "peak_rpm": [
+    56.69448974118362,
+    107.02380239989131,
+    74.63891929288172,
+    26.83689178565217
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    32.875,
+    69.25,
+    42.5,
+    8.875
+   ],
+   "walk_0.15_peak_rpm": [
+    50.83440600183004,
+    91.18284400750596,
+    57.063835713781,
+    21.852534917765173
+   ],
+   "walk_0.15_pass": true
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.25,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    89.625,
+    37.375,
+    32.5,
+    18.375
+   ],
+   "peak_rpm": [
+    118.63087501830381,
+    69.87708164205551,
+    46.778609129136385,
+    48.86210469309227
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    49.375,
+    30.375,
+    29.250000000000004,
+    15.875000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    102.50385709249962,
+    70.34683040971669,
+    47.045853008747905,
+    45.02172775730314
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.25,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    43.625,
+    89.625,
+    82.125,
+    37.375,
+    57.625,
+    32.5,
+    16.375,
+    18.375
+   ],
+   "peak_rpm": [
+    56.69448974118362,
+    118.63087501830381,
+    107.02380239989131,
+    69.87708164205551,
+    74.63891929288172,
+    46.778609129136385,
+    26.83689178565217,
+    48.86210469309227
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    32.875,
+    49.375,
+    69.25,
+    30.375,
+    42.5,
+    29.250000000000004,
+    8.875,
+    15.875000000000002
+   ],
+   "walk_0.15_peak_rpm": [
+    50.83440600183004,
+    102.50385709249962,
+    91.18284400750596,
+    70.34683040971669,
+    57.063835713781,
+    47.045853008747905,
+    21.852534917765173,
+    45.02172775730314
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.3,
+   "placement": "pitch",
+   "drives": [
+    "left_fore_pitch",
+    "right_fore_pitch",
+    "left_hind_pitch",
+    "right_hind_pitch"
+   ],
+   "p99_rpm": [
+    45.37,
+    85.41000000000001,
+    59.93000000000001,
+    17.03
+   ],
+   "peak_rpm": [
+    58.962269330830964,
+    111.30475449588697,
+    77.62447606459699,
+    27.91036745707826
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    34.190000000000005,
+    72.02000000000001,
+    44.2,
+    9.23
+   ],
+   "walk_0.15_peak_rpm": [
+    52.86778224190324,
+    94.8301577678062,
+    59.34638914233224,
+    22.72663631447578
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.3,
+   "placement": "knees",
+   "drives": [
+    "left_fore_flexion",
+    "right_fore_flexion",
+    "left_hind_flexion",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    93.21000000000001,
+    38.870000000000005,
+    33.800000000000004,
+    19.110000000000003
+   ],
+   "peak_rpm": [
+    123.37611001903598,
+    72.67216490773774,
+    48.64975349430185,
+    50.816588880815964
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    51.35,
+    31.590000000000003,
+    30.420000000000005,
+    16.51
+   ],
+   "walk_0.15_peak_rpm": [
+    106.60401137619961,
+    73.16070362610536,
+    48.927687129097826,
+    46.822596867595266
+   ],
+   "walk_0.15_pass": false
+  },
+  {
+   "policy": "fore128-s3",
+   "block": "B",
+   "r": 1.3,
+   "placement": "both",
+   "drives": [
+    "left_fore_pitch",
+    "left_fore_flexion",
+    "right_fore_pitch",
+    "right_fore_flexion",
+    "left_hind_pitch",
+    "left_hind_flexion",
+    "right_hind_pitch",
+    "right_hind_flexion"
+   ],
+   "p99_rpm": [
+    45.37,
+    93.21000000000001,
+    85.41000000000001,
+    38.870000000000005,
+    59.93000000000001,
+    33.800000000000004,
+    17.03,
+    19.110000000000003
+   ],
+   "peak_rpm": [
+    58.962269330830964,
+    123.37611001903598,
+    111.30475449588697,
+    72.67216490773774,
+    77.62447606459699,
+    48.64975349430185,
+    27.91036745707826,
+    50.816588880815964
+   ],
+   "pass": false,
+   "walk_0.15_p99_rpm": [
+    34.190000000000005,
+    51.35,
+    72.02000000000001,
+    31.590000000000003,
+    44.2,
+    30.420000000000005,
+    9.23,
+    16.51
+   ],
+   "walk_0.15_peak_rpm": [
+    52.86778224190324,
+    106.60401137619961,
+    94.8301577678062,
+    73.16070362610536,
+    59.34638914233224,
+    48.927687129097826,
+    22.72663631447578,
+    46.822596867595266
+   ],
+   "walk_0.15_pass": false
+  }
+ ],
+ "seeds": {
+  "blocks": {
+   "A": [
+    700000,
+    700001,
+    700002,
+    700003
+   ],
+   "B": [
+    710000,
+    710001,
+    710002,
+    710003
+   ]
+  },
+  "demo_seed0": {
+   "A": 700000,
+   "B": 710000
+  }
+ },
+ "wall_s": 80.02943539619446,
+ "provenance": {
+  "commit": "fb1e80c8dcdbced4efd7af652844335cb417514f",
+  "sha256": {
+   "sim/candidate_checks.py": "008aa308debdf1b61e55a75dfad8c58b2e311683f5615c431fdeda2652e7ce73",
+   "rl/trike_env.py": "febfe2ba23a835d3c8a32a159c01fdf78a8b69e4c05b874a9a76a0f5b2da003e",
+   "walk/walk60.py": "5225c64a2006d8b4e5a3d0b6e43332160e08cbbc1821dfc2de73b6f2064b51b1",
+   "rl/robustness/sweep.py": "7b1c8ca0b1b2634f20ab8e0f02f53ff39cc0904eec871d94ce9155f8d07cb57c",
+   "sim/check_packaging60.py": "d5494c537e10748946e3c37f74a8912caafabe71fe4245d643773edc81d2bc42",
+   "design/form_factor_study.py": "4679079486ecd6bc16a73fb1b19a47b5a967c8bc955d19bcdd688a1debd92ac1",
+   "rl/telemetry/thermal.py": "c368079ddf88d8946428bc048975e63b44926c5ed6b0b22a08f5041108aa8272",
+   "rl/analysis/gait_pipe1.py": "c2bf97645c8e42a4c477fdaa86c16140adfb28038852608df1a9057b7f457014",
+   "rl/analysis/thermal_ambient.py": "1c9f9e234072cf1625364da87c9a7b86bf6159427ebfd7c7e3cf330e563c3444",
+   "rl/demo_course.py": "ae1e375b5f3a305fe45113b17c67be0acd45b4c5405c37c8a2bbce36b46dc024",
+   "rl/gait_metrics.py": "2b4dc013af789d3403c6d8a2b9a0216c64ae6d74f5cb4ccfb9f689ce463a45e6",
+   "walk/fore128_walk60.py": "9a2f75e9cc7c3b69a4c241d4daf0deda13819b4171e830cb93c0d81f62e48acc",
+   "walk/fore128_slow_gait.py": "5b6579f02bb1231931febbcbc496fa2b92ab52bef3022bbd16a570883e49a277",
+   "walk/judge_walk60.py": "8bab69974096cfb4a97be212276ffd7fbae703ecddb4f715e9752d79d9db1e3a",
+   "sim/build_scaled_trike.py": "2e5926791c8ecf7a6418baee97f691ceddeb71384da278d80cf3c8a9cb4d27bd",
+   "sim/data/drives.json": "0227d48921aaa5398199a312070e01f53329e8d0c284d567ff04c424283e27d3",
+   "sim/generated/trike60_C_closed_capsule_fore128.xml": "372ac07b14338c26ce2fa8dbd0a34952597080fafcc82149464b10b25a059eb1",
+   "runner:/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/code/e2_run.py": "f63f0b297250d30c3da68a19841bb30b35003156263000bc7ddb9b321b14e67e"
+  },
+  "runner": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/code/e2_run.py",
+  "python": "3.13.18",
+  "mujoco": "3.10.0",
+  "numpy": "2.5.5"
+ }
+}

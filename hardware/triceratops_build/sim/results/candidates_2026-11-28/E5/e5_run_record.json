@@ -1,0 +1,208 @@
+{
+ "experiment": "E5",
+ "date": "2026-11-28",
+ "stages": [
+  {
+   "size": "0.60",
+   "command": "run_e5.py tune --size 0.60 --workers 2",
+   "pools": [
+    {
+     "stage": "s1",
+     "episodes": 660,
+     "wall_s": 1352
+    },
+    {
+     "stage": "s2",
+     "episodes": 600,
+     "wall_s": 1238
+    }
+   ],
+   "sha256_before": [
+    "ad49597ecbb74be271ee555d1d4e23881723edd7c549d12c71533f3f52de13ef  code/run_e5.py",
+    "008aa308debdf1b61e55a75dfad8c58b2e311683f5615c431fdeda2652e7ce73  /home/user/mesozoic-labs/hardware/triceratops_build/sim/candidate_checks.py"
+   ]
+  },
+  {
+   "size": "0.60",
+   "command": "run_e5.py heldout --size 0.60 --workers 2",
+   "pools": [
+    {
+     "stage": "heldout",
+     "episodes": 200,
+     "wall_s": 413
+    },
+    {
+     "stage": "heldout_frozen",
+     "episodes": 200,
+     "wall_s": 406
+    }
+   ],
+   "sha256_before": [
+    "ad49597ecbb74be271ee555d1d4e23881723edd7c549d12c71533f3f52de13ef  code/run_e5.py",
+    "008aa308debdf1b61e55a75dfad8c58b2e311683f5615c431fdeda2652e7ce73  /home/user/mesozoic-labs/hardware/triceratops_build/sim/candidate_checks.py"
+   ]
+  },
+  {
+   "size": "0.50",
+   "command": "run_e5.py tune --size 0.50 --workers 2",
+   "pools": [
+    {
+     "stage": "s1",
+     "episodes": 660,
+     "wall_s": 1330
+    },
+    {
+     "stage": "s2",
+     "episodes": 600,
+     "wall_s": 1304
+    }
+   ],
+   "sha256_before": [
+    "ad49597ecbb74be271ee555d1d4e23881723edd7c549d12c71533f3f52de13ef  code/run_e5.py",
+    "008aa308debdf1b61e55a75dfad8c58b2e311683f5615c431fdeda2652e7ce73  /home/user/mesozoic-labs/hardware/triceratops_build/sim/candidate_checks.py"
+   ]
+  },
+  {
+   "size": "0.50",
+   "command": "run_e5.py heldout --size 0.50 --workers 2",
+   "pools": [
+    {
+     "stage": "heldout",
+     "episodes": 200,
+     "wall_s": 428
+    },
+    {
+     "stage": "heldout_frozen",
+     "episodes": 200,
+     "wall_s": 428
+    }
+   ],
+   "sha256_before": [
+    "ad49597ecbb74be271ee555d1d4e23881723edd7c549d12c71533f3f52de13ef  code/run_e5.py",
+    "008aa308debdf1b61e55a75dfad8c58b2e311683f5615c431fdeda2652e7ce73  /home/user/mesozoic-labs/hardware/triceratops_build/sim/candidate_checks.py"
+   ]
+  }
+ ],
+ "workers": 2,
+ "seeds": {
+  "s1": [
+   101,
+   102,
+   103,
+   104,
+   105
+  ],
+  "s2": [
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110
+  ],
+  "s3": "not run (a stage-2 setting met the rule at both sizes)",
+  "heldout": {
+   "301-310": [
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    307,
+    308,
+    309,
+    310
+   ],
+   "401-410": [
+    401,
+    402,
+    403,
+    404,
+    405,
+    406,
+    407,
+    408,
+    409,
+    410
+   ]
+  },
+  "heldout_frozen": {
+   "301-310": [
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    307,
+    308,
+    309,
+    310
+   ],
+   "401-410": [
+    401,
+    402,
+    403,
+    404,
+    405,
+    406,
+    407,
+    408,
+    409,
+    410
+   ]
+  }
+ },
+ "choice_sha256_at_write": {
+  "0.60": [
+   "21b623ce50d6fbfb34d5608f6cf9205007c5c58bfa88524f6898e036a2716144  e5_choice_0.60.json",
+   "2026-11-28T07:36:07Z"
+  ],
+  "0.50": [
+   "80223d678a9686a79e566ec49e62e1ff2704d8ec12a72fda88cfbe93b71a8ab4  e5_choice_0.50.json",
+   "2026-11-28T08:34:16Z"
+  ]
+ },
+ "choice_sha256_now": {
+  "0.60": "21b623ce50d6fbfb34d5608f6cf9205007c5c58bfa88524f6898e036a2716144",
+  "0.50": "80223d678a9686a79e566ec49e62e1ff2704d8ec12a72fda88cfbe93b71a8ab4"
+ },
+ "model_50cm": {
+  "path": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E5/models/trike_scaled_H0.50_D0_adopted_L1.xml",
+  "sha256": "171f5117f20216991a5bda6e1fe5c1441d2159dad1ee4a9a69b9f097fec81c62",
+  "built_by": "sim/build_scaled_trike.py build_xml(0.50, 'D0', 'adopted', layout='L1')"
+ },
+ "provenance": {
+  "commit": "fb1e80c8dcdbced4efd7af652844335cb417514f",
+  "sha256": {
+   "sim/candidate_checks.py": "008aa308debdf1b61e55a75dfad8c58b2e311683f5615c431fdeda2652e7ce73",
+   "rl/trike_env.py": "febfe2ba23a835d3c8a32a159c01fdf78a8b69e4c05b874a9a76a0f5b2da003e",
+   "walk/walk60.py": "5225c64a2006d8b4e5a3d0b6e43332160e08cbbc1821dfc2de73b6f2064b51b1",
+   "rl/robustness/sweep.py": "7b1c8ca0b1b2634f20ab8e0f02f53ff39cc0904eec871d94ce9155f8d07cb57c",
+   "sim/check_packaging60.py": "d5494c537e10748946e3c37f74a8912caafabe71fe4245d643773edc81d2bc42",
+   "design/form_factor_study.py": "4679079486ecd6bc16a73fb1b19a47b5a967c8bc955d19bcdd688a1debd92ac1",
+   "rl/telemetry/thermal.py": "c368079ddf88d8946428bc048975e63b44926c5ed6b0b22a08f5041108aa8272",
+   "rl/analysis/gait_pipe1.py": "c2bf97645c8e42a4c477fdaa86c16140adfb28038852608df1a9057b7f457014",
+   "rl/analysis/thermal_ambient.py": "1c9f9e234072cf1625364da87c9a7b86bf6159427ebfd7c7e3cf330e563c3444",
+   "rl/demo_course.py": "ae1e375b5f3a305fe45113b17c67be0acd45b4c5405c37c8a2bbce36b46dc024",
+   "rl/gait_metrics.py": "2b4dc013af789d3403c6d8a2b9a0216c64ae6d74f5cb4ccfb9f689ce463a45e6",
+   "walk/fore128_walk60.py": "9a2f75e9cc7c3b69a4c241d4daf0deda13819b4171e830cb93c0d81f62e48acc",
+   "walk/fore128_slow_gait.py": "5b6579f02bb1231931febbcbc496fa2b92ab52bef3022bbd16a570883e49a277",
+   "walk/judge_walk60.py": "8bab69974096cfb4a97be212276ffd7fbae703ecddb4f715e9752d79d9db1e3a",
+   "sim/build_scaled_trike.py": "2e5926791c8ecf7a6418baee97f691ceddeb71384da278d80cf3c8a9cb4d27bd",
+   "sim/data/drives.json": "0227d48921aaa5398199a312070e01f53329e8d0c284d567ff04c424283e27d3",
+   "sim/generated/trike60_C_closed_capsule_fore128.xml": "372ac07b14338c26ce2fa8dbd0a34952597080fafcc82149464b10b25a059eb1",
+   "runner:/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E5/code/record_e5.py": "dd021115730e757f9797438246a2632311e0c24d8aa1539dcb604012bb2387c7",
+   "model_50cm": "171f5117f20216991a5bda6e1fe5c1441d2159dad1ee4a9a69b9f097fec81c62"
+  },
+  "runner": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E5/code/record_e5.py",
+  "python": "3.13.18",
+  "mujoco": "3.10.0",
+  "numpy": "2.5.5"
+ }
+}

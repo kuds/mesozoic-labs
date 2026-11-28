@@ -1,0 +1,4254 @@
+{
+ "experiment": "E3 per-policy heat (DESK on SIMULATED torques)",
+ "date": "2026-11-28",
+ "prereg": "design/PREREG_CANDIDATES_2026_11_28.md (section 2 E3, section 3 item 7, section 4 E3)",
+ "evidence": "DESK: the build's thermal model (rl/telemetry/thermal.py via rl/analysis/thermal_ambient.py, method A, fitted at the 25 C rating room, run in a 35 C room; open air, no shell) and arithmetic, on SIMULATED drive torques from rl/demo_course.py segments (MuJoCo 3.10.0); nothing measured",
+ "rule": "MEETS THE HEAT RULES AT 60 CM: C1 (hottest winding over the demo, 8 min time constant) <= 90 C and C2 (worst drive's loop RMS over its continuous rating; X4-36-L 7.5 N m, X6-60 12 N m, drive side) <= 0.80, at 35 C with today's drives (D0), on BOTH demo courses (seed0 700000 and 710000). Per-policy reading, not the study's worst-of-four criterion.",
+ "operational_readings_fixed_before_any_E3_run": [
+  "(i) a demo course with a fallen segment does not count as meeting on that course (stricter)",
+  "(ii) demo courses run at demo_course.run's default room; C1/C2 recomputed at 35 C by policy_heat",
+  "(iii) per-drive figure = loop RMS (90 s walk + 30 s stand) over the continuous rating; walk and stand RMS beside"
+ ],
+ "units": {
+  "C1_c": "deg C (winding, peak over the demo)",
+  "C2": "dimensionless (RMS / continuous rating)",
+  "rms_nm": "N m, drive side",
+  "minutes": "min (one pack's runtime on the loop)",
+  "speed_mps": "m/s, 2-20 s"
+ },
+ "verdict": {
+  "fore128-s0": {
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 76.30817881407339,
+     "C1_joint": "left_hind_pitch",
+     "C1_pass": true,
+     "C2": 0.761346530556573,
+     "C2_joint": "left_hind_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 74.90976433642983,
+     "C1_joint": "left_hind_pitch",
+     "C1_pass": true,
+     "C2": 0.7500488766683763,
+     "C2_joint": "left_hind_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": true
+  },
+  "fore128-s1": {
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 74.37681066379075,
+     "C1_joint": "left_fore_pitch",
+     "C1_pass": true,
+     "C2": 0.7459246044388713,
+     "C2_joint": "left_fore_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 76.406131690385,
+     "C1_joint": "left_fore_pitch",
+     "C1_pass": true,
+     "C2": 0.7620442079603177,
+     "C2_joint": "left_fore_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": true
+  },
+  "fore128-s2": {
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 93.26734759015666,
+     "C1_joint": "left_fore_pitch",
+     "C1_pass": false,
+     "C2": 0.8812480044307821,
+     "C2_joint": "left_fore_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 91.03611670435627,
+     "C1_joint": "left_fore_pitch",
+     "C1_pass": false,
+     "C2": 0.867140787971948,
+     "C2_joint": "left_fore_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": false
+  },
+  "fore128-s3": {
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 98.27785749294762,
+     "C1_joint": "left_hind_pitch",
+     "C1_pass": false,
+     "C2": 0.9137250070127548,
+     "C2_joint": "left_hind_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 97.3441120806738,
+     "C1_joint": "left_hind_pitch",
+     "C1_pass": false,
+     "C2": 0.908541018760026,
+     "C2_joint": "left_hind_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": false
+  },
+  "fore160-s0": {
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 123.23808401400514,
+     "C1_joint": "right_hind_pitch",
+     "C1_pass": false,
+     "C2": 1.0325887001221639,
+     "C2_joint": "right_hind_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 120.83724110663735,
+     "C1_joint": "right_hind_pitch",
+     "C1_pass": false,
+     "C2": 1.0216536463216446,
+     "C2_joint": "right_hind_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": false
+  },
+  "fore160-s1": {
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 97.18746825719225,
+     "C1_joint": "right_fore_pitch",
+     "C1_pass": false,
+     "C2": 0.9065847340016119,
+     "C2_joint": "right_fore_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 96.55163799219127,
+     "C1_joint": "right_fore_pitch",
+     "C1_pass": false,
+     "C2": 0.9025870493782748,
+     "C2_joint": "right_fore_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": false
+  },
+  "fore160-s2": {
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 92.59049992756148,
+     "C1_joint": "right_hind_flexion",
+     "C1_pass": false,
+     "C2": 0.8814430896906945,
+     "C2_joint": "right_hind_flexion",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 90.09683609776489,
+     "C1_joint": "right_hind_flexion",
+     "C1_pass": false,
+     "C2": 0.8665963074783463,
+     "C2_joint": "right_hind_flexion",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": false
+  },
+  "fore160-s3": {
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "courses": {
+    "700000": {
+     "source": "stored",
+     "valid": true,
+     "C1_c": 80.63247101108695,
+     "C1_joint": "right_fore_pitch",
+     "C1_pass": true,
+     "C2": 0.7955337071271109,
+     "C2_joint": "right_fore_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 83.26393952790363,
+     "C1_joint": "left_hind_pitch",
+     "C1_pass": true,
+     "C2": 0.8197666339716057,
+     "C2_joint": "left_hind_pitch",
+     "C2_pass": false,
+     "MEETS_on_course": false
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": false
+  },
+  "run3-s0": {
+   "model": "trike60_C_closed_capsule.xml",
+   "model_label": "60 cm, 188 mm foreleg, capsule foot (not the adopted model)",
+   "courses": {
+    "700000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 77.89898221164981,
+     "C1_joint": "right_fore_pitch",
+     "C1_pass": true,
+     "C2": 0.7775467272646995,
+     "C2_joint": "right_fore_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 79.22726870396826,
+     "C1_joint": "right_fore_pitch",
+     "C1_pass": true,
+     "C2": 0.7872274595296838,
+     "C2_joint": "right_fore_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": true
+  },
+  "run3-s1": {
+   "model": "trike60_C_closed_capsule.xml",
+   "model_label": "60 cm, 188 mm foreleg, capsule foot (not the adopted model)",
+   "courses": {
+    "700000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 71.96495166651566,
+     "C1_joint": "left_hind_pitch",
+     "C1_pass": true,
+     "C2": 0.724835917764963,
+     "C2_joint": "left_hind_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 71.66490366868712,
+     "C1_joint": "left_hind_pitch",
+     "C1_pass": true,
+     "C2": 0.7222821917810353,
+     "C2_joint": "left_hind_pitch",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": true
+  },
+  "run2b": {
+   "model": "trike60_C_closed_ankleroll.xml",
+   "model_label": "60 cm, box foot with a passive roll ankle (not the adopted model)",
+   "courses": {
+    "700000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 62.129280192104545,
+     "C1_joint": "left_hind_flexion",
+     "C1_pass": true,
+     "C2": 0.6373451730216576,
+     "C2_joint": "left_hind_flexion",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    },
+    "710000": {
+     "source": "new",
+     "valid": true,
+     "C1_c": 61.17392209316171,
+     "C1_joint": "left_hind_flexion",
+     "C1_pass": true,
+     "C2": 0.6276621043046647,
+     "C2_joint": "left_hind_flexion",
+     "C2_pass": true,
+     "MEETS_on_course": true
+    }
+   },
+   "MEETS_HEAT_RULES_AT_60CM": true
+  }
+ },
+ "MEET": [
+  "fore128-s0",
+  "fore128-s1",
+  "run3-s0",
+  "run3-s1",
+  "run2b"
+ ],
+ "do_not_meet": [
+  "fore128-s2",
+  "fore128-s3",
+  "fore160-s0",
+  "fore160-s1",
+  "fore160-s2",
+  "fore160-s3"
+ ],
+ "fore128_meet": [
+  "fore128-s0",
+  "fore128-s1"
+ ],
+ "courses": {
+  "fore128-s0@700000": {
+   "policy": "fore128-s0",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s0/demo_course.json",
+   "file_sha256": "2dd9a9daf050b63881f3f0053ab779ac68ab09df8e1d078abcf2f81f2c67997a",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 95.95215738749239,
+   "segment_speed_mps": {
+    "walk_0.25": 0.235205549071699,
+    "walk_0.15": 0.14256359223776885,
+    "stand": 0.0015775676608399281
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 76.30817881407339,
+   "C1_joint": "left_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 77.36495541176568,
+    "tau_480s": 76.30817881407339,
+    "tau_900s": 75.99266631736005
+   },
+   "C1_pass": true,
+   "C2": 0.761346530556573,
+   "C2_joint": "left_hind_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_hind_pitch",
+    "ratio": 0.761346530556573,
+    "mirror": "right_hind_pitch",
+    "mirror_ratio": 0.6323796881377901,
+    "stand_rms_nm": 1.8661288362715451,
+    "mirror_stand_rms_nm": 4.2074296256455455
+   },
+   "even_split_C2": 0.6998401994597694,
+   "even_split_C1_c": 68.81653164905217,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 64.7461549255012,
+    "demo_course_own_C1_c_at_25c": 64.7461549255012
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.43646988553281635,
+     "hottest_winding_c_35c_8min": 47.320834963982186,
+     "walk_rms_nm": 3.7324874650928592,
+     "stand_rms_nm": 1.0341436982381849
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6378295109447534,
+     "hottest_winding_c_35c_8min": 62.46480867122145,
+     "walk_rms_nm": 5.216640736024052,
+     "stand_rms_nm": 3.1457808928735878
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5723969315622709,
+     "hottest_winding_c_35c_8min": 56.715288933293586,
+     "walk_rms_nm": 7.534444582187361,
+     "stand_rms_nm": 4.291394288188712
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.24403704554601474,
+     "hottest_winding_c_35c_8min": 38.71181610257592,
+     "walk_rms_nm": 2.0300331084023204,
+     "stand_rms_nm": 1.0181181886733324
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6208806833173689,
+     "hottest_winding_c_35c_8min": 60.95197019691371,
+     "walk_rms_nm": 5.137876135831315,
+     "stand_rms_nm": 2.7463742634262185
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.36662930064469035,
+     "hottest_winding_c_35c_8min": 43.4566095203348,
+     "walk_rms_nm": 4.698969480963103,
+     "stand_rms_nm": 3.3441403749651006
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3046612934524428,
+     "hottest_winding_c_35c_8min": 40.78709143669868,
+     "walk_rms_nm": 2.4488092556053656,
+     "stand_rms_nm": 1.7012239793191466
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.761346530556573,
+     "hottest_winding_c_35c_8min": 76.30817881407339,
+     "walk_rms_nm": 6.50483114242292,
+     "stand_rms_nm": 1.8661288362715451
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5051446225537698,
+     "hottest_winding_c_35c_8min": 51.39962344119778,
+     "walk_rms_nm": 3.679761144286583,
+     "stand_rms_nm": 4.097751693840047
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4821351865056519,
+     "hottest_winding_c_35c_8min": 50.09362274586698,
+     "walk_rms_nm": 4.01425246554919,
+     "stand_rms_nm": 1.9898636871744955
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6323796881377901,
+     "hottest_winding_c_35c_8min": 61.66279704214081,
+     "walk_rms_nm": 4.908358574524384,
+     "stand_rms_nm": 4.2074296256455455
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6687431196840498,
+     "hottest_winding_c_35c_8min": 65.38107078826799,
+     "walk_rms_nm": 5.368741413314764,
+     "stand_rms_nm": 3.762147384001174
+    }
+   ]
+  },
+  "fore128-s0@710000": {
+   "policy": "fore128-s0",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore128-s0/demo_course_seed710000.json",
+   "file_sha256": "a17be1d588053b1efc6bec14f0d4296161d25fe1b052c0cf111f27c9a76e9957",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 93.31348130674824,
+   "segment_speed_mps": {
+    "walk_0.25": 0.23423562292592118,
+    "walk_0.15": 0.14374918422855393,
+    "stand": 0.000954564023134042
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 74.90976433642983,
+   "C1_joint": "left_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 75.92891849604666,
+    "tau_480s": 74.90976433642983,
+    "tau_900s": 74.56927505184225
+   },
+   "C1_pass": true,
+   "C2": 0.7500488766683763,
+   "C2_joint": "left_hind_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_hind_pitch",
+    "ratio": 0.7500488766683763,
+    "mirror": "right_hind_pitch",
+    "mirror_ratio": 0.6205159310488058,
+    "stand_rms_nm": 1.8536416524286374,
+    "mirror_stand_rms_nm": 4.069174461941322
+   },
+   "even_split_C2": 0.688336159909117,
+   "even_split_C1_c": 67.5893384921535,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 63.40061997154795,
+    "demo_course_own_C1_c_at_25c": 63.40061997154795
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.47145149951480697,
+     "hottest_winding_c_35c_8min": 49.486785912780746,
+     "walk_rms_nm": 4.034505836197801,
+     "stand_rms_nm": 1.0854741645376267
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6537933866951865,
+     "hottest_winding_c_35c_8min": 64.09976667920088,
+     "walk_rms_nm": 5.4264788734260225,
+     "stand_rms_nm": 2.7991578051647092
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.577291982825858,
+     "hottest_winding_c_35c_8min": 57.19304724407193,
+     "walk_rms_nm": 7.715536898302798,
+     "stand_rms_nm": 3.6568711176838486
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.24899956856479968,
+     "hottest_winding_c_35c_8min": 38.8559256022359,
+     "walk_rms_nm": 2.0455853713925123,
+     "stand_rms_nm": 1.1819129082815536
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.639128741266305,
+     "hottest_winding_c_35c_8min": 62.58885856383701,
+     "walk_rms_nm": 5.228028195956035,
+     "stand_rms_nm": 3.1483982955167344
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.37915145732947725,
+     "hottest_winding_c_35c_8min": 44.018976601056615,
+     "walk_rms_nm": 4.7413491946506685,
+     "stand_rms_nm": 3.919461715327072
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3078299830071993,
+     "hottest_winding_c_35c_8min": 40.89396578507021,
+     "walk_rms_nm": 2.440291541456303,
+     "stand_rms_nm": 1.858971147352294
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7500488766683763,
+     "hottest_winding_c_35c_8min": 74.90976433642983,
+     "walk_rms_nm": 6.406845532643647,
+     "stand_rms_nm": 1.8536416524286374
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5036238767264932,
+     "hottest_winding_c_35c_8min": 51.38985501853599,
+     "walk_rms_nm": 3.547450275705247,
+     "stand_rms_nm": 4.394896665022543
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5320769460503418,
+     "hottest_winding_c_35c_8min": 53.668446523874195,
+     "walk_rms_nm": 4.493357070864355,
+     "stand_rms_nm": 1.7686291068926887
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6205159310488058,
+     "hottest_winding_c_35c_8min": 60.59375480162637,
+     "walk_rms_nm": 4.833074378781135,
+     "stand_rms_nm": 4.069174461941322
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7138875298793051,
+     "hottest_winding_c_35c_8min": 70.31595800520903,
+     "walk_rms_nm": 5.838561585655835,
+     "stand_rms_nm": 3.521585158401909
+    }
+   ]
+  },
+  "fore128-s1@700000": {
+   "policy": "fore128-s1",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s1/demo_course.json",
+   "file_sha256": "6e7023c753d68409e002ff73274f3b4dd3bd7f1a1e7f3aa0dabe606cc545eab3",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 85.74730869643203,
+   "segment_speed_mps": {
+    "walk_0.25": 0.2427940632891152,
+    "walk_0.15": 0.14764969227043606,
+    "stand": 0.0008686502682274958
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 74.37681066379075,
+   "C1_joint": "left_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 75.35541107145386,
+    "tau_480s": 74.37681066379075,
+    "tau_900s": 73.97895263589822
+   },
+   "C1_pass": true,
+   "C2": 0.7459246044388713,
+   "C2_joint": "left_fore_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_fore_pitch",
+    "ratio": 0.7459246044388713,
+    "mirror": "right_fore_pitch",
+    "mirror_ratio": 0.5851182148881453,
+    "stand_rms_nm": 2.049249242578393,
+    "mirror_stand_rms_nm": 2.965634503095019
+   },
+   "even_split_C2": 0.6820242598058889,
+   "even_split_C1_c": 66.76362792373251,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 62.88781936283131,
+    "demo_course_own_C1_c_at_25c": 62.88781936283131
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4271926084528731,
+     "hottest_winding_c_35c_8min": 46.76960356709278,
+     "walk_rms_nm": 3.6394171733600102,
+     "stand_rms_nm": 1.151073836046108
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7459246044388713,
+     "hottest_winding_c_35c_8min": 74.37681066379075,
+     "walk_rms_nm": 6.350626439728377,
+     "stand_rms_nm": 2.049249242578393
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6297992828705479,
+     "hottest_winding_c_35c_8min": 61.951141412199256,
+     "walk_rms_nm": 8.582850014935184,
+     "stand_rms_nm": 2.733643649972141
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3832157254495133,
+     "hottest_winding_c_35c_8min": 44.298905944185414,
+     "walk_rms_nm": 3.1220810649658275,
+     "stand_rms_nm": 1.949370468510233
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5851182148881453,
+     "hottest_winding_c_35c_8min": 57.72751240564453,
+     "walk_rms_nm": 4.769233348861483,
+     "stand_rms_nm": 2.965634503095019
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.48268566727589507,
+     "hottest_winding_c_35c_8min": 49.969344931737616,
+     "walk_rms_nm": 6.115154305352151,
+     "stand_rms_nm": 4.691938258321285
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.40835777508280013,
+     "hottest_winding_c_35c_8min": 45.68197571965116,
+     "walk_rms_nm": 3.4328060657370267,
+     "stand_rms_nm": 1.4722920399827442
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6700860651264509,
+     "hottest_winding_c_35c_8min": 65.12294786642043,
+     "walk_rms_nm": 5.015770422818646,
+     "stand_rms_nm": 5.055154943122837
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.637504436997434,
+     "hottest_winding_c_35c_8min": 62.009329898641724,
+     "walk_rms_nm": 4.824995534777799,
+     "stand_rms_nm": 4.6476804307300785
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5983605862493583,
+     "hottest_winding_c_35c_8min": 59.14829989108083,
+     "walk_rms_nm": 5.145322053913444,
+     "stand_rms_nm": 1.06533839660828
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6713161067995894,
+     "hottest_winding_c_35c_8min": 66.01748242071888,
+     "walk_rms_nm": 5.698949908521206,
+     "stand_rms_nm": 1.991382874141472
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7238109385303084,
+     "hottest_winding_c_35c_8min": 71.6627287297372,
+     "walk_rms_nm": 6.087624681356578,
+     "stand_rms_nm": 2.588530284242971
+    }
+   ]
+  },
+  "fore128-s1@710000": {
+   "policy": "fore128-s1",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore128-s1/demo_course_seed710000.json",
+   "file_sha256": "d4da632fd8cec4903024c1b9c2a5f1616db7bafb78679947a1c4f0e4d0cb8e11",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 83.75876172749692,
+   "segment_speed_mps": {
+    "walk_0.25": 0.2431233601741239,
+    "walk_0.15": 0.14608631721784252,
+    "stand": 0.0011537087793690997
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 76.406131690385,
+   "C1_joint": "left_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 77.48208790179147,
+    "tau_480s": 76.406131690385,
+    "tau_900s": 75.92540302906349
+   },
+   "C1_pass": true,
+   "C2": 0.7620442079603177,
+   "C2_joint": "left_fore_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_fore_pitch",
+    "ratio": 0.7620442079603177,
+    "mirror": "right_fore_pitch",
+    "mirror_ratio": 0.5971126328282449,
+    "stand_rms_nm": 1.7660597381668006,
+    "mirror_stand_rms_nm": 3.0285262116644054
+   },
+   "even_split_C2": 0.6967089339969798,
+   "even_split_C1_c": 68.2877307437875,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 64.8404038202493,
+    "demo_course_own_C1_c_at_25c": 64.8404038202493
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.43281090717405724,
+     "hottest_winding_c_35c_8min": 47.094224071307664,
+     "walk_rms_nm": 3.686263009720905,
+     "stand_rms_nm": 1.1758330568056647
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7620442079603177,
+     "hottest_winding_c_35c_8min": 76.406131690385,
+     "walk_rms_nm": 6.520252867042978,
+     "stand_rms_nm": 1.7660597381668006
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6334059237920863,
+     "hottest_winding_c_35c_8min": 62.3610025637891,
+     "walk_rms_nm": 8.726641755542067,
+     "stand_rms_nm": 1.621769417998434
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.39667738630762645,
+     "hottest_winding_c_35c_8min": 44.91588993739684,
+     "walk_rms_nm": 3.1199035877602066,
+     "stand_rms_nm": 2.4905859332713685
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5971126328282449,
+     "hottest_winding_c_35c_8min": 58.751231898261466,
+     "walk_rms_nm": 4.86656332021391,
+     "stand_rms_nm": 3.0285262116644054
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5011542776771195,
+     "hottest_winding_c_35c_8min": 51.137163929782,
+     "walk_rms_nm": 6.211878531770564,
+     "stand_rms_nm": 5.376181423576714
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.42221580532057146,
+     "hottest_winding_c_35c_8min": 46.36883349146067,
+     "walk_rms_nm": 3.435359412903575,
+     "stand_rms_nm": 2.16905717342504
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6777009044391199,
+     "hottest_winding_c_35c_8min": 65.98828752184004,
+     "walk_rms_nm": 4.98814016885678,
+     "stand_rms_nm": 5.356588376940365
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6651623855681091,
+     "hottest_winding_c_35c_8min": 64.74078482739853,
+     "walk_rms_nm": 4.881728087927171,
+     "stand_rms_nm": 5.29673648966293
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6038121327338766,
+     "hottest_winding_c_35c_8min": 59.64714334957466,
+     "walk_rms_nm": 5.207533843896978,
+     "stand_rms_nm": 0.8229941750978887
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6711123741770569,
+     "hottest_winding_c_35c_8min": 66.00399380908712,
+     "walk_rms_nm": 5.703606342853232,
+     "stand_rms_nm": 1.9351442533686014
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7268876654943032,
+     "hottest_winding_c_35c_8min": 72.15452036879631,
+     "walk_rms_nm": 6.2129925973264255,
+     "stand_rms_nm": 1.7545502450618702
+    }
+   ]
+  },
+  "fore128-s2@700000": {
+   "policy": "fore128-s2",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s2/demo_course.json",
+   "file_sha256": "56ab82c5cd07dd49d2e10526e5e522804135fadecf7d59f8fd09e3bcb8be1591",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 84.25375728170364,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24125747398533418,
+    "walk_0.15": 0.14354551513771183,
+    "stand": 0.0014903781196891146
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 93.26734759015666,
+   "C1_joint": "left_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 94.69430610448784,
+    "tau_480s": 93.26734759015666,
+    "tau_900s": 92.53619959837546
+   },
+   "C1_pass": false,
+   "C2": 0.8812480044307821,
+   "C2_joint": "left_fore_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "left_fore_pitch",
+    "ratio": 0.8812480044307821,
+    "mirror": "right_fore_pitch",
+    "mirror_ratio": 0.5442345780363245,
+    "stand_rms_nm": 2.6024303808765117,
+    "mirror_stand_rms_nm": 2.8924826258543748
+   },
+   "even_split_C2": 0.7323896917774075,
+   "even_split_C1_c": 72.63124051199019,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 81.0640311653581,
+    "demo_course_own_C1_c_at_25c": 81.0640311653581
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4611645652467377,
+     "hottest_winding_c_35c_8min": 48.81439387435743,
+     "walk_rms_nm": 3.928208749437647,
+     "stand_rms_nm": 1.2485584553185263
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8812480044307821,
+     "hottest_winding_c_35c_8min": 93.26734759015666,
+     "walk_rms_nm": 7.482466534242324,
+     "stand_rms_nm": 2.6024303808765117
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6261616488601575,
+     "hottest_winding_c_35c_8min": 61.56453888650427,
+     "walk_rms_nm": 8.470139727119971,
+     "stand_rms_nm": 3.2568947571384976
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.31190637487948053,
+     "hottest_winding_c_35c_8min": 41.10367442914165,
+     "walk_rms_nm": 2.5696375251098065,
+     "stand_rms_nm": 1.4422711166753377
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5442345780363245,
+     "hottest_winding_c_35c_8min": 54.41391554335234,
+     "walk_rms_nm": 4.407439972874095,
+     "stand_rms_nm": 2.8924826258543748
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.38441563072265716,
+     "hottest_winding_c_35c_8min": 44.32247474005196,
+     "walk_rms_nm": 4.917910671626399,
+     "stand_rms_nm": 3.5441615528351664
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3632422831051819,
+     "hottest_winding_c_35c_8min": 43.3984148386472,
+     "walk_rms_nm": 3.0785067642713226,
+     "stand_rms_nm": 1.1207156017414888
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6316075831951988,
+     "hottest_winding_c_35c_8min": 62.13088004151592,
+     "walk_rms_nm": 5.3879654675135,
+     "stand_rms_nm": 1.6334979863238546
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7391610302569571,
+     "hottest_winding_c_35c_8min": 72.98080671093827,
+     "walk_rms_nm": 5.866851594701214,
+     "stand_rms_nm": 4.435193179966786
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5949818917521076,
+     "hottest_winding_c_35c_8min": 58.857226505271456,
+     "walk_rms_nm": 5.120854751045676,
+     "stand_rms_nm": 0.9906141764001966
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7966250044754121,
+     "hottest_winding_c_35c_8min": 80.3725204568658,
+     "walk_rms_nm": 6.4731457099493195,
+     "stand_rms_nm": 4.13312452610255
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.616275314987653,
+     "hottest_winding_c_35c_8min": 60.43649704242552,
+     "walk_rms_nm": 5.013278663481908,
+     "stand_rms_nm": 3.1709691729872724
+    }
+   ]
+  },
+  "fore128-s2@710000": {
+   "policy": "fore128-s2",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore128-s2/demo_course_seed710000.json",
+   "file_sha256": "f8c62001e17878ff0a8a6c2bf6da25c313370c6e33538169de9c7db391191552",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 85.50473205029303,
+   "segment_speed_mps": {
+    "walk_0.25": 0.2429046140162313,
+    "walk_0.15": 0.14637102481272526,
+    "stand": 0.0016567661273809604
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 91.03611670435627,
+   "C1_joint": "left_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 92.4047535466228,
+    "tau_480s": 91.03611670435627,
+    "tau_900s": 90.40217495955856
+   },
+   "C1_pass": false,
+   "C2": 0.867140787971948,
+   "C2_joint": "left_fore_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "left_fore_pitch",
+    "ratio": 0.867140787971948,
+    "mirror": "right_fore_pitch",
+    "mirror_ratio": 0.5386776226600305,
+    "stand_rms_nm": 2.563279493589801,
+    "mirror_stand_rms_nm": 2.881845645629061
+   },
+   "even_split_C2": 0.7218402618721379,
+   "even_split_C1_c": 71.40768711924451,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 78.91717185062666,
+    "demo_course_own_C1_c_at_25c": 78.91717185062666
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.46471539336475415,
+     "hottest_winding_c_35c_8min": 49.035538584566496,
+     "walk_rms_nm": 3.954065991739232,
+     "stand_rms_nm": 1.2989132710459608
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.867140787971948,
+     "hottest_winding_c_35c_8min": 91.03611670435627,
+     "walk_rms_nm": 7.362394450285394,
+     "stand_rms_nm": 2.563279493589801
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6215980830713744,
+     "hottest_winding_c_35c_8min": 61.139394381048035,
+     "walk_rms_nm": 8.40487633106241,
+     "stand_rms_nm": 3.260590047885952
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.30325556823952365,
+     "hottest_winding_c_35c_8min": 40.75974102261699,
+     "walk_rms_nm": 2.492462992278779,
+     "stand_rms_nm": 1.433447285994268
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5386776226600305,
+     "hottest_winding_c_35c_8min": 53.98800077233771,
+     "walk_rms_nm": 4.358287944998886,
+     "stand_rms_nm": 2.881845645629061
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.37819639266514044,
+     "hottest_winding_c_35c_8min": 44.0106531557908,
+     "walk_rms_nm": 4.831510486487382,
+     "stand_rms_nm": 3.5151452086143276
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3621344037816337,
+     "hottest_winding_c_35c_8min": 43.338507622675664,
+     "walk_rms_nm": 3.0574375663449307,
+     "stand_rms_nm": 1.2095557135664339
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6379042476185448,
+     "hottest_winding_c_35c_8min": 62.73535953454368,
+     "walk_rms_nm": 5.445833067638979,
+     "stand_rms_nm": 1.6081412103513613
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7185306397491966,
+     "hottest_winding_c_35c_8min": 70.59145927785494,
+     "walk_rms_nm": 5.686414069544858,
+     "stand_rms_nm": 4.377042168769289
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5914261986975845,
+     "hottest_winding_c_35c_8min": 58.542911444230185,
+     "walk_rms_nm": 5.084994492015755,
+     "stand_rms_nm": 1.063064655761867
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.777685195424583,
+     "hottest_winding_c_35c_8min": 77.8420644409281,
+     "walk_rms_nm": 6.277951659990904,
+     "stand_rms_nm": 4.223822685735167
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6160094988223699,
+     "hottest_winding_c_35c_8min": 60.41867644103121,
+     "walk_rms_nm": 5.016509997737707,
+     "stand_rms_nm": 3.143901305966053
+    }
+   ]
+  },
+  "fore128-s3@700000": {
+   "policy": "fore128-s3",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore128-s3/demo_course.json",
+   "file_sha256": "10b076b7c7b021e296ba04b5f4a44acc517e6fedef5f5d8b2c80f6126e6417fb",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 89.55349714000765,
+   "segment_speed_mps": {
+    "walk_0.25": 0.23992633078131648,
+    "walk_0.15": 0.1427025588979599,
+    "stand": 0.00029854537594080165
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 98.27785749294762,
+   "C1_joint": "left_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 99.45113245454483,
+    "tau_480s": 98.27785749294762,
+    "tau_900s": 97.80437844930348
+   },
+   "C1_pass": false,
+   "C2": 0.9137250070127548,
+   "C2_joint": "left_hind_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "left_hind_pitch",
+    "ratio": 0.9137250070127548,
+    "mirror": "right_hind_pitch",
+    "mirror_ratio": 0.5089885786735544,
+    "stand_rms_nm": 4.1216312932521335,
+    "mirror_stand_rms_nm": 1.0538474435163803
+   },
+   "even_split_C2": 0.7395818959589885,
+   "even_split_C1_c": 73.43155005101364,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 85.88507408154288,
+    "demo_course_own_C1_c_at_25c": 85.88507408154288
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3431074918384043,
+     "hottest_winding_c_35c_8min": 42.461173868098896,
+     "walk_rms_nm": 2.895597869748963,
+     "stand_rms_nm": 1.1550575289287333
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6083951284701488,
+     "hottest_winding_c_35c_8min": 59.9290116767517,
+     "walk_rms_nm": 5.1313934455785475,
+     "stand_rms_nm": 2.0709771118767994
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5071204045303801,
+     "hottest_winding_c_35c_8min": 51.9210026214826,
+     "walk_rms_nm": 6.974815852578017,
+     "stand_rms_nm": 1.478643895577176
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.39785707140353765,
+     "hottest_winding_c_35c_8min": 45.1599324656202,
+     "walk_rms_nm": 3.403262721604205,
+     "stand_rms_nm": 0.9320486189155275
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7222364680728224,
+     "hottest_winding_c_35c_8min": 71.32658066859344,
+     "walk_rms_nm": 5.9581987584431175,
+     "stand_rms_nm": 3.296262083463531
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.524442569893428,
+     "hottest_winding_c_35c_8min": 52.77539535097411,
+     "walk_rms_nm": 6.501743271148066,
+     "stand_rms_nm": 5.621836760285936
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.43258370203455593,
+     "hottest_winding_c_35c_8min": 46.9917577085927,
+     "walk_rms_nm": 3.5641262703486976,
+     "stand_rms_nm": 1.9987396333347625
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.9137250070127548,
+     "hottest_winding_c_35c_8min": 98.27785749294762,
+     "walk_rms_nm": 7.546813187953089,
+     "stand_rms_nm": 4.1216312932521335
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5411986753380224,
+     "hottest_winding_c_35c_8min": 53.92803826080444,
+     "walk_rms_nm": 4.097480765170165,
+     "stand_rms_nm": 3.9412631895622425
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3950403225912312,
+     "hottest_winding_c_35c_8min": 45.03050632408178,
+     "walk_rms_nm": 3.40693936921716,
+     "stand_rms_nm": 0.5395230392262628
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5089885786735544,
+     "hottest_winding_c_35c_8min": 52.04501366886861,
+     "walk_rms_nm": 4.365776545675929,
+     "stand_rms_nm": 1.0538474435163803
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7167133997815621,
+     "hottest_winding_c_35c_8min": 70.83906732135783,
+     "walk_rms_nm": 6.017216999994093,
+     "stand_rms_nm": 2.6375880356675196
+    }
+   ]
+  },
+  "fore128-s3@710000": {
+   "policy": "fore128-s3",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore128-s3/demo_course_seed710000.json",
+   "file_sha256": "0cc2f4bd6476d59c2d2d6e95613f07437020ba24bf2dd6a0fb14f64ac5b3a39e",
+   "model": "trike60_C_closed_capsule_fore128.xml",
+   "model_label": "adopted 60 cm model (128 mm foreleg, capsule foot)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 90.4643190888376,
+   "segment_speed_mps": {
+    "walk_0.25": 0.2405223123251057,
+    "walk_0.15": 0.14125740355838132,
+    "stand": 0.0002841483989961863
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 97.3441120806738,
+   "C1_joint": "left_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 98.44999492891088,
+    "tau_480s": 97.3441120806738,
+    "tau_900s": 96.90572459794498
+   },
+   "C1_pass": false,
+   "C2": 0.908541018760026,
+   "C2_joint": "left_hind_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "left_hind_pitch",
+    "ratio": 0.908541018760026,
+    "mirror": "right_hind_pitch",
+    "mirror_ratio": 0.5092083813982449,
+    "stand_rms_nm": 4.252396067929829,
+    "mirror_stand_rms_nm": 0.9214134031446155
+   },
+   "even_split_C2": 0.7364577239922622,
+   "even_split_C1_c": 73.0434196914759,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 84.98663723724991,
+    "demo_course_own_C1_c_at_25c": 84.98663723724991
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3450717345970377,
+     "hottest_winding_c_35c_8min": 42.54570637174861,
+     "walk_rms_nm": 2.906169920862783,
+     "stand_rms_nm": 1.2059403497785939
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5973295177973735,
+     "hottest_winding_c_35c_8min": 58.96547385430724,
+     "walk_rms_nm": 5.05148829466908,
+     "stand_rms_nm": 1.9307957980256314
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.4945225194649858,
+     "hottest_winding_c_35c_8min": 51.04485959836436,
+     "walk_rms_nm": 6.807141272524287,
+     "stand_rms_nm": 1.36041754924571
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3867438617965045,
+     "hottest_winding_c_35c_8min": 44.57575051096981,
+     "walk_rms_nm": 3.3010952717938364,
+     "stand_rms_nm": 0.9806851242920605
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7216829850975557,
+     "hottest_winding_c_35c_8min": 71.26185609312667,
+     "walk_rms_nm": 5.952444907592178,
+     "stand_rms_nm": 3.3001701981241185
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5289559071341984,
+     "hottest_winding_c_35c_8min": 53.088023456821,
+     "walk_rms_nm": 6.528750311855787,
+     "stand_rms_nm": 5.769558446797696
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.417265056612525,
+     "hottest_winding_c_35c_8min": 46.10336433484539,
+     "walk_rms_nm": 3.4098330723943104,
+     "stand_rms_nm": 2.072171309504844
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.908541018760026,
+     "hottest_winding_c_35c_8min": 97.3441120806738,
+     "walk_rms_nm": 7.475351804532764,
+     "stand_rms_nm": 4.252396067929829
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5461877353249919,
+     "hottest_winding_c_35c_8min": 54.27505786338481,
+     "walk_rms_nm": 4.101753614244939,
+     "stand_rms_nm": 4.080329197927601
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.38714230916675096,
+     "hottest_winding_c_35c_8min": 44.619993711262936,
+     "walk_rms_nm": 3.3396985677169466,
+     "stand_rms_nm": 0.5119112505455133
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5092083813982449,
+     "hottest_winding_c_35c_8min": 52.06981432365732,
+     "walk_rms_nm": 4.37766916177643,
+     "stand_rms_nm": 0.9214134031446155
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7031706847155426,
+     "hottest_winding_c_35c_8min": 69.3592815221687,
+     "walk_rms_nm": 5.9278871310996655,
+     "stand_rms_nm": 2.41484785184844
+    }
+   ]
+  },
+  "fore160-s0@700000": {
+   "policy": "fore160-s0",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore160-s0/demo_course.json",
+   "file_sha256": "5a61c1f707a6fbcd74d659380abebfccf0e93cd36f7c1c7e8e1d1f45bac7fb50",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 69.11078449617797,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24323543560605224,
+    "walk_0.15": 0.149515807472771,
+    "stand": 0.00030448597584978234
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 123.23808401400514,
+   "C1_joint": "right_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 127.11024529507921,
+    "tau_480s": 123.23808401400514,
+    "tau_900s": 119.69138710206265
+   },
+   "C1_pass": false,
+   "C2": 1.0325887001221639,
+   "C2_joint": "right_hind_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "right_hind_pitch",
+    "ratio": 1.0325887001221639,
+    "mirror": "left_hind_pitch",
+    "mirror_ratio": 0.6353939802644206,
+    "stand_rms_nm": 11.836886284073648,
+    "mirror_stand_rms_nm": 2.472355956387637
+   },
+   "even_split_C2": 0.8573111843946288,
+   "even_split_C1_c": 89.3999572169462,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 109.90145676321109,
+    "demo_course_own_C1_c_at_25c": 109.90145676321109
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6600061268316079,
+     "hottest_winding_c_35c_8min": 64.79955270949122,
+     "walk_rms_nm": 5.55779557313658,
+     "stand_rms_nm": 2.3118271516495184
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.9360878879685359,
+     "hottest_winding_c_35c_8min": 102.39512976705669,
+     "walk_rms_nm": 7.8709625825699705,
+     "stand_rms_nm": 3.361913773680711
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6840010103714046,
+     "hottest_winding_c_35c_8min": 67.11234204528357,
+     "walk_rms_nm": 9.017819364941,
+     "stand_rms_nm": 5.051995036102887
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.40097368489944274,
+     "hottest_winding_c_35c_8min": 45.306359895727404,
+     "walk_rms_nm": 3.4058937022910785,
+     "stand_rms_nm": 1.1726640021742714
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6950870050628618,
+     "hottest_winding_c_35c_8min": 68.61481399431,
+     "walk_rms_nm": 5.977256270109321,
+     "stand_rms_nm": 1.2349331888607011
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5077753388508596,
+     "hottest_winding_c_35c_8min": 51.981990960208584,
+     "walk_rms_nm": 7.018451065568183,
+     "stand_rms_nm": 0.8587500764804366
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.43988950805450505,
+     "hottest_winding_c_35c_8min": 47.51352400452207,
+     "walk_rms_nm": 3.753365512153652,
+     "stand_rms_nm": 1.129100233913894
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6353939802644206,
+     "hottest_winding_c_35c_8min": 62.356450017816464,
+     "walk_rms_nm": 5.314310736432139,
+     "stand_rms_nm": 2.472355956387637
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.812039511555716,
+     "hottest_winding_c_35c_8min": 82.80932868863059,
+     "walk_rms_nm": 6.8418704775442025,
+     "stand_rms_nm": 2.8166048674330515
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8413346166702611,
+     "hottest_winding_c_35c_8min": 86.4984736037306,
+     "walk_rms_nm": 6.786266207181598,
+     "stand_rms_nm": 4.593980710399935
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 1.0325887001221639,
+     "hottest_winding_c_35c_8min": 123.23808401400514,
+     "walk_rms_nm": 5.767494933169416,
+     "stand_rms_nm": 11.836886284073648
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4603510926627926,
+     "hottest_winding_c_35c_8min": 48.653642085054614,
+     "walk_rms_nm": 3.788288727812792,
+     "stand_rms_nm": 2.1515830126306326
+    }
+   ]
+  },
+  "fore160-s0@710000": {
+   "policy": "fore160-s0",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore160-s0/demo_course_seed710000.json",
+   "file_sha256": "b37346c87c786c01ba3c7e752c96923c8c5bfa2c2a5d78f8933b95bc49d67570",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 68.89629751618013,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24379234156290644,
+    "walk_0.15": 0.15101149954607998,
+    "stand": -2.6408942476485237e-05
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 120.83724110663735,
+   "C1_joint": "right_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 124.62980885463945,
+    "tau_480s": 120.83724110663735,
+    "tau_900s": 117.42588192140663
+   },
+   "C1_pass": false,
+   "C2": 1.0216536463216446,
+   "C2_joint": "right_hind_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "right_hind_pitch",
+    "ratio": 1.0216536463216446,
+    "mirror": "left_hind_pitch",
+    "mirror_ratio": 0.6244180694221534,
+    "stand_rms_nm": 11.74155710336591,
+    "mirror_stand_rms_nm": 2.367258566562297
+   },
+   "even_split_C2": 0.8466622994037235,
+   "even_split_C1_c": 87.81395890156409,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 107.59139912117519,
+    "demo_course_own_C1_c_at_25c": 107.59139912117519
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6859776642440106,
+     "hottest_winding_c_35c_8min": 67.52054902379965,
+     "walk_rms_nm": 5.8105511460731,
+     "stand_rms_nm": 2.142356459831368
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.9252753072166247,
+     "hottest_winding_c_35c_8min": 100.45654735679454,
+     "walk_rms_nm": 7.770366289870419,
+     "stand_rms_nm": 3.3903483370179814
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6843928627357965,
+     "hottest_winding_c_35c_8min": 67.14434115549912,
+     "walk_rms_nm": 9.011169254124738,
+     "stand_rms_nm": 5.117733305404018
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4052868735769387,
+     "hottest_winding_c_35c_8min": 45.538865320519896,
+     "walk_rms_nm": 3.4438653454820587,
+     "stand_rms_nm": 1.1735845400572402
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6937134286007158,
+     "hottest_winding_c_35c_8min": 68.46391155026835,
+     "walk_rms_nm": 5.964005951027148,
+     "stand_rms_nm": 1.2532044039399046
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5090161121165522,
+     "hottest_winding_c_35c_8min": 52.069379527071696,
+     "walk_rms_nm": 7.03402698709079,
+     "stand_rms_nm": 0.89860826488721
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4390996384532339,
+     "hottest_winding_c_35c_8min": 47.46188598166689,
+     "walk_rms_nm": 3.740548134109199,
+     "stand_rms_nm": 1.1860901228122316
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6244180694221534,
+     "hottest_winding_c_35c_8min": 61.33926263522115,
+     "walk_rms_nm": 5.232052500333481,
+     "stand_rms_nm": 2.367258566562297
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8011868191594147,
+     "hottest_winding_c_35c_8min": 81.2910995221545,
+     "walk_rms_nm": 6.729509751014233,
+     "stand_rms_nm": 2.9272286128416285
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8666352677259955,
+     "hottest_winding_c_35c_8min": 90.3372774650818,
+     "walk_rms_nm": 7.020416938494438,
+     "stand_rms_nm": 4.596628401781623
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 1.0216536463216446,
+     "hottest_winding_c_35c_8min": 120.83724110663735,
+     "walk_rms_nm": 5.6858149730394185,
+     "stand_rms_nm": 11.74155710336591
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4758737756776972,
+     "hottest_winding_c_35c_8min": 49.648143124616055,
+     "walk_rms_nm": 3.9251303105053608,
+     "stand_rms_nm": 2.1754591404228676
+    }
+   ]
+  },
+  "fore160-s1@700000": {
+   "policy": "fore160-s1",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore160-s1/demo_course.json",
+   "file_sha256": "7e58dad154dfc73a3a3321d3506e4e3a3a34e622a1849cb78d03bf383455a4f8",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 73.5425384594675,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24503359587161722,
+    "walk_0.15": 0.14497454890327355,
+    "stand": 0.0020862470201931226
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 97.18746825719225,
+   "C1_joint": "right_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 98.50989449629277,
+    "tau_480s": 97.18746825719225,
+    "tau_900s": 96.02654046662884
+   },
+   "C1_pass": false,
+   "C2": 0.9065847340016119,
+   "C2_joint": "right_fore_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "right_fore_pitch",
+    "ratio": 0.9065847340016119,
+    "mirror": "left_fore_pitch",
+    "mirror_ratio": 0.7270626910629382,
+    "stand_rms_nm": 3.612046542606121,
+    "mirror_stand_rms_nm": 2.2325157220904406
+   },
+   "even_split_C2": 0.8217408462101828,
+   "even_split_C1_c": 84.1491783884849,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 84.83591672971451,
+    "demo_course_own_C1_c_at_25c": 84.83591672971451
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4152206514416156,
+     "hottest_winding_c_35c_8min": 46.08177209560109,
+     "walk_rms_nm": 3.5240992066185655,
+     "stand_rms_nm": 1.2385543819473994
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7270626910629382,
+     "hottest_winding_c_35c_8min": 72.09639418420488,
+     "walk_rms_nm": 6.163208277516598,
+     "stand_rms_nm": 2.2325157220904406
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5447509165360682,
+     "hottest_winding_c_35c_8min": 54.67764277407416,
+     "walk_rms_nm": 7.437868518077077,
+     "stand_rms_nm": 2.228090415113417
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4469267180728573,
+     "hottest_winding_c_35c_8min": 47.869803944444314,
+     "walk_rms_nm": 3.7252336249105706,
+     "stand_rms_nm": 1.8193924447920453
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.9065847340016119,
+     "hottest_winding_c_35c_8min": 97.18746825719225,
+     "walk_rms_nm": 7.569229215649397,
+     "stand_rms_nm": 3.612046542606121
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6389867212598078,
+     "hottest_winding_c_35c_8min": 62.508320245322444,
+     "walk_rms_nm": 8.275924506065742,
+     "stand_rms_nm": 5.4507193982817075
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6602960446334407,
+     "hottest_winding_c_35c_8min": 64.42476196437912,
+     "walk_rms_nm": 5.211412961411815,
+     "stand_rms_nm": 4.076943685233376
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7799704088124975,
+     "hottest_winding_c_35c_8min": 78.07618563838025,
+     "walk_rms_nm": 6.2634276199875325,
+     "stand_rms_nm": 4.380415167280059
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5266166668758092,
+     "hottest_winding_c_35c_8min": 53.26844417311628,
+     "walk_rms_nm": 4.457605329299233,
+     "stand_rms_nm": 1.6695552691274738
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5000700537501952,
+     "hottest_winding_c_35c_8min": 51.42454439159133,
+     "walk_rms_nm": 4.300066056062108,
+     "stand_rms_nm": 0.8910998476574342
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7254672183437462,
+     "hottest_winding_c_35c_8min": 71.55512357402647,
+     "walk_rms_nm": 5.885182032865863,
+     "stand_rms_nm": 3.809462090724399
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8683197640301512,
+     "hottest_winding_c_35c_8min": 90.8329963776653,
+     "walk_rms_nm": 7.159906625107792,
+     "stand_rms_nm": 3.981524104588923
+    }
+   ]
+  },
+  "fore160-s1@710000": {
+   "policy": "fore160-s1",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore160-s1/demo_course_seed710000.json",
+   "file_sha256": "25e47bf4a110681e3c02775a14dc451f0c89b433191be52aee1b34d782bdc222",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 73.79769205124195,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24570598834494123,
+    "walk_0.15": 0.14446200998213538,
+    "stand": 0.002018389262519204
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 96.55163799219127,
+   "C1_joint": "right_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 97.89360488227453,
+    "tau_480s": 96.55163799219127,
+    "tau_900s": 95.3947860691837
+   },
+   "C1_pass": false,
+   "C2": 0.9025870493782748,
+   "C2_joint": "right_fore_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "right_fore_pitch",
+    "ratio": 0.9025870493782748,
+    "mirror": "left_fore_pitch",
+    "mirror_ratio": 0.718760329735301,
+    "stand_rms_nm": 3.471670951567639,
+    "mirror_stand_rms_nm": 2.191539124046172
+   },
+   "even_split_C2": 0.8158675729879755,
+   "even_split_C1_c": 83.34221231335948,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 84.22412969517093,
+    "demo_course_own_C1_c_at_25c": 84.22412969517093
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.41536120633763896,
+     "hottest_winding_c_35c_8min": 46.08644466766861,
+     "walk_rms_nm": 3.5209410266152754,
+     "stand_rms_nm": 1.275551841596535
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.718760329735301,
+     "hottest_winding_c_35c_8min": 71.14446595117515,
+     "walk_rms_nm": 6.094693016005663,
+     "stand_rms_nm": 2.191539124046172
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5378124961011377,
+     "hottest_winding_c_35c_8min": 54.15030617646609,
+     "walk_rms_nm": 7.352751344020188,
+     "stand_rms_nm": 2.101118000838804
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4593952684260652,
+     "hottest_winding_c_35c_8min": 48.640380343998466,
+     "walk_rms_nm": 3.8364109286869135,
+     "stand_rms_nm": 1.8250360011552011
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.9025870493782748,
+     "hottest_winding_c_35c_8min": 96.55163799219127,
+     "walk_rms_nm": 7.555279868801509,
+     "stand_rms_nm": 3.471670951567639
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6337464575058046,
+     "hottest_winding_c_35c_8min": 62.01661007979777,
+     "walk_rms_nm": 8.212050913278793,
+     "stand_rms_nm": 5.387779978452819
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6707501064591455,
+     "hottest_winding_c_35c_8min": 65.49733036002206,
+     "walk_rms_nm": 5.3166808737558595,
+     "stand_rms_nm": 4.0530848937298085
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7628113141688334,
+     "hottest_winding_c_35c_8min": 75.94173378139152,
+     "walk_rms_nm": 6.143977544432578,
+     "stand_rms_nm": 4.204505622653013
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.54367634874779,
+     "hottest_winding_c_35c_8min": 54.56442527694947,
+     "walk_rms_nm": 4.608687655840385,
+     "stand_rms_nm": 1.669247739238346
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5059950157206209,
+     "hottest_winding_c_35c_8min": 51.84397062084662,
+     "walk_rms_nm": 4.355077079238299,
+     "stand_rms_nm": 0.8407591729232958
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7357840638361577,
+     "hottest_winding_c_35c_8min": 72.79736652666314,
+     "walk_rms_nm": 6.004722274469321,
+     "stand_rms_nm": 3.693240264782054
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8557444441743272,
+     "hottest_winding_c_35c_8min": 88.92140653096473,
+     "walk_rms_nm": 7.064642068382583,
+     "stand_rms_nm": 3.8781015880638674
+    }
+   ]
+  },
+  "fore160-s2@700000": {
+   "policy": "fore160-s2",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore160-s2/demo_course.json",
+   "file_sha256": "992c4141bb29149b761c3f2bf02fcc41eb0c3fbb948d3b6fc490ab3b758957d2",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 71.44549244315712,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24516500036822556,
+    "walk_0.15": 0.14850791157315182,
+    "stand": 0.0013633196007992853
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 92.59049992756148,
+   "C1_joint": "right_hind_flexion",
+   "C1_by_tc_c": {
+    "tau_240s": 93.45003575883254,
+    "tau_480s": 92.59049992756148,
+    "tau_900s": 91.53161805319415
+   },
+   "C1_pass": false,
+   "C2": 0.8814430896906945,
+   "C2_joint": "right_hind_flexion",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "right_hind_flexion",
+    "ratio": 0.8814430896906945,
+    "mirror": "left_hind_flexion",
+    "mirror_ratio": 0.8362458906938897,
+    "stand_rms_nm": 7.9409168281567855,
+    "mirror_stand_rms_nm": 0.748303021952829
+   },
+   "even_split_C2": 0.8591417549118116,
+   "even_split_C1_c": 88.76537186369312,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 80.412777761533,
+    "demo_course_own_C1_c_at_25c": 80.412777761533
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.503345518323678,
+     "hottest_winding_c_35c_8min": 51.57998810897464,
+     "walk_rms_nm": 4.247862895436383,
+     "stand_rms_nm": 1.6947691283606208
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8627262689982899,
+     "hottest_winding_c_35c_8min": 89.78888179897953,
+     "walk_rms_nm": 7.013768588863914,
+     "stand_rms_nm": 4.459583945844313
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.721684981331075,
+     "hottest_winding_c_35c_8min": 70.96289083164511,
+     "walk_rms_nm": 9.175677208825459,
+     "stand_rms_nm": 6.886106995315391
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.41838739049375334,
+     "hottest_winding_c_35c_8min": 46.27726990608602,
+     "walk_rms_nm": 3.578030337813038,
+     "stand_rms_nm": 0.9893930578932495
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.717743262502864,
+     "hottest_winding_c_35c_8min": 71.08606844507341,
+     "walk_rms_nm": 6.1323071658535975,
+     "stand_rms_nm": 1.7590876658709456
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6222920217749591,
+     "hottest_winding_c_35c_8min": 61.31254887213958,
+     "walk_rms_nm": 8.577028905919597,
+     "stand_rms_nm": 1.5356448193395273
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5327245958709045,
+     "hottest_winding_c_35c_8min": 53.799356571657185,
+     "walk_rms_nm": 4.589967534008714,
+     "stand_rms_nm": 0.8065857025431594
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6230345055785247,
+     "hottest_winding_c_35c_8min": 61.31581828956655,
+     "walk_rms_nm": 5.310162853049357,
+     "stand_rms_nm": 1.6568676257071335
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8362458906938897,
+     "hottest_winding_c_35c_8min": 86.56249719730987,
+     "walk_rms_nm": 7.229203742930016,
+     "stand_rms_nm": 0.748303021952829
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6116759029243602,
+     "hottest_winding_c_35c_8min": 60.32987132716008,
+     "walk_rms_nm": 5.260512848115784,
+     "stand_rms_nm": 1.07897220703354
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6193024787612804,
+     "hottest_winding_c_35c_8min": 60.750013097216744,
+     "walk_rms_nm": 5.080245810876037,
+     "stand_rms_nm": 2.9780544904684545
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8814430896906945,
+     "hottest_winding_c_35c_8min": 92.59049992756148,
+     "walk_rms_nm": 6.103380812033029,
+     "stand_rms_nm": 7.9409168281567855
+    }
+   ]
+  },
+  "fore160-s2@710000": {
+   "policy": "fore160-s2",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore160-s2/demo_course_seed710000.json",
+   "file_sha256": "1eda1d5cd214feb9673056a4d51ed646bc44080f0582e8bf5ea34d363b1631ab",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 72.49464333416644,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24513964044152525,
+    "walk_0.15": 0.14769138758601372,
+    "stand": 0.003039519346722986
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 90.09683609776489,
+   "C1_joint": "right_hind_flexion",
+   "C1_by_tc_c": {
+    "tau_240s": 90.72334194005428,
+    "tau_480s": 90.09683609776489,
+    "tau_900s": 89.30921033428189
+   },
+   "C1_pass": false,
+   "C2": 0.8665963074783463,
+   "C2_joint": "right_hind_flexion",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "right_hind_flexion",
+    "ratio": 0.8665963074783463,
+    "mirror": "left_hind_flexion",
+    "mirror_ratio": 0.8242459112272894,
+    "stand_rms_nm": 7.516636776425071,
+    "mirror_stand_rms_nm": 0.8024075091710876
+   },
+   "even_split_C2": 0.8456862545619414,
+   "even_split_C1_c": 86.86608700356125,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C1, C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 78.01340911937349,
+    "demo_course_own_C1_c_at_25c": 78.01340911937349
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5075480069606778,
+     "hottest_winding_c_35c_8min": 51.8428632089994,
+     "walk_rms_nm": 4.245886576653564,
+     "stand_rms_nm": 1.9693810938399892
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8376008458757752,
+     "hottest_winding_c_35c_8min": 86.39457089404158,
+     "walk_rms_nm": 7.018296378414134,
+     "stand_rms_nm": 3.175683022890557
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.7009116309252543,
+     "hottest_winding_c_35c_8min": 68.86496826228459,
+     "walk_rms_nm": 9.161645606962471,
+     "stand_rms_nm": 5.582863708910026
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.41182803050810046,
+     "hottest_winding_c_35c_8min": 45.911725195252565,
+     "walk_rms_nm": 3.5203269448784003,
+     "stand_rms_nm": 0.9911700730601279
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7151767912629607,
+     "hottest_winding_c_35c_8min": 70.74110608916801,
+     "walk_rms_nm": 6.0687193253948575,
+     "stand_rms_nm": 2.143467254241008
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6282377007715759,
+     "hottest_winding_c_35c_8min": 61.796047505010414,
+     "walk_rms_nm": 8.558166213925759,
+     "stand_rms_nm": 2.7587235741941343
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5268367717601737,
+     "hottest_winding_c_35c_8min": 53.35448290719051,
+     "walk_rms_nm": 4.534159384642225,
+     "stand_rms_nm": 0.8800667257008679
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6241802363494136,
+     "hottest_winding_c_35c_8min": 61.36674383826225,
+     "walk_rms_nm": 5.269936494565918,
+     "stand_rms_nm": 2.0841126902830998
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8242459112272894,
+     "hottest_winding_c_35c_8min": 84.82745206655123,
+     "walk_rms_nm": 7.123129922503155,
+     "stand_rms_nm": 0.8024075091710876
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6092296982551945,
+     "hottest_winding_c_35c_8min": 60.130903868174606,
+     "walk_rms_nm": 5.257305907684079,
+     "stand_rms_nm": 0.770317763793739
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6210395059461107,
+     "hottest_winding_c_35c_8min": 60.83778364435533,
+     "walk_rms_nm": 5.02803117776773,
+     "stand_rms_nm": 3.3071094197182993
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8665963074783463,
+     "hottest_winding_c_35c_8min": 90.09683609776489,
+     "walk_rms_nm": 6.122982187401076,
+     "stand_rms_nm": 7.516636776425071
+    }
+   ]
+  },
+  "fore160-s3@700000": {
+   "policy": "fore160-s3",
+   "seed0": 700000,
+   "source": "stored",
+   "file": "/home/user/mesozoic-labs/hardware/triceratops_build/rl/analysis/results/d22/demo/fore160-s3/demo_course.json",
+   "file_sha256": "38a4e43f5d5147e92180a02a0fbe22c3b02ba0e907f02c4e9e934119906d3536",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 90.43827490742649,
+   "segment_speed_mps": {
+    "walk_0.25": 0.2378938402186447,
+    "walk_0.15": 0.14453902791471676,
+    "stand": 0.0006230067911054617
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 80.63247101108695,
+   "C1_joint": "right_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 81.70306124196296,
+    "tau_480s": 80.63247101108695,
+    "tau_900s": 80.2454702096432
+   },
+   "C1_pass": true,
+   "C2": 0.7955337071271109,
+   "C2_joint": "right_fore_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "right_fore_pitch",
+    "ratio": 0.7955337071271109,
+    "mirror": "left_fore_pitch",
+    "mirror_ratio": 0.5375820261009742,
+    "stand_rms_nm": 2.5617633513155966,
+    "mirror_stand_rms_nm": 1.3781147052676934
+   },
+   "even_split_C2": 0.7285067594453896,
+   "even_split_C1_c": 71.63790253829328,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 68.90692871267859,
+    "demo_course_own_C1_c_at_25c": 68.90692871267859
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.32309440068288764,
+     "hottest_winding_c_35c_8min": 41.58673163374804,
+     "walk_rms_nm": 2.710547968520723,
+     "stand_rms_nm": 1.2027207803090723
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5375820261009742,
+     "hottest_winding_c_35c_8min": 54.129432661308925,
+     "walk_rms_nm": 4.58710321394528,
+     "stand_rms_nm": 1.3781147052676934
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.4055872289855352,
+     "hottest_winding_c_35c_8min": 45.59821738630696,
+     "walk_rms_nm": 5.605216458553582,
+     "stand_rms_nm": 0.7051393765711533
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.39288107736292077,
+     "hottest_winding_c_35c_8min": 44.76479768186152,
+     "walk_rms_nm": 3.1598996398668673,
+     "stand_rms_nm": 2.1852001079131944
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7955337071271109,
+     "hottest_winding_c_35c_8min": 80.63247101108695,
+     "walk_rms_nm": 6.728892710947375,
+     "stand_rms_nm": 2.5617633513155966
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6334663630666523,
+     "hottest_winding_c_35c_8min": 61.84614256455183,
+     "walk_rms_nm": 7.990462654667677,
+     "stand_rms_nm": 6.292423092889824
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.39369877366768924,
+     "hottest_winding_c_35c_8min": 44.817873873989626,
+     "walk_rms_nm": 2.7128495003158215,
+     "stand_rms_nm": 3.5771574962647548
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7874652493760893,
+     "hottest_winding_c_35c_8min": 78.60294062563675,
+     "walk_rms_nm": 5.8118559096835325,
+     "stand_rms_nm": 6.17979242568816
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6060868697477998,
+     "hottest_winding_c_35c_8min": 59.486063313483214,
+     "walk_rms_nm": 4.891473092797156,
+     "stand_rms_nm": 3.2973116360876076
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.29801877930584986,
+     "hottest_winding_c_35c_8min": 40.606646567420825,
+     "walk_rms_nm": 2.545511966517554,
+     "stand_rms_nm": 0.7379192836694923
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6643362688731504,
+     "hottest_winding_c_35c_8min": 65.23376057857207,
+     "walk_rms_nm": 5.581847241299402,
+     "stand_rms_nm": 2.4147560344602157
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5896646736495902,
+     "hottest_winding_c_35c_8min": 58.3947627688714,
+     "walk_rms_nm": 5.073067911882545,
+     "stand_rms_nm": 1.0126411200892098
+    }
+   ]
+  },
+  "fore160-s3@710000": {
+   "policy": "fore160-s3",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/fore160-s3/demo_course_seed710000.json",
+   "file_sha256": "acb2aa8d6b455735679d47a2b522189fba1010e4b272d9116f95b42ebc7eb1e1",
+   "model": "trike60_C_closed_capsule_fore160.xml",
+   "model_label": "60 cm, 160 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 89.60559984455011,
+   "segment_speed_mps": {
+    "walk_0.25": 0.2396848604542376,
+    "walk_0.15": 0.14496261125524704,
+    "stand": 0.0008143754535214029
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 83.26393952790363,
+   "C1_joint": "left_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 83.77310101956108,
+    "tau_480s": 83.26393952790363,
+    "tau_900s": 83.12195443268685
+   },
+   "C1_pass": true,
+   "C2": 0.8197666339716057,
+   "C2_joint": "left_hind_pitch",
+   "C2_pass": false,
+   "deciding": {
+    "joint": "left_hind_pitch",
+    "ratio": 0.8197666339716057,
+    "mirror": "right_hind_pitch",
+    "mirror_ratio": 0.6606712132097688,
+    "stand_rms_nm": 7.08225863046133,
+    "mirror_stand_rms_nm": 2.442430383973998
+   },
+   "even_split_C2": 0.7444809554774401,
+   "even_split_C1_c": 73.30607557005115,
+   "MEETS_rules_on_course": false,
+   "MEETS_on_course": false,
+   "why_not": "C2 over the line",
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 71.43889110738351,
+    "demo_course_own_C1_c_at_25c": 71.43889110738351
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3263314494991472,
+     "hottest_winding_c_35c_8min": 41.72478651334728,
+     "walk_rms_nm": 2.7415337057264817,
+     "stand_rms_nm": 1.1885820042576503
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5380070814114394,
+     "hottest_winding_c_35c_8min": 54.16225412011206,
+     "walk_rms_nm": 4.59116737953176,
+     "stand_rms_nm": 1.3748311534013204
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.4164474809641497,
+     "hottest_winding_c_35c_8min": 46.196503186181104,
+     "walk_rms_nm": 5.75412783757794,
+     "stand_rms_nm": 0.7515697051039932
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3880490241595593,
+     "hottest_winding_c_35c_8min": 44.515121116274535,
+     "walk_rms_nm": 3.1171248501573587,
+     "stand_rms_nm": 2.175214510022238
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7942830345574499,
+     "hottest_winding_c_35c_8min": 80.4309055755915,
+     "walk_rms_nm": 6.696216206975979,
+     "stand_rms_nm": 2.7260432498586105
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.6336846456250212,
+     "hottest_winding_c_35c_8min": 61.90530767208048,
+     "walk_rms_nm": 8.050367441895512,
+     "stand_rms_nm": 6.072161121835421
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.39491931208595155,
+     "hottest_winding_c_35c_8min": 44.86925891770012,
+     "walk_rms_nm": 2.741582731418875,
+     "stand_rms_nm": 3.541533081662055
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.8197666339716057,
+     "hottest_winding_c_35c_8min": 83.26393952790363,
+     "walk_rms_nm": 5.8036055712580294,
+     "stand_rms_nm": 7.08225863046133
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5990350401383329,
+     "hottest_winding_c_35c_8min": 58.990667004652835,
+     "walk_rms_nm": 4.950389174595577,
+     "stand_rms_nm": 2.687119536917917
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.2946581040812474,
+     "hottest_winding_c_35c_8min": 40.47628633907196,
+     "walk_rms_nm": 2.5126671845203083,
+     "stand_rms_nm": 0.771216880763304
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6606712132097688,
+     "hottest_winding_c_35c_8min": 64.85713437901283,
+     "walk_rms_nm": 5.54508748086556,
+     "stand_rms_nm": 2.442430383973998
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5979441102840843,
+     "hottest_winding_c_35c_8min": 59.106861394854946,
+     "walk_rms_nm": 5.136918019490777,
+     "stand_rms_nm": 1.13228996434816
+    }
+   ]
+  },
+  "run3-s0@700000": {
+   "policy": "run3-s0",
+   "seed0": 700000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/run3-s0/demo_course_seed700000.json",
+   "file_sha256": "34b35a324031a493daa85e30760f04e37d161a78363ec405e182dfc2d3d007ab",
+   "model": "trike60_C_closed_capsule.xml",
+   "model_label": "60 cm, 188 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 90.61927900101742,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24196911699248702,
+    "walk_0.15": 0.14416935457927227,
+    "stand": -0.00016689240968819383
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 77.89898221164981,
+   "C1_joint": "right_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 78.55793219279248,
+    "tau_480s": 77.89898221164981,
+    "tau_900s": 77.70656084393524
+   },
+   "C1_pass": true,
+   "C2": 0.7775467272646995,
+   "C2_joint": "right_fore_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "right_fore_pitch",
+    "ratio": 0.7775467272646995,
+    "mirror": "left_fore_pitch",
+    "mirror_ratio": 0.7000899582520324,
+    "stand_rms_nm": 3.989313523201516,
+    "mirror_stand_rms_nm": 1.5186952284035569
+   },
+   "even_split_C2": 0.7449445273266497,
+   "even_split_C1_c": 73.49550350904656,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 66.27680382146605,
+    "demo_course_own_C1_c_at_25c": 66.27680382146605
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.23957309126176743,
+     "hottest_winding_c_35c_8min": 38.574573268248734,
+     "walk_rms_nm": 1.9906804558424183,
+     "stand_rms_nm": 1.0126740990777199
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7000899582520324,
+     "hottest_winding_c_35c_8min": 69.14962039312752,
+     "walk_rms_nm": 5.999219490162146,
+     "stand_rms_nm": 1.5186952284035569
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.4413362988733221,
+     "hottest_winding_c_35c_8min": 47.64362622111989,
+     "walk_rms_nm": 6.1078479409926265,
+     "stand_rms_nm": 0.5239774061741169
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3695606032915771,
+     "hottest_winding_c_35c_8min": 43.686441537076014,
+     "walk_rms_nm": 3.1062694966102047,
+     "stand_rms_nm": 1.3351604143190765
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7775467272646995,
+     "hottest_winding_c_35c_8min": 77.89898221164981,
+     "walk_rms_nm": 6.327601785210878,
+     "stand_rms_nm": 3.989313523201516
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.57840880186597,
+     "hottest_winding_c_35c_8min": 57.011671484379754,
+     "walk_rms_nm": 7.291659088532699,
+     "stand_rms_nm": 5.761927337761819
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.42412556259036915,
+     "hottest_winding_c_35c_8min": 46.5364785700814,
+     "walk_rms_nm": 3.5345652764953,
+     "stand_rms_nm": 1.7303484643751563
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7500750445659957,
+     "hottest_winding_c_35c_8min": 75.3597287765379,
+     "walk_rms_nm": 4.331980485060772,
+     "stand_rms_nm": 8.383893131434288
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6341013815697749,
+     "hottest_winding_c_35c_8min": 62.24615737164308,
+     "walk_rms_nm": 5.304206548803561,
+     "stand_rms_nm": 2.4627637193497023
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.29400988100798847,
+     "hottest_winding_c_35c_8min": 40.45048456940412,
+     "walk_rms_nm": 2.5046506866897507,
+     "stand_rms_nm": 0.7934620925528069
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7397784297390474,
+     "hottest_winding_c_35c_8min": 73.6044283359526,
+     "walk_rms_nm": 6.273364209096798,
+     "stand_rms_nm": 2.2518731423380287
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5433820056251796,
+     "hottest_winding_c_35c_8min": 54.62580605085015,
+     "walk_rms_nm": 4.688877537503846,
+     "stand_rms_nm": 0.6911463110335169
+    }
+   ]
+  },
+  "run3-s0@710000": {
+   "policy": "run3-s0",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/run3-s0/demo_course_seed710000.json",
+   "file_sha256": "0ef58022483108ec32dc5af5f303790902c950eb812e6684e89c71586ee2424b",
+   "model": "trike60_C_closed_capsule.xml",
+   "model_label": "60 cm, 188 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 90.5476095248518,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24320197348570308,
+    "walk_0.15": 0.14532980340023546,
+    "stand": 9.287327003907491e-05
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 79.22726870396826,
+   "C1_joint": "right_fore_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 79.97997707295924,
+    "tau_480s": 79.22726870396826,
+    "tau_900s": 78.99043609905534
+   },
+   "C1_pass": true,
+   "C2": 0.7872274595296838,
+   "C2_joint": "right_fore_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "right_fore_pitch",
+    "ratio": 0.7872274595296838,
+    "mirror": "left_fore_pitch",
+    "mirror_ratio": 0.6877908380429323,
+    "stand_rms_nm": 3.7820664763159524,
+    "mirror_stand_rms_nm": 1.591640543314449
+   },
+   "even_split_C2": 0.7525058600335982,
+   "even_split_C1_c": 74.50979501416886,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 67.55486260364502,
+    "demo_course_own_C1_c_at_25c": 67.55486260364502
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.23465952035412713,
+     "hottest_winding_c_35c_8min": 38.42618784286914,
+     "walk_rms_nm": 1.9461903187635519,
+     "stand_rms_nm": 1.0132497670069305
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6877908380429323,
+     "hottest_winding_c_35c_8min": 67.80537809091639,
+     "walk_rms_nm": 5.88513193515185,
+     "stand_rms_nm": 1.591640543314449
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.43454332899635667,
+     "hottest_winding_c_35c_8min": 47.23970078969885,
+     "walk_rms_nm": 6.013127940161145,
+     "stand_rms_nm": 0.5401391267960575
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3698909838413211,
+     "hottest_winding_c_35c_8min": 43.68650326880539,
+     "walk_rms_nm": 3.083613961054658,
+     "stand_rms_nm": 1.5027728707838757
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7872274595296838,
+     "hottest_winding_c_35c_8min": 79.22726870396826,
+     "walk_rms_nm": 6.458445752196059,
+     "stand_rms_nm": 3.7820664763159524
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5812521043379987,
+     "hottest_winding_c_35c_8min": 57.26728216575114,
+     "walk_rms_nm": 7.36118261225997,
+     "stand_rms_nm": 5.660643136089662
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.42027465719434826,
+     "hottest_winding_c_35c_8min": 46.323996166571675,
+     "walk_rms_nm": 3.509158487565895,
+     "stand_rms_nm": 1.6731250133787958
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7654269712007731,
+     "hottest_winding_c_35c_8min": 77.43656911971186,
+     "walk_rms_nm": 4.27338791510539,
+     "stand_rms_nm": 8.777079128927298
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6397650523377306,
+     "hottest_winding_c_35c_8min": 62.8092547324634,
+     "walk_rms_nm": 5.372153342100814,
+     "stand_rms_nm": 2.347818753699365
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.2911788047873684,
+     "hottest_winding_c_35c_8min": 40.34279819893019,
+     "walk_rms_nm": 2.478183947733598,
+     "stand_rms_nm": 0.8077497409480574
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7393589727109704,
+     "hottest_winding_c_35c_8min": 73.53334012877886,
+     "walk_rms_nm": 6.25484847402584,
+     "stand_rms_nm": 2.3721808678470757
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5401514898604634,
+     "hottest_winding_c_35c_8min": 54.379380474294926,
+     "walk_rms_nm": 4.663852777429115,
+     "stand_rms_nm": 0.6262978612910892
+    }
+   ]
+  },
+  "run3-s1@700000": {
+   "policy": "run3-s1",
+   "seed0": 700000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/run3-s1/demo_course_seed700000.json",
+   "file_sha256": "632acbe0b9e2533907d7b10746ad7fef28bf0fbb1586a2d546e27c14ffe30de7",
+   "model": "trike60_C_closed_capsule.xml",
+   "model_label": "60 cm, 188 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 98.57564635722161,
+   "segment_speed_mps": {
+    "walk_0.25": 0.23926896189507083,
+    "walk_0.15": 0.14155206949988283,
+    "stand": 0.0001590741305955266
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 71.96495166651566,
+   "C1_joint": "left_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 72.95514662883393,
+    "tau_480s": 71.96495166651566,
+    "tau_900s": 71.6817186271118
+   },
+   "C1_pass": true,
+   "C2": 0.724835917764963,
+   "C2_joint": "left_hind_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_hind_pitch",
+    "ratio": 0.724835917764963,
+    "mirror": "right_hind_pitch",
+    "mirror_ratio": 0.6837680228747952,
+    "stand_rms_nm": 1.3572475108890056,
+    "mirror_stand_rms_nm": 1.2207954980082765
+   },
+   "even_split_C2": 0.7046012406986957,
+   "even_split_C1_c": 69.67320601544581,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 60.567162192355994,
+    "demo_course_own_C1_c_at_25c": 60.567162192355994
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3299006447369048,
+     "hottest_winding_c_35c_8min": 41.82090189284351,
+     "walk_rms_nm": 2.6700517926904546,
+     "stand_rms_nm": 1.7607436603782494
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6068165234872435,
+     "hottest_winding_c_35c_8min": 59.83481544689888,
+     "walk_rms_nm": 5.160013816463716,
+     "stand_rms_nm": 1.7244385192195557
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5103349975103867,
+     "hottest_winding_c_35c_8min": 51.83923150307206,
+     "walk_rms_nm": 6.45425032696408,
+     "stand_rms_nm": 5.004242253188172
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3058634937487617,
+     "hottest_winding_c_35c_8min": 40.88399366839875,
+     "walk_rms_nm": 2.5580363381984004,
+     "stand_rms_nm": 1.1910741199498396
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6635660237471248,
+     "hottest_winding_c_35c_8min": 65.01880177949079,
+     "walk_rms_nm": 5.461318467048096,
+     "stand_rms_nm": 3.0974137720914077
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.4722671016990065,
+     "hottest_winding_c_35c_8min": 49.314704906786034,
+     "walk_rms_nm": 6.020995664402097,
+     "stand_rms_nm": 4.439785317752307
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.251494933500471,
+     "hottest_winding_c_35c_8min": 38.97662221384054,
+     "walk_rms_nm": 2.1653639762702093,
+     "stand_rms_nm": 0.40593029636284444
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.724835917764963,
+     "hottest_winding_c_35c_8min": 71.96495166651566,
+     "walk_rms_nm": 6.228161270195114,
+     "stand_rms_nm": 1.3572475108890056
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4190252573917165,
+     "hottest_winding_c_35c_8min": 46.01624771617958,
+     "walk_rms_nm": 3.1492208346512,
+     "stand_rms_nm": 3.1230132610253363
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4078760764709921,
+     "hottest_winding_c_35c_8min": 45.70316664479895,
+     "walk_rms_nm": 3.4953333969854024,
+     "stand_rms_nm": 0.882940783497886
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6837680228747952,
+     "hottest_winding_c_35c_8min": 67.41524852264996,
+     "walk_rms_nm": 5.879508706825673,
+     "stand_rms_nm": 1.2207954980082765
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6759102212381684,
+     "hottest_winding_c_35c_8min": 65.81151776174318,
+     "walk_rms_nm": 5.168213423802529,
+     "stand_rms_nm": 4.760357248388371
+    }
+   ]
+  },
+  "run3-s1@710000": {
+   "policy": "run3-s1",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/run3-s1/demo_course_seed710000.json",
+   "file_sha256": "f476b3762cc7130b03124954ea1b7ab9466610dd9b95b314a9aa81d1d5c2c2e3",
+   "model": "trike60_C_closed_capsule.xml",
+   "model_label": "60 cm, 188 mm foreleg, capsule foot (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 97.91073002232878,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24032701576703278,
+    "walk_0.15": 0.14125409415972073,
+    "stand": 0.0002043834039018843
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 71.66490366868712,
+   "C1_joint": "left_hind_pitch",
+   "C1_by_tc_c": {
+    "tau_240s": 72.64228166544089,
+    "tau_480s": 71.66490366868712,
+    "tau_900s": 71.38656642889678
+   },
+   "C1_pass": true,
+   "C2": 0.7222821917810353,
+   "C2_joint": "left_hind_pitch",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_hind_pitch",
+    "ratio": 0.7222821917810353,
+    "mirror": "right_hind_pitch",
+    "mirror_ratio": 0.6987094759626019,
+    "stand_rms_nm": 1.4009141970194692,
+    "mirror_stand_rms_nm": 1.284316681617423
+   },
+   "even_split_C2": 0.7105935886158663,
+   "even_split_C1_c": 70.33831674534363,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 60.278460183476525,
+    "demo_course_own_C1_c_at_25c": 60.278460183476525
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.33757776244582594,
+     "hottest_winding_c_35c_8min": 42.14950904167621,
+     "walk_rms_nm": 2.7301858966970096,
+     "stand_rms_nm": 1.8107933870170267
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6204667592771412,
+     "hottest_winding_c_35c_8min": 61.07254869302078,
+     "walk_rms_nm": 5.275428828224273,
+     "stand_rms_nm": 1.7691316776298378
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.511569374284211,
+     "hottest_winding_c_35c_8min": 51.912219246788766,
+     "walk_rms_nm": 6.443813604626499,
+     "stand_rms_nm": 5.1159413715250786
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3011024210780899,
+     "hottest_winding_c_35c_8min": 40.70243023659334,
+     "walk_rms_nm": 2.5261711175637327,
+     "stand_rms_nm": 1.120035155544262
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6681237770760696,
+     "hottest_winding_c_35c_8min": 65.49617953748492,
+     "walk_rms_nm": 5.512715688933904,
+     "stand_rms_nm": 3.044258207705869
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.47644092755278994,
+     "hottest_winding_c_35c_8min": 49.598357343823984,
+     "walk_rms_nm": 6.105953440563383,
+     "stand_rms_nm": 4.347604999847337
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.2598592947996187,
+     "hottest_winding_c_35c_8min": 39.250501455546626,
+     "walk_rms_nm": 2.239093276277742,
+     "stand_rms_nm": 0.39105734423268956
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.7222821917810353,
+     "hottest_winding_c_35c_8min": 71.66490366868712,
+     "walk_rms_nm": 6.20263496264539,
+     "stand_rms_nm": 1.4009141970194692
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4206133762184904,
+     "hottest_winding_c_35c_8min": 46.134295921632095,
+     "walk_rms_nm": 3.208500620162475,
+     "stand_rms_nm": 2.9870694783319713
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.40315689523120335,
+     "hottest_winding_c_35c_8min": 45.44549877999978,
+     "walk_rms_nm": 3.4521162176715334,
+     "stand_rms_nm": 0.9050769845001275
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6987094759626019,
+     "hottest_winding_c_35c_8min": 69.02311423794436,
+     "walk_rms_nm": 6.005397303434755,
+     "stand_rms_nm": 1.284316681617423
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6752342814721929,
+     "hottest_winding_c_35c_8min": 65.67955602255596,
+     "walk_rms_nm": 5.106972981906096,
+     "stand_rms_nm": 4.933891084446322
+    }
+   ]
+  },
+  "run2b@700000": {
+   "policy": "run2b",
+   "seed0": 700000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/run2b/demo_course_seed700000.json",
+   "file_sha256": "f67311873d3826f52a91dc595ad5a85fcaa61a11fb0c3ae8e9bd4b47ac3cbb62",
+   "model": "trike60_C_closed_ankleroll.xml",
+   "model_label": "60 cm, box foot with a passive roll ankle (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 108.16782974943582,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24660504958756843,
+    "walk_0.15": 0.14671743626365147,
+    "stand": 0.000210253835403966
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 62.129280192104545,
+   "C1_joint": "left_hind_flexion",
+   "C1_by_tc_c": {
+    "tau_240s": 62.31012150556382,
+    "tau_480s": 62.129280192104545,
+    "tau_900s": 62.229427004622984
+   },
+   "C1_pass": true,
+   "C2": 0.6373451730216576,
+   "C2_joint": "left_hind_flexion",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_hind_flexion",
+    "ratio": 0.6373451730216576,
+    "mirror": "right_hind_flexion",
+    "mirror_ratio": 0.5201150379586943,
+    "stand_rms_nm": 5.2548471533864936,
+    "mirror_stand_rms_nm": 1.3323352122803416
+   },
+   "even_split_C2": 0.5816908638979903,
+   "even_split_C1_c": 57.227655437799584,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 51.10341594544835,
+    "demo_course_own_C1_c_at_25c": 51.10341594544835
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.22870092855138868,
+     "hottest_winding_c_35c_8min": 38.24220535124738,
+     "walk_rms_nm": 1.869616013912235,
+     "stand_rms_nm": 1.1322692672809491
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4663854035057219,
+     "hottest_winding_c_35c_8min": 49.15428585847609,
+     "walk_rms_nm": 3.9827862720772713,
+     "stand_rms_nm": 1.1632682702529829
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5156794370819698,
+     "hottest_winding_c_35c_8min": 52.559328729044914,
+     "walk_rms_nm": 7.135121279158462,
+     "stand_rms_nm": 0.6656540608352176
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.20565870339846384,
+     "hottest_winding_c_35c_8min": 37.61449218374953,
+     "walk_rms_nm": 1.6774386642762364,
+     "stand_rms_nm": 1.0368638273994144
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6164453694431181,
+     "hottest_winding_c_35c_8min": 60.56603656156219,
+     "walk_rms_nm": 5.117686392405563,
+     "stand_rms_nm": 2.6322915883750055
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5667025968412268,
+     "hottest_winding_c_35c_8min": 56.086076017586166,
+     "walk_rms_nm": 6.406762361425779,
+     "stand_rms_nm": 7.864072996495508
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3279943390151472,
+     "hottest_winding_c_35c_8min": 41.70788804743946,
+     "walk_rms_nm": 2.3248645652900857,
+     "stand_rms_nm": 2.826761168726829
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.4938052696935239,
+     "hottest_winding_c_35c_8min": 50.792727319540774,
+     "walk_rms_nm": 4.01204774036811,
+     "stand_rms_nm": 2.564222839744539
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6373451730216576,
+     "hottest_winding_c_35c_8min": 62.129280192104545,
+     "walk_rms_nm": 4.61098604959566,
+     "stand_rms_nm": 5.2548471533864936
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.27714755912046746,
+     "hottest_winding_c_35c_8min": 39.83883598723235,
+     "walk_rms_nm": 2.374460077700475,
+     "stand_rms_nm": 0.6068287745875195
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.547810159971554,
+     "hottest_winding_c_35c_8min": 54.900233745034654,
+     "walk_rms_nm": 4.655657148709052,
+     "stand_rms_nm": 1.5799250294986473
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5201150379586943,
+     "hottest_winding_c_35c_8min": 52.82673381954518,
+     "walk_rms_nm": 4.438160457593591,
+     "stand_rms_nm": 1.3323352122803416
+    }
+   ]
+  },
+  "run2b@710000": {
+   "policy": "run2b",
+   "seed0": 710000,
+   "source": "new",
+   "file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/demo/run2b/demo_course_seed710000.json",
+   "file_sha256": "f6dea0fb8d9280098375011a2644bb45d849e2062a731ba593eee061d2991b97",
+   "model": "trike60_C_closed_ankleroll.xml",
+   "model_label": "60 cm, box foot with a passive roll ankle (not the adopted model)",
+   "valid": true,
+   "fallen_segments": [],
+   "minutes": 109.04708155618142,
+   "segment_speed_mps": {
+    "walk_0.25": 0.24628396449949472,
+    "walk_0.15": 0.1473518048993975,
+    "stand": 0.0005344153560949802
+   },
+   "segment_fell": {
+    "walk_0.25": false,
+    "walk_0.15": false,
+    "stand": false
+   },
+   "segment_termination": {
+    "walk_0.25": "",
+    "walk_0.15": "",
+    "stand": ""
+   },
+   "measured": true,
+   "C1_c": 61.17392209316171,
+   "C1_joint": "left_hind_flexion",
+   "C1_by_tc_c": {
+    "tau_240s": 61.290244426471304,
+    "tau_480s": 61.17392209316171,
+    "tau_900s": 61.29734535139732
+   },
+   "C1_pass": true,
+   "C2": 0.6276621043046647,
+   "C2_joint": "left_hind_flexion",
+   "C2_pass": true,
+   "deciding": {
+    "joint": "left_hind_flexion",
+    "ratio": 0.6276621043046647,
+    "mirror": "right_hind_flexion",
+    "mirror_ratio": 0.5120085445145659,
+    "stand_rms_nm": 5.026518135120426,
+    "mirror_stand_rms_nm": 1.3498076737937346
+   },
+   "even_split_C2": 0.5727619343305227,
+   "even_split_C1_c": 56.520738524642326,
+   "MEETS_rules_on_course": true,
+   "MEETS_on_course": true,
+   "why_not": null,
+   "check_25c": {
+    "policy_heat_path_C1_c_at_25c": 50.18418367474421,
+    "demo_course_own_C1_c_at_25c": 50.18418367474421
+   },
+   "per_drive": [
+    {
+     "joint": "left_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.22463027976645844,
+     "hottest_winding_c_35c_8min": 38.124613470202334,
+     "walk_rms_nm": 1.8311981502513175,
+     "stand_rms_nm": 1.137260561981673
+    },
+    {
+     "joint": "left_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.46205871071468724,
+     "hottest_winding_c_35c_8min": 48.871742567075295,
+     "walk_rms_nm": 3.9362953101058085,
+     "stand_rms_nm": 1.2465329630875557
+    },
+    {
+     "joint": "left_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5093632882482495,
+     "hottest_winding_c_35c_8min": 52.10501418491024,
+     "walk_rms_nm": 7.0478196861599764,
+     "stand_rms_nm": 0.6545728662323216
+    },
+    {
+     "joint": "right_fore_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.20414824545209337,
+     "hottest_winding_c_35c_8min": 37.576316317208615,
+     "walk_rms_nm": 1.66649338176931,
+     "stand_rms_nm": 1.0225523472273197
+    },
+    {
+     "joint": "right_fore_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5993300971490202,
+     "hottest_winding_c_35c_8min": 59.07966558857214,
+     "walk_rms_nm": 5.011384181806537,
+     "stand_rms_nm": 2.3403659864356348
+    },
+    {
+     "joint": "right_fore_flexion",
+     "drive": "X6-60",
+     "continuous_nm": 12.0,
+     "loop_rms_over_continuous": 0.5614887631704862,
+     "hottest_winding_c_35c_8min": 55.64715031743383,
+     "walk_rms_nm": 6.389521622348405,
+     "stand_rms_nm": 7.688780648754305
+    },
+    {
+     "joint": "left_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.3204251776597173,
+     "hottest_winding_c_35c_8min": 41.376190695661954,
+     "walk_rms_nm": 2.3094522481615223,
+     "stand_rms_nm": 2.664687073183995
+    },
+    {
+     "joint": "left_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5084919517457214,
+     "hottest_winding_c_35c_8min": 51.76018458455083,
+     "walk_rms_nm": 4.078242785718601,
+     "stand_rms_nm": 2.8776243613424457
+    },
+    {
+     "joint": "left_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.6276621043046647,
+     "hottest_winding_c_35c_8min": 61.17392209316171,
+     "walk_rms_nm": 4.596195956180916,
+     "stand_rms_nm": 5.026518135120426
+    },
+    {
+     "joint": "right_hind_roll",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.27657191572773393,
+     "hottest_winding_c_35c_8min": 39.81532444628895,
+     "walk_rms_nm": 2.3630282043859188,
+     "stand_rms_nm": 0.6774943866368535
+    },
+    {
+     "joint": "right_hind_pitch",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5570553469238125,
+     "hottest_winding_c_35c_8min": 55.61585710411791,
+     "walk_rms_nm": 4.720976889161,
+     "stand_rms_nm": 1.7196017072901628
+    },
+    {
+     "joint": "right_hind_flexion",
+     "drive": "X4-36-L",
+     "continuous_nm": 7.5,
+     "loop_rms_over_continuous": 0.5120085445145659,
+     "hottest_winding_c_35c_8min": 52.23679899904833,
+     "walk_rms_nm": 4.365103584733147,
+     "stand_rms_nm": 1.3498076737937346
+    }
+   ]
+  }
+ },
+ "harness_checks": {
+  "stored_vs_REPORT_HEAT_35C": {
+   "fore128-s0": {
+    "report_c": 76.3,
+    "here_c": 76.3082,
+    "agrees_to_0.05": true
+   },
+   "fore128-s1": {
+    "report_c": 74.4,
+    "here_c": 74.3768,
+    "agrees_to_0.05": true
+   },
+   "fore128-s2": {
+    "report_c": 93.3,
+    "here_c": 93.2673,
+    "agrees_to_0.05": true
+   },
+   "fore128-s3": {
+    "report_c": 98.3,
+    "here_c": 98.2779,
+    "agrees_to_0.05": true
+   },
+   "fore160-s0": {
+    "report_c": 123.2,
+    "here_c": 123.2381,
+    "agrees_to_0.05": true
+   },
+   "fore160-s1": {
+    "report_c": 97.2,
+    "here_c": 97.1875,
+    "agrees_to_0.05": true
+   },
+   "fore160-s2": {
+    "report_c": 92.6,
+    "here_c": 92.5905,
+    "agrees_to_0.05": true
+   },
+   "fore160-s3": {
+    "report_c": 80.6,
+    "here_c": 80.6325,
+    "agrees_to_0.05": true
+   }
+  },
+  "stored_vs_study_table": {
+   "fore128-s0": {
+    "study": {
+     "deciding": "left_hind_pitch",
+     "ratio": 0.761,
+     "mirror": "right_hind_pitch",
+     "mirror_ratio": 0.632,
+     "even_split": 0.7,
+     "even_split_C1_c": 68.8
+    },
+    "here": {
+     "deciding": "left_hind_pitch",
+     "ratio": 0.7613,
+     "mirror": "right_hind_pitch",
+     "mirror_ratio": 0.6324,
+     "even_split": 0.6998,
+     "even_split_C1_c": 68.817
+    },
+    "agrees": true
+   },
+   "fore128-s1": {
+    "study": {
+     "deciding": "left_fore_pitch",
+     "ratio": 0.746,
+     "mirror": "right_fore_pitch",
+     "mirror_ratio": 0.585,
+     "even_split": 0.682,
+     "even_split_C1_c": 66.8
+    },
+    "here": {
+     "deciding": "left_fore_pitch",
+     "ratio": 0.7459,
+     "mirror": "right_fore_pitch",
+     "mirror_ratio": 0.5851,
+     "even_split": 0.682,
+     "even_split_C1_c": 66.764
+    },
+    "agrees": true
+   },
+   "fore128-s2": {
+    "study": {
+     "deciding": "left_fore_pitch",
+     "ratio": 0.881,
+     "mirror": "right_fore_pitch",
+     "mirror_ratio": 0.544,
+     "even_split": 0.732,
+     "even_split_C1_c": 72.6
+    },
+    "here": {
+     "deciding": "left_fore_pitch",
+     "ratio": 0.8812,
+     "mirror": "right_fore_pitch",
+     "mirror_ratio": 0.5442,
+     "even_split": 0.7324,
+     "even_split_C1_c": 72.631
+    },
+    "agrees": true
+   },
+   "fore128-s3": {
+    "study": {
+     "deciding": "left_hind_pitch",
+     "ratio": 0.914,
+     "mirror": "right_hind_pitch",
+     "mirror_ratio": 0.509,
+     "even_split": 0.74,
+     "even_split_C1_c": 73.4
+    },
+    "here": {
+     "deciding": "left_hind_pitch",
+     "ratio": 0.9137,
+     "mirror": "right_hind_pitch",
+     "mirror_ratio": 0.509,
+     "even_split": 0.7396,
+     "even_split_C1_c": 73.432
+    },
+    "agrees": true
+   }
+  },
+  "c1_25c_two_paths_max_abs_diff_c": 0.0,
+  "fore128_710000_vs_E2_block_B": {
+   "fore128-s0": {
+    "identical_tau_drive_sq_mean_and_minutes": true,
+    "e2_file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s0/demo_course_seed710000.json",
+    "e2_file_sha256": "ef2075161a7a3d0e1fdfea004aa9566a4ef48202b0d90f70bed8125259b355ea"
+   },
+   "fore128-s1": {
+    "identical_tau_drive_sq_mean_and_minutes": true,
+    "e2_file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s1/demo_course_seed710000.json",
+    "e2_file_sha256": "8ec2b30a3ba4cb7f81b6eac99a374bfac5f07b734f4b11622253ecbd22d4ea9a"
+   },
+   "fore128-s2": {
+    "identical_tau_drive_sq_mean_and_minutes": true,
+    "e2_file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s2/demo_course_seed710000.json",
+    "e2_file_sha256": "777e3140fb35b59789ae4ac6bf9b6a0aa37f14f84c0a95705e4824faed0cccaa"
+   },
+   "fore128-s3": {
+    "identical_tau_drive_sq_mean_and_minutes": true,
+    "e2_file": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E2/demo/fore128-s3/demo_course_seed710000.json",
+    "e2_file_sha256": "3364148c441a9006c7aa007c818d3655b7e7a1f3bc5f159be3938f7fc4b83339"
+   }
+  },
+  "repro_700000": {
+   "fore128-s0": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 95.95215738749239,
+    "minutes_rerun": 95.95215738749239,
+    "C1_c_rerun_35c": 76.30817881407339
+   },
+   "fore128-s1": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 85.74730869643203,
+    "minutes_rerun": 85.74730869643203,
+    "C1_c_rerun_35c": 74.37681066379075
+   },
+   "fore128-s2": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 84.25375728170364,
+    "minutes_rerun": 84.25375728170364,
+    "C1_c_rerun_35c": 93.26734759015666
+   },
+   "fore128-s3": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 89.55349714000765,
+    "minutes_rerun": 89.55349714000765,
+    "C1_c_rerun_35c": 98.27785749294762
+   },
+   "fore160-s0": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 69.11078449617797,
+    "minutes_rerun": 69.11078449617797,
+    "C1_c_rerun_35c": 123.23808401400514
+   },
+   "fore160-s1": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 73.5425384594675,
+    "minutes_rerun": 73.5425384594675,
+    "C1_c_rerun_35c": 97.18746825719225
+   },
+   "fore160-s2": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 71.44549244315712,
+    "minutes_rerun": 71.44549244315712,
+    "C1_c_rerun_35c": 92.59049992756148
+   },
+   "fore160-s3": {
+    "max_rel_diff_tau_drive_sq_mean": 0.0,
+    "minutes_stored": 90.43827490742649,
+    "minutes_rerun": 90.43827490742649,
+    "C1_c_rerun_35c": 80.63247101108695
+   }
+  },
+  "c1_25c_two_paths_n": 22
+ },
+ "sources": {
+  "report_heat35": "rl/analysis/REPORT_HEAT_35C.md section 3 table, row '35 C | A' (27-28 Nov 2026)",
+  "study_table": "design/FORM_FACTOR_STUDY_50_80CM.md section 1.4, deciding drive / mirror table (27 Nov 2026)",
+  "ratings": "sim/data/drives.json (maker figures via the repo catalogue, read 7 Nov 2026)",
+  "room_and_rule": "D48 (35 C room), bench B3 (90 C winding); C2 line 0.80 (study C2)"
+ },
+ "seeds": {
+  "seed0": [
+   700000,
+   710000
+  ],
+  "segments_per_course": "seed0, seed0+1, seed0+2 (walk 0.25, walk 0.15, stand), demo_course.run"
+ },
+ "wall_s_judge": 15.758486032485962,
+ "provenance": {
+  "commit": "fb1e80c8dcdbced4efd7af652844335cb417514f",
+  "sha256": {
+   "sim/candidate_checks.py": "008aa308debdf1b61e55a75dfad8c58b2e311683f5615c431fdeda2652e7ce73",
+   "rl/trike_env.py": "febfe2ba23a835d3c8a32a159c01fdf78a8b69e4c05b874a9a76a0f5b2da003e",
+   "walk/walk60.py": "5225c64a2006d8b4e5a3d0b6e43332160e08cbbc1821dfc2de73b6f2064b51b1",
+   "rl/robustness/sweep.py": "7b1c8ca0b1b2634f20ab8e0f02f53ff39cc0904eec871d94ce9155f8d07cb57c",
+   "sim/check_packaging60.py": "d5494c537e10748946e3c37f74a8912caafabe71fe4245d643773edc81d2bc42",
+   "design/form_factor_study.py": "4679079486ecd6bc16a73fb1b19a47b5a967c8bc955d19bcdd688a1debd92ac1",
+   "rl/telemetry/thermal.py": "c368079ddf88d8946428bc048975e63b44926c5ed6b0b22a08f5041108aa8272",
+   "rl/analysis/gait_pipe1.py": "c2bf97645c8e42a4c477fdaa86c16140adfb28038852608df1a9057b7f457014",
+   "rl/analysis/thermal_ambient.py": "1c9f9e234072cf1625364da87c9a7b86bf6159427ebfd7c7e3cf330e563c3444",
+   "rl/demo_course.py": "ae1e375b5f3a305fe45113b17c67be0acd45b4c5405c37c8a2bbce36b46dc024",
+   "rl/gait_metrics.py": "2b4dc013af789d3403c6d8a2b9a0216c64ae6d74f5cb4ccfb9f689ce463a45e6",
+   "walk/fore128_walk60.py": "9a2f75e9cc7c3b69a4c241d4daf0deda13819b4171e830cb93c0d81f62e48acc",
+   "walk/fore128_slow_gait.py": "5b6579f02bb1231931febbcbc496fa2b92ab52bef3022bbd16a570883e49a277",
+   "walk/judge_walk60.py": "8bab69974096cfb4a97be212276ffd7fbae703ecddb4f715e9752d79d9db1e3a",
+   "sim/build_scaled_trike.py": "2e5926791c8ecf7a6418baee97f691ceddeb71384da278d80cf3c8a9cb4d27bd",
+   "sim/data/drives.json": "0227d48921aaa5398199a312070e01f53329e8d0c284d567ff04c424283e27d3",
+   "sim/generated/trike60_C_closed_capsule_fore128.xml": "372ac07b14338c26ce2fa8dbd0a34952597080fafcc82149464b10b25a059eb1",
+   "runner:/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/code/run_e3.py": "abb0c99c9199a984a37faa2e0ee136e6b8ff10b7880436c0183f505e000681e8",
+   "model:trike60_C_closed_capsule_fore128.xml": "372ac07b14338c26ce2fa8dbd0a34952597080fafcc82149464b10b25a059eb1",
+   "model:trike60_C_closed_capsule_fore160.xml": "377e364719627eeacbb9d741c8827960a87ff743a86b6093da9c2e2161188da3",
+   "model:trike60_C_closed_capsule.xml": "99929fddd632a3315e00487c7e3bdc4464839d7b6ce0b6ee07ee0e9b6a8084ab",
+   "model:trike60_C_closed_ankleroll.xml": "eea9c0d3684b786263bcd2d49c347d4c760aed770128fa7a67b6738af70b1987"
+  },
+  "runner": "/tmp/claude-0/-home-user-mesozoic-labs/ccd22965-ed7a-50aa-9e57-30e96c9784a3/scratchpad/candidates/E3/code/run_e3.py",
+  "python": "3.13.18",
+  "mujoco": "3.10.0",
+  "numpy": "2.5.5"
+ }
+}
