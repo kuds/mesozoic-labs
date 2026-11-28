@@ -462,7 +462,7 @@ pair at the output rated at least 2x (`PARTS_PREMIUM.md:256`).
   the owner" ($20.1k-$20.9k) rise by $647 with the battery cut-off (`design/PARTS_60CM.md`); line 75's "0.5 kg over
   the budget's mass" is now 0.55 kg (0.85 kg with the cut-off's estimated 0.25 kg listed, 0.30 kg grown by the closed
   variant's x 1.2088 like the model's other estimates).
-- **DECISION_LOG.md (F10) (F10)** gives 11.54 kg listed and 12.69 kg closed with `design/PARTS_60CM.md` as its source;
+- **DECISION_LOG.md (F10)** gives 11.54 kg listed and 12.69 kg closed with `design/PARTS_60CM.md` as its source;
   the regenerated list shows the adopted model, 11.624 / 12.751 kg (13.053 kg closed with the cut-off). F10 describes
   the 188 mm model, so its source becomes the list as of aa150f89 (`git show aa150f89:hardware/triceratops_build/
   design/PARTS_60CM.md`, line 21), or the row gains the adopted figures.
@@ -506,7 +506,7 @@ pair at the output rated at least 2x (`PARTS_PREMIUM.md:256`).
 
 ## Sources
 
-Records: `sim/generated/trike60_C_closed_capsule_fore128.xml`; `sim/data/drives.json`; `DECISION_LOG.md (F19), :65`
+Records: `sim/generated/trike60_C_closed_capsule_fore128.xml`; `sim/data/drives.json`; `DECISION_LOG.md` (F19, F21)
 (F19, F21); `rl/analysis/PLAN_FORELEG_D22.md:37-41`; `git show 2ac57608:hardware/triceratops_build/REVIEW_60CM.md`
 (lines 29, 113, 116-123, 118-122 and 158 for the bay, 164); `git show 65a44fad:hardware/triceratops_build/bench/BENCH_PLAN_FORELEG.md` (lines
 10-11); `hardware/triceratops_kickoff/PARTS_PREMIUM.md:253, :256`; `rl/analytics/results/fore128-s{0..3}/
